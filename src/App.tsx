@@ -11,6 +11,11 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Clients from "./pages/Clients";
+import Invoices from "./pages/Invoices";
+import NewInvoice from "./pages/NewInvoice";
+import InvoiceDetail from "./pages/InvoiceDetail";
+import KPOBook from "./pages/KPOBook";
+import Reminders from "./pages/Reminders";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
@@ -52,10 +57,11 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/invoices" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/invoices/new" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/kpo" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/reminders" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+      <Route path="/invoices/new" element={<ProtectedRoute><NewInvoice /></ProtectedRoute>} />
+      <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
+      <Route path="/kpo" element={<ProtectedRoute><KPOBook /></ProtectedRoute>} />
+      <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
