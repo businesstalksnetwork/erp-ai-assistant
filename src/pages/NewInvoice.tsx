@@ -4,7 +4,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,14 +17,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Loader2, Save } from 'lucide-react';
+import { Building2, Loader2, Save, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { toast } from 'sonner';
+
+interface InvoiceItem {
+  id: string;
+  description: string;
+  item_type: 'products' | 'services';
+  quantity: number;
+  unit_price: number;
+}
 
 const invoiceSchema = z.object({
   client_name: z.string().min(2, 'Naziv klijenta je obavezan'),
-  description: z.string().min(2, 'Opis je obavezan'),
-  quantity: z.number().min(0.01, 'Količina mora biti veća od 0'),
-  unit_price: z.number().min(0.01, 'Cena mora biti veća od 0'),
+  items: z.array(z.object({
+    description: z.string().min(2, 'Opis je obavezan'),
+    quantity: z.number().min(0.01, 'Količina mora biti veća od 0'),
+    unit_price: z.number().min(0.01, 'Cena mora biti veća od 0'),
+  })).min(1, 'Dodajte bar jednu stavku'),
 });
 
 const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
@@ -32,12 +43,16 @@ const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
 export default function NewInvoice() {
   const navigate = useNavigate();
   const { selectedCompany } = useSelectedCompany();
-  const { invoices, createInvoice } = useInvoices(selectedCompany?.id || null);
+  const { createInvoice } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
+
+  const [items, setItems] = useState<InvoiceItem[]>([
+    { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0 }
+  ]);
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -48,10 +63,6 @@ export default function NewInvoice() {
     client_address: '',
     client_pib: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
-    description: '',
-    quantity: 1,
-    unit_price: 0,
-    item_type: 'services' as 'products' | 'services',
     foreign_currency: '',
     foreign_amount: 0,
     exchange_rate: 0,
@@ -128,14 +139,17 @@ export default function NewInvoice() {
     fetchExchangeRate();
   }, [formData.foreign_currency, formData.issue_date, formData.client_type]);
 
-  // Auto-calculate unit_price from foreign_amount * exchange_rate
+  // Auto-calculate unit_price from foreign_amount * exchange_rate for foreign clients
   useEffect(() => {
     if (formData.client_type === 'foreign' && formData.foreign_amount > 0 && formData.exchange_rate > 0) {
       const calculatedPrice = formData.foreign_amount * formData.exchange_rate;
-      setFormData((prev) => ({
-        ...prev,
-        unit_price: Math.round(calculatedPrice * 100) / 100,
-      }));
+      // Update first item's unit_price if there's only one item
+      if (items.length === 1) {
+        setItems(prev => [{
+          ...prev[0],
+          unit_price: Math.round(calculatedPrice * 100) / 100,
+        }]);
+      }
     }
   }, [formData.foreign_amount, formData.exchange_rate, formData.client_type]);
 
@@ -166,7 +180,34 @@ export default function NewInvoice() {
     }
   };
 
-  const totalAmount = formData.quantity * formData.unit_price;
+  // Item management
+  const addItem = () => {
+    setItems(prev => [...prev, {
+      id: crypto.randomUUID(),
+      description: '',
+      item_type: 'services',
+      quantity: 1,
+      unit_price: 0,
+    }]);
+  };
+
+  const removeItem = (id: string) => {
+    if (items.length > 1) {
+      setItems(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
+  // Calculate totals
+  const itemTotals = items.map(item => item.quantity * item.unit_price);
+  const totalAmount = itemTotals.reduce((sum, t) => sum + t, 0);
+  const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+  const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,16 +216,18 @@ export default function NewInvoice() {
 
     const result = invoiceSchema.safeParse({
       client_name: formData.client_name,
-      description: formData.description,
-      quantity: formData.quantity,
-      unit_price: formData.unit_price,
+      items: items.map(i => ({
+        description: i.description,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+      })),
     });
 
     if (!result.success) {
       const newErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
         if (err.path[0]) {
-          newErrors[err.path[0] as string] = err.message;
+          newErrors[err.path.join('.')] = err.message;
         }
       });
       setErrors(newErrors);
@@ -198,7 +241,6 @@ export default function NewInvoice() {
       // If new client (no client_id), save to clients table first
       let clientId = formData.client_id || null;
       if (!formData.client_id && formData.client_name.trim()) {
-        // Check if client with same name already exists
         const existingClient = clients.find(
           c => c.name.toLowerCase() === formData.client_name.trim().toLowerCase()
         );
@@ -223,35 +265,64 @@ export default function NewInvoice() {
           clientId = existingClient.id;
         }
       }
+
+      // Determine main item type (for backwards compatibility)
+      const mainItemType = servicesTotal >= productsTotal ? 'services' : 'products';
       
-      await createInvoice.mutateAsync({
-        company_id: selectedCompany!.id,
-        invoice_number: formData.invoice_number,
-        issue_date: formData.issue_date,
-        service_date: formData.service_date || null,
-        client_id: clientId,
-        client_name: formData.client_name,
-        client_address: formData.client_address || null,
-        client_pib: formData.client_pib || null,
-        client_type: formData.client_type,
-        description: formData.description,
-        quantity: formData.quantity,
-        unit_price: formData.unit_price,
-        total_amount: totalAmount,
-        item_type: formData.item_type,
-        foreign_currency: formData.client_type === 'foreign' ? formData.foreign_currency || null : null,
-        foreign_amount: formData.client_type === 'foreign' ? formData.foreign_amount || null : null,
-        exchange_rate: formData.client_type === 'foreign' ? formData.exchange_rate || null : null,
-        payment_deadline: formData.payment_deadline || null,
-        payment_method: formData.payment_method || null,
-        note: formData.note || null,
-        is_proforma: formData.is_proforma,
-        converted_from_proforma: null,
-        year: invoiceYear,
-      });
+      // Create invoice
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          company_id: selectedCompany!.id,
+          invoice_number: formData.invoice_number,
+          issue_date: formData.issue_date,
+          service_date: formData.service_date || null,
+          client_id: clientId,
+          client_name: formData.client_name,
+          client_address: formData.client_address || null,
+          client_pib: formData.client_pib || null,
+          client_type: formData.client_type,
+          description: items.map(i => i.description).join('; '),
+          quantity: 1,
+          unit_price: totalAmount,
+          total_amount: totalAmount,
+          item_type: mainItemType,
+          foreign_currency: formData.client_type === 'foreign' ? formData.foreign_currency || null : null,
+          foreign_amount: formData.client_type === 'foreign' ? formData.foreign_amount || null : null,
+          exchange_rate: formData.client_type === 'foreign' ? formData.exchange_rate || null : null,
+          payment_deadline: formData.payment_deadline || null,
+          payment_method: formData.payment_method || null,
+          note: formData.note || null,
+          is_proforma: formData.is_proforma,
+          converted_from_proforma: null,
+          year: invoiceYear,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Insert invoice items
+      const itemsToInsert = items.map(item => ({
+        invoice_id: invoice.id,
+        description: item.description,
+        item_type: item.item_type,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_amount: item.quantity * item.unit_price,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast.success(formData.is_proforma ? 'Predračun uspešno kreiran' : 'Faktura uspešno kreirana');
       navigate('/invoices');
     } catch (error) {
       console.error('Error creating invoice:', error);
+      toast.error('Greška pri kreiranju fakture');
     }
 
     setLoading(false);
@@ -413,71 +484,110 @@ export default function NewInvoice() {
           </CardContent>
         </Card>
 
-        {/* Item Details */}
+        {/* Items */}
         <Card>
           <CardHeader>
-            <CardTitle>Stavka</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Stavke</CardTitle>
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                <Plus className="h-4 w-4 mr-1" />
+                Dodaj stavku
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="item_type">Tip stavke</Label>
-              <Select
-                value={formData.item_type}
-                onValueChange={(v: 'products' | 'services') => setFormData({ ...formData, item_type: v })}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="services">Usluge</SelectItem>
-                  <SelectItem value="products">Proizvodi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {items.map((item, index) => (
+              <div key={item.id} className="p-4 border rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm text-muted-foreground">Stavka {index + 1}</span>
+                  {items.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => removeItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Opis dobara ili usluga *</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Opis pružene usluge ili isporučenih dobara"
-                rows={3}
-              />
-              {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tip</Label>
+                    <Select
+                      value={item.item_type}
+                      onValueChange={(v: 'products' | 'services') => updateItem(item.id, 'item_type', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="services">Usluge</SelectItem>
+                        <SelectItem value="products">Proizvodi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Količina</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={item.quantity || ''}
+                      onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cena (RSD)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.unit_price || ''}
+                      onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Ukupno</Label>
+                    <div className="h-10 px-3 py-2 rounded-md border bg-muted font-medium">
+                      {new Intl.NumberFormat('sr-RS').format(item.quantity * item.unit_price)} RSD
+                    </div>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Količina</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formData.quantity || ''}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
-                  placeholder="1"
-                />
-                {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
+                <div className="space-y-2">
+                  <Label>Opis *</Label>
+                  <Textarea
+                    value={item.description}
+                    onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                    placeholder="Opis pružene usluge ili isporučenih dobara"
+                    rows={2}
+                  />
+                  {errors[`items.${index}.description`] && (
+                    <p className="text-sm text-destructive">{errors[`items.${index}.description`]}</p>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit_price">Jedinična cena (RSD)</Label>
-                <Input
-                  id="unit_price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.unit_price || ''}
-                  onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                />
-                {errors.unit_price && <p className="text-sm text-destructive">{errors.unit_price}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Ukupno (RSD)</Label>
-                <div className="h-10 px-3 py-2 bg-secondary rounded-md font-semibold">
-                  {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
+            ))}
+
+            {/* Totals */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex flex-col gap-2 items-end">
+                {productsTotal > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Proizvodi: {new Intl.NumberFormat('sr-RS').format(productsTotal)} RSD
+                  </div>
+                )}
+                {servicesTotal > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Usluge: {new Intl.NumberFormat('sr-RS').format(servicesTotal)} RSD
+                  </div>
+                )}
+                <div className="text-xl font-bold">
+                  Ukupno: {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
                 </div>
               </div>
             </div>
