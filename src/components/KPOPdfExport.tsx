@@ -125,23 +125,23 @@ export function KPOPdfExport({ entries, totals, year, companyName, companyPib, c
       </head>
       <body>
         <div class="header">
-          <h1>КЊИГА О ОСТВАРЕНОМ ПРОМЕТУ ПАУШАЛНОГ ОБВЕЗНИКА</h1>
-          <h2>КПО - ${year}. година</h2>
+          <h1>KNJIGA O OSTVARENOM PROMETU PAUŠALNOG OBVEZNIKA</h1>
+          <h2>KPO - ${year}. godina</h2>
           <div class="company-info">
             <strong>${companyName}</strong><br>
             ${companyAddress}<br>
-            ПИБ: ${companyPib}
+            PIB: ${companyPib}
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th class="number">Р.бр.</th>
-              <th class="description">Опис добара, односно услуга</th>
-              <th class="amount">Производи (РСД)</th>
-              <th class="amount">Услуге (РСД)</th>
-              <th class="amount">Укупно (РСД)</th>
+              <th class="number">R.br.</th>
+              <th class="description">Opis dobara, odnosno usluga</th>
+              <th class="amount">Proizvodi (RSD)</th>
+              <th class="amount">Usluge (RSD)</th>
+              <th class="amount">Ukupno (RSD)</th>
             </tr>
           </thead>
           <tbody>
@@ -155,7 +155,7 @@ export function KPOPdfExport({ entries, totals, year, companyName, companyPib, c
               </tr>
             `).join('')}
             <tr class="total-row">
-              <td colspan="2" style="text-align: right;">УКУПНО:</td>
+              <td colspan="2" style="text-align: right;">UKUPNO:</td>
               <td class="amount">${formatCurrency(totals.products)}</td>
               <td class="amount">${formatCurrency(totals.services)}</td>
               <td class="amount">${formatCurrency(totals.total)}</td>
@@ -165,15 +165,15 @@ export function KPOPdfExport({ entries, totals, year, companyName, companyPib, c
 
         <div class="signature-section">
           <div class="signature-box">
-            <div class="signature-line">М.П.</div>
+            <div class="signature-line">M.P.</div>
           </div>
           <div class="signature-box">
-            <div class="signature-line">Потпис одговорног лица</div>
+            <div class="signature-line">Potpis odgovornog lica</div>
           </div>
         </div>
 
         <div class="print-date">
-          Датум штампања: ${new Date().toLocaleDateString('sr-RS')}
+          Datum štampanja: ${new Date().toLocaleDateString('sr-Latn-RS')}
         </div>
 
         <script>
