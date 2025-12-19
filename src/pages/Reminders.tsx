@@ -53,30 +53,42 @@ function generateIPSQRCode(
   receiverAccount: string,
   amount: number,
   paymentPurpose: string,
+  payerName: string,
+  payerAddress?: string | null,
   paymentCode: string = '289',
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
-  // Format account - remove dashes to get 18-digit format
-  const formattedAccount = receiverAccount.replace(/-/g, '');
-  
-  // Format amount - NBS IPS uses format like "RSD22000,00" with comma as decimal separator
+  // Receiver account: digits only (expected 18 digits)
+  const formattedAccount = receiverAccount.replace(/\D/g, '');
+
+  // Amount: NBS IPS uses format like "RSD3596,13" (comma decimal separator)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
-  
-  // Build QR code data according to NBS IPS specification
-  const qrData = [
+
+  const n = receiverName.trim().substring(0, 70);
+  const p = [payerName?.trim(), payerAddress?.trim()].filter(Boolean).join('\r\n');
+
+  const purpose = paymentPurpose.trim().substring(0, 35);
+  const sf = paymentCode.trim().padStart(3, '0').substring(0, 3);
+
+  // RO is optional, but if present must include model + reference (avoid invalid "RO:97")
+  const ref = paymentReference.trim();
+  const ro = ref ? `${paymentModel.trim()}${ref}` : null;
+
+  const parts = [
     'K:PR',
     'V:01',
     'C:1',
     `R:${formattedAccount}`,
-    `N:${receiverName.substring(0, 70)}`,
+    `N:${n}`,
     `I:RSD${formattedAmount}`,
-    `SF:${paymentCode.padStart(3, '0')}`,
-    `S:${paymentPurpose.substring(0, 35)}`,
-    `RO:${paymentModel}${paymentReference}`,
-  ].join('|');
-  
-  return qrData;
+    `P:${p}`,
+    `SF:${sf}`,
+    `S:${purpose}`,
+    ...(ro ? [`RO:${ro}`] : []),
+  ];
+
+  return parts.join('|');
 }
 
 export default function Reminders() {
@@ -546,7 +558,7 @@ export default function Reminders() {
                         </div>
                       )}
                       <div className="flex gap-1">
-                        {reminder.amount && reminder.recipient_account && (
+                        {reminder.amount && reminder.recipient_account && reminder.recipient_name && (
                           <Button size="icon" variant="ghost" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
                             <QrCode className="h-4 w-4" />
                           </Button>
@@ -614,23 +626,25 @@ export default function Reminders() {
               Skenirajte QR kod mobilnom bankarskom aplikacijom
             </DialogDescription>
           </DialogHeader>
-          {selectedReminder && selectedReminder.recipient_account && selectedReminder.amount && (
-            <div className="flex flex-col items-center space-y-4 py-4">
-              <div className="bg-white p-4 rounded-lg">
-                <QRCodeSVG
-                  value={generateIPSQRCode(
-                    selectedReminder.recipient_name || '',
-                    selectedReminder.recipient_account,
-                    selectedReminder.amount,
-                    selectedReminder.title,
-                    selectedReminder.payment_code || '289',
-                    selectedReminder.payment_model || '97',
-                    selectedReminder.payment_reference || ''
-                  )}
-                  size={200}
-                  level="M"
-                />
-              </div>
+           {selectedReminder && selectedReminder.recipient_account && selectedReminder.recipient_name && selectedReminder.amount && (
+             <div className="flex flex-col items-center space-y-4 py-4">
+               <div className="bg-white p-4 rounded-lg">
+                 <QRCodeSVG
+                   value={generateIPSQRCode(
+                     selectedReminder.recipient_name,
+                     selectedReminder.recipient_account,
+                     selectedReminder.amount,
+                     selectedReminder.title,
+                     selectedCompany.name,
+                     selectedCompany.address,
+                     selectedReminder.payment_code || '289',
+                     selectedReminder.payment_model || '97',
+                     selectedReminder.payment_reference || ''
+                   )}
+                   size={200}
+                   level="M"
+                 />
+               </div>
               <div className="text-center space-y-1">
                 <p className="font-medium">{selectedReminder.title}</p>
                 <p className="text-2xl font-bold text-primary">
