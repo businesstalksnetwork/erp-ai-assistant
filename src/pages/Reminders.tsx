@@ -48,6 +48,7 @@ function formatCurrency(amount: number): string {
 }
 
 // Generate IPS QR code string for Serbian payments (NBS standard)
+// Format: https://ips.nbs.rs/PDF/Tehnicki_standard_IPS_QR_koda.pdf
 function generateIPSQRCode(
   receiverName: string,
   receiverAccount: string,
@@ -59,34 +60,47 @@ function generateIPSQRCode(
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
-  // Receiver account: digits only (expected 18 digits)
-  const formattedAccount = receiverAccount.replace(/\D/g, '');
+  // Receiver account: digits only (must be 18 digits - pad with zeros if needed)
+  let formattedAccount = receiverAccount.replace(/\D/g, '');
+  // Serbian accounts are 18 digits; pad if necessary
+  formattedAccount = formattedAccount.padStart(18, '0').substring(0, 18);
 
-  // Amount: NBS IPS uses format like "RSD3596,13" (comma decimal separator)
+  // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator, no spaces)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
 
+  // Receiver name (max 70 chars)
   const n = receiverName.trim().substring(0, 70);
-  const p = [payerName?.trim(), payerAddress?.trim()].filter(Boolean).join('\r\n');
+  
+  // Payer info - join name and address with newline
+  const p = [payerName?.trim(), payerAddress?.trim()].filter(Boolean).join('\n');
 
+  // Payment purpose (max 35 chars)
   const purpose = paymentPurpose.trim().substring(0, 35);
+  
+  // Payment code (šifra plaćanja) - must be 3 digits
   const sf = paymentCode.trim().padStart(3, '0').substring(0, 3);
 
-  // RO is optional, but if present must include model + reference (avoid invalid "RO:97")
+  // Reference (poziv na broj) - model + reference number, no separator
   const ref = paymentReference.trim();
-  const ro = ref ? `${paymentModel.trim()}${ref}` : null;
-
+  const model = paymentModel.trim();
+  
+  // Build IPS QR code string with | as separator (per NBS standard)
   const parts = [
-    'K:PR',
-    'V:01',
-    'C:1',
-    `R:${formattedAccount}`,
-    `N:${n}`,
-    `I:RSD${formattedAmount}`,
-    `P:${p}`,
-    `SF:${sf}`,
-    `S:${purpose}`,
-    ...(ro ? [`RO:${ro}`] : []),
+    'K:PR',           // Identifier: PR = payment request
+    'V:01',           // Version: 01
+    'C:1',            // Character set: 1 = UTF-8
+    `R:${formattedAccount}`,  // Receiver account (18 digits)
+    `N:${n}`,         // Receiver name
+    `I:RSD${formattedAmount}`, // Amount with currency
+    `P:${p}`,         // Payer info
+    `SF:${sf}`,       // Payment code
+    `S:${purpose}`,   // Purpose
   ];
+  
+  // Add reference only if both model and reference are provided
+  if (model && ref) {
+    parts.push(`RO:${model}${ref}`);
+  }
 
   return parts.join('|');
 }
