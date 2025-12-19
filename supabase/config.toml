@@ -2,3 +2,6 @@ project_id = "kskpmgohvrljbdphyzkw"
 
 [functions.nbs-exchange-rate]
 verify_jwt = true
+
+[functions.apr-lookup]
+verify_jwt = false
