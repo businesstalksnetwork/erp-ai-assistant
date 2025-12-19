@@ -1,11 +1,22 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
+
+interface InvoiceItem {
+  id: string;
+  description: string;
+  item_type: 'products' | 'services';
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+}
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -20,8 +31,31 @@ export default function InvoiceDetail() {
   const navigate = useNavigate();
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
 
   const invoice = invoices.find((i) => i.id === id);
+
+  // Fetch invoice items
+  useEffect(() => {
+    const fetchItems = async () => {
+      if (!id) return;
+      
+      setLoadingItems(true);
+      const { data, error } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', id)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        setItems(data as InvoiceItem[]);
+      }
+      setLoadingItems(false);
+    };
+
+    fetchItems();
+  }, [id]);
 
   if (!selectedCompany) {
     return (
@@ -32,7 +66,7 @@ export default function InvoiceDetail() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || loadingItems) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -54,6 +88,16 @@ export default function InvoiceDetail() {
   const handlePrint = () => {
     window.print();
   };
+
+  // Use items from invoice_items table if available, otherwise fallback to old invoice data
+  const displayItems = items.length > 0 ? items : [{
+    id: invoice.id,
+    description: invoice.description,
+    item_type: invoice.item_type as 'products' | 'services',
+    quantity: invoice.quantity,
+    unit_price: invoice.unit_price,
+    total_amount: invoice.total_amount,
+  }];
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
@@ -137,23 +181,26 @@ export default function InvoiceDetail() {
                 <thead className="bg-secondary">
                   <tr>
                     <th className="text-left p-3 text-sm font-medium">Opis</th>
+                    <th className="text-center p-3 text-sm font-medium w-20">Tip</th>
                     <th className="text-right p-3 text-sm font-medium w-24">Količina</th>
                     <th className="text-right p-3 text-sm font-medium w-32">Cena</th>
                     <th className="text-right p-3 text-sm font-medium w-36">Ukupno</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="p-3">
-                      <p>{invoice.description}</p>
-                      <Badge variant="outline" className="mt-1">
-                        {invoice.item_type === 'services' ? 'Usluga' : 'Proizvod'}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-right font-mono">{invoice.quantity}</td>
-                    <td className="p-3 text-right font-mono">{formatCurrency(invoice.unit_price)}</td>
-                    <td className="p-3 text-right font-mono font-semibold">{formatCurrency(invoice.total_amount)}</td>
-                  </tr>
+                  {displayItems.map((item, index) => (
+                    <tr key={item.id} className={index % 2 === 1 ? 'bg-muted/50' : ''}>
+                      <td className="p-3">{item.description}</td>
+                      <td className="p-3 text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {item.item_type === 'services' ? 'Usluga' : 'Proizvod'}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-right font-mono">{item.quantity}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(item.unit_price)}</td>
+                      <td className="p-3 text-right font-mono font-semibold">{formatCurrency(item.total_amount)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
