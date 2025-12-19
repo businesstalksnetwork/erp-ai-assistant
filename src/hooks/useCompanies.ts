@@ -14,6 +14,9 @@ export interface Company {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // For client companies
+  is_client_company?: boolean;
+  client_name?: string;
 }
 
 export function useCompanies() {
@@ -21,7 +24,8 @@ export function useCompanies() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: companies = [], isLoading } = useQuery({
+  // Fetch my own companies
+  const { data: myCompanies = [], isLoading: loadingMy } = useQuery({
     queryKey: ['companies', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -36,8 +40,62 @@ export function useCompanies() {
     enabled: !!user,
   });
 
+  // Fetch client companies (as bookkeeper)
+  const { data: clientCompanies = [], isLoading: loadingClients } = useQuery({
+    queryKey: ['client-companies', user?.id],
+    queryFn: async () => {
+      // First get my email from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user!.id)
+        .single();
+
+      if (!profile?.email) return [];
+
+      // Get accepted client relationships
+      const { data: clientRelations, error: relError } = await supabase
+        .from('bookkeeper_clients')
+        .select('client_id')
+        .eq('bookkeeper_email', profile.email)
+        .eq('status', 'accepted');
+
+      if (relError || !clientRelations?.length) return [];
+
+      const clientIds = clientRelations.map(r => r.client_id);
+
+      // Get client profiles for names
+      const { data: clientProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', clientIds);
+
+      // Get companies for all clients
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('*')
+        .in('user_id', clientIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Mark these as client companies and add client name
+      return (companies || []).map(company => ({
+        ...company,
+        is_client_company: true,
+        client_name: clientProfiles?.find(p => p.id === company.user_id)?.full_name || 
+                    clientProfiles?.find(p => p.id === company.user_id)?.email || 
+                    'Klijent',
+      })) as Company[];
+    },
+    enabled: !!user,
+  });
+
+  // Combine all companies
+  const companies = [...myCompanies, ...clientCompanies];
+
   const createCompany = useMutation({
-    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_client_company' | 'client_name'>) => {
       const { data, error } = await supabase
         .from('companies')
         .insert({
@@ -96,7 +154,9 @@ export function useCompanies() {
 
   return {
     companies,
-    isLoading,
+    myCompanies,
+    clientCompanies,
+    isLoading: loadingMy || loadingClients,
     createCompany,
     updateCompany,
     deleteCompany,
