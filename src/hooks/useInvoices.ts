@@ -111,7 +111,7 @@ export function useInvoices(companyId: string | null) {
   });
 
   const convertProformaToInvoice = useMutation({
-    mutationFn: async (proformaId: string) => {
+    mutationFn: async ({ proformaId, serviceDate }: { proformaId: string; serviceDate: string }) => {
       const proforma = invoices.find(i => i.id === proformaId);
       if (!proforma) throw new Error('Predračun nije pronađen');
 
@@ -144,6 +144,7 @@ export function useInvoices(companyId: string | null) {
           is_proforma: false,
           converted_from_proforma: proformaId,
           issue_date: new Date().toISOString().split('T')[0],
+          service_date: serviceDate,
           year: currentYear,
         })
         .select()

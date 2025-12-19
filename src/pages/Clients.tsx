@@ -44,6 +44,7 @@ export default function Clients() {
     name: '',
     address: '',
     pib: '',
+    maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
   });
 
@@ -52,6 +53,7 @@ export default function Clients() {
       name: '',
       address: '',
       pib: '',
+      maticni_broj: '',
       client_type: 'domestic',
     });
     setEditId(null);
@@ -67,6 +69,7 @@ export default function Clients() {
       name: client.name,
       address: client.address || '',
       pib: client.pib || '',
+      maticni_broj: client.maticni_broj || '',
       client_type: client.client_type,
     });
     setEditId(client.id);
@@ -167,16 +170,28 @@ export default function Clients() {
                   />
                 </div>
                 {formData.client_type === 'domestic' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="pib">PIB</Label>
-                    <Input
-                      id="pib"
-                      value={formData.pib}
-                      onChange={(e) => setFormData({ ...formData, pib: e.target.value })}
-                      placeholder="123456789"
-                      maxLength={9}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="pib">PIB</Label>
+                      <Input
+                        id="pib"
+                        value={formData.pib}
+                        onChange={(e) => setFormData({ ...formData, pib: e.target.value })}
+                        placeholder="123456789"
+                        maxLength={9}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="maticni_broj">Matični broj</Label>
+                      <Input
+                        id="maticni_broj"
+                        value={formData.maticni_broj}
+                        onChange={(e) => setFormData({ ...formData, maticni_broj: e.target.value })}
+                        placeholder="12345678"
+                        maxLength={8}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
               <DialogFooter>
@@ -228,12 +243,20 @@ export default function Clients() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  {client.pib && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">PIB</p>
-                      <p className="font-mono text-sm">{client.pib}</p>
-                    </div>
-                  )}
+                  <div className="flex gap-4">
+                    {client.pib && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">PIB</p>
+                        <p className="font-mono text-sm">{client.pib}</p>
+                      </div>
+                    )}
+                    {client.maticni_broj && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">MB</p>
+                        <p className="font-mono text-sm">{client.maticni_broj}</p>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2 ml-auto">
                     <Button size="icon" variant="ghost" onClick={() => handleEdit(client)}>
                       <Pencil className="h-4 w-4" />
