@@ -202,12 +202,42 @@ export default function NewInvoice() {
 
     try {
       const invoiceYear = getInvoiceYear();
+      
+      // If new client (no client_id), save to clients table first
+      let clientId = formData.client_id || null;
+      if (!formData.client_id && formData.client_name.trim()) {
+        // Check if client with same name already exists
+        const existingClient = clients.find(
+          c => c.name.toLowerCase() === formData.client_name.trim().toLowerCase()
+        );
+        
+        if (!existingClient) {
+          const { data: newClient, error: clientError } = await supabase
+            .from('clients')
+            .insert({
+              company_id: selectedCompany!.id,
+              name: formData.client_name.trim(),
+              address: formData.client_address || null,
+              pib: formData.client_pib || null,
+              client_type: formData.client_type,
+            })
+            .select()
+            .single();
+          
+          if (!clientError && newClient) {
+            clientId = newClient.id;
+          }
+        } else {
+          clientId = existingClient.id;
+        }
+      }
+      
       await createInvoice.mutateAsync({
         company_id: selectedCompany!.id,
         invoice_number: formData.invoice_number,
         issue_date: formData.issue_date,
         service_date: formData.service_date || null,
-        client_id: formData.client_id || null,
+        client_id: clientId,
         client_name: formData.client_name,
         client_address: formData.client_address || null,
         client_pib: formData.client_pib || null,
@@ -433,8 +463,9 @@ export default function NewInvoice() {
                   type="number"
                   step="0.01"
                   min="0.01"
-                  value={formData.quantity}
+                  value={formData.quantity || ''}
                   onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                  placeholder="1"
                 />
                 {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
               </div>
@@ -445,8 +476,9 @@ export default function NewInvoice() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.unit_price}
+                  value={formData.unit_price || ''}
                   onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
                 />
                 {errors.unit_price && <p className="text-sm text-destructive">{errors.unit_price}</p>}
               </div>

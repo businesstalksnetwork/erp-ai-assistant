@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { BookOpen, Building2, Loader2 } from 'lucide-react';
+import { KPOPdfExport } from '@/components/KPOPdfExport';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -55,18 +56,28 @@ export default function KPOBook() {
             Knjiga o ostvarenom prometu za {selectedCompany.name}
           </p>
         </div>
-        <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((y) => (
-              <SelectItem key={y} value={y.toString()}>
-                {y}. godina
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <KPOPdfExport
+            entries={entries}
+            totals={totals}
+            year={year}
+            companyName={selectedCompany.name}
+            companyPib={selectedCompany.pib}
+            companyAddress={selectedCompany.address}
+          />
+          <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y.toString()}>
+                  {y}. godina
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card>
