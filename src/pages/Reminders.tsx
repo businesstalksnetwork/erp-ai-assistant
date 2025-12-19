@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
-import { useReminders } from '@/hooks/useReminders';
+import { useReminders, Reminder } from '@/hooks/useReminders';
+import { useCompanies } from '@/hooks/useCompanies';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +29,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, Check } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -37,19 +47,67 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Generate IPS QR code string for Serbian payments
+function generateIPSQRCode(
+  receiverName: string,
+  receiverAccount: string,
+  amount: number,
+  paymentPurpose: string,
+  paymentCode: string = '289'
+): string {
+  // IPS QR code format for Serbia (NBS standard)
+  // K: Payment type indicator
+  // V: Version
+  // C: Character set (1 = UTF-8)
+  // R: Receiver account
+  // N: Receiver name
+  // I: Currency (RSD)
+  // A: Amount (in smallest unit, para)
+  // S: Payment purpose
+  // P: Payment code
+  
+  const formattedAccount = receiverAccount.replace(/-/g, '');
+  const amountInPara = Math.round(amount * 100).toString().padStart(15, '0');
+  
+  const qrData = [
+    'K:PR',
+    'V:01',
+    'C:1',
+    `R:${formattedAccount}`,
+    `N:${receiverName.substring(0, 70)}`,
+    'I:RSD',
+    `A:${amountInPara}`,
+    `S:${paymentPurpose.substring(0, 35)}`,
+    `P:${paymentCode}`,
+  ].join('|');
+  
+  return qrData;
+}
+
 export default function Reminders() {
   const { selectedCompany } = useSelectedCompany();
-  const { reminders, isLoading, createReminder, updateReminder, deleteReminder, toggleComplete } = useReminders(selectedCompany?.id || null);
+  const { companies } = useCompanies();
+  const { reminders, isLoading, createReminder, updateReminder, deleteReminder, toggleComplete, uploadAttachment, getSignedUrl } = useReminders(selectedCompany?.id || null);
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     amount: '',
     due_date: '',
     reminder_date: '',
+    recurrence_type: 'none' as 'none' | 'monthly',
+    recurrence_day: '',
+    attachment_url: '',
   });
+
+  const currentCompany = companies.find(c => c.id === selectedCompany?.id);
 
   const resetForm = () => {
     setFormData({
@@ -58,6 +116,9 @@ export default function Reminders() {
       amount: '',
       due_date: '',
       reminder_date: '',
+      recurrence_type: 'none',
+      recurrence_day: '',
+      attachment_url: '',
     });
     setEditId(null);
   };
@@ -67,16 +128,38 @@ export default function Reminders() {
     if (!open) resetForm();
   };
 
-  const handleEdit = (reminder: typeof reminders[0]) => {
+  const handleEdit = (reminder: Reminder) => {
     setFormData({
       title: reminder.title,
       description: reminder.description || '',
       amount: reminder.amount?.toString() || '',
       due_date: reminder.due_date,
       reminder_date: reminder.reminder_date || '',
+      recurrence_type: reminder.recurrence_type || 'none',
+      recurrence_day: reminder.recurrence_day?.toString() || '',
+      attachment_url: reminder.attachment_url || '',
     });
     setEditId(reminder.id);
     setIsOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedCompany) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Samo PDF fajlovi su dozvoljeni');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadAttachment(selectedCompany.id, file);
+      setFormData(prev => ({ ...prev, attachment_url: url }));
+    } catch (error) {
+      console.error('Upload error:', error);
+    }
+    setUploading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,6 +174,11 @@ export default function Reminders() {
       reminder_date: formData.reminder_date || null,
       company_id: selectedCompany.id,
       is_completed: false,
+      recurrence_type: formData.recurrence_type,
+      recurrence_day: formData.recurrence_type === 'monthly' && formData.recurrence_day 
+        ? parseInt(formData.recurrence_day) 
+        : null,
+      attachment_url: formData.attachment_url || null,
     };
 
     if (editId) {
@@ -110,6 +198,19 @@ export default function Reminders() {
 
   const handleToggle = async (id: string, currentState: boolean) => {
     await toggleComplete.mutateAsync({ id, is_completed: !currentState });
+  };
+
+  const handleShowQR = (reminder: Reminder) => {
+    setSelectedReminder(reminder);
+    setQrDialogOpen(true);
+  };
+
+  const handleViewAttachment = async (reminder: Reminder) => {
+    if (!reminder.attachment_url) return;
+    const signedUrl = await getSignedUrl(reminder.attachment_url);
+    if (signedUrl) {
+      window.open(signedUrl, '_blank');
+    }
   };
 
   const activeReminders = reminders.filter(r => !r.is_completed);
@@ -143,7 +244,7 @@ export default function Reminders() {
               Novi podsetnik
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>{editId ? 'Izmeni podsetnik' : 'Novi podsetnik'}</DialogTitle>
@@ -151,7 +252,7 @@ export default function Reminders() {
                   Unesite podatke o obavezi plaćanja
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
                 <div className="space-y-2">
                   <Label htmlFor="title">Naziv obaveze *</Label>
                   <Input
@@ -205,6 +306,87 @@ export default function Reminders() {
                   <p className="text-xs text-muted-foreground">
                     Datum kada želite da vas podseti (pre roka plaćanja)
                   </p>
+                </div>
+
+                {/* Recurrence */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Ponavljajuća obaveza</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatski kreira sledeći podsetnik nakon završetka
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.recurrence_type === 'monthly'}
+                      onCheckedChange={(checked) => setFormData({ 
+                        ...formData, 
+                        recurrence_type: checked ? 'monthly' : 'none',
+                        recurrence_day: checked ? new Date(formData.due_date || Date.now()).getDate().toString() : ''
+                      })}
+                    />
+                  </div>
+                  {formData.recurrence_type === 'monthly' && (
+                    <div className="mt-3 space-y-2">
+                      <Label htmlFor="recurrence_day">Dan u mesecu</Label>
+                      <Select
+                        value={formData.recurrence_day}
+                        onValueChange={(v) => setFormData({ ...formData, recurrence_day: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Izaberi dan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                            <SelectItem key={day} value={day.toString()}>
+                              {day}. u mesecu
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                {/* PDF Attachment */}
+                <div className="border-t pt-4 space-y-2">
+                  <Label>Prilog (PDF)</Label>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  {formData.attachment_url ? (
+                    <div className="flex items-center gap-2 p-2 bg-secondary rounded">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">PDF priložen</span>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, attachment_url: '' })}
+                      >
+                        Ukloni
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full"
+                    >
+                      {uploading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="mr-2 h-4 w-4" />
+                      )}
+                      {uploading ? 'Učitavanje...' : 'Dodaj PDF'}
+                    </Button>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -262,10 +444,22 @@ export default function Reminders() {
                         onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium">{reminder.title}</p>
                           {isOverdue(reminder.due_date) && (
                             <Badge variant="destructive">Istekao rok</Badge>
+                          )}
+                          {reminder.recurrence_type === 'monthly' && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Repeat className="h-3 w-3" />
+                              Mesečno
+                            </Badge>
+                          )}
+                          {reminder.attachment_url && (
+                            <Badge variant="outline" className="gap-1">
+                              <FileText className="h-3 w-3" />
+                              PDF
+                            </Badge>
                           )}
                         </div>
                         {reminder.description && (
@@ -282,6 +476,16 @@ export default function Reminders() {
                         </div>
                       )}
                       <div className="flex gap-1">
+                        {reminder.amount && currentCompany?.bank_account && (
+                          <Button size="icon" variant="ghost" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {reminder.attachment_url && (
+                          <Button size="icon" variant="ghost" onClick={() => handleViewAttachment(reminder)} title="Prikaži PDF">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(reminder)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -330,6 +534,48 @@ export default function Reminders() {
           )}
         </div>
       )}
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>IPS QR kod za plaćanje</DialogTitle>
+            <DialogDescription>
+              Skenirajte QR kod mobilnom bankarskom aplikacijom
+            </DialogDescription>
+          </DialogHeader>
+          {selectedReminder && currentCompany?.bank_account && selectedReminder.amount && (
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <div className="bg-white p-4 rounded-lg">
+                <QRCodeSVG
+                  value={generateIPSQRCode(
+                    currentCompany.name,
+                    currentCompany.bank_account,
+                    selectedReminder.amount,
+                    selectedReminder.title
+                  )}
+                  size={200}
+                  level="M"
+                />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="font-medium">{selectedReminder.title}</p>
+                <p className="text-2xl font-bold text-primary">
+                  {formatCurrency(selectedReminder.amount)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Račun: {currentCompany.bank_account}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
+              Zatvori
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
