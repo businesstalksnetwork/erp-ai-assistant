@@ -21,6 +21,22 @@ serve(async (req) => {
       );
     }
 
+    // Validate currency (ISO 4217: 3 uppercase letters)
+    if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid currency format. Use 3-letter ISO code (e.g., EUR, USD)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid date format. Use YYYY-MM-DD' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`Fetching NBS rate for ${currency} on ${date}`);
 
     // Format date for NBS API (DD.MM.YYYY)
