@@ -61,14 +61,22 @@ export default function NewInvoice() {
     is_proforma: false,
   });
 
-  // Generate invoice number from database
+  // Determine invoice year from service_date or issue_date
+  const getInvoiceYear = () => {
+    if (formData.service_date) {
+      return new Date(formData.service_date).getFullYear();
+    }
+    return new Date(formData.issue_date).getFullYear();
+  };
+
+  // Generate invoice number from database based on service_date year
   useEffect(() => {
     const fetchNextNumber = async () => {
       if (selectedCompany) {
-        const currentYear = new Date().getFullYear();
+        const invoiceYear = getInvoiceYear();
         const { data, error } = await supabase.rpc('get_next_invoice_number', {
           p_company_id: selectedCompany.id,
-          p_year: currentYear,
+          p_year: invoiceYear,
           p_is_proforma: formData.is_proforma,
         });
         
@@ -81,7 +89,7 @@ export default function NewInvoice() {
       }
     };
     fetchNextNumber();
-  }, [selectedCompany, formData.is_proforma]);
+  }, [selectedCompany, formData.is_proforma, formData.service_date]);
 
   // Fetch NBS exchange rate when currency and date change
   useEffect(() => {
@@ -193,6 +201,7 @@ export default function NewInvoice() {
     }
 
     try {
+      const invoiceYear = getInvoiceYear();
       await createInvoice.mutateAsync({
         company_id: selectedCompany!.id,
         invoice_number: formData.invoice_number,
@@ -216,7 +225,7 @@ export default function NewInvoice() {
         note: formData.note || null,
         is_proforma: formData.is_proforma,
         converted_from_proforma: null,
-        year: new Date().getFullYear(),
+        year: invoiceYear,
       });
       navigate('/invoices');
     } catch (error) {

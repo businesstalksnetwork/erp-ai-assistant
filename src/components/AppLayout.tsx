@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useSelectedCompany } from '@/lib/company-context';
+import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,8 @@ import {
   Shield,
   Briefcase,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 
 const userNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,6 +49,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { signOut, isAdmin, profile } = useAuth();
   const { selectedCompany, setSelectedCompany, companies } = useSelectedCompany();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { upcomingCount, hasPermission, canRequest, requestPermission } = useNotifications(selectedCompany?.id || null);
+
+  // Request notification permission when user logs in
+  useEffect(() => {
+    if (canRequest) {
+      requestPermission();
+    }
+  }, [canRequest]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -128,6 +138,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
               const isActive = location.pathname === item.href;
+              const showBadge = item.href === '/reminders' && upcomingCount > 0;
               return (
                 <Link
                   key={item.href}
@@ -142,6 +153,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-5 w-5" />
                   {item.label}
+                  {showBadge && (
+                    <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] justify-center">
+                      {upcomingCount}
+                    </Badge>
+                  )}
                 </Link>
               );
             })}
