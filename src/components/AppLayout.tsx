@@ -50,7 +50,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, isAdmin, profile } = useAuth();
-  const { selectedCompany, setSelectedCompany, companies } = useSelectedCompany();
+  const { selectedCompany, setSelectedCompany, companies, myCompanies, clientCompanies, isViewingClientCompany } = useSelectedCompany();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { upcomingCount, hasPermission, canRequest, requestPermission } = useNotifications(selectedCompany?.id || null);
@@ -117,6 +117,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Company Selector */}
           {companies.length > 0 && (
             <div className="p-4 border-b border-sidebar-border">
+              {isViewingClientCompany && (
+                <div className="mb-2 px-2 py-1 bg-primary/10 rounded text-xs text-primary font-medium">
+                  Pregledaš firmu klijenta: {selectedCompany?.client_name}
+                </div>
+              )}
               <Select
                 value={selectedCompany?.id}
                 onValueChange={(value) => {
@@ -128,11 +133,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <SelectValue placeholder="Izaberi firmu" />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
+                  {myCompanies.length > 0 && (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                        Moje firme
+                      </div>
+                      {myCompanies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                  {clientCompanies.length > 0 && (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
+                        Firme klijenata
+                      </div>
+                      {clientCompanies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          <span>{company.name}</span>
+                          <span className="ml-1 text-xs text-muted-foreground">({company.client_name})</span>
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
