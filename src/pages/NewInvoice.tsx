@@ -331,52 +331,63 @@ export default function NewInvoice() {
 
       if (itemsError) throw itemsError;
 
-      // Create KPO entry for non-proforma invoices (after items are inserted so we can calculate correctly)
+      // Create/Update KPO entry for non-proforma invoices (after items are inserted so we can calculate correctly)
       if (!formData.is_proforma) {
-        // Get next ordinal number
-        const { data: maxOrdinal } = await supabase
-          .from('kpo_entries')
-          .select('ordinal_number')
-          .eq('company_id', selectedCompany!.id)
-          .eq('year', invoiceYear)
-          .order('ordinal_number', { ascending: false })
-          .limit(1)
-          .single();
-
-        const nextOrdinal = (maxOrdinal?.ordinal_number || 0) + 1;
-
-        // Calculate products and services totals from items
         const productsAmount = items
-          .filter(i => i.item_type === 'products')
-          .reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-        
+          .filter((i) => i.item_type === 'products')
+          .reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+
         const servicesAmount = items
-          .filter(i => i.item_type === 'services')
-          .reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+          .filter((i) => i.item_type === 'services')
+          .reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
         const serviceDate = formData.service_date || formData.issue_date;
         const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS', {
           day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
+          month: '2-digit',
+          year: 'numeric',
         });
 
-        const { error: kpoError } = await supabase
+        // If a KPO row was already created (e.g. via backend automation), update it instead of inserting a duplicate.
+        const { data: existingKpo } = await supabase
           .from('kpo_entries')
-          .insert({
-            company_id: selectedCompany!.id,
-            invoice_id: invoice.id,
-            ordinal_number: nextOrdinal,
-            description: `Faktura ${formData.invoice_number}, ${formattedDate}, ${formData.client_name}`,
-            products_amount: productsAmount,
-            services_amount: servicesAmount,
-            total_amount: totalAmount,
-            year: invoiceYear,
-          });
+          .select('id, ordinal_number')
+          .eq('invoice_id', invoice.id)
+          .maybeSingle();
+
+        let ordinalNumber = existingKpo?.ordinal_number;
+
+        if (!ordinalNumber) {
+          const { data: maxOrdinal } = await supabase
+            .from('kpo_entries')
+            .select('ordinal_number')
+            .eq('company_id', selectedCompany!.id)
+            .eq('year', invoiceYear)
+            .order('ordinal_number', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+        }
+
+        const kpoPayload = {
+          company_id: selectedCompany!.id,
+          invoice_id: invoice.id,
+          ordinal_number: ordinalNumber,
+          description: `Faktura ${formData.invoice_number}, ${formattedDate}, ${formData.client_name}`,
+          products_amount: productsAmount,
+          services_amount: servicesAmount,
+          total_amount: totalAmount,
+          year: invoiceYear,
+        };
+
+        const { error: kpoError } = existingKpo
+          ? await supabase.from('kpo_entries').update(kpoPayload).eq('id', existingKpo.id)
+          : await supabase.from('kpo_entries').insert(kpoPayload);
 
         if (kpoError) {
-          console.error('Error creating KPO entry:', kpoError);
-          // Don't throw - invoice is created, just log the error
+          console.error('Error creating/updating KPO entry:', kpoError);
+          toast.error('Faktura je kreirana, ali KPO nije ažuriran');
         }
       }
 
