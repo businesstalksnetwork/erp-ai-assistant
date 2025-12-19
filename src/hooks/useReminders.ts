@@ -11,6 +11,9 @@ export interface Reminder {
   due_date: string;
   reminder_date: string | null;
   is_completed: boolean;
+  recurrence_type: 'none' | 'monthly';
+  recurrence_day: number | null;
+  attachment_url: string | null;
   created_at: string;
 }
 
@@ -90,6 +93,35 @@ export function useReminders(companyId: string | null) {
 
   const toggleComplete = useMutation({
     mutationFn: async ({ id, is_completed }: { id: string; is_completed: boolean }) => {
+      const reminder = reminders.find(r => r.id === id);
+      
+      // If completing a recurring reminder, create next occurrence
+      if (is_completed && reminder?.recurrence_type === 'monthly' && reminder.recurrence_day) {
+        const currentDue = new Date(reminder.due_date);
+        const nextMonth = new Date(currentDue);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        nextMonth.setDate(Math.min(reminder.recurrence_day, new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate()));
+        
+        // Create next occurrence
+        await supabase
+          .from('payment_reminders')
+          .insert({
+            company_id: reminder.company_id,
+            title: reminder.title,
+            description: reminder.description,
+            amount: reminder.amount,
+            due_date: nextMonth.toISOString().split('T')[0],
+            reminder_date: reminder.reminder_date ? (() => {
+              const diff = new Date(reminder.due_date).getTime() - new Date(reminder.reminder_date).getTime();
+              return new Date(nextMonth.getTime() - diff).toISOString().split('T')[0];
+            })() : null,
+            is_completed: false,
+            recurrence_type: reminder.recurrence_type,
+            recurrence_day: reminder.recurrence_day,
+            attachment_url: reminder.attachment_url,
+          });
+      }
+
       const { error } = await supabase
         .from('payment_reminders')
         .update({ is_completed })
@@ -101,6 +133,37 @@ export function useReminders(companyId: string | null) {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
     },
   });
+
+  const uploadAttachment = async (companyId: string, file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${companyId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('reminder-attachments')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('reminder-attachments')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
+  const getSignedUrl = async (path: string): Promise<string | null> => {
+    // Extract the path from the full URL if needed
+    const pathOnly = path.includes('reminder-attachments/') 
+      ? path.split('reminder-attachments/')[1] 
+      : path;
+    
+    const { data, error } = await supabase.storage
+      .from('reminder-attachments')
+      .createSignedUrl(pathOnly, 3600); // 1 hour
+
+    if (error) return null;
+    return data.signedUrl;
+  };
 
   const upcomingReminders = reminders.filter(r => {
     if (r.is_completed) return false;
@@ -118,5 +181,7 @@ export function useReminders(companyId: string | null) {
     updateReminder,
     deleteReminder,
     toggleComplete,
+    uploadAttachment,
+    getSignedUrl,
   };
 }

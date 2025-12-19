@@ -254,34 +254,43 @@ export type Database = {
       payment_reminders: {
         Row: {
           amount: number | null
+          attachment_url: string | null
           company_id: string
           created_at: string
           description: string | null
           due_date: string
           id: string
           is_completed: boolean
+          recurrence_day: number | null
+          recurrence_type: string | null
           reminder_date: string | null
           title: string
         }
         Insert: {
           amount?: number | null
+          attachment_url?: string | null
           company_id: string
           created_at?: string
           description?: string | null
           due_date: string
           id?: string
           is_completed?: boolean
+          recurrence_day?: number | null
+          recurrence_type?: string | null
           reminder_date?: string | null
           title: string
         }
         Update: {
           amount?: number | null
+          attachment_url?: string | null
           company_id?: string
           created_at?: string
           description?: string | null
           due_date?: string
           id?: string
           is_completed?: boolean
+          recurrence_day?: number | null
+          recurrence_type?: string | null
           reminder_date?: string | null
           title?: string
         }
