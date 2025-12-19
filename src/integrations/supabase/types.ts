@@ -245,7 +245,7 @@ export type Database = {
           {
             foreignKeyName: "kpo_entries_invoice_id_fkey"
             columns: ["invoice_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -345,6 +345,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_invoice_number: {
+        Args: { p_company_id: string; p_is_proforma: boolean; p_year: number }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

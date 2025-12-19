@@ -59,21 +59,27 @@ export default function NewInvoice() {
     is_proforma: false,
   });
 
-  // Generate invoice number
+  // Generate invoice number from database
   useEffect(() => {
-    if (selectedCompany) {
-      const currentYear = new Date().getFullYear();
-      const prefix = formData.is_proforma ? 'PR-' : '';
-      const relevantInvoices = invoices.filter(
-        (i) => i.year === currentYear && i.is_proforma === formData.is_proforma
-      );
-      const nextNumber = relevantInvoices.length + 1;
-      setFormData((prev) => ({
-        ...prev,
-        invoice_number: `${prefix}${nextNumber}/${currentYear}`,
-      }));
-    }
-  }, [selectedCompany, invoices, formData.is_proforma]);
+    const fetchNextNumber = async () => {
+      if (selectedCompany) {
+        const currentYear = new Date().getFullYear();
+        const { data, error } = await supabase.rpc('get_next_invoice_number', {
+          p_company_id: selectedCompany.id,
+          p_year: currentYear,
+          p_is_proforma: formData.is_proforma,
+        });
+        
+        if (!error && data) {
+          setFormData((prev) => ({
+            ...prev,
+            invoice_number: data,
+          }));
+        }
+      }
+    };
+    fetchNextNumber();
+  }, [selectedCompany, formData.is_proforma]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
