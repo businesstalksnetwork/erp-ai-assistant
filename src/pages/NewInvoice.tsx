@@ -27,6 +27,7 @@ interface InvoiceItem {
   item_type: 'products' | 'services';
   quantity: number;
   unit_price: number;
+  foreign_amount: number;
 }
 
 const invoiceSchema = z.object({
@@ -51,7 +52,7 @@ export default function NewInvoice() {
   const [rateNote, setRateNote] = useState<string | null>(null);
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0 }
+    { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
   ]);
 
   const [formData, setFormData] = useState({
@@ -139,19 +140,20 @@ export default function NewInvoice() {
     fetchExchangeRate();
   }, [formData.foreign_currency, formData.issue_date, formData.client_type]);
 
-  // Auto-calculate unit_price from foreign_amount * exchange_rate for foreign clients
+  // Auto-calculate unit_price from foreign_amount * exchange_rate for each item (foreign clients)
   useEffect(() => {
-    if (formData.client_type === 'foreign' && formData.foreign_amount > 0 && formData.exchange_rate > 0) {
-      const calculatedPrice = formData.foreign_amount * formData.exchange_rate;
-      // Update first item's unit_price if there's only one item
-      if (items.length === 1) {
-        setItems(prev => [{
-          ...prev[0],
-          unit_price: Math.round(calculatedPrice * 100) / 100,
-        }]);
-      }
+    if (formData.client_type === 'foreign' && formData.exchange_rate > 0) {
+      setItems(prev => prev.map(item => {
+        if (item.foreign_amount > 0) {
+          return {
+            ...item,
+            unit_price: Math.round(item.foreign_amount * formData.exchange_rate * 100) / 100,
+          };
+        }
+        return item;
+      }));
     }
-  }, [formData.foreign_amount, formData.exchange_rate, formData.client_type]);
+  }, [formData.exchange_rate, formData.client_type]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
@@ -188,6 +190,7 @@ export default function NewInvoice() {
       item_type: 'services',
       quantity: 1,
       unit_price: 0,
+      foreign_amount: 0,
     }]);
   };
 
@@ -198,14 +201,24 @@ export default function NewInvoice() {
   };
 
   const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      
+      const updated = { ...item, [field]: value };
+      
+      // Auto-calculate unit_price when foreign_amount changes for foreign clients
+      if (field === 'foreign_amount' && formData.client_type === 'foreign' && formData.exchange_rate > 0) {
+        updated.unit_price = Math.round((value as number) * formData.exchange_rate * 100) / 100;
+      }
+      
+      return updated;
+    }));
   };
 
   // Calculate totals
   const itemTotals = items.map(item => item.quantity * item.unit_price);
   const totalAmount = itemTotals.reduce((sum, t) => sum + t, 0);
+  const totalForeignAmount = items.reduce((sum, item) => sum + (item.foreign_amount * item.quantity), 0);
   const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
@@ -288,7 +301,7 @@ export default function NewInvoice() {
           total_amount: totalAmount,
           item_type: mainItemType,
           foreign_currency: formData.client_type === 'foreign' ? formData.foreign_currency || null : null,
-          foreign_amount: formData.client_type === 'foreign' ? formData.foreign_amount || null : null,
+          foreign_amount: formData.client_type === 'foreign' ? totalForeignAmount || null : null,
           exchange_rate: formData.client_type === 'foreign' ? formData.exchange_rate || null : null,
           payment_deadline: formData.payment_deadline || null,
           payment_method: formData.payment_method || null,
@@ -512,7 +525,7 @@ export default function NewInvoice() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className={`grid grid-cols-1 gap-4 ${formData.client_type === 'foreign' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                   <div className="space-y-2">
                     <Label>Tip</Label>
                     <Select
@@ -539,6 +552,19 @@ export default function NewInvoice() {
                       placeholder="1"
                     />
                   </div>
+                  {formData.client_type === 'foreign' && (
+                    <div className="space-y-2">
+                      <Label>Iznos ({formData.foreign_currency || 'DEV'})</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.foreign_amount || ''}
+                        onChange={(e) => updateItem(item.id, 'foreign_amount', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Cena (RSD)</Label>
                     <Input
@@ -548,6 +574,8 @@ export default function NewInvoice() {
                       value={item.unit_price || ''}
                       onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
+                      readOnly={formData.client_type === 'foreign'}
+                      className={formData.client_type === 'foreign' ? 'bg-muted' : ''}
                     />
                   </div>
                   <div className="space-y-2">
