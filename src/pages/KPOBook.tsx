@@ -32,9 +32,9 @@ export default function KPOBook() {
   const { selectedCompany } = useSelectedCompany();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
-  const { entries, isLoading, totals } = useKPO(selectedCompany?.id || null, year);
+  const { entries, isLoading, totals, availableYears } = useKPO(selectedCompany?.id || null, year);
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const years = availableYears.length > 0 ? availableYears : [currentYear];
 
   if (!selectedCompany) {
     return (
