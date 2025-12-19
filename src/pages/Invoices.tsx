@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -24,6 +25,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -46,6 +55,7 @@ export default function Invoices() {
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice } = useInvoices(selectedCompany?.id || null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
+  const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'invoices' | 'proforma'>('all');
 
@@ -67,10 +77,17 @@ export default function Invoices() {
     }
   };
 
+  const handleOpenConvert = (id: string) => {
+    const proforma = invoices.find(i => i.id === id);
+    setConvertServiceDate(proforma?.service_date || new Date().toISOString().split('T')[0]);
+    setConvertId(id);
+  };
+
   const handleConvert = async () => {
-    if (convertId) {
-      await convertProformaToInvoice.mutateAsync(convertId);
+    if (convertId && convertServiceDate) {
+      await convertProformaToInvoice.mutateAsync({ proformaId: convertId, serviceDate: convertServiceDate });
       setConvertId(null);
+      setConvertServiceDate('');
     }
   };
 
@@ -196,7 +213,7 @@ export default function Invoices() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => setConvertId(invoice.id)}
+                              onClick={() => handleOpenConvert(invoice.id)}
                               title="Pretvori u fakturu"
                             >
                               <ArrowRightLeft className="h-4 w-4" />
@@ -242,23 +259,35 @@ export default function Invoices() {
       </AlertDialog>
 
       {/* Convert Dialog */}
-      <AlertDialog open={!!convertId} onOpenChange={() => setConvertId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pretvori u fakturu?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ova akcija će kreirati novu fakturu na osnovu predračuna. Predračun će ostati sačuvan.
-              Nova faktura će biti evidentirana u KPO knjizi.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Otkaži</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConvert}>
+      <Dialog open={!!convertId} onOpenChange={() => { setConvertId(null); setConvertServiceDate(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pretvori u fakturu</DialogTitle>
+            <DialogDescription>
+              Izaberite datum prometa za novu fakturu. Predračun će ostati sačuvan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="serviceDate">Datum prometa</Label>
+            <Input
+              id="serviceDate"
+              type="date"
+              value={convertServiceDate}
+              onChange={(e) => setConvertServiceDate(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setConvertId(null); setConvertServiceDate(''); }}>
+              Otkaži
+            </Button>
+            <Button onClick={handleConvert} disabled={!convertServiceDate || convertProformaToInvoice.isPending}>
+              {convertProformaToInvoice.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Pretvori
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

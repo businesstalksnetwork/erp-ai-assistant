@@ -51,6 +51,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          maticni_broj: string | null
           name: string
           pib: string | null
         }
@@ -60,6 +61,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          maticni_broj?: string | null
           name: string
           pib?: string | null
         }
@@ -69,6 +71,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          maticni_broj?: string | null
           name?: string
           pib?: string | null
         }
