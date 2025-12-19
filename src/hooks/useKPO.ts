@@ -33,6 +33,27 @@ export function useKPO(companyId: string | null, year?: number) {
     enabled: !!companyId,
   });
 
+  const { data: availableYears = [] } = useQuery({
+    queryKey: ['kpo-years', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpo_entries')
+        .select('year')
+        .eq('company_id', companyId!)
+        .order('year', { ascending: false });
+
+      if (error) throw error;
+      
+      const yearsFromDb = [...new Set(data.map(d => d.year))];
+      const thisYear = new Date().getFullYear();
+      
+      // Always include current year, plus any years with entries
+      const allYears = [...new Set([thisYear, ...yearsFromDb])].sort((a, b) => b - a);
+      return allYears;
+    },
+    enabled: !!companyId,
+  });
+
   const totals = entries.reduce(
     (acc, entry) => ({
       products: acc.products + Number(entry.products_amount),
@@ -46,5 +67,6 @@ export function useKPO(companyId: string | null, year?: number) {
     entries,
     isLoading,
     totals,
+    availableYears,
   };
 }
