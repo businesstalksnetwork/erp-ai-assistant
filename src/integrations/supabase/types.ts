@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookkeeper_clients: {
+        Row: {
+          bookkeeper_email: string
+          bookkeeper_id: string | null
+          client_id: string
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["bookkeeper_status"]
+          updated_at: string
+        }
+        Insert: {
+          bookkeeper_email: string
+          bookkeeper_id?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["bookkeeper_status"]
+          updated_at?: string
+        }
+        Update: {
+          bookkeeper_email?: string
+          bookkeeper_id?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["bookkeeper_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -381,10 +411,12 @@ export type Database = {
         Returns: boolean
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_bookkeeper_for: { Args: { client_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
       approval_status: "pending" | "approved" | "rejected"
+      bookkeeper_status: "pending" | "accepted" | "rejected"
       client_type: "domestic" | "foreign"
       invoice_item_type: "products" | "services"
     }
@@ -516,6 +548,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       approval_status: ["pending", "approved", "rejected"],
+      bookkeeper_status: ["pending", "accepted", "rejected"],
       client_type: ["domestic", "foreign"],
       invoice_item_type: ["products", "services"],
     },
