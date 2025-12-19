@@ -261,6 +261,11 @@ export type Database = {
           due_date: string
           id: string
           is_completed: boolean
+          payment_code: string | null
+          payment_model: string | null
+          payment_reference: string | null
+          recipient_account: string | null
+          recipient_name: string | null
           recurrence_day: number | null
           recurrence_type: string | null
           reminder_date: string | null
@@ -275,6 +280,11 @@ export type Database = {
           due_date: string
           id?: string
           is_completed?: boolean
+          payment_code?: string | null
+          payment_model?: string | null
+          payment_reference?: string | null
+          recipient_account?: string | null
+          recipient_name?: string | null
           recurrence_day?: number | null
           recurrence_type?: string | null
           reminder_date?: string | null
@@ -289,6 +299,11 @@ export type Database = {
           due_date?: string
           id?: string
           is_completed?: boolean
+          payment_code?: string | null
+          payment_model?: string | null
+          payment_reference?: string | null
+          recipient_account?: string | null
+          recipient_name?: string | null
           recurrence_day?: number | null
           recurrence_type?: string | null
           reminder_date?: string | null

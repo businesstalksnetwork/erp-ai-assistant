@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useReminders, Reminder } from '@/hooks/useReminders';
-import { useCompanies } from '@/hooks/useCompanies';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,19 +53,11 @@ function generateIPSQRCode(
   receiverAccount: string,
   amount: number,
   paymentPurpose: string,
-  paymentCode: string = '289'
+  paymentCode: string = '289',
+  paymentModel: string = '97',
+  paymentReference: string = ''
 ): string {
   // IPS QR code format for Serbia (NBS standard)
-  // K: Payment type indicator
-  // V: Version
-  // C: Character set (1 = UTF-8)
-  // R: Receiver account
-  // N: Receiver name
-  // I: Currency (RSD)
-  // A: Amount (in smallest unit, para)
-  // S: Payment purpose
-  // P: Payment code
-  
   const formattedAccount = receiverAccount.replace(/-/g, '');
   const amountInPara = Math.round(amount * 100).toString().padStart(15, '0');
   
@@ -78,7 +70,8 @@ function generateIPSQRCode(
     'I:RSD',
     `A:${amountInPara}`,
     `S:${paymentPurpose.substring(0, 35)}`,
-    `P:${paymentCode}`,
+    `SF:${paymentCode}`,
+    `RO:${paymentModel}${paymentReference}`,
   ].join('|');
   
   return qrData;
@@ -86,7 +79,6 @@ function generateIPSQRCode(
 
 export default function Reminders() {
   const { selectedCompany } = useSelectedCompany();
-  const { companies } = useCompanies();
   const { reminders, isLoading, createReminder, updateReminder, deleteReminder, toggleComplete, uploadAttachment, getSignedUrl } = useReminders(selectedCompany?.id || null);
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -105,9 +97,12 @@ export default function Reminders() {
     recurrence_type: 'none' as 'none' | 'monthly',
     recurrence_day: '',
     attachment_url: '',
+    recipient_name: '',
+    recipient_account: '',
+    payment_model: '97',
+    payment_reference: '',
+    payment_code: '289',
   });
-
-  const currentCompany = companies.find(c => c.id === selectedCompany?.id);
 
   const resetForm = () => {
     setFormData({
@@ -119,6 +114,11 @@ export default function Reminders() {
       recurrence_type: 'none',
       recurrence_day: '',
       attachment_url: '',
+      recipient_name: '',
+      recipient_account: '',
+      payment_model: '97',
+      payment_reference: '',
+      payment_code: '289',
     });
     setEditId(null);
   };
@@ -138,6 +138,11 @@ export default function Reminders() {
       recurrence_type: reminder.recurrence_type || 'none',
       recurrence_day: reminder.recurrence_day?.toString() || '',
       attachment_url: reminder.attachment_url || '',
+      recipient_name: reminder.recipient_name || '',
+      recipient_account: reminder.recipient_account || '',
+      payment_model: reminder.payment_model || '97',
+      payment_reference: reminder.payment_reference || '',
+      payment_code: reminder.payment_code || '289',
     });
     setEditId(reminder.id);
     setIsOpen(true);
@@ -179,6 +184,11 @@ export default function Reminders() {
         ? parseInt(formData.recurrence_day) 
         : null,
       attachment_url: formData.attachment_url || null,
+      recipient_name: formData.recipient_name || null,
+      recipient_account: formData.recipient_account || null,
+      payment_model: formData.payment_model || '97',
+      payment_reference: formData.payment_reference || null,
+      payment_code: formData.payment_code || '289',
     };
 
     if (editId) {
@@ -388,6 +398,64 @@ export default function Reminders() {
                     </Button>
                   )}
                 </div>
+
+                {/* IPS QR Code Fields */}
+                <div className="border-t pt-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="h-4 w-4" />
+                    <Label className="text-base">Podaci za IPS QR kod</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Popunite podatke primaoca za generisanje QR koda za plaćanje
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="recipient_name">Primalac</Label>
+                    <Input
+                      id="recipient_name"
+                      value={formData.recipient_name}
+                      onChange={(e) => setFormData({ ...formData, recipient_name: e.target.value })}
+                      placeholder="Naziv primaoca"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recipient_account">Broj računa primaoca</Label>
+                    <Input
+                      id="recipient_account"
+                      value={formData.recipient_account}
+                      onChange={(e) => setFormData({ ...formData, recipient_account: e.target.value })}
+                      placeholder="npr. 265-1234567890123-12"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="payment_model">Model</Label>
+                      <Input
+                        id="payment_model"
+                        value={formData.payment_model}
+                        onChange={(e) => setFormData({ ...formData, payment_model: e.target.value })}
+                        placeholder="97"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="payment_reference">Poziv na broj</Label>
+                      <Input
+                        id="payment_reference"
+                        value={formData.payment_reference}
+                        onChange={(e) => setFormData({ ...formData, payment_reference: e.target.value })}
+                        placeholder="npr. 1234567890"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_code">Šifra plaćanja</Label>
+                    <Input
+                      id="payment_code"
+                      value={formData.payment_code}
+                      onChange={(e) => setFormData({ ...formData, payment_code: e.target.value })}
+                      placeholder="289"
+                    />
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
@@ -476,7 +544,7 @@ export default function Reminders() {
                         </div>
                       )}
                       <div className="flex gap-1">
-                        {reminder.amount && currentCompany?.bank_account && (
+                        {reminder.amount && reminder.recipient_account && (
                           <Button size="icon" variant="ghost" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
                             <QrCode className="h-4 w-4" />
                           </Button>
@@ -544,15 +612,18 @@ export default function Reminders() {
               Skenirajte QR kod mobilnom bankarskom aplikacijom
             </DialogDescription>
           </DialogHeader>
-          {selectedReminder && currentCompany?.bank_account && selectedReminder.amount && (
+          {selectedReminder && selectedReminder.recipient_account && selectedReminder.amount && (
             <div className="flex flex-col items-center space-y-4 py-4">
               <div className="bg-white p-4 rounded-lg">
                 <QRCodeSVG
                   value={generateIPSQRCode(
-                    currentCompany.name,
-                    currentCompany.bank_account,
+                    selectedReminder.recipient_name || '',
+                    selectedReminder.recipient_account,
                     selectedReminder.amount,
-                    selectedReminder.title
+                    selectedReminder.title,
+                    selectedReminder.payment_code || '289',
+                    selectedReminder.payment_model || '97',
+                    selectedReminder.payment_reference || ''
                   )}
                   size={200}
                   level="M"
@@ -564,8 +635,16 @@ export default function Reminders() {
                   {formatCurrency(selectedReminder.amount)}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Račun: {currentCompany.bank_account}
+                  Primalac: {selectedReminder.recipient_name}
                 </p>
+                <p className="text-sm text-muted-foreground">
+                  Račun: {selectedReminder.recipient_account}
+                </p>
+                {selectedReminder.payment_reference && (
+                  <p className="text-sm text-muted-foreground">
+                    Poziv na broj: {selectedReminder.payment_model}-{selectedReminder.payment_reference}
+                  </p>
+                )}
               </div>
             </div>
           )}

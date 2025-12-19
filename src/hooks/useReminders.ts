@@ -14,6 +14,11 @@ export interface Reminder {
   recurrence_type: 'none' | 'monthly';
   recurrence_day: number | null;
   attachment_url: string | null;
+  recipient_name: string | null;
+  recipient_account: string | null;
+  payment_model: string | null;
+  payment_reference: string | null;
+  payment_code: string | null;
   created_at: string;
 }
 
@@ -119,6 +124,11 @@ export function useReminders(companyId: string | null) {
             recurrence_type: reminder.recurrence_type,
             recurrence_day: reminder.recurrence_day,
             attachment_url: reminder.attachment_url,
+            recipient_name: reminder.recipient_name,
+            recipient_account: reminder.recipient_account,
+            payment_model: reminder.payment_model,
+            payment_reference: reminder.payment_reference,
+            payment_code: reminder.payment_code,
           });
       }
 
