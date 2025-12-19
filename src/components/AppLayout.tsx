@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   Shield,
+  Briefcase,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -33,6 +34,7 @@ const userNavItems = [
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
+  { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase },
 ];
 
 const adminNavItems = [
