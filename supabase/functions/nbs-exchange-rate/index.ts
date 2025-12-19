@@ -58,21 +58,25 @@ serve(async (req) => {
     const fallbackResponse = await fetch(fallbackUrl);
     
     if (fallbackResponse.ok) {
-      const rates = await fallbackResponse.json();
-      console.log(`Fallback response:`, rates);
+      const responseData = await fallbackResponse.json();
+      console.log(`Fallback response structure:`, Object.keys(responseData));
       
-      // Find the currency in the list
-      const currencyRate = rates.find((r: { code: string; exchange_middle?: number }) => r.code === currency);
-      if (currencyRate && currencyRate.exchange_middle) {
-        return new Response(
-          JSON.stringify({ 
-            rate: currencyRate.exchange_middle,
-            currency: currency,
-            date: date,
-            source: 'NBS'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // The API returns { rates: [...] } object
+      const rates = responseData.rates || responseData;
+      
+      if (Array.isArray(rates)) {
+        const currencyRate = rates.find((r: { code: string; exchange_middle?: number }) => r.code === currency);
+        if (currencyRate && currencyRate.exchange_middle) {
+          return new Response(
+            JSON.stringify({ 
+              rate: currencyRate.exchange_middle,
+              currency: currency,
+              date: date,
+              source: 'NBS'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
