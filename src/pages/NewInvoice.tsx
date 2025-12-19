@@ -102,28 +102,20 @@ export default function NewInvoice() {
       setRateNote(null);
 
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nbs-exchange-rate`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              currency: formData.foreign_currency,
-              date: formData.issue_date,
-            }),
-          }
-        );
+        const { data, error } = await supabase.functions.invoke('nbs-exchange-rate', {
+          body: {
+            currency: formData.foreign_currency,
+            date: formData.issue_date,
+          },
+        });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.rate) {
-            setFormData((prev) => ({
-              ...prev,
-              exchange_rate: data.rate,
-            }));
-            if (data.note) {
-              setRateNote(data.note);
-            }
+        if (!error && data?.rate) {
+          setFormData((prev) => ({
+            ...prev,
+            exchange_rate: data.rate,
+          }));
+          if (data.note) {
+            setRateNote(data.note);
           }
         }
       } catch (error) {
