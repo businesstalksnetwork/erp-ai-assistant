@@ -451,8 +451,16 @@ export default function Reminders() {
                       id="recipient_account"
                       value={formData.recipient_account}
                       onChange={(e) => setFormData({ ...formData, recipient_account: e.target.value })}
-                      placeholder="npr. 265-1234567890123-12"
+                      onBlur={(e) => {
+                        // Auto-format account number: pad to 18 digits
+                        const digits = e.target.value.replace(/\D/g, '');
+                        if (digits.length > 0) {
+                          setFormData({ ...formData, recipient_account: digits.padStart(18, '0').substring(0, 18) });
+                        }
+                      }}
+                      placeholder="npr. 265123456789012312"
                     />
+                    <p className="text-xs text-muted-foreground">18 cifara, automatski se popunjava nulama</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -461,6 +469,13 @@ export default function Reminders() {
                         id="payment_model"
                         value={formData.payment_model}
                         onChange={(e) => setFormData({ ...formData, payment_model: e.target.value })}
+                        onBlur={(e) => {
+                          // Auto-format model: ensure 2 digits
+                          const digits = e.target.value.replace(/\D/g, '');
+                          if (digits.length > 0) {
+                            setFormData({ ...formData, payment_model: digits.padStart(2, '0').substring(0, 2) });
+                          }
+                        }}
                         placeholder="97"
                       />
                     </div>
@@ -480,8 +495,16 @@ export default function Reminders() {
                       id="payment_code"
                       value={formData.payment_code}
                       onChange={(e) => setFormData({ ...formData, payment_code: e.target.value })}
+                      onBlur={(e) => {
+                        // Auto-format payment code: ensure 3 digits
+                        const digits = e.target.value.replace(/\D/g, '');
+                        if (digits.length > 0) {
+                          setFormData({ ...formData, payment_code: digits.padStart(3, '0').substring(0, 3) });
+                        }
+                      }}
                       placeholder="289"
                     />
+                    <p className="text-xs text-muted-foreground">3 cifre, automatski se popunjava nulama</p>
                   </div>
                 </div>
               </div>
