@@ -233,7 +233,7 @@ export default function Clients() {
                           )}
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">Unesite PIB i kliknite na lupu za automatsko povlačenje podataka iz APR-a</p>
+                      <p className="text-xs text-muted-foreground">Unesite PIB i kliknite na lupu za automatsko povlačenje podataka (NBS/APR)</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="maticni_broj">Matični broj</Label>
