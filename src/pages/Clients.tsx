@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useClients } from '@/hooks/useClients';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -32,14 +34,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Building2 } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search } from 'lucide-react';
 
 export default function Clients() {
   const { selectedCompany } = useSelectedCompany();
   const { clients, isLoading, createClient, updateClient, deleteClient } = useClients(selectedCompany?.id || null);
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -74,6 +78,39 @@ export default function Clients() {
     });
     setEditId(client.id);
     setIsOpen(true);
+  };
+
+  const handleAprLookup = async () => {
+    if (formData.pib.length !== 9) {
+      toast({ title: 'Greška', description: 'PIB mora imati 9 cifara', variant: 'destructive' });
+      return;
+    }
+
+    setIsLookingUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('apr-lookup', {
+        body: { pib: formData.pib },
+      });
+
+      if (error) throw error;
+
+      if (data.found) {
+        setFormData(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          address: data.address || prev.address,
+          maticni_broj: data.maticni_broj || prev.maticni_broj,
+        }));
+        toast({ title: 'Podaci pronađeni', description: `Firma: ${data.name}` });
+      } else {
+        toast({ title: 'Nije pronađeno', description: data.error || 'Firma nije pronađena u APR registru', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('APR lookup error:', error);
+      toast({ title: 'Greška', description: 'Neuspešno pretraživanje APR registra', variant: 'destructive' });
+    } finally {
+      setIsLookingUp(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,13 +210,30 @@ export default function Clients() {
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="pib">PIB</Label>
-                      <Input
-                        id="pib"
-                        value={formData.pib}
-                        onChange={(e) => setFormData({ ...formData, pib: e.target.value })}
-                        placeholder="123456789"
-                        maxLength={9}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="pib"
+                          value={formData.pib}
+                          onChange={(e) => setFormData({ ...formData, pib: e.target.value })}
+                          placeholder="123456789"
+                          maxLength={9}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleAprLookup}
+                          disabled={isLookingUp || formData.pib.length !== 9}
+                          title="Pretraži APR"
+                        >
+                          {isLookingUp ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Unesite PIB i kliknite na lupu za automatsko povlačenje podataka iz APR-a</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="maticni_broj">Matični broj</Label>
