@@ -30,65 +30,53 @@ serve(async (req) => {
 
     let companyData = null;
 
-    // Try NBS Company Account API first
+    // Try NBS company account registry first (public search by PIB)
     try {
-      console.log('Trying NBS API...');
-      
-      // NBS uses a search endpoint
-      const nbsSearchUrl = `https://webappcenter.nbs.rs/PnWebApp/CompanyAccount/CompanyAccountResident/Search`;
-      
-      const nbsResponse = await fetch(nbsSearchUrl, {
-        method: 'POST',
+      console.log('Trying NBS registry...');
+
+      const params = new URLSearchParams({
+        CompanyTaxCode: pib,
+        TypeID: '1',
+        'Pagging.CurrentPage': '1',
+        'Pagging.PageSize': '50',
+        isSearchExecuted: 'true',
+      });
+
+      const nbsUrl = `https://webappcenter.nbs.rs/PnWebApp/CompanyAccount/CompanyAccountResident?${params.toString()}`;
+
+      const nbsResponse = await fetch(nbsUrl, {
+        method: 'GET',
         headers: {
-          'Accept': 'application/json, text/javascript, */*; q=0.01',
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': 'https://webappcenter.nbs.rs',
-          'Referer': 'https://webappcenter.nbs.rs/PnWebApp/CompanyAccount/CompanyAccountResident/Index',
+          'Accept': 'text/html,application/xhtml+xml',
+          'User-Agent': 'Mozilla/5.0',
         },
-        body: `pib=${pib}&maticniBroj=&naziv=`,
         client: httpClient,
       });
 
       console.log('NBS response status:', nbsResponse.status);
 
       if (nbsResponse.ok) {
-        const text = await nbsResponse.text();
-        console.log('NBS raw response:', text.substring(0, 500));
-        
-        // Try to parse as JSON
-        try {
-          const data = JSON.parse(text);
-          console.log('NBS parsed data:', JSON.stringify(data));
-          
-          if (data && Array.isArray(data) && data.length > 0) {
-            const company = data[0];
-            companyData = {
-              name: company.naziv || company.Naziv || company.name || '',
-              address: company.sediste || company.Sediste || company.adresa || company.Adresa || '',
-              maticni_broj: company.maticniBroj || company.MaticniBroj || company.mb || '',
-            };
-          } else if (data && data.Data && Array.isArray(data.Data) && data.Data.length > 0) {
-            const company = data.Data[0];
-            companyData = {
-              name: company.naziv || company.Naziv || company.name || '',
-              address: company.sediste || company.Sediste || company.adresa || company.Adresa || '',
-              maticni_broj: company.maticniBroj || company.MaticniBroj || company.mb || '',
-            };
-          }
-        } catch (parseError) {
-          console.log('NBS response is not JSON, trying HTML parsing...');
-          
-          // Try to extract data from HTML table if it's HTML response
-          const nameMatch = text.match(/<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>/);
-          if (nameMatch) {
-            console.log('Found HTML table data');
-          }
+        const html = await nbsResponse.text();
+
+        // Extract first row from HTML table. (Page lists accounts; company data repeats per account.)
+        const rowMatch = html.match(
+          /<tr[^>]*>\s*<td data-title="Назив корисника рачуна">[\s\S]*?<b>\s*([^<]+?)\s*<\/b>[\s\S]*?<td data-title="Матични број">[\s\S]*?<a [^>]*>\s*(\d+)\s*<\/a>[\s\S]*?<td data-title="Порески број">\s*(\d{9})[\s\S]*?<td data-title="Адреса">\s*([^<]+?)\s*<\/td>\s*<td data-title="Место">\s*([^<]+?)\s*<\/td>/
+        );
+
+        if (rowMatch) {
+          const [, name, maticniBroj, , address, city] = rowMatch;
+          companyData = {
+            name: name.trim(),
+            address: `${address.trim()}, ${city.trim()}`,
+            maticni_broj: maticniBroj.trim(),
+          };
+          console.log('NBS match:', { name: companyData.name, maticni_broj: companyData.maticni_broj });
+        } else {
+          console.log('NBS: no match found in HTML');
         }
       }
     } catch (e) {
-      console.log('NBS API failed:', e);
+      console.log('NBS request failed:', e);
     }
 
     // Try APR API as fallback
