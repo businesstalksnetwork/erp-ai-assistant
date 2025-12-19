@@ -47,7 +47,7 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-// Generate IPS QR code string for Serbian payments
+// Generate IPS QR code string for Serbian payments (NBS standard)
 function generateIPSQRCode(
   receiverName: string,
   receiverAccount: string,
@@ -57,20 +57,22 @@ function generateIPSQRCode(
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
-  // IPS QR code format for Serbia (NBS standard)
+  // Format account - remove dashes to get 18-digit format
   const formattedAccount = receiverAccount.replace(/-/g, '');
-  const amountInPara = Math.round(amount * 100).toString().padStart(15, '0');
   
+  // Format amount - NBS IPS uses format like "RSD22000,00" with comma as decimal separator
+  const formattedAmount = amount.toFixed(2).replace('.', ',');
+  
+  // Build QR code data according to NBS IPS specification
   const qrData = [
     'K:PR',
     'V:01',
     'C:1',
     `R:${formattedAccount}`,
     `N:${receiverName.substring(0, 70)}`,
-    'I:RSD',
-    `A:${amountInPara}`,
+    `I:RSD${formattedAmount}`,
+    `SF:${paymentCode.padStart(3, '0')}`,
     `S:${paymentPurpose.substring(0, 35)}`,
-    `SF:${paymentCode}`,
     `RO:${paymentModel}${paymentReference}`,
   ].join('|');
   
