@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useSelectedCompany } from '@/lib/company-context';
+import { useTheme } from '@/lib/theme-context';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,8 @@ import {
   X,
   Shield,
   Briefcase,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +51,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { signOut, isAdmin, profile } = useAuth();
   const { selectedCompany, setSelectedCompany, companies } = useSelectedCompany();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { upcomingCount, hasPermission, canRequest, requestPermission } = useNotifications(selectedCompany?.id || null);
 
@@ -171,6 +175,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 {profile?.status === 'pending' ? 'Čeka odobrenje' : isAdmin ? 'Administrator' : 'Korisnik'}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+              onClick={toggleTheme}
+            >
+              {theme === 'light' ? (
+                <>
+                  <Moon className="mr-2 h-4 w-4" />
+                  Tamna tema
+                </>
+              ) : (
+                <>
+                  <Sun className="mr-2 h-4 w-4" />
+                  Svetla tema
+                </>
+              )}
+            </Button>
             <Button
               variant="ghost"
               className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
