@@ -331,6 +331,55 @@ export default function NewInvoice() {
 
       if (itemsError) throw itemsError;
 
+      // Create KPO entry for non-proforma invoices (after items are inserted so we can calculate correctly)
+      if (!formData.is_proforma) {
+        // Get next ordinal number
+        const { data: maxOrdinal } = await supabase
+          .from('kpo_entries')
+          .select('ordinal_number')
+          .eq('company_id', selectedCompany!.id)
+          .eq('year', invoiceYear)
+          .order('ordinal_number', { ascending: false })
+          .limit(1)
+          .single();
+
+        const nextOrdinal = (maxOrdinal?.ordinal_number || 0) + 1;
+
+        // Calculate products and services totals from items
+        const productsAmount = items
+          .filter(i => i.item_type === 'products')
+          .reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+        
+        const servicesAmount = items
+          .filter(i => i.item_type === 'services')
+          .reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+
+        const serviceDate = formData.service_date || formData.issue_date;
+        const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        });
+
+        const { error: kpoError } = await supabase
+          .from('kpo_entries')
+          .insert({
+            company_id: selectedCompany!.id,
+            invoice_id: invoice.id,
+            ordinal_number: nextOrdinal,
+            description: `Faktura ${formData.invoice_number}, ${formattedDate}, ${formData.client_name}`,
+            products_amount: productsAmount,
+            services_amount: servicesAmount,
+            total_amount: totalAmount,
+            year: invoiceYear,
+          });
+
+        if (kpoError) {
+          console.error('Error creating KPO entry:', kpoError);
+          // Don't throw - invoice is created, just log the error
+        }
+      }
+
       toast.success(formData.is_proforma ? 'Predračun uspešno kreiran' : 'Faktura uspešno kreirana');
       navigate('/invoices');
     } catch (error) {
