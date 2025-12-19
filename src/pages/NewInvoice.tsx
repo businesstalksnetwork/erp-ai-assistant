@@ -36,6 +36,8 @@ export default function NewInvoice() {
   const { clients } = useClients(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [fetchingRate, setFetchingRate] = useState(false);
+  const [rateNote, setRateNote] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -80,6 +82,62 @@ export default function NewInvoice() {
     };
     fetchNextNumber();
   }, [selectedCompany, formData.is_proforma]);
+
+  // Fetch NBS exchange rate when currency and date change
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      if (formData.client_type !== 'foreign' || !formData.foreign_currency || !formData.issue_date) {
+        return;
+      }
+
+      setFetchingRate(true);
+      setRateNote(null);
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nbs-exchange-rate`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              currency: formData.foreign_currency,
+              date: formData.issue_date,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.rate) {
+            setFormData((prev) => ({
+              ...prev,
+              exchange_rate: data.rate,
+            }));
+            if (data.note) {
+              setRateNote(data.note);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+      } finally {
+        setFetchingRate(false);
+      }
+    };
+
+    fetchExchangeRate();
+  }, [formData.foreign_currency, formData.issue_date, formData.client_type]);
+
+  // Auto-calculate unit_price from foreign_amount * exchange_rate
+  useEffect(() => {
+    if (formData.client_type === 'foreign' && formData.foreign_amount > 0 && formData.exchange_rate > 0) {
+      const calculatedPrice = formData.foreign_amount * formData.exchange_rate;
+      setFormData((prev) => ({
+        ...prev,
+        unit_price: Math.round(calculatedPrice * 100) / 100,
+      }));
+    }
+  }, [formData.foreign_amount, formData.exchange_rate, formData.client_type]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
@@ -394,7 +452,7 @@ export default function NewInvoice() {
             {/* Foreign Currency Fields */}
             {formData.client_type === 'foreign' && (
               <div className="border-t pt-4 mt-4">
-                <p className="text-sm font-medium mb-4">Iznos u stranoj valuti</p>
+                <p className="text-sm font-medium mb-4">Iznos u stranoj valuti (automatski kurs NBS)</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="foreign_currency">Valuta</Label>
@@ -418,22 +476,35 @@ export default function NewInvoice() {
                       id="foreign_amount"
                       type="number"
                       step="0.01"
-                      value={formData.foreign_amount}
+                      value={formData.foreign_amount || ''}
                       onChange={(e) => setFormData({ ...formData, foreign_amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="1000.00"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="exchange_rate">Kurs NBS</Label>
+                    <Label htmlFor="exchange_rate" className="flex items-center gap-2">
+                      Kurs NBS
+                      {fetchingRate && <Loader2 className="h-3 w-3 animate-spin" />}
+                    </Label>
                     <Input
                       id="exchange_rate"
                       type="number"
                       step="0.0001"
-                      value={formData.exchange_rate}
+                      value={formData.exchange_rate || ''}
                       onChange={(e) => setFormData({ ...formData, exchange_rate: parseFloat(e.target.value) || 0 })}
                       placeholder="117.1234"
+                      className={fetchingRate ? 'opacity-50' : ''}
                     />
+                    {rateNote && (
+                      <p className="text-xs text-muted-foreground">{rateNote}</p>
+                    )}
                   </div>
                 </div>
+                {formData.foreign_amount > 0 && formData.exchange_rate > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {formData.foreign_amount} {formData.foreign_currency} × {formData.exchange_rate} = {new Intl.NumberFormat('sr-RS').format(formData.foreign_amount * formData.exchange_rate)} RSD
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
