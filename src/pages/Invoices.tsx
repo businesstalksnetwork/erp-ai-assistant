@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useSEF } from '@/hooks/useSEF';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +41,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -53,8 +60,10 @@ function formatCurrency(amount: number): string {
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice } = useInvoices(selectedCompany?.id || null);
+  const { sendToSEF, getSEFStatus, isSending } = useSEF();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
+  const [sendingSEFId, setSendingSEFId] = useState<string | null>(null);
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'invoices' | 'proforma'>('all');
@@ -90,6 +99,15 @@ export default function Invoices() {
       setConvertServiceDate('');
     }
   };
+
+  const handleSendToSEF = async (invoiceId: string) => {
+    if (!selectedCompany) return;
+    setSendingSEFId(invoiceId);
+    await sendToSEF(invoiceId, selectedCompany.id);
+    setSendingSEFId(null);
+  };
+
+  const hasSEFKey = !!(selectedCompany as any)?.sef_api_key;
 
   if (!selectedCompany) {
     return (
@@ -170,6 +188,7 @@ export default function Invoices() {
                     <TableHead>Klijent</TableHead>
                     <TableHead>Datum</TableHead>
                     <TableHead>Tip</TableHead>
+                    <TableHead>SEF</TableHead>
                     <TableHead className="text-right">Iznos</TableHead>
                     <TableHead className="text-right">Akcije</TableHead>
                   </TableRow>
@@ -194,6 +213,24 @@ export default function Invoices() {
                           {invoice.is_proforma ? 'Predračun' : 'Faktura'}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {!invoice.is_proforma && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant={getSEFStatus(invoice).variant}>
+                                  {getSEFStatus(invoice).label}
+                                </Badge>
+                              </TooltipTrigger>
+                              {(invoice as any).sef_error && (
+                                <TooltipContent>
+                                  <p>{(invoice as any).sef_error}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.total_amount)}
                         {invoice.foreign_currency && (
@@ -209,6 +246,34 @@ export default function Invoices() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
+                          {/* SEF Send Button - only for regular invoices that haven't been sent */}
+                          {!invoice.is_proforma && 
+                           invoice.client_type === 'domestic' &&
+                           hasSEFKey && 
+                           (!((invoice as any).sef_status) || (invoice as any).sef_status === 'not_sent' || (invoice as any).sef_status === 'error') && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSendToSEF(invoice.id)}
+                                    disabled={isSending && sendingSEFId === invoice.id}
+                                    title="Pošalji na SEF"
+                                  >
+                                    {isSending && sendingSEFId === invoice.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Send className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Pošalji na SEF</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {invoice.is_proforma && (
                             <Button
                               size="icon"
