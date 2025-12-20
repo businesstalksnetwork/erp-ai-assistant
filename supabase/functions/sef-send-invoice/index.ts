@@ -69,6 +69,7 @@ function formatVatId(value: string): string {
 function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]): string {
   const issueDate = formatDate(invoice.issue_date);
   const dueDate = invoice.payment_deadline ? formatDate(invoice.payment_deadline) : issueDate;
+  const deliveryDate = formatDate(invoice.service_date ?? invoice.issue_date);
   
   // Calculate totals
   const taxableAmount = invoice.total_amount;
@@ -104,6 +105,9 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
   <cbc:DueDate>${dueDate}</cbc:DueDate>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
   <cbc:Note>${escapeXml(invoice.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.')}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
@@ -457,6 +461,7 @@ serve(async (req) => {
 
 function generateStornoUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], originalSefId: string): string {
   const issueDate = formatDate(invoice.issue_date);
+  const deliveryDate = formatDate(invoice.service_date ?? invoice.issue_date);
   
   // Use absolute values for amounts (they're already negative in the invoice)
   const taxableAmount = Math.abs(invoice.total_amount);
@@ -490,10 +495,14 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efaktura.mfin.gov.rs:sr-ubl-1.0</cbc:CustomizationID>
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
   <cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>
   <cbc:Note>${escapeXml(invoice.note || 'Storno faktura')}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
   
+
   <cac:BillingReference>
     <cac:InvoiceDocumentReference>
       <cbc:ID>${originalSefId}</cbc:ID>
