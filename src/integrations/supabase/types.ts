@@ -95,6 +95,7 @@ export type Database = {
           maticni_broj: string
           name: string
           pib: string
+          sef_api_key: string | null
           updated_at: string
           user_id: string
         }
@@ -107,6 +108,7 @@ export type Database = {
           maticni_broj: string
           name: string
           pib: string
+          sef_api_key?: string | null
           updated_at?: string
           user_id: string
         }
@@ -119,6 +121,7 @@ export type Database = {
           maticni_broj?: string
           name?: string
           pib?: string
+          sef_api_key?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -189,6 +192,10 @@ export type Database = {
           payment_deadline: string | null
           payment_method: string | null
           quantity: number
+          sef_error: string | null
+          sef_invoice_id: string | null
+          sef_sent_at: string | null
+          sef_status: string | null
           service_date: string | null
           total_amount: number
           unit_price: number
@@ -217,6 +224,10 @@ export type Database = {
           payment_deadline?: string | null
           payment_method?: string | null
           quantity?: number
+          sef_error?: string | null
+          sef_invoice_id?: string | null
+          sef_sent_at?: string | null
+          sef_status?: string | null
           service_date?: string | null
           total_amount: number
           unit_price: number
@@ -245,6 +256,10 @@ export type Database = {
           payment_deadline?: string | null
           payment_method?: string | null
           quantity?: number
+          sef_error?: string | null
+          sef_invoice_id?: string | null
+          sef_sent_at?: string | null
+          sef_status?: string | null
           service_date?: string | null
           total_amount?: number
           unit_price?: number
