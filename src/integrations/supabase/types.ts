@@ -169,6 +169,7 @@ export type Database = {
         Row: {
           client_address: string | null
           client_id: string | null
+          client_maticni_broj: string | null
           client_name: string
           client_pib: string | null
           client_type: Database["public"]["Enums"]["client_type"]
@@ -196,6 +197,7 @@ export type Database = {
         Insert: {
           client_address?: string | null
           client_id?: string | null
+          client_maticni_broj?: string | null
           client_name: string
           client_pib?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
@@ -223,6 +225,7 @@ export type Database = {
         Update: {
           client_address?: string | null
           client_id?: string | null
+          client_maticni_broj?: string | null
           client_name?: string
           client_pib?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
