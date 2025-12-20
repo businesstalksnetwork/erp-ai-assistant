@@ -105,6 +105,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   
   <cac:AccountingSupplierParty>
     <cac:Party>
+      <cbc:EndpointID schemeID="9948">${company.pib}</cbc:EndpointID>
       <cac:PartyName>
         <cbc:Name>${escapeXml(company.name)}</cbc:Name>
       </cac:PartyName>
@@ -129,6 +130,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   
   <cac:AccountingCustomerParty>
     <cac:Party>
+      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${invoice.client_pib}</cbc:EndpointID>` : ''}
       <cac:PartyName>
         <cbc:Name>${escapeXml(invoice.client_name)}</cbc:Name>
       </cac:PartyName>
@@ -489,6 +491,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
   
   <cac:AccountingSupplierParty>
     <cac:Party>
+      <cbc:EndpointID schemeID="9948">${company.pib}</cbc:EndpointID>
       <cac:PartyName>
         <cbc:Name>${escapeXml(company.name)}</cbc:Name>
       </cac:PartyName>
@@ -513,6 +516,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
   
   <cac:AccountingCustomerParty>
     <cac:Party>
+      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${invoice.client_pib}</cbc:EndpointID>` : ''}
       <cac:PartyName>
         <cbc:Name>${escapeXml(invoice.client_name)}</cbc:Name>
       </cac:PartyName>
