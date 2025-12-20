@@ -60,10 +60,21 @@ function generateIPSQRCode(
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
-  // Receiver account: digits only (must be 18 digits - pad with zeros if needed)
-  let formattedAccount = receiverAccount.replace(/\D/g, '');
-  // Serbian accounts are 18 digits; pad if necessary
-  formattedAccount = formattedAccount.padStart(18, '0').substring(0, 18);
+  // Receiver account: format XXX-XXXXXXXXXXXXX-XX (18 digits total)
+  // The middle part should be padded with zeros to 13 digits
+  const accountParts = receiverAccount.split('-');
+  let formattedAccount: string;
+  
+  if (accountParts.length === 3) {
+    // Format: bank (3) - account (13, pad with zeros at start) - control (2)
+    const bank = accountParts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+    const account = accountParts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
+    const control = accountParts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+    formattedAccount = bank + account + control;
+  } else {
+    // Fallback: just remove non-digits and pad to 18
+    formattedAccount = receiverAccount.replace(/\D/g, '').padStart(18, '0').substring(0, 18);
+  }
 
   // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator, no spaces)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
