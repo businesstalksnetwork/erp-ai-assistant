@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   TrendingUp,
@@ -30,8 +32,17 @@ export default function Dashboard() {
   const { profile, isApproved } = useAuth();
   const { selectedCompany, companies } = useSelectedCompany();
   const { limits, LIMIT_6M, LIMIT_8M } = useLimits(selectedCompany?.id || null);
-  const { upcomingReminders } = useReminders(selectedCompany?.id || null);
+  const { upcomingReminders, toggleComplete } = useReminders(selectedCompany?.id || null);
   const { invoices } = useInvoices(selectedCompany?.id || null);
+
+  const handleToggleReminder = async (id: string, currentStatus: boolean) => {
+    try {
+      await toggleComplete.mutateAsync({ id, is_completed: currentStatus });
+      toast.success('Podsetnik označen kao plaćen');
+    } catch (error) {
+      toast.error('Greška pri ažuriranju podsetnika');
+    }
+  };
 
   const recentInvoices = invoices.filter(i => !i.is_proforma).slice(0, 5);
 
@@ -196,11 +207,18 @@ export default function Dashboard() {
                   key={reminder.id}
                   className="flex items-center justify-between p-3 bg-secondary rounded-lg"
                 >
-                  <div>
-                    <p className="font-medium">{reminder.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={false}
+                      onCheckedChange={() => handleToggleReminder(reminder.id, reminder.is_completed)}
+                      aria-label="Označi kao plaćeno"
+                    />
+                    <div>
+                      <p className="font-medium">{reminder.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
+                      </p>
+                    </div>
                   </div>
                   {reminder.amount && (
                     <Badge variant="outline">{formatCurrency(reminder.amount)}</Badge>
