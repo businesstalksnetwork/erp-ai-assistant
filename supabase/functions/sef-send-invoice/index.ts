@@ -105,9 +105,6 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
   <cbc:DueDate>${dueDate}</cbc:DueDate>
-  <cac:Delivery>
-    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
-  </cac:Delivery>
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
   <cbc:Note>${escapeXml(invoice.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.')}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
@@ -163,6 +160,10 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
+
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
   
   ${company.bank_account ? `
   <cac:PaymentMeans>
