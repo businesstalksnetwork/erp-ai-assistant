@@ -63,6 +63,7 @@ export default function NewInvoice() {
     client_name: '',
     client_address: '',
     client_pib: '',
+    client_maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
     foreign_currency: '',
     foreign_amount: 0,
@@ -164,6 +165,7 @@ export default function NewInvoice() {
         client_name: '',
         client_address: '',
         client_pib: '',
+        client_maticni_broj: '',
         client_type: 'domestic',
       }));
       return;
@@ -177,6 +179,7 @@ export default function NewInvoice() {
         client_name: client.name,
         client_address: client.address || '',
         client_pib: client.pib || '',
+        client_maticni_broj: client.maticni_broj || '',
         client_type: client.client_type,
       }));
     }
@@ -294,6 +297,7 @@ export default function NewInvoice() {
           client_name: formData.client_name,
           client_address: formData.client_address || null,
           client_pib: formData.client_pib || null,
+          client_maticni_broj: formData.client_maticni_broj || null,
           client_type: formData.client_type,
           description: items.map(i => i.description).join('; '),
           quantity: 1,
@@ -531,7 +535,7 @@ export default function NewInvoice() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="client_address">Adresa</Label>
                 <Input
@@ -542,16 +546,28 @@ export default function NewInvoice() {
                 />
               </div>
               {formData.client_type === 'domestic' && (
-                <div className="space-y-2">
-                  <Label htmlFor="client_pib">PIB</Label>
-                  <Input
-                    id="client_pib"
-                    value={formData.client_pib}
-                    onChange={(e) => setFormData({ ...formData, client_pib: e.target.value })}
-                    placeholder="123456789"
-                    maxLength={9}
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="client_pib">PIB</Label>
+                    <Input
+                      id="client_pib"
+                      value={formData.client_pib}
+                      onChange={(e) => setFormData({ ...formData, client_pib: e.target.value })}
+                      placeholder="123456789"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="client_maticni_broj">Matični broj</Label>
+                    <Input
+                      id="client_maticni_broj"
+                      value={formData.client_maticni_broj}
+                      onChange={(e) => setFormData({ ...formData, client_maticni_broj: e.target.value })}
+                      placeholder="12345678"
+                      maxLength={8}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </CardContent>

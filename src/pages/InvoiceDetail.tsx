@@ -164,6 +164,7 @@ export default function InvoiceDetail() {
                 <p className="font-semibold text-lg">{invoice.client_name}</p>
                 {invoice.client_address && <p className="text-sm">{invoice.client_address}</p>}
                 {invoice.client_pib && <p className="text-sm">PIB: {invoice.client_pib}</p>}
+                {invoice.client_maticni_broj && <p className="text-sm">Matični broj: {invoice.client_maticni_broj}</p>}
                 <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-2">
                   {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
                 </Badge>

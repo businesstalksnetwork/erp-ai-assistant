@@ -12,6 +12,7 @@ export interface Invoice {
   client_name: string;
   client_address: string | null;
   client_pib: string | null;
+  client_maticni_broj: string | null;
   client_type: 'domestic' | 'foreign';
   description: string;
   quantity: number;
