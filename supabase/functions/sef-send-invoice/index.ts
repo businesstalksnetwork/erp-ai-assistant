@@ -61,6 +61,11 @@ function formatDate(dateStr: string): string {
   return dateStr; // Already in YYYY-MM-DD format
 }
 
+function formatVatId(value: string): string {
+  const v = value.replace(/\s+/g, '');
+  return v.startsWith('RS') ? v : `RS${v}`;
+}
+
 function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]): string {
   const issueDate = formatDate(invoice.issue_date);
   const dueDate = invoice.payment_deadline ? formatDate(invoice.payment_deadline) : issueDate;
@@ -116,7 +121,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
         </cac:Country>
       </cac:PostalAddress>
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${company.pib}</cbc:CompanyID>
+        <cbc:CompanyID>${formatVatId(company.pib)}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
@@ -143,7 +148,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       </cac:PostalAddress>` : ''}
       ${invoice.client_pib ? `
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${invoice.client_pib}</cbc:CompanyID>
+        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : invoice.client_pib}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
@@ -508,7 +513,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
         </cac:Country>
       </cac:PostalAddress>
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${company.pib}</cbc:CompanyID>
+        <cbc:CompanyID>${formatVatId(company.pib)}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
@@ -535,7 +540,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       </cac:PostalAddress>` : ''}
       ${invoice.client_pib ? `
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${invoice.client_pib}</cbc:CompanyID>
+        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : invoice.client_pib}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
