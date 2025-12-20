@@ -165,6 +165,103 @@ export function useInvoices(companyId: string | null) {
     },
   });
 
+  const stornoInvoice = useMutation({
+    mutationFn: async (originalInvoiceId: string) => {
+      const original = invoices.find(i => i.id === originalInvoiceId);
+      if (!original) throw new Error('Faktura nije pronađena');
+
+      if (original.is_proforma) {
+        throw new Error('Predračuni se ne mogu stornirati');
+      }
+
+      // Get next invoice number for storno
+      const currentYear = new Date().getFullYear();
+      const { data: lastInvoice } = await supabase
+        .from('invoices')
+        .select('invoice_number')
+        .eq('company_id', original.company_id)
+        .eq('year', currentYear)
+        .eq('is_proforma', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let nextNumber = 1;
+      if (lastInvoice?.invoice_number) {
+        const match = lastInvoice.invoice_number.match(/(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      // Create storno invoice with negative amounts
+      const { data: stornoData, error: stornoError } = await supabase
+        .from('invoices')
+        .insert({
+          company_id: original.company_id,
+          client_id: original.client_id,
+          invoice_number: `${nextNumber}/${currentYear}`,
+          issue_date: new Date().toISOString().split('T')[0],
+          service_date: original.service_date,
+          client_name: original.client_name,
+          client_address: original.client_address,
+          client_pib: original.client_pib,
+          client_maticni_broj: original.client_maticni_broj,
+          client_type: original.client_type,
+          description: `STORNO fakture ${original.invoice_number}`,
+          quantity: original.quantity,
+          unit_price: -Math.abs(original.unit_price),
+          total_amount: -Math.abs(original.total_amount),
+          foreign_currency: original.foreign_currency,
+          foreign_amount: original.foreign_amount ? -Math.abs(original.foreign_amount) : null,
+          exchange_rate: original.exchange_rate,
+          item_type: original.item_type,
+          payment_deadline: null,
+          payment_method: original.payment_method,
+          note: `Storno fakture br. ${original.invoice_number} od ${new Date(original.issue_date).toLocaleDateString('sr-RS')}`,
+          is_proforma: false,
+          year: currentYear,
+        })
+        .select()
+        .single();
+
+      if (stornoError) throw stornoError;
+
+      // Copy invoice items with negative amounts
+      const { data: originalItems } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', originalInvoiceId);
+
+      if (originalItems && originalItems.length > 0) {
+        const stornoItems = originalItems.map(item => ({
+          invoice_id: stornoData.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: -Math.abs(item.unit_price),
+          total_amount: -Math.abs(item.total_amount),
+          item_type: item.item_type,
+        }));
+
+        await supabase.from('invoice_items').insert(stornoItems);
+      }
+
+      return { stornoInvoice: stornoData, originalInvoice: original };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+      toast({ 
+        title: 'Storno faktura kreirana',
+        description: `Kreirana storno faktura br. ${data.stornoInvoice.invoice_number}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     invoices,
     isLoading,
@@ -172,5 +269,6 @@ export function useInvoices(companyId: string | null) {
     updateInvoice,
     deleteInvoice,
     convertProformaToInvoice,
+    stornoInvoice,
   };
 }

@@ -47,7 +47,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send } from 'lucide-react';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send, RotateCcw } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -59,10 +59,11 @@ function formatCurrency(amount: number): string {
 
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
-  const { invoices, isLoading, deleteInvoice, convertProformaToInvoice } = useInvoices(selectedCompany?.id || null);
-  const { sendToSEF, getSEFStatus, isSending } = useSEF();
+  const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice } = useInvoices(selectedCompany?.id || null);
+  const { sendToSEF, sendStornoToSEF, getSEFStatus, isSending, isStornoSending } = useSEF();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
+  const [stornoId, setStornoId] = useState<string | null>(null);
   const [sendingSEFId, setSendingSEFId] = useState<string | null>(null);
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
@@ -105,6 +106,24 @@ export default function Invoices() {
     setSendingSEFId(invoiceId);
     await sendToSEF(invoiceId, selectedCompany.id);
     setSendingSEFId(null);
+  };
+
+  const handleStorno = async () => {
+    if (!stornoId || !selectedCompany) return;
+    
+    const invoice = invoices.find(i => i.id === stornoId);
+    if (!invoice) return;
+
+    // Create storno invoice first
+    const result = await stornoInvoice.mutateAsync(stornoId);
+    
+    // If original was sent to SEF, send storno to SEF as well
+    const originalSefId = (invoice as any).sef_invoice_id;
+    if (originalSefId && hasSEFKey) {
+      await sendStornoToSEF(result.stornoInvoice.id, selectedCompany.id, originalSefId);
+    }
+    
+    setStornoId(null);
   };
 
   const hasSEFKey = !!(selectedCompany as any)?.sef_api_key;
@@ -274,6 +293,27 @@ export default function Invoices() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
+                          {/* Storno Button - for regular invoices only */}
+                          {!invoice.is_proforma && invoice.total_amount > 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => setStornoId(invoice.id)}
+                                    disabled={stornoInvoice.isPending || isStornoSending}
+                                    title="Storniraj fakturu"
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Storniraj fakturu</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {invoice.is_proforma && (
                             <Button
                               size="icon"
@@ -353,6 +393,34 @@ export default function Invoices() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Storno Dialog */}
+      <AlertDialog open={!!stornoId} onOpenChange={() => setStornoId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Storniraj fakturu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ova akcija će kreirati storno fakturu sa svim stavkama u minusu.
+              {stornoId && invoices.find(i => i.id === stornoId) && 
+                (invoices.find(i => i.id === stornoId) as any).sef_invoice_id && hasSEFKey && (
+                <span className="block mt-2 font-medium">
+                  Faktura će automatski biti stornirana i na SEF-u.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleStorno}
+              disabled={stornoInvoice.isPending || isStornoSending}
+            >
+              {(stornoInvoice.isPending || isStornoSending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Storniraj
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

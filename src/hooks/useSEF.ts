@@ -14,13 +14,14 @@ export function useSEF() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSending, setIsSending] = useState(false);
+  const [isStornoSending, setIsStornoSending] = useState(false);
 
   const sendToSEF = async (invoiceId: string, companyId: string): Promise<SEFSendResult> => {
     setIsSending(true);
     
     try {
       const { data, error } = await supabase.functions.invoke('sef-send-invoice', {
-        body: { invoiceId, companyId },
+        body: { invoiceId, companyId, action: 'send' },
       });
 
       if (error) {
@@ -55,6 +56,54 @@ export function useSEF() {
     }
   };
 
+  const sendStornoToSEF = async (
+    stornoInvoiceId: string, 
+    companyId: string, 
+    originalSefId: string
+  ): Promise<SEFSendResult> => {
+    setIsStornoSending(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sef-send-invoice', {
+        body: { 
+          invoiceId: stornoInvoiceId, 
+          companyId, 
+          action: 'storno',
+          originalSefId 
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Greška pri storniranju na SEF');
+      }
+
+      if (data.success) {
+        toast({
+          title: 'Storno poslat na SEF',
+          description: `ID storno fakture na SEF-u: ${data.sefInvoiceId}`,
+        });
+        
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        
+        return data;
+      } else {
+        throw new Error(data.error || 'Nepoznata greška');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Greška pri storniranju na SEF';
+      
+      toast({
+        title: 'Greška',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsStornoSending(false);
+    }
+  };
+
   const getSEFStatus = (invoice: any): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
     const status = invoice.sef_status || 'not_sent';
     
@@ -75,7 +124,9 @@ export function useSEF() {
 
   return {
     sendToSEF,
+    sendStornoToSEF,
     getSEFStatus,
     isSending,
+    isStornoSending,
   };
 }
