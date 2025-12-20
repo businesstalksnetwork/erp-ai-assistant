@@ -181,7 +181,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cac:TaxCategory>
         <cbc:ID>O</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VATEX-EU-O</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-11-1-4</cbc:TaxExemptionReasonCode>
         <cbc:TaxExemptionReason>Obveznik nije u sistemu PDV-a</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
@@ -454,7 +454,7 @@ serve(async (req) => {
       success: false,
       error: errorMessage,
     }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -570,7 +570,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       <cac:TaxCategory>
         <cbc:ID>O</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VATEX-EU-O</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-11-1-4</cbc:TaxExemptionReasonCode>
         <cbc:TaxExemptionReason>Obveznik nije u sistemu PDV-a</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
