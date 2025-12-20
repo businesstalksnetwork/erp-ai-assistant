@@ -496,13 +496,9 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efaktura.mfin.gov.rs:sr-ubl-1.0</cbc:CustomizationID>
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
-  <cac:Delivery>
-    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
-  </cac:Delivery>
   <cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>
   <cbc:Note>${escapeXml(invoice.note || 'Storno faktura')}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
-  
 
   <cac:BillingReference>
     <cac:InvoiceDocumentReference>
@@ -561,7 +557,11 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
-  
+
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>${deliveryDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
+   
   <cac:TaxTotal>
     <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
     <cac:TaxSubtotal>
