@@ -177,10 +177,16 @@ export function useReminders(companyId: string | null) {
 
   const upcomingReminders = reminders.filter(r => {
     if (r.is_completed) return false;
+    
+    // Get today's date in YYYY-MM-DD format for comparison
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const reminderDate = r.reminder_date ? new Date(r.reminder_date) : new Date(r.due_date);
-    return reminderDate <= today;
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Use reminder_date if set, otherwise use due_date
+    const checkDate = r.reminder_date || r.due_date;
+    
+    // Compare date strings directly to avoid timezone issues
+    return checkDate <= todayStr;
   });
 
   return {

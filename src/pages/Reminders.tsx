@@ -463,15 +463,36 @@ export default function Reminders() {
                       value={formData.recipient_account}
                       onChange={(e) => setFormData({ ...formData, recipient_account: e.target.value })}
                       onBlur={(e) => {
-                        // Auto-format account number: pad to 18 digits
-                        const digits = e.target.value.replace(/\D/g, '');
-                        if (digits.length > 0) {
-                          setFormData({ ...formData, recipient_account: digits.padStart(18, '0').substring(0, 18) });
+                        // Auto-format account number with proper Serbian bank account format
+                        // Format: XXX-YYYYYYYYYYYYY-ZZ (3 digits - 13 digits - 2 digits = 18 total)
+                        const value = e.target.value.trim();
+                        const parts = value.split('-');
+                        
+                        if (parts.length === 3) {
+                          // Format with dashes: pad middle part with zeros after first dash
+                          const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+                          const account = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
+                          const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+                          setFormData({ ...formData, recipient_account: `${bank}-${account}-${control}` });
+                        } else {
+                          // No dashes: try to parse as continuous digits
+                          const digits = value.replace(/\D/g, '');
+                          if (digits.length > 0 && digits.length <= 18) {
+                            // Assume format: first 3 = bank, last 2 = control, middle = account
+                            if (digits.length >= 5) {
+                              const bank = digits.substring(0, 3).padStart(3, '0');
+                              const control = digits.substring(digits.length - 2);
+                              const account = digits.substring(3, digits.length - 2).padStart(13, '0');
+                              setFormData({ ...formData, recipient_account: `${bank}-${account}-${control}` });
+                            } else {
+                              setFormData({ ...formData, recipient_account: digits.padStart(18, '0') });
+                            }
+                          }
                         }
                       }}
-                      placeholder="npr. 265123456789012312"
+                      placeholder="npr. 265-1234567890123-12"
                     />
-                    <p className="text-xs text-muted-foreground">18 cifara, automatski se popunjava nulama</p>
+                    <p className="text-xs text-muted-foreground">Format: XXX-XXXXXXXXXXXXX-XX (nule se dodaju iza prve crte)</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
