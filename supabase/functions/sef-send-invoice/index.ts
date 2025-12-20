@@ -374,6 +374,12 @@ serve(async (req) => {
     // Generate UBL XML
     const ublXml = generateUBLXml(invoice as Invoice, company as Company, invoiceItems);
 
+    // Debug: confirm EndpointID/@schemeID is set as expected
+    const endpointTag = ublXml.match(/<cbc:EndpointID[^>]*>[^<]*<\/cbc:EndpointID>/)?.[0];
+    const endpointScheme = ublXml.match(/<cbc:EndpointID[^>]*schemeID="([^"]+)"/)?.[1];
+    console.log('UBL EndpointID tag:', endpointTag);
+    console.log('UBL EndpointID schemeID:', endpointScheme);
+
     console.log('Generated UBL XML, sending to SEF...');
 
     // Update status to pending
