@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.sef-send-invoice]
 verify_jwt = true
+
+[functions.sef-fetch-invoices]
+verify_jwt = true

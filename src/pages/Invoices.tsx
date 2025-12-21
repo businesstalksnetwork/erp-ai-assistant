@@ -47,7 +47,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send, RotateCcw } from 'lucide-react';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send, RotateCcw, Download } from 'lucide-react';
+import { SEFImportDialog } from '@/components/SEFImportDialog';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -68,6 +69,7 @@ export default function Invoices() {
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'invoices' | 'proforma'>('all');
+  const [sefImportOpen, setSefImportOpen] = useState(false);
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch = 
@@ -145,12 +147,20 @@ export default function Invoices() {
           <h1 className="text-2xl font-bold">Fakture</h1>
           <p className="text-muted-foreground">Upravljajte fakturama i predračunima</p>
         </div>
-        <Button asChild>
-          <Link to="/invoices/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova faktura
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {hasSEFKey && (
+            <Button variant="outline" onClick={() => setSefImportOpen(true)}>
+              <Download className="mr-2 h-4 w-4" />
+              Povuci sa SEF-a
+            </Button>
+          )}
+          <Button asChild>
+            <Link to="/invoices/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nova faktura
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -421,6 +431,15 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* SEF Import Dialog */}
+      {selectedCompany && (
+        <SEFImportDialog
+          open={sefImportOpen}
+          onOpenChange={setSefImportOpen}
+          companyId={selectedCompany.id}
+        />
+      )}
     </div>
   );
 }
