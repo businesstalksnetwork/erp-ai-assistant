@@ -96,7 +96,27 @@ serve(async (req) => {
       throw new Error(`SEF API greška: ${idsResponse.status} - ${errorText}`);
     }
 
-    const invoiceIds: string[] = await idsResponse.json();
+    const idsResponseData = await idsResponse.json();
+    console.log('SEF IDs API response:', JSON.stringify(idsResponseData));
+    
+    // Handle different response formats - API might return array directly or wrapped in object
+    let invoiceIds: string[] = [];
+    if (Array.isArray(idsResponseData)) {
+      invoiceIds = idsResponseData;
+    } else if (idsResponseData?.salesInvoiceIds) {
+      invoiceIds = idsResponseData.salesInvoiceIds;
+    } else if (idsResponseData?.ids) {
+      invoiceIds = idsResponseData.ids;
+    } else if (idsResponseData?.invoiceIds) {
+      invoiceIds = idsResponseData.invoiceIds;
+    } else if (typeof idsResponseData === 'object' && idsResponseData !== null) {
+      // Try to find any array property
+      const arrayProp = Object.values(idsResponseData).find(v => Array.isArray(v));
+      if (arrayProp) {
+        invoiceIds = arrayProp as string[];
+      }
+    }
+    
     console.log(`Found ${invoiceIds.length} invoice IDs from SEF`);
 
     // Filter out already imported invoices
