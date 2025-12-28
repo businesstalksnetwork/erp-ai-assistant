@@ -43,18 +43,31 @@ function parseExcelDate(dateValue: string | number): string {
     return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
   }
   
-  // Try to parse string date (DD.MM.YYYY or YYYY-MM-DD format)
   if (typeof dateValue === 'string') {
-    const parts = dateValue.split('.');
-    if (parts.length === 3) {
-      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    const cleanedValue = dateValue.trim();
+    
+    // Handle format: "04.11.2025. 11:36:12" (with trailing dot after year and time)
+    // Extract date part before time (space separator)
+    const datePart = cleanedValue.split(' ')[0];
+    
+    // Parse DD.MM.YYYY. or DD.MM.YYYY format
+    const parts = datePart.replace(/\.$/, '').split('.');
+    if (parts.length >= 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2];
+      if (year.length === 4) {
+        return `${year}-${month}-${day}`;
+      }
     }
+    
     // Already in ISO format
-    if (dateValue.includes('-')) {
-      return dateValue.split('T')[0];
+    if (cleanedValue.includes('-')) {
+      return cleanedValue.split('T')[0];
     }
   }
   
+  // Fallback to today
   return new Date().toISOString().split('T')[0];
 }
 
