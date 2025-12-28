@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react';
 interface KPOEntry {
   id: string;
   ordinal_number: number;
+  display_ordinal: number;
   description: string;
   products_amount: number;
   services_amount: number;
@@ -147,7 +148,7 @@ export function KPOPdfExport({ entries, totals, year, companyName, companyPib, c
           <tbody>
             ${entries.map(entry => `
               <tr>
-                <td class="number">${entry.ordinal_number}</td>
+                <td class="number">${entry.display_ordinal}</td>
                 <td class="description">${entry.description}</td>
                 <td class="amount">${entry.products_amount > 0 ? formatCurrency(entry.products_amount) : '-'}</td>
                 <td class="amount">${entry.services_amount > 0 ? formatCurrency(entry.services_amount) : '-'}</td>

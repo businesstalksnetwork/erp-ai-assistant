@@ -383,6 +383,7 @@ export default function NewInvoice() {
           services_amount: servicesAmount,
           total_amount: totalAmount,
           year: invoiceYear,
+          document_date: serviceDate,
         };
 
         const { error: kpoError } = existingKpo

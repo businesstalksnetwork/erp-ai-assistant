@@ -389,6 +389,7 @@ export type Database = {
           company_id: string
           created_at: string
           description: string
+          document_date: string | null
           id: string
           invoice_id: string | null
           ordinal_number: number
@@ -401,6 +402,7 @@ export type Database = {
           company_id: string
           created_at?: string
           description: string
+          document_date?: string | null
           id?: string
           invoice_id?: string | null
           ordinal_number: number
@@ -413,6 +415,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           description?: string
+          document_date?: string | null
           id?: string
           invoice_id?: string | null
           ordinal_number?: number

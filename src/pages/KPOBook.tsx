@@ -115,7 +115,7 @@ export default function KPOBook() {
                 <TableBody>
                   {entries.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell className="font-mono">{entry.ordinal_number}</TableCell>
+                      <TableCell className="font-mono">{entry.display_ordinal}</TableCell>
                       <TableCell>{entry.description}</TableCell>
                       <TableCell className="text-right font-mono">
                         {entry.products_amount > 0 ? formatCurrency(entry.products_amount) : '-'}
