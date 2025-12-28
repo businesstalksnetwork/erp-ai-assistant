@@ -256,6 +256,276 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     },
   });
 
+  // Helper function to recalculate a day's summary after deletions
+  const recalculateDaySummary = async (companyId: string, date: string) => {
+    // Get remaining entries for this date
+    const { data: remainingEntries, error: fetchError } = await supabase
+      .from('fiscal_entries' as any)
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('entry_date', date);
+
+    if (fetchError) throw fetchError;
+
+    const typedEntries = (remainingEntries || []) as unknown as FiscalEntry[];
+
+    // Get existing daily summary
+    const { data: existingSummary } = await supabase
+      .from('fiscal_daily_summary' as any)
+      .select('id, kpo_entry_id')
+      .eq('company_id', companyId)
+      .eq('summary_date', date)
+      .maybeSingle();
+
+    if (!existingSummary) return;
+
+    if (typedEntries.length === 0) {
+      // No entries left for this day - delete summary and KPO entry
+      if ((existingSummary as any).kpo_entry_id) {
+        await supabase
+          .from('kpo_entries')
+          .delete()
+          .eq('id', (existingSummary as any).kpo_entry_id);
+      }
+      await supabase
+        .from('fiscal_daily_summary' as any)
+        .delete()
+        .eq('id', (existingSummary as any).id);
+    } else {
+      // Recalculate totals
+      const sales = typedEntries
+        .filter(e => e.transaction_type === 'Продаја')
+        .reduce((sum, e) => sum + e.amount, 0);
+      const refunds = typedEntries
+        .filter(e => e.transaction_type === 'Рефундација')
+        .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+      const total = sales - refunds;
+
+      // Update daily summary
+      await supabase
+        .from('fiscal_daily_summary' as any)
+        .update({
+          sales_amount: sales,
+          refunds_amount: refunds,
+          total_amount: total,
+        })
+        .eq('id', (existingSummary as any).id);
+
+      // Update KPO entry if exists
+      if ((existingSummary as any).kpo_entry_id) {
+        await supabase
+          .from('kpo_entries')
+          .update({
+            total_amount: total,
+            products_amount: total,
+            services_amount: 0,
+          })
+          .eq('id', (existingSummary as any).kpo_entry_id);
+      }
+    }
+  };
+
+  // Delete a single fiscal entry
+  const deleteFiscalEntry = useMutation({
+    mutationFn: async (data: { entryId: string; companyId: string; entryDate: string }) => {
+      const { entryId, companyId, entryDate } = data;
+
+      // Delete the entry
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .delete()
+        .eq('id', entryId);
+
+      if (error) throw error;
+
+      // Recalculate daily summary
+      await recalculateDaySummary(companyId, entryDate);
+
+      return { entryId };
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Obrisano',
+        description: 'Fiskalni račun je uspešno obrisan',
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete multiple fiscal entries by IDs
+  const deleteFiscalEntries = useMutation({
+    mutationFn: async (data: { entryIds: string[]; companyId: string }) => {
+      const { entryIds, companyId } = data;
+
+      // Get affected dates first
+      const { data: entriesToDelete, error: fetchError } = await supabase
+        .from('fiscal_entries' as any)
+        .select('entry_date')
+        .in('id', entryIds);
+
+      if (fetchError) throw fetchError;
+
+      const affectedDates = [...new Set((entriesToDelete || []).map((e: any) => e.entry_date))];
+
+      // Delete entries
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .delete()
+        .in('id', entryIds);
+
+      if (error) throw error;
+
+      // Recalculate summaries for affected dates
+      for (const date of affectedDates) {
+        await recalculateDaySummary(companyId, date);
+      }
+
+      return { count: entryIds.length };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Obrisano',
+        description: `Obrisano ${data.count} fiskalnih računa`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete fiscal entries by date range
+  const deleteFiscalEntriesByDateRange = useMutation({
+    mutationFn: async (data: { companyId: string; startDate: string; endDate: string }) => {
+      const { companyId, startDate, endDate } = data;
+
+      // Get affected entries
+      const { data: entriesToDelete, error: fetchError } = await supabase
+        .from('fiscal_entries' as any)
+        .select('id, entry_date')
+        .eq('company_id', companyId)
+        .gte('entry_date', startDate)
+        .lte('entry_date', endDate);
+
+      if (fetchError) throw fetchError;
+
+      if (!entriesToDelete || entriesToDelete.length === 0) {
+        return { count: 0 };
+      }
+
+      const affectedDates = [...new Set((entriesToDelete || []).map((e: any) => e.entry_date))];
+      const entryIds = entriesToDelete.map((e: any) => e.id);
+
+      // Delete entries
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .delete()
+        .in('id', entryIds);
+
+      if (error) throw error;
+
+      // Recalculate summaries for affected dates
+      for (const date of affectedDates) {
+        await recalculateDaySummary(companyId, date);
+      }
+
+      return { count: entryIds.length };
+    },
+    onSuccess: (data) => {
+      if (data.count > 0) {
+        toast({
+          title: 'Obrisano',
+          description: `Obrisano ${data.count} fiskalnih računa`,
+        });
+      } else {
+        toast({
+          title: 'Info',
+          description: 'Nema računa u izabranom periodu',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete all fiscal entries for a specific date
+  const deleteFiscalEntriesByDate = useMutation({
+    mutationFn: async (data: { companyId: string; date: string }) => {
+      const { companyId, date } = data;
+
+      // Get entries for this date
+      const { data: entriesToDelete, error: fetchError } = await supabase
+        .from('fiscal_entries' as any)
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('entry_date', date);
+
+      if (fetchError) throw fetchError;
+
+      if (!entriesToDelete || entriesToDelete.length === 0) {
+        return { count: 0 };
+      }
+
+      const entryIds = entriesToDelete.map((e: any) => e.id);
+
+      // Delete entries
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .delete()
+        .in('id', entryIds);
+
+      if (error) throw error;
+
+      // Recalculate (will delete) summary for this date
+      await recalculateDaySummary(companyId, date);
+
+      return { count: entryIds.length };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Obrisano',
+        description: `Obrisano ${data.count} fiskalnih računa za izabrani dan`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const totals = {
     sales: entries.filter(e => e.transaction_type === 'Продаја').reduce((sum, e) => sum + e.amount, 0),
     refunds: entries.filter(e => e.transaction_type === 'Рефундација').reduce((sum, e) => sum + Math.abs(e.amount), 0),
@@ -269,5 +539,9 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     totals,
     availableYears,
     importFiscalData,
+    deleteFiscalEntry,
+    deleteFiscalEntries,
+    deleteFiscalEntriesByDate,
+    deleteFiscalEntriesByDateRange,
   };
 }
