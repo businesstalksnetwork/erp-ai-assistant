@@ -81,17 +81,23 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
 
-      // Find header row (look for "Врста промета" column)
+      // Find header row - look for columns that indicate this is a fiscal report
+      // Possible column names: "Врста рачуна" or "Врста промета", "Тип трансакције", "Укупан износ"
       let headerRowIndex = -1;
       let columns: Record<string, number> = {};
       
       for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
         const row = jsonData[i];
         if (row && Array.isArray(row)) {
-          const headerIndex = row.findIndex((cell: any) => 
-            typeof cell === 'string' && cell.includes('Врста промета')
+          // Look for key columns that identify the header row
+          const hasVrstaRacuna = row.some((cell: any) => 
+            typeof cell === 'string' && (cell.includes('Врста рачуна') || cell.includes('Врста промета'))
           );
-          if (headerIndex >= 0) {
+          const hasTipTransakcije = row.some((cell: any) => 
+            typeof cell === 'string' && cell.includes('Тип трансакције')
+          );
+          
+          if (hasVrstaRacuna && hasTipTransakcije) {
             headerRowIndex = i;
             // Map column names to indices
             row.forEach((cell: any, index: number) => {
@@ -105,27 +111,37 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
       }
 
       if (headerRowIndex === -1) {
-        throw new Error('Nije pronađen zaglavlje tabele. Proverite format Excel fajla.');
+        throw new Error('Nije pronađeno zaglavlje tabele. Proverite format Excel fajla.');
       }
 
       // Parse data rows
       const entries: ParsedFiscalData[] = [];
       
+      // Column name variations
+      const vrstaCol = columns['Врста рачуна'] ?? columns['Врста промета'];
+      const tipCol = columns['Тип трансакције'];
+      const datumCol = columns['ПФР време (временска зона сервера)'] ?? columns['Датум и време промета'] ?? columns['Датум промета'];
+      const poslovniProstorCol = columns['Назив пословног простора'];
+      const brojRacunaCol = columns['Бројач рачуна'] ?? columns['Број рачуна'];
+      const ukupanIznosCol = columns['Укупан износ'];
+      
       for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || !Array.isArray(row) || row.length === 0) continue;
 
-        // Get values
-        const vrstaPrometa = row[columns['Врста промета']]?.toString().trim();
-        const tipTransakcije = row[columns['Тип трансакције']]?.toString().trim();
+        // Get values using the mapped columns
+        const vrstaPrometa = vrstaCol !== undefined ? row[vrstaCol]?.toString().trim() : '';
+        const tipTransakcije = tipCol !== undefined ? row[tipCol]?.toString().trim() : '';
         
         // Only include "Промет" entries (not "Аванс")
         // And only "Продаја" and "Рефундација" (not other types)
         if (vrstaPrometa === 'Промет' && (tipTransakcije === 'Продаја' || tipTransakcije === 'Рефундација')) {
-          const datum = row[columns['Датум и време промета']] || row[columns['Датум промета']];
-          const poslovniProstor = row[columns['Назив пословног простора']]?.toString() || '';
-          const brojRacuna = row[columns['Број рачуна']]?.toString() || '';
-          const ukupanIznos = parseFloat(row[columns['Укупан износ']]?.toString().replace(',', '.') || '0');
+          const datum = datumCol !== undefined ? row[datumCol] : null;
+          const poslovniProstor = poslovniProstorCol !== undefined ? row[poslovniProstorCol]?.toString() || '' : '';
+          const brojRacuna = brojRacunaCol !== undefined ? row[brojRacunaCol]?.toString() || '' : '';
+          const ukupanIznosRaw = ukupanIznosCol !== undefined ? row[ukupanIznosCol]?.toString() || '0' : '0';
+          // Handle both comma and period as decimal separator, and remove thousands separators
+          const ukupanIznos = parseFloat(ukupanIznosRaw.replace(/,/g, '.').replace(/\s/g, '')) || 0;
           
           if (brojRacuna && ukupanIznos !== 0) {
             entries.push({
