@@ -18,9 +18,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
-import { ParsedFiscalData, useFiscalEntries } from '@/hooks/useFiscalEntries';
+import { Loader2, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Package, Wrench } from 'lucide-react';
+import { ParsedFiscalData, useFiscalEntries, KpoItemType } from '@/hooks/useFiscalEntries';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface FiscalImportDialogProps {
   open: boolean;
@@ -76,6 +78,7 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedFiscalData[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [kpoItemType, setKpoItemType] = useState<KpoItemType>('products');
   
   const { importFiscalData } = useFiscalEntries(companyId);
 
@@ -183,11 +186,12 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
   const handleImport = useCallback(async () => {
     if (parsedData.length === 0) return;
     
-    await importFiscalData.mutateAsync({ entries: parsedData, companyId });
+    await importFiscalData.mutateAsync({ entries: parsedData, companyId, kpoItemType });
     setParsedData([]);
     setFile(null);
+    setKpoItemType('products');
     onOpenChange(false);
-  }, [parsedData, companyId, importFiscalData, onOpenChange]);
+  }, [parsedData, companyId, importFiscalData, onOpenChange, kpoItemType]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -292,6 +296,31 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
                   <p className="text-sm text-muted-foreground">Neto iznos</p>
                   <p className="text-lg font-bold">{formatCurrency(netTotal)}</p>
                 </div>
+              </div>
+
+              {/* KPO Item Type Selection */}
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <p className="text-sm font-medium mb-3">Evidentiraj u KPO kao:</p>
+                <RadioGroup 
+                  value={kpoItemType} 
+                  onValueChange={(value) => setKpoItemType(value as KpoItemType)}
+                  className="flex gap-6"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="products" id="products" />
+                    <Label htmlFor="products" className="flex items-center gap-2 cursor-pointer">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      Proizvodi
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="services" id="services" />
+                    <Label htmlFor="services" className="flex items-center gap-2 cursor-pointer">
+                      <Wrench className="h-4 w-4 text-muted-foreground" />
+                      Usluge
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               <ScrollArea className="flex-1 border rounded-lg">
