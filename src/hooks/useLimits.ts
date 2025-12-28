@@ -13,6 +13,8 @@ export interface LimitsData {
   limit8MPercent: number;
   limit6MRemaining: number;
   limit8MRemaining: number;
+  fiscalYearlyTotal: number;
+  fiscalRollingTotal: number;
 }
 
 export function useLimits(companyId: string | null) {
@@ -44,21 +46,49 @@ export function useLimits(companyId: string | null) {
         .eq('is_proforma', false)
         .gte('issue_date', rolling365Start.toISOString().split('T')[0]);
 
-      const yearlyTotal = yearlyInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      // Get yearly fiscal data
+      const { data: yearlyFiscal } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .select('total_amount')
+        .eq('company_id', companyId!)
+        .gte('summary_date', yearStart)
+        .lte('summary_date', yearEnd);
+
+      // Get rolling fiscal data
+      const { data: rollingFiscal } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .select('total_amount')
+        .eq('company_id', companyId!)
+        .gte('summary_date', rolling365Start.toISOString().split('T')[0]);
+
+      const yearlyInvoiceTotal = yearlyInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
       const yearlyDomestic = yearlyInvoices?.filter(i => i.client_type === 'domestic').reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
       
-      const rollingTotal = rollingInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      const rollingInvoiceTotal = rollingInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
       const rollingDomestic = rollingInvoices?.filter(i => i.client_type === 'domestic').reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+
+      const fiscalYearlyTotal = (yearlyFiscal as any[] || []).reduce((sum: number, f: any) => sum + Number(f.total_amount), 0);
+      const fiscalRollingTotal = (rollingFiscal as any[] || []).reduce((sum: number, f: any) => sum + Number(f.total_amount), 0);
+
+      // Total = invoices + fiscal
+      const yearlyTotal = yearlyInvoiceTotal + fiscalYearlyTotal;
+      const rollingTotal = rollingInvoiceTotal + fiscalRollingTotal;
+      
+      // Domestic includes fiscal (fiscal is always domestic)
+      const yearlyDomesticTotal = yearlyDomestic + fiscalYearlyTotal;
+      const rollingDomesticTotal = rollingDomestic + fiscalRollingTotal;
 
       return {
         yearlyTotal,
-        yearlyDomestic,
+        yearlyDomestic: yearlyDomesticTotal,
         rollingTotal,
-        rollingDomestic,
+        rollingDomestic: rollingDomesticTotal,
         limit6MPercent: Math.min((yearlyTotal / LIMIT_6M) * 100, 100),
-        limit8MPercent: Math.min((rollingDomestic / LIMIT_8M) * 100, 100),
+        limit8MPercent: Math.min((rollingDomesticTotal / LIMIT_8M) * 100, 100),
         limit6MRemaining: Math.max(LIMIT_6M - yearlyTotal, 0),
-        limit8MRemaining: Math.max(LIMIT_8M - rollingDomestic, 0),
+        limit8MRemaining: Math.max(LIMIT_8M - rollingDomesticTotal, 0),
+        fiscalYearlyTotal,
+        fiscalRollingTotal,
       };
     },
     enabled: !!companyId,
@@ -74,6 +104,8 @@ export function useLimits(companyId: string | null) {
       limit8MPercent: 0,
       limit6MRemaining: LIMIT_6M,
       limit8MRemaining: LIMIT_8M,
+      fiscalYearlyTotal: 0,
+      fiscalRollingTotal: 0,
     },
     isLoading,
     LIMIT_6M,

@@ -16,6 +16,7 @@ import Invoices from "./pages/Invoices";
 import NewInvoice from "./pages/NewInvoice";
 import InvoiceDetail from "./pages/InvoiceDetail";
 import KPOBook from "./pages/KPOBook";
+import FiscalCashRegister from "./pages/FiscalCashRegister";
 import Reminders from "./pages/Reminders";
 import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
@@ -63,6 +64,7 @@ function AppRoutes() {
       <Route path="/invoices/new" element={<ProtectedRoute><NewInvoice /></ProtectedRoute>} />
       <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
       <Route path="/kpo" element={<ProtectedRoute><KPOBook /></ProtectedRoute>} />
+      <Route path="/fiscal" element={<ProtectedRoute><FiscalCashRegister /></ProtectedRoute>} />
       <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
