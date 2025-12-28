@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface KPOEntry {
   id: string;
   company_id: string;
-  invoice_id: string;
+  invoice_id: string | null;
   ordinal_number: number;
   description: string;
   products_amount: number;
@@ -12,6 +12,9 @@ export interface KPOEntry {
   total_amount: number;
   year: number;
   created_at: string;
+  document_date: string | null;
+  // Dynamic ordinal number for display (1, 2, 3...)
+  display_ordinal: number;
 }
 
 export function useKPO(companyId: string | null, year?: number) {
@@ -25,10 +28,16 @@ export function useKPO(companyId: string | null, year?: number) {
         .select('*')
         .eq('company_id', companyId!)
         .eq('year', currentYear)
-        .order('ordinal_number', { ascending: true });
+        .order('document_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data as KPOEntry[];
+      
+      // Assign dynamic ordinal numbers based on sorted order (1, 2, 3...)
+      return (data || []).map((entry, index) => ({
+        ...entry,
+        display_ordinal: index + 1,
+      })) as KPOEntry[];
     },
     enabled: !!companyId,
   });

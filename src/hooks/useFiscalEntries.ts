@@ -182,6 +182,7 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
               services_amount: kpoItemType === 'services' ? total : 0,
               total_amount: total,
               year: entryYear,
+              document_date: date,
             } as any)
             .select('id')
             .single();
