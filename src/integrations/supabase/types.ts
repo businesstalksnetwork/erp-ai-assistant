@@ -390,7 +390,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
-          invoice_id: string
+          invoice_id: string | null
           ordinal_number: number
           products_amount: number
           services_amount: number
@@ -402,7 +402,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
-          invoice_id: string
+          invoice_id?: string | null
           ordinal_number: number
           products_amount?: number
           services_amount?: number
@@ -414,7 +414,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
-          invoice_id?: string
+          invoice_id?: string | null
           ordinal_number?: number
           products_amount?: number
           services_amount?: number
