@@ -127,6 +127,101 @@ export type Database = {
         }
         Relationships: []
       }
+      fiscal_daily_summary: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          kpo_entry_id: string | null
+          refunds_amount: number
+          sales_amount: number
+          summary_date: string
+          total_amount: number
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          kpo_entry_id?: string | null
+          refunds_amount?: number
+          sales_amount?: number
+          summary_date: string
+          total_amount?: number
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          kpo_entry_id?: string | null
+          refunds_amount?: number
+          sales_amount?: number
+          summary_date?: string
+          total_amount?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_daily_summary_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_daily_summary_kpo_entry_id_fkey"
+            columns: ["kpo_entry_id"]
+            isOneToOne: false
+            referencedRelation: "kpo_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_entries: {
+        Row: {
+          amount: number
+          business_name: string | null
+          company_id: string
+          created_at: string
+          entry_date: string
+          id: string
+          receipt_number: string
+          transaction_type: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          business_name?: string | null
+          company_id: string
+          created_at?: string
+          entry_date: string
+          id?: string
+          receipt_number: string
+          transaction_type: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          business_name?: string | null
+          company_id?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          receipt_number?: string
+          transaction_type?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string

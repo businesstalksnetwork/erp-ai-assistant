@@ -27,6 +27,7 @@ import {
   Briefcase,
   Moon,
   Sun,
+  Calculator,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ const userNavItems = [
   { href: '/invoices', label: 'Fakture', icon: FileText },
   { href: '/invoices/new', label: 'Nova faktura', icon: FilePlus },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
+  { href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
