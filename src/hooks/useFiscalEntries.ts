@@ -147,31 +147,9 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
           .eq('summary_date', date)
           .maybeSingle();
 
-        if (existingSummary) {
-          // Update existing summary
-          await supabase
-            .from('fiscal_daily_summary' as any)
-            .update({
-              sales_amount: sales,
-              refunds_amount: refunds,
-              total_amount: total,
-            })
-            .eq('id', (existingSummary as any).id);
-
-          // Update existing KPO entry if exists
-          if ((existingSummary as any).kpo_entry_id) {
-            await supabase
-              .from('kpo_entries')
-              .update({
-                total_amount: total,
-                products_amount: total,
-                services_amount: 0,
-              })
-              .eq('id', (existingSummary as any).kpo_entry_id);
-          }
-        } else {
-          // Get next KPO ordinal number
-          const { data: maxOrdinal } = await supabase
+        // Helper: create a new KPO entry for this day and return its id
+        const createKpoEntryForDay = async () => {
+          const { data: maxOrdinal, error: maxOrdinalError } = await supabase
             .from('kpo_entries')
             .select('ordinal_number')
             .eq('company_id', companyId)
@@ -180,9 +158,10 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
             .limit(1)
             .maybeSingle();
 
+          if (maxOrdinalError) throw maxOrdinalError;
+
           const nextOrdinal = (maxOrdinal?.ordinal_number || 0) + 1;
 
-          // Create KPO entry for this day (invoice_id is null for fiscal entries)
           const { data: kpoEntry, error: kpoError } = await supabase
             .from('kpo_entries')
             .insert({
@@ -198,12 +177,49 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
             .select('id')
             .single();
 
-          if (kpoError) {
-            console.error('Error creating KPO entry:', kpoError);
+          if (kpoError) throw kpoError;
+          return kpoEntry?.id as string;
+        };
+
+        if (existingSummary) {
+          // Update existing summary
+          const { error: updateSummaryError } = await supabase
+            .from('fiscal_daily_summary' as any)
+            .update({
+              sales_amount: sales,
+              refunds_amount: refunds,
+              total_amount: total,
+            })
+            .eq('id', (existingSummary as any).id);
+
+          if (updateSummaryError) throw updateSummaryError;
+
+          // If a KPO entry exists, update it; otherwise create & link it
+          if ((existingSummary as any).kpo_entry_id) {
+            const { error: updateKpoError } = await supabase
+              .from('kpo_entries')
+              .update({
+                total_amount: total,
+                products_amount: total,
+                services_amount: 0,
+              })
+              .eq('id', (existingSummary as any).kpo_entry_id);
+
+            if (updateKpoError) throw updateKpoError;
+          } else {
+            const kpoId = await createKpoEntryForDay();
+            const { error: linkError } = await supabase
+              .from('fiscal_daily_summary' as any)
+              .update({ kpo_entry_id: kpoId })
+              .eq('id', (existingSummary as any).id);
+
+            if (linkError) throw linkError;
           }
+        } else {
+          const kpoId = await createKpoEntryForDay();
 
           // Create daily summary
-          await supabase
+          const { error: insertSummaryError } = await supabase
             .from('fiscal_daily_summary' as any)
             .insert({
               company_id: companyId,
@@ -212,8 +228,10 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
               refunds_amount: refunds,
               total_amount: total,
               year: entryYear,
-              kpo_entry_id: kpoEntry?.id || null,
+              kpo_entry_id: kpoId,
             });
+
+          if (insertSummaryError) throw insertSummaryError;
         }
       }
 
