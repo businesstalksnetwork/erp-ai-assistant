@@ -140,6 +140,8 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
       const poslovniProstorCol = columns['Назив пословног простора'];
       const brojRacunaCol = columns['Бројач рачуна'] ?? columns['Број рачуна'];
       const ukupanIznosCol = columns['Укупан износ'];
+      // Full unique ID column - "Затражио - Потписао - Бројач" contains the full receipt ID
+      const puniIdCol = columns['Затражио - Потписао - Бројач'];
       
       for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
@@ -154,16 +156,22 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
         if (vrstaPrometa === 'Промет' && (tipTransakcije === 'Продаја' || tipTransakcije === 'Рефундација')) {
           const datum = datumCol !== undefined ? row[datumCol] : null;
           const poslovniProstor = poslovniProstorCol !== undefined ? row[poslovniProstorCol]?.toString() || '' : '';
-          const brojRacuna = brojRacunaCol !== undefined ? row[brojRacunaCol]?.toString() || '' : '';
+          const brojRacunaKratak = brojRacunaCol !== undefined ? row[brojRacunaCol]?.toString() || '' : '';
           const ukupanIznosRaw = ukupanIznosCol !== undefined ? row[ukupanIznosCol]?.toString() || '0' : '0';
           // Handle both comma and period as decimal separator, and remove thousands separators
           const ukupanIznos = parseFloat(ukupanIznosRaw.replace(/,/g, '.').replace(/\s/g, '')) || 0;
           
-          if (brojRacuna && ukupanIznos !== 0) {
+          // Use full unique ID from "Затражио - Потписао - Бројач" column if available
+          // This column contains unique IDs like "GWC64893-C38FDVO0-20" instead of short "20/20ПП"
+          const puniId = puniIdCol !== undefined ? row[puniIdCol]?.toString().trim() || '' : '';
+          // Use full ID if available, otherwise fall back to short number
+          const receiptNumber = puniId || brojRacunaKratak;
+          
+          if (receiptNumber && ukupanIznos !== 0) {
             entries.push({
               entry_date: parseExcelDate(datum),
               business_name: poslovniProstor,
-              receipt_number: brojRacuna,
+              receipt_number: receiptNumber,
               transaction_type: tipTransakcije as 'Продаја' | 'Рефундација',
               amount: Math.abs(ukupanIznos),
             });
