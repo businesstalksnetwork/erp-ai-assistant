@@ -182,19 +182,19 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
 
           const nextOrdinal = (maxOrdinal?.ordinal_number || 0) + 1;
 
-          // Create KPO entry for this day
+          // Create KPO entry for this day (invoice_id is null for fiscal entries)
           const { data: kpoEntry, error: kpoError } = await supabase
             .from('kpo_entries')
             .insert({
               company_id: companyId,
-              invoice_id: crypto.randomUUID(), // Placeholder - fiscal entries don't have invoice
+              invoice_id: null,
               ordinal_number: nextOrdinal,
-              description: `Fiskalna kasa ${formattedDate}godine`,
+              description: `Fiskalna kasa ${formattedDate} godine`,
               products_amount: total,
               services_amount: 0,
               total_amount: total,
               year: entryYear,
-            })
+            } as any)
             .select('id')
             .single();
 
