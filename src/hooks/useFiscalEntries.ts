@@ -34,6 +34,8 @@ export interface ParsedFiscalData {
   amount: number;
 }
 
+export type KpoItemType = 'products' | 'services';
+
 export function useFiscalEntries(companyId: string | null, year?: number) {
   const queryClient = useQueryClient();
   const currentYear = year || new Date().getFullYear();
@@ -89,8 +91,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
   });
 
   const importFiscalData = useMutation({
-    mutationFn: async (data: { entries: ParsedFiscalData[], companyId: string }) => {
-      const { entries: parsedEntries, companyId } = data;
+    mutationFn: async (data: { entries: ParsedFiscalData[], companyId: string, kpoItemType?: KpoItemType }) => {
+      const { entries: parsedEntries, companyId, kpoItemType = 'products' } = data;
       
       // Group entries by date for daily summaries
       const dailyGroups: Record<string, ParsedFiscalData[]> = {};
@@ -176,8 +178,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
               invoice_id: null,
               ordinal_number: nextOrdinal,
               description: `Fiskalna kasa ${formattedDate} godine`,
-              products_amount: total,
-              services_amount: 0,
+              products_amount: kpoItemType === 'products' ? total : 0,
+              services_amount: kpoItemType === 'services' ? total : 0,
               total_amount: total,
               year: entryYear,
             } as any)
@@ -207,8 +209,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
               .from('kpo_entries')
               .update({
                 total_amount: total,
-                products_amount: total,
-                services_amount: 0,
+                products_amount: kpoItemType === 'products' ? total : 0,
+                services_amount: kpoItemType === 'services' ? total : 0,
               })
               .eq('id', (existingSummary as any).kpo_entry_id);
 
