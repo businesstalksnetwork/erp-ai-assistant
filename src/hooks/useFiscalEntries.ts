@@ -102,16 +102,23 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
         dailyGroups[entry.entry_date].push(entry);
       }
 
-      // Insert fiscal entries
-      const fiscalEntries = parsedEntries.map(entry => ({
-        company_id: companyId,
-        entry_date: entry.entry_date,
-        business_name: entry.business_name,
-        receipt_number: entry.receipt_number,
-        transaction_type: entry.transaction_type,
-        amount: entry.transaction_type === 'Рефундација' ? -Math.abs(entry.amount) : entry.amount,
-        year: new Date(entry.entry_date).getFullYear(),
-      }));
+      // Insert fiscal entries - deduplicate by receipt_number to avoid conflict errors
+      const entriesMap = new Map<string, any>();
+      for (const entry of parsedEntries) {
+        const key = entry.receipt_number;
+        // Later entries with same receipt_number will override earlier ones
+        entriesMap.set(key, {
+          company_id: companyId,
+          entry_date: entry.entry_date,
+          business_name: entry.business_name,
+          receipt_number: entry.receipt_number,
+          transaction_type: entry.transaction_type,
+          amount: entry.transaction_type === 'Рефундација' ? -Math.abs(entry.amount) : entry.amount,
+          year: new Date(entry.entry_date).getFullYear(),
+        });
+      }
+      
+      const fiscalEntries = Array.from(entriesMap.values());
 
       const { error: entriesError } = await supabase
         .from('fiscal_entries' as any)
