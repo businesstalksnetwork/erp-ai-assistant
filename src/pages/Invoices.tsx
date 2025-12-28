@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
-import { useSEF } from '@/hooks/useSEF';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,8 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, Send, RotateCcw, Download } from 'lucide-react';
-import { SEFImportDialog } from '@/components/SEFImportDialog';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -61,15 +59,12 @@ function formatCurrency(amount: number): string {
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice } = useInvoices(selectedCompany?.id || null);
-  const { sendToSEF, sendStornoToSEF, getSEFStatus, isSending, isStornoSending } = useSEF();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
   const [stornoId, setStornoId] = useState<string | null>(null);
-  const [sendingSEFId, setSendingSEFId] = useState<string | null>(null);
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'invoices' | 'proforma'>('all');
-  const [sefImportOpen, setSefImportOpen] = useState(false);
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch = 
@@ -103,32 +98,15 @@ export default function Invoices() {
     }
   };
 
-  const handleSendToSEF = async (invoiceId: string) => {
-    if (!selectedCompany) return;
-    setSendingSEFId(invoiceId);
-    await sendToSEF(invoiceId, selectedCompany.id);
-    setSendingSEFId(null);
-  };
-
   const handleStorno = async () => {
     if (!stornoId || !selectedCompany) return;
     
     const invoice = invoices.find(i => i.id === stornoId);
     if (!invoice) return;
 
-    // Create storno invoice first
-    const result = await stornoInvoice.mutateAsync(stornoId);
-    
-    // If original was sent to SEF, send storno to SEF as well
-    const originalSefId = (invoice as any).sef_invoice_id;
-    if (originalSefId && hasSEFKey) {
-      await sendStornoToSEF(result.stornoInvoice.id, selectedCompany.id, originalSefId);
-    }
-    
+    await stornoInvoice.mutateAsync(stornoId);
     setStornoId(null);
   };
-
-  const hasSEFKey = !!(selectedCompany as any)?.sef_api_key;
 
   if (!selectedCompany) {
     return (
@@ -148,12 +126,6 @@ export default function Invoices() {
           <p className="text-muted-foreground">Upravljajte fakturama i predračunima</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {hasSEFKey && (
-            <Button variant="outline" onClick={() => setSefImportOpen(true)}>
-              <Download className="mr-2 h-4 w-4" />
-              Povuci sa SEF-a
-            </Button>
-          )}
           <Button asChild>
             <Link to="/invoices/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -217,7 +189,6 @@ export default function Invoices() {
                     <TableHead>Klijent</TableHead>
                     <TableHead>Datum</TableHead>
                     <TableHead>Tip</TableHead>
-                    <TableHead>SEF</TableHead>
                     <TableHead className="text-right">Iznos</TableHead>
                     <TableHead className="text-right">Akcije</TableHead>
                   </TableRow>
@@ -242,24 +213,6 @@ export default function Invoices() {
                           {invoice.is_proforma ? 'Predračun' : 'Faktura'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {!invoice.is_proforma && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant={getSEFStatus(invoice).variant}>
-                                  {getSEFStatus(invoice).label}
-                                </Badge>
-                              </TooltipTrigger>
-                              {(invoice as any).sef_error && (
-                                <TooltipContent>
-                                  <p>{(invoice as any).sef_error}</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.total_amount)}
                         {invoice.foreign_currency && (
@@ -275,34 +228,6 @@ export default function Invoices() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          {/* SEF Send Button - only for regular invoices that haven't been sent */}
-                          {!invoice.is_proforma && 
-                           invoice.client_type === 'domestic' &&
-                           hasSEFKey && 
-                           (!((invoice as any).sef_status) || (invoice as any).sef_status === 'not_sent' || (invoice as any).sef_status === 'error') && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleSendToSEF(invoice.id)}
-                                    disabled={isSending && sendingSEFId === invoice.id}
-                                    title="Pošalji na SEF"
-                                  >
-                                    {isSending && sendingSEFId === invoice.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Send className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Pošalji na SEF</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
                           {/* Storno Button - for regular invoices only */}
                           {!invoice.is_proforma && invoice.total_amount > 0 && (
                             <TooltipProvider>
@@ -312,7 +237,7 @@ export default function Invoices() {
                                     size="icon"
                                     variant="ghost"
                                     onClick={() => setStornoId(invoice.id)}
-                                    disabled={stornoInvoice.isPending || isStornoSending}
+                                    disabled={stornoInvoice.isPending}
                                     title="Storniraj fakturu"
                                   >
                                     <RotateCcw className="h-4 w-4" />
@@ -411,35 +336,20 @@ export default function Invoices() {
             <AlertDialogTitle>Storniraj fakturu?</AlertDialogTitle>
             <AlertDialogDescription>
               Ova akcija će kreirati storno fakturu sa svim stavkama u minusu.
-              {stornoId && invoices.find(i => i.id === stornoId) && 
-                (invoices.find(i => i.id === stornoId) as any).sef_invoice_id && hasSEFKey && (
-                <span className="block mt-2 font-medium">
-                  Faktura će automatski biti stornirana i na SEF-u.
-                </span>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Otkaži</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleStorno}
-              disabled={stornoInvoice.isPending || isStornoSending}
+              disabled={stornoInvoice.isPending}
             >
-              {(stornoInvoice.isPending || isStornoSending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {stornoInvoice.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Storniraj
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* SEF Import Dialog */}
-      {selectedCompany && (
-        <SEFImportDialog
-          open={sefImportOpen}
-          onOpenChange={setSefImportOpen}
-          companyId={selectedCompany.id}
-        />
-      )}
     </div>
   );
 }
