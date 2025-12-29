@@ -24,6 +24,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
   }, [myCompanies, selectedCompany]);
 
+  // Update selectedCompany when companies data changes (e.g., after logo upload)
+  useEffect(() => {
+    if (selectedCompany) {
+      const updatedCompany = companies.find(c => c.id === selectedCompany.id);
+      if (updatedCompany && JSON.stringify(updatedCompany) !== JSON.stringify(selectedCompany)) {
+        setSelectedCompany(updatedCompany);
+      }
+    }
+  }, [companies]);
+
   const isViewingClientCompany = selectedCompany?.is_client_company || false;
 
   return (
