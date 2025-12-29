@@ -114,6 +114,16 @@ export default function InvoiceDetail() {
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader className="text-center border-b">
+          {/* Logo */}
+          {(selectedCompany as any).logo_url && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={(selectedCompany as any).logo_url}
+                alt={`${selectedCompany.name} logo`}
+                className="h-16 max-w-[200px] object-contain"
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <Badge variant={invoice.is_proforma ? 'outline' : 'default'} className="text-lg px-4 py-1">
               {invoice.is_proforma ? 'PREDRAČUN' : 'FAKTURA'}
