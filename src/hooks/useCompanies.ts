@@ -11,6 +11,7 @@ export interface Company {
   pib: string;
   maticni_broj: string;
   bank_account: string | null;
+  logo_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -95,7 +96,7 @@ export function useCompanies() {
   const companies = [...myCompanies, ...clientCompanies];
 
   const createCompany = useMutation({
-    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_client_company' | 'client_name'>) => {
+    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_client_company' | 'client_name' | 'logo_url'> & { logo_url?: string | null }) => {
       const { data, error } = await supabase
         .from('companies')
         .insert({

@@ -92,6 +92,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          logo_url: string | null
           maticni_broj: string
           name: string
           pib: string
@@ -105,6 +106,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           maticni_broj: string
           name: string
           pib: string
@@ -118,6 +120,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_url?: string | null
           maticni_broj?: string
           name?: string
           pib?: string

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCompanies } from '@/hooks/useCompanies';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,8 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Loader2, Key, Eye, EyeOff } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Loader2, Key, Eye, EyeOff, Upload, X } from 'lucide-react';
 import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
 
 const companySchema = z.object({
   name: z.string().min(2, 'Naziv mora imati najmanje 2 karaktera'),
@@ -38,6 +40,7 @@ const companySchema = z.object({
 
 export default function Companies() {
   const { companies, isLoading, createCompany, updateCompany, deleteCompany } = useCompanies();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -52,6 +55,11 @@ export default function Companies() {
     is_active: true,
   });
   const [showApiKey, setShowApiKey] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setFormData({
@@ -66,6 +74,9 @@ export default function Companies() {
     setErrors({});
     setEditId(null);
     setShowApiKey(false);
+    setLogoFile(null);
+    setLogoPreview(null);
+    setExistingLogoUrl(null);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -84,7 +95,67 @@ export default function Companies() {
       is_active: company.is_active,
     });
     setEditId(company.id);
+    setExistingLogoUrl((company as any).logo_url || null);
+    setLogoPreview(null);
+    setLogoFile(null);
     setIsOpen(true);
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Greška', description: 'Molimo izaberite sliku', variant: 'destructive' });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Greška', description: 'Slika mora biti manja od 2MB', variant: 'destructive' });
+      return;
+    }
+
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const removeLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setExistingLogoUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadLogo = async (companyId: string): Promise<string | null> => {
+    if (!logoFile) return existingLogoUrl;
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = logoFile.name.split('.').pop();
+      const fileName = `${companyId}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, logoFile, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({ title: 'Greška pri upload-u loga', variant: 'destructive' });
+      return null;
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,9 +175,20 @@ export default function Companies() {
     }
 
     if (editId) {
-      await updateCompany.mutateAsync({ id: editId, ...formData });
+      const logoUrl = await uploadLogo(editId);
+      await updateCompany.mutateAsync({ 
+        id: editId, 
+        ...formData, 
+        logo_url: logoUrl 
+      } as any);
     } else {
-      await createCompany.mutateAsync(formData);
+      const newCompany = await createCompany.mutateAsync(formData);
+      if (logoFile && newCompany?.id) {
+        const logoUrl = await uploadLogo(newCompany.id);
+        if (logoUrl) {
+          await updateCompany.mutateAsync({ id: newCompany.id, logo_url: logoUrl } as any);
+        }
+      }
     }
     handleOpenChange(false);
   };
@@ -222,13 +304,66 @@ export default function Companies() {
                     Preuzmite API ključ sa efaktura.mfin.gov.rs → Podešavanja → API Management
                   </p>
                 </div>
+
+                {/* Logo Upload */}
+                <div className="space-y-2">
+                  <Label>Logo firme (opciono)</Label>
+                  <div className="flex items-center gap-4">
+                    {(logoPreview || existingLogoUrl) ? (
+                      <div className="relative">
+                        <img
+                          src={logoPreview || existingLogoUrl || ''}
+                          alt="Logo preview"
+                          className="h-16 w-16 object-contain border rounded-lg bg-background"
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="destructive"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={removeLogo}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className="h-16 w-16 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {logoPreview || existingLogoUrl ? 'Promeni logo' : 'Izaberi logo'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PNG, JPG do 2MB
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                   Otkaži
                 </Button>
-                <Button type="submit" disabled={createCompany.isPending || updateCompany.isPending}>
-                  {(createCompany.isPending || updateCompany.isPending) && (
+                <Button type="submit" disabled={createCompany.isPending || updateCompany.isPending || uploadingLogo}>
+                  {(createCompany.isPending || updateCompany.isPending || uploadingLogo) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {editId ? 'Sačuvaj' : 'Dodaj'}
