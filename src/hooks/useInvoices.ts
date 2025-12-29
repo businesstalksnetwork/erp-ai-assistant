@@ -116,13 +116,16 @@ export function useInvoices(companyId: string | null) {
       const proforma = invoices.find(i => i.id === proformaId);
       if (!proforma) throw new Error('Predračun nije pronađen');
 
-      // Get next invoice number
-      const currentYear = new Date().getFullYear();
+      // Determine year from service date
+      const serviceDateObj = new Date(serviceDate);
+      const kpoYear = serviceDateObj.getFullYear();
+
+      // Get next invoice number for the service date year
       const { data: lastInvoice } = await supabase
         .from('invoices')
         .select('invoice_number')
         .eq('company_id', proforma.company_id)
-        .eq('year', currentYear)
+        .eq('year', kpoYear)
         .eq('is_proforma', false)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -136,22 +139,112 @@ export function useInvoices(companyId: string | null) {
         }
       }
 
+      // Get proforma items before creating new invoice
+      const { data: proformaItems } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', proformaId);
+
+      // Create the new invoice
       const { data, error } = await supabase
         .from('invoices')
         .insert({
-          ...proforma,
-          id: undefined,
-          invoice_number: `${nextNumber}/${currentYear}`,
-          is_proforma: false,
-          converted_from_proforma: proformaId,
+          company_id: proforma.company_id,
+          client_id: proforma.client_id,
+          invoice_number: `${nextNumber}/${kpoYear}`,
           issue_date: new Date().toISOString().split('T')[0],
           service_date: serviceDate,
-          year: currentYear,
+          client_name: proforma.client_name,
+          client_address: proforma.client_address,
+          client_pib: proforma.client_pib,
+          client_maticni_broj: proforma.client_maticni_broj,
+          client_type: proforma.client_type,
+          description: proforma.description,
+          quantity: proforma.quantity,
+          unit_price: proforma.unit_price,
+          total_amount: proforma.total_amount,
+          foreign_currency: proforma.foreign_currency,
+          foreign_amount: proforma.foreign_amount,
+          exchange_rate: proforma.exchange_rate,
+          item_type: proforma.item_type,
+          payment_deadline: proforma.payment_deadline,
+          payment_method: proforma.payment_method,
+          note: proforma.note,
+          is_proforma: false,
+          converted_from_proforma: proformaId,
+          year: kpoYear,
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Copy invoice items from proforma to new invoice
+      if (proformaItems && proformaItems.length > 0) {
+        const newItems = proformaItems.map(item => ({
+          invoice_id: data.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          item_type: item.item_type,
+        }));
+
+        const { error: itemsError } = await supabase.from('invoice_items').insert(newItems);
+        if (itemsError) throw itemsError;
+      }
+
+      // Calculate products and services amounts from items
+      const productsAmount = proformaItems
+        ?.filter(item => item.item_type === 'products')
+        .reduce((sum, item) => sum + Number(item.total_amount), 0) || 0;
+
+      const servicesAmount = proformaItems
+        ?.filter(item => item.item_type === 'services')
+        .reduce((sum, item) => sum + Number(item.total_amount), 0) || 0;
+
+      // If no items, use the invoice's item_type and total_amount
+      const finalProductsAmount = proformaItems && proformaItems.length > 0 
+        ? productsAmount 
+        : (proforma.item_type === 'products' ? proforma.total_amount : 0);
+      const finalServicesAmount = proformaItems && proformaItems.length > 0 
+        ? servicesAmount 
+        : (proforma.item_type === 'services' ? proforma.total_amount : 0);
+
+      // Get next KPO ordinal number for the year
+      const { data: maxOrdinal } = await supabase
+        .from('kpo_entries')
+        .select('ordinal_number')
+        .eq('company_id', proforma.company_id)
+        .eq('year', kpoYear)
+        .order('ordinal_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+
+      // Format service date for description
+      const formattedServiceDate = serviceDateObj.toLocaleDateString('sr-RS', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      // Create KPO entry
+      const { error: kpoError } = await supabase.from('kpo_entries').insert({
+        company_id: proforma.company_id,
+        invoice_id: data.id,
+        ordinal_number: ordinalNumber,
+        description: `Faktura ${data.invoice_number}, ${formattedServiceDate}, ${proforma.client_name}`,
+        products_amount: finalProductsAmount,
+        services_amount: finalServicesAmount,
+        total_amount: proforma.total_amount,
+        year: kpoYear,
+        document_date: serviceDate,
+      });
+
+      if (kpoError) throw kpoError;
+
       return data;
     },
     onSuccess: () => {
@@ -174,13 +267,16 @@ export function useInvoices(companyId: string | null) {
         throw new Error('Predračuni se ne mogu stornirati');
       }
 
+      // Use service_date year for KPO, fallback to current year
+      const serviceDateStr = original.service_date || new Date().toISOString().split('T')[0];
+      const kpoYear = new Date(serviceDateStr).getFullYear();
+
       // Get next invoice number for storno
-      const currentYear = new Date().getFullYear();
       const { data: lastInvoice } = await supabase
         .from('invoices')
         .select('invoice_number')
         .eq('company_id', original.company_id)
-        .eq('year', currentYear)
+        .eq('year', kpoYear)
         .eq('is_proforma', false)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -194,15 +290,21 @@ export function useInvoices(companyId: string | null) {
         }
       }
 
+      // Get original invoice items
+      const { data: originalItems } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', originalInvoiceId);
+
       // Create storno invoice with negative amounts
       const { data: stornoData, error: stornoError } = await supabase
         .from('invoices')
         .insert({
           company_id: original.company_id,
           client_id: original.client_id,
-          invoice_number: `${nextNumber}/${currentYear}`,
+          invoice_number: `${nextNumber}/${kpoYear}`,
           issue_date: new Date().toISOString().split('T')[0],
-          service_date: original.service_date,
+          service_date: serviceDateStr,
           client_name: original.client_name,
           client_address: original.client_address,
           client_pib: original.client_pib,
@@ -220,7 +322,7 @@ export function useInvoices(companyId: string | null) {
           payment_method: original.payment_method,
           note: `Storno fakture br. ${original.invoice_number} od ${new Date(original.issue_date).toLocaleDateString('sr-RS')}`,
           is_proforma: false,
-          year: currentYear,
+          year: kpoYear,
         })
         .select()
         .single();
@@ -228,11 +330,6 @@ export function useInvoices(companyId: string | null) {
       if (stornoError) throw stornoError;
 
       // Copy invoice items with negative amounts
-      const { data: originalItems } = await supabase
-        .from('invoice_items')
-        .select('*')
-        .eq('invoice_id', originalInvoiceId);
-
       if (originalItems && originalItems.length > 0) {
         const stornoItems = originalItems.map(item => ({
           invoice_id: stornoData.id,
@@ -243,8 +340,60 @@ export function useInvoices(companyId: string | null) {
           item_type: item.item_type,
         }));
 
-        await supabase.from('invoice_items').insert(stornoItems);
+        const { error: itemsError } = await supabase.from('invoice_items').insert(stornoItems);
+        if (itemsError) throw itemsError;
       }
+
+      // Calculate negative products and services amounts
+      const productsAmount = originalItems
+        ?.filter(item => item.item_type === 'products')
+        .reduce((sum, item) => sum + Number(item.total_amount), 0) || 0;
+
+      const servicesAmount = originalItems
+        ?.filter(item => item.item_type === 'services')
+        .reduce((sum, item) => sum + Number(item.total_amount), 0) || 0;
+
+      // If no items, use the invoice's item_type and total_amount
+      const finalProductsAmount = originalItems && originalItems.length > 0 
+        ? -Math.abs(productsAmount)
+        : (original.item_type === 'products' ? -Math.abs(original.total_amount) : 0);
+      const finalServicesAmount = originalItems && originalItems.length > 0 
+        ? -Math.abs(servicesAmount)
+        : (original.item_type === 'services' ? -Math.abs(original.total_amount) : 0);
+
+      // Get next KPO ordinal number
+      const { data: maxOrdinal } = await supabase
+        .from('kpo_entries')
+        .select('ordinal_number')
+        .eq('company_id', original.company_id)
+        .eq('year', kpoYear)
+        .order('ordinal_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+
+      // Format service date for description
+      const formattedServiceDate = new Date(serviceDateStr).toLocaleDateString('sr-RS', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      // Create KPO entry with negative amounts
+      const { error: kpoError } = await supabase.from('kpo_entries').insert({
+        company_id: original.company_id,
+        invoice_id: stornoData.id,
+        ordinal_number: ordinalNumber,
+        description: `STORNO Faktura ${stornoData.invoice_number}, ${formattedServiceDate}, ${original.client_name}`,
+        products_amount: finalProductsAmount,
+        services_amount: finalServicesAmount,
+        total_amount: -Math.abs(original.total_amount),
+        year: kpoYear,
+        document_date: serviceDateStr,
+      });
+
+      if (kpoError) throw kpoError;
 
       return { stornoInvoice: stornoData, originalInvoice: original };
     },
