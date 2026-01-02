@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
+import pausalBoxLogo from '@/assets/pausal-box-logo.png';
 
 interface InvoiceItem {
   id: string;
@@ -117,6 +118,16 @@ export default function InvoiceDetail() {
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader className="text-center border-b">
+          {/* Logo firme izdavaoca - gore */}
+          {(selectedCompany as any).logo_url && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={(selectedCompany as any).logo_url}
+                alt={`${selectedCompany.name} logo`}
+                className="h-14 max-w-[180px] object-contain"
+              />
+            </div>
+          )}
           {/* Naslov fakture - FAKTURA BROJ X/YYYY */}
           <h1 className="text-2xl font-bold tracking-tight">
             {invoice.is_proforma ? 'PREDRAČUN BROJ' : 'FAKTURA BROJ'}{' '}
@@ -254,16 +265,14 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/* Logo izdavaoca - na dnu, suptilno */}
-          {(selectedCompany as any).logo_url && (
-            <div className="flex justify-center pt-6 print:pt-4">
-              <img
-                src={(selectedCompany as any).logo_url}
-                alt={`${selectedCompany.name} logo`}
-                className="h-10 max-w-[120px] object-contain opacity-60 print:opacity-50"
-              />
-            </div>
-          )}
+          {/* Paušal box logo - na dnu, suptilno */}
+          <div className="flex justify-center pt-6 print:pt-4">
+            <img
+              src={pausalBoxLogo}
+              alt="Paušal box"
+              className="h-8 max-w-[100px] object-contain opacity-40 print:opacity-30"
+            />
+          </div>
         </CardContent>
       </Card>
     </div>
