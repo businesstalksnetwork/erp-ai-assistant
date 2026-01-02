@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import logo from '@/assets/pausal-box-logo.png';
 
 const userNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -75,9 +76,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-primary">
-          <FileText className="h-6 w-6" />
-          PaušalApp
+        <Link to="/dashboard">
+          <img src={logo} alt="Paušal box" className="h-8" />
         </Link>
         <Button
           variant="ghost"
@@ -108,11 +108,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="p-6 border-b border-sidebar-border">
             <Link
               to="/dashboard"
-              className="flex items-center gap-2 font-bold text-xl text-sidebar-primary"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <FileText className="h-7 w-7" />
-              PaušalApp
+              <img src={logo} alt="Paušal box" className="h-10" />
             </Link>
           </div>
 
