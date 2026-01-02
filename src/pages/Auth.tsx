@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,14 +17,15 @@ const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karakter
 
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
 
-// Synchronously check hash BEFORE first render
-const getInitialMode = (): AuthMode => {
+const isPasswordRecoveryUrl = () => {
   const hash = window.location.hash;
-  if (hash.includes('type=recovery') || hash.includes('access_token')) {
-    return 'reset-password';
-  }
-  return 'default';
+  const params = new URLSearchParams(window.location.search);
+
+  return hash.includes('type=recovery') || hash.includes('access_token') || params.get('type') === 'recovery';
 };
+
+// Synchronously check BEFORE first render (hash or query-string, depending on auth flow)
+const getInitialMode = (): AuthMode => (isPasswordRecoveryUrl() ? 'reset-password' : 'default');
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -34,12 +35,10 @@ export default function Auth() {
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
 
-  // Check hash directly to prevent redirect race condition
-  const isRecoveryHash = window.location.hash.includes('type=recovery') || 
-                         window.location.hash.includes('access_token');
+  const isRecovery = isPasswordRecoveryUrl();
 
-  // Only redirect if not in reset-password mode and not a recovery hash
-  if (user && mode !== 'reset-password' && !isRecoveryHash) {
+  // Only redirect if NOT in recovery flow
+  if (user && mode !== 'reset-password' && !isRecovery) {
     navigate('/dashboard');
     return null;
   }
@@ -205,8 +204,8 @@ export default function Auth() {
         title: 'Lozinka promenjena',
         description: 'Vaša lozinka je uspešno promenjena. Prijavite se novom lozinkom.',
       });
-      // Clear the hash and sign out
-      window.history.replaceState(null, '', window.location.pathname);
+      // Clear recovery params from the URL (so we don't stay in recovery mode)
+      navigate('/auth', { replace: true });
       await supabase.auth.signOut();
       setMode('default');
     }
