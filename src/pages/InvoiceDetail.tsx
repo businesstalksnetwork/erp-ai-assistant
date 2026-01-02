@@ -9,16 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
 import pausalBoxLogo from '@/assets/pausal-box-logo.png';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 interface InvoiceItem {
   id: string;
@@ -44,7 +34,7 @@ export default function InvoiceDetail() {
   const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  
 
   const invoice = invoices.find((i) => i.id === id);
 
@@ -121,39 +111,11 @@ export default function InvoiceDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Nazad
         </Button>
-        <Button onClick={() => setShowPrintDialog(true)}>
+        <Button onClick={handlePrint}>
           <Printer className="mr-2 h-4 w-4" />
           Štampaj
         </Button>
       </div>
-
-      {/* Print instructions dialog */}
-      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Uputstvo za štampu</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Za uklanjanje datuma, URL adrese i broja stranice sa štampane fakture:
-              </p>
-              <ol className="list-decimal list-inside space-y-1 text-sm">
-                <li>U print dijalogu kliknite na <strong>"More settings"</strong> ili <strong>"Više podešavanja"</strong></li>
-                <li>Pronađite opciju <strong>"Headers and footers"</strong> ili <strong>"Zaglavlja i podnožja"</strong></li>
-                <li>Isključite tu opciju (uklonite kvačicu)</li>
-              </ol>
-              <p className="text-xs text-muted-foreground">
-                Ovo je ograničenje browser-a koje ne možemo automatski zaobići.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Otkaži</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePrint}>
-              Nastavi na štampu
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader className="text-center border-b">
