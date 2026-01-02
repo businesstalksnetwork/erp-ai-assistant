@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { CompanyProvider } from "@/lib/company-context";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -48,6 +48,17 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
+  const isRecoveryUrl =
+    location.hash.includes("type=recovery") ||
+    location.hash.includes("access_token") ||
+    new URLSearchParams(location.search).get("type") === "recovery";
+
+  // If user opened password-recovery link, force them onto /auth so they can set a new password.
+  if (isRecoveryUrl && location.pathname !== "/auth") {
+    return <Navigate to={`/auth${location.search}${location.hash}`} replace />;
+  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
@@ -55,8 +66,17 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Index />} />
-      <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
+      <Route
+        path="/"
+        element={
+          isRecoveryUrl
+            ? <Navigate to={`/auth${location.search}${location.hash}`} replace />
+            : user
+              ? <Navigate to="/dashboard" replace />
+              : <Index />
+        }
+      />
+      <Route path="/auth" element={user && !isRecoveryUrl ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
