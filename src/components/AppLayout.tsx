@@ -77,7 +77,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/dashboard">
-          <img src={logo} alt="Paušal box" className="h-8" />
+          <img src={logo} alt="Paušal box" className="h-10" />
         </Link>
         <Button
           variant="ghost"
@@ -110,7 +110,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               to="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <img src={logo} alt="Paušal box" className="h-10" />
+            <img src={logo} alt="Paušal box" className="h-14" />
             </Link>
           </div>
 
