@@ -1,27 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import logo from '@/assets/pausal-box-logo.png';
 
 const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
 
+type AuthMode = 'default' | 'forgot-password' | 'reset-password';
+
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
+  const [mode, setMode] = useState<AuthMode>('default');
 
-  if (user) {
+  // Check for recovery mode from URL hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') || hash.includes('access_token')) {
+      setMode('reset-password');
+    }
+  }, []);
+
+  // Only redirect if not in reset-password mode
+  if (user && mode !== 'reset-password') {
     navigate('/dashboard');
     return null;
   }
@@ -116,6 +129,192 @@ export default function Auth() {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      setErrors({ email: emailResult.error.errors[0].message });
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+
+    if (error) {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Email poslat',
+        description: 'Poslali smo vam link za reset lozinke na email.',
+      });
+      setMode('default');
+    }
+
+    setLoading(false);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    const formData = new FormData(e.currentTarget);
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    const passwordResult = passwordSchema.safeParse(password);
+    if (!passwordResult.success) {
+      setErrors({ password: passwordResult.error.errors[0].message });
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: 'Lozinke se ne poklapaju' });
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Lozinka promenjena',
+        description: 'Vaša lozinka je uspešno promenjena. Prijavite se novom lozinkom.',
+      });
+      // Clear the hash and sign out
+      window.history.replaceState(null, '', window.location.pathname);
+      await supabase.auth.signOut();
+      setMode('default');
+    }
+
+    setLoading(false);
+  };
+
+  // Reset password form
+  if (mode === 'reset-password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-6 animate-fade-in">
+          <div className="text-center space-y-2">
+            <Link to="/" className="inline-block">
+              <img src={logo} alt="Paušal box" className="h-12" />
+            </Link>
+          </div>
+
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle>Nova lozinka</CardTitle>
+              <CardDescription>
+                Unesite novu lozinku za vaš nalog
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-password">Nova lozinka</Label>
+                  <Input
+                    id="reset-password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                  />
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-confirm-password">Potvrdi lozinku</Label>
+                  <Input
+                    id="reset-confirm-password"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                  />
+                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Promeni lozinku
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Forgot password form
+  if (mode === 'forgot-password') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-6 animate-fade-in">
+          <div className="text-center space-y-2">
+            <Link to="/" className="inline-block">
+              <img src={logo} alt="Paušal box" className="h-12" />
+            </Link>
+          </div>
+
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle>Zaboravljena lozinka</CardTitle>
+              <CardDescription>
+                Unesite email adresu i poslaćemo vam link za reset lozinke
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <Input
+                    id="forgot-email"
+                    name="email"
+                    type="email"
+                    placeholder="vas@email.com"
+                    required
+                  />
+                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Pošalji link
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setMode('default')}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Nazad na prijavu
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6 animate-fade-in">
@@ -170,6 +369,13 @@ export default function Auth() {
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Prijavi se
                   </Button>
+                  <button
+                    type="button"
+                    className="w-full text-sm text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => setMode('forgot-password')}
+                  >
+                    Zaboravili ste lozinku?
+                  </button>
                 </form>
               </TabsContent>
 

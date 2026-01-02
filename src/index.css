@@ -164,7 +164,17 @@
 
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 8mm;
+  }
+
+  /* Sprečava štampanje URL-a iza linkova */
+  a[href]::after {
+    content: "" !important;
+  }
+
+  a[href] {
+    text-decoration: none !important;
+    color: inherit !important;
   }
 
   body {
