@@ -110,7 +110,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               to="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
             >
-            <img src={logo} alt="Paušal box" className="h-14" />
+            <img src={logo} alt="Paušal box" className="h-14 w-full max-w-[180px] object-contain" />
             </Link>
           </div>
 
