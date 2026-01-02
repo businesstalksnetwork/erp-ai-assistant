@@ -162,7 +162,7 @@ export default function InvoiceDetail() {
                 <p className="text-sm">PIB: {selectedCompany.pib}</p>
                 <p className="text-sm">Matični broj: {selectedCompany.maticni_broj}</p>
                 {selectedCompany.bank_account && (
-                  <p className="text-sm">Račun: {selectedCompany.bank_account}</p>
+                  <p className="text-sm">Bankarski račun: {selectedCompany.bank_account}</p>
                 )}
               </div>
             </div>
