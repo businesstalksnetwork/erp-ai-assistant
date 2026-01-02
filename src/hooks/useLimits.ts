@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format, subDays } from 'date-fns';
 
 const LIMIT_6M = 6000000;
 const LIMIT_8M = 8000000;
@@ -18,16 +19,23 @@ export interface LimitsData {
 }
 
 export function useLimits(companyId: string | null) {
+  // Create date-only anchor for today (no time component, local timezone)
+  const now = new Date();
+  const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayKey = format(todayDateOnly, 'yyyy-MM-dd');
+  
   const { data: limits, isLoading } = useQuery({
-    queryKey: ['limits', companyId],
+    queryKey: ['limits', companyId, todayKey],
     queryFn: async (): Promise<LimitsData> => {
-      const currentYear = new Date().getFullYear();
+      const currentYear = todayDateOnly.getFullYear();
       const yearStart = `${currentYear}-01-01`;
       const yearEnd = `${currentYear}-12-31`;
       
-      const today = new Date();
-      const rolling365Start = new Date(today);
-      rolling365Start.setDate(rolling365Start.getDate() - 365);
+      // Rolling 365 days: subtract 364 days with inclusive >= gives exactly 365 days
+      // Example: today 02.01.2025 -> rollingStart 03.01.2024 -> period is 03.01.2024 to 02.01.2025 = 365 days
+      const rollingStart = subDays(todayDateOnly, 364);
+      const rollingStartStr = format(rollingStart, 'yyyy-MM-dd');
+      const todayStr = format(todayDateOnly, 'yyyy-MM-dd');
 
       // Get yearly invoices (01.01 - 31.12) - all invoices for 6M limit
       const { data: yearlyInvoices } = await supabase
@@ -44,7 +52,8 @@ export function useLimits(companyId: string | null) {
         .select('total_amount, client_type')
         .eq('company_id', companyId!)
         .eq('is_proforma', false)
-        .gte('issue_date', rolling365Start.toISOString().split('T')[0]);
+        .gte('issue_date', rollingStartStr)
+        .lte('issue_date', todayStr);
 
       // Get yearly fiscal data
       const { data: yearlyFiscal } = await supabase
@@ -59,7 +68,8 @@ export function useLimits(companyId: string | null) {
         .from('fiscal_daily_summary' as any)
         .select('total_amount')
         .eq('company_id', companyId!)
-        .gte('summary_date', rolling365Start.toISOString().split('T')[0]);
+        .gte('summary_date', rollingStartStr)
+        .lte('summary_date', todayStr);
 
       const yearlyInvoiceTotal = yearlyInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
       const yearlyDomestic = yearlyInvoices?.filter(i => i.client_type === 'domestic').reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
