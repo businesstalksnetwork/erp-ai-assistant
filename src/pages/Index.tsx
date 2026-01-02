@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { FileText, BarChart3, Bell, ArrowRight } from 'lucide-react';
+import { BarChart3, Bell, ArrowRight, FileText } from 'lucide-react';
+import logo from '@/assets/pausal-box-logo.png';
 
 export default function Index() {
   return (
@@ -8,8 +9,7 @@ export default function Index() {
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-xl text-primary">
-            <FileText className="h-7 w-7" />
-            PaušalApp
+            <img src={logo} alt="Paušal box" className="h-8" />
           </div>
           <Button asChild>
             <Link to="/auth">Prijavi se</Link>

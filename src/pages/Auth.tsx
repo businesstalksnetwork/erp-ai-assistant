@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import logo from '@/assets/pausal-box-logo.png';
 
 const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
@@ -119,9 +120,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6 animate-fade-in">
         <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-bold text-primary">
-            <FileText className="h-8 w-8" />
-            PaušalApp
+          <Link to="/" className="inline-block">
+            <img src={logo} alt="Paušal box" className="h-12" />
           </Link>
           <p className="text-muted-foreground">
             Aplikacija za preduzetnike paušalce
