@@ -86,7 +86,10 @@ export default function InvoiceDetail() {
   }
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ''; // Uklanja naslov iz browser header-a
     window.print();
+    document.title = originalTitle;
   };
 
   // Use items from invoice_items table if available, otherwise fallback to old invoice data
@@ -114,24 +117,11 @@ export default function InvoiceDetail() {
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader className="text-center border-b">
-          {/* Logo */}
-          {(selectedCompany as any).logo_url && (
-            <div className="flex justify-center mb-4">
-              <img
-                src={(selectedCompany as any).logo_url}
-                alt={`${selectedCompany.name} logo`}
-                className="h-16 max-w-[200px] object-contain"
-              />
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <Badge variant={invoice.is_proforma ? 'outline' : 'default'} className="text-lg px-4 py-1">
-              {invoice.is_proforma ? 'PREDRAČUN' : 'FAKTURA'}
-            </Badge>
-            <p className="text-2xl font-mono font-bold">
-              {invoice.is_proforma ? 'PR-' : ''}{invoice.invoice_number}
-            </p>
-          </div>
+          {/* Naslov fakture - FAKTURA BROJ X/YYYY */}
+          <h1 className="text-2xl font-bold tracking-tight">
+            {invoice.is_proforma ? 'PREDRAČUN BROJ' : 'FAKTURA BROJ'}{' '}
+            <span className="font-mono">{invoice.is_proforma ? 'PR-' : ''}{invoice.invoice_number}</span>
+          </h1>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
@@ -261,6 +251,17 @@ export default function InvoiceDetail() {
             <div className="bg-secondary p-4 rounded-lg">
               <p className="text-sm text-muted-foreground mb-1">Napomena</p>
               <p className="text-sm">{invoice.note}</p>
+            </div>
+          )}
+
+          {/* Logo izdavaoca - na dnu, suptilno */}
+          {(selectedCompany as any).logo_url && (
+            <div className="flex justify-center pt-6 print:pt-4">
+              <img
+                src={(selectedCompany as any).logo_url}
+                alt={`${selectedCompany.name} logo`}
+                className="h-10 max-w-[120px] object-contain opacity-60 print:opacity-50"
+              />
             </div>
           )}
         </CardContent>
