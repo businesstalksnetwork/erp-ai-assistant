@@ -17,24 +17,29 @@ const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karakter
 
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
 
+// Synchronously check hash BEFORE first render
+const getInitialMode = (): AuthMode => {
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery') || hash.includes('access_token')) {
+    return 'reset-password';
+  }
+  return 'default';
+};
+
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
-  const [mode, setMode] = useState<AuthMode>('default');
+  const [mode, setMode] = useState<AuthMode>(getInitialMode);
 
-  // Check for recovery mode from URL hash
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery') || hash.includes('access_token')) {
-      setMode('reset-password');
-    }
-  }, []);
+  // Check hash directly to prevent redirect race condition
+  const isRecoveryHash = window.location.hash.includes('type=recovery') || 
+                         window.location.hash.includes('access_token');
 
-  // Only redirect if not in reset-password mode
-  if (user && mode !== 'reset-password') {
+  // Only redirect if not in reset-password mode and not a recovery hash
+  if (user && mode !== 'reset-password' && !isRecoveryHash) {
     navigate('/dashboard');
     return null;
   }
