@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import logo from '@/assets/pausal-box-logo.png';
 
 const userNavItems = [
@@ -199,8 +200,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <p className="text-xs text-sidebar-foreground/60 truncate">
                 {profile?.status === 'pending' ? 'Čeka odobrenje' : isAdmin ? 'Administrator' : 'Korisnik'}
               </p>
-            </div>
-            <Button
+             </div>
+
+             <ChangePasswordDialog buttonClassName="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" />
+
+             <Button
               variant="ghost"
               className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
               onClick={toggleTheme}

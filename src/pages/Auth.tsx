@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,11 +37,43 @@ export default function Auth() {
 
   const isRecovery = isPasswordRecoveryUrl();
 
-  // Only redirect if NOT in recovery flow
-  if (user && mode !== 'reset-password' && !isRecovery) {
-    navigate('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    // Only redirect if NOT in recovery flow
+    if (user && mode !== 'reset-password' && !isRecovery) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, mode, isRecovery, navigate]);
+
+  useEffect(() => {
+    // If the recovery link uses PKCE, we will land on /auth?type=recovery&code=...
+    // We must exchange that one-time code for a session before calling updateUser().
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const type = params.get('type');
+
+    if (type === 'recovery' && code) {
+      setLoading(true);
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) {
+            toast({
+              title: 'Greška',
+              description: error.message,
+              variant: 'destructive',
+            });
+            setMode('default');
+            navigate('/auth', { replace: true });
+            return;
+          }
+
+          // Remove the one-time code from the URL, keep recovery mode.
+          navigate('/auth?type=recovery', { replace: true });
+          setMode('reset-password');
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [navigate, toast]);
 
   const validateForm = (email: string, password: string, fullName?: string) => {
     const newErrors: typeof errors = {};
@@ -149,7 +181,7 @@ export default function Auth() {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth`,
+      redirectTo: `${window.location.origin}/auth?type=recovery`,
     });
 
     if (error) {
