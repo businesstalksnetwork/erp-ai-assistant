@@ -11,7 +11,7 @@ export interface Reminder {
   due_date: string;
   reminder_date: string | null;
   is_completed: boolean;
-  recurrence_type: 'none' | 'monthly';
+  recurrence_type: 'none' | 'monthly' | 'quarterly' | 'yearly';
   recurrence_day: number | null;
   attachment_url: string | null;
   recipient_name: string | null;
@@ -101,11 +101,26 @@ export function useReminders(companyId: string | null) {
       const reminder = reminders.find(r => r.id === id);
       
       // If completing a recurring reminder, create next occurrence
-      if (is_completed && reminder?.recurrence_type === 'monthly' && reminder.recurrence_day) {
+      if (is_completed && reminder?.recurrence_type !== 'none' && reminder?.recurrence_day) {
         const currentDue = new Date(reminder.due_date);
-        const nextMonth = new Date(currentDue);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        nextMonth.setDate(Math.min(reminder.recurrence_day, new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate()));
+        const nextDate = new Date(currentDue);
+        
+        // Calculate next date based on recurrence type
+        switch (reminder.recurrence_type) {
+          case 'monthly':
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case 'quarterly':
+            nextDate.setMonth(nextDate.getMonth() + 3);
+            break;
+          case 'yearly':
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            break;
+        }
+        
+        // Adjust day of month (handle months with fewer days)
+        const maxDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+        nextDate.setDate(Math.min(reminder.recurrence_day, maxDay));
         
         // Create next occurrence
         await supabase
@@ -115,10 +130,10 @@ export function useReminders(companyId: string | null) {
             title: reminder.title,
             description: reminder.description,
             amount: reminder.amount,
-            due_date: nextMonth.toISOString().split('T')[0],
+            due_date: nextDate.toISOString().split('T')[0],
             reminder_date: reminder.reminder_date ? (() => {
               const diff = new Date(reminder.due_date).getTime() - new Date(reminder.reminder_date).getTime();
-              return new Date(nextMonth.getTime() - diff).toISOString().split('T')[0];
+              return new Date(nextDate.getTime() - diff).toISOString().split('T')[0];
             })() : null,
             is_completed: false,
             recurrence_type: reminder.recurrence_type,

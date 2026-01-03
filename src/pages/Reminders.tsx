@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+
 import {
   Dialog,
   DialogContent,
@@ -133,7 +133,7 @@ export default function Reminders() {
     amount: '',
     due_date: '',
     reminder_date: '',
-    recurrence_type: 'none' as 'none' | 'monthly',
+    recurrence_type: 'none' as 'none' | 'monthly' | 'quarterly' | 'yearly',
     recurrence_day: '',
     attachment_url: '',
     recipient_name: '',
@@ -219,7 +219,7 @@ export default function Reminders() {
       company_id: selectedCompany.id,
       is_completed: false,
       recurrence_type: formData.recurrence_type,
-      recurrence_day: formData.recurrence_type === 'monthly' && formData.recurrence_day 
+      recurrence_day: formData.recurrence_type !== 'none' && formData.recurrence_day 
         ? parseInt(formData.recurrence_day) 
         : null,
       attachment_url: formData.attachment_url || null,
@@ -358,25 +358,33 @@ export default function Reminders() {
                 </div>
 
                 {/* Recurrence */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Ponavljajuća obaveza</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Automatski kreira sledeći podsetnik nakon završetka
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.recurrence_type === 'monthly'}
-                      onCheckedChange={(checked) => setFormData({ 
+                <div className="border-t pt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">Ponavljanje</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatski kreira sledeći podsetnik nakon završetka
+                    </p>
+                    <Select
+                      value={formData.recurrence_type}
+                      onValueChange={(v: 'none' | 'monthly' | 'quarterly' | 'yearly') => setFormData({ 
                         ...formData, 
-                        recurrence_type: checked ? 'monthly' : 'none',
-                        recurrence_day: checked ? new Date(formData.due_date || Date.now()).getDate().toString() : ''
+                        recurrence_type: v,
+                        recurrence_day: v !== 'none' ? (formData.recurrence_day || new Date(formData.due_date || Date.now()).getDate().toString()) : ''
                       })}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Izaberi tip ponavljanja" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Bez ponavljanja</SelectItem>
+                        <SelectItem value="monthly">Mesečno</SelectItem>
+                        <SelectItem value="quarterly">Kvartalno (svaka 3 meseca)</SelectItem>
+                        <SelectItem value="yearly">Godišnje</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  {formData.recurrence_type === 'monthly' && (
-                    <div className="mt-3 space-y-2">
+                  {formData.recurrence_type !== 'none' && (
+                    <div className="space-y-2">
                       <Label htmlFor="recurrence_day">Dan u mesecu</Label>
                       <Select
                         value={formData.recurrence_day}
@@ -600,10 +608,12 @@ export default function Reminders() {
                           {isOverdue(reminder.due_date) && (
                             <Badge variant="destructive">Istekao rok</Badge>
                           )}
-                          {reminder.recurrence_type === 'monthly' && (
+                          {reminder.recurrence_type !== 'none' && (
                             <Badge variant="secondary" className="gap-1">
                               <Repeat className="h-3 w-3" />
-                              Mesečno
+                              {reminder.recurrence_type === 'monthly' && 'Mesečno'}
+                              {reminder.recurrence_type === 'quarterly' && 'Kvartalno'}
+                              {reminder.recurrence_type === 'yearly' && 'Godišnje'}
                             </Badge>
                           )}
                           {reminder.attachment_url && (
