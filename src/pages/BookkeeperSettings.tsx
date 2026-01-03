@@ -6,8 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Check, X, Loader2, Mail, Users, Send, Trash2 } from 'lucide-react';
+import { Check, X, Loader2, Mail, Users, Send, Trash2, UserMinus } from 'lucide-react';
 
 export default function BookkeeperSettings() {
   const {
@@ -18,9 +28,12 @@ export default function BookkeeperSettings() {
     sendInvitation,
     respondToInvitation,
     cancelInvitation,
+    removeBookkeeper,
   } = useBookkeeperInvitations();
 
   const [email, setEmail] = useState('');
+  const [removeBookkeeperId, setRemoveBookkeeperId] = useState<string | null>(null);
+  const removeBookkeeperInfo = sentInvitations.find(inv => inv.id === removeBookkeeperId);
 
   const handleSendInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +76,17 @@ export default function BookkeeperSettings() {
       toast.success('Pozivnica otkazana');
     } catch (error) {
       toast.error('Greška pri otkazivanju pozivnice');
+    }
+  };
+
+  const handleRemoveBookkeeper = async () => {
+    if (!removeBookkeeperId) return;
+    try {
+      await removeBookkeeper.mutateAsync(removeBookkeeperId);
+      toast.success('Pristup knjigovođi je uklonjen');
+      setRemoveBookkeeperId(null);
+    } catch (error) {
+      toast.error('Greška pri uklanjanju pristupa');
     }
   };
 
@@ -179,6 +203,17 @@ export default function BookkeeperSettings() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
+                        {inv.status === 'accepted' && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setRemoveBookkeeperId(inv.id)}
+                            title="Ukloni pristup knjigovođi"
+                          >
+                            <UserMinus className="h-4 w-4 mr-1" />
+                            Ukloni pristup
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -274,6 +309,30 @@ export default function BookkeeperSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Remove Bookkeeper Confirmation Dialog */}
+      <AlertDialog open={!!removeBookkeeperId} onOpenChange={() => setRemoveBookkeeperId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ukloni pristup knjigovođi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Da li ste sigurni da želite da uklonite pristup knjigovođi{' '}
+              <strong>{removeBookkeeperInfo?.bookkeeper_email}</strong>?
+              <br /><br />
+              Knjigovođa više neće moći da vidi vaše podatke. Možete ponovo poslati pozivnicu ako se predomislite.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleRemoveBookkeeper}
+            >
+              Ukloni pristup
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -110,8 +110,23 @@ export function useBookkeeperInvitations() {
     },
   });
 
-  // Cancel invitation
+  // Cancel invitation (pending)
   const cancelInvitation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('bookkeeper_clients')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookkeeper-invitations-sent'] });
+    },
+  });
+
+  // Remove bookkeeper access (for accepted invitations)
+  const removeBookkeeper = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('bookkeeper_clients')
@@ -169,5 +184,6 @@ export function useBookkeeperInvitations() {
     sendInvitation,
     respondToInvitation,
     cancelInvitation,
+    removeBookkeeper,
   };
 }

@@ -63,7 +63,7 @@ export default function AdminPanel() {
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({
-        title: status === 'approved' ? 'Korisnik odobren' : 'Korisnik odbijen',
+        title: status === 'approved' ? 'Korisnik aktiviran' : 'Korisnik suspendovan',
       });
     },
     onError: (error: Error) => {
@@ -93,16 +93,16 @@ export default function AdminPanel() {
 
   const pendingUsers = users.filter(u => u.status === 'pending');
   const approvedUsers = users.filter(u => u.status === 'approved');
-  const rejectedUsers = users.filter(u => u.status === 'rejected');
+  const suspendedUsers = users.filter(u => u.status === 'rejected');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="bg-warning/10 text-warning border-warning">Čeka</Badge>;
       case 'approved':
-        return <Badge variant="outline" className="bg-success/10 text-success border-success">Odobren</Badge>;
+        return <Badge variant="outline" className="bg-success/10 text-success border-success">Aktivan</Badge>;
       case 'rejected':
-        return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive">Odbijen</Badge>;
+        return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive">Suspendovan</Badge>;
       default:
         return null;
     }
@@ -144,11 +144,11 @@ export default function AdminPanel() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Odbijeni</CardTitle>
+            <CardTitle className="text-sm font-medium">Suspendovani</CardTitle>
             <X className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{rejectedUsers.length}</div>
+            <div className="text-2xl font-bold">{suspendedUsers.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -239,17 +239,21 @@ export default function AdminPanel() {
                         size="sm"
                         variant="outline"
                         onClick={() => updateStatus.mutate({ userId: user.id, status: 'approved' })}
+                        title="Aktiviraj korisnika"
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="h-4 w-4 mr-1" />
+                        Aktiviraj
                       </Button>
                     )}
-                    {user.status !== 'rejected' && (
+                    {user.status === 'approved' && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => updateStatus.mutate({ userId: user.id, status: 'rejected' })}
+                        title="Suspenduj korisnika - privremeno onemogući pristup"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 mr-1" />
+                        Suspenduj
                       </Button>
                     )}
                     <Button
