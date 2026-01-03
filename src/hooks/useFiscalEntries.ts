@@ -536,6 +536,82 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     },
   });
 
+  // Delete ALL fiscal entries for an entire year - optimized bulk delete
+  const deleteFiscalEntriesByYear = useMutation({
+    mutationFn: async (data: { companyId: string; year: number }) => {
+      const { companyId, year } = data;
+
+      // Step 1: Get all daily summaries for this year to find linked KPO entries
+      const { data: summaries, error: summaryFetchError } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .select('id, kpo_entry_id')
+        .eq('company_id', companyId)
+        .eq('year', year);
+
+      if (summaryFetchError) throw summaryFetchError;
+
+      // Step 2: Delete linked KPO entries (bulk delete using filter, not .in())
+      const kpoIds = (summaries || [])
+        .map((s: any) => s.kpo_entry_id)
+        .filter((id: string | null) => id !== null);
+
+      if (kpoIds.length > 0) {
+        // Delete KPO entries in batches to avoid any limits
+        const batchSize = 100;
+        for (let i = 0; i < kpoIds.length; i += batchSize) {
+          const batch = kpoIds.slice(i, i + batchSize);
+          const { error: kpoError } = await supabase
+            .from('kpo_entries')
+            .delete()
+            .in('id', batch);
+
+          if (kpoError) throw kpoError;
+        }
+      }
+
+      // Step 3: Delete all daily summaries for this year (direct filter, no ID list)
+      const { error: summaryError } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .delete()
+        .eq('company_id', companyId)
+        .eq('year', year);
+
+      if (summaryError) throw summaryError;
+
+      // Step 4: Delete all fiscal entries for this year (direct filter, no ID list)
+      const { error: entriesError } = await supabase
+        .from('fiscal_entries' as any)
+        .delete()
+        .eq('company_id', companyId)
+        .eq('year', year);
+
+      if (entriesError) throw entriesError;
+
+      return { 
+        deletedSummaries: summaries?.length || 0,
+        deletedKpoEntries: kpoIds.length
+      };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Obrisano',
+        description: `Obrisani svi fiskalni podaci za godinu (${data.deletedSummaries} dnevnih suma, ${data.deletedKpoEntries} KPO unosa)`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-years'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška pri brisanju godine',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const totals = {
     sales: entries.filter(e => e.transaction_type === 'Продаја').reduce((sum, e) => sum + e.amount, 0),
     refunds: entries.filter(e => e.transaction_type === 'Рефундација').reduce((sum, e) => sum + Math.abs(e.amount), 0),
@@ -553,5 +629,6 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     deleteFiscalEntries,
     deleteFiscalEntriesByDate,
     deleteFiscalEntriesByDateRange,
+    deleteFiscalEntriesByYear,
   };
 }
