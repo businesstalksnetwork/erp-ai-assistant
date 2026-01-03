@@ -100,11 +100,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-50 h-screen w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0 print:hidden',
+          'fixed top-0 left-0 z-50 h-screen-safe w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0 print:hidden',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-y-auto overscroll-contain">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
             <Link
@@ -194,7 +194,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* User Info & Logout */}
-          <div className="p-4 border-t border-sidebar-border space-y-3">
+          <div className="p-4 border-t border-sidebar-border space-y-3 flex-shrink-0 pb-safe">
             <div className="px-3 py-2 text-sm">
               <p className="font-medium truncate">{profile?.full_name || profile?.email}</p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
