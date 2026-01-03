@@ -421,48 +421,84 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     },
   });
 
-  // Delete fiscal entries by date range
+  // Delete fiscal entries by date range - optimized bulk delete
   const deleteFiscalEntriesByDateRange = useMutation({
     mutationFn: async (data: { companyId: string; startDate: string; endDate: string }) => {
       const { companyId, startDate, endDate } = data;
 
-      // Get affected entries
-      const { data: entriesToDelete, error: fetchError } = await supabase
+      // Step 1: Get daily summaries in range to find linked KPO entries
+      const { data: summaries, error: summaryFetchError } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .select('id, kpo_entry_id')
+        .eq('company_id', companyId)
+        .gte('summary_date', startDate)
+        .lte('summary_date', endDate);
+
+      if (summaryFetchError) throw summaryFetchError;
+
+      // Step 2: Count entries that will be deleted
+      const { count: entryCount, error: countError } = await supabase
         .from('fiscal_entries' as any)
-        .select('id, entry_date')
+        .select('id', { count: 'exact', head: true })
         .eq('company_id', companyId)
         .gte('entry_date', startDate)
         .lte('entry_date', endDate);
 
-      if (fetchError) throw fetchError;
+      if (countError) throw countError;
 
-      if (!entriesToDelete || entriesToDelete.length === 0) {
-        return { count: 0 };
+      if (!entryCount || entryCount === 0) {
+        return { count: 0, deletedSummaries: 0, deletedKpoEntries: 0 };
       }
 
-      const affectedDates = [...new Set((entriesToDelete || []).map((e: any) => e.entry_date))];
-      const entryIds = entriesToDelete.map((e: any) => e.id);
+      // Step 3: Delete linked KPO entries in batches
+      const kpoIds = (summaries || [])
+        .map((s: any) => s.kpo_entry_id)
+        .filter((id: string | null) => id !== null);
 
-      // Delete entries
-      const { error } = await supabase
+      if (kpoIds.length > 0) {
+        const batchSize = 100;
+        for (let i = 0; i < kpoIds.length; i += batchSize) {
+          const batch = kpoIds.slice(i, i + batchSize);
+          const { error: kpoError } = await supabase
+            .from('kpo_entries')
+            .delete()
+            .in('id', batch);
+
+          if (kpoError) throw kpoError;
+        }
+      }
+
+      // Step 4: Delete all daily summaries in range (direct filter)
+      const { error: summaryError } = await supabase
+        .from('fiscal_daily_summary' as any)
+        .delete()
+        .eq('company_id', companyId)
+        .gte('summary_date', startDate)
+        .lte('summary_date', endDate);
+
+      if (summaryError) throw summaryError;
+
+      // Step 5: Delete all fiscal entries in range (direct filter)
+      const { error: entriesError } = await supabase
         .from('fiscal_entries' as any)
         .delete()
-        .in('id', entryIds);
+        .eq('company_id', companyId)
+        .gte('entry_date', startDate)
+        .lte('entry_date', endDate);
 
-      if (error) throw error;
+      if (entriesError) throw entriesError;
 
-      // Recalculate summaries for affected dates
-      for (const date of affectedDates) {
-        await recalculateDaySummary(companyId, date);
-      }
-
-      return { count: entryIds.length };
+      return { 
+        count: entryCount, 
+        deletedSummaries: summaries?.length || 0,
+        deletedKpoEntries: kpoIds.length 
+      };
     },
     onSuccess: (data) => {
       if (data.count > 0) {
         toast({
           title: 'Obrisano',
-          description: `Obrisano ${data.count} fiskalnih računa`,
+          description: `Obrisano ${data.count} fiskalnih računa (${data.deletedSummaries} dnevnih suma, ${data.deletedKpoEntries} KPO unosa)`,
         });
       } else {
         toast({
@@ -472,12 +508,13 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
       }
       queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-years'] });
       queryClient.invalidateQueries({ queryKey: ['kpo'] });
       queryClient.invalidateQueries({ queryKey: ['limits'] });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Greška',
+        title: 'Greška pri brisanju perioda',
         description: error.message,
         variant: 'destructive',
       });
