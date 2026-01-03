@@ -136,7 +136,7 @@ export default function InvoiceDetail() {
           </h1>
         </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
+        <CardContent className="space-y-4 pt-6">
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -154,7 +154,7 @@ export default function InvoiceDetail() {
           <Separator />
 
           {/* Parties */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-6">
             {/* Issuer */}
             <div>
               <p className="text-sm text-muted-foreground mb-2">IZDAVALAC</p>
@@ -237,7 +237,7 @@ export default function InvoiceDetail() {
           <Separator />
 
           {/* Payment Info */}
-          <div className="grid md:grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             {invoice.payment_deadline && (
               <div>
                 <p className="text-muted-foreground">Rok plaćanja</p>
@@ -261,7 +261,7 @@ export default function InvoiceDetail() {
           )}
 
           {/* Paušal box logo - na dnu */}
-          <div className="flex justify-center pt-8 print:pt-6">
+          <div className="flex justify-center pt-4">
             <img
               src={pausalBoxLogo}
               alt="Paušal box"

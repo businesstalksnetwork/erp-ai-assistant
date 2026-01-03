@@ -237,7 +237,16 @@
   }
 
   .print-invoice .space-y-6 > * + * {
-    margin-top: 8px !important;
+    margin-top: 6px !important;
+  }
+
+  .print-invoice .space-y-4 > * + * {
+    margin-top: 4px !important;
+  }
+
+  .print-invoice {
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .print-invoice .p-4 {
