@@ -12,11 +12,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CalendarIcon, Loader2, Trash2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { useFiscalEntries } from '@/hooks/useFiscalEntries';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface FiscalDeleteByDateDialogProps {
   open: boolean;
@@ -31,18 +32,28 @@ export function FiscalDeleteByDateDialog({
   companyId,
   year,
 }: FiscalDeleteByDateDialogProps) {
-  const [deleteType, setDeleteType] = useState<'single' | 'range'>('single');
+  const [deleteType, setDeleteType] = useState<'single' | 'range' | 'year'>('single');
   const [singleDate, setSingleDate] = useState<Date | undefined>(undefined);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  const { deleteFiscalEntriesByDate, deleteFiscalEntriesByDateRange } = useFiscalEntries(companyId, year);
+  const { 
+    entries,
+    dailySummaries,
+    deleteFiscalEntriesByDate, 
+    deleteFiscalEntriesByDateRange,
+    deleteFiscalEntriesByYear 
+  } = useFiscalEntries(companyId, year);
 
-  const isDeleting = deleteFiscalEntriesByDate.isPending || deleteFiscalEntriesByDateRange.isPending;
+  const isDeleting = deleteFiscalEntriesByDate.isPending || 
+    deleteFiscalEntriesByDateRange.isPending || 
+    deleteFiscalEntriesByYear.isPending;
 
   const canDelete = deleteType === 'single' 
     ? !!singleDate 
-    : !!startDate && !!endDate;
+    : deleteType === 'range'
+    ? !!startDate && !!endDate
+    : true; // 'year' type always enabled
 
   const handleDelete = async () => {
     if (deleteType === 'single' && singleDate) {
@@ -55,6 +66,11 @@ export function FiscalDeleteByDateDialog({
         companyId,
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
+      });
+    } else if (deleteType === 'year') {
+      await deleteFiscalEntriesByYear.mutateAsync({
+        companyId,
+        year,
       });
     }
     
@@ -80,7 +96,7 @@ export function FiscalDeleteByDateDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <RadioGroup value={deleteType} onValueChange={(v) => setDeleteType(v as 'single' | 'range')}>
+          <RadioGroup value={deleteType} onValueChange={(v) => setDeleteType(v as 'single' | 'range' | 'year')}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="single" id="single" />
               <Label htmlFor="single">Jedan dan</Label>
@@ -88,6 +104,12 @@ export function FiscalDeleteByDateDialog({
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="range" id="range" />
               <Label htmlFor="range">Period (od-do)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="year" id="year" />
+              <Label htmlFor="year" className="font-medium text-destructive">
+                Cela godina ({year})
+              </Label>
             </div>
           </RadioGroup>
 
@@ -174,9 +196,20 @@ export function FiscalDeleteByDateDialog({
                       disabled={(date) => startDate ? date < startDate : false}
                     />
                   </PopoverContent>
-                </Popover>
+              </Popover>
               </div>
             </div>
+          )}
+
+          {deleteType === 'year' && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Upozorenje:</strong> Ovo će obrisati sve fiskalne račune za {year}. godinu 
+                ({entries.length} računa, {dailySummaries.length} dnevnih suma i povezane KPO unose).
+                Ova akcija se ne može poništiti!
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
