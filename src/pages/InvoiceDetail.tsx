@@ -194,7 +194,6 @@ export default function InvoiceDetail() {
                 <thead className="bg-secondary">
                   <tr>
                     <th className="text-left p-3 text-sm font-medium">Opis</th>
-                    <th className="text-center p-3 text-sm font-medium w-20">Tip</th>
                     <th className="text-right p-3 text-sm font-medium w-24">Količina</th>
                     <th className="text-right p-3 text-sm font-medium w-32">Cena</th>
                     <th className="text-right p-3 text-sm font-medium w-36">Ukupno</th>
@@ -204,11 +203,6 @@ export default function InvoiceDetail() {
                   {displayItems.map((item, index) => (
                     <tr key={item.id} className={index % 2 === 1 ? 'bg-muted/50' : ''}>
                       <td className="p-3">{item.description}</td>
-                      <td className="p-3 text-center">
-                        <Badge variant="outline" className="text-xs">
-                          {item.item_type === 'services' ? 'Usluga' : 'Proizvod'}
-                        </Badge>
-                      </td>
                       <td className="p-3 text-right font-mono">{item.quantity}</td>
                       <td className="p-3 text-right font-mono">{formatCurrency(item.unit_price)}</td>
                       <td className="p-3 text-right font-mono font-semibold">{formatCurrency(item.total_amount)}</td>
