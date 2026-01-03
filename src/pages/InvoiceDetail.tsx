@@ -136,7 +136,7 @@ export default function InvoiceDetail() {
           </h1>
         </CardHeader>
 
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="flex flex-col gap-4 pt-6">
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
