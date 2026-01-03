@@ -266,12 +266,12 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/* Paušal box logo - na dnu, suptilno */}
-          <div className="flex justify-center pt-6 print:pt-4">
+          {/* Paušal box logo - na dnu */}
+          <div className="flex justify-center pt-8 print:pt-6">
             <img
               src={pausalBoxLogo}
               alt="Paušal box"
-              className="h-8 max-w-[100px] object-contain opacity-40 print:opacity-30"
+              className="h-12 max-w-[160px] object-contain opacity-70 print:opacity-60"
             />
           </div>
         </CardContent>
