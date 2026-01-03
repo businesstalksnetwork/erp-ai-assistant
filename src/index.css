@@ -130,6 +130,16 @@
     @apply bg-card/80 backdrop-blur-xl border border-border/50;
   }
 
+  /* Mobile-safe viewport height */
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   .gradient-primary {
     background: var(--gradient-primary);
   }
