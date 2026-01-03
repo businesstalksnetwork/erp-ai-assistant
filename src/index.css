@@ -145,6 +145,27 @@
 
 /* Print styles for invoices */
 @media print {
+  /* Neutralize viewport heights to prevent blank second page */
+  html, body, #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  .h-screen {
+    height: auto !important;
+  }
+
+  /* Hide toasts in print */
+  .toaster,
+  [data-radix-toast-viewport] {
+    display: none !important;
+  }
+
   /* Force light theme for print */
   :root, .dark {
     --background: 0 0% 100%;
@@ -247,6 +268,8 @@
   .print-invoice {
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
+    break-inside: avoid-page !important;
+    break-after: avoid-page !important;
   }
 
   .print-invoice .p-4 {
