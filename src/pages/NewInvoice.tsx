@@ -100,27 +100,21 @@ export default function NewInvoice() {
     return new Date(formData.issue_date).getFullYear();
   };
 
-  // Generate invoice number from database based on service_date year
+  // Generate invoice number from database based on service_date year and invoice type
   useEffect(() => {
     const fetchNextNumber = async () => {
       if (selectedCompany) {
         const invoiceYear = getInvoiceYear();
-        const isProforma = formData.invoice_type === 'proforma';
-        const { data, error } = await supabase.rpc('get_next_invoice_number', {
+        const { data, error } = await supabase.rpc('get_next_invoice_number_by_type', {
           p_company_id: selectedCompany.id,
           p_year: invoiceYear,
-          p_is_proforma: isProforma,
+          p_invoice_type: formData.invoice_type,
         });
         
         if (!error && data) {
-          // For advance invoices, add AV- prefix
-          let invoiceNumber = data;
-          if (formData.invoice_type === 'advance') {
-            invoiceNumber = data.replace(/^(PR-)?/, 'AV-');
-          }
           setFormData((prev) => ({
             ...prev,
-            invoice_number: invoiceNumber,
+            invoice_number: data,
           }));
         }
       }

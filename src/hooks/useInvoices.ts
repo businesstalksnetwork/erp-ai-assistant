@@ -120,8 +120,20 @@ export function useInvoices(companyId: string | null) {
 
   const deleteInvoice = useMutation({
     mutationFn: async (id: string) => {
+      // Find invoice before deletion to check for linked advance
+      const invoiceToDelete = invoices.find(i => i.id === id);
+      
+      // Delete the invoice
       const { error } = await supabase.from('invoices').delete().eq('id', id);
       if (error) throw error;
+      
+      // If invoice had a linked advance, reopen it
+      if (invoiceToDelete?.linked_advance_id) {
+        await supabase
+          .from('invoices')
+          .update({ advance_status: 'open' })
+          .eq('id', invoiceToDelete.linked_advance_id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

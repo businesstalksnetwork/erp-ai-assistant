@@ -582,6 +582,10 @@ export type Database = {
         Args: { p_company_id: string; p_is_proforma: boolean; p_year: number }
         Returns: string
       }
+      get_next_invoice_number_by_type: {
+        Args: { p_company_id: string; p_invoice_type: string; p_year: number }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
