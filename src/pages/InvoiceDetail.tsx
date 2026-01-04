@@ -29,24 +29,39 @@ function generateIPSQRCode(params: {
   amount: number;
   paymentPurpose: string;
   paymentCode: string;
+  paymentModel: string;
   paymentReference: string;
+  payerName?: string;
+  payerAddress?: string;
 }): string {
   const formattedAccount = formatAccountForIPS(params.receiverAccount);
   const amountStr = params.amount.toFixed(2).replace('.', ',');
   
-  const lines = [
+  // Podaci o platiocu - spoji ime i adresu
+  const payerInfo = [params.payerName?.trim(), params.payerAddress?.trim()]
+    .filter(Boolean).join('\n');
+  
+  // Reference - ukloni "/" i druge specijalne karaktere
+  const cleanReference = params.paymentReference.replace(/[\/\-\s]/g, '');
+  
+  const parts = [
     'K:PR',
     'V:01',
     'C:1',
     `R:${formattedAccount}`,
     `N:${params.receiverName.substring(0, 70)}`,
     `I:RSD${amountStr}`,
-    `P:${params.paymentPurpose.substring(0, 35)}`,
+    `P:${payerInfo}`,
     `SF:${params.paymentCode}`,
-    `RO:00${params.paymentReference}`,
+    `S:${params.paymentPurpose.substring(0, 35)}`,
   ];
   
-  return lines.join('\n');
+  // Dodaj poziv na broj ako je definisan
+  if (params.paymentModel && cleanReference) {
+    parts.push(`RO:${params.paymentModel}${cleanReference}`);
+  }
+  
+  return parts.join('|');
 }
 
 interface InvoiceItem {
@@ -289,7 +304,10 @@ export default function InvoiceDetail() {
                       amount: invoice.total_amount,
                       paymentPurpose: `Faktura ${invoice.invoice_number}`,
                       paymentCode: '289',
+                      paymentModel: '97',
                       paymentReference: invoice.invoice_number,
+                      payerName: invoice.client_name,
+                      payerAddress: invoice.client_address || '',
                     })}
                     size={120}
                     level="M"
