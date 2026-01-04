@@ -56,6 +56,8 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+type FilterType = 'all' | 'invoices' | 'proforma' | 'advance';
+
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice } = useInvoices(selectedCompany?.id || null);
@@ -64,16 +66,29 @@ export default function Invoices() {
   const [stornoId, setStornoId] = useState<string | null>(null);
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'invoices' | 'proforma'>('all');
+  const [filter, setFilter] = useState<FilterType>('all');
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch = 
       inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
       inv.client_name.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = 
-      filter === 'all' ||
-      (filter === 'invoices' && !inv.is_proforma) ||
-      (filter === 'proforma' && inv.is_proforma);
+    
+    let matchesFilter = false;
+    switch (filter) {
+      case 'all':
+        matchesFilter = true;
+        break;
+      case 'invoices':
+        matchesFilter = inv.invoice_type === 'regular' || (!inv.is_proforma && inv.invoice_type !== 'advance');
+        break;
+      case 'proforma':
+        matchesFilter = inv.invoice_type === 'proforma' || inv.is_proforma;
+        break;
+      case 'advance':
+        matchesFilter = inv.invoice_type === 'advance';
+        break;
+    }
+    
     return matchesSearch && matchesFilter;
   });
 
@@ -108,6 +123,21 @@ export default function Invoices() {
     setStornoId(null);
   };
 
+  // Get invoice type badge
+  const getTypeBadge = (invoice: typeof invoices[0]) => {
+    if (invoice.invoice_type === 'advance') {
+      return (
+        <Badge variant={invoice.advance_status === 'closed' ? 'secondary' : 'default'} className={invoice.advance_status === 'open' ? 'bg-orange-500 text-white' : ''}>
+          {invoice.advance_status === 'closed' ? 'Avans zatvoren' : 'Avansna'}
+        </Badge>
+      );
+    }
+    if (invoice.is_proforma || invoice.invoice_type === 'proforma') {
+      return <Badge variant="outline">Predračun</Badge>;
+    }
+    return <Badge variant="default">Faktura</Badge>;
+  };
+
   if (!selectedCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
@@ -123,7 +153,7 @@ export default function Invoices() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Fakture</h1>
-          <p className="text-muted-foreground">Upravljajte fakturama i predračunima</p>
+          <p className="text-muted-foreground">Upravljajte fakturama, predračunima i avansnim fakturama</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
@@ -147,14 +177,15 @@ export default function Invoices() {
                 className="pl-9"
               />
             </div>
-            <Select value={filter} onValueChange={(v: typeof filter) => setFilter(v)}>
-              <SelectTrigger className="w-[180px]">
+            <Select value={filter} onValueChange={(v: FilterType) => setFilter(v)}>
+              <SelectTrigger className="w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Sve</SelectItem>
                 <SelectItem value="invoices">Samo fakture</SelectItem>
                 <SelectItem value="proforma">Samo predračuni</SelectItem>
+                <SelectItem value="advance">Samo avansne</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -197,7 +228,7 @@ export default function Invoices() {
                   {filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
-                        {invoice.is_proforma ? 'PR-' : ''}{invoice.invoice_number}
+                        {invoice.invoice_number}
                       </TableCell>
                       <TableCell>
                         <div>
@@ -209,9 +240,7 @@ export default function Invoices() {
                       </TableCell>
                       <TableCell>{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</TableCell>
                       <TableCell>
-                        <Badge variant={invoice.is_proforma ? 'outline' : 'default'}>
-                          {invoice.is_proforma ? 'Predračun' : 'Faktura'}
-                        </Badge>
+                        {getTypeBadge(invoice)}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.total_amount)}
@@ -229,7 +258,7 @@ export default function Invoices() {
                             </Link>
                           </Button>
                           {/* Storno Button - for regular invoices only */}
-                          {!invoice.is_proforma && invoice.total_amount > 0 && (
+                          {invoice.invoice_type === 'regular' && !invoice.is_proforma && invoice.total_amount > 0 && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -249,7 +278,7 @@ export default function Invoices() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          {invoice.is_proforma && (
+                          {(invoice.is_proforma || invoice.invoice_type === 'proforma') && (
                             <Button
                               size="icon"
                               variant="ghost"

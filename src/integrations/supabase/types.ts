@@ -268,6 +268,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          advance_status: string | null
           client_address: string | null
           client_id: string | null
           client_maticni_broj: string | null
@@ -283,9 +284,11 @@ export type Database = {
           foreign_currency: string | null
           id: string
           invoice_number: string
+          invoice_type: string | null
           is_proforma: boolean
           issue_date: string
           item_type: Database["public"]["Enums"]["invoice_item_type"]
+          linked_advance_id: string | null
           note: string | null
           payment_deadline: string | null
           payment_method: string | null
@@ -300,6 +303,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          advance_status?: string | null
           client_address?: string | null
           client_id?: string | null
           client_maticni_broj?: string | null
@@ -315,9 +319,11 @@ export type Database = {
           foreign_currency?: string | null
           id?: string
           invoice_number: string
+          invoice_type?: string | null
           is_proforma?: boolean
           issue_date?: string
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
+          linked_advance_id?: string | null
           note?: string | null
           payment_deadline?: string | null
           payment_method?: string | null
@@ -332,6 +338,7 @@ export type Database = {
           year?: number
         }
         Update: {
+          advance_status?: string | null
           client_address?: string | null
           client_id?: string | null
           client_maticni_broj?: string | null
@@ -347,9 +354,11 @@ export type Database = {
           foreign_currency?: string | null
           id?: string
           invoice_number?: string
+          invoice_type?: string | null
           is_proforma?: boolean
           issue_date?: string
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
+          linked_advance_id?: string | null
           note?: string | null
           payment_deadline?: string | null
           payment_method?: string | null
@@ -381,6 +390,13 @@ export type Database = {
           {
             foreignKeyName: "invoices_converted_from_proforma_fkey"
             columns: ["converted_from_proforma"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_linked_advance_id_fkey"
+            columns: ["linked_advance_id"]
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]

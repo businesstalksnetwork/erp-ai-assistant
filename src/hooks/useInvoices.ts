@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export type InvoiceType = 'regular' | 'proforma' | 'advance';
+export type AdvanceStatus = 'open' | 'closed' | null;
+
 export interface Invoice {
   id: string;
   company_id: string;
@@ -29,6 +32,10 @@ export interface Invoice {
   converted_from_proforma: string | null;
   year: number;
   created_at: string;
+  // New fields for advance invoices
+  invoice_type: InvoiceType;
+  linked_advance_id: string | null;
+  advance_status: AdvanceStatus;
 }
 
 export function useInvoices(companyId: string | null) {
@@ -49,6 +56,22 @@ export function useInvoices(companyId: string | null) {
     },
     enabled: !!companyId,
   });
+
+  // Get open advance invoices for a specific client
+  const getOpenAdvances = (clientId: string | null) => {
+    if (!clientId) return [];
+    return invoices.filter(i => 
+      i.invoice_type === 'advance' && 
+      i.advance_status === 'open' && 
+      i.client_id === clientId
+    );
+  };
+
+  // Get linked advance invoice
+  const getLinkedAdvance = (advanceId: string | null) => {
+    if (!advanceId) return null;
+    return invoices.find(i => i.id === advanceId) || null;
+  };
 
   const createInvoice = useMutation({
     mutationFn: async (invoice: Omit<Invoice, 'id' | 'created_at'>) => {
@@ -105,6 +128,24 @@ export function useInvoices(companyId: string | null) {
       queryClient.invalidateQueries({ queryKey: ['kpo'] });
       queryClient.invalidateQueries({ queryKey: ['limits'] });
       toast({ title: 'Faktura je obrisana' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Close an advance invoice when linked to a regular invoice
+  const closeAdvanceInvoice = useMutation({
+    mutationFn: async (advanceId: string) => {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ advance_status: 'closed' })
+        .eq('id', advanceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
     onError: (error: Error) => {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
@@ -173,6 +214,7 @@ export function useInvoices(companyId: string | null) {
           is_proforma: false,
           converted_from_proforma: proformaId,
           year: kpoYear,
+          invoice_type: 'regular',
         })
         .select()
         .single();
@@ -323,6 +365,7 @@ export function useInvoices(companyId: string | null) {
           note: `Storno fakture br. ${original.invoice_number} od ${new Date(original.issue_date).toLocaleDateString('sr-RS')}`,
           is_proforma: false,
           year: kpoYear,
+          invoice_type: 'regular',
         })
         .select()
         .single();
@@ -419,5 +462,8 @@ export function useInvoices(companyId: string | null) {
     deleteInvoice,
     convertProformaToInvoice,
     stornoInvoice,
+    closeAdvanceInvoice,
+    getOpenAdvances,
+    getLinkedAdvance,
   };
 }
