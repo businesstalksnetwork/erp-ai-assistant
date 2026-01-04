@@ -8,7 +8,46 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo.png';
+
+// Helper funkcija za formatiranje broja računa za IPS (18 cifara)
+function formatAccountForIPS(account: string): string {
+  const parts = account.replace(/\s/g, '').split('-');
+  if (parts.length === 3) {
+    const [bank, acc, control] = parts;
+    const paddedAccount = acc.padStart(13, '0');
+    return `${bank}${paddedAccount}${control}`;
+  }
+  return account.replace(/[-\s]/g, '').padStart(18, '0');
+}
+
+// Funkcija za generisanje IPS QR koda prema NBS standardu
+function generateIPSQRCode(params: {
+  receiverName: string;
+  receiverAccount: string;
+  amount: number;
+  paymentPurpose: string;
+  paymentCode: string;
+  paymentReference: string;
+}): string {
+  const formattedAccount = formatAccountForIPS(params.receiverAccount);
+  const amountStr = params.amount.toFixed(2).replace('.', ',');
+  
+  const lines = [
+    'K:PR',
+    'V:01',
+    'C:1',
+    `R:${formattedAccount}`,
+    `N:${params.receiverName.substring(0, 70)}`,
+    `I:RSD${amountStr}`,
+    `P:${params.paymentPurpose.substring(0, 35)}`,
+    `SF:${params.paymentCode}`,
+    `RO:00${params.paymentReference}`,
+  ];
+  
+  return lines.join('\n');
+}
 
 interface InvoiceItem {
   id: string;
@@ -233,6 +272,39 @@ export default function InvoiceDetail() {
               <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
             </div>
           </div>
+
+          {/* IPS QR kod za domaće klijente */}
+          {invoice.client_type === 'domestic' && 
+           selectedCompany.bank_account && 
+           invoice.total_amount > 0 &&
+           !invoice.is_proforma && (
+            <div className="border rounded-lg p-4 print:break-inside-avoid">
+              <p className="text-sm text-muted-foreground mb-3 text-center font-medium">PODACI ZA UPLATU</p>
+              <div className="flex items-start gap-6">
+                <div className="flex-shrink-0">
+                  <QRCodeSVG
+                    value={generateIPSQRCode({
+                      receiverName: selectedCompany.name,
+                      receiverAccount: selectedCompany.bank_account,
+                      amount: invoice.total_amount,
+                      paymentPurpose: `Faktura ${invoice.invoice_number}`,
+                      paymentCode: '289',
+                      paymentReference: invoice.invoice_number,
+                    })}
+                    size={120}
+                    level="M"
+                  />
+                </div>
+                <div className="text-sm space-y-1 flex-1">
+                  <p><span className="text-muted-foreground">Primalac:</span> {selectedCompany.name}</p>
+                  <p><span className="text-muted-foreground">Račun:</span> {selectedCompany.bank_account}</p>
+                  <p><span className="text-muted-foreground">Iznos:</span> {formatCurrency(invoice.total_amount)}</p>
+                  <p><span className="text-muted-foreground">Svrha:</span> Faktura {invoice.invoice_number}</p>
+                  <p><span className="text-muted-foreground">Poziv na broj:</span> {invoice.invoice_number}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Separator />
 
