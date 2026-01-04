@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Loader2, Key, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,7 +35,6 @@ const companySchema = z.object({
   pib: z.string().regex(/^\d{9}$/, 'PIB mora imati tačno 9 cifara'),
   maticni_broj: z.string().regex(/^\d{8}$/, 'Matični broj mora imati tačno 8 cifara'),
   bank_account: z.string().optional(),
-  sef_api_key: z.string().optional(),
 });
 
 export default function Companies() {
@@ -51,10 +50,8 @@ export default function Companies() {
     pib: '',
     maticni_broj: '',
     bank_account: '',
-    sef_api_key: '',
     is_active: true,
   });
-  const [showApiKey, setShowApiKey] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
@@ -68,12 +65,10 @@ export default function Companies() {
       pib: '',
       maticni_broj: '',
       bank_account: '',
-      sef_api_key: '',
       is_active: true,
     });
     setErrors({});
     setEditId(null);
-    setShowApiKey(false);
     setLogoFile(null);
     setLogoPreview(null);
     setExistingLogoUrl(null);
@@ -91,7 +86,6 @@ export default function Companies() {
       pib: company.pib,
       maticni_broj: company.maticni_broj,
       bank_account: company.bank_account || '',
-      sef_api_key: (company as any).sef_api_key || '',
       is_active: company.is_active,
     });
     setEditId(company.id);
@@ -276,34 +270,6 @@ export default function Companies() {
                     placeholder="265-0000000000000-00"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sef_api_key" className="flex items-center gap-2">
-                    <Key className="h-4 w-4" />
-                    SEF API ključ (opciono)
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="sef_api_key"
-                      type={showApiKey ? 'text' : 'password'}
-                      value={formData.sef_api_key}
-                      onChange={(e) => setFormData({ ...formData, sef_api_key: e.target.value })}
-                      placeholder="API ključ iz Sistema E-Faktura"
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Preuzmite API ključ sa efaktura.mfin.gov.rs → Podešavanja → API Management
-                  </p>
-                </div>
 
                 {/* Logo Upload */}
                 <div className="space-y-2">
@@ -433,12 +399,6 @@ export default function Companies() {
                       <p className="font-mono">{company.bank_account}</p>
                     </div>
                   )}
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground">SEF Integracija</p>
-                    <Badge variant={(company as any).sef_api_key ? 'default' : 'secondary'}>
-                      {(company as any).sef_api_key ? 'Povezano' : 'Nije povezano'}
-                    </Badge>
-                  </div>
                 </div>
               </CardContent>
             </Card>
