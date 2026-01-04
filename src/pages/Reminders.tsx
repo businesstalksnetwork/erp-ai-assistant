@@ -735,10 +735,15 @@ export default function Reminders() {
                 <p className="text-sm text-muted-foreground">
                   Račun: {selectedReminder.recipient_account}
                 </p>
-                {selectedReminder.payment_reference && (
-                  <p className="text-sm text-muted-foreground">
-                    Poziv na broj: {selectedReminder.payment_model}-{selectedReminder.payment_reference}
-                  </p>
+                {(selectedReminder.payment_model || selectedReminder.payment_reference) && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Model: {selectedReminder.payment_model || '-'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Poziv na broj: {selectedReminder.payment_reference || '-'}
+                    </p>
+                  </>
                 )}
               </div>
             </div>
