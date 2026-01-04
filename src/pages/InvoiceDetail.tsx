@@ -40,9 +40,12 @@ function generateIPSQRCode(params: {
   const formattedAccount = formatAccountForIPS(params.receiverAccount);
   const amountStr = params.amount.toFixed(2).replace('.', ',');
   
-  // Podaci o platiocu - spoji ime i adresu
+  // Podaci o platiocu - spoji ime i adresu sa CRLF (NBS standard)
   const payerInfo = [params.payerName?.trim(), params.payerAddress?.trim()]
-    .filter(Boolean).join('\n');
+    .filter(Boolean).join('\r\n');
+  
+  // Svrha plaćanja - ukloni newline karaktere (mora biti jedna linija)
+  const cleanPurpose = params.paymentPurpose.replace(/[\r\n]+/g, ' ').substring(0, 35);
   
   // Reference - samo cifre
   const cleanReference = params.paymentReference.replace(/\D/g, '');
@@ -62,7 +65,7 @@ function generateIPSQRCode(params: {
     `I:RSD${amountStr}`,
     `P:${payerInfo}`,
     `SF:${sf}`,
-    `S:${params.paymentPurpose.substring(0, 35)}`,
+    `S:${cleanPurpose}`,
   ];
   
   // Dodaj poziv na broj ako je definisan
@@ -312,8 +315,8 @@ export default function InvoiceDetail() {
                       receiverAccount: selectedCompany.bank_account,
                       amount: invoice.total_amount,
                       paymentPurpose: `Faktura ${invoice.invoice_number}`,
-                      paymentCode: '289',
-                      paymentModel: '97',
+                      paymentCode: '221',
+                      paymentModel: '00',
                       paymentReference: invoice.invoice_number,
                       payerName: invoice.client_name,
                       payerAddress: invoice.client_address || '',
