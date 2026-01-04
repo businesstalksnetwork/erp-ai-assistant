@@ -11,15 +11,18 @@ import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo.png';
 
-// Helper funkcija za formatiranje broja računa za IPS (18 cifara)
+// Helper funkcija za formatiranje broja računa za IPS (tačno 18 cifara)
 function formatAccountForIPS(account: string): string {
   const parts = account.replace(/\s/g, '').split('-');
   if (parts.length === 3) {
-    const [bank, acc, control] = parts;
-    const paddedAccount = acc.padStart(13, '0');
-    return `${bank}${paddedAccount}${control}`;
+    // Svaki deo: samo cifre, pa normalizuj na tačnu dužinu
+    const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+    const middle = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
+    const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+    return `${bank}${middle}${control}`;
   }
-  return account.replace(/[-\s]/g, '').padStart(18, '0');
+  // Fallback: samo cifre, dopuni na 18
+  return account.replace(/\D/g, '').padStart(18, '0').substring(0, 18);
 }
 
 // Funkcija za generisanje IPS QR koda prema NBS standardu
@@ -41,8 +44,14 @@ function generateIPSQRCode(params: {
   const payerInfo = [params.payerName?.trim(), params.payerAddress?.trim()]
     .filter(Boolean).join('\n');
   
-  // Reference - ukloni "/" i druge specijalne karaktere
-  const cleanReference = params.paymentReference.replace(/[\/\-\s]/g, '');
+  // Reference - samo cifre
+  const cleanReference = params.paymentReference.replace(/\D/g, '');
+  
+  // Šifra plaćanja - tačno 3 cifre
+  const sf = params.paymentCode.replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+  
+  // Model - tačno 2 cifre
+  const model = params.paymentModel.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
   
   const parts = [
     'K:PR',
@@ -52,13 +61,13 @@ function generateIPSQRCode(params: {
     `N:${params.receiverName.substring(0, 70)}`,
     `I:RSD${amountStr}`,
     `P:${payerInfo}`,
-    `SF:${params.paymentCode}`,
+    `SF:${sf}`,
     `S:${params.paymentPurpose.substring(0, 35)}`,
   ];
   
   // Dodaj poziv na broj ako je definisan
-  if (params.paymentModel && cleanReference) {
-    parts.push(`RO:${params.paymentModel}${cleanReference}`);
+  if (model && cleanReference) {
+    parts.push(`RO:${model}${cleanReference}`);
   }
   
   return parts.join('|');
