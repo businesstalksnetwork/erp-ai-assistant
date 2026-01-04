@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
-import { useInvoices } from '@/hooks/useInvoices';
+import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Loader2, Save, Plus, Trash2 } from 'lucide-react';
+import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -44,7 +44,7 @@ const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
 export default function NewInvoice() {
   const navigate = useNavigate();
   const { selectedCompany } = useSelectedCompany();
-  const { createInvoice } = useInvoices(selectedCompany?.id || null);
+  const { createInvoice, closeAdvanceInvoice, getOpenAdvances, invoices } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -71,8 +71,26 @@ export default function NewInvoice() {
     payment_deadline: '',
     payment_method: 'Virman',
     note: 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.',
-    is_proforma: false,
+    invoice_type: 'regular' as InvoiceType,
+    linked_advance_id: '',
   });
+
+  // Get open advances for current client
+  const openAdvances = getOpenAdvances(formData.client_id || null);
+  const linkedAdvance = formData.linked_advance_id 
+    ? invoices.find(i => i.id === formData.linked_advance_id) 
+    : null;
+
+  // Calculate totals
+  const itemTotals = items.map(item => item.quantity * item.unit_price);
+  const totalAmount = itemTotals.reduce((sum, t) => sum + t, 0);
+  const totalForeignAmount = items.reduce((sum, item) => sum + (item.foreign_amount * item.quantity), 0);
+  const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+  const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+  
+  // Amount for payment (total minus advance)
+  const advanceAmount = linkedAdvance?.total_amount || 0;
+  const amountForPayment = totalAmount - advanceAmount;
 
   // Determine invoice year from service_date or issue_date
   const getInvoiceYear = () => {
@@ -87,22 +105,28 @@ export default function NewInvoice() {
     const fetchNextNumber = async () => {
       if (selectedCompany) {
         const invoiceYear = getInvoiceYear();
+        const isProforma = formData.invoice_type === 'proforma';
         const { data, error } = await supabase.rpc('get_next_invoice_number', {
           p_company_id: selectedCompany.id,
           p_year: invoiceYear,
-          p_is_proforma: formData.is_proforma,
+          p_is_proforma: isProforma,
         });
         
         if (!error && data) {
+          // For advance invoices, add AV- prefix
+          let invoiceNumber = data;
+          if (formData.invoice_type === 'advance') {
+            invoiceNumber = data.replace(/^(PR-)?/, 'AV-');
+          }
           setFormData((prev) => ({
             ...prev,
-            invoice_number: data,
+            invoice_number: invoiceNumber,
           }));
         }
       }
     };
     fetchNextNumber();
-  }, [selectedCompany, formData.is_proforma, formData.service_date]);
+  }, [selectedCompany, formData.invoice_type, formData.service_date]);
 
   // Fetch NBS exchange rate when currency and date change
   useEffect(() => {
@@ -155,6 +179,17 @@ export default function NewInvoice() {
       }));
     }
   }, [formData.exchange_rate, formData.client_type]);
+
+  // Clear linked advance when changing invoice type or client
+  useEffect(() => {
+    if (formData.invoice_type !== 'regular') {
+      setFormData(prev => ({ ...prev, linked_advance_id: '' }));
+    }
+  }, [formData.invoice_type]);
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, linked_advance_id: '' }));
+  }, [formData.client_id]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
@@ -218,13 +253,6 @@ export default function NewInvoice() {
     }));
   };
 
-  // Calculate totals
-  const itemTotals = items.map(item => item.quantity * item.unit_price);
-  const totalAmount = itemTotals.reduce((sum, t) => sum + t, 0);
-  const totalForeignAmount = items.reduce((sum, item) => sum + (item.foreign_amount * item.quantity), 0);
-  const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-  const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -253,6 +281,8 @@ export default function NewInvoice() {
 
     try {
       const invoiceYear = getInvoiceYear();
+      const isProforma = formData.invoice_type === 'proforma';
+      const isAdvance = formData.invoice_type === 'advance';
       
       // If new client (no client_id), save to clients table first
       let clientId = formData.client_id || null;
@@ -310,9 +340,12 @@ export default function NewInvoice() {
           payment_deadline: formData.payment_deadline || null,
           payment_method: formData.payment_method || null,
           note: formData.note || null,
-          is_proforma: formData.is_proforma,
+          is_proforma: isProforma,
           converted_from_proforma: null,
           year: invoiceYear,
+          invoice_type: formData.invoice_type,
+          linked_advance_id: formData.linked_advance_id || null,
+          advance_status: isAdvance ? 'open' : null,
         })
         .select()
         .single();
@@ -335,8 +368,13 @@ export default function NewInvoice() {
 
       if (itemsError) throw itemsError;
 
-      // Create/Update KPO entry for non-proforma invoices (after items are inserted so we can calculate correctly)
-      if (!formData.is_proforma) {
+      // Close the linked advance invoice if one was selected
+      if (formData.linked_advance_id) {
+        await closeAdvanceInvoice.mutateAsync(formData.linked_advance_id);
+      }
+
+      // Create/Update KPO entry for regular invoices only (not proforma, not advance)
+      if (formData.invoice_type === 'regular') {
         const productsAmount = items
           .filter((i) => i.item_type === 'products')
           .reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
@@ -396,7 +434,12 @@ export default function NewInvoice() {
         }
       }
 
-      toast.success(formData.is_proforma ? 'Predračun uspešno kreiran' : 'Faktura uspešno kreirana');
+      const typeLabel = formData.invoice_type === 'proforma' 
+        ? 'Predračun' 
+        : formData.invoice_type === 'advance' 
+          ? 'Avansna faktura' 
+          : 'Faktura';
+      toast.success(`${typeLabel} uspešno kreirana`);
       navigate('/invoices');
     } catch (error) {
       console.error('Error creating invoice:', error);
@@ -416,34 +459,55 @@ export default function NewInvoice() {
     );
   }
 
+  const getTitle = () => {
+    switch (formData.invoice_type) {
+      case 'proforma': return 'Novi predračun';
+      case 'advance': return 'Nova avansna faktura';
+      default: return 'Nova faktura';
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold">
-          {formData.is_proforma ? 'Novi predračun' : 'Nova faktura'}
-        </h1>
+        <h1 className="text-2xl font-bold">{getTitle()}</h1>
         <p className="text-muted-foreground">Za firmu: {selectedCompany.name}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Document Type Toggle */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="is_proforma" className="text-base font-medium">
-                  Predračun
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Predračuni se ne evidentiraju u KPO knjizi niti u limitima
-                </p>
+          <CardHeader>
+            <CardTitle>Tip dokumenta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={formData.invoice_type}
+              onValueChange={(value: InvoiceType) => setFormData({ ...formData, invoice_type: value })}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            >
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="regular" id="regular" className="mt-1" />
+                <div>
+                  <Label htmlFor="regular" className="font-medium cursor-pointer">Faktura</Label>
+                  <p className="text-sm text-muted-foreground">Standardna faktura, evidentira se u KPO knjizi</p>
+                </div>
               </div>
-              <Switch
-                id="is_proforma"
-                checked={formData.is_proforma}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_proforma: checked })}
-              />
-            </div>
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="proforma" id="proforma" className="mt-1" />
+                <div>
+                  <Label htmlFor="proforma" className="font-medium cursor-pointer">Predračun</Label>
+                  <p className="text-sm text-muted-foreground">Ne evidentira se u KPO knjizi</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <RadioGroupItem value="advance" id="advance" className="mt-1" />
+                <div>
+                  <Label htmlFor="advance" className="font-medium cursor-pointer">Avansna faktura</Label>
+                  <p className="text-sm text-muted-foreground">Za avansna plaćanja, ne ide u KPO</p>
+                </div>
+              </div>
+            </RadioGroup>
           </CardContent>
         </Card>
 
@@ -574,6 +638,45 @@ export default function NewInvoice() {
           </CardContent>
         </Card>
 
+        {/* Link Advance Invoice - Only for regular invoices */}
+        {formData.invoice_type === 'regular' && formData.client_id && openAdvances.length > 0 && (
+          <Card className="border-primary/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5" />
+                Poveži avansnu fakturu
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Otvorene avansne fakture za ovog klijenta</Label>
+                <Select 
+                  value={formData.linked_advance_id || 'none'} 
+                  onValueChange={(v) => setFormData({ ...formData, linked_advance_id: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Izaberi avansnu fakturu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Bez avansne fakture</SelectItem>
+                    {openAdvances.map((adv) => (
+                      <SelectItem key={adv.id} value={adv.id}>
+                        {adv.invoice_number} - {new Intl.NumberFormat('sr-RS').format(adv.total_amount)} RSD
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {linkedAdvance && (
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  <p><strong>Avansno uplaćeno:</strong> {new Intl.NumberFormat('sr-RS').format(linkedAdvance.total_amount)} RSD</p>
+                  <p className="text-muted-foreground">Ova avansna faktura će biti zatvorena nakon kreiranja fakture.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Items */}
         <Card>
           <CardHeader>
@@ -694,6 +797,16 @@ export default function NewInvoice() {
                 <div className="text-xl font-bold">
                   Ukupno: {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
                 </div>
+                {linkedAdvance && (
+                  <>
+                    <div className="text-sm text-primary">
+                      Avansno uplaćeno: -{new Intl.NumberFormat('sr-RS').format(advanceAmount)} RSD
+                    </div>
+                    <div className="text-xl font-bold text-primary">
+                      Za uplatu: {new Intl.NumberFormat('sr-RS').format(amountForPayment)} RSD
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -805,7 +918,7 @@ export default function NewInvoice() {
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Sačuvaj {formData.is_proforma ? 'predračun' : 'fakturu'}
+            Sačuvaj {formData.invoice_type === 'proforma' ? 'predračun' : formData.invoice_type === 'advance' ? 'avansnu fakturu' : 'fakturu'}
           </Button>
         </div>
       </form>

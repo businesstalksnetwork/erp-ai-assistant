@@ -97,12 +97,17 @@ export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { selectedCompany } = useSelectedCompany();
-  const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
+  const { invoices, isLoading, getLinkedAdvance } = useInvoices(selectedCompany?.id || null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   
 
   const invoice = invoices.find((i) => i.id === id);
+  const linkedAdvance = invoice ? getLinkedAdvance(invoice.linked_advance_id) : null;
+  
+  // Calculate amount for payment
+  const advanceAmount = linkedAdvance?.total_amount || 0;
+  const amountForPayment = invoice ? invoice.total_amount - advanceAmount : 0;
 
   // Fetch invoice items
   useEffect(() => {
@@ -170,6 +175,33 @@ export default function InvoiceDetail() {
     total_amount: invoice.total_amount,
   }];
 
+  // Get document title based on type
+  const getDocumentTitle = () => {
+    if (invoice.invoice_type === 'advance') return 'AVANSNA FAKTURA BROJ';
+    if (invoice.is_proforma || invoice.invoice_type === 'proforma') return 'PREDRAČUN BROJ';
+    return 'FAKTURA BROJ';
+  };
+
+  // Get badge for invoice type
+  const getInvoiceTypeBadge = () => {
+    if (invoice.invoice_type === 'advance') {
+      return (
+        <Badge variant={invoice.advance_status === 'closed' ? 'secondary' : 'default'} className="bg-orange-500 text-white">
+          {invoice.advance_status === 'closed' ? 'Avans zatvoren' : 'Avansna'}
+        </Badge>
+      );
+    }
+    if (invoice.is_proforma || invoice.invoice_type === 'proforma') {
+      return <Badge variant="outline">Predračun</Badge>;
+    }
+    return <Badge variant="default">Faktura</Badge>;
+  };
+
+  // Should show QR code - now includes proforma invoices too
+  const shouldShowQR = invoice.client_type === 'domestic' && 
+    selectedCompany.bank_account && 
+    amountForPayment > 0;
+
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice">
       <div className="flex items-center justify-between print:hidden">
@@ -195,11 +227,14 @@ export default function InvoiceDetail() {
               />
             </div>
           )}
-          {/* Naslov fakture - FAKTURA BROJ X/YYYY */}
+          {/* Naslov fakture */}
           <h1 className="text-2xl font-bold tracking-tight">
-            {invoice.is_proforma ? 'PREDRAČUN BROJ' : 'FAKTURA BROJ'}{' '}
-            <span className="font-mono">{invoice.is_proforma ? 'PR-' : ''}{invoice.invoice_number}</span>
+            {getDocumentTitle()}{' '}
+            <span className="font-mono">{invoice.invoice_number}</span>
           </h1>
+          <div className="mt-2 print:hidden">
+            {getInvoiceTypeBadge()}
+          </div>
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 pt-6">
@@ -292,19 +327,46 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/* Total */}
+          {/* Total with Advance */}
           <div className="flex justify-end">
-            <div className="bg-primary text-primary-foreground p-4 rounded-lg min-w-[200px]">
-              <p className="text-sm opacity-80">ZA PLAĆANJE</p>
-              <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
+            <div className="min-w-[250px] space-y-2">
+              {linkedAdvance ? (
+                <>
+                  <div className="flex justify-between text-lg">
+                    <span className="text-muted-foreground">UKUPNO:</span>
+                    <span className="font-mono font-semibold">{formatCurrency(invoice.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-primary">
+                    <span>Avansno uplaćeno:</span>
+                    <span className="font-mono">-{formatCurrency(advanceAmount)}</span>
+                  </div>
+                  <Separator />
+                  <div className="bg-primary text-primary-foreground p-4 rounded-lg">
+                    <p className="text-sm opacity-80">ZA PLAĆANJE</p>
+                    <p className="text-2xl font-bold font-mono">{formatCurrency(amountForPayment)}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-primary text-primary-foreground p-4 rounded-lg">
+                  <p className="text-sm opacity-80">ZA PLAĆANJE</p>
+                  <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* IPS QR kod za domaće klijente */}
-          {invoice.client_type === 'domestic' && 
-           selectedCompany.bank_account && 
-           invoice.total_amount > 0 &&
-           !invoice.is_proforma && (
+          {/* Linked Advance Info */}
+          {linkedAdvance && (
+            <div className="bg-muted p-4 rounded-lg text-sm">
+              <p className="font-medium">Povezana avansna faktura:</p>
+              <p className="text-muted-foreground">
+                {linkedAdvance.invoice_number} od {new Date(linkedAdvance.issue_date).toLocaleDateString('sr-RS')} - {formatCurrency(linkedAdvance.total_amount)}
+              </p>
+            </div>
+          )}
+
+          {/* IPS QR kod - now includes proforma invoices */}
+          {shouldShowQR && (
             <div className="border rounded-lg p-4 print:break-inside-avoid">
               <p className="text-sm text-muted-foreground mb-3 text-center font-medium">PODACI ZA UPLATU</p>
               <div className="flex items-start gap-6">
@@ -313,8 +375,8 @@ export default function InvoiceDetail() {
                     value={generateIPSQRCode({
                       receiverName: selectedCompany.name,
                       receiverAccount: selectedCompany.bank_account,
-                      amount: invoice.total_amount,
-                      paymentPurpose: `Faktura ${invoice.invoice_number}`,
+                      amount: amountForPayment,
+                      paymentPurpose: `${invoice.invoice_type === 'advance' ? 'Avansna faktura' : invoice.is_proforma ? 'Predračun' : 'Faktura'} ${invoice.invoice_number}`,
                       paymentCode: '221',
                       paymentModel: '00',
                       paymentReference: invoice.invoice_number,
@@ -328,8 +390,8 @@ export default function InvoiceDetail() {
                 <div className="text-sm space-y-1 flex-1">
                   <p><span className="text-muted-foreground">Primalac:</span> {selectedCompany.name}</p>
                   <p><span className="text-muted-foreground">Račun:</span> {selectedCompany.bank_account}</p>
-                  <p><span className="text-muted-foreground">Iznos:</span> {formatCurrency(invoice.total_amount)}</p>
-                  <p><span className="text-muted-foreground">Svrha:</span> Faktura {invoice.invoice_number}</p>
+                  <p><span className="text-muted-foreground">Iznos:</span> {formatCurrency(amountForPayment)}</p>
+                  <p><span className="text-muted-foreground">Svrha:</span> {invoice.invoice_type === 'advance' ? 'Avansna faktura' : invoice.is_proforma ? 'Predračun' : 'Faktura'} {invoice.invoice_number}</p>
                   <p><span className="text-muted-foreground">Poziv na broj:</span> {invoice.invoice_number}</p>
                 </div>
               </div>
