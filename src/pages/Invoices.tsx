@@ -123,6 +123,11 @@ export default function Invoices() {
     setStornoId(null);
   };
 
+  // Find if a proforma has been converted to an invoice
+  const getCreatedInvoiceFromProforma = (proformaId: string) => {
+    return invoices.find(i => i.converted_from_proforma === proformaId);
+  };
+
   // Get invoice type badge
   const getTypeBadge = (invoice: typeof invoices[0]) => {
     if (invoice.invoice_type === 'advance') {
@@ -133,7 +138,19 @@ export default function Invoices() {
       );
     }
     if (invoice.is_proforma || invoice.invoice_type === 'proforma') {
-      return <Badge variant="outline">Predračun</Badge>;
+      const createdInvoice = getCreatedInvoiceFromProforma(invoice.id);
+      return (
+        <div className="space-y-1">
+          <Badge variant="outline">Predračun</Badge>
+          {createdInvoice && (
+            <Link to={`/invoices/${createdInvoice.id}`} className="block">
+              <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
+                ↳ Kreirana faktura {createdInvoice.invoice_number}
+              </Badge>
+            </Link>
+          )}
+        </div>
+      );
     }
     return <Badge variant="default">Faktura</Badge>;
   };
@@ -278,7 +295,8 @@ export default function Invoices() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          {(invoice.is_proforma || invoice.invoice_type === 'proforma') && (
+                          {(invoice.is_proforma || invoice.invoice_type === 'proforma') && 
+                           !getCreatedInvoiceFromProforma(invoice.id) && (
                             <Button
                               size="icon"
                               variant="ghost"
