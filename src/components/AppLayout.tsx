@@ -29,6 +29,7 @@ import {
   Sun,
   Calculator,
   BarChart3,
+  ListChecks,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ const userNavItems = [
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
+  { href: '/services', label: 'Šifarnik', icon: ListChecks },
   { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase },
 ];
 

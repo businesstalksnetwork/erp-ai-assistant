@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
+import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -46,8 +50,10 @@ export default function NewInvoice() {
   const { selectedCompany } = useSelectedCompany();
   const { createInvoice, closeAdvanceInvoice, getOpenAdvances, invoices } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
+  const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
 
@@ -687,16 +693,75 @@ export default function NewInvoice() {
               <div key={item.id} className="p-4 border rounded-lg space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm text-muted-foreground">Stavka {index + 1}</span>
-                  {items.length > 1 && (
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {activeServices.length > 0 && (
+                      <Popover 
+                        open={openCatalogPopover === item.id} 
+                        onOpenChange={(open) => setOpenCatalogPopover(open ? item.id : null)}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" size="sm">
+                            <ListChecks className="h-4 w-4 mr-1" />
+                            Iz šifarnika
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="end">
+                          <Command>
+                            <CommandInput placeholder="Pretraži šifarnik..." />
+                            <CommandList>
+                              <CommandEmpty>Nema rezultata.</CommandEmpty>
+                              <CommandGroup>
+                                {activeServices.map((service) => (
+                                  <CommandItem
+                                    key={service.id}
+                                    value={service.name}
+                                    onSelect={() => {
+                                      const price = formData.client_type === 'foreign' && service.default_foreign_price
+                                        ? service.default_foreign_price
+                                        : service.default_unit_price || 0;
+                                      
+                                      const foreignAmt = formData.client_type === 'foreign' 
+                                        ? (service.default_foreign_price || 0) 
+                                        : 0;
+                                      
+                                      const unitPrice = formData.client_type === 'foreign' && formData.exchange_rate > 0
+                                        ? foreignAmt * formData.exchange_rate
+                                        : (service.default_unit_price || 0);
+                                      
+                                      updateItem(item.id, 'description', service.name + (service.description ? ` - ${service.description}` : ''));
+                                      updateItem(item.id, 'item_type', service.item_type);
+                                      updateItem(item.id, 'unit_price', unitPrice);
+                                      updateItem(item.id, 'foreign_amount', foreignAmt);
+                                      setOpenCatalogPopover(null);
+                                    }}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span>{service.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {service.item_type === 'services' ? 'Usluga' : 'Proizvod'}
+                                        {service.default_unit_price && ` • ${new Intl.NumberFormat('sr-RS').format(service.default_unit_price)} RSD`}
+                                        {service.default_foreign_price && ` • ${service.default_foreign_price} DEV`}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    {items.length > 1 && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => removeItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className={`grid grid-cols-1 gap-4 ${formData.client_type === 'foreign' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
