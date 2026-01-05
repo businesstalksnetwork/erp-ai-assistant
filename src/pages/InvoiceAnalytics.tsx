@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Wallet, Users, Building2 } from 'lucide-react';
-
+import { TrendingUp, TrendingDown, Wallet, Users, Building2, BarChart3, PieChart } from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from 'recharts';
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('sr-RS', {
     style: 'currency',
@@ -122,6 +123,81 @@ export default function InvoiceAnalytics() {
       .sort((a, b) => b.unpaid - a.unpaid);
   }, [filteredInvoices]);
 
+  // Monthly revenue data for bar chart
+  const monthlyData = useMemo(() => {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+      'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'
+    ];
+    
+    const monthlyMap = new Map<number, { invoiced: number; paid: number }>();
+    
+    // Initialize all months
+    months.forEach((_, index) => {
+      monthlyMap.set(index, { invoiced: 0, paid: 0 });
+    });
+    
+    filteredInvoices.forEach(invoice => {
+      const month = new Date(invoice.issue_date).getMonth();
+      const current = monthlyMap.get(month) || { invoiced: 0, paid: 0 };
+      const invoiceTotal = Number(invoice.total_amount);
+      const invoicePaid = invoice.payment_status === 'paid' 
+        ? invoiceTotal 
+        : (invoice.payment_status === 'partial' ? Number(invoice.paid_amount || 0) : 0);
+      
+      current.invoiced += invoiceTotal;
+      current.paid += invoicePaid;
+      monthlyMap.set(month, current);
+    });
+
+    return months.map((name, index) => {
+      const data = monthlyMap.get(index) || { invoiced: 0, paid: 0 };
+      return {
+        name,
+        fakturisano: Math.round(data.invoiced),
+        naplaceno: Math.round(data.paid),
+      };
+    });
+  }, [filteredInvoices]);
+
+  // Payment status distribution for pie chart
+  const paymentStatusData = useMemo(() => {
+    const paidCount = filteredInvoices.filter(i => i.payment_status === 'paid').length;
+    const partialCount = filteredInvoices.filter(i => i.payment_status === 'partial').length;
+    const unpaidCount = filteredInvoices.filter(i => i.payment_status === 'unpaid' || !i.payment_status).length;
+    
+    return [
+      { name: 'Plaćeno', value: paidCount, color: 'hsl(var(--chart-2))' },
+      { name: 'Delimično', value: partialCount, color: 'hsl(var(--chart-4))' },
+      { name: 'Neplaćeno', value: unpaidCount, color: 'hsl(var(--chart-1))' },
+    ].filter(item => item.value > 0);
+  }, [filteredInvoices]);
+
+  // Top customers for horizontal bar chart
+  const topCustomersChartData = useMemo(() => {
+    return topCustomers.map((customer, index) => ({
+      name: customer.name.length > 15 ? customer.name.substring(0, 15) + '...' : customer.name,
+      fullName: customer.name,
+      iznos: Math.round(customer.total),
+      fill: `hsl(var(--chart-${(index % 5) + 1}))`,
+    }));
+  }, [topCustomers]);
+
+  const chartConfig = {
+    fakturisano: {
+      label: "Fakturisano",
+      color: "hsl(var(--chart-1))",
+    },
+    naplaceno: {
+      label: "Naplaćeno",
+      color: "hsl(var(--chart-2))",
+    },
+    iznos: {
+      label: "Iznos",
+      color: "hsl(var(--chart-3))",
+    },
+  };
+
   if (!selectedCompany) {
     return (
       <div className="p-6">
@@ -197,6 +273,127 @@ export default function InvoiceAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Monthly Revenue Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Mesečni promet
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredInvoices.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            ) : (
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" className="text-xs" />
+                  <YAxis 
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    className="text-xs"
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend />
+                  <Bar dataKey="fakturisano" name="Fakturisano" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="naplaceno" name="Naplaćeno" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Status Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Status plaćanja
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {paymentStatusData.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            ) : (
+              <div className="h-[300px] w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={paymentStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {paymentStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip 
+                      formatter={(value: number, name: string) => [`${value} faktura`, name]}
+                    />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            <div className="flex justify-center gap-4 mt-4">
+              {paymentStatusData.map((item) => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm text-muted-foreground">{item.name}: {item.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Customers Bar Chart */}
+      {topCustomersChartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Top 5 kupaca - grafički prikaz
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <BarChart data={topCustomersChartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
+                <XAxis 
+                  type="number" 
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  className="text-xs"
+                />
+                <YAxis 
+                  type="category" 
+                  dataKey="name" 
+                  className="text-xs"
+                  width={75}
+                />
+                <ChartTooltip 
+                  formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
+                />
+                <Bar dataKey="iznos" radius={[0, 4, 4, 0]}>
+                  {topCustomersChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top 5 Customers & Invoiced by Partner */}
       <div className="grid gap-6 md:grid-cols-2">
