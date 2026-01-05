@@ -564,6 +564,48 @@ export type Database = {
         }
         Relationships: []
       }
+      service_catalog: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          default_foreign_price: number | null
+          default_unit_price: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          item_type: Database["public"]["Enums"]["invoice_item_type"]
+          name: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          default_foreign_price?: number | null
+          default_unit_price?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          item_type?: Database["public"]["Enums"]["invoice_item_type"]
+          name: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          default_foreign_price?: number | null
+          default_unit_price?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          item_type?: Database["public"]["Enums"]["invoice_item_type"]
+          name?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
