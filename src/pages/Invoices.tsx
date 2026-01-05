@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -46,7 +46,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw } from 'lucide-react';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote } from 'lucide-react';
+import { PaymentStatusDialog } from '@/components/PaymentStatusDialog';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -60,10 +61,11 @@ type FilterType = 'all' | 'invoices' | 'proforma' | 'advance';
 
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
-  const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice } = useInvoices(selectedCompany?.id || null);
+  const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice, updatePaymentStatus } = useInvoices(selectedCompany?.id || null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
   const [stornoId, setStornoId] = useState<string | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = useState<typeof invoices[0] | null>(null);
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -155,6 +157,36 @@ export default function Invoices() {
     return <Badge variant="default">Faktura</Badge>;
   };
 
+  // Get payment status badge for regular invoices
+  const getPaymentStatusBadge = (invoice: typeof invoices[0]) => {
+    // Only show for regular invoices
+    if (invoice.invoice_type !== 'regular' || invoice.is_proforma) return null;
+
+    switch (invoice.payment_status) {
+      case 'paid':
+        return <Badge className="bg-green-500 hover:bg-green-600">Plaćeno</Badge>;
+      case 'partial':
+        return (
+          <Badge className="bg-yellow-500 hover:bg-yellow-600">
+            Delimično ({formatCurrency(invoice.paid_amount || 0)})
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline" className="text-muted-foreground">Neplaćeno</Badge>;
+    }
+  };
+
+  // Handle payment status save
+  const handleSavePaymentStatus = async (data: {
+    invoiceId: string;
+    payment_status: 'unpaid' | 'partial' | 'paid';
+    paid_amount?: number;
+    payment_date?: string;
+  }) => {
+    await updatePaymentStatus.mutateAsync(data);
+    setPaymentInvoice(null);
+  };
+
   if (!selectedCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
@@ -237,6 +269,7 @@ export default function Invoices() {
                     <TableHead>Klijent</TableHead>
                     <TableHead>Datum</TableHead>
                     <TableHead>Tip</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Iznos</TableHead>
                     <TableHead className="text-right">Akcije</TableHead>
                   </TableRow>
@@ -259,6 +292,9 @@ export default function Invoices() {
                       <TableCell>
                         {getTypeBadge(invoice)}
                       </TableCell>
+                      <TableCell>
+                        {getPaymentStatusBadge(invoice)}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(invoice.total_amount)}
                         {invoice.foreign_currency && (
@@ -274,6 +310,25 @@ export default function Invoices() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
+                          {/* Payment Status Button - for regular invoices only */}
+                          {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => setPaymentInvoice(invoice)}
+                                  >
+                                    <Banknote className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Označi plaćanje</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           {/* Storno Button - for regular invoices only */}
                           {invoice.invoice_type === 'regular' && !invoice.is_proforma && invoice.total_amount > 0 && (
                             <TooltipProvider>
@@ -397,6 +452,15 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Payment Status Dialog */}
+      <PaymentStatusDialog
+        open={!!paymentInvoice}
+        onOpenChange={(open) => !open && setPaymentInvoice(null)}
+        invoice={paymentInvoice}
+        onSave={handleSavePaymentStatus}
+        isLoading={updatePaymentStatus.isPending}
+      />
     </div>
   );
 }

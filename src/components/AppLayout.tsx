@@ -28,6 +28,7 @@ import {
   Moon,
   Sun,
   Calculator,
+  BarChart3,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ const userNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
   { href: '/invoices/new', label: 'Nova faktura', icon: FilePlus },
+  { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },

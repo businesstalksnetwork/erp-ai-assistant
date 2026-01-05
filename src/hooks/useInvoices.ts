@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 export type InvoiceType = 'regular' | 'proforma' | 'advance';
 export type AdvanceStatus = 'open' | 'closed' | null;
 
+export type PaymentStatus = 'unpaid' | 'partial' | 'paid';
+
 export interface Invoice {
   id: string;
   company_id: string;
@@ -32,10 +34,14 @@ export interface Invoice {
   converted_from_proforma: string | null;
   year: number;
   created_at: string;
-  // New fields for advance invoices
+  // Advance invoice fields
   invoice_type: InvoiceType;
   linked_advance_id: string | null;
   advance_status: AdvanceStatus;
+  // Payment tracking fields
+  payment_status: PaymentStatus;
+  paid_amount: number;
+  payment_date: string | null;
 }
 
 export function useInvoices(companyId: string | null) {
@@ -466,6 +472,53 @@ export function useInvoices(companyId: string | null) {
     },
   });
 
+  const updatePaymentStatus = useMutation({
+    mutationFn: async ({
+      invoiceId,
+      payment_status,
+      paid_amount,
+      payment_date,
+    }: {
+      invoiceId: string;
+      payment_status: PaymentStatus;
+      paid_amount?: number;
+      payment_date?: string;
+    }) => {
+      const invoice = invoices.find(i => i.id === invoiceId);
+      if (!invoice) throw new Error('Faktura nije pronađena');
+
+      const updateData: Record<string, unknown> = { payment_status };
+      
+      if (payment_status === 'paid') {
+        updateData.paid_amount = invoice.total_amount;
+      } else if (payment_status === 'partial') {
+        updateData.paid_amount = paid_amount || 0;
+      } else {
+        updateData.paid_amount = 0;
+      }
+      
+      if (payment_date && payment_status !== 'unpaid') {
+        updateData.payment_date = payment_date;
+      } else if (payment_status === 'unpaid') {
+        updateData.payment_date = null;
+      }
+
+      const { error } = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast({ title: 'Status plaćanja ažuriran' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     invoices,
     isLoading,
@@ -475,6 +528,7 @@ export function useInvoices(companyId: string | null) {
     convertProformaToInvoice,
     stornoInvoice,
     closeAdvanceInvoice,
+    updatePaymentStatus,
     getOpenAdvances,
     getLinkedAdvance,
   };

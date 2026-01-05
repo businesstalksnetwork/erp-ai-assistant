@@ -1,0 +1,306 @@
+import { useState, useMemo } from 'react';
+import { useSelectedCompany } from '@/lib/company-context';
+import { useInvoices } from '@/hooks/useInvoices';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, TrendingDown, Wallet, Users, Building2 } from 'lucide-react';
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('sr-RS', {
+    style: 'currency',
+    currency: 'RSD',
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+export default function InvoiceAnalytics() {
+  const { selectedCompany } = useSelectedCompany();
+  const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+
+  // Get only regular invoices (not proforma, not advance)
+  const regularInvoices = useMemo(() => {
+    return invoices.filter(i => 
+      i.invoice_type === 'regular' && 
+      !i.is_proforma
+    );
+  }, [invoices]);
+
+  // Get available years from invoices
+  const availableYears = useMemo(() => {
+    const years = [...new Set(regularInvoices.map(i => i.year))].sort((a, b) => b - a);
+    return years;
+  }, [regularInvoices]);
+
+  // Filter invoices by selected year
+  const filteredInvoices = useMemo(() => {
+    if (selectedYear === 'all') return regularInvoices;
+    return regularInvoices.filter(i => i.year === parseInt(selectedYear));
+  }, [regularInvoices, selectedYear]);
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    const total = filteredInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
+    const paid = filteredInvoices
+      .filter(i => i.payment_status === 'paid')
+      .reduce((sum, i) => sum + Number(i.total_amount), 0);
+    const partiallyPaid = filteredInvoices
+      .filter(i => i.payment_status === 'partial')
+      .reduce((sum, i) => sum + Number(i.paid_amount || 0), 0);
+    const unpaid = total - paid - partiallyPaid;
+
+    return { total, paid: paid + partiallyPaid, unpaid };
+  }, [filteredInvoices]);
+
+  // Top 5 customers by revenue
+  const topCustomers = useMemo(() => {
+    const customerMap = new Map<string, { name: string; total: number }>();
+    
+    filteredInvoices.forEach(invoice => {
+      const current = customerMap.get(invoice.client_name) || { name: invoice.client_name, total: 0 };
+      current.total += Number(invoice.total_amount);
+      customerMap.set(invoice.client_name, current);
+    });
+
+    return Array.from(customerMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [filteredInvoices]);
+
+  // Invoiced by partners (all partners)
+  const invoicedByPartner = useMemo(() => {
+    const partnerMap = new Map<string, { name: string; total: number; count: number }>();
+    
+    filteredInvoices.forEach(invoice => {
+      const current = partnerMap.get(invoice.client_name) || { name: invoice.client_name, total: 0, count: 0 };
+      current.total += Number(invoice.total_amount);
+      current.count += 1;
+      partnerMap.set(invoice.client_name, current);
+    });
+
+    const totalInvoiced = filteredInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
+
+    return Array.from(partnerMap.values())
+      .sort((a, b) => b.total - a.total)
+      .map(p => ({ ...p, percentage: totalInvoiced > 0 ? (p.total / totalInvoiced) * 100 : 0 }));
+  }, [filteredInvoices]);
+
+  // Unpaid by partners
+  const unpaidByPartner = useMemo(() => {
+    const partnerMap = new Map<string, { 
+      name: string; 
+      total: number; 
+      paid: number; 
+      unpaid: number;
+      invoiceCount: number;
+    }>();
+    
+    filteredInvoices.forEach(invoice => {
+      const current = partnerMap.get(invoice.client_name) || { 
+        name: invoice.client_name, 
+        total: 0, 
+        paid: 0, 
+        unpaid: 0,
+        invoiceCount: 0
+      };
+      const invoiceTotal = Number(invoice.total_amount);
+      const invoicePaid = invoice.payment_status === 'paid' 
+        ? invoiceTotal 
+        : (invoice.payment_status === 'partial' ? Number(invoice.paid_amount || 0) : 0);
+
+      current.total += invoiceTotal;
+      current.paid += invoicePaid;
+      current.unpaid += (invoiceTotal - invoicePaid);
+      current.invoiceCount += 1;
+      partnerMap.set(invoice.client_name, current);
+    });
+
+    return Array.from(partnerMap.values())
+      .filter(p => p.unpaid > 0)
+      .sort((a, b) => b.unpaid - a.unpaid);
+  }, [filteredInvoices]);
+
+  if (!selectedCompany) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Izaberite firmu da biste videli analitiku.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Učitavanje...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold">Analitika faktura</h1>
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Izaberite godinu" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Sve godine</SelectItem>
+            {availableYears.map(year => (
+              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ukupno fakturisano</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totals.total)}</div>
+            <p className="text-xs text-muted-foreground">
+              {filteredInvoices.length} faktura
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Naplaćeno</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.paid)}</div>
+            <p className="text-xs text-muted-foreground">
+              {totals.total > 0 ? ((totals.paid / totals.total) * 100).toFixed(1) : 0}% od ukupnog
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Nenaplaćeno</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.unpaid)}</div>
+            <p className="text-xs text-muted-foreground">
+              {totals.total > 0 ? ((totals.unpaid / totals.total) * 100).toFixed(1) : 0}% od ukupnog
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top 5 Customers & Invoiced by Partner */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Top 5 Customers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Top 5 kupaca
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topCustomers.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            ) : (
+              <div className="space-y-4">
+                {topCustomers.map((customer, index) => (
+                  <div key={customer.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="w-6 h-6 flex items-center justify-center rounded-full">
+                        {index + 1}
+                      </Badge>
+                      <span className="font-medium truncate max-w-[200px]">{customer.name}</span>
+                    </div>
+                    <span className="font-semibold">{formatCurrency(customer.total)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Invoiced by Partner */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Fakturisano po partnerima
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[300px] overflow-y-auto">
+            {invoicedByPartner.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Partner</TableHead>
+                    <TableHead className="text-right">Iznos</TableHead>
+                    <TableHead className="text-right">%</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoicedByPartner.map(partner => (
+                    <TableRow key={partner.name}>
+                      <TableCell className="font-medium truncate max-w-[150px]">{partner.name}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
+                      <TableCell className="text-right">{partner.percentage.toFixed(1)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Unpaid by Partner */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <TrendingDown className="h-5 w-5" />
+            Nenaplaćeno po partnerima
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {unpaidByPartner.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Sve fakture su naplaćene! 🎉</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Partner</TableHead>
+                  <TableHead className="text-right">Ukupno</TableHead>
+                  <TableHead className="text-right">Naplaćeno</TableHead>
+                  <TableHead className="text-right">Nenaplaćeno</TableHead>
+                  <TableHead className="text-right">Br. faktura</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unpaidByPartner.map(partner => (
+                  <TableRow key={partner.name}>
+                    <TableCell className="font-medium">{partner.name}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrency(partner.paid)}</TableCell>
+                    <TableCell className="text-right text-red-600 font-semibold">{formatCurrency(partner.unpaid)}</TableCell>
+                    <TableCell className="text-right">{partner.invoiceCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

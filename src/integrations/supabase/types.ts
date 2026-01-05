@@ -290,8 +290,11 @@ export type Database = {
           item_type: Database["public"]["Enums"]["invoice_item_type"]
           linked_advance_id: string | null
           note: string | null
+          paid_amount: number | null
+          payment_date: string | null
           payment_deadline: string | null
           payment_method: string | null
+          payment_status: string | null
           quantity: number
           sef_error: string | null
           sef_invoice_id: string | null
@@ -325,8 +328,11 @@ export type Database = {
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
           linked_advance_id?: string | null
           note?: string | null
+          paid_amount?: number | null
+          payment_date?: string | null
           payment_deadline?: string | null
           payment_method?: string | null
+          payment_status?: string | null
           quantity?: number
           sef_error?: string | null
           sef_invoice_id?: string | null
@@ -360,8 +366,11 @@ export type Database = {
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
           linked_advance_id?: string | null
           note?: string | null
+          paid_amount?: number | null
+          payment_date?: string | null
           payment_deadline?: string | null
           payment_method?: string | null
+          payment_status?: string | null
           quantity?: number
           sef_error?: string | null
           sef_invoice_id?: string | null
