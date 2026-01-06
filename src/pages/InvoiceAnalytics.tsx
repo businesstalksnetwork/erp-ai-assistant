@@ -409,44 +409,6 @@ export default function InvoiceAnalytics() {
         </Card>
       )}
 
-      {/* Unpaid by Partner Chart */}
-      {unpaidChartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-              Nenaplaćeno po partnerima
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={unpaidChartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
-                <XAxis 
-                  type="number" 
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  className="text-xs"
-                />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  className="text-xs"
-                  width={75}
-                />
-                <ChartTooltip 
-                  formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
-                />
-                <Bar dataKey="nenaplaceno" name="Nenaplaćeno" radius={[0, 4, 4, 0]}>
-                  {unpaidChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="hsl(var(--chart-1))" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Top 5 Customers & Invoiced by Partner */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Top 5 Customers */}
@@ -513,40 +475,71 @@ export default function InvoiceAnalytics() {
         </Card>
       </div>
 
-      {/* Unpaid by Partner */}
+      {/* Unpaid by Partner - Chart + Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
+          <CardTitle className="flex items-center gap-2 text-destructive">
             <TrendingDown className="h-5 w-5" />
-            Nenaplaćeno po partnerima
+            Nenaplaćena potraživanja po partnerima
           </CardTitle>
         </CardHeader>
         <CardContent>
           {unpaidByPartner.length === 0 ? (
             <p className="text-muted-foreground text-sm">Sve fakture su naplaćene! 🎉</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Partner</TableHead>
-                  <TableHead className="text-right">Ukupno</TableHead>
-                  <TableHead className="text-right">Naplaćeno</TableHead>
-                  <TableHead className="text-right">Nenaplaćeno</TableHead>
-                  <TableHead className="text-right">Br. faktura</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {unpaidByPartner.map(partner => (
-                  <TableRow key={partner.name}>
-                    <TableCell className="font-medium">{partner.name}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
-                    <TableCell className="text-right text-green-600">{formatCurrency(partner.paid)}</TableCell>
-                    <TableCell className="text-right text-red-600 font-semibold">{formatCurrency(partner.unpaid)}</TableCell>
-                    <TableCell className="text-right">{partner.invoiceCount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="grid gap-6 md:grid-cols-5">
+              {/* Small Chart - 2 columns */}
+              <div className="md:col-span-2">
+                <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <BarChart data={unpaidChartData.slice(0, 5)} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
+                    <XAxis 
+                      type="number" 
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      className="text-xs"
+                    />
+                    <YAxis 
+                      type="category" 
+                      dataKey="name" 
+                      className="text-xs"
+                      width={55}
+                    />
+                    <ChartTooltip 
+                      formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
+                    />
+                    <Bar dataKey="nenaplaceno" name="Nenaplaćeno" radius={[0, 4, 4, 0]}>
+                      {unpaidChartData.slice(0, 5).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill="hsl(var(--chart-1))" />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </div>
+              
+              {/* Table - 3 columns */}
+              <div className="md:col-span-3 max-h-[250px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Partner</TableHead>
+                      <TableHead className="text-right">Ukupno</TableHead>
+                      <TableHead className="text-right">Naplaćeno</TableHead>
+                      <TableHead className="text-right">Nenaplaćeno</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {unpaidByPartner.map(partner => (
+                      <TableRow key={partner.name}>
+                        <TableCell className="font-medium truncate max-w-[120px]">{partner.name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
+                        <TableCell className="text-right text-green-600">{formatCurrency(partner.paid)}</TableCell>
+                        <TableCell className="text-right text-destructive font-semibold">{formatCurrency(partner.unpaid)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
