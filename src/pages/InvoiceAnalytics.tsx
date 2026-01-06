@@ -183,6 +183,16 @@ export default function InvoiceAnalytics() {
     }));
   }, [topCustomers]);
 
+  // Unpaid by partners for horizontal bar chart
+  const unpaidChartData = useMemo(() => {
+    return unpaidByPartner.slice(0, 10).map((partner, index) => ({
+      name: partner.name.length > 15 ? partner.name.substring(0, 15) + '...' : partner.name,
+      fullName: partner.name,
+      nenaplaceno: Math.round(partner.unpaid),
+      fill: `hsl(var(--chart-${(index % 5) + 1}))`,
+    }));
+  }, [unpaidByPartner]);
+
   const chartConfig = {
     fakturisano: {
       label: "Fakturisano",
@@ -195,6 +205,10 @@ export default function InvoiceAnalytics() {
     iznos: {
       label: "Iznos",
       color: "hsl(var(--chart-3))",
+    },
+    nenaplaceno: {
+      label: "Nenaplaćeno",
+      color: "hsl(var(--chart-5))",
     },
   };
 
@@ -387,6 +401,44 @@ export default function InvoiceAnalytics() {
                 <Bar dataKey="iznos" radius={[0, 4, 4, 0]}>
                   {topCustomersChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Unpaid by Partner Chart */}
+      {unpaidChartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-destructive" />
+              Nenaplaćeno po partnerima
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <BarChart data={unpaidChartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
+                <XAxis 
+                  type="number" 
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  className="text-xs"
+                />
+                <YAxis 
+                  type="category" 
+                  dataKey="name" 
+                  className="text-xs"
+                  width={75}
+                />
+                <ChartTooltip 
+                  formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
+                />
+                <Bar dataKey="nenaplaceno" name="Nenaplaćeno" radius={[0, 4, 4, 0]}>
+                  {unpaidChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill="hsl(var(--chart-1))" />
                   ))}
                 </Bar>
               </BarChart>
