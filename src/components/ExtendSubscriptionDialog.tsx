@@ -35,7 +35,7 @@ export function ExtendSubscriptionDialog({
   if (!user) return null;
 
   const currentEnd = user.subscription_end ? new Date(user.subscription_end) : new Date();
-  const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+  const baseDate = currentEnd; // Uvek računa od datuma isteka, ne od danas
   const newEndDate = selectedMonths ? addMonths(baseDate, selectedMonths) : null;
 
   const handleExtend = () => {
