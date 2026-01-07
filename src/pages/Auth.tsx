@@ -32,7 +32,7 @@ export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string; pib?: string; companyName?: string }>({});
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
 
   const isRecovery = isPasswordRecoveryUrl();
@@ -75,7 +75,7 @@ export default function Auth() {
     }
   }, [navigate, toast]);
 
-  const validateForm = (email: string, password: string, fullName?: string) => {
+  const validateForm = (email: string, password: string, fullName?: string, pib?: string, companyName?: string) => {
     const newErrors: typeof errors = {};
     
     const emailResult = emailSchema.safeParse(email);
@@ -90,6 +90,14 @@ export default function Auth() {
     
     if (fullName !== undefined && fullName.trim().length < 2) {
       newErrors.fullName = 'Ime mora imati najmanje 2 karaktera';
+    }
+
+    if (pib !== undefined && pib.trim().length < 9) {
+      newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
+    }
+
+    if (companyName !== undefined && companyName.trim().length < 2) {
+      newErrors.companyName = 'Naziv firme mora imati najmanje 2 karaktera';
     }
     
     setErrors(newErrors);
@@ -136,13 +144,15 @@ export default function Auth() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
+    const pib = formData.get('pib') as string;
+    const companyName = formData.get('companyName') as string;
 
-    if (!validateForm(email, password, fullName)) {
+    if (!validateForm(email, password, fullName, pib, companyName)) {
       setLoading(false);
       return;
     }
 
-    const { error } = await signUp(email, password, fullName);
+    const { error } = await signUp(email, password, fullName, pib, companyName);
 
     if (error) {
       let message = error.message;
@@ -157,7 +167,7 @@ export default function Auth() {
     } else {
       toast({
         title: 'Registracija uspešna',
-        description: 'Vaš nalog čeka odobrenje administratora.',
+        description: 'Dobrodošli! Imate 7 dana besplatnog probnog perioda.',
       });
       navigate('/dashboard');
     }
@@ -418,7 +428,7 @@ export default function Auth() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Ime i prezime</Label>
+                    <Label htmlFor="signup-name">Ime i prezime *</Label>
                     <Input
                       id="signup-name"
                       name="fullName"
@@ -429,7 +439,29 @@ export default function Auth() {
                     {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-company">Naziv firme *</Label>
+                    <Input
+                      id="signup-company"
+                      name="companyName"
+                      type="text"
+                      placeholder="PR Marko Marković"
+                      required
+                    />
+                    {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-pib">PIB *</Label>
+                    <Input
+                      id="signup-pib"
+                      name="pib"
+                      type="text"
+                      placeholder="123456789"
+                      required
+                    />
+                    {errors.pib && <p className="text-sm text-destructive">{errors.pib}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email *</Label>
                     <Input
                       id="signup-email"
                       name="email"
@@ -440,7 +472,7 @@ export default function Auth() {
                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Lozinka</Label>
+                    <Label htmlFor="signup-password">Lozinka *</Label>
                     <Input
                       id="signup-password"
                       name="password"
@@ -455,7 +487,7 @@ export default function Auth() {
                     Registruj se
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Nakon registracije, vaš nalog mora biti odobren od strane administratora.
+                    Nakon registracije dobijate 7 dana besplatnog probnog perioda.
                   </p>
                 </form>
               </TabsContent>

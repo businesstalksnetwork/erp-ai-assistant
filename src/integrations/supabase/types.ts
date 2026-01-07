@@ -539,27 +539,42 @@ export type Database = {
       }
       profiles: {
         Row: {
+          block_reason: string | null
+          company_name: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
+          is_trial: boolean | null
+          pib: string | null
           status: Database["public"]["Enums"]["approval_status"]
+          subscription_end: string | null
           updated_at: string
         }
         Insert: {
+          block_reason?: string | null
+          company_name?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
+          is_trial?: boolean | null
+          pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
+          subscription_end?: string | null
           updated_at?: string
         }
         Update: {
+          block_reason?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          is_trial?: boolean | null
+          pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
+          subscription_end?: string | null
           updated_at?: string
         }
         Relationships: []

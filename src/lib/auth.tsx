@@ -6,7 +6,12 @@ interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  pib: string | null;
+  company_name: string | null;
   status: 'pending' | 'approved' | 'rejected';
+  subscription_end: string | null;
+  block_reason: string | null;
+  is_trial: boolean;
 }
 
 interface AuthContextType {
@@ -15,8 +20,12 @@ interface AuthContextType {
   profile: Profile | null;
   isAdmin: boolean;
   isApproved: boolean;
+  isBlocked: boolean;
+  subscriptionDaysLeft: number;
+  isSubscriptionExpiring: boolean;
+  isSubscriptionExpired: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, pib: string, companyName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -88,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, pib: string, companyName: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -98,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          pib: pib,
+          company_name: companyName,
         },
       },
     });
@@ -123,6 +134,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isApproved = profile?.status === 'approved' || isAdmin;
+  const isBlocked = profile?.status === 'rejected';
+
+  // Calculate subscription days left
+  const subscriptionDaysLeft = profile?.subscription_end
+    ? Math.ceil((new Date(profile.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const isSubscriptionExpiring = subscriptionDaysLeft <= 7 && subscriptionDaysLeft > 0;
+  const isSubscriptionExpired = subscriptionDaysLeft <= 0 && profile?.subscription_end !== null;
 
   return (
     <AuthContext.Provider
@@ -132,6 +151,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         isAdmin,
         isApproved,
+        isBlocked,
+        subscriptionDaysLeft,
+        isSubscriptionExpiring,
+        isSubscriptionExpired,
         loading,
         signUp,
         signIn,

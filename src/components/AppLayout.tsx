@@ -34,6 +34,8 @@ import {
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { SubscriptionBanner } from '@/components/SubscriptionBanner';
+import { BlockedUserScreen } from '@/components/BlockedUserScreen';
 import logo from '@/assets/pausal-box-logo.png';
 
 const userNavItems = [
@@ -57,7 +59,7 @@ const adminNavItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, isAdmin, profile } = useAuth();
+  const { signOut, isAdmin, profile, isBlocked, subscriptionDaysLeft, isSubscriptionExpired } = useAuth();
   const { selectedCompany, setSelectedCompany, companies, myCompanies, clientCompanies, isViewingClientCompany } = useSelectedCompany();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -77,8 +79,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = isAdmin ? [...userNavItems, ...adminNavItems] : userNavItems;
 
+  // Show blocked screen for blocked users (except admins)
+  if (isBlocked && !isAdmin) {
+    return <BlockedUserScreen reason={profile?.block_reason || null} onSignOut={handleSignOut} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Subscription Banner */}
+      {!isAdmin && profile?.subscription_end && (
+        <SubscriptionBanner
+          subscriptionEnd={profile.subscription_end}
+          daysLeft={subscriptionDaysLeft}
+          isExpired={isSubscriptionExpired}
+        />
+      )}
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden">
         <Link to="/dashboard">
