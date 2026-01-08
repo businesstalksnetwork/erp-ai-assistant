@@ -84,16 +84,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <BlockedUserScreen reason={profile?.block_reason || null} onSignOut={handleSignOut} />;
   }
 
+  // Check if subscription banner should show
+  const showSubscriptionBanner = !isAdmin && profile?.subscription_end && subscriptionDaysLeft <= 7;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Subscription Banner */}
-      {!isAdmin && profile?.subscription_end && (
-        <SubscriptionBanner
-          subscriptionEnd={profile.subscription_end}
-          daysLeft={subscriptionDaysLeft}
-          isExpired={isSubscriptionExpired}
-        />
-      )}
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden">
         <Link to="/dashboard">
@@ -107,6 +102,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
+
+      {/* Subscription Banner - below mobile header on mobile, at top on desktop */}
+      {showSubscriptionBanner && (
+        <div className="lg:fixed lg:top-0 lg:left-64 lg:right-0 lg:z-40 fixed top-[60px] left-0 right-0 z-40 print:hidden">
+          <SubscriptionBanner
+            subscriptionEnd={profile.subscription_end}
+            daysLeft={subscriptionDaysLeft}
+            isExpired={isSubscriptionExpired}
+          />
+        </div>
+      )}
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
@@ -253,7 +259,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 print:pl-0 print:pt-0">
+      <main className={cn(
+        "lg:pl-64 print:pl-0 print:pt-0",
+        showSubscriptionBanner ? "pt-[108px] lg:pt-12" : "pt-16 lg:pt-0"
+      )}>
         <div className="p-4 lg:p-8 print:p-0">{children}</div>
       </main>
     </div>
