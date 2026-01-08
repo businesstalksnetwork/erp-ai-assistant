@@ -26,7 +26,7 @@ export function SubscriptionBanner({ subscriptionEnd, daysLeft, isExpired }: Sub
         'flex items-center justify-between gap-4 px-4 py-3 text-sm',
         isExpired
           ? 'bg-destructive/10 border-b border-destructive/20 text-destructive'
-          : 'bg-warning/10 border-b border-warning/20 text-warning-foreground'
+          : 'bg-amber-50 border-b border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-200'
       )}
     >
       <div className="flex items-center gap-2">
