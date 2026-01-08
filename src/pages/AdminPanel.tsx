@@ -75,13 +75,8 @@ export default function AdminPanel() {
   });
 
   const extendSubscription = useMutation({
-    mutationFn: async ({ userId, months }: { userId: string; months: number }) => {
-      const user = users.find(u => u.id === userId);
-      if (!user) throw new Error('Korisnik nije pronađen');
-
-      const currentEnd = user.subscription_end ? new Date(user.subscription_end) : new Date();
-      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
-      const newEnd = addMonths(baseDate, months);
+    mutationFn: async ({ userId, months, startDate }: { userId: string; months: number; startDate: Date }) => {
+      const newEnd = addMonths(startDate, months);
 
       const { error } = await supabase
         .from('profiles')
@@ -445,7 +440,7 @@ export default function AdminPanel() {
         open={!!extendUser}
         onOpenChange={(open) => !open && setExtendUser(null)}
         user={extendUser}
-        onExtend={(userId, months) => extendSubscription.mutate({ userId, months })}
+        onExtend={(userId, months, startDate) => extendSubscription.mutate({ userId, months, startDate })}
       />
 
       {/* Block User Dialog */}
