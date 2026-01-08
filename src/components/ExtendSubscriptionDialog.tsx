@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { format, addMonths, addDays } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +12,10 @@ import {
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Calendar } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface ExtendSubscriptionDialogProps {
   open: boolean;
@@ -35,7 +38,8 @@ export function ExtendSubscriptionDialog({
   onExtend,
 }: ExtendSubscriptionDialogProps) {
   const [selectedMonths, setSelectedMonths] = useState<number | null>(null);
-  const [startDateOption, setStartDateOption] = useState<'trial_end' | 'today'>('trial_end');
+  const [startDateOption, setStartDateOption] = useState<'trial_end' | 'today' | 'custom'>('trial_end');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
 
   if (!user) return null;
 
@@ -50,6 +54,9 @@ export function ExtendSubscriptionDialog({
     if (!isTrial) {
       return trialEndDate;
     }
+    if (startDateOption === 'custom' && customDate) {
+      return customDate;
+    }
     return startDateOption === 'trial_end' ? trialEndDate : today;
   };
   
@@ -61,6 +68,7 @@ export function ExtendSubscriptionDialog({
       onExtend(user.id, selectedMonths, startDate);
       setSelectedMonths(null);
       setStartDateOption('trial_end');
+      setCustomDate(undefined);
       onOpenChange(false);
     }
   };
@@ -70,7 +78,7 @@ export function ExtendSubscriptionDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+            <CalendarIcon className="h-5 w-5" />
             Produži pretplatu
           </DialogTitle>
           <DialogDescription>
@@ -98,7 +106,7 @@ export function ExtendSubscriptionDialog({
               <p className="text-sm font-medium">Računaj pretplatu od:</p>
               <RadioGroup
                 value={startDateOption}
-                onValueChange={(value) => setStartDateOption(value as 'trial_end' | 'today')}
+                onValueChange={(value) => setStartDateOption(value as 'trial_end' | 'today' | 'custom')}
                 className="space-y-2"
               >
                 <div className="flex items-center space-x-2">
@@ -114,7 +122,39 @@ export function ExtendSubscriptionDialog({
                     Današnjeg dana ({format(today, 'dd.MM.yyyy.')})
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="custom" id="custom" />
+                  <Label htmlFor="custom" className="text-sm cursor-pointer">
+                    Izaberi datum
+                  </Label>
+                </div>
               </RadioGroup>
+              
+              {startDateOption === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !customDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDate ? format(customDate, 'dd. MMMM yyyy.', { locale: sr }) : 'Izaberi datum'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customDate}
+                      onSelect={setCustomDate}
+                      initialFocus
+                      locale={sr}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
           )}
 
@@ -148,7 +188,10 @@ export function ExtendSubscriptionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Otkaži
           </Button>
-          <Button onClick={handleExtend} disabled={!selectedMonths}>
+          <Button 
+            onClick={handleExtend} 
+            disabled={!selectedMonths || (startDateOption === 'custom' && !customDate)}
+          >
             Produži
           </Button>
         </DialogFooter>
