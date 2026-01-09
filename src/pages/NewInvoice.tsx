@@ -360,6 +360,9 @@ export default function NewInvoice() {
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_amount: item.quantity * item.unit_price,
+        foreign_amount: formData.client_type === 'foreign' && item.foreign_amount > 0 
+          ? item.foreign_amount * item.quantity 
+          : null,
       }));
 
       const { error: itemsError } = await supabase
