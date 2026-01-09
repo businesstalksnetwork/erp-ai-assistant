@@ -229,6 +229,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          foreign_amount: number | null
           id: string
           invoice_id: string
           item_type: Database["public"]["Enums"]["invoice_item_type"]
@@ -239,6 +240,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description: string
+          foreign_amount?: number | null
           id?: string
           invoice_id: string
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
@@ -249,6 +251,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string
+          foreign_amount?: number | null
           id?: string
           invoice_id?: string
           item_type?: Database["public"]["Enums"]["invoice_item_type"]

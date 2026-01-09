@@ -248,6 +248,7 @@ export function useInvoices(companyId: string | null) {
           unit_price: item.unit_price,
           total_amount: item.total_amount,
           item_type: item.item_type,
+          foreign_amount: item.foreign_amount,
         }));
 
         const { error: itemsError } = await supabase.from('invoice_items').insert(newItems);
@@ -399,6 +400,7 @@ export function useInvoices(companyId: string | null) {
           unit_price: -Math.abs(item.unit_price),
           total_amount: -Math.abs(item.total_amount),
           item_type: item.item_type,
+          foreign_amount: item.foreign_amount ? -Math.abs(item.foreign_amount) : null,
         }));
 
         const { error: itemsError } = await supabase.from('invoice_items').insert(stornoItems);
