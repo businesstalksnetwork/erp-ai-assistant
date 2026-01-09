@@ -39,7 +39,7 @@ import { BlockedUserScreen } from '@/components/BlockedUserScreen';
 import logo from '@/assets/pausal-box-logo.png';
 
 const userNavItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
   { href: '/invoices/new', label: 'Nova faktura', icon: FilePlus },
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },

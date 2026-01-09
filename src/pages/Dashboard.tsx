@@ -80,7 +80,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Kontrolna tabla</h1>
         <p className="text-muted-foreground">
           Pregled za {selectedCompany?.name}
         </p>
