@@ -97,9 +97,9 @@ export default function Dashboard() {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               )}
             </div>
-            <CardDescription>
-              01.01. - 31.12. {new Date().getFullYear()} • Sve fakture
-            </CardDescription>
+                <CardDescription>
+                  01.01. - 31.12. {new Date().getFullYear()}
+                </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -127,9 +127,9 @@ export default function Dashboard() {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               )}
             </div>
-            <CardDescription>
-              Poslednjih 365 dana • Samo domaći klijenti
-            </CardDescription>
+                <CardDescription>
+                  Poslednjih 365 dana
+                </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
