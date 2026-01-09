@@ -402,7 +402,9 @@ export default function InvoiceDetail() {
                 </>
               ) : (
                 <div className="bg-primary text-primary-foreground p-4 rounded-lg">
-                  <p className="text-sm opacity-80">ZA PLAĆANJE</p>
+                  <p className="text-sm opacity-80">
+                    {invoice.invoice_type === 'advance' ? 'UPLAĆENO' : 'ZA PLAĆANJE'}
+                  </p>
                   {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount ? (
                     <>
                       <p className="text-2xl font-bold font-mono">
