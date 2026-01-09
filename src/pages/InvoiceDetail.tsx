@@ -356,37 +356,64 @@ export default function InvoiceDetail() {
                   <div className="flex justify-between text-lg">
                     <span className="text-muted-foreground">UKUPNO:</span>
                     <div className="text-right">
-                      <span className="font-mono font-semibold">{formatCurrency(invoice.total_amount)}</span>
-                      {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && (
-                        <div className="text-sm text-muted-foreground font-mono">
-                          {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
-                        </div>
+                      {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount ? (
+                        <>
+                          <span className="font-mono font-semibold">
+                            {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
+                          </span>
+                          <div className="text-sm text-muted-foreground font-mono">
+                            {formatCurrency(invoice.total_amount)}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="font-mono font-semibold">{formatCurrency(invoice.total_amount)}</span>
                       )}
                     </div>
                   </div>
                   <div className="flex justify-between text-primary">
                     <span>Avansno uplaćeno:</span>
-                    <span className="font-mono">-{formatCurrency(advanceAmount)}</span>
+                    <div className="text-right font-mono">
+                      {invoice.client_type === 'foreign' && invoice.foreign_currency && linkedAdvance.foreign_amount ? (
+                        <>
+                          <span>-{formatForeignCurrency(linkedAdvance.foreign_amount, invoice.foreign_currency)}</span>
+                          <div className="text-sm">-{formatCurrency(advanceAmount)}</div>
+                        </>
+                      ) : (
+                        <span>-{formatCurrency(advanceAmount)}</span>
+                      )}
+                    </div>
                   </div>
                   <Separator />
                   <div className="bg-primary text-primary-foreground p-4 rounded-lg">
                     <p className="text-sm opacity-80">ZA PLAĆANJE</p>
-                    <p className="text-2xl font-bold font-mono">{formatCurrency(amountForPayment)}</p>
-                    {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate && (
-                      <p className="text-lg font-mono opacity-90">
-                        {formatForeignCurrency((amountForPayment / invoice.exchange_rate), invoice.foreign_currency)}
-                      </p>
+                    {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate ? (
+                      <>
+                        <p className="text-2xl font-bold font-mono">
+                          {formatForeignCurrency((amountForPayment / invoice.exchange_rate), invoice.foreign_currency)}
+                        </p>
+                        <p className="text-lg font-mono opacity-90">
+                          {formatCurrency(amountForPayment)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-2xl font-bold font-mono">{formatCurrency(amountForPayment)}</p>
                     )}
                   </div>
                 </>
               ) : (
                 <div className="bg-primary text-primary-foreground p-4 rounded-lg">
                   <p className="text-sm opacity-80">ZA PLAĆANJE</p>
-                  <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
-                  {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && (
-                    <p className="text-lg font-mono opacity-90">
-                      {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
-                    </p>
+                  {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount ? (
+                    <>
+                      <p className="text-2xl font-bold font-mono">
+                        {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
+                      </p>
+                      <p className="text-lg font-mono opacity-90">
+                        {formatCurrency(invoice.total_amount)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
                   )}
                 </div>
               )}
