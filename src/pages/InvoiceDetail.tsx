@@ -83,6 +83,7 @@ interface InvoiceItem {
   quantity: number;
   unit_price: number;
   total_amount: number;
+  foreign_amount?: number;
 }
 
 function formatCurrency(amount: number): string {
@@ -90,6 +91,15 @@ function formatCurrency(amount: number): string {
     style: 'currency',
     currency: 'RSD',
     maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatForeignCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -305,8 +315,22 @@ export default function InvoiceDetail() {
                     <tr key={item.id} className={index % 2 === 1 ? 'bg-muted/50' : ''}>
                       <td className="p-3">{item.description}</td>
                       <td className="p-3 text-right font-mono">{item.quantity}</td>
-                      <td className="p-3 text-right font-mono">{formatCurrency(item.unit_price)}</td>
-                      <td className="p-3 text-right font-mono font-semibold">{formatCurrency(item.total_amount)}</td>
+                      <td className="p-3 text-right font-mono">
+                        {formatCurrency(item.unit_price)}
+                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount && (
+                          <div className="text-xs text-muted-foreground">
+                            {formatForeignCurrency(item.foreign_amount / item.quantity, invoice.foreign_currency)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-right font-mono font-semibold">
+                        {formatCurrency(item.total_amount)}
+                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount && (
+                          <div className="text-xs text-muted-foreground font-normal">
+                            {formatForeignCurrency(item.foreign_amount, invoice.foreign_currency)}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -314,27 +338,31 @@ export default function InvoiceDetail() {
             </div>
           </div>
 
-          {/* Foreign Currency */}
-          {invoice.foreign_currency && invoice.foreign_amount && (
+          {/* Foreign Currency Info */}
+          {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.exchange_rate && (
             <div className="bg-secondary p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-2">Iznos u stranoj valuti</p>
+              <p className="text-sm text-muted-foreground mb-2">Kurs NBS na dan {new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
               <p className="font-mono">
-                {invoice.foreign_amount} {invoice.foreign_currency}
-                {invoice.exchange_rate && (
-                  <span className="text-muted-foreground"> (kurs: {invoice.exchange_rate})</span>
-                )}
+                1 {invoice.foreign_currency} = {invoice.exchange_rate} RSD
               </p>
             </div>
           )}
 
           {/* Total with Advance */}
           <div className="flex justify-end">
-            <div className="min-w-[250px] space-y-2">
+            <div className="min-w-[280px] space-y-2">
               {linkedAdvance ? (
                 <>
                   <div className="flex justify-between text-lg">
                     <span className="text-muted-foreground">UKUPNO:</span>
-                    <span className="font-mono font-semibold">{formatCurrency(invoice.total_amount)}</span>
+                    <div className="text-right">
+                      <span className="font-mono font-semibold">{formatCurrency(invoice.total_amount)}</span>
+                      {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && (
+                        <div className="text-sm text-muted-foreground font-mono">
+                          {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between text-primary">
                     <span>Avansno uplaćeno:</span>
@@ -344,12 +372,22 @@ export default function InvoiceDetail() {
                   <div className="bg-primary text-primary-foreground p-4 rounded-lg">
                     <p className="text-sm opacity-80">ZA PLAĆANJE</p>
                     <p className="text-2xl font-bold font-mono">{formatCurrency(amountForPayment)}</p>
+                    {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate && (
+                      <p className="text-lg font-mono opacity-90">
+                        {formatForeignCurrency((amountForPayment / invoice.exchange_rate), invoice.foreign_currency)}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : (
                 <div className="bg-primary text-primary-foreground p-4 rounded-lg">
                   <p className="text-sm opacity-80">ZA PLAĆANJE</p>
                   <p className="text-2xl font-bold font-mono">{formatCurrency(invoice.total_amount)}</p>
+                  {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && (
+                    <p className="text-lg font-mono opacity-90">
+                      {formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
