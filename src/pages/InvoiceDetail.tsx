@@ -117,7 +117,9 @@ export default function InvoiceDetail() {
   
   // Calculate amount for payment
   const advanceAmount = linkedAdvance?.total_amount || 0;
+  const advanceForeignAmount = linkedAdvance?.foreign_amount || 0;
   const amountForPayment = invoice ? invoice.total_amount - advanceAmount : 0;
+  const foreignAmountForPayment = invoice?.foreign_amount ? invoice.foreign_amount - advanceForeignAmount : 0;
 
   // Fetch invoice items
   useEffect(() => {
@@ -387,10 +389,10 @@ export default function InvoiceDetail() {
                     {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate ? (
                       <>
                         <p className="text-2xl font-bold font-mono">
-                          {formatForeignCurrency((amountForPayment / invoice.exchange_rate), invoice.foreign_currency)}
+                          {formatForeignCurrency(foreignAmountForPayment, invoice.foreign_currency)}
                         </p>
                         <p className="text-lg font-mono opacity-90">
-                          {formatCurrency(amountForPayment)}
+                          {formatCurrency(foreignAmountForPayment * invoice.exchange_rate)}
                         </p>
                       </>
                     ) : (
