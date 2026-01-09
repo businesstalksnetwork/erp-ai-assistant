@@ -316,19 +316,17 @@ export default function InvoiceDetail() {
                       <td className="p-3">{item.description}</td>
                       <td className="p-3 text-right font-mono">{item.quantity}</td>
                       <td className="p-3 text-right font-mono">
-                        {formatCurrency(item.unit_price)}
-                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount && (
-                          <div className="text-xs text-muted-foreground">
-                            {formatForeignCurrency(item.foreign_amount / item.quantity, invoice.foreign_currency)}
-                          </div>
+                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount ? (
+                          formatForeignCurrency(item.foreign_amount / item.quantity, invoice.foreign_currency)
+                        ) : (
+                          formatCurrency(item.unit_price)
                         )}
                       </td>
                       <td className="p-3 text-right font-mono font-semibold">
-                        {formatCurrency(item.total_amount)}
-                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount && (
-                          <div className="text-xs text-muted-foreground font-normal">
-                            {formatForeignCurrency(item.foreign_amount, invoice.foreign_currency)}
-                          </div>
+                        {invoice.client_type === 'foreign' && invoice.foreign_currency && item.foreign_amount ? (
+                          formatForeignCurrency(item.foreign_amount, invoice.foreign_currency)
+                        ) : (
+                          formatCurrency(item.total_amount)
                         )}
                       </td>
                     </tr>
