@@ -37,12 +37,13 @@ export function useLimits(companyId: string | null) {
       const rollingStartStr = format(rollingStart, 'yyyy-MM-dd');
       const todayStr = format(todayDateOnly, 'yyyy-MM-dd');
 
-      // Get yearly invoices (01.01 - 31.12) - all invoices for 6M limit
+      // Get yearly invoices (01.01 - 31.12) - only regular invoices for 6M limit (no advances)
       const { data: yearlyInvoices } = await supabase
         .from('invoices')
         .select('total_amount, client_type')
         .eq('company_id', companyId!)
         .eq('is_proforma', false)
+        .is('linked_advance_id', null) // Exclude advance invoices - only regular invoices count toward 6M
         .gte('issue_date', yearStart)
         .lte('issue_date', yearEnd);
 
