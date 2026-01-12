@@ -48,7 +48,6 @@ import logo from '@/assets/pausal-box-logo.png';
 const userNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
-  { href: '/invoices/new', label: 'Nova faktura', icon: FilePlus },
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator },
@@ -56,7 +55,6 @@ const userNavItems = [
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
-  { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase },
 ];
 
 const adminNavItems = [
@@ -246,6 +244,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="right" align="end" className="w-48">
                 <ChangePasswordDialog asDropdownItem={true} />
+                <DropdownMenuItem onClick={() => { navigate('/bookkeeper'); setMobileMenuOpen(false); }}>
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Knjigovodstvo
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={toggleTheme}>
                   {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
                   {theme === 'light' ? 'Tamna tema' : 'Svetla tema'}
