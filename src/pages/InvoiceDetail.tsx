@@ -226,7 +226,7 @@ export default function InvoiceDetail() {
           <CreateTemplateDialog 
             invoice={{
               id: invoice.id,
-              invoice_type: invoice.invoice_type as 'regular' | 'proforma' | 'advance',
+              invoice_type: (invoice.invoice_type || (invoice.is_proforma ? 'proforma' : 'regular')) as 'regular' | 'proforma' | 'advance',
               client_id: invoice.client_id,
               client_name: invoice.client_name,
               client_address: invoice.client_address,
