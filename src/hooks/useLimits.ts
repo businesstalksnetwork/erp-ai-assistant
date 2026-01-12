@@ -43,16 +43,17 @@ export function useLimits(companyId: string | null) {
         .select('total_amount, client_type')
         .eq('company_id', companyId!)
         .eq('is_proforma', false)
-        .is('linked_advance_id', null) // Exclude advance invoices - only regular invoices count toward 6M
+        .neq('invoice_type', 'advance') // Exclude advance invoices - only regular invoices count toward 6M
         .gte('issue_date', yearStart)
         .lte('issue_date', yearEnd);
 
-      // Get rolling 365 days invoices - only domestic for 8M limit
+      // Get rolling 365 days invoices - only domestic for 8M limit (no advances)
       const { data: rollingInvoices } = await supabase
         .from('invoices')
         .select('total_amount, client_type')
         .eq('company_id', companyId!)
         .eq('is_proforma', false)
+        .neq('invoice_type', 'advance') // Exclude advance invoices
         .gte('issue_date', rollingStartStr)
         .lte('issue_date', todayStr);
 
