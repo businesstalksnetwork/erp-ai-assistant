@@ -21,10 +21,14 @@ import {
 
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
 
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+
 export function ChangePasswordDialog({
   buttonClassName,
+  asDropdownItem = false,
 }: {
   buttonClassName?: string;
+  asDropdownItem?: boolean;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -129,10 +133,17 @@ export function ChangePasswordDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" className={buttonClassName}>
-          <KeyRound className="mr-2 h-4 w-4" />
-          Promeni lozinku
-        </Button>
+        {asDropdownItem ? (
+          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            Promeni lozinku
+          </DropdownMenuItem>
+        ) : (
+          <Button variant="ghost" className={buttonClassName}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            Promeni lozinku
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent>

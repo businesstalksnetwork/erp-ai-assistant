@@ -13,6 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   LayoutDashboard,
   FileText,
   FilePlus,
@@ -28,6 +34,7 @@ import {
   Moon,
   Sun,
   Calculator,
+  ChevronRight,
   BarChart3,
   ListChecks,
 } from 'lucide-react';
@@ -218,42 +225,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* User Info & Actions - Compact */}
+          {/* User Dropdown Menu */}
           <div className="p-4 border-t border-sidebar-border flex-shrink-0 pb-safe">
-            <div className="px-3 py-1.5 text-sm mb-1">
-              <p className="font-medium truncate">{profile?.full_name || profile?.email}</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
-                {profile?.status === 'pending' ? 'Čeka odobrenje' : isAdmin ? 'Administrator' : 'Korisnik'}
-              </p>
-            </div>
-            <div className="space-y-0.5">
-              <ChangePasswordDialog buttonClassName="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2" />
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2"
-                onClick={toggleTheme}
-              >
-                {theme === 'light' ? (
-                  <>
-                    <Moon className="mr-2 h-4 w-4" />
-                    Tamna tema
-                  </>
-                ) : (
-                  <>
-                    <Sun className="mr-2 h-4 w-4" />
-                    Svetla tema
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2"
-                onClick={handleSignOut}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Odjavi se
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent px-3 py-2"
+                >
+                  <div className="flex flex-col items-start text-left flex-1 min-w-0">
+                    <span className="font-medium truncate w-full">
+                      {profile?.full_name || profile?.email}
+                    </span>
+                    <span className="text-xs text-sidebar-foreground/60">
+                      {profile?.status === 'pending' ? 'Čeka odobrenje' : isAdmin ? 'Administrator' : 'Korisnik'}
+                    </span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="end" className="w-48">
+                <ChangePasswordDialog asDropdownItem={true} />
+                <DropdownMenuItem onClick={toggleTheme}>
+                  {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+                  {theme === 'light' ? 'Tamna tema' : 'Svetla tema'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Odjavi se
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </aside>
