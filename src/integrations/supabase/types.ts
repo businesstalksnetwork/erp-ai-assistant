@@ -269,6 +269,78 @@ export type Database = {
           },
         ]
       }
+      invoice_templates: {
+        Row: {
+          client_address: string | null
+          client_id: string | null
+          client_maticni_broj: string | null
+          client_name: string
+          client_pib: string | null
+          client_type: string
+          company_id: string
+          created_at: string | null
+          foreign_currency: string | null
+          id: string
+          invoice_type: string
+          items: Json
+          name: string
+          note: string | null
+          payment_method: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_address?: string | null
+          client_id?: string | null
+          client_maticni_broj?: string | null
+          client_name: string
+          client_pib?: string | null
+          client_type?: string
+          company_id: string
+          created_at?: string | null
+          foreign_currency?: string | null
+          id?: string
+          invoice_type: string
+          items?: Json
+          name: string
+          note?: string | null
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_address?: string | null
+          client_id?: string | null
+          client_maticni_broj?: string | null
+          client_name?: string
+          client_pib?: string | null
+          client_type?: string
+          company_id?: string
+          created_at?: string | null
+          foreign_currency?: string | null
+          id?: string
+          invoice_type?: string
+          items?: Json
+          name?: string
+          note?: string | null
+          payment_method?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_templates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           advance_status: string | null

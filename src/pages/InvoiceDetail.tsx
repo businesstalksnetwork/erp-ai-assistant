@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
+import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo.png';
 
@@ -221,10 +222,29 @@ export default function InvoiceDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Nazad
         </Button>
-        <Button onClick={handlePrint}>
-          <Printer className="mr-2 h-4 w-4" />
-          Štampaj
-        </Button>
+        <div className="flex gap-2">
+          <CreateTemplateDialog 
+            invoice={{
+              id: invoice.id,
+              invoice_type: invoice.invoice_type as 'regular' | 'proforma' | 'advance',
+              client_id: invoice.client_id,
+              client_name: invoice.client_name,
+              client_address: invoice.client_address,
+              client_pib: invoice.client_pib,
+              client_maticni_broj: invoice.client_maticni_broj,
+              client_type: invoice.client_type as 'domestic' | 'foreign',
+              foreign_currency: invoice.foreign_currency,
+              payment_method: invoice.payment_method,
+              note: invoice.note,
+            }} 
+            items={displayItems} 
+            companyId={selectedCompany.id} 
+          />
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Štampaj
+          </Button>
+        </div>
       </div>
 
       <Card className="print:shadow-none print:border-0">

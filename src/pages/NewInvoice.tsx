@@ -4,6 +4,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
+import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export default function NewInvoice() {
   const { createInvoice, closeAdvanceInvoice, getOpenAdvances, invoices } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
+  const { templates, getTemplatesByType } = useInvoiceTemplates(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
@@ -219,6 +221,43 @@ export default function NewInvoice() {
       }));
     }
   };
+
+  // Handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Fill client data from template
+    setFormData(prev => ({
+      ...prev,
+      client_id: template.client_id || '',
+      client_name: template.client_name,
+      client_address: template.client_address || '',
+      client_pib: template.client_pib || '',
+      client_maticni_broj: template.client_maticni_broj || '',
+      client_type: template.client_type as 'domestic' | 'foreign',
+      foreign_currency: template.foreign_currency || '',
+      exchange_rate: 0, // Reset - will be fetched fresh
+      payment_method: template.payment_method || 'Virman',
+      note: template.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.',
+      // Keep dates as today
+      issue_date: new Date().toISOString().split('T')[0],
+      service_date: '',
+    }));
+
+    // Fill items from template
+    setItems(template.items.map(item => ({
+      id: crypto.randomUUID(),
+      description: item.description,
+      item_type: item.item_type,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      foreign_amount: item.foreign_amount || 0,
+    })));
+  };
+
+  // Get templates for current invoice type
+  const templatesForType = getTemplatesByType(formData.invoice_type as 'regular' | 'proforma' | 'advance');
 
   // Item management
   const addItem = () => {
@@ -513,6 +552,32 @@ export default function NewInvoice() {
             </RadioGroup>
           </CardContent>
         </Card>
+
+        {/* Template Selection */}
+        {templatesForType.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Šablon</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select onValueChange={handleTemplateSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Izaberite šablon za brže popunjavanje (opciono)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templatesForType.map(template => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground mt-2">
+                Šablon će popuniti podatke o klijentu i stavke, a datumi ostaju današnji.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Basic Info */}
         <Card>
