@@ -158,15 +158,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{invoices.filter(i => !i.is_proforma).length}</div>
-            <p className="text-xs text-muted-foreground">
-              + {invoices.filter(i => i.is_proforma).length} predračuna
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Promet godine</CardTitle>
+            <CardTitle className="text-sm font-medium">Promet u toku godine</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
