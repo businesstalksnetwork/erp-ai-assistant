@@ -218,42 +218,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* User Info & Logout */}
-          <div className="p-4 border-t border-sidebar-border space-y-3 flex-shrink-0 pb-safe">
-            <div className="px-3 py-2 text-sm">
+          {/* User Info & Actions - Compact */}
+          <div className="p-4 border-t border-sidebar-border flex-shrink-0 pb-safe">
+            <div className="px-3 py-1.5 text-sm mb-1">
               <p className="font-medium truncate">{profile?.full_name || profile?.email}</p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
                 {profile?.status === 'pending' ? 'Čeka odobrenje' : isAdmin ? 'Administrator' : 'Korisnik'}
               </p>
-             </div>
-
-             <ChangePasswordDialog buttonClassName="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" />
-
-             <Button
-              variant="ghost"
-              className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-              onClick={toggleTheme}
-            >
-              {theme === 'light' ? (
-                <>
-                  <Moon className="mr-2 h-4 w-4" />
-                  Tamna tema
-                </>
-              ) : (
-                <>
-                  <Sun className="mr-2 h-4 w-4" />
-                  Svetla tema
-                </>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Odjavi se
-            </Button>
+            </div>
+            <div className="space-y-0.5">
+              <ChangePasswordDialog buttonClassName="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2" />
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2"
+                onClick={toggleTheme}
+              >
+                {theme === 'light' ? (
+                  <>
+                    <Moon className="mr-2 h-4 w-4" />
+                    Tamna tema
+                  </>
+                ) : (
+                  <>
+                    <Sun className="mr-2 h-4 w-4" />
+                    Svetla tema
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent py-2"
+                onClick={handleSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Odjavi se
+              </Button>
+            </div>
           </div>
         </div>
       </aside>
