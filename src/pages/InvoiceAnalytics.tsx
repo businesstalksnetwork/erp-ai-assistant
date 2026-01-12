@@ -371,43 +371,6 @@ export default function InvoiceAnalytics() {
         </Card>
       </div>
 
-      {/* Top Customers Bar Chart */}
-      {topCustomersChartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Top 5 kupaca - grafički prikaz
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-              <BarChart data={topCustomersChartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
-                <XAxis 
-                  type="number" 
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  className="text-xs"
-                />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  className="text-xs"
-                  width={75}
-                />
-                <ChartTooltip 
-                  formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
-                />
-                <Bar dataKey="iznos" radius={[0, 4, 4, 0]}>
-                  {topCustomersChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Top 5 Customers & Invoiced by Partner */}
       <div className="grid gap-6 md:grid-cols-2">
