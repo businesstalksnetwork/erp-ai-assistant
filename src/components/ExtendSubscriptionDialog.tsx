@@ -14,7 +14,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface ExtendSubscriptionDialogProps {
@@ -131,30 +130,15 @@ export function ExtendSubscriptionDialog({
               </RadioGroup>
               
               {startDateOption === 'custom' && (
-                <Popover modal={true}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !customDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDate ? format(customDate, 'dd. MMMM yyyy.', { locale: sr }) : 'Izaberi datum'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={customDate}
-                      onSelect={setCustomDate}
-                      initialFocus
-                      locale={sr}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="border rounded-md bg-background">
+                  <Calendar
+                    mode="single"
+                    selected={customDate}
+                    onSelect={setCustomDate}
+                    locale={sr}
+                    className="rounded-md"
+                  />
+                </div>
               )}
             </div>
           )}
