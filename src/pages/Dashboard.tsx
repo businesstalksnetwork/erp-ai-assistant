@@ -92,7 +92,7 @@ export default function Dashboard() {
         <Card className={limits.limit6MPercent >= 90 ? 'border-destructive' : limits.limit6MPercent >= 75 ? 'border-warning' : ''}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Godišnji limit (6M)</CardTitle>
+              <CardTitle className="text-lg">Godišnji limit (6 miliona)</CardTitle>
               {limits.limit6MPercent >= 90 && (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               )}
@@ -122,7 +122,7 @@ export default function Dashboard() {
         <Card className={limits.limit8MPercent >= 90 ? 'border-destructive' : limits.limit8MPercent >= 75 ? 'border-warning' : ''}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Klizni limit (8M)</CardTitle>
+              <CardTitle className="text-lg">Klizni limit (8 miliona)</CardTitle>
               {limits.limit8MPercent >= 90 && (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               )}
