@@ -131,9 +131,10 @@ export function ExtendSubscriptionDialog({
               </RadioGroup>
               
               {startDateOption === 'custom' && (
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
@@ -144,7 +145,7 @@ export function ExtendSubscriptionDialog({
                       {customDate ? format(customDate, 'dd. MMMM yyyy.', { locale: sr }) : 'Izaberi datum'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={customDate}
@@ -158,12 +159,13 @@ export function ExtendSubscriptionDialog({
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2 relative z-10">
             <p className="text-sm text-muted-foreground">Produži za:</p>
             <div className="grid grid-cols-3 gap-2">
               {[1, 3, 6].map((months) => (
                 <Button
                   key={months}
+                  type="button"
                   variant={selectedMonths === months ? 'default' : 'outline'}
                   onClick={() => setSelectedMonths(months)}
                   className="w-full"
