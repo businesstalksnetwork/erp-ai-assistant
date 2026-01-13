@@ -46,7 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote } from 'lucide-react';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote, Pencil } from 'lucide-react';
 import { PaymentStatusDialog } from '@/components/PaymentStatusDialog';
 
 function formatCurrency(amount: number): string {
@@ -310,6 +310,38 @@ export default function Invoices() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
+                          {/* Edit Button - conditionally visible */}
+                          {(() => {
+                            const isProforma = invoice.is_proforma || invoice.invoice_type === 'proforma';
+                            const isAdvance = invoice.invoice_type === 'advance';
+                            const isRegular = invoice.invoice_type === 'regular' && !invoice.is_proforma;
+                            
+                            // Proforma can be edited only if not converted to invoice
+                            const proformaConverted = isProforma && getCreatedInvoiceFromProforma(invoice.id);
+                            // Advance can be edited only if not closed
+                            const advanceClosed = isAdvance && invoice.advance_status === 'closed';
+                            
+                            const canEdit = isRegular || (isProforma && !proformaConverted) || (isAdvance && !advanceClosed);
+                            
+                            if (!canEdit) return null;
+                            
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" asChild>
+                                      <Link to={`/invoices/${invoice.id}/edit`}>
+                                        <Pencil className="h-4 w-4" />
+                                      </Link>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Izmeni</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
                           {/* Payment Status Button - for regular invoices only */}
                           {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
                             <TooltipProvider>

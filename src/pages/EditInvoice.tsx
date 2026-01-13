@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
-import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -21,8 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Building2, Loader2, Save, Plus, Trash2, ListChecks, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -44,28 +42,27 @@ const invoiceSchema = z.object({
   })).min(1, 'Dodajte bar jednu stavku'),
 });
 
-const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
-
-export default function NewInvoice() {
+export default function EditInvoice() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { selectedCompany } = useSelectedCompany();
-  const { createInvoice, closeAdvanceInvoice, getOpenAdvances, invoices } = useInvoices(selectedCompany?.id || null);
+  const { invoices, updateInvoice } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
-  const { templates, getTemplatesByType } = useInvoiceTemplates(selectedCompany?.id || null);
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
+  const [cannotEdit, setCannotEdit] = useState<string | null>(null);
 
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
-  ]);
+  const [items, setItems] = useState<InvoiceItem[]>([]);
 
   const [formData, setFormData] = useState({
     invoice_number: '',
-    issue_date: new Date().toISOString().split('T')[0],
+    issue_date: '',
     service_date: '',
     client_id: '',
     client_name: '',
@@ -78,16 +75,95 @@ export default function NewInvoice() {
     exchange_rate: 0,
     payment_deadline: '',
     payment_method: 'Virman',
-    note: 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.',
+    note: '',
     invoice_type: 'regular' as InvoiceType,
     linked_advance_id: '',
   });
 
-  // Get open advances for current client
-  const openAdvances = getOpenAdvances(formData.client_id || null);
-  const linkedAdvance = formData.linked_advance_id 
-    ? invoices.find(i => i.id === formData.linked_advance_id) 
-    : null;
+  // Find the invoice to edit
+  const invoice = invoices.find(i => i.id === id);
+
+  // Load invoice data
+  useEffect(() => {
+    const loadInvoiceData = async () => {
+      if (!id || !invoice) {
+        setLoadingData(false);
+        return;
+      }
+
+      // Check if invoice can be edited
+      const isProforma = invoice.is_proforma || invoice.invoice_type === 'proforma';
+      const isAdvance = invoice.invoice_type === 'advance';
+
+      if (isProforma) {
+        // Check if proforma has been converted to invoice
+        const createdInvoice = invoices.find(i => i.converted_from_proforma === invoice.id);
+        if (createdInvoice) {
+          setCannotEdit(`Ovaj predračun je već konvertovan u fakturu ${createdInvoice.invoice_number}`);
+          setLoadingData(false);
+          return;
+        }
+      }
+
+      if (isAdvance && invoice.advance_status === 'closed') {
+        setCannotEdit('Ova avansna faktura je već zatvorena i ne može se menjati');
+        setLoadingData(false);
+        return;
+      }
+
+      // Load form data from invoice
+      setFormData({
+        invoice_number: invoice.invoice_number,
+        issue_date: invoice.issue_date,
+        service_date: invoice.service_date || '',
+        client_id: invoice.client_id || '',
+        client_name: invoice.client_name,
+        client_address: invoice.client_address || '',
+        client_pib: invoice.client_pib || '',
+        client_maticni_broj: invoice.client_maticni_broj || '',
+        client_type: invoice.client_type,
+        foreign_currency: invoice.foreign_currency || '',
+        foreign_amount: invoice.foreign_amount || 0,
+        exchange_rate: invoice.exchange_rate || 0,
+        payment_deadline: invoice.payment_deadline || '',
+        payment_method: invoice.payment_method || 'Virman',
+        note: invoice.note || '',
+        invoice_type: invoice.invoice_type,
+        linked_advance_id: invoice.linked_advance_id || '',
+      });
+
+      // Load invoice items
+      const { data: invoiceItems } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', id);
+
+      if (invoiceItems && invoiceItems.length > 0) {
+        setItems(invoiceItems.map(item => ({
+          id: item.id,
+          description: item.description,
+          item_type: item.item_type as 'products' | 'services',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          foreign_amount: item.foreign_amount ? item.foreign_amount / item.quantity : 0,
+        })));
+      } else {
+        // Fallback for invoices without items table entries
+        setItems([{
+          id: crypto.randomUUID(),
+          description: invoice.description,
+          item_type: invoice.item_type,
+          quantity: invoice.quantity,
+          unit_price: invoice.unit_price,
+          foreign_amount: invoice.foreign_amount ? invoice.foreign_amount / invoice.quantity : 0,
+        }]);
+      }
+
+      setLoadingData(false);
+    };
+
+    loadInvoiceData();
+  }, [id, invoice, invoices]);
 
   // Calculate totals
   const itemTotals = items.map(item => item.quantity * item.unit_price);
@@ -95,10 +171,6 @@ export default function NewInvoice() {
   const totalForeignAmount = items.reduce((sum, item) => sum + (item.foreign_amount * item.quantity), 0);
   const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-  
-  // Amount for payment (total minus advance)
-  const advanceAmount = linkedAdvance?.total_amount || 0;
-  const amountForPayment = totalAmount - advanceAmount;
 
   // Determine invoice year from service_date or issue_date
   const getInvoiceYear = () => {
@@ -107,28 +179,6 @@ export default function NewInvoice() {
     }
     return new Date(formData.issue_date).getFullYear();
   };
-
-  // Generate invoice number from database based on issue_date or service_date year and invoice type
-  useEffect(() => {
-    const fetchNextNumber = async () => {
-      if (selectedCompany) {
-        const invoiceYear = getInvoiceYear();
-        const { data, error } = await supabase.rpc('get_next_invoice_number_by_type', {
-          p_company_id: selectedCompany.id,
-          p_year: invoiceYear,
-          p_invoice_type: formData.invoice_type,
-        });
-        
-        if (!error && data) {
-          setFormData((prev) => ({
-            ...prev,
-            invoice_number: data,
-          }));
-        }
-      }
-    };
-    fetchNextNumber();
-  }, [selectedCompany, formData.invoice_type, formData.service_date, formData.issue_date]);
 
   // Fetch NBS exchange rate when currency and date change
   useEffect(() => {
@@ -182,17 +232,6 @@ export default function NewInvoice() {
     }
   }, [formData.exchange_rate, formData.client_type]);
 
-  // Clear linked advance when changing invoice type or client
-  useEffect(() => {
-    if (formData.invoice_type !== 'regular') {
-      setFormData(prev => ({ ...prev, linked_advance_id: '' }));
-    }
-  }, [formData.invoice_type]);
-
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, linked_advance_id: '' }));
-  }, [formData.client_id]);
-
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
     if (clientId === 'new') {
@@ -222,43 +261,6 @@ export default function NewInvoice() {
     }
   };
 
-  // Handle template selection
-  const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
-    if (!template) return;
-
-    // Fill client data from template
-    setFormData(prev => ({
-      ...prev,
-      client_id: template.client_id || '',
-      client_name: template.client_name,
-      client_address: template.client_address || '',
-      client_pib: template.client_pib || '',
-      client_maticni_broj: template.client_maticni_broj || '',
-      client_type: template.client_type as 'domestic' | 'foreign',
-      foreign_currency: template.foreign_currency || '',
-      exchange_rate: 0, // Reset - will be fetched fresh
-      payment_method: template.payment_method || 'Virman',
-      note: template.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.',
-      // Keep dates as today
-      issue_date: new Date().toISOString().split('T')[0],
-      service_date: '',
-    }));
-
-    // Fill items from template
-    setItems(template.items.map(item => ({
-      id: crypto.randomUUID(),
-      description: item.description,
-      item_type: item.item_type,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      foreign_amount: item.foreign_amount || 0,
-    })));
-  };
-
-  // Get templates for current invoice type
-  const templatesForType = getTemplatesByType(formData.invoice_type as 'regular' | 'proforma' | 'advance');
-
   // Item management
   const addItem = () => {
     setItems(prev => [...prev, {
@@ -271,15 +273,15 @@ export default function NewInvoice() {
     }]);
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (itemId: string) => {
     if (items.length > 1) {
-      setItems(prev => prev.filter(item => item.id !== id));
+      setItems(prev => prev.filter(item => item.id !== itemId));
     }
   };
 
-  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
     setItems(prev => prev.map(item => {
-      if (item.id !== id) return item;
+      if (item.id !== itemId) return item;
       
       const updated = { ...item, [field]: value };
       
@@ -320,80 +322,41 @@ export default function NewInvoice() {
 
     try {
       const invoiceYear = getInvoiceYear();
-      const isProforma = formData.invoice_type === 'proforma';
-      const isAdvance = formData.invoice_type === 'advance';
       
-      // If new client (no client_id), save to clients table first
-      let clientId = formData.client_id || null;
-      if (!formData.client_id && formData.client_name.trim()) {
-        const existingClient = clients.find(
-          c => c.name.toLowerCase() === formData.client_name.trim().toLowerCase()
-        );
-        
-        if (!existingClient) {
-          const { data: newClient, error: clientError } = await supabase
-            .from('clients')
-            .insert({
-              company_id: selectedCompany!.id,
-              name: formData.client_name.trim(),
-              address: formData.client_address || null,
-              pib: formData.client_pib || null,
-              client_type: formData.client_type,
-            })
-            .select()
-            .single();
-          
-          if (!clientError && newClient) {
-            clientId = newClient.id;
-          }
-        } else {
-          clientId = existingClient.id;
-        }
-      }
-
-      // Determine main item type (for backwards compatibility)
+      // Determine main item type
       const mainItemType = servicesTotal >= productsTotal ? 'services' : 'products';
-      
-      // Create invoice
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-          company_id: selectedCompany!.id,
-          invoice_number: formData.invoice_number,
-          issue_date: formData.issue_date,
-          service_date: formData.service_date || null,
-          client_id: clientId,
-          client_name: formData.client_name,
-          client_address: formData.client_address || null,
-          client_pib: formData.client_pib || null,
-          client_maticni_broj: formData.client_maticni_broj || null,
-          client_type: formData.client_type,
-          description: items.map(i => i.description).join('; '),
-          quantity: 1,
-          unit_price: totalAmount,
-          total_amount: totalAmount,
-          item_type: mainItemType,
-          foreign_currency: formData.client_type === 'foreign' ? formData.foreign_currency || null : null,
-          foreign_amount: formData.client_type === 'foreign' ? totalForeignAmount || null : null,
-          exchange_rate: formData.client_type === 'foreign' ? formData.exchange_rate || null : null,
-          payment_deadline: formData.payment_deadline || null,
-          payment_method: formData.payment_method || null,
-          note: formData.note || null,
-          is_proforma: isProforma,
-          converted_from_proforma: null,
-          year: invoiceYear,
-          invoice_type: formData.invoice_type,
-          linked_advance_id: formData.linked_advance_id || null,
-          advance_status: isAdvance ? 'open' : null,
-        })
-        .select()
-        .single();
 
-      if (invoiceError) throw invoiceError;
+      // Update invoice
+      await updateInvoice.mutateAsync({
+        id: id!,
+        invoice_number: formData.invoice_number,
+        issue_date: formData.issue_date,
+        service_date: formData.service_date || null,
+        client_id: formData.client_id || null,
+        client_name: formData.client_name,
+        client_address: formData.client_address || null,
+        client_pib: formData.client_pib || null,
+        client_maticni_broj: formData.client_maticni_broj || null,
+        client_type: formData.client_type,
+        description: items.map(i => i.description).join('; '),
+        quantity: 1,
+        unit_price: totalAmount,
+        total_amount: totalAmount,
+        item_type: mainItemType,
+        foreign_currency: formData.client_type === 'foreign' ? formData.foreign_currency || null : null,
+        foreign_amount: formData.client_type === 'foreign' ? totalForeignAmount || null : null,
+        exchange_rate: formData.client_type === 'foreign' ? formData.exchange_rate || null : null,
+        payment_deadline: formData.payment_deadline || null,
+        payment_method: formData.payment_method || null,
+        note: formData.note || null,
+        year: invoiceYear,
+      });
 
-      // Insert invoice items
+      // Delete old invoice items and insert new ones
+      await supabase.from('invoice_items').delete().eq('invoice_id', id!);
+
       const itemsToInsert = items.map(item => ({
-        invoice_id: invoice.id,
+        invoice_id: id!,
         description: item.description,
         item_type: item.item_type,
         quantity: item.quantity,
@@ -410,12 +373,7 @@ export default function NewInvoice() {
 
       if (itemsError) throw itemsError;
 
-      // Close the linked advance invoice if one was selected
-      if (formData.linked_advance_id) {
-        await closeAdvanceInvoice.mutateAsync(formData.linked_advance_id);
-      }
-
-      // Create/Update KPO entry for regular invoices only (not proforma, not advance)
+      // Update KPO entry for regular invoices
       if (formData.invoice_type === 'regular') {
         const productsAmount = items
           .filter((i) => i.item_type === 'products')
@@ -432,60 +390,29 @@ export default function NewInvoice() {
           year: 'numeric',
         });
 
-        // If a KPO row was already created (e.g. via backend automation), update it instead of inserting a duplicate.
-        const { data: existingKpo } = await supabase
+        // Update existing KPO entry
+        const { error: kpoError } = await supabase
           .from('kpo_entries')
-          .select('id, ordinal_number')
-          .eq('invoice_id', invoice.id)
-          .maybeSingle();
-
-        let ordinalNumber = existingKpo?.ordinal_number;
-
-        if (!ordinalNumber) {
-          const { data: maxOrdinal } = await supabase
-            .from('kpo_entries')
-            .select('ordinal_number')
-            .eq('company_id', selectedCompany!.id)
-            .eq('year', invoiceYear)
-            .order('ordinal_number', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
-        }
-
-        const kpoPayload = {
-          company_id: selectedCompany!.id,
-          invoice_id: invoice.id,
-          ordinal_number: ordinalNumber,
-          description: `Faktura ${formData.invoice_number}, ${formattedDate}, ${formData.client_name}`,
-          products_amount: productsAmount,
-          services_amount: servicesAmount,
-          total_amount: totalAmount,
-          year: invoiceYear,
-          document_date: serviceDate,
-        };
-
-        const { error: kpoError } = existingKpo
-          ? await supabase.from('kpo_entries').update(kpoPayload).eq('id', existingKpo.id)
-          : await supabase.from('kpo_entries').insert(kpoPayload);
+          .update({
+            description: `Faktura ${formData.invoice_number}, ${formattedDate}, ${formData.client_name}`,
+            products_amount: productsAmount,
+            services_amount: servicesAmount,
+            total_amount: totalAmount,
+            year: invoiceYear,
+            document_date: serviceDate,
+          })
+          .eq('invoice_id', id!);
 
         if (kpoError) {
-          console.error('Error creating/updating KPO entry:', kpoError);
-          toast.error('Faktura je kreirana, ali KPO nije ažuriran');
+          console.error('Error updating KPO entry:', kpoError);
         }
       }
 
-      const typeLabel = formData.invoice_type === 'proforma' 
-        ? 'Predračun' 
-        : formData.invoice_type === 'advance' 
-          ? 'Avansna faktura' 
-          : 'Faktura';
-      toast.success(`${typeLabel} uspešno kreirana`);
+      toast.success('Dokument uspešno ažuriran');
       navigate('/invoices');
     } catch (error) {
-      console.error('Error creating invoice:', error);
-      toast.error('Greška pri kreiranju fakture');
+      console.error('Error updating invoice:', error);
+      toast.error('Greška pri ažuriranju dokumenta');
     }
 
     setLoading(false);
@@ -496,18 +423,49 @@ export default function NewInvoice() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
         <Building2 className="h-16 w-16 text-muted-foreground" />
         <h1 className="text-2xl font-bold">Izaberite firmu</h1>
-        <p className="text-muted-foreground">Izaberite firmu iz menija da biste kreirali fakturu.</p>
+        <p className="text-muted-foreground">Izaberite firmu iz menija da biste izmenili fakturu.</p>
+      </div>
+    );
+  }
+
+  if (loadingData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <AlertTriangle className="h-16 w-16 text-destructive" />
+        <h1 className="text-2xl font-bold">Dokument nije pronađen</h1>
+        <Button onClick={() => navigate('/invoices')}>Nazad na listu</Button>
+      </div>
+    );
+  }
+
+  if (cannotEdit) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <AlertTriangle className="h-16 w-16 text-amber-500" />
+        <h1 className="text-2xl font-bold">Izmena nije dozvoljena</h1>
+        <p className="text-muted-foreground">{cannotEdit}</p>
+        <Button onClick={() => navigate('/invoices')}>Nazad na listu</Button>
       </div>
     );
   }
 
   const getTitle = () => {
     switch (formData.invoice_type) {
-      case 'proforma': return 'Novi predračun';
-      case 'advance': return 'Nova avansna faktura';
-      default: return 'Nova faktura';
+      case 'proforma': return 'Izmeni predračun';
+      case 'advance': return 'Izmeni avansnu fakturu';
+      default: return 'Izmeni fakturu';
     }
   };
+
+  const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
@@ -517,68 +475,6 @@ export default function NewInvoice() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Document Type Toggle */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tip dokumenta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={formData.invoice_type}
-              onValueChange={(value: InvoiceType) => setFormData({ ...formData, invoice_type: value })}
-              className="grid grid-cols-1 md:grid-cols-3 gap-4"
-            >
-              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="regular" id="regular" className="mt-1" />
-                <div>
-                  <Label htmlFor="regular" className="font-medium cursor-pointer">Faktura</Label>
-                  <p className="text-sm text-muted-foreground">Standardna faktura, evidentira se u KPO knjizi</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="proforma" id="proforma" className="mt-1" />
-                <div>
-                  <Label htmlFor="proforma" className="font-medium cursor-pointer">Predračun</Label>
-                  <p className="text-sm text-muted-foreground">Ne evidentira se u KPO knjizi</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value="advance" id="advance" className="mt-1" />
-                <div>
-                  <Label htmlFor="advance" className="font-medium cursor-pointer">Avansna faktura</Label>
-                  <p className="text-sm text-muted-foreground">Za avansna plaćanja, ne ide u KPO</p>
-                </div>
-              </div>
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        {/* Template Selection */}
-        {templatesForType.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Šablon</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select onValueChange={handleTemplateSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Izaberite šablon za brže popunjavanje (opciono)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templatesForType.map(template => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground mt-2">
-                Šablon će popuniti podatke o klijentu i stavke, a datumi ostaju današnji.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Basic Info */}
         <Card>
           <CardHeader>
@@ -706,45 +602,6 @@ export default function NewInvoice() {
           </CardContent>
         </Card>
 
-        {/* Link Advance Invoice - Only for regular invoices */}
-        {formData.invoice_type === 'regular' && formData.client_id && openAdvances.length > 0 && (
-          <Card className="border-primary/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LinkIcon className="h-5 w-5" />
-                Poveži avansnu fakturu
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Otvorene avansne fakture za ovog klijenta</Label>
-                <Select 
-                  value={formData.linked_advance_id || 'none'} 
-                  onValueChange={(v) => setFormData({ ...formData, linked_advance_id: v === 'none' ? '' : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Izaberi avansnu fakturu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Bez avansne fakture</SelectItem>
-                    {openAdvances.map((adv) => (
-                      <SelectItem key={adv.id} value={adv.id}>
-                        {adv.invoice_number} - {new Intl.NumberFormat('sr-RS').format(adv.total_amount)} RSD
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {linkedAdvance && (
-                <div className="p-3 bg-muted rounded-lg text-sm">
-                  <p><strong>Avansno uplaćeno:</strong> {new Intl.NumberFormat('sr-RS').format(linkedAdvance.total_amount)} RSD</p>
-                  <p className="text-muted-foreground">Ova avansna faktura će biti zatvorena nakon kreiranja fakture.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Items */}
         <Card>
           <CardHeader>
@@ -784,10 +641,6 @@ export default function NewInvoice() {
                                     key={service.id}
                                     value={service.name}
                                     onSelect={() => {
-                                      const price = formData.client_type === 'foreign' && service.default_foreign_price
-                                        ? service.default_foreign_price
-                                        : service.default_unit_price || 0;
-                                      
                                       const foreignAmt = formData.client_type === 'foreign' 
                                         ? (service.default_foreign_price || 0) 
                                         : 0;
@@ -886,19 +739,22 @@ export default function NewInvoice() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Ukupno</Label>
-                    <div className="h-10 px-3 py-2 rounded-md border bg-muted font-medium">
-                      {new Intl.NumberFormat('sr-RS').format(item.quantity * item.unit_price)} RSD
-                    </div>
+                    <Label>Iznos (RSD)</Label>
+                    <Input
+                      type="text"
+                      value={new Intl.NumberFormat('sr-RS').format(item.quantity * item.unit_price)}
+                      readOnly
+                      className="bg-muted font-semibold"
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Opis *</Label>
+                  <Label>Opis</Label>
                   <Textarea
                     value={item.description}
                     onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                    placeholder="Opis pružene usluge ili isporučenih dobara"
+                    placeholder="Opis usluge ili proizvoda"
                     rows={2}
                   />
                   {errors[`items.${index}.description`] && (
@@ -908,42 +764,12 @@ export default function NewInvoice() {
               </div>
             ))}
 
-            {/* Totals */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex flex-col gap-2 items-end">
-                {productsTotal > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    Proizvodi: {new Intl.NumberFormat('sr-RS').format(productsTotal)} RSD
-                  </div>
-                )}
-                {servicesTotal > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    Usluge: {new Intl.NumberFormat('sr-RS').format(servicesTotal)} RSD
-                  </div>
-                )}
-                <div className="text-xl font-bold">
-                  Ukupno: {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
-                </div>
-                {linkedAdvance && (
-                  <>
-                    <div className="text-sm text-primary">
-                      Avansno uplaćeno: -{new Intl.NumberFormat('sr-RS').format(advanceAmount)} RSD
-                    </div>
-                    <div className="text-xl font-bold text-primary">
-                      Za uplatu: {new Intl.NumberFormat('sr-RS').format(amountForPayment)} RSD
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Foreign Currency Fields */}
+            {/* Foreign currency section */}
             {formData.client_type === 'foreign' && (
-              <div className="border-t pt-4 mt-4">
-                <p className="text-sm font-medium mb-4">Iznos u stranoj valuti (automatski kurs NBS)</p>
+              <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="foreign_currency">Valuta</Label>
+                    <Label>Valuta</Label>
                     <Select
                       value={formData.foreign_currency}
                       onValueChange={(v) => setFormData({ ...formData, foreign_currency: v })}
@@ -952,56 +778,55 @@ export default function NewInvoice() {
                         <SelectValue placeholder="Izaberi valutu" />
                       </SelectTrigger>
                       <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        {currencies.map((curr) => (
+                          <SelectItem key={curr} value={curr}>{curr}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="foreign_amount">Iznos u valuti</Label>
-                    <Input
-                      id="foreign_amount"
-                      type="number"
-                      step="0.01"
-                      value={formData.foreign_amount || ''}
-                      onChange={(e) => setFormData({ ...formData, foreign_amount: parseFloat(e.target.value) || 0 })}
-                      placeholder="1000.00"
-                    />
+                    <Label>Kurs NBS</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={formData.exchange_rate || ''}
+                        onChange={(e) => setFormData({ ...formData, exchange_rate: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.0000"
+                      />
+                      {fetchingRate && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {rateNote && <p className="text-xs text-muted-foreground">{rateNote}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="exchange_rate" className="flex items-center gap-2">
-                      Kurs NBS
-                      {fetchingRate && <Loader2 className="h-3 w-3 animate-spin" />}
-                    </Label>
+                    <Label>Ukupno ({formData.foreign_currency || 'DEV'})</Label>
                     <Input
-                      id="exchange_rate"
-                      type="number"
-                      step="0.0001"
-                      value={formData.exchange_rate || ''}
-                      onChange={(e) => setFormData({ ...formData, exchange_rate: parseFloat(e.target.value) || 0 })}
-                      placeholder="117.1234"
-                      className={fetchingRate ? 'opacity-50' : ''}
+                      type="text"
+                      value={totalForeignAmount.toFixed(2)}
+                      readOnly
+                      className="bg-muted font-semibold"
                     />
-                    {rateNote && (
-                      <p className="text-xs text-muted-foreground">{rateNote}</p>
-                    )}
                   </div>
                 </div>
-                {formData.foreign_amount > 0 && formData.exchange_rate > 0 && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {formData.foreign_amount} {formData.foreign_currency} × {formData.exchange_rate} = {new Intl.NumberFormat('sr-RS').format(formData.foreign_amount * formData.exchange_rate)} RSD
-                  </p>
-                )}
               </div>
             )}
+
+            {/* Totals */}
+            <div className="flex flex-col items-end gap-2 pt-4 border-t">
+              <div className="text-lg">
+                <span className="text-muted-foreground">Ukupno: </span>
+                <span className="font-bold">{new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Payment Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Plaćanje</CardTitle>
+            <CardTitle>Podaci o plaćanju</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1016,36 +841,42 @@ export default function NewInvoice() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="payment_method">Način plaćanja</Label>
-                <Input
-                  id="payment_method"
+                <Select
                   value={formData.payment_method}
-                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                  placeholder="Virman, gotovina..."
-                />
+                  onValueChange={(v) => setFormData({ ...formData, payment_method: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Virman">Virman</SelectItem>
+                    <SelectItem value="Gotovina">Gotovina</SelectItem>
+                    <SelectItem value="Kartica">Kartica</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="note">Napomena</Label>
               <Textarea
                 id="note"
                 value={formData.note}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                rows={2}
+                rows={3}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Submit */}
-        <div className="flex gap-4">
+        {/* Actions */}
+        <div className="flex gap-4 justify-end">
           <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
             Otkaži
           </Button>
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Sačuvaj {formData.invoice_type === 'proforma' ? 'predračun' : formData.invoice_type === 'advance' ? 'avansnu fakturu' : 'fakturu'}
+            Sačuvaj izmene
           </Button>
         </div>
       </form>
