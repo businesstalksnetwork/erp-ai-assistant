@@ -3,7 +3,8 @@ import { useReminders } from './useReminders';
 import { useLimits, LimitsData } from './useLimits';
 import { toast } from 'sonner';
 
-const LIMIT_WARNING_THRESHOLD = 90; // percent
+const LIMIT_WARNING_THRESHOLD_80 = 80; // percent - first warning
+const LIMIT_WARNING_THRESHOLD_90 = 90; // percent - critical warning
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -18,7 +19,12 @@ export function useNotifications(companyId: string | null) {
   const { limits } = useLimits(companyId);
   const notifiedIds = useRef<Set<string>>(new Set());
   const permissionAsked = useRef(false);
-  const limitNotifiedRef = useRef<{ limit6M: boolean; limit8M: boolean }>({ limit6M: false, limit8M: false });
+  const limitNotifiedRef = useRef<{ 
+    limit6M_80: boolean; 
+    limit6M_90: boolean; 
+    limit8M_80: boolean; 
+    limit8M_90: boolean; 
+  }>({ limit6M_80: false, limit6M_90: false, limit8M_80: false, limit8M_90: false });
 
   // Request notification permission on mount
   useEffect(() => {
@@ -38,10 +44,10 @@ export function useNotifications(companyId: string | null) {
       try {
         limitNotifiedRef.current = JSON.parse(stored);
       } catch {
-        limitNotifiedRef.current = { limit6M: false, limit8M: false };
+        limitNotifiedRef.current = { limit6M_80: false, limit6M_90: false, limit8M_80: false, limit8M_90: false };
       }
     } else {
-      limitNotifiedRef.current = { limit6M: false, limit8M: false };
+      limitNotifiedRef.current = { limit6M_80: false, limit6M_90: false, limit8M_80: false, limit8M_90: false };
     }
   }, [companyId]);
 
@@ -49,7 +55,7 @@ export function useNotifications(companyId: string | null) {
   useEffect(() => {
     if (!companyId || !limits) return;
 
-    const showLimitNotification = (title: string, body: string, key: 'limit6M' | 'limit8M') => {
+    const showLimitNotification = (title: string, body: string, key: 'limit6M_80' | 'limit6M_90' | 'limit8M_80' | 'limit8M_90') => {
       if (limitNotifiedRef.current[key]) return;
 
       limitNotifiedRef.current[key] = true;
@@ -72,32 +78,56 @@ export function useNotifications(companyId: string | null) {
       }
     };
 
-    // Check 6M limit (yearly)
-    if (limits.limit6MPercent >= LIMIT_WARNING_THRESHOLD) {
+    // Check 6M limit at 80% (first warning)
+    if (limits.limit6MPercent >= LIMIT_WARNING_THRESHOLD_80 && limits.limit6MPercent < LIMIT_WARNING_THRESHOLD_90) {
       showLimitNotification(
         '⚠️ Upozorenje: Godišnji limit',
-        `Dostigli ste ${limits.limit6MPercent.toFixed(0)}% godišnjeg limita (6M). Preostalo: ${formatCurrency(limits.limit6MRemaining)}`,
-        'limit6M'
+        `Dostigli ste ${limits.limit6MPercent.toFixed(0)}% godišnjeg limita (6 miliona). Preostalo: ${formatCurrency(limits.limit6MRemaining)}`,
+        'limit6M_80'
       );
     }
 
-    // Check 8M limit (rolling)
-    if (limits.limit8MPercent >= LIMIT_WARNING_THRESHOLD) {
+    // Check 6M limit at 90% (critical warning)
+    if (limits.limit6MPercent >= LIMIT_WARNING_THRESHOLD_90) {
+      showLimitNotification(
+        '🚨 Kritično: Godišnji limit',
+        `Dostigli ste ${limits.limit6MPercent.toFixed(0)}% godišnjeg limita (6 miliona)! Preostalo: ${formatCurrency(limits.limit6MRemaining)}`,
+        'limit6M_90'
+      );
+    }
+
+    // Check 8M limit at 80% (first warning)
+    if (limits.limit8MPercent >= LIMIT_WARNING_THRESHOLD_80 && limits.limit8MPercent < LIMIT_WARNING_THRESHOLD_90) {
       showLimitNotification(
         '⚠️ Upozorenje: Klizni limit',
-        `Dostigli ste ${limits.limit8MPercent.toFixed(0)}% kliznog limita (8M). Preostalo: ${formatCurrency(limits.limit8MRemaining)}`,
-        'limit8M'
+        `Dostigli ste ${limits.limit8MPercent.toFixed(0)}% kliznog limita (8 miliona). Preostalo: ${formatCurrency(limits.limit8MRemaining)}`,
+        'limit8M_80'
       );
     }
 
-    // Reset notification if limit drops below threshold (e.g., new year for 6M)
-    if (limits.limit6MPercent < LIMIT_WARNING_THRESHOLD - 5 && limitNotifiedRef.current.limit6M) {
-      limitNotifiedRef.current.limit6M = false;
-      localStorage.setItem(`limit_notified_${companyId}`, JSON.stringify(limitNotifiedRef.current));
+    // Check 8M limit at 90% (critical warning)
+    if (limits.limit8MPercent >= LIMIT_WARNING_THRESHOLD_90) {
+      showLimitNotification(
+        '🚨 Kritično: Klizni limit',
+        `Dostigli ste ${limits.limit8MPercent.toFixed(0)}% kliznog limita (8 miliona)! Preostalo: ${formatCurrency(limits.limit8MRemaining)}`,
+        'limit8M_90'
+      );
     }
-    if (limits.limit8MPercent < LIMIT_WARNING_THRESHOLD - 5 && limitNotifiedRef.current.limit8M) {
-      limitNotifiedRef.current.limit8M = false;
-      localStorage.setItem(`limit_notified_${companyId}`, JSON.stringify(limitNotifiedRef.current));
+
+    // Reset notifications if limit drops below 75%
+    if (limits.limit6MPercent < 75) {
+      if (limitNotifiedRef.current.limit6M_80 || limitNotifiedRef.current.limit6M_90) {
+        limitNotifiedRef.current.limit6M_80 = false;
+        limitNotifiedRef.current.limit6M_90 = false;
+        localStorage.setItem(`limit_notified_${companyId}`, JSON.stringify(limitNotifiedRef.current));
+      }
+    }
+    if (limits.limit8MPercent < 75) {
+      if (limitNotifiedRef.current.limit8M_80 || limitNotifiedRef.current.limit8M_90) {
+        limitNotifiedRef.current.limit8M_80 = false;
+        limitNotifiedRef.current.limit8M_90 = false;
+        localStorage.setItem(`limit_notified_${companyId}`, JSON.stringify(limitNotifiedRef.current));
+      }
     }
   }, [limits, companyId]);
 
