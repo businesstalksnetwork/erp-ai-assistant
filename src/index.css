@@ -6,58 +6,58 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 30% 15%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 15%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 93% 58%;
+    --primary-foreground: 222 47% 11%;
 
     --secondary: 220 14% 96%;
-    --secondary-foreground: 220 30% 25%;
+    --secondary-foreground: 222 47% 20%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 50%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 160 84% 39%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning-foreground: 222 47% 11%;
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
     --border: 220 14% 90%;
     --input: 220 14% 90%;
-    --ring: 217 91% 50%;
+    --ring: 45 93% 58%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 220 30% 15%;
-    --sidebar-foreground: 220 14% 90%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 22%;
-    --sidebar-accent-foreground: 220 14% 90%;
-    --sidebar-border: 220 25% 25%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 45 93% 58%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 47% 20%;
+    --sidebar-ring: 45 93% 58%;
 
-    --chart-1: 217 91% 50%;
+    --chart-1: 45 93% 58%;
     --chart-2: 160 84% 39%;
-    --chart-3: 38 92% 50%;
+    --chart-3: 217 91% 50%;
     --chart-4: 280 70% 50%;
     --chart-5: 0 84% 60%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 50%) 0%, hsl(217, 91%, 65%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(45, 93%, 58%) 0%, hsl(45, 93%, 68%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(160, 84%, 39%) 0%, hsl(160, 84%, 50%) 100%);
     --gradient-warning: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(38, 92%, 60%) 100%);
 
@@ -66,48 +66,48 @@
   }
 
   .dark {
-    --background: 220 30% 8%;
-    --foreground: 220 14% 95%;
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
 
-    --card: 220 30% 12%;
-    --card-foreground: 220 14% 95%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 220 30% 12%;
-    --popover-foreground: 220 14% 95%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 30% 8%;
+    --primary: 45 93% 58%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 220 14% 90%;
+    --secondary: 222 47% 16%;
+    --secondary-foreground: 210 40% 90%;
 
-    --muted: 220 25% 18%;
-    --muted-foreground: 220 14% 75%;
+    --muted: 222 47% 16%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 160 84% 45%;
-    --accent-foreground: 220 30% 8%;
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --warning: 38 92% 55%;
-    --warning-foreground: 220 30% 8%;
+    --warning-foreground: 222 47% 11%;
 
     --success: 160 84% 45%;
-    --success-foreground: 220 30% 8%;
+    --success-foreground: 222 47% 11%;
 
-    --border: 220 25% 20%;
-    --input: 220 25% 20%;
-    --ring: 217 91% 60%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 45 93% 58%;
 
-    --sidebar-background: 220 30% 6%;
-    --sidebar-foreground: 220 14% 90%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 15%;
-    --sidebar-accent-foreground: 220 14% 90%;
-    --sidebar-border: 220 25% 18%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 45 93% 58%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 47% 14%;
+    --sidebar-accent-foreground: 210 40% 90%;
+    --sidebar-border: 222 47% 16%;
+    --sidebar-ring: 45 93% 58%;
   }
 
   /* White calendar icon in dark mode */
