@@ -548,9 +548,6 @@ export default function EditInvoice() {
                   className="bg-muted"
                   title="Automatski se određuje: za usluge - mesto klijenta, za proizvode ili mešovito - mesto firme"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Automatski: usluge → mesto klijenta, proizvodi/mešovito → mesto firme
-                </p>
               </div>
             </div>
           </CardContent>
