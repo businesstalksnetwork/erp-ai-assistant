@@ -513,7 +513,7 @@ export default function InvoiceDetail() {
           {invoice.note && (
             <div className="bg-secondary p-4 rounded-lg">
               <p className="text-sm text-muted-foreground mb-1">Napomena</p>
-              <p className="text-sm">{invoice.note}</p>
+              <p className="text-sm whitespace-pre-line">{invoice.note}</p>
             </div>
           )}
 
