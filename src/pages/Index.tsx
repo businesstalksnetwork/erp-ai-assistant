@@ -2,22 +2,37 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   BarChart3, Bell, ArrowRight, FileText, QrCode, LineChart, 
-  Clock, Users, FileCheck, Target, Check, X
+  Clock, Users, FileCheck, Target, Check, X, TrendingUp, BookOpen
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import logo from '@/assets/pausal-box-logo.png';
 
 const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
+  initial: { opacity: 0, y: 30 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5 }
+  transition: { duration: 0.6, ease: "easeOut" }
+};
+
+const fadeInRight = {
+  initial: { opacity: 0, x: 50 },
+  animate: { opacity: 1, x: 0 },
+  transition: { duration: 0.8, ease: "easeOut" }
 };
 
 const staggerContainer = {
   animate: {
     transition: {
-      staggerChildren: 0.1
+      staggerChildren: 0.15
     }
+  }
+};
+
+const floatAnimation = {
+  y: [0, -10, 0],
+  transition: {
+    duration: 4,
+    repeat: Infinity,
+    ease: "easeInOut" as const
   }
 };
 
@@ -52,6 +67,110 @@ const benefits = [
   "Automatski backup svih dokumenata",
 ];
 
+// Wavy SVG separator component
+const WaveSeparator = ({ flip = false, color = "#F8FAFC" }: { flip?: boolean; color?: string }) => (
+  <div className={`w-full overflow-hidden ${flip ? 'rotate-180' : ''}`}>
+    <svg 
+      viewBox="0 0 1440 120" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-auto"
+      preserveAspectRatio="none"
+    >
+      <path 
+        d="M0,60 C240,120 480,0 720,60 C960,120 1200,0 1440,60 L1440,120 L0,120 Z" 
+        fill={color}
+      />
+    </svg>
+  </div>
+);
+
+// Floating Invoice Mockup Component
+const InvoiceMockup = () => (
+  <motion.div
+    className="relative"
+    initial={{ opacity: 0, x: 100 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ duration: 0.8, delay: 0.3 }}
+  >
+    <motion.div
+      className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm"
+      animate={{ y: [0, -10, 0] }}
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+    >
+      {/* Invoice Header */}
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h4 className="font-bold text-slate-900 text-lg">FAKTURA #2024-042</h4>
+          <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full mt-1">
+            Plaćeno
+          </span>
+        </div>
+        {/* Limit Badge */}
+        <div className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <div className="text-xs text-slate-500 mb-1">Godišnji limit</div>
+          <div className="flex items-center gap-1">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-5 h-full bg-yellow-500 rounded-full"></div>
+            </div>
+            <span className="text-xs font-medium text-slate-700">2.5M</span>
+            <span className="text-xs text-slate-400">/ 6M RSD</span>
+          </div>
+        </div>
+      </div>
+
+      {/* QR Code and Amount */}
+      <div className="flex items-start gap-4 mb-4">
+        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <div className="w-16 h-16 bg-white rounded grid grid-cols-5 grid-rows-5 gap-0.5 p-1">
+            {[...Array(25)].map((_, i) => (
+              <div key={i} className={`${Math.random() > 0.5 ? 'bg-slate-900' : 'bg-white'} rounded-[1px]`} />
+            ))}
+          </div>
+          <div className="text-xs text-center text-slate-500 mt-1">IPS QR</div>
+        </div>
+        <div className="flex-1 text-right">
+          <div className="text-sm text-slate-500">Ukupno za uplatu</div>
+          <div className="text-2xl font-bold text-slate-900">54.000 <span className="text-lg text-slate-600">RSD</span></div>
+        </div>
+      </div>
+
+      {/* Invoice Items */}
+      <div className="space-y-2 border-t border-slate-100 pt-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-600">Web dizajn - Premium paket</span>
+          <span className="font-medium text-slate-900">45.000 RSD</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-600">Hosting (godišnji)</span>
+          <span className="font-medium text-slate-900">9.000 RSD</span>
+        </div>
+      </div>
+
+      {/* KPO Indicator */}
+      <div className="mt-4 flex items-center gap-2 bg-yellow-50 rounded-lg p-2 border border-yellow-200">
+        <BookOpen className="h-4 w-4 text-yellow-600" />
+        <div className="flex-1">
+          <div className="text-sm font-medium text-slate-900">KPO Knjiga</div>
+          <div className="text-xs text-slate-500">Automatski ažurirano</div>
+        </div>
+      </div>
+    </motion.div>
+
+    {/* Floating Trend Badge */}
+    <motion.div
+      className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg border border-slate-200 p-3 flex items-center gap-2"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.8 }}
+    >
+      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+        <TrendingUp className="h-4 w-4 text-emerald-600" />
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
 export default function Index() {
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
@@ -69,50 +188,63 @@ export default function Index() {
 
       <main>
         {/* Hero Section */}
-        <section className="container mx-auto px-4 py-16 md:py-24 bg-white">
-          <motion.div 
-            className="max-w-3xl mx-auto text-center space-y-6"
-            initial="initial"
-            animate="animate"
-            variants={staggerContainer}
-          >
-            <motion.span 
-              className="inline-block px-4 py-1.5 rounded-full border border-yellow-300 bg-yellow-100 text-sm font-medium text-slate-800"
-              variants={fadeInUp}
-            >
-              ✨ Za paušalno oporezovane preduzetnike
-            </motion.span>
-            <motion.h1 
-              className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900"
-              variants={fadeInUp}
-            >
-              Uštedite <span className="text-yellow-500">8+ sati mesečno</span> na administraciji
-            </motion.h1>
-            <motion.p 
-              className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto"
-              variants={fadeInUp}
-            >
-              Više od 500 paušalaca u Srbiji koristi Paušal Box za automatsko fakturisanje, vođenje KPO knjige i praćenje limita. Pridružite im se danas.
-            </motion.p>
-            <motion.div 
-              className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
-              variants={fadeInUp}
-            >
-              <Button size="lg" asChild className="text-base bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-semibold shadow-lg shadow-yellow-500/25">
-                <Link to="/auth">
-                  Besplatno testirajte
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="text-base border-slate-300 text-slate-700 hover:bg-slate-50">
-                <a href="#cenovnik">Pogledajte cene</a>
-              </Button>
-            </motion.div>
-          </motion.div>
+        <section className="relative py-16 md:py-24 bg-white overflow-hidden">
+          <div className="container mx-auto px-4">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left Content */}
+              <motion.div 
+                className="space-y-6"
+                initial="initial"
+                animate="animate"
+                variants={staggerContainer}
+              >
+                <motion.span 
+                  className="inline-block px-4 py-1.5 rounded-full border border-yellow-300 bg-yellow-100 text-sm font-medium text-slate-800"
+                  variants={fadeInUp}
+                >
+                  ✨ Za paušalno oporezovane preduzetnike
+                </motion.span>
+                <motion.h1 
+                  className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight"
+                  variants={fadeInUp}
+                >
+                  Uštedite <span className="text-yellow-500">8+ sati mesečno</span> na administraciji
+                </motion.h1>
+                <motion.p 
+                  className="text-lg md:text-xl text-slate-600 max-w-xl"
+                  variants={fadeInUp}
+                >
+                  Više od 500 paušalaca u Srbiji koristi Paušal Box za automatsko fakturisanje, vođenje KPO knjige i praćenje limita. Pridružite im se danas.
+                </motion.p>
+                <motion.div 
+                  className="flex flex-col sm:flex-row gap-4 pt-4"
+                  variants={fadeInUp}
+                >
+                  <Button size="lg" asChild className="text-base bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-semibold shadow-lg shadow-yellow-500/25 transition-all duration-300 hover:scale-105">
+                    <Link to="/auth">
+                      Besplatno testirajte
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild className="text-base border-slate-800 bg-slate-900 text-white hover:bg-slate-800">
+                    <a href="#cenovnik">Pogledajte cene</a>
+                  </Button>
+                </motion.div>
+              </motion.div>
+
+              {/* Right Content - Invoice Mockup */}
+              <div className="hidden lg:flex justify-center">
+                <InvoiceMockup />
+              </div>
+            </div>
+          </div>
         </section>
 
+        {/* Wave Separator */}
+        <WaveSeparator color="#F8FAFC" />
+
         {/* Stats Section */}
-        <section className="py-16 bg-slate-50 border-y border-slate-200">
+        <section className="py-16 bg-slate-50">
           <div className="container mx-auto px-4">
             <motion.div 
               className="text-center mb-12"
@@ -129,26 +261,30 @@ export default function Index() {
               {stats.map((stat, index) => (
                 <motion.div 
                   key={stat.label}
-                  className="text-center"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="text-center p-6 rounded-2xl bg-white border border-slate-200 hover:shadow-lg transition-shadow duration-300"
+                  initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
+                  transition={{ delay: index * 0.15 }}
+                  whileHover={{ y: -5 }}
                 >
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-100 flex items-center justify-center">
-                    {index === 0 && <Clock className="h-8 w-8 text-yellow-600" />}
-                    {index === 1 && <Users className="h-8 w-8 text-yellow-600" />}
-                    {index === 2 && <FileCheck className="h-8 w-8 text-yellow-600" />}
-                    {index === 3 && <Target className="h-8 w-8 text-yellow-600" />}
+                  <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-yellow-100 flex items-center justify-center">
+                    {index === 0 && <Clock className="h-7 w-7 text-yellow-600" />}
+                    {index === 1 && <Users className="h-7 w-7 text-yellow-600" />}
+                    {index === 2 && <FileCheck className="h-7 w-7 text-yellow-600" />}
+                    {index === 3 && <Target className="h-7 w-7 text-yellow-600" />}
                   </div>
                   <div className="text-4xl md:text-5xl font-bold text-yellow-500 mb-2">{stat.value}</div>
                   <div className="font-semibold text-slate-900">{stat.label}</div>
-                  <div className="text-sm text-slate-600">{stat.sublabel}</div>
+                  <div className="text-sm text-slate-500 mt-1">{stat.sublabel}</div>
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
+        
+        {/* Wave Separator (flip) */}
+        <WaveSeparator flip color="#FFFFFF" />
 
         {/* Features Section */}
         <section className="py-16 md:py-24 bg-white">
