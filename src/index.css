@@ -109,6 +109,13 @@
     --sidebar-border: 220 25% 18%;
     --sidebar-ring: 217 91% 60%;
   }
+
+  /* White calendar icon in dark mode */
+  .dark [data-slot="calendar-icon"],
+  .dark .lucide-calendar {
+    color: hsl(0 0% 100%) !important;
+    opacity: 1 !important;
+  }
 }
 
 @layer base {
