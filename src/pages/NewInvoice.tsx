@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
+import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,11 +54,13 @@ export default function NewInvoice() {
   const { clients } = useClients(selectedCompany?.id || null);
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
   const { templates, getTemplatesByType } = useInvoiceTemplates(selectedCompany?.id || null);
+  const { getInstructionByCurrency } = useForeignPaymentInstructions(selectedCompany?.id || null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
+  const lastAppliedCurrencyRef = useRef<string | null>(null);
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
@@ -207,6 +210,27 @@ export default function NewInvoice() {
   useEffect(() => {
     setFormData(prev => ({ ...prev, linked_advance_id: '' }));
   }, [formData.client_id]);
+
+  // Auto-populate note with foreign payment instructions when currency changes
+  useEffect(() => {
+    if (formData.client_type === 'foreign' && formData.foreign_currency) {
+      // Skip if we already applied this currency's instructions
+      if (lastAppliedCurrencyRef.current === formData.foreign_currency) {
+        return;
+      }
+      
+      const instruction = getInstructionByCurrency(formData.foreign_currency);
+      if (instruction) {
+        const baseNote = 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.';
+        const paymentSection = `\n\n--- Instrukcije za plaćanje (${formData.foreign_currency}) ---\n${instruction.instructions}`;
+        setFormData(prev => ({ ...prev, note: baseNote + paymentSection }));
+        lastAppliedCurrencyRef.current = formData.foreign_currency;
+      }
+    } else {
+      // Reset tracking when switching away from foreign
+      lastAppliedCurrencyRef.current = null;
+    }
+  }, [formData.client_type, formData.foreign_currency, getInstructionByCurrency]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {

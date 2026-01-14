@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
+import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export default function EditInvoice() {
   const { invoices, updateInvoice } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
+  const { getInstructionByCurrency } = useForeignPaymentInstructions(selectedCompany?.id || null);
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ export default function EditInvoice() {
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
   const [cannotEdit, setCannotEdit] = useState<string | null>(null);
+  const lastAppliedCurrencyRef = useRef<string | null>(null);
 
   const [items, setItems] = useState<InvoiceItem[]>([]);
 
@@ -259,7 +262,24 @@ export default function EditInvoice() {
     }
   }, [formData.exchange_rate, formData.client_type]);
 
-  // Fill client data when selected
+  // Auto-populate note with foreign payment instructions when currency changes
+  useEffect(() => {
+    // Only apply on EditInvoice if currency changes (not on initial load)
+    if (!loadingData && formData.client_type === 'foreign' && formData.foreign_currency) {
+      // Skip if we already applied this currency's instructions
+      if (lastAppliedCurrencyRef.current === formData.foreign_currency) {
+        return;
+      }
+      
+      const instruction = getInstructionByCurrency(formData.foreign_currency);
+      if (instruction) {
+        const baseNote = 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.';
+        const paymentSection = `\n\n--- Instrukcije za plaćanje (${formData.foreign_currency}) ---\n${instruction.instructions}`;
+        setFormData(prev => ({ ...prev, note: baseNote + paymentSection }));
+        lastAppliedCurrencyRef.current = formData.foreign_currency;
+      }
+    }
+  }, [formData.client_type, formData.foreign_currency, getInstructionByCurrency, loadingData]);
   const handleClientSelect = (clientId: string) => {
     if (clientId === 'new') {
       setFormData((prev) => ({
