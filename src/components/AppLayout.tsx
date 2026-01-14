@@ -5,13 +5,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { CompanySelector } from '@/components/CompanySelector';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,44 +147,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   Pregledaš firmu klijenta: {selectedCompany?.client_name}
                 </div>
               )}
-              <Select
-                value={selectedCompany?.id}
-                onValueChange={(value) => {
-                  const company = companies.find((c) => c.id === value);
-                  if (company) setSelectedCompany(company);
-                }}
-              >
-                <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground">
-                  <SelectValue placeholder="Izaberi firmu" />
-                </SelectTrigger>
-                <SelectContent>
-                  {myCompanies.length > 0 && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                        Moje firme
-                      </div>
-                      {myCompanies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                  {clientCompanies.length > 0 && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
-                        Firme klijenata
-                      </div>
-                      {clientCompanies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          <span>{company.name}</span>
-                          <span className="ml-1 text-xs text-muted-foreground">({company.client_name})</span>
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+              <CompanySelector
+                selectedCompany={selectedCompany}
+                myCompanies={myCompanies}
+                clientCompanies={clientCompanies}
+                onSelect={setSelectedCompany}
+              />
             </div>
           )}
 
