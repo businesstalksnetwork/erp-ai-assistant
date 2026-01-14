@@ -48,6 +48,7 @@ export default function Clients() {
     name: '',
     address: '',
     city: '',
+    country: '',
     pib: '',
     maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
@@ -58,6 +59,7 @@ export default function Clients() {
       name: '',
       address: '',
       city: '',
+      country: '',
       pib: '',
       maticni_broj: '',
       client_type: 'domestic',
@@ -75,6 +77,7 @@ export default function Clients() {
       name: client.name,
       address: client.address || '',
       city: client.city || '',
+      country: client.country || '',
       pib: client.pib || '',
       maticni_broj: client.maticni_broj || '',
       client_type: client.client_type,
@@ -220,6 +223,17 @@ export default function Clients() {
                     />
                   </div>
                 </div>
+                {formData.client_type === 'foreign' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Država</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      placeholder="Nemačka"
+                    />
+                  </div>
+                )}
                 {formData.client_type === 'domestic' && (
                   <>
                     <div className="space-y-2">

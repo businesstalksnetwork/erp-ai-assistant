@@ -50,6 +50,7 @@ export type Database = {
           city: string | null
           client_type: Database["public"]["Enums"]["client_type"]
           company_id: string
+          country: string | null
           created_at: string
           id: string
           maticni_broj: string | null
@@ -61,6 +62,7 @@ export type Database = {
           city?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           company_id: string
+          country?: string | null
           created_at?: string
           id?: string
           maticni_broj?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           city?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           company_id?: string
+          country?: string | null
           created_at?: string
           id?: string
           maticni_broj?: string | null

@@ -356,7 +356,7 @@ export default function InvoiceDetail() {
                 <p className="text-sm">{selectedCompany.address}</p>
                 <p className="text-sm">{t('tax_id')}: {selectedCompany.pib}</p>
                 <p className="text-sm">{t('reg_no')}: {selectedCompany.maticni_broj}</p>
-                {selectedCompany.bank_account && (
+                {selectedCompany.bank_account && invoice.client_type === 'domestic' && (
                   <p className="text-sm">{t('bank_account')}: {selectedCompany.bank_account}</p>
                 )}
               </div>
