@@ -104,6 +104,54 @@ function formatForeignCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
+// Helper za dobijanje prevoda - engleski za strane klijente
+const translations: Record<string, { sr: string; en: string }> = {
+  invoice_title: { sr: 'FAKTURA BROJ', en: 'INVOICE NO.' },
+  proforma_title: { sr: 'PREDRAČUN BROJ', en: 'PROFORMA INVOICE NO.' },
+  advance_title: { sr: 'AVANSNA FAKTURA BROJ', en: 'ADVANCE INVOICE NO.' },
+  issue_date: { sr: 'Datum izdavanja', en: 'Issue Date' },
+  service_date: { sr: 'Datum prometa', en: 'Service Date' },
+  place_of_service: { sr: 'Mesto prometa', en: 'Place of Service' },
+  issuer: { sr: 'IZDAVALAC', en: 'ISSUER' },
+  recipient: { sr: 'PRIMALAC', en: 'RECIPIENT' },
+  tax_id: { sr: 'PIB', en: 'Tax ID' },
+  reg_no: { sr: 'Matični broj', en: 'Registration No.' },
+  bank_account: { sr: 'Bankarski račun', en: 'Bank Account' },
+  items: { sr: 'STAVKE', en: 'ITEMS' },
+  description: { sr: 'Opis', en: 'Description' },
+  quantity: { sr: 'Količina', en: 'Quantity' },
+  price: { sr: 'Cena', en: 'Price' },
+  total: { sr: 'Ukupno', en: 'Total' },
+  exchange_rate: { sr: 'Kurs NBS na dan', en: 'NBS exchange rate on' },
+  grand_total: { sr: 'UKUPNO', en: 'TOTAL' },
+  advance_paid: { sr: 'Avansno uplaćeno', en: 'Advance paid' },
+  amount_due: { sr: 'ZA PLAĆANJE', en: 'AMOUNT DUE' },
+  paid: { sr: 'UPLAĆENO', en: 'PAID' },
+  linked_advance: { sr: 'Povezana avansna faktura', en: 'Linked advance invoice' },
+  payment_due: { sr: 'Rok plaćanja', en: 'Payment Due Date' },
+  payment_method: { sr: 'Način plaćanja', en: 'Payment Method' },
+  note: { sr: 'Napomena', en: 'Note' },
+  domestic: { sr: 'Domaći', en: 'Domestic' },
+  foreign: { sr: 'Strani', en: 'Foreign' },
+  payment_data: { sr: 'PODACI ZA UPLATU', en: 'PAYMENT DETAILS' },
+  receiver: { sr: 'Primalac', en: 'Beneficiary' },
+  account: { sr: 'Račun', en: 'Account' },
+  amount: { sr: 'Iznos', en: 'Amount' },
+  purpose: { sr: 'Svrha', en: 'Purpose' },
+  reference: { sr: 'Poziv na broj', en: 'Reference' },
+  invoice: { sr: 'Faktura', en: 'Invoice' },
+  proforma: { sr: 'Predračun', en: 'Proforma' },
+  advance_invoice: { sr: 'Avansna faktura', en: 'Advance invoice' },
+  from: { sr: 'od', en: 'from' },
+  select_company: { sr: 'Izaberite firmu', en: 'Select a company' },
+  invoice_not_found: { sr: 'Faktura nije pronađena', en: 'Invoice not found' },
+  back_to_list: { sr: 'Nazad na listu', en: 'Back to list' },
+  back: { sr: 'Nazad', en: 'Back' },
+  print: { sr: 'Štampaj', en: 'Print' },
+  advance_closed: { sr: 'Avans zatvoren', en: 'Advance closed' },
+  advance: { sr: 'Avansna', en: 'Advance' },
+};
+
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -121,6 +169,12 @@ export default function InvoiceDetail() {
   const advanceForeignAmount = linkedAdvance?.foreign_amount || 0;
   const amountForPayment = invoice ? invoice.total_amount - advanceAmount : 0;
   const foreignAmountForPayment = invoice?.foreign_amount ? invoice.foreign_amount - advanceForeignAmount : 0;
+
+  // Translation helper - returns English for foreign clients
+  const t = (key: string): string => {
+    const isEnglish = invoice?.client_type === 'foreign';
+    return translations[key]?.[isEnglish ? 'en' : 'sr'] || key;
+  };
 
   // Fetch invoice items
   useEffect(() => {
@@ -147,7 +201,7 @@ export default function InvoiceDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
         <Building2 className="h-16 w-16 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">Izaberite firmu</h1>
+        <h1 className="text-2xl font-bold">{translations.select_company.sr}</h1>
       </div>
     );
   }
@@ -163,9 +217,9 @@ export default function InvoiceDetail() {
   if (!invoice) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <h1 className="text-2xl font-bold">Faktura nije pronađena</h1>
+        <h1 className="text-2xl font-bold">{translations.invoice_not_found.sr}</h1>
         <Button asChild>
-          <Link to="/invoices">Nazad na listu</Link>
+          <Link to="/invoices">{translations.back_to_list.sr}</Link>
         </Button>
       </div>
     );
@@ -190,9 +244,9 @@ export default function InvoiceDetail() {
 
   // Get document title based on type
   const getDocumentTitle = () => {
-    if (invoice.invoice_type === 'advance') return 'AVANSNA FAKTURA BROJ';
-    if (invoice.is_proforma || invoice.invoice_type === 'proforma') return 'PREDRAČUN BROJ';
-    return 'FAKTURA BROJ';
+    if (invoice.invoice_type === 'advance') return t('advance_title');
+    if (invoice.is_proforma || invoice.invoice_type === 'proforma') return t('proforma_title');
+    return t('invoice_title');
   };
 
   // Get badge for invoice type
@@ -200,14 +254,14 @@ export default function InvoiceDetail() {
     if (invoice.invoice_type === 'advance') {
       return (
         <Badge variant={invoice.advance_status === 'closed' ? 'secondary' : 'default'} className="bg-orange-500 text-white">
-          {invoice.advance_status === 'closed' ? 'Avans zatvoren' : 'Avansna'}
+          {invoice.advance_status === 'closed' ? t('advance_closed') : t('advance')}
         </Badge>
       );
     }
     if (invoice.is_proforma || invoice.invoice_type === 'proforma') {
-      return <Badge variant="outline">Predračun</Badge>;
+      return <Badge variant="outline">{t('proforma')}</Badge>;
     }
-    return <Badge variant="default">Faktura</Badge>;
+    return <Badge variant="default">{t('invoice')}</Badge>;
   };
 
   // Should show QR code - now includes proforma invoices too
@@ -220,7 +274,7 @@ export default function InvoiceDetail() {
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Nazad
+          {t('back')}
         </Button>
         <div className="flex gap-2">
           <CreateTemplateDialog 
@@ -242,7 +296,7 @@ export default function InvoiceDetail() {
           />
           <Button onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
-            Štampaj
+            {t('print')}
           </Button>
         </div>
       </div>
@@ -273,18 +327,18 @@ export default function InvoiceDetail() {
           {/* Dates */}
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Datum izdavanja</p>
+              <p className="text-muted-foreground">{t('issue_date')}</p>
               <p className="font-medium">{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
             </div>
             {invoice.service_date && (
               <div>
-                <p className="text-muted-foreground">Datum prometa</p>
+                <p className="text-muted-foreground">{t('service_date')}</p>
                 <p className="font-medium">{new Date(invoice.service_date).toLocaleDateString('sr-RS')}</p>
               </div>
             )}
             {invoice.place_of_service && (
               <div>
-                <p className="text-muted-foreground">Mesto prometa</p>
+                <p className="text-muted-foreground">{t('place_of_service')}</p>
                 <p className="font-medium">{invoice.place_of_service}</p>
               </div>
             )}
@@ -296,28 +350,28 @@ export default function InvoiceDetail() {
           <div className="grid grid-cols-2 gap-6">
             {/* Issuer */}
             <div>
-              <p className="text-sm text-muted-foreground mb-2">IZDAVALAC</p>
+              <p className="text-sm text-muted-foreground mb-2">{t('issuer')}</p>
               <div className="space-y-1">
                 <p className="font-semibold text-lg">{selectedCompany.name}</p>
                 <p className="text-sm">{selectedCompany.address}</p>
-                <p className="text-sm">PIB: {selectedCompany.pib}</p>
-                <p className="text-sm">Matični broj: {selectedCompany.maticni_broj}</p>
+                <p className="text-sm">{t('tax_id')}: {selectedCompany.pib}</p>
+                <p className="text-sm">{t('reg_no')}: {selectedCompany.maticni_broj}</p>
                 {selectedCompany.bank_account && (
-                  <p className="text-sm">Bankarski račun: {selectedCompany.bank_account}</p>
+                  <p className="text-sm">{t('bank_account')}: {selectedCompany.bank_account}</p>
                 )}
               </div>
             </div>
 
             {/* Recipient */}
             <div>
-              <p className="text-sm text-muted-foreground mb-2">PRIMALAC</p>
+              <p className="text-sm text-muted-foreground mb-2">{t('recipient')}</p>
               <div className="space-y-1">
                 <p className="font-semibold text-lg">{invoice.client_name}</p>
                 {invoice.client_address && <p className="text-sm">{invoice.client_address}</p>}
-                {invoice.client_pib && <p className="text-sm">PIB: {invoice.client_pib}</p>}
-                {invoice.client_maticni_broj && <p className="text-sm">Matični broj: {invoice.client_maticni_broj}</p>}
-                <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-2">
-                  {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
+                {invoice.client_pib && <p className="text-sm">{t('tax_id')}: {invoice.client_pib}</p>}
+                {invoice.client_maticni_broj && <p className="text-sm">{t('reg_no')}: {invoice.client_maticni_broj}</p>}
+                <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-2 print:hidden">
+                  {invoice.client_type === 'domestic' ? t('domestic') : t('foreign')}
                 </Badge>
               </div>
             </div>
@@ -327,15 +381,15 @@ export default function InvoiceDetail() {
 
           {/* Items */}
           <div>
-            <p className="text-sm text-muted-foreground mb-3">STAVKE</p>
+            <p className="text-sm text-muted-foreground mb-3">{t('items')}</p>
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead className="bg-secondary">
                   <tr>
-                    <th className="text-left p-3 text-sm font-medium">Opis</th>
-                    <th className="text-right p-3 text-sm font-medium w-24">Količina</th>
-                    <th className="text-right p-3 text-sm font-medium w-32">Cena</th>
-                    <th className="text-right p-3 text-sm font-medium w-36">Ukupno</th>
+                    <th className="text-left p-3 text-sm font-medium">{t('description')}</th>
+                    <th className="text-right p-3 text-sm font-medium w-24">{t('quantity')}</th>
+                    <th className="text-right p-3 text-sm font-medium w-32">{t('price')}</th>
+                    <th className="text-right p-3 text-sm font-medium w-36">{t('total')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,7 +421,7 @@ export default function InvoiceDetail() {
           {/* Foreign Currency Info */}
           {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.exchange_rate && (
             <div className="bg-secondary p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-2">Kurs NBS na dan {new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
+              <p className="text-sm text-muted-foreground mb-2">{t('exchange_rate')} {new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
               <p className="font-mono">
                 1 {invoice.foreign_currency} = {invoice.exchange_rate} RSD
               </p>
@@ -380,7 +434,7 @@ export default function InvoiceDetail() {
               {linkedAdvance ? (
                 <>
                   <div className="flex justify-between text-lg">
-                    <span className="text-muted-foreground">UKUPNO:</span>
+                    <span className="text-muted-foreground">{t('grand_total')}:</span>
                     <div className="text-right">
                       {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount ? (
                         <>
@@ -397,7 +451,7 @@ export default function InvoiceDetail() {
                     </div>
                   </div>
                   <div className="flex justify-between text-primary">
-                    <span>Avansno uplaćeno:</span>
+                    <span>{t('advance_paid')}:</span>
                     <div className="text-right font-mono">
                       {invoice.client_type === 'foreign' && invoice.foreign_currency && linkedAdvance.foreign_amount ? (
                         <>
@@ -411,7 +465,7 @@ export default function InvoiceDetail() {
                   </div>
                   <Separator />
                   <div className="bg-primary text-primary-foreground p-4 rounded-lg">
-                    <p className="text-sm opacity-80">ZA PLAĆANJE</p>
+                    <p className="text-sm opacity-80">{t('amount_due')}</p>
                     {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate ? (
                       <>
                         <p className="text-2xl font-bold font-mono">
@@ -429,7 +483,7 @@ export default function InvoiceDetail() {
               ) : (
                 <div className="bg-primary text-primary-foreground p-4 rounded-lg">
                   <p className="text-sm opacity-80">
-                    {invoice.invoice_type === 'advance' ? 'UPLAĆENO' : 'ZA PLAĆANJE'}
+                    {invoice.invoice_type === 'advance' ? t('paid') : t('amount_due')}
                   </p>
                   {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount ? (
                     <>
@@ -451,9 +505,9 @@ export default function InvoiceDetail() {
           {/* Linked Advance Info */}
           {linkedAdvance && (
             <div className="bg-muted p-4 rounded-lg text-sm">
-              <p className="font-medium">Povezana avansna faktura:</p>
+              <p className="font-medium">{t('linked_advance')}:</p>
               <p className="text-muted-foreground">
-                {linkedAdvance.invoice_number} od {new Date(linkedAdvance.issue_date).toLocaleDateString('sr-RS')} - {formatCurrency(linkedAdvance.total_amount)}
+                {linkedAdvance.invoice_number} {t('from')} {new Date(linkedAdvance.issue_date).toLocaleDateString('sr-RS')} - {formatCurrency(linkedAdvance.total_amount)}
               </p>
             </div>
           )}
@@ -497,13 +551,13 @@ export default function InvoiceDetail() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {invoice.payment_deadline && (
               <div>
-                <p className="text-muted-foreground">Rok plaćanja</p>
+                <p className="text-muted-foreground">{t('payment_due')}</p>
                 <p className="font-medium">{new Date(invoice.payment_deadline).toLocaleDateString('sr-RS')}</p>
               </div>
             )}
             {invoice.payment_method && (
               <div>
-                <p className="text-muted-foreground">Način plaćanja</p>
+                <p className="text-muted-foreground">{t('payment_method')}</p>
                 <p className="font-medium">{invoice.payment_method}</p>
               </div>
             )}
@@ -512,7 +566,7 @@ export default function InvoiceDetail() {
           {/* Note */}
           {invoice.note && (
             <div className="bg-secondary p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Napomena</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('note')}</p>
               <p className="text-sm whitespace-pre-line">{invoice.note}</p>
             </div>
           )}
