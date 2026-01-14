@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
@@ -122,9 +123,8 @@ export function PaymentStatusDialog({
           {status !== 'unpaid' && (
             <div className="space-y-2">
               <Label htmlFor="paymentDate">Datum uplate</Label>
-              <Input
+              <DateInput
                 id="paymentDate"
-                type="date"
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
               />

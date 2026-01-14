@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import {
   Table,
@@ -443,9 +444,8 @@ export default function Invoices() {
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="serviceDate">Datum prometa</Label>
-            <Input
+            <DateInput
               id="serviceDate"
-              type="date"
               value={convertServiceDate}
               onChange={(e) => setConvertServiceDate(e.target.value)}
               className="mt-2"

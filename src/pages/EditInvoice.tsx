@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -550,18 +551,16 @@ export default function EditInvoice() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="issue_date">Datum izdavanja</Label>
-                <Input
+                <DateInput
                   id="issue_date"
-                  type="date"
                   value={formData.issue_date}
                   onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="service_date">Datum prometa</Label>
-                <Input
+                <DateInput
                   id="service_date"
-                  type="date"
                   value={formData.service_date}
                   onChange={(e) => setFormData({ ...formData, service_date: e.target.value })}
                 />
@@ -899,9 +898,8 @@ export default function EditInvoice() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="payment_deadline">Rok plaćanja</Label>
-                <Input
+                <DateInput
                   id="payment_deadline"
-                  type="date"
                   value={formData.payment_deadline}
                   onChange={(e) => setFormData({ ...formData, payment_deadline: e.target.value })}
                 />

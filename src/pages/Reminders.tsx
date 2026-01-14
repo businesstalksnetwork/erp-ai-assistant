@@ -5,6 +5,7 @@ import { useReminders, Reminder } from '@/hooks/useReminders';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -335,9 +336,8 @@ export default function Reminders() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="due_date">Rok plaćanja *</Label>
-                    <Input
+                    <DateInput
                       id="due_date"
-                      type="date"
                       value={formData.due_date}
                       onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                       required
@@ -346,9 +346,8 @@ export default function Reminders() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reminder_date">Datum podsetnika</Label>
-                  <Input
+                  <DateInput
                     id="reminder_date"
-                    type="date"
                     value={formData.reminder_date}
                     onChange={(e) => setFormData({ ...formData, reminder_date: e.target.value })}
                   />
