@@ -120,7 +120,8 @@ export function useCompanies() {
   });
 
   const updateCompany = useMutation({
-    mutationFn: async ({ id, ...company }: Partial<Company> & { id: string }) => {
+    mutationFn: async ({ id, is_client_company, client_name, ...company }: Partial<Company> & { id: string }) => {
+      // is_client_company i client_name su frontend-only polja, ne šaljemo ih u bazu
       const { data, error } = await supabase
         .from('companies')
         .update(company)
