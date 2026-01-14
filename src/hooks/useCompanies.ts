@@ -8,6 +8,7 @@ export interface Company {
   user_id: string;
   name: string;
   address: string;
+  city: string | null;
   pib: string;
   maticni_broj: string;
   bank_account: string | null;

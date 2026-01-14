@@ -47,6 +47,7 @@ export default function Clients() {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
+    city: '',
     pib: '',
     maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
@@ -56,6 +57,7 @@ export default function Clients() {
     setFormData({
       name: '',
       address: '',
+      city: '',
       pib: '',
       maticni_broj: '',
       client_type: 'domestic',
@@ -72,6 +74,7 @@ export default function Clients() {
     setFormData({
       name: client.name,
       address: client.address || '',
+      city: client.city || '',
       pib: client.pib || '',
       maticni_broj: client.maticni_broj || '',
       client_type: client.client_type,
@@ -197,14 +200,25 @@ export default function Clients() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adresa</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Ulica i broj, Grad"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Adresa</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Ulica i broj"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Mesto</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Beograd"
+                    />
+                  </div>
                 </div>
                 {formData.client_type === 'domestic' && (
                   <>

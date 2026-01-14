@@ -47,6 +47,7 @@ export default function Companies() {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
+    city: '',
     pib: '',
     maticni_broj: '',
     bank_account: '',
@@ -62,6 +63,7 @@ export default function Companies() {
     setFormData({
       name: '',
       address: '',
+      city: '',
       pib: '',
       maticni_broj: '',
       bank_account: '',
@@ -83,6 +85,7 @@ export default function Companies() {
     setFormData({
       name: company.name,
       address: company.address,
+      city: company.city || '',
       pib: company.pib,
       maticni_broj: company.maticni_broj,
       bank_account: company.bank_account || '',
@@ -227,15 +230,26 @@ export default function Companies() {
                   />
                   {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adresa / Sedište</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Ulica i broj, Grad"
-                  />
-                  {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Adresa / Sedište</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Ulica i broj"
+                    />
+                    {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Mesto</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Beograd"
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

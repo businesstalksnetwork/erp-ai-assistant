@@ -14,6 +14,7 @@ export interface Invoice {
   invoice_number: string;
   issue_date: string;
   service_date: string | null;
+  place_of_service: string | null;
   client_name: string;
   client_address: string | null;
   client_pib: string | null;

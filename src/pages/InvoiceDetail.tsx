@@ -271,7 +271,7 @@ export default function InvoiceDetail() {
 
         <CardContent className="flex flex-col gap-4 pt-6">
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Datum izdavanja</p>
               <p className="font-medium">{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
@@ -280,6 +280,12 @@ export default function InvoiceDetail() {
               <div>
                 <p className="text-muted-foreground">Datum prometa</p>
                 <p className="font-medium">{new Date(invoice.service_date).toLocaleDateString('sr-RS')}</p>
+              </div>
+            )}
+            {invoice.place_of_service && (
+              <div>
+                <p className="text-muted-foreground">Mesto prometa</p>
+                <p className="font-medium">{invoice.place_of_service}</p>
               </div>
             )}
           </div>
