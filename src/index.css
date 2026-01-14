@@ -116,6 +116,15 @@
     color: hsl(0 0% 100%) !important;
     opacity: 1 !important;
   }
+
+  /* Native date input calendar icon in dark mode */
+  .dark input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+    cursor: pointer;
+  }
 }
 
 @layer base {
