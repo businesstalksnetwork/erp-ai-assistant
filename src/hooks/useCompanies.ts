@@ -133,6 +133,8 @@ export function useCompanies() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ['client-companies'] });
+      queryClient.invalidateQueries({ queryKey: ['selected-company'] });
       toast({ title: 'Firma je ažurirana' });
     },
     onError: (error: Error) => {
