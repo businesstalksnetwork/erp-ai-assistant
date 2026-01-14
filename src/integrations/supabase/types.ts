@@ -47,6 +47,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          city: string | null
           client_type: Database["public"]["Enums"]["client_type"]
           company_id: string
           created_at: string
@@ -57,6 +58,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          city?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           company_id: string
           created_at?: string
@@ -67,6 +69,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          city?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           company_id?: string
           created_at?: string
@@ -89,6 +92,7 @@ export type Database = {
         Row: {
           address: string
           bank_account: string | null
+          city: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -103,6 +107,7 @@ export type Database = {
         Insert: {
           address: string
           bank_account?: string | null
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -117,6 +122,7 @@ export type Database = {
         Update: {
           address?: string
           bank_account?: string | null
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -370,6 +376,7 @@ export type Database = {
           payment_deadline: string | null
           payment_method: string | null
           payment_status: string | null
+          place_of_service: string | null
           quantity: number
           sef_error: string | null
           sef_invoice_id: string | null
@@ -408,6 +415,7 @@ export type Database = {
           payment_deadline?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          place_of_service?: string | null
           quantity?: number
           sef_error?: string | null
           sef_invoice_id?: string | null
@@ -446,6 +454,7 @@ export type Database = {
           payment_deadline?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          place_of_service?: string | null
           quantity?: number
           sef_error?: string | null
           sef_invoice_id?: string | null

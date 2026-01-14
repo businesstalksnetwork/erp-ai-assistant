@@ -67,6 +67,7 @@ export default function EditInvoice() {
     client_id: '',
     client_name: '',
     client_address: '',
+    client_city: '',
     client_pib: '',
     client_maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
@@ -112,6 +113,17 @@ export default function EditInvoice() {
       }
 
       // Load form data from invoice
+      // Get client city from clients table if exists
+      let clientCity = '';
+      if (invoice.client_id) {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('city')
+          .eq('id', invoice.client_id)
+          .maybeSingle();
+        clientCity = clientData?.city || '';
+      }
+
       setFormData({
         invoice_number: invoice.invoice_number,
         issue_date: invoice.issue_date,
@@ -119,6 +131,7 @@ export default function EditInvoice() {
         client_id: invoice.client_id || '',
         client_name: invoice.client_name,
         client_address: invoice.client_address || '',
+        client_city: clientCity,
         client_pib: invoice.client_pib || '',
         client_maticni_broj: invoice.client_maticni_broj || '',
         client_type: invoice.client_type,
@@ -171,6 +184,20 @@ export default function EditInvoice() {
   const totalForeignAmount = items.reduce((sum, item) => sum + (item.foreign_amount * item.quantity), 0);
   const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+
+  // Determine place of service based on items
+  const getPlaceOfService = () => {
+    const hasServices = items.some(i => i.item_type === 'services' && i.quantity > 0);
+    const hasProducts = items.some(i => i.item_type === 'products' && i.quantity > 0);
+    
+    // Only services - use client city
+    if (hasServices && !hasProducts) {
+      return formData.client_city || formData.client_address;
+    }
+    
+    // Products or mixed - use company city
+    return selectedCompany?.city || selectedCompany?.address || '';
+  };
 
   // Determine invoice year from service_date or issue_date
   const getInvoiceYear = () => {
@@ -240,6 +267,7 @@ export default function EditInvoice() {
         client_id: '',
         client_name: '',
         client_address: '',
+        client_city: '',
         client_pib: '',
         client_maticni_broj: '',
         client_type: 'domestic',
@@ -254,6 +282,7 @@ export default function EditInvoice() {
         client_id: client.id,
         client_name: client.name,
         client_address: client.address || '',
+        client_city: client.city || '',
         client_pib: client.pib || '',
         client_maticni_broj: client.maticni_broj || '',
         client_type: client.client_type,
@@ -332,6 +361,7 @@ export default function EditInvoice() {
         invoice_number: formData.invoice_number,
         issue_date: formData.issue_date,
         service_date: formData.service_date || null,
+        place_of_service: getPlaceOfService() || null,
         client_id: formData.client_id || null,
         client_name: formData.client_name,
         client_address: formData.client_address || null,
@@ -508,6 +538,19 @@ export default function EditInvoice() {
                   value={formData.service_date}
                   onChange={(e) => setFormData({ ...formData, service_date: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="place_of_service">Mesto prometa</Label>
+                <Input
+                  id="place_of_service"
+                  value={getPlaceOfService()}
+                  readOnly
+                  className="bg-muted"
+                  title="Automatski se određuje: za usluge - mesto klijenta, za proizvode ili mešovito - mesto firme"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Automatski: usluge → mesto klijenta, proizvodi/mešovito → mesto firme
+                </p>
               </div>
             </div>
           </CardContent>
