@@ -21,6 +21,7 @@ import KPOBook from "./pages/KPOBook";
 import FiscalCashRegister from "./pages/FiscalCashRegister";
 import Reminders from "./pages/Reminders";
 import ServiceCatalog from "./pages/ServiceCatalog";
+import ForeignPaymentInstructions from "./pages/ForeignPaymentInstructions";
 import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
@@ -92,6 +93,7 @@ function AppRoutes() {
       <Route path="/fiscal" element={<ProtectedRoute><FiscalCashRegister /></ProtectedRoute>} />
       <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute><ServiceCatalog /></ProtectedRoute>} />
+      <Route path="/foreign-payments" element={<ProtectedRoute><ForeignPaymentInstructions /></ProtectedRoute>} />
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

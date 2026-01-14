@@ -231,6 +231,41 @@ export type Database = {
           },
         ]
       }
+      foreign_payment_instructions: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          currency: string
+          id: string
+          instructions: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          currency: string
+          id?: string
+          instructions: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          currency?: string
+          id?: string
+          instructions?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foreign_payment_instructions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string
