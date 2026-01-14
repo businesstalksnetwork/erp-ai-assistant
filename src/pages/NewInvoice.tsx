@@ -74,6 +74,7 @@ export default function NewInvoice() {
     client_name: '',
     client_address: '',
     client_city: '',
+    client_country: '',
     client_pib: '',
     client_maticni_broj: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
@@ -105,9 +106,10 @@ export default function NewInvoice() {
     const hasServices = items.some(i => i.item_type === 'services' && i.quantity > 0);
     const hasProducts = items.some(i => i.item_type === 'products' && i.quantity > 0);
     
-    // Only services - use client city
+    // Only services - use client city + country
     if (hasServices && !hasProducts) {
-      return formData.client_city || formData.client_address;
+      const parts = [formData.client_city, formData.client_country].filter(Boolean);
+      return parts.length > 0 ? parts.join(', ') : formData.client_address;
     }
     
     // Products or mixed - use company city
@@ -241,6 +243,7 @@ export default function NewInvoice() {
         client_name: '',
         client_address: '',
         client_city: '',
+        client_country: '',
         client_pib: '',
         client_maticni_broj: '',
         client_type: 'domestic',
@@ -256,6 +259,7 @@ export default function NewInvoice() {
         client_name: client.name,
         client_address: client.address || '',
         client_city: client.city || '',
+        client_country: client.country || '',
         client_pib: client.pib || '',
         client_maticni_broj: client.maticni_broj || '',
         client_type: client.client_type,

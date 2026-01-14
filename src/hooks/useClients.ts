@@ -8,6 +8,7 @@ export interface Client {
   name: string;
   address: string | null;
   city: string | null;
+  country: string | null;
   pib: string | null;
   maticni_broj: string | null;
   client_type: 'domestic' | 'foreign';
