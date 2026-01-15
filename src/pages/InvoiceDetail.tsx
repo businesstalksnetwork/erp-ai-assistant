@@ -259,36 +259,36 @@ export default function InvoiceDetail() {
       (el as HTMLElement).style.display = 'none';
     });
 
-    // FORSIRATI CRNE BOJE INLINE (za mobilne uređaje gde CSS ne prolazi dobro)
-    clone.style.backgroundColor = 'white';
-    clone.style.color = '#000000';
+    // FORSIRATI TAMNIJI TEKST INLINE (mobilni uređaji ponekad renderuju bledo kroz html2canvas)
+    const solidText = 'hsl(0 0% 0%)';
+    const mutedText = 'hsl(0 0% 20%)';
+
+    clone.style.backgroundColor = 'hsl(0 0% 100%)';
+    clone.style.color = solidText;
 
     clone.querySelectorAll('*').forEach(el => {
       const element = el as HTMLElement;
-      // Sav tekst crn
-      element.style.color = '#000000';
-      element.style.opacity = '1';
-      element.style.webkitTextFillColor = '#000000';
-      
-      // Specifično za muted elemente - tamno siv
-      if (element.classList.contains('text-muted-foreground') ||
-          element.classList.contains('text-gray-500') ||
-          element.classList.contains('text-gray-600') ||
-          element.classList.contains('text-gray-700')) {
-        element.style.color = '#333333';
-        element.style.webkitTextFillColor = '#333333';
-      }
-      
-      // Providna pozadina osim za primary badge
-      if (!element.classList.contains('bg-primary') && 
-          !element.classList.contains('bg-orange-500')) {
-        element.style.backgroundColor = 'transparent';
-      }
-    });
 
-    // Bela pozadina na glavnim kontejnerima
-    clone.querySelectorAll('.bg-white, .bg-card, .bg-background').forEach(el => {
-      (el as HTMLElement).style.backgroundColor = 'white';
+      // Ukloni sve što može da "izbleđuje" prikaz
+      element.style.opacity = '1';
+      element.style.filter = 'none';
+      element.style.textShadow = 'none';
+      (element.style as any).webkitFontSmoothing = 'auto';
+
+      // Default: crn tekst
+      element.style.color = solidText;
+      element.style.webkitTextFillColor = solidText;
+
+      // Muted varijante: tamno siva
+      if (
+        element.classList.contains('text-muted-foreground') ||
+        element.classList.contains('text-gray-500') ||
+        element.classList.contains('text-gray-600') ||
+        element.classList.contains('text-gray-700')
+      ) {
+        element.style.color = mutedText;
+        element.style.webkitTextFillColor = mutedText;
+      }
     });
 
     wrapper.appendChild(clone);
@@ -299,13 +299,58 @@ export default function InvoiceDetail() {
       await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 200));
 
+      const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
+        const ctx = targetCanvas.getContext('2d');
+        if (!ctx) return;
+
+        const { width, height } = targetCanvas;
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        // Pojačaj kontrast i blago smanji osvetljenje da tekst bude "puniji" (posebno na telefonu)
+        const contrast = 1.4;
+        const brightness = 0.93;
+
+        const clamp = (v: number) => Math.max(0, Math.min(255, v));
+
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a === 0) continue;
+
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+
+          // Održavaj čistu belu pozadinu
+          if (r > 245 && g > 245 && b > 245) {
+            data[i] = 255;
+            data[i + 1] = 255;
+            data[i + 2] = 255;
+            continue;
+          }
+
+          r = ((r - 128) * contrast + 128) * brightness;
+          g = ((g - 128) * contrast + 128) * brightness;
+          b = ((b - 128) * contrast + 128) * brightness;
+
+          data[i] = clamp(r);
+          data[i + 1] = clamp(g);
+          data[i + 2] = clamp(b);
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      };
+
       // Renderuj offscreen wrapper
       const canvas = await html2canvas(wrapper, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'hsl(0 0% 100%)',
         logging: false,
       });
+
+      boostCanvasContrast(canvas);
+
 
       // Kreiraj PDF - FIT TO PAGE (jedna strana)
       const pdf = new jsPDF({
