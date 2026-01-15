@@ -92,18 +92,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden">
-        <Link to="/dashboard">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
+        <Link to="/dashboard" className="transition-transform hover:scale-105">
           <img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="h-10" />
         </Link>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="hover:bg-primary/10"
         >
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
+      
+      {/* Mobile header accent line */}
+      <div className="lg:hidden fixed top-[60px] left-0 right-0 h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50 z-50 print:hidden" />
 
       {/* Subscription Banner - below mobile header on mobile, at top on desktop */}
       {showSubscriptionBanner && (
@@ -165,25 +169,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               const isActive = location.pathname === item.href;
               const showBadge = item.href === '/reminders' && upcomingCount > 0;
               return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                  {showBadge && (
-                    <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] justify-center">
-                      {upcomingCount}
-                    </Badge>
-                  )}
-                </Link>
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-1'
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+                    {item.label}
+                    {showBadge && (
+                      <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] justify-center animate-pulse-slow">
+                        {upcomingCount}
+                      </Badge>
+                    )}
+                  </Link>
               );
             })}
           </nav>

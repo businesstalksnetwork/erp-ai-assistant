@@ -3,6 +3,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useLimits } from '@/hooks/useLimits';
 import { useReminders } from '@/hooks/useReminders';
 import { useInvoices } from '@/hooks/useInvoices';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,8 @@ import {
   Plus,
   Building2,
   Clock,
+  ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -78,23 +81,30 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Kontrolna tabla</h1>
+    <div className="space-y-6">
+      <div className="animate-fade-in">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Kontrolna tabla</h1>
+          <Sparkles className="h-5 w-5 text-primary animate-pulse-slow" />
+        </div>
         <p className="text-muted-foreground">
           Pregled za {selectedCompany?.name}
         </p>
       </div>
 
       {/* Limits Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         {/* 6M Limit Card */}
-        <Card className={limits.limit6MPercent >= 90 ? 'border-destructive' : limits.limit6MPercent >= 75 ? 'border-warning' : ''}>
+        <Card className={cn(
+          "card-hover",
+          limits.limit6MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
+          limits.limit6MPercent >= 75 ? 'border-warning bg-warning/5' : ''
+        )}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Godišnji limit (6 miliona)</CardTitle>
               {limits.limit6MPercent >= 90 && (
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <AlertTriangle className="h-5 w-5 text-destructive animate-pulse-slow" />
               )}
             </div>
                 <CardDescription>
@@ -119,12 +129,16 @@ export default function Dashboard() {
         </Card>
 
         {/* 8M Limit Card */}
-        <Card className={limits.limit8MPercent >= 90 ? 'border-destructive' : limits.limit8MPercent >= 75 ? 'border-warning' : ''}>
+        <Card className={cn(
+          "card-hover",
+          limits.limit8MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
+          limits.limit8MPercent >= 75 ? 'border-warning bg-warning/5' : ''
+        )}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Klizni limit (8 miliona)</CardTitle>
               {limits.limit8MPercent >= 90 && (
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <AlertTriangle className="h-5 w-5 text-destructive animate-pulse-slow" />
               )}
             </div>
                 <CardDescription>
@@ -150,21 +164,21 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-3 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <Card className="card-hover group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Ukupno faktura</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-primary group-hover:animate-bounce-subtle" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{invoices.filter(i => !i.is_proforma).length}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-hover group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Promet u toku godine</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-success group-hover:animate-bounce-subtle" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(limits.yearlyTotal)}</div>
@@ -174,10 +188,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-hover group">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Aktivni podsetnici</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <Bell className="h-4 w-4 text-warning group-hover:animate-bounce-subtle" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{upcomingReminders.length}</div>
@@ -190,10 +204,10 @@ export default function Dashboard() {
 
       {/* Upcoming Reminders */}
       {upcomingReminders.length > 0 && (
-        <Card className="border-warning">
+        <Card className="border-warning bg-warning/5 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-warning" />
+              <Bell className="h-5 w-5 text-warning animate-bounce-subtle" />
               <CardTitle className="text-lg">
                 Podsetnici: {upcomingReminders.length}
               </CardTitle>
@@ -204,13 +218,14 @@ export default function Dashboard() {
               {upcomingReminders.slice(0, 3).map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="flex items-center justify-between p-3 bg-secondary rounded-lg"
+                  className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={false}
                       onCheckedChange={() => handleToggleReminder(reminder.id, reminder.is_completed)}
                       aria-label="Označi kao plaćeno"
+                      className="border-warning data-[state=checked]:bg-warning"
                     />
                     <div>
                       <p className="font-medium">{reminder.title}</p>
@@ -220,28 +235,31 @@ export default function Dashboard() {
                     </div>
                   </div>
                   {reminder.amount && (
-                    <Badge variant="outline">{formatCurrency(reminder.amount)}</Badge>
+                    <Badge variant="warning">{formatCurrency(reminder.amount)}</Badge>
                   )}
                 </div>
               ))}
             </div>
-            <Button variant="ghost" className="w-full mt-3" asChild>
-              <Link to="/reminders">Pogledaj sve podsetnike</Link>
+            <Button variant="ghost" className="w-full mt-3 group" asChild>
+              <Link to="/reminders">
+                Pogledaj sve podsetnike
+                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Recent Invoices */}
-      <Card>
+      <Card className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-lg">Poslednje fakture</CardTitle>
             <CardDescription>Vaše najnovije izdate fakture</CardDescription>
           </div>
-          <Button asChild>
+          <Button asChild className="group">
             <Link to="/invoices/new">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-200" />
               Nova faktura
             </Link>
           </Button>
@@ -253,11 +271,12 @@ export default function Dashboard() {
             </p>
           ) : (
             <div className="space-y-2">
-              {recentInvoices.map((invoice) => (
+              {recentInvoices.map((invoice, index) => (
                 <Link
                   key={invoice.id}
                   to={`/invoices/${invoice.id}`}
-                  className="flex items-center justify-between p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+                  className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 hover:bg-secondary/80 transition-all duration-200 group"
+                  style={{ animationDelay: `${0.5 + index * 0.05}s` }}
                 >
                   <div>
                     <p className="font-medium">Faktura {invoice.invoice_number}</p>
@@ -265,11 +284,14 @@ export default function Dashboard() {
                       {invoice.client_name} • {new Date(invoice.issue_date).toLocaleDateString('sr-RS')}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(invoice.total_amount)}</p>
-                    <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'}>
-                      {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
-                    </Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-semibold">{formatCurrency(invoice.total_amount)}</p>
+                      <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'}>
+                        {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
+                      </Badge>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                   </div>
                 </Link>
               ))}
