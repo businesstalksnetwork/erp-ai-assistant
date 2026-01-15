@@ -38,7 +38,8 @@ import { Badge } from '@/components/ui/badge';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import { BlockedUserScreen } from '@/components/BlockedUserScreen';
-import logo from '@/assets/pausal-box-logo.png';
+import logoLight from '@/assets/pausal-box-logo-light.png';
+import logoDark from '@/assets/pausal-box-logo-dark.png';
 
 const userNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
@@ -93,7 +94,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden">
         <Link to="/dashboard">
-          <img src={logo} alt="Paušal box" className="h-10" />
+          <img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="h-10" />
         </Link>
         <Button
           variant="ghost"
@@ -137,7 +138,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               to="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
             >
-            <img src={logo} alt="Paušal box" className="w-full max-w-[200px]" />
+            <img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="w-full max-w-[200px]" />
             </Link>
           </div>
 

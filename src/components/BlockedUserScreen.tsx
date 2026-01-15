@@ -1,7 +1,9 @@
 import { Lock, LogOut, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import logo from '@/assets/pausal-box-logo.png';
+import { useTheme } from '@/lib/theme-context';
+import logoLight from '@/assets/pausal-box-logo-light.png';
+import logoDark from '@/assets/pausal-box-logo-dark.png';
 
 interface BlockedUserScreenProps {
   reason: string | null;
@@ -9,6 +11,9 @@ interface BlockedUserScreenProps {
 }
 
 export function BlockedUserScreen({ reason, onSignOut }: BlockedUserScreenProps) {
+  const { theme } = useTheme();
+  const logo = theme === 'dark' ? logoDark : logoLight;
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6 animate-fade-in">

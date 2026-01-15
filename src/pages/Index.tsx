@@ -5,7 +5,7 @@ import {
   Clock, Users, FileCheck, Target, Check, X, TrendingUp, BookOpen
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import logo from '@/assets/pausal-box-logo.png';
+import logo from '@/assets/pausal-box-logo-light.png';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 30 },

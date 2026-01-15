@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
-import logo from '@/assets/pausal-box-logo.png';
+import { useTheme } from '@/lib/theme-context';
+import logoLight from '@/assets/pausal-box-logo-light.png';
+import logoDark from '@/assets/pausal-box-logo-dark.png';
 
 const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
@@ -31,6 +33,8 @@ export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
+  const { theme } = useTheme();
+  const logo = theme === 'dark' ? logoDark : logoLight;
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string; pib?: string; companyName?: string }>({});
   const [mode, setMode] = useState<AuthMode>(getInitialMode);

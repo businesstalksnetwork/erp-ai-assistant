@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Printer, Building2, Loader2, Download } from 'lucide-react';
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { QRCodeSVG } from 'qrcode.react';
-import pausalBoxLogo from '@/assets/pausal-box-logo.png';
+import pausalBoxLogo from '@/assets/pausal-box-logo-light.png';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
