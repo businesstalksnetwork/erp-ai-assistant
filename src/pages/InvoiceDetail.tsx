@@ -161,6 +161,7 @@ export default function InvoiceDetail() {
   const { invoices, isLoading, getLinkedAdvance } = useInvoices(selectedCompany?.id || null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
 
   const invoice = invoices.find((i) => i.id === id);
@@ -234,7 +235,6 @@ export default function InvoiceDetail() {
     document.title = originalTitle;
   };
 
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const handleDownloadPDF = async () => {
     const invoiceElement = document.querySelector('.print-invoice') as HTMLElement;
