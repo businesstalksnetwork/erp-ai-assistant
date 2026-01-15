@@ -281,20 +281,20 @@ export default function Reminders() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Podsetnici</h1>
-          <p className="text-muted-foreground">Podsetnici za plaćanje mesečnih obaveza</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Podsetnici</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Podsetnici za plaćanje obaveza</p>
         </div>
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Novi podsetnik
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>{editId ? 'Izmeni podsetnik' : 'Novi podsetnik'}</DialogTitle>
@@ -323,7 +323,7 @@ export default function Reminders() {
                     rows={2}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="amount">Iznos (RSD)</Label>
                     <Input
@@ -501,7 +501,7 @@ export default function Reminders() {
                     />
                     <p className="text-xs text-muted-foreground">Format: XXX-XXXXXXXXXXXXX-XX (nule se dodaju iza prve crte)</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="payment_model">Model</Label>
                       <Input
@@ -509,7 +509,6 @@ export default function Reminders() {
                         value={formData.payment_model}
                         onChange={(e) => setFormData({ ...formData, payment_model: e.target.value })}
                         onBlur={(e) => {
-                          // Auto-format model: ensure 2 digits
                           const digits = e.target.value.replace(/\D/g, '');
                           if (digits.length > 0) {
                             setFormData({ ...formData, payment_model: digits.padStart(2, '0').substring(0, 2) });
@@ -593,65 +592,64 @@ export default function Reminders() {
                   {activeReminders.map((reminder) => (
                     <div
                       key={reminder.id}
-                      className={`flex items-center gap-4 p-4 rounded-lg border ${
+                      className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border ${
                         isOverdue(reminder.due_date) ? 'border-destructive bg-destructive/5' : 'bg-secondary'
                       }`}
                     >
-                      <Checkbox
-                        checked={reminder.is_completed}
-                        onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium">{reminder.title}</p>
-                          {isOverdue(reminder.due_date) && (
-                            <Badge variant="destructive">Istekao rok</Badge>
+                      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                        <Checkbox
+                          checked={reminder.is_completed}
+                          onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
+                          className="mt-1 sm:mt-0 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
+                            {isOverdue(reminder.due_date) && (
+                              <Badge variant="destructive" className="text-[10px] sm:text-xs">Istekao</Badge>
+                            )}
+                            {reminder.recurrence_type !== 'none' && (
+                              <Badge variant="secondary" className="gap-1 text-[10px] sm:text-xs">
+                                <Repeat className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                <span className="hidden sm:inline">
+                                  {reminder.recurrence_type === 'monthly' && 'Mesečno'}
+                                  {reminder.recurrence_type === 'quarterly' && 'Kvartalno'}
+                                  {reminder.recurrence_type === 'yearly' && 'Godišnje'}
+                                </span>
+                              </Badge>
+                            )}
+                          </div>
+                          {reminder.description && (
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{reminder.description}</p>
                           )}
-                          {reminder.recurrence_type !== 'none' && (
-                            <Badge variant="secondary" className="gap-1">
-                              <Repeat className="h-3 w-3" />
-                              {reminder.recurrence_type === 'monthly' && 'Mesečno'}
-                              {reminder.recurrence_type === 'quarterly' && 'Kvartalno'}
-                              {reminder.recurrence_type === 'yearly' && 'Godišnje'}
-                            </Badge>
-                          )}
-                          {reminder.attachment_url && (
-                            <Badge variant="outline" className="gap-1">
-                              <FileText className="h-3 w-3" />
-                              PDF
-                            </Badge>
-                          )}
-                        </div>
-                        {reminder.description && (
-                          <p className="text-sm text-muted-foreground truncate">{reminder.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
+                          <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
+                          </div>
                         </div>
                       </div>
-                      {reminder.amount && (
-                        <div className="text-right">
-                          <p className="font-semibold">{formatCurrency(reminder.amount)}</p>
+                      <div className="flex items-center justify-between sm:justify-end gap-2 pl-7 sm:pl-0">
+                        {reminder.amount && (
+                          <p className="font-semibold text-sm sm:text-base">{formatCurrency(reminder.amount)}</p>
+                        )}
+                        <div className="flex gap-1">
+                          {reminder.amount && reminder.recipient_account && reminder.recipient_name && (
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {reminder.attachment_url && (
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleViewAttachment(reminder)} title="Prikaži PDF">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(reminder)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(reminder.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
-                      )}
-                      <div className="flex gap-1">
-                        {reminder.amount && reminder.recipient_account && reminder.recipient_name && (
-                          <Button size="icon" variant="ghost" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
-                            <QrCode className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {reminder.attachment_url && (
-                          <Button size="icon" variant="ghost" onClick={() => handleViewAttachment(reminder)} title="Prikaži PDF">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(reminder)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteId(reminder.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -699,14 +697,14 @@ export default function Reminders() {
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>IPS QR kod za plaćanje</DialogTitle>
-            <DialogDescription>
-              Skenirajte QR kod mobilnom bankarskom aplikacijom
+            <DialogTitle className="text-base sm:text-lg">IPS QR kod za plaćanje</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              Skenirajte QR kod mobilnom aplikacijom
             </DialogDescription>
           </DialogHeader>
            {selectedReminder && selectedReminder.recipient_account && selectedReminder.recipient_name && selectedReminder.amount && (
-             <div className="flex flex-col items-center space-y-4 py-4">
-               <div className="bg-white p-4 rounded-lg">
+             <div className="flex flex-col items-center space-y-3 sm:space-y-4 py-2 sm:py-4">
+               <div className="bg-white p-3 sm:p-4 rounded-lg">
                  <QRCodeSVG
                    value={generateIPSQRCode(
                      selectedReminder.recipient_name,
@@ -719,8 +717,9 @@ export default function Reminders() {
                      selectedReminder.payment_model || '97',
                      selectedReminder.payment_reference || ''
                    )}
-                   size={200}
+                   size={160}
                    level="M"
+                   className="sm:w-[200px] sm:h-[200px]"
                  />
                </div>
               <div className="text-center space-y-1">

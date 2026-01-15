@@ -23,31 +23,35 @@ export function SubscriptionBanner({ subscriptionEnd, daysLeft, isExpired }: Sub
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-4 px-4 py-3 text-sm',
+        'flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm',
         isExpired
           ? 'bg-destructive/10 border-b border-destructive/20 text-destructive'
           : 'bg-amber-50 border-b border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-200'
       )}
     >
-      <div className="flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-        <span>
+      <div className="flex items-center gap-2 min-w-0">
+        <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+        <span className="truncate">
           {isExpired ? (
-            <>Vaša pretplata je istekla. Kontaktirajte administratora za produženje.</>
+            <span className="hidden sm:inline">Vaša pretplata je istekla. Kontaktirajte administratora.</span>
           ) : (
-            <>
-              Vaša pretplata ističe za {daysLeft} {daysLeft === 1 ? 'dan' : daysLeft < 5 ? 'dana' : 'dana'} ({formattedDate}).
-              Kontaktirajte administratora za produženje.
-            </>
+            <span className="hidden sm:inline">
+              Pretplata ističe za {daysLeft} {daysLeft === 1 ? 'dan' : 'dana'} ({formattedDate}).
+            </span>
+          )}
+          {isExpired ? (
+            <span className="sm:hidden">Pretplata istekla</span>
+          ) : (
+            <span className="sm:hidden">Ističe za {daysLeft} dana</span>
           )}
         </span>
       </div>
       <button
         onClick={() => setDismissed(true)}
-        className="p-1 rounded hover:bg-foreground/10 transition-colors"
+        className="p-1 rounded hover:bg-foreground/10 transition-colors flex-shrink-0"
         title="Zatvori"
       >
-        <X className="h-4 w-4" />
+        <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </button>
     </div>
   );
