@@ -148,7 +148,7 @@ const translations: Record<string, { sr: string; en: string }> = {
   select_company: { sr: 'Izaberite firmu', en: 'Select a company' },
   invoice_not_found: { sr: 'Faktura nije pronađena', en: 'Invoice not found' },
   back_to_list: { sr: 'Nazad na listu', en: 'Back to list' },
-  back: { sr: 'Nazad', en: 'Back' },
+  back: { sr: 'Vrati se nazad', en: 'Back' },
   print: { sr: 'Štampaj', en: 'Print' },
   advance_closed: { sr: 'Avans zatvoren', en: 'Advance closed' },
   advance: { sr: 'Avansna', en: 'Advance' },
