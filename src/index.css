@@ -223,59 +223,103 @@
   }
 }
 
-/* PDF Export styles - forces light theme for html2canvas */
+/* PDF Export styles - forces pure white/black for maximum contrast */
 .pdf-export {
   --background: 0 0% 100% !important;
   --foreground: 0 0% 0% !important;
   --card: 0 0% 100% !important;
   --card-foreground: 0 0% 0% !important;
   --muted: 0 0% 96% !important;
-  --muted-foreground: 0 0% 25% !important;
-  --border: 0 0% 85% !important;
-  --primary: 0 0% 20% !important;
+  --muted-foreground: 0 0% 15% !important;
+  --secondary: 0 0% 96% !important;
+  --secondary-foreground: 0 0% 5% !important;
+  --border: 0 0% 70% !important;
+  --primary: 0 0% 15% !important;
   --primary-foreground: 0 0% 100% !important;
+  --popover: 0 0% 100% !important;
+  --popover-foreground: 0 0% 0% !important;
+  --accent: 0 0% 15% !important;
+  --accent-foreground: 0 0% 100% !important;
 }
 
 .pdf-export .print-invoice {
-  background: white !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
   color: #000000 !important;
 }
 
-.pdf-export .print-invoice * {
-  color: #000000 !important;
-  border-color: #d4d4d4 !important;
-}
-
+.pdf-export .print-invoice *,
 .pdf-export .print-invoice p,
 .pdf-export .print-invoice span,
 .pdf-export .print-invoice td,
 .pdf-export .print-invoice th,
-.pdf-export .print-invoice div {
+.pdf-export .print-invoice div,
+.pdf-export .print-invoice h1,
+.pdf-export .print-invoice h2,
+.pdf-export .print-invoice h3,
+.pdf-export .print-invoice h4,
+.pdf-export .print-invoice h5,
+.pdf-export .print-invoice h6,
+.pdf-export .print-invoice label {
   color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+.pdf-export .print-invoice table,
+.pdf-export .print-invoice tr,
+.pdf-export .print-invoice td,
+.pdf-export .print-invoice th {
+  border-color: #666666 !important;
+}
+
+.pdf-export .print-invoice .border,
+.pdf-export .print-invoice [class*="border"] {
+  border-color: #888888 !important;
 }
 
 .pdf-export .print-invoice .bg-secondary,
 .pdf-export .print-invoice .bg-muted {
-  background-color: #f5f5f5 !important;
+  background-color: #f0f0f0 !important;
 }
 
 .pdf-export .print-invoice .bg-primary {
-  background-color: #333 !important;
-  color: white !important;
+  background-color: #222222 !important;
+  color: #ffffff !important;
 }
 
-.pdf-export .print-invoice .bg-primary * {
-  color: white !important;
+.pdf-export .print-invoice .bg-primary *,
+.pdf-export .print-invoice .bg-primary span,
+.pdf-export .print-invoice .bg-primary p {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .pdf-export .print-invoice .text-muted-foreground {
-  color: #333333 !important;
+  color: #222222 !important;
+  -webkit-text-fill-color: #222222 !important;
 }
 
 .pdf-export .print-invoice .text-gray-500,
 .pdf-export .print-invoice .text-gray-600,
 .pdf-export .print-invoice .text-gray-700 {
-  color: #333333 !important;
+  color: #222222 !important;
+  -webkit-text-fill-color: #222222 !important;
+}
+
+/* Badge stilovi za PDF - visok kontrast */
+.pdf-export .print-invoice .badge,
+.pdf-export .print-invoice [class*="badge"] {
+  background-color: #e0e0e0 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  border: 1px solid #888888 !important;
+}
+
+/* Font rendering optimizacija */
+.pdf-export .print-invoice,
+.pdf-export .print-invoice * {
+  -webkit-font-smoothing: antialiased !important;
+  text-rendering: optimizeLegibility !important;
 }
 
 /* Print styles for invoices */
@@ -301,21 +345,45 @@
     display: none !important;
   }
 
-  /* Force light theme for print */
+  /* Force light theme for print - maximum contrast */
   :root, .dark {
     --background: 0 0% 100%;
     --foreground: 0 0% 0%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
-    --primary: 0 0% 20%;
+    --primary: 0 0% 15%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 20%;
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 80%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 5%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 15%;
+    --border: 0 0% 65%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
+  }
+
+  /* Eksplicitno forsiranje boja za print elemente */
+  .print-invoice * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+  }
+
+  .print-invoice .text-muted-foreground {
+    color: #222222 !important;
+    -webkit-text-fill-color: #222222 !important;
+  }
+
+  .print-invoice .bg-primary,
+  .print-invoice .bg-primary * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  .print-invoice table,
+  .print-invoice tr,
+  .print-invoice td,
+  .print-invoice th {
+    border-color: #666666 !important;
   }
 
   @page {

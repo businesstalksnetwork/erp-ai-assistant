@@ -259,27 +259,34 @@ export default function InvoiceDetail() {
       (el as HTMLElement).style.display = 'none';
     });
 
-    // FORSIRATI TAMNIJI TEKST INLINE (mobilni uređaji ponekad renderuju bledo kroz html2canvas)
-    const solidText = 'hsl(0 0% 0%)';
-    const mutedText = 'hsl(0 0% 20%)';
+    // FORSIRATI MAKSIMALAN KONTRAST - čisto crna na beloj
+    const solidText = '#000000';
+    const mutedText = '#222222';
 
-    clone.style.backgroundColor = 'hsl(0 0% 100%)';
+    clone.style.backgroundColor = '#ffffff';
+    clone.style.background = '#ffffff';
     clone.style.color = solidText;
 
     clone.querySelectorAll('*').forEach(el => {
       const element = el as HTMLElement;
+      const computedStyle = window.getComputedStyle(element);
 
       // Ukloni sve što može da "izbleđuje" prikaz
       element.style.opacity = '1';
       element.style.filter = 'none';
       element.style.textShadow = 'none';
-      (element.style as any).webkitFontSmoothing = 'auto';
+      (element.style as any).webkitFontSmoothing = 'antialiased';
 
-      // Default: crn tekst
+      // Ako element ima border, učini ga tamnijim
+      if (computedStyle.borderWidth !== '0px' && computedStyle.borderStyle !== 'none') {
+        element.style.borderColor = '#888888';
+      }
+
+      // Default: čisto crn tekst
       element.style.color = solidText;
       element.style.webkitTextFillColor = solidText;
 
-      // Muted varijante: tamno siva
+      // Muted varijante: tamno siva (ali i dalje čitljiva)
       if (
         element.classList.contains('text-muted-foreground') ||
         element.classList.contains('text-gray-500') ||
@@ -288,6 +295,15 @@ export default function InvoiceDetail() {
       ) {
         element.style.color = mutedText;
         element.style.webkitTextFillColor = mutedText;
+      }
+
+      // Bela pozadina za sve kartiice i kontejnere
+      if (computedStyle.backgroundColor !== 'transparent' && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+        // Zadržaj samo bele/svetle pozadine
+        const bg = computedStyle.backgroundColor;
+        if (!bg.includes('255, 255, 255') && !bg.includes('rgb(255') && !element.classList.contains('bg-primary')) {
+          element.style.backgroundColor = '#ffffff';
+        }
       }
     });
 
@@ -307,9 +323,9 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // Pojačaj kontrast i blago smanji osvetljenje da tekst bude "puniji" (posebno na telefonu)
-        const contrast = 1.4;
-        const brightness = 0.93;
+        // Pojačan kontrast za maksimalnu čitljivost PDF-a
+        const contrast = 1.5;
+        const brightness = 0.88;
 
         const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
