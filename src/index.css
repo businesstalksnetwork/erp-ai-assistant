@@ -177,6 +177,50 @@
   .gradient-warning {
     background: var(--gradient-warning);
   }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 10px 40px -10px hsl(45 93% 47% / 0.15);
+  }
+
+  /* Interactive hover lift */
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Golden glow effect */
+  .glow-primary {
+    box-shadow: 0 0 20px -5px hsl(45 93% 47% / 0.25);
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(45 93% 47% / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Link underline animation */
+  .link-hover {
+    @apply relative;
+  }
+
+  .link-hover::after {
+    @apply content-[''] absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
+  }
+
+  .link-hover:hover::after {
+    @apply w-full;
+  }
 }
 
 /* PDF Export styles - forces light theme for html2canvas */
