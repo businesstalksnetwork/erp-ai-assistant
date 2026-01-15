@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Building2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Building2, Loader2, Download } from 'lucide-react';
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo.png';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // Helper funkcija za formatiranje broja računa za IPS (tačno 18 cifara)
 function formatAccountForIPS(account: string): string {
@@ -232,6 +234,49 @@ export default function InvoiceDetail() {
     document.title = originalTitle;
   };
 
+  const handleDownloadPDF = async () => {
+    const invoiceElement = document.querySelector('.print-invoice') as HTMLElement;
+    if (!invoiceElement) return;
+
+    // Privremeno sakrij print:hidden elemente
+    const hiddenElements = invoiceElement.querySelectorAll('.print\\:hidden');
+    hiddenElements.forEach(el => (el as HTMLElement).style.display = 'none');
+
+    try {
+      const canvas = await html2canvas(invoiceElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+      // Ime fajla bazirano na broju fakture
+      const docType = invoice.invoice_type === 'proforma' || invoice.is_proforma 
+        ? 'Predracun' 
+        : invoice.invoice_type === 'advance' 
+          ? 'Avans' 
+          : 'Faktura';
+      const fileName = `${docType}_${invoice.invoice_number.replace(/\//g, '-')}.pdf`;
+      
+      pdf.save(fileName);
+    } finally {
+      // Vrati sakrivene elemente
+      hiddenElements.forEach(el => (el as HTMLElement).style.display = '');
+    }
+  };
+
   // Use items from invoice_items table if available, otherwise fallback to old invoice data
   const displayItems = items.length > 0 ? items : [{
     id: invoice.id,
@@ -276,7 +321,7 @@ export default function InvoiceDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           {t('back')}
         </Button>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <CreateTemplateDialog 
             invoice={{
               id: invoice.id,
@@ -294,7 +339,11 @@ export default function InvoiceDetail() {
             items={displayItems} 
             companyId={selectedCompany.id} 
           />
-          <Button onClick={handlePrint}>
+          <Button onClick={handleDownloadPDF} className="flex-1 sm:flex-none">
+            <Download className="mr-2 h-4 w-4" />
+            Sačuvaj PDF
+          </Button>
+          <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="mr-2 h-4 w-4" />
             {t('print')}
           </Button>
