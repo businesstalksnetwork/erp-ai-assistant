@@ -259,6 +259,38 @@ export default function InvoiceDetail() {
       (el as HTMLElement).style.display = 'none';
     });
 
+    // FORSIRATI CRNE BOJE INLINE (za mobilne uređaje gde CSS ne prolazi dobro)
+    clone.style.backgroundColor = 'white';
+    clone.style.color = '#000000';
+
+    clone.querySelectorAll('*').forEach(el => {
+      const element = el as HTMLElement;
+      // Sav tekst crn
+      element.style.color = '#000000';
+      element.style.opacity = '1';
+      element.style.webkitTextFillColor = '#000000';
+      
+      // Specifično za muted elemente - tamno siv
+      if (element.classList.contains('text-muted-foreground') ||
+          element.classList.contains('text-gray-500') ||
+          element.classList.contains('text-gray-600') ||
+          element.classList.contains('text-gray-700')) {
+        element.style.color = '#333333';
+        element.style.webkitTextFillColor = '#333333';
+      }
+      
+      // Providna pozadina osim za primary badge
+      if (!element.classList.contains('bg-primary') && 
+          !element.classList.contains('bg-orange-500')) {
+        element.style.backgroundColor = 'transparent';
+      }
+    });
+
+    // Bela pozadina na glavnim kontejnerima
+    clone.querySelectorAll('.bg-white, .bg-card, .bg-background').forEach(el => {
+      (el as HTMLElement).style.backgroundColor = 'white';
+    });
+
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
