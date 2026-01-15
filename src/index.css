@@ -179,6 +179,47 @@
   }
 }
 
+/* PDF Export styles - forces light theme for html2canvas */
+.pdf-export {
+  --background: 0 0% 100% !important;
+  --foreground: 0 0% 0% !important;
+  --card: 0 0% 100% !important;
+  --card-foreground: 0 0% 0% !important;
+  --muted: 0 0% 96% !important;
+  --muted-foreground: 0 0% 40% !important;
+  --border: 0 0% 85% !important;
+  --primary: 0 0% 20% !important;
+  --primary-foreground: 0 0% 100% !important;
+}
+
+.pdf-export .print-invoice {
+  background: white !important;
+  color: black !important;
+}
+
+.pdf-export .print-invoice * {
+  color: black !important;
+  border-color: #d4d4d4 !important;
+}
+
+.pdf-export .print-invoice .bg-secondary,
+.pdf-export .print-invoice .bg-muted {
+  background-color: #f5f5f5 !important;
+}
+
+.pdf-export .print-invoice .bg-primary {
+  background-color: #333 !important;
+  color: white !important;
+}
+
+.pdf-export .print-invoice .bg-primary * {
+  color: white !important;
+}
+
+.pdf-export .print-invoice .text-muted-foreground {
+  color: #525252 !important;
+}
+
 /* Print styles for invoices */
 @media print {
   /* Neutralize viewport heights to prevent blank second page */
