@@ -234,20 +234,36 @@ export default function InvoiceDetail() {
     document.title = originalTitle;
   };
 
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
   const handleDownloadPDF = async () => {
     const invoiceElement = document.querySelector('.print-invoice') as HTMLElement;
     if (!invoiceElement) return;
+
+    setIsGeneratingPDF(true);
+    
+    // Sačuvaj originalno stanje scroll-a
+    const originalScrollTop = window.scrollY;
+    window.scrollTo(0, 0);
 
     // Privremeno sakrij print:hidden elemente
     const hiddenElements = invoiceElement.querySelectorAll('.print\\:hidden');
     hiddenElements.forEach(el => (el as HTMLElement).style.display = 'none');
 
     try {
+      // Čekaj da se layout stabilizuje
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(invoiceElement, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        windowHeight: invoiceElement.scrollHeight + 100,
+        height: invoiceElement.scrollHeight,
+        y: 0,
+        scrollY: -window.scrollY,
+        logging: false,
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -258,9 +274,23 @@ export default function InvoiceDetail() {
       });
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // Višestranična podrška
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
 
       // Ime fajla bazirano na broju fakture
       const docType = invoice.invoice_type === 'proforma' || invoice.is_proforma 
@@ -272,8 +302,10 @@ export default function InvoiceDetail() {
       
       pdf.save(fileName);
     } finally {
-      // Vrati sakrivene elemente
+      // Vrati sakrivene elemente i scroll poziciju
       hiddenElements.forEach(el => (el as HTMLElement).style.display = '');
+      window.scrollTo(0, originalScrollTop);
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -339,9 +371,17 @@ export default function InvoiceDetail() {
             items={displayItems} 
             companyId={selectedCompany.id} 
           />
-          <Button onClick={handleDownloadPDF} className="flex-1 sm:flex-none">
-            <Download className="mr-2 h-4 w-4" />
-            Sačuvaj PDF
+          <Button 
+            onClick={handleDownloadPDF} 
+            className="flex-1 sm:flex-none"
+            disabled={isGeneratingPDF}
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {isGeneratingPDF ? 'Generisanje...' : 'Sačuvaj PDF'}
           </Button>
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="mr-2 h-4 w-4" />
