@@ -199,48 +199,46 @@ export default function Invoices() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Fakture</h1>
-          <p className="text-muted-foreground">Upravljajte fakturama, predračunima i avansnim fakturama</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Fakture</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Upravljajte fakturama i predračunima</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild>
-            <Link to="/invoices/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova faktura
-            </Link>
-          </Button>
-        </div>
+        <Button asChild size="sm" className="w-full sm:w-auto">
+          <Link to="/invoices/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Nova faktura
+          </Link>
+        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pretraži po broju ili klijentu..."
+                placeholder="Pretraži..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
             <Select value={filter} onValueChange={(v: FilterType) => setFilter(v)}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Sve</SelectItem>
-                <SelectItem value="invoices">Samo fakture</SelectItem>
-                <SelectItem value="proforma">Samo predračuni</SelectItem>
-                <SelectItem value="advance">Samo avansne</SelectItem>
+                <SelectItem value="invoices">Fakture</SelectItem>
+                <SelectItem value="proforma">Predračuni</SelectItem>
+                <SelectItem value="advance">Avansne</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -249,11 +247,11 @@ export default function Invoices() {
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg font-medium">Nema faktura</p>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-4 text-sm text-center">
                 {search || filter !== 'all' ? 'Nema rezultata za vašu pretragu' : 'Kreirajte vašu prvu fakturu'}
               </p>
               {!search && filter === 'all' && (
-                <Button asChild>
+                <Button asChild size="sm">
                   <Link to="/invoices/new">
                     <Plus className="mr-2 h-4 w-4" />
                     Nova faktura
@@ -262,152 +260,179 @@ export default function Invoices() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Broj</TableHead>
-                    <TableHead>Klijent</TableHead>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Tip</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Iznos</TableHead>
-                    <TableHead className="text-right">Akcije</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">
-                        {invoice.invoice_number}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p>{invoice.client_name}</p>
-                          <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-1">
-                            {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</TableCell>
-                      <TableCell>
-                        {getTypeBadge(invoice)}
-                      </TableCell>
-                      <TableCell>
-                        {getPaymentStatusBadge(invoice)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(invoice.total_amount)}
-                        {invoice.foreign_currency && (
-                          <p className="text-xs text-muted-foreground">
-                            {invoice.foreign_amount} {invoice.foreign_currency}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" asChild>
-                            <Link to={`/invoices/${invoice.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          {/* Edit Button - conditionally visible */}
-                          {(() => {
-                            const isProforma = invoice.is_proforma || invoice.invoice_type === 'proforma';
-                            const isAdvance = invoice.invoice_type === 'advance';
-                            const isRegular = invoice.invoice_type === 'regular' && !invoice.is_proforma;
-                            
-                            // Proforma can be edited only if not converted to invoice
-                            const proformaConverted = isProforma && getCreatedInvoiceFromProforma(invoice.id);
-                            // Advance can be edited only if not closed
-                            const advanceClosed = isAdvance && invoice.advance_status === 'closed';
-                            
-                            const canEdit = isRegular || (isProforma && !proformaConverted) || (isAdvance && !advanceClosed);
-                            
-                            if (!canEdit) return null;
-                            
-                            return (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Broj</TableHead>
+                      <TableHead>Klijent</TableHead>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Tip</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Iznos</TableHead>
+                      <TableHead className="text-right">Akcije</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">
+                          {invoice.invoice_number}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p>{invoice.client_name}</p>
+                            <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-1">
+                              {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</TableCell>
+                        <TableCell>
+                          {getTypeBadge(invoice)}
+                        </TableCell>
+                        <TableCell>
+                          {getPaymentStatusBadge(invoice)}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(invoice.total_amount)}
+                          {invoice.foreign_currency && (
+                            <p className="text-xs text-muted-foreground">
+                              {invoice.foreign_amount} {invoice.foreign_currency}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="icon" variant="ghost" asChild>
+                              <Link to={`/invoices/${invoice.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            {(() => {
+                              const isProforma = invoice.is_proforma || invoice.invoice_type === 'proforma';
+                              const isAdvance = invoice.invoice_type === 'advance';
+                              const isRegular = invoice.invoice_type === 'regular' && !invoice.is_proforma;
+                              const proformaConverted = isProforma && getCreatedInvoiceFromProforma(invoice.id);
+                              const advanceClosed = isAdvance && invoice.advance_status === 'closed';
+                              const canEdit = isRegular || (isProforma && !proformaConverted) || (isAdvance && !advanceClosed);
+                              if (!canEdit) return null;
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="icon" variant="ghost" asChild>
+                                        <Link to={`/invoices/${invoice.id}/edit`}>
+                                          <Pencil className="h-4 w-4" />
+                                        </Link>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Izmeni</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })()}
+                            {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button size="icon" variant="ghost" asChild>
-                                      <Link to={`/invoices/${invoice.id}/edit`}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Link>
+                                    <Button size="icon" variant="ghost" onClick={() => setPaymentInvoice(invoice)}>
+                                      <Banknote className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Izmeni</p>
-                                  </TooltipContent>
+                                  <TooltipContent><p>Označi plaćanje</p></TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
-                            );
-                          })()}
-                          {/* Payment Status Button - for regular invoices only */}
-                          {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => setPaymentInvoice(invoice)}
-                                  >
-                                    <Banknote className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Označi plaćanje</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {/* Storno Button - for regular invoices only */}
-                          {invoice.invoice_type === 'regular' && !invoice.is_proforma && invoice.total_amount > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => setStornoId(invoice.id)}
-                                    disabled={stornoInvoice.isPending}
-                                    title="Storniraj fakturu"
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Storniraj fakturu</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                          {(invoice.is_proforma || invoice.invoice_type === 'proforma') && 
-                           !getCreatedInvoiceFromProforma(invoice.id) && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleOpenConvert(invoice.id)}
-                              title="Pretvori u fakturu"
-                            >
-                              <ArrowRightLeft className="h-4 w-4" />
+                            )}
+                            {invoice.invoice_type === 'regular' && !invoice.is_proforma && invoice.total_amount > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" onClick={() => setStornoId(invoice.id)} disabled={stornoInvoice.isPending}>
+                                      <RotateCcw className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Storniraj</p></TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {(invoice.is_proforma || invoice.invoice_type === 'proforma') && !getCreatedInvoiceFromProforma(invoice.id) && (
+                              <Button size="icon" variant="ghost" onClick={() => handleOpenConvert(invoice.id)} title="Pretvori u fakturu">
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => setDeleteId(invoice.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => setDeleteId(invoice.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List */}
+              <div className="md:hidden space-y-3">
+                {filteredInvoices.map((invoice) => (
+                  <div key={invoice.id} className="border rounded-lg p-3 space-y-2 bg-secondary/30">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{invoice.invoice_number}</p>
+                        <p className="text-xs text-muted-foreground truncate">{invoice.client_name}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-sm">{formatCurrency(invoice.total_amount)}</p>
+                        {invoice.foreign_currency && (
+                          <p className="text-[10px] text-muted-foreground">{invoice.foreign_amount} {invoice.foreign_currency}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {getTypeBadge(invoice)}
+                        {getPaymentStatusBadge(invoice)}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{new Date(invoice.issue_date).toLocaleDateString('sr-RS')}</p>
+                    </div>
+                    <div className="flex justify-end gap-1 pt-1 border-t">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                        <Link to={`/invoices/${invoice.id}`}><Eye className="h-4 w-4" /></Link>
+                      </Button>
+                      {(() => {
+                        const isProforma = invoice.is_proforma || invoice.invoice_type === 'proforma';
+                        const isAdvance = invoice.invoice_type === 'advance';
+                        const isRegular = invoice.invoice_type === 'regular' && !invoice.is_proforma;
+                        const proformaConverted = isProforma && getCreatedInvoiceFromProforma(invoice.id);
+                        const advanceClosed = isAdvance && invoice.advance_status === 'closed';
+                        const canEdit = isRegular || (isProforma && !proformaConverted) || (isAdvance && !advanceClosed);
+                        if (!canEdit) return null;
+                        return (
+                          <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+                            <Link to={`/invoices/${invoice.id}/edit`}><Pencil className="h-4 w-4" /></Link>
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        );
+                      })()}
+                      {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPaymentInvoice(invoice)}>
+                          <Banknote className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(invoice.is_proforma || invoice.invoice_type === 'proforma') && !getCreatedInvoiceFromProforma(invoice.id) && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleOpenConvert(invoice.id)}>
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(invoice.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -154,20 +154,20 @@ export default function Clients() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Klijenti</h1>
-          <p className="text-muted-foreground">Upravljajte listom klijenata za {selectedCompany.name}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Klijenti</h1>
+          <p className="text-sm sm:text-base text-muted-foreground truncate">Upravljajte listom klijenata</p>
         </div>
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Novi klijent
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>{editId ? 'Izmeni klijenta' : 'Novi klijent'}</DialogTitle>
@@ -203,7 +203,7 @@ export default function Clients() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="address">Adresa</Label>
                     <Input
@@ -309,41 +309,41 @@ export default function Clients() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
             <Card key={client.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{client.name}</CardTitle>
-                    <CardDescription>{client.address || 'Bez adrese'}</CardDescription>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base sm:text-lg truncate">{client.name}</CardTitle>
+                    <CardDescription className="truncate text-xs sm:text-sm">{client.address || 'Bez adrese'}</CardDescription>
                   </div>
-                  <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'}>
+                  <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs flex-shrink-0">
                     {client.client_type === 'domestic' ? 'Domaći' : 'Strani'}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-4">
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex gap-3 sm:gap-4 min-w-0">
                     {client.pib && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">PIB</p>
-                        <p className="font-mono text-sm">{client.pib}</p>
+                      <div className="min-w-0">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">PIB</p>
+                        <p className="font-mono text-xs sm:text-sm truncate">{client.pib}</p>
                       </div>
                     )}
                     {client.maticni_broj && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">MB</p>
-                        <p className="font-mono text-sm">{client.maticni_broj}</p>
+                      <div className="min-w-0">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">MB</p>
+                        <p className="font-mono text-xs sm:text-sm truncate">{client.maticni_broj}</p>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 ml-auto">
-                    <Button size="icon" variant="ghost" onClick={() => handleEdit(client)}>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(client)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(client.id)}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(client.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

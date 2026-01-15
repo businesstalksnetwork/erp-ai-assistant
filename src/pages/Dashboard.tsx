@@ -81,48 +81,48 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="animate-fade-in">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Kontrolna tabla</h1>
-          <Sparkles className="h-5 w-5 text-primary animate-pulse-slow" />
+          <h1 className="text-xl sm:text-2xl font-bold">Kontrolna tabla</h1>
+          <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse-slow" />
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground truncate">
           Pregled za {selectedCompany?.name}
         </p>
       </div>
 
       {/* Limits Cards */}
-      <div className="grid gap-4 md:grid-cols-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         {/* 6M Limit Card */}
         <Card className={cn(
           "card-hover",
           limits.limit6MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
           limits.limit6MPercent >= 75 ? 'border-warning bg-warning/5' : ''
         )}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Godišnji limit (6 miliona)</CardTitle>
+          <CardHeader className="pb-2 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base sm:text-lg leading-tight">Godišnji limit (6M)</CardTitle>
               {limits.limit6MPercent >= 90 && (
-                <AlertTriangle className="h-5 w-5 text-destructive animate-pulse-slow" />
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive animate-pulse-slow flex-shrink-0" />
               )}
             </div>
-                <CardDescription>
-                  01.01. - 31.12. {new Date().getFullYear()}
-                </CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
+              01.01. - 31.12. {new Date().getFullYear()}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Iskorišćeno: {formatCurrency(limits.yearlyTotal)}</span>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1">
+                <span className="truncate">Iskorišćeno: {formatCurrency(limits.yearlyTotal)}</span>
                 <span className="font-semibold">{limits.limit6MPercent.toFixed(1)}%</span>
               </div>
               <Progress 
                 value={limits.limit6MPercent} 
                 className={limits.limit6MPercent >= 90 ? '[&>div]:bg-destructive' : limits.limit6MPercent >= 75 ? '[&>div]:bg-warning' : ''}
               />
-              <p className="text-sm text-muted-foreground">
-                Preostalo: {formatCurrency(limits.limit6MRemaining)} od {formatCurrency(LIMIT_6M)}
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Preostalo: {formatCurrency(limits.limit6MRemaining)}
               </p>
             </div>
           </CardContent>
@@ -134,29 +134,29 @@ export default function Dashboard() {
           limits.limit8MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
           limits.limit8MPercent >= 75 ? 'border-warning bg-warning/5' : ''
         )}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Klizni limit (8 miliona)</CardTitle>
+          <CardHeader className="pb-2 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base sm:text-lg leading-tight">Klizni limit (8M)</CardTitle>
               {limits.limit8MPercent >= 90 && (
-                <AlertTriangle className="h-5 w-5 text-destructive animate-pulse-slow" />
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive animate-pulse-slow flex-shrink-0" />
               )}
             </div>
-                <CardDescription>
-                  Poslednjih 365 dana
-                </CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
+              Poslednjih 365 dana
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Iskorišćeno: {formatCurrency(limits.rollingDomestic)}</span>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1">
+                <span className="truncate">Iskorišćeno: {formatCurrency(limits.rollingDomestic)}</span>
                 <span className="font-semibold">{limits.limit8MPercent.toFixed(1)}%</span>
               </div>
               <Progress 
                 value={limits.limit8MPercent}
                 className={limits.limit8MPercent >= 90 ? '[&>div]:bg-destructive' : limits.limit8MPercent >= 75 ? '[&>div]:bg-warning' : ''}
               />
-              <p className="text-sm text-muted-foreground">
-                Preostalo: {formatCurrency(limits.limit8MRemaining)} od {formatCurrency(LIMIT_8M)}
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Preostalo: {formatCurrency(limits.limit8MRemaining)}
               </p>
             </div>
           </CardContent>
@@ -164,38 +164,38 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <Card className="card-hover group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Ukupno faktura</CardTitle>
-            <FileText className="h-4 w-4 text-primary group-hover:animate-bounce-subtle" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Ukupno faktura</CardTitle>
+            <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-primary group-hover:animate-bounce-subtle" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{invoices.filter(i => !i.is_proforma).length}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{invoices.filter(i => !i.is_proforma).length}</div>
           </CardContent>
         </Card>
 
         <Card className="card-hover group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Promet u toku godine</CardTitle>
-            <TrendingUp className="h-4 w-4 text-success group-hover:animate-bounce-subtle" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium leading-tight">Godišnji promet</CardTitle>
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-success group-hover:animate-bounce-subtle flex-shrink-0" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(limits.yearlyTotal)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold truncate">{formatCurrency(limits.yearlyTotal)}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
               Od 01.01.{new Date().getFullYear()}.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-hover group">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Aktivni podsetnici</CardTitle>
-            <Bell className="h-4 w-4 text-warning group-hover:animate-bounce-subtle" />
+        <Card className="card-hover group col-span-2 sm:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Aktivni podsetnici</CardTitle>
+            <Bell className="h-3 w-3 sm:h-4 sm:w-4 text-warning group-hover:animate-bounce-subtle" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upcomingReminders.length}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{upcomingReminders.length}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               Podsetnici za plaćanje
             </p>
           </CardContent>
@@ -205,42 +205,42 @@ export default function Dashboard() {
       {/* Upcoming Reminders */}
       {upcomingReminders.length > 0 && (
         <Card className="border-warning bg-warning/5 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          <CardHeader>
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-warning animate-bounce-subtle" />
-              <CardTitle className="text-lg">
+              <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-warning animate-bounce-subtle" />
+              <CardTitle className="text-base sm:text-lg">
                 Podsetnici: {upcomingReminders.length}
               </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             <div className="space-y-2">
               {upcomingReminders.slice(0, 3).map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 transition-all duration-200"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 transition-all duration-200 gap-2"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Checkbox
                       checked={false}
                       onCheckedChange={() => handleToggleReminder(reminder.id, reminder.is_completed)}
                       aria-label="Označi kao plaćeno"
-                      className="border-warning data-[state=checked]:bg-warning"
+                      className="border-warning data-[state=checked]:bg-warning flex-shrink-0"
                     />
-                    <div>
-                      <p className="font-medium">{reminder.title}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">{reminder.title}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
                       </p>
                     </div>
                   </div>
                   {reminder.amount && (
-                    <Badge variant="warning">{formatCurrency(reminder.amount)}</Badge>
+                    <Badge variant="warning" className="self-end sm:self-auto text-xs sm:text-sm">{formatCurrency(reminder.amount)}</Badge>
                   )}
                 </div>
               ))}
             </div>
-            <Button variant="ghost" className="w-full mt-3 group" asChild>
+            <Button variant="ghost" className="w-full mt-3 group text-sm" asChild>
               <Link to="/reminders">
                 Pogledaj sve podsetnike
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -252,21 +252,21 @@ export default function Dashboard() {
 
       {/* Recent Invoices */}
       <Card className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6">
           <div>
-            <CardTitle className="text-lg">Poslednje fakture</CardTitle>
-            <CardDescription>Vaše najnovije izdate fakture</CardDescription>
+            <CardTitle className="text-base sm:text-lg">Poslednje fakture</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Vaše najnovije izdate fakture</CardDescription>
           </div>
-          <Button asChild className="group">
+          <Button asChild className="group w-full sm:w-auto" size="sm">
             <Link to="/invoices/new">
               <Plus className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-200" />
               Nova faktura
             </Link>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           {recentInvoices.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-muted-foreground py-8 text-sm">
               Nemate još izdatih faktura.
             </p>
           ) : (
@@ -275,23 +275,23 @@ export default function Dashboard() {
                 <Link
                   key={invoice.id}
                   to={`/invoices/${invoice.id}`}
-                  className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 hover:bg-secondary/80 transition-all duration-200 group"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-secondary/50 rounded-lg border border-transparent hover:border-primary/20 hover:bg-secondary/80 transition-all duration-200 group gap-2"
                   style={{ animationDelay: `${0.5 + index * 0.05}s` }}
                 >
-                  <div>
-                    <p className="font-medium">Faktura {invoice.invoice_number}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm sm:text-base truncate">Faktura {invoice.invoice_number}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
                       {invoice.client_name} • {new Date(invoice.issue_date).toLocaleDateString('sr-RS')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="font-semibold">{formatCurrency(invoice.total_amount)}</p>
-                      <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'}>
+                  <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+                    <div className="text-left sm:text-right">
+                      <p className="font-semibold text-sm sm:text-base">{formatCurrency(invoice.total_amount)}</p>
+                      <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
                         {invoice.client_type === 'domestic' ? 'Domaći' : 'Strani'}
                       </Badge>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 hidden sm:block" />
                   </div>
                 </Link>
               ))}
