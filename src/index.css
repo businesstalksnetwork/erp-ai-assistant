@@ -186,7 +186,7 @@
   --card: 0 0% 100% !important;
   --card-foreground: 0 0% 0% !important;
   --muted: 0 0% 96% !important;
-  --muted-foreground: 0 0% 40% !important;
+  --muted-foreground: 0 0% 25% !important;
   --border: 0 0% 85% !important;
   --primary: 0 0% 20% !important;
   --primary-foreground: 0 0% 100% !important;
@@ -194,12 +194,20 @@
 
 .pdf-export .print-invoice {
   background: white !important;
-  color: black !important;
+  color: #000000 !important;
 }
 
 .pdf-export .print-invoice * {
-  color: black !important;
+  color: #000000 !important;
   border-color: #d4d4d4 !important;
+}
+
+.pdf-export .print-invoice p,
+.pdf-export .print-invoice span,
+.pdf-export .print-invoice td,
+.pdf-export .print-invoice th,
+.pdf-export .print-invoice div {
+  color: #000000 !important;
 }
 
 .pdf-export .print-invoice .bg-secondary,
@@ -217,7 +225,13 @@
 }
 
 .pdf-export .print-invoice .text-muted-foreground {
-  color: #525252 !important;
+  color: #333333 !important;
+}
+
+.pdf-export .print-invoice .text-gray-500,
+.pdf-export .print-invoice .text-gray-600,
+.pdf-export .print-invoice .text-gray-700 {
+  color: #333333 !important;
 }
 
 /* Print styles for invoices */
