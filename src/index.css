@@ -322,15 +322,15 @@
 }
 
 .pdf-export .print-invoice .text-muted-foreground {
-  color: #111111 !important;
-  -webkit-text-fill-color: #111111 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
 .pdf-export .print-invoice .text-gray-500,
 .pdf-export .print-invoice .text-gray-600,
 .pdf-export .print-invoice .text-gray-700 {
-  color: #111111 !important;
-  -webkit-text-fill-color: #111111 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
 /* Kompaktni razmaci za PDF - da sve stane na jednu stranu */
