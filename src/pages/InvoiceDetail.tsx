@@ -242,6 +242,9 @@ export default function InvoiceDetail() {
 
     setIsGeneratingPDF(true);
 
+    // Detekcija mobilnog uređaja
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+
     // Kreiraj offscreen wrapper sa fiksnom A4 širinom i auto visinom
     const wrapper = document.createElement('div');
     wrapper.style.position = 'absolute';
@@ -252,7 +255,7 @@ export default function InvoiceDetail() {
     wrapper.style.height = 'auto';
     wrapper.style.overflow = 'visible';
     wrapper.style.background = 'white';
-    wrapper.style.padding = '32px 24px 48px 24px'; // Veći padding gore i dole
+    wrapper.style.padding = '24px 20px 32px 20px'; // Kompaktnije za PDF
     wrapper.className = 'pdf-export';
 
     // Kloniraj sadržaj fakture
@@ -341,7 +344,12 @@ export default function InvoiceDetail() {
       const actualHeight = wrapper.scrollHeight;
       wrapper.style.height = actualHeight + 'px';
 
+      // Na mobilnom NE radimo pixel post-processing (uzrokuje prazne PDF-ove)
+      // Umesto toga, oslanjamo se na CSS + inline stilove koji su već primenjeni gore
       const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
+        // Preskačemo na mobilnom - inline stilovi već osiguravaju crn tekst
+        if (isMobile) return;
+        
         const ctx = targetCanvas.getContext('2d');
         if (!ctx) return;
 
@@ -349,9 +357,8 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // MAKSIMALAN kontrast za mobilne uređaje - tekst mora biti čisto crn
-        const contrast = 2.2; // Povećano sa 1.5 na 2.2
-        const darkBoost = 0.6; // Multiplikator koji zatamnjuje tamne piksele
+        // Blaži kontrast za desktop - CSS već radi većinu posla
+        const contrast = 1.3;
 
         const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
@@ -364,25 +371,17 @@ export default function InvoiceDetail() {
           let b = data[i + 2];
 
           // Održavaj čistu belu pozadinu
-          if (r > 240 && g > 240 && b > 240) {
+          if (r > 245 && g > 245 && b > 245) {
             data[i] = 255;
             data[i + 1] = 255;
             data[i + 2] = 255;
             continue;
           }
 
-          // Pojačaj kontrast
+          // Blaži kontrast - samo pojačaj razlike
           r = (r - 128) * contrast + 128;
           g = (g - 128) * contrast + 128;
           b = (b - 128) * contrast + 128;
-
-          // Zatamni tamne piksele dodatno (tekst)
-          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-          if (luminance < 160) {
-            r = r * darkBoost;
-            g = g * darkBoost;
-            b = b * darkBoost;
-          }
 
           data[i] = clamp(r);
           data[i + 1] = clamp(g);
@@ -392,15 +391,19 @@ export default function InvoiceDetail() {
         ctx.putImageData(imageData, 0, 0);
       };
 
+      // Na mobilnom koristi manji scale (1.5) da smanji memoriju
+      // Na desktopu koristi scale 2 za bolju rezoluciju
+      const canvasScale = isMobile ? 1.5 : 2;
+
       // Renderuj offscreen wrapper sa dinamičkom visinom
       const canvas = await html2canvas(wrapper, {
-        scale: 2,
+        scale: canvasScale,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: 794,
-        windowHeight: actualHeight, // Koristi izmerenu visinu
-        height: actualHeight, // Eksplicitna visina za capture
+        windowHeight: actualHeight,
+        height: actualHeight,
         scrollX: 0,
         scrollY: 0,
       });
@@ -436,7 +439,13 @@ export default function InvoiceDetail() {
       const xOffset = (pdfWidth - finalWidth) / 2;
       const yOffset = (pdfHeight - finalHeight) / 2;
 
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      // Na mobilnom koristi JPEG (manja memorija), na desktopu PNG (bolja kvaliteta)
+      const imageFormat = isMobile ? 'JPEG' : 'PNG';
+      const imageData = isMobile 
+        ? canvas.toDataURL('image/jpeg', 0.92) 
+        : canvas.toDataURL('image/png');
+      
+      pdf.addImage(imageData, imageFormat, xOffset, yOffset, finalWidth, finalHeight);
 
       // Ime fajla bazirano na broju fakture
       const docType = invoice.invoice_type === 'proforma' || invoice.is_proforma 
