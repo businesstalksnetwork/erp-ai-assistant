@@ -128,12 +128,20 @@
 
   /* Hide native calendar icon for custom DateInput component */
   .date-input-custom::-webkit-calendar-picker-indicator {
-    opacity: 0;
-    position: absolute;
-    right: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
+    display: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  /* Firefox */
+  .date-input-custom::-moz-calendar-picker-indicator {
+    display: none !important;
+  }
+  
+  /* Also hide inner spin button and clear button */
+  .date-input-custom::-webkit-inner-spin-button,
+  .date-input-custom::-webkit-clear-button {
+    display: none !important;
   }
 }
 
