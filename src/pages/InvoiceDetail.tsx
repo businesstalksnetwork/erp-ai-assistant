@@ -252,7 +252,7 @@ export default function InvoiceDetail() {
     wrapper.style.height = 'auto';
     wrapper.style.overflow = 'visible';
     wrapper.style.background = 'white';
-    wrapper.style.padding = '24px';
+    wrapper.style.padding = '32px 24px 48px 24px'; // Veći padding gore i dole
     wrapper.className = 'pdf-export';
 
     // Kloniraj sadržaj fakture
@@ -264,6 +264,7 @@ export default function InvoiceDetail() {
     clone.style.minHeight = 'auto';
     clone.style.overflow = 'visible';
     clone.style.position = 'relative';
+    clone.style.paddingBottom = '24px'; // Dodatni prostor na dnu
     
     // Sakrij print:hidden elemente u klonu
     clone.querySelectorAll('.print\\:hidden').forEach(el => {
@@ -321,10 +322,24 @@ export default function InvoiceDetail() {
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
 
+    // Sačekaj da se sve slike učitaju pre renderovanja
+    const images = Array.from(wrapper.querySelectorAll('img'));
+    await Promise.all(images.map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = () => resolve(null);
+        img.onerror = () => resolve(null);
+      });
+    }));
+
     try {
       // Čekaj fontove i stabilizaciju
       await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Izmeri stvarnu visinu sadržaja nakon renderovanja
+      const actualHeight = wrapper.scrollHeight;
+      wrapper.style.height = actualHeight + 'px';
 
       const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
         const ctx = targetCanvas.getContext('2d');
@@ -375,7 +390,8 @@ export default function InvoiceDetail() {
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: 794,
-        windowHeight: wrapper.scrollHeight, // Dinamička visina za ceo sadržaj
+        windowHeight: actualHeight, // Koristi izmerenu visinu
+        height: actualHeight, // Eksplicitna visina za capture
         scrollX: 0,
         scrollY: 0,
       });
@@ -392,24 +408,24 @@ export default function InvoiceDetail() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // Margine za sigurnost
-      const margin = 3; // 3mm margina
+      // Margine za sigurnost - povećane da se ništa ne seče
+      const margin = 5; // 5mm margina
       const usableWidth = pdfWidth - (margin * 2);
       const usableHeight = pdfHeight - (margin * 2);
       
       let finalWidth = usableWidth;
       let finalHeight = (canvas.height * usableWidth) / canvas.width;
 
-      // Ako je previsoko, skaliraj da stane na jednu stranu
+      // Ako je previsoko, skaliraj da stane na jednu stranu sa dodatnim sigurnosnim faktorom
       if (finalHeight > usableHeight) {
-        const scale = usableHeight / finalHeight;
+        const scale = (usableHeight / finalHeight) * 0.98; // 2% sigurnosni faktor
         finalWidth = usableWidth * scale;
-        finalHeight = usableHeight;
+        finalHeight = usableHeight * 0.98;
       }
 
-      // Centriraj horizontalno, gornja margina
+      // Centriraj horizontalno i vertikalno
       const xOffset = (pdfWidth - finalWidth) / 2;
-      const yOffset = margin;
+      const yOffset = (pdfHeight - finalHeight) / 2;
 
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', xOffset, yOffset, finalWidth, finalHeight);
 
@@ -563,6 +579,11 @@ export default function InvoiceDetail() {
               <div className="space-y-1">
                 <p className="font-semibold text-lg">{selectedCompany.name}</p>
                 <p className="text-sm">{selectedCompany.address}</p>
+                {(selectedCompany.city || selectedCompany.country) && (
+                  <p className="text-sm">
+                    {[selectedCompany.city, selectedCompany.country].filter(Boolean).join(', ')}
+                  </p>
+                )}
                 <p className="text-sm">{t('tax_id')}: {selectedCompany.pib}</p>
                 <p className="text-sm">{t('reg_no')}: {selectedCompany.maticni_broj}</p>
                 {selectedCompany.bank_account && invoice.client_type === 'domestic' && (

@@ -96,6 +96,7 @@ export type Database = {
           address: string
           bank_account: string | null
           city: string | null
+          country: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -111,6 +112,7 @@ export type Database = {
           address: string
           bank_account?: string | null
           city?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -126,6 +128,7 @@ export type Database = {
           address?: string
           bank_account?: string | null
           city?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -422,7 +425,7 @@ export type Database = {
           sef_invoice_id: string | null
           sef_sent_at: string | null
           sef_status: string | null
-          service_date: string | null
+          service_date: string
           total_amount: number
           unit_price: number
           year: number
@@ -463,7 +466,7 @@ export type Database = {
           sef_invoice_id?: string | null
           sef_sent_at?: string | null
           sef_status?: string | null
-          service_date?: string | null
+          service_date: string
           total_amount: number
           unit_price: number
           year?: number
@@ -504,7 +507,7 @@ export type Database = {
           sef_invoice_id?: string | null
           sef_sent_at?: string | null
           sef_status?: string | null
-          service_date?: string | null
+          service_date?: string
           total_amount?: number
           unit_price?: number
           year?: number
