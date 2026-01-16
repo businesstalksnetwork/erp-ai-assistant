@@ -51,6 +51,7 @@ export default function Clients() {
     country: '',
     pib: '',
     maticni_broj: '',
+    vat_number: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
   });
 
@@ -62,6 +63,7 @@ export default function Clients() {
       country: '',
       pib: '',
       maticni_broj: '',
+      vat_number: '',
       client_type: 'domestic',
     });
     setEditId(null);
@@ -80,6 +82,7 @@ export default function Clients() {
       country: client.country || '',
       pib: client.pib || '',
       maticni_broj: client.maticni_broj || '',
+      vat_number: client.vat_number || '',
       client_type: client.client_type,
     });
     setEditId(client.id);
@@ -232,7 +235,7 @@ export default function Clients() {
                     placeholder={formData.client_type === 'domestic' ? 'Srbija (opciono)' : 'Nemačka'}
                   />
                 </div>
-                {formData.client_type === 'domestic' && (
+                {formData.client_type === 'domestic' ? (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="pib">PIB</Label>
@@ -272,6 +275,17 @@ export default function Clients() {
                       />
                     </div>
                   </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="vat_number">VAT broj</Label>
+                    <Input
+                      id="vat_number"
+                      value={formData.vat_number}
+                      onChange={(e) => setFormData({ ...formData, vat_number: e.target.value })}
+                      placeholder="DE123456789"
+                    />
+                    <p className="text-xs text-muted-foreground">Poreski identifikacioni broj stranog klijenta</p>
+                  </div>
                 )}
               </div>
               <DialogFooter>
@@ -324,17 +338,28 @@ export default function Clients() {
               <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex gap-3 sm:gap-4 min-w-0">
-                    {client.pib && (
-                      <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">PIB</p>
-                        <p className="font-mono text-xs sm:text-sm truncate">{client.pib}</p>
-                      </div>
-                    )}
-                    {client.maticni_broj && (
-                      <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">MB</p>
-                        <p className="font-mono text-xs sm:text-sm truncate">{client.maticni_broj}</p>
-                      </div>
+                    {client.client_type === 'domestic' ? (
+                      <>
+                        {client.pib && (
+                          <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">PIB</p>
+                            <p className="font-mono text-xs sm:text-sm truncate">{client.pib}</p>
+                          </div>
+                        )}
+                        {client.maticni_broj && (
+                          <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">MB</p>
+                            <p className="font-mono text-xs sm:text-sm truncate">{client.maticni_broj}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      client.vat_number && (
+                        <div className="min-w-0">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">VAT</p>
+                          <p className="font-mono text-xs sm:text-sm truncate">{client.vat_number}</p>
+                        </div>
+                      )
                     )}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">

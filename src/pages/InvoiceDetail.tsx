@@ -636,8 +636,14 @@ export default function InvoiceDetail() {
                     {[invoice.client_city, invoice.client_country].filter(Boolean).join(', ')}
                   </p>
                 )}
-                {invoice.client_pib && <p className="text-sm">{t('tax_id')}: {invoice.client_pib}</p>}
-                {invoice.client_maticni_broj && <p className="text-sm">{t('reg_no')}: {invoice.client_maticni_broj}</p>}
+                {invoice.client_type === 'domestic' ? (
+                  <>
+                    {invoice.client_pib && <p className="text-sm">{t('tax_id')}: {invoice.client_pib}</p>}
+                    {invoice.client_maticni_broj && <p className="text-sm">{t('reg_no')}: {invoice.client_maticni_broj}</p>}
+                  </>
+                ) : (
+                  (invoice as any).client_vat_number && <p className="text-sm">VAT: {(invoice as any).client_vat_number}</p>
+                )}
                 <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-2 print:hidden">
                   {invoice.client_type === 'domestic' ? t('domestic') : t('foreign')}
                 </Badge>

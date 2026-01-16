@@ -56,6 +56,7 @@ export type Database = {
           maticni_broj: string | null
           name: string
           pib: string | null
+          vat_number: string | null
         }
         Insert: {
           address?: string | null
@@ -68,6 +69,7 @@ export type Database = {
           maticni_broj?: string | null
           name: string
           pib?: string | null
+          vat_number?: string | null
         }
         Update: {
           address?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           maticni_broj?: string | null
           name?: string
           pib?: string | null
+          vat_number?: string | null
         }
         Relationships: [
           {
@@ -324,6 +327,7 @@ export type Database = {
           client_name: string
           client_pib: string | null
           client_type: string
+          client_vat_number: string | null
           company_id: string
           created_at: string | null
           foreign_currency: string | null
@@ -342,6 +346,7 @@ export type Database = {
           client_name: string
           client_pib?: string | null
           client_type?: string
+          client_vat_number?: string | null
           company_id: string
           created_at?: string | null
           foreign_currency?: string | null
@@ -360,6 +365,7 @@ export type Database = {
           client_name?: string
           client_pib?: string | null
           client_type?: string
+          client_vat_number?: string | null
           company_id?: string
           created_at?: string | null
           foreign_currency?: string | null
@@ -399,6 +405,7 @@ export type Database = {
           client_name: string
           client_pib: string | null
           client_type: Database["public"]["Enums"]["client_type"]
+          client_vat_number: string | null
           company_id: string
           converted_from_proforma: string | null
           created_at: string
@@ -440,6 +447,7 @@ export type Database = {
           client_name: string
           client_pib?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
+          client_vat_number?: string | null
           company_id: string
           converted_from_proforma?: string | null
           created_at?: string
@@ -481,6 +489,7 @@ export type Database = {
           client_name?: string
           client_pib?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
+          client_vat_number?: string | null
           company_id?: string
           converted_from_proforma?: string | null
           created_at?: string

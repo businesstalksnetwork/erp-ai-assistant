@@ -11,6 +11,7 @@ export interface Client {
   country: string | null;
   pib: string | null;
   maticni_broj: string | null;
+  vat_number: string | null;
   client_type: 'domestic' | 'foreign';
   created_at: string;
 }
