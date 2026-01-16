@@ -232,22 +232,26 @@
 }
 
 /* PDF Export styles - forces pure white/black for maximum contrast */
+/* KRITIČNO: Ovi stilovi moraju garantovati čitljiv PDF na mobilnim uređajima */
 .pdf-export {
   --background: 0 0% 100% !important;
   --foreground: 0 0% 0% !important;
   --card: 0 0% 100% !important;
   --card-foreground: 0 0% 0% !important;
   --muted: 0 0% 96% !important;
-  --muted-foreground: 0 0% 15% !important;
+  --muted-foreground: 0 0% 10% !important;
   --secondary: 0 0% 96% !important;
-  --secondary-foreground: 0 0% 5% !important;
-  --border: 0 0% 70% !important;
-  --primary: 0 0% 15% !important;
+  --secondary-foreground: 0 0% 0% !important;
+  --border: 0 0% 50% !important;
+  --primary: 0 0% 10% !important;
   --primary-foreground: 0 0% 100% !important;
   --popover: 0 0% 100% !important;
   --popover-foreground: 0 0% 0% !important;
-  --accent: 0 0% 15% !important;
+  --accent: 0 0% 10% !important;
   --accent-foreground: 0 0% 100% !important;
+  
+  /* Kompaktni stilovi za PDF - manji fontovi i razmaci */
+  font-size: 12px !important;
 }
 
 .pdf-export .print-invoice {
@@ -318,15 +322,65 @@
 }
 
 .pdf-export .print-invoice .text-muted-foreground {
-  color: #222222 !important;
-  -webkit-text-fill-color: #222222 !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
 }
 
 .pdf-export .print-invoice .text-gray-500,
 .pdf-export .print-invoice .text-gray-600,
 .pdf-export .print-invoice .text-gray-700 {
-  color: #222222 !important;
-  -webkit-text-fill-color: #222222 !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+
+/* Kompaktni razmaci za PDF - da sve stane na jednu stranu */
+.pdf-export .print-invoice .space-y-6 > * + * {
+  margin-top: 8px !important;
+}
+
+.pdf-export .print-invoice .space-y-4 > * + * {
+  margin-top: 6px !important;
+}
+
+.pdf-export .print-invoice .gap-6 {
+  gap: 10px !important;
+}
+
+.pdf-export .print-invoice .gap-4 {
+  gap: 8px !important;
+}
+
+.pdf-export .print-invoice .p-4 {
+  padding: 10px !important;
+}
+
+.pdf-export .print-invoice .p-3 {
+  padding: 6px 8px !important;
+}
+
+.pdf-export .print-invoice .text-2xl {
+  font-size: 16px !important;
+}
+
+.pdf-export .print-invoice .text-lg {
+  font-size: 13px !important;
+}
+
+.pdf-export .print-invoice .text-sm {
+  font-size: 11px !important;
+}
+
+.pdf-export .print-invoice .text-xs {
+  font-size: 10px !important;
+}
+
+.pdf-export .print-invoice table {
+  font-size: 11px !important;
+}
+
+.pdf-export .print-invoice th,
+.pdf-export .print-invoice td {
+  padding: 4px 6px !important;
 }
 
 /* Badge stilovi za PDF - visok kontrast */
