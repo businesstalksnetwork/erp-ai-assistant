@@ -560,6 +560,11 @@ export default function InvoiceDetail() {
               <div className="space-y-1">
                 <p className="font-semibold text-lg">{invoice.client_name}</p>
                 {invoice.client_address && <p className="text-sm">{invoice.client_address}</p>}
+                {(invoice.client_city || invoice.client_country) && (
+                  <p className="text-sm">
+                    {[invoice.client_city, invoice.client_country].filter(Boolean).join(', ')}
+                  </p>
+                )}
                 {invoice.client_pib && <p className="text-sm">{t('tax_id')}: {invoice.client_pib}</p>}
                 {invoice.client_maticni_broj && <p className="text-sm">{t('reg_no')}: {invoice.client_maticni_broj}</p>}
                 <Badge variant={invoice.client_type === 'domestic' ? 'default' : 'secondary'} className="mt-2 print:hidden">
