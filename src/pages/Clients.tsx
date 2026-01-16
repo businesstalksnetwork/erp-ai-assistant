@@ -223,17 +223,15 @@ export default function Clients() {
                     />
                   </div>
                 </div>
-                {formData.client_type === 'foreign' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Država</Label>
-                    <Input
-                      id="country"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      placeholder="Nemačka"
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="country">Država</Label>
+                  <Input
+                    id="country"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    placeholder={formData.client_type === 'domestic' ? 'Srbija (opciono)' : 'Nemačka'}
+                  />
+                </div>
                 {formData.client_type === 'domestic' && (
                   <>
                     <div className="space-y-2">

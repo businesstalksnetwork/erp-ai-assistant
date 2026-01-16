@@ -9,6 +9,7 @@ export interface Company {
   name: string;
   address: string;
   city: string | null;
+  country: string | null;
   pib: string;
   maticni_broj: string;
   bank_account: string | null;

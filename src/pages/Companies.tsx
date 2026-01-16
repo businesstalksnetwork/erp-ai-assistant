@@ -48,6 +48,7 @@ export default function Companies() {
     name: '',
     address: '',
     city: '',
+    country: '',
     pib: '',
     maticni_broj: '',
     bank_account: '',
@@ -64,6 +65,7 @@ export default function Companies() {
       name: '',
       address: '',
       city: '',
+      country: '',
       pib: '',
       maticni_broj: '',
       bank_account: '',
@@ -86,6 +88,7 @@ export default function Companies() {
       name: company.name,
       address: company.address,
       city: company.city || '',
+      country: company.country || '',
       pib: company.pib,
       maticni_broj: company.maticni_broj,
       bank_account: company.bank_account || '',
@@ -248,6 +251,15 @@ export default function Companies() {
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                       placeholder="Beograd"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Država</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      placeholder="Srbija (opciono)"
                     />
                   </div>
                 </div>

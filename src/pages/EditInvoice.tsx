@@ -37,6 +37,7 @@ interface InvoiceItem {
 
 const invoiceSchema = z.object({
   client_name: z.string().min(2, 'Naziv klijenta je obavezan'),
+  service_date: z.string().min(1, 'Datum prometa je obavezan'),
   items: z.array(z.object({
     description: z.string().min(2, 'Opis je obavezan'),
     quantity: z.number().min(0.01, 'Količina mora biti veća od 0'),
@@ -193,22 +194,20 @@ export default function EditInvoice() {
   const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
-  // Determine place of service based on items - always use CITY only
+  // Determine place of service based on items - always use CITY + COUNTRY
   const getPlaceOfService = () => {
     const hasServices = items.some(i => i.item_type === 'services' && i.quantity > 0);
     const hasProducts = items.some(i => i.item_type === 'products' && i.quantity > 0);
     
-    // Only services - use client city (and country for foreign clients)
+    // Only services - use client city and country (for ALL clients, not just foreign)
     if (hasServices && !hasProducts) {
-      if (formData.client_type === 'foreign') {
-        const parts = [formData.client_city, formData.client_country].filter(Boolean);
-        return parts.length > 0 ? parts.join(', ') : '';
-      }
-      return formData.client_city || '';
+      const parts = [formData.client_city, formData.client_country].filter(Boolean);
+      return parts.length > 0 ? parts.join(', ') : '';
     }
     
-    // Products or mixed - use company city only
-    return selectedCompany?.city || '';
+    // Products or mixed - use company city + country
+    const companyParts = [selectedCompany?.city, selectedCompany?.country].filter(Boolean);
+    return companyParts.length > 0 ? companyParts.join(', ') : (selectedCompany?.city || '');
   };
 
   // Determine invoice year from service_date or issue_date
@@ -361,6 +360,7 @@ export default function EditInvoice() {
 
     const result = invoiceSchema.safeParse({
       client_name: formData.client_name,
+      service_date: formData.service_date,
       items: items.map(i => ({
         description: i.description,
         quantity: i.quantity,
@@ -563,12 +563,14 @@ export default function EditInvoice() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="service_date">Datum prometa</Label>
+                <Label htmlFor="service_date">Datum prometa *</Label>
                 <DateInput
                   id="service_date"
                   value={formData.service_date}
                   onChange={(e) => setFormData({ ...formData, service_date: e.target.value })}
+                  required
                 />
+                {errors.service_date && <p className="text-sm text-destructive">{errors.service_date}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="place_of_service">Mesto prometa</Label>
