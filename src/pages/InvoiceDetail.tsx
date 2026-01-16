@@ -13,6 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo-light.png';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Helper funkcija za formatiranje broja računa za IPS (tačno 18 cifara)
 function formatAccountForIPS(account: string): string {
@@ -162,7 +163,7 @@ export default function InvoiceDetail() {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  
+  const isMobileDevice = useIsMobile();
 
   const invoice = invoices.find((i) => i.id === id);
   const linkedAdvance = invoice ? getLinkedAdvance(invoice.linked_advance_id) : null;
@@ -275,9 +276,9 @@ export default function InvoiceDetail() {
     });
 
     // FORSIRATI MAKSIMALAN KONTRAST - čisto crna na beloj
+    // Na mobilnom: sve boje su čisto crne za maksimalnu čitljivost
     const solidText = '#000000';
-    const mutedText = '#222222';
-
+    const mutedText = isMobile ? '#000000' : '#222222';
     clone.style.backgroundColor = '#ffffff';
     clone.style.background = '#ffffff';
     clone.style.color = solidText;
@@ -344,12 +345,8 @@ export default function InvoiceDetail() {
       const actualHeight = wrapper.scrollHeight;
       wrapper.style.height = actualHeight + 'px';
 
-      // Na mobilnom NE radimo pixel post-processing (uzrokuje prazne PDF-ove)
-      // Umesto toga, oslanjamo se na CSS + inline stilove koji su već primenjeni gore
+      // Pojačaj kontrast na canvas-u - agresivnije na mobilnom
       const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
-        // Preskačemo na mobilnom - inline stilovi već osiguravaju crn tekst
-        if (isMobile) return;
-        
         const ctx = targetCanvas.getContext('2d');
         if (!ctx) return;
 
@@ -357,8 +354,10 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // Blaži kontrast za desktop - CSS već radi većinu posla
-        const contrast = 1.3;
+        // Jači kontrast za mobilni (2.5), blaži za desktop (1.3)
+        const contrast = isMobile ? 2.5 : 1.3;
+        // Na mobilnom: svi pikseli ispod ovog praga postaju čisto crni
+        const blackThreshold = isMobile ? 200 : 245;
 
         const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
@@ -370,18 +369,28 @@ export default function InvoiceDetail() {
           let g = data[i + 1];
           let b = data[i + 2];
 
-          // Održavaj čistu belu pozadinu
-          if (r > 245 && g > 245 && b > 245) {
+          // Čista bela pozadina
+          if (r > 240 && g > 240 && b > 240) {
             data[i] = 255;
             data[i + 1] = 255;
             data[i + 2] = 255;
             continue;
           }
 
-          // Blaži kontrast - samo pojačaj razlike
+          // Pojačaj kontrast
           r = (r - 128) * contrast + 128;
           g = (g - 128) * contrast + 128;
           b = (b - 128) * contrast + 128;
+
+          // Na mobilnom: zatamni sve što nije belo na ČISTO CRNO
+          if (isMobile) {
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            if (luminance < blackThreshold) {
+              r = 0;
+              g = 0;
+              b = 0;
+            }
+          }
 
           data[i] = clamp(r);
           data[i + 1] = clamp(g);
@@ -525,18 +534,20 @@ export default function InvoiceDetail() {
             items={displayItems} 
             companyId={selectedCompany.id} 
           />
-          <Button 
-            onClick={handleDownloadPDF} 
-            className="flex-1 sm:flex-none"
-            disabled={isGeneratingPDF}
-          >
-            {isGeneratingPDF ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            {isGeneratingPDF ? 'Generisanje...' : 'Sačuvaj PDF'}
-          </Button>
+          {isMobileDevice && (
+            <Button 
+              onClick={handleDownloadPDF} 
+              className="flex-1 sm:flex-none"
+              disabled={isGeneratingPDF}
+            >
+              {isGeneratingPDF ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {isGeneratingPDF ? 'Generisanje...' : 'Sačuvaj PDF'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="mr-2 h-4 w-4" />
             {t('print')}
