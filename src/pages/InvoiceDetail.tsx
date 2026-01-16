@@ -349,9 +349,9 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // Pojačan kontrast za maksimalnu čitljivost PDF-a
-        const contrast = 1.5;
-        const brightness = 0.88;
+        // MAKSIMALAN kontrast za mobilne uređaje - tekst mora biti čisto crn
+        const contrast = 2.2; // Povećano sa 1.5 na 2.2
+        const darkBoost = 0.6; // Multiplikator koji zatamnjuje tamne piksele
 
         const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
@@ -364,16 +364,25 @@ export default function InvoiceDetail() {
           let b = data[i + 2];
 
           // Održavaj čistu belu pozadinu
-          if (r > 245 && g > 245 && b > 245) {
+          if (r > 240 && g > 240 && b > 240) {
             data[i] = 255;
             data[i + 1] = 255;
             data[i + 2] = 255;
             continue;
           }
 
-          r = ((r - 128) * contrast + 128) * brightness;
-          g = ((g - 128) * contrast + 128) * brightness;
-          b = ((b - 128) * contrast + 128) * brightness;
+          // Pojačaj kontrast
+          r = (r - 128) * contrast + 128;
+          g = (g - 128) * contrast + 128;
+          b = (b - 128) * contrast + 128;
+
+          // Zatamni tamne piksele dodatno (tekst)
+          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+          if (luminance < 160) {
+            r = r * darkBoost;
+            g = g * darkBoost;
+            b = b * darkBoost;
+          }
 
           data[i] = clamp(r);
           data[i + 1] = clamp(g);
