@@ -389,6 +389,8 @@ export type Database = {
         Row: {
           advance_status: string | null
           client_address: string | null
+          client_city: string | null
+          client_country: string | null
           client_id: string | null
           client_maticni_broj: string | null
           client_name: string
@@ -428,6 +430,8 @@ export type Database = {
         Insert: {
           advance_status?: string | null
           client_address?: string | null
+          client_city?: string | null
+          client_country?: string | null
           client_id?: string | null
           client_maticni_broj?: string | null
           client_name: string
@@ -467,6 +471,8 @@ export type Database = {
         Update: {
           advance_status?: string | null
           client_address?: string | null
+          client_city?: string | null
+          client_country?: string | null
           client_id?: string | null
           client_maticni_broj?: string | null
           client_name?: string

@@ -118,10 +118,10 @@ export default function EditInvoice() {
       }
 
       // Load form data from invoice
-      // Get client city and country from clients table if exists
-      let clientCity = '';
-      let clientCountry = '';
-      if (invoice.client_id) {
+      // First try to get city/country from invoice itself, fallback to clients table
+      let clientCity = invoice.client_city || '';
+      let clientCountry = invoice.client_country || '';
+      if (!clientCity && !clientCountry && invoice.client_id) {
         const { data: clientData } = await supabase
           .from('clients')
           .select('city, country')
@@ -193,19 +193,22 @@ export default function EditInvoice() {
   const servicesTotal = items.filter(i => i.item_type === 'services').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const productsTotal = items.filter(i => i.item_type === 'products').reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
-  // Determine place of service based on items
+  // Determine place of service based on items - always use CITY only
   const getPlaceOfService = () => {
     const hasServices = items.some(i => i.item_type === 'services' && i.quantity > 0);
     const hasProducts = items.some(i => i.item_type === 'products' && i.quantity > 0);
     
-    // Only services - use client city + country
+    // Only services - use client city (and country for foreign clients)
     if (hasServices && !hasProducts) {
-      const parts = [formData.client_city, formData.client_country].filter(Boolean);
-      return parts.length > 0 ? parts.join(', ') : formData.client_address;
+      if (formData.client_type === 'foreign') {
+        const parts = [formData.client_city, formData.client_country].filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : '';
+      }
+      return formData.client_city || '';
     }
     
-    // Products or mixed - use company city
-    return selectedCompany?.city || selectedCompany?.address || '';
+    // Products or mixed - use company city only
+    return selectedCompany?.city || '';
   };
 
   // Determine invoice year from service_date or issue_date
@@ -393,6 +396,8 @@ export default function EditInvoice() {
         client_id: formData.client_id || null,
         client_name: formData.client_name,
         client_address: formData.client_address || null,
+        client_city: formData.client_city || null,
+        client_country: formData.client_country || null,
         client_pib: formData.client_pib || null,
         client_maticni_broj: formData.client_maticni_broj || null,
         client_type: formData.client_type,
