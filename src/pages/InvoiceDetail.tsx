@@ -345,7 +345,7 @@ export default function InvoiceDetail() {
       const actualHeight = wrapper.scrollHeight;
       wrapper.style.height = actualHeight + 'px';
 
-      // Pojačaj kontrast na canvas-u - agresivnije na mobilnom
+      // Pojačaj kontrast na canvas-u - AGRESIVNO za mobilni
       const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
         const ctx = targetCanvas.getContext('2d');
         if (!ctx) return;
@@ -354,10 +354,10 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // Jači kontrast za mobilni (2.5), blaži za desktop (1.3)
-        const contrast = isMobile ? 2.5 : 1.3;
-        // Na mobilnom: svi pikseli ispod ovog praga postaju čisto crni
-        const blackThreshold = isMobile ? 200 : 245;
+        // MAKSIMALAN kontrast za mobilni - svi pikseli postaju ili crni ili beli
+        const contrast = isMobile ? 3.0 : 1.3;
+        // Snizi prag tako da sav tekst postane čisto crn
+        const blackThreshold = isMobile ? 230 : 245;
 
         const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
@@ -369,32 +369,36 @@ export default function InvoiceDetail() {
           let g = data[i + 1];
           let b = data[i + 2];
 
-          // Čista bela pozadina
-          if (r > 240 && g > 240 && b > 240) {
+          // Čista bela pozadina - ali samo za jako svetle piksele
+          if (r > 250 && g > 250 && b > 250) {
             data[i] = 255;
             data[i + 1] = 255;
             data[i + 2] = 255;
             continue;
           }
 
-          // Pojačaj kontrast
-          r = (r - 128) * contrast + 128;
-          g = (g - 128) * contrast + 128;
-          b = (b - 128) * contrast + 128;
-
-          // Na mobilnom: zatamni sve što nije belo na ČISTO CRNO
+          // Na mobilnom: svi pikseli ispod praga luminance postaju ČISTO CRNI
           if (isMobile) {
             const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
             if (luminance < blackThreshold) {
-              r = 0;
-              g = 0;
-              b = 0;
+              data[i] = 0;
+              data[i + 1] = 0;
+              data[i + 2] = 0;
+            } else {
+              // Svetli pikseli postaju beli
+              data[i] = 255;
+              data[i + 1] = 255;
+              data[i + 2] = 255;
             }
+          } else {
+            // Desktop: samo pojačaj kontrast
+            r = (r - 128) * contrast + 128;
+            g = (g - 128) * contrast + 128;
+            b = (b - 128) * contrast + 128;
+            data[i] = clamp(r);
+            data[i + 1] = clamp(g);
+            data[i + 2] = clamp(b);
           }
-
-          data[i] = clamp(r);
-          data[i + 1] = clamp(g);
-          data[i + 2] = clamp(b);
         }
 
         ctx.putImageData(imageData, 0, 0);
@@ -514,7 +518,7 @@ export default function InvoiceDetail() {
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('back')}
+          Vrati se nazad
         </Button>
         <div className="flex gap-2 flex-wrap">
           <CreateTemplateDialog 
@@ -550,7 +554,7 @@ export default function InvoiceDetail() {
           )}
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="mr-2 h-4 w-4" />
-            {t('print')}
+            Štampaj
           </Button>
         </div>
       </div>
