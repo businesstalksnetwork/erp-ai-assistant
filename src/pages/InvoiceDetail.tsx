@@ -242,17 +242,28 @@ export default function InvoiceDetail() {
 
     setIsGeneratingPDF(true);
 
-    // Kreiraj offscreen wrapper sa fiksnom A4 širinom
+    // Kreiraj offscreen wrapper sa fiksnom A4 širinom i auto visinom
     const wrapper = document.createElement('div');
     wrapper.style.position = 'absolute';
     wrapper.style.left = '-9999px';
     wrapper.style.top = '0';
     wrapper.style.width = '794px'; // A4 širina na 96dpi
+    wrapper.style.minHeight = '1123px'; // A4 visina na 96dpi
+    wrapper.style.height = 'auto';
+    wrapper.style.overflow = 'visible';
     wrapper.style.background = 'white';
+    wrapper.style.padding = '24px';
     wrapper.className = 'pdf-export';
 
     // Kloniraj sadržaj fakture
     const clone = invoiceElement.cloneNode(true) as HTMLElement;
+    
+    // Osiguraj da clone ima sve potrebne stilove za pun prikaz
+    clone.style.width = '100%';
+    clone.style.height = 'auto';
+    clone.style.minHeight = 'auto';
+    clone.style.overflow = 'visible';
+    clone.style.position = 'relative';
     
     // Sakrij print:hidden elemente u klonu
     clone.querySelectorAll('.print\\:hidden').forEach(el => {
@@ -357,18 +368,21 @@ export default function InvoiceDetail() {
         ctx.putImageData(imageData, 0, 0);
       };
 
-      // Renderuj offscreen wrapper
+      // Renderuj offscreen wrapper sa dinamičkom visinom
       const canvas = await html2canvas(wrapper, {
         scale: 2,
         useCORS: true,
-        backgroundColor: 'hsl(0 0% 100%)',
+        backgroundColor: '#ffffff',
         logging: false,
+        windowWidth: 794,
+        windowHeight: wrapper.scrollHeight, // Dinamička visina za ceo sadržaj
+        scrollX: 0,
+        scrollY: 0,
       });
 
       boostCanvasContrast(canvas);
 
-
-      // Kreiraj PDF - FIT TO PAGE (jedna strana)
+      // Kreiraj PDF - FIT TO PAGE (jedna strana) sa marginama
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -378,23 +392,26 @@ export default function InvoiceDetail() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Margine za sigurnost
+      const margin = 3; // 3mm margina
+      const usableWidth = pdfWidth - (margin * 2);
+      const usableHeight = pdfHeight - (margin * 2);
+      
+      let finalWidth = usableWidth;
+      let finalHeight = (canvas.height * usableWidth) / canvas.width;
 
       // Ako je previsoko, skaliraj da stane na jednu stranu
-      let finalWidth = imgWidth;
-      let finalHeight = imgHeight;
-      
-      if (imgHeight > pdfHeight) {
-        const scale = pdfHeight / imgHeight;
-        finalWidth = imgWidth * scale;
-        finalHeight = pdfHeight;
+      if (finalHeight > usableHeight) {
+        const scale = usableHeight / finalHeight;
+        finalWidth = usableWidth * scale;
+        finalHeight = usableHeight;
       }
 
-      // Centriraj horizontalno
+      // Centriraj horizontalno, gornja margina
       const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = margin;
 
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', xOffset, 0, finalWidth, finalHeight);
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', xOffset, yOffset, finalWidth, finalHeight);
 
       // Ime fajla bazirano na broju fakture
       const docType = invoice.invoice_type === 'proforma' || invoice.is_proforma 
