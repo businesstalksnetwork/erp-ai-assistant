@@ -79,6 +79,7 @@ export default function NewInvoice() {
     client_country: '',
     client_pib: '',
     client_maticni_broj: '',
+    client_vat_number: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
     foreign_currency: '',
     foreign_amount: 0,
@@ -249,6 +250,7 @@ export default function NewInvoice() {
         client_country: '',
         client_pib: '',
         client_maticni_broj: '',
+        client_vat_number: '',
         client_type: 'domestic',
       }));
       return;
@@ -265,6 +267,7 @@ export default function NewInvoice() {
         client_country: client.country || '',
         client_pib: client.pib || '',
         client_maticni_broj: client.maticni_broj || '',
+        client_vat_number: client.vat_number || '',
         client_type: client.client_type,
       }));
     }
@@ -283,6 +286,7 @@ export default function NewInvoice() {
       client_address: template.client_address || '',
       client_pib: template.client_pib || '',
       client_maticni_broj: template.client_maticni_broj || '',
+      client_vat_number: (template as any).client_vat_number || '',
       client_type: template.client_type as 'domestic' | 'foreign',
       foreign_currency: template.foreign_currency || '',
       exchange_rate: 0, // Reset - will be fetched fresh
@@ -419,6 +423,7 @@ export default function NewInvoice() {
           client_country: formData.client_country || null,
           client_pib: formData.client_pib || null,
           client_maticni_broj: formData.client_maticni_broj || null,
+          client_vat_number: formData.client_type === 'foreign' ? formData.client_vat_number || null : null,
           client_type: formData.client_type,
           description: items.map(i => i.description).join('; '),
           quantity: 1,

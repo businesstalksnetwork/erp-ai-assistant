@@ -22,6 +22,7 @@ interface Invoice {
   client_address: string | null;
   client_pib: string | null;
   client_maticni_broj: string | null;
+  client_vat_number?: string | null;
   client_type: 'domestic' | 'foreign';
   foreign_currency: string | null;
   payment_method: string | null;
@@ -69,12 +70,13 @@ export function CreateTemplateDialog({ invoice, items, companyId }: CreateTempla
       client_address: invoice.client_address,
       client_pib: invoice.client_pib,
       client_maticni_broj: invoice.client_maticni_broj,
+      client_vat_number: invoice.client_vat_number,
       client_type: invoice.client_type,
       foreign_currency: invoice.foreign_currency,
       items: templateItems,
       payment_method: invoice.payment_method,
       note: invoice.note,
-    });
+    } as any);
 
     setName('');
     setOpen(false);

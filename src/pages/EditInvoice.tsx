@@ -76,6 +76,7 @@ export default function EditInvoice() {
     client_country: '',
     client_pib: '',
     client_maticni_broj: '',
+    client_vat_number: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
     foreign_currency: '',
     foreign_amount: 0,
@@ -143,6 +144,7 @@ export default function EditInvoice() {
         client_country: clientCountry,
         client_pib: invoice.client_pib || '',
         client_maticni_broj: invoice.client_maticni_broj || '',
+        client_vat_number: (invoice as any).client_vat_number || '',
         client_type: invoice.client_type,
         foreign_currency: invoice.foreign_currency || '',
         foreign_amount: invoice.foreign_amount || 0,
@@ -299,6 +301,7 @@ export default function EditInvoice() {
         client_country: '',
         client_pib: '',
         client_maticni_broj: '',
+        client_vat_number: '',
         client_type: 'domestic',
       }));
       return;
@@ -315,6 +318,7 @@ export default function EditInvoice() {
         client_country: client.country || '',
         client_pib: client.pib || '',
         client_maticni_broj: client.maticni_broj || '',
+        client_vat_number: client.vat_number || '',
         client_type: client.client_type,
       }));
     }
@@ -400,6 +404,7 @@ export default function EditInvoice() {
         client_country: formData.client_country || null,
         client_pib: formData.client_pib || null,
         client_maticni_broj: formData.client_maticni_broj || null,
+        client_vat_number: formData.client_type === 'foreign' ? formData.client_vat_number || null : null,
         client_type: formData.client_type,
         description: items.map(i => i.description).join('; '),
         quantity: 1,
@@ -413,7 +418,7 @@ export default function EditInvoice() {
         payment_method: formData.payment_method || null,
         note: formData.note || null,
         year: invoiceYear,
-      });
+      } as any);
 
       // Delete old invoice items and insert new ones
       await supabase.from('invoice_items').delete().eq('invoice_id', id!);
