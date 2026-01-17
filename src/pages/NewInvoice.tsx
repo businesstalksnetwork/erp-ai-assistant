@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check } from 'lucide-react';
+import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -60,6 +60,7 @@ export default function NewInvoice() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
+  const [openClientPopover, setOpenClientPopover] = useState(false);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
   const lastAppliedCurrencyRef = useRef<string | null>(null);
@@ -692,19 +693,56 @@ export default function NewInvoice() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Izaberi postojećeg klijenta</Label>
-              <Select value={formData.client_id || 'new'} onValueChange={handleClientSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Izaberi klijenta ili unesi novog" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">+ Unesi novog klijenta</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} {client.client_type === 'foreign' && '(Strani)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={openClientPopover} onOpenChange={setOpenClientPopover}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    role="combobox" 
+                    aria-expanded={openClientPopover}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.client_id && formData.client_id !== 'new'
+                      ? clients.find(c => c.id === formData.client_id)?.name || 'Izaberi klijenta'
+                      : 'Izaberi klijenta ili unesi novog'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Pretraži klijente..." />
+                    <CommandList>
+                      <CommandEmpty>Nema rezultata</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem 
+                          onSelect={() => {
+                            handleClientSelect('new');
+                            setOpenClientPopover(false);
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Unesi novog klijenta
+                        </CommandItem>
+                        {clients.map((client) => (
+                          <CommandItem 
+                            key={client.id}
+                            value={client.name}
+                            onSelect={() => {
+                              handleClientSelect(client.id);
+                              setOpenClientPopover(false);
+                            }}
+                          >
+                            <Check className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                            )} />
+                            {client.name} {client.client_type === 'foreign' && '(Strani)'}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
