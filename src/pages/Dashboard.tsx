@@ -21,6 +21,8 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  Check,
+  Users,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -48,6 +50,27 @@ export default function Dashboard() {
   };
 
   const recentInvoices = invoices.filter(i => !i.is_proforma).slice(0, 5);
+
+  // Izračunaj udeo najvećeg partnera u godišnjem prometu (Test samostalnosti)
+  const currentYear = new Date().getFullYear();
+  const yearlyRegularInvoices = invoices.filter(i => 
+    !i.is_proforma && 
+    i.invoice_type === 'regular' && 
+    i.year === currentYear
+  );
+
+  const clientTotals = yearlyRegularInvoices.reduce((acc, inv) => {
+    const clientName = inv.client_name;
+    acc[clientName] = (acc[clientName] || 0) + inv.total_amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalYearlyForIndependence = Object.values(clientTotals).reduce((a, b) => a + b, 0);
+  const topClient = Object.entries(clientTotals).sort((a, b) => b[1] - a[1])[0];
+  const topClientName = topClient?.[0] || null;
+  const topClientAmount = topClient?.[1] || 0;
+  const topClientPercent = totalYearlyForIndependence > 0 ? (topClientAmount / totalYearlyForIndependence) * 100 : 0;
+  const isIndependenceWarning = topClientPercent > 70;
 
   if (!isApproved) {
     return (
@@ -164,7 +187,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <Card className="card-hover group">
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Ukupno faktura</CardTitle>
@@ -188,7 +211,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="card-hover group col-span-2 sm:col-span-1">
+        <Card className="card-hover group">
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Aktivni podsetnici</CardTitle>
             <Bell className="h-3 w-3 sm:h-4 sm:w-4 text-warning group-hover:animate-bounce-subtle" />
@@ -198,6 +221,41 @@ export default function Dashboard() {
             <p className="text-[10px] sm:text-xs text-muted-foreground">
               Podsetnici za plaćanje
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Test samostalnosti */}
+        <Card className={cn(
+          "card-hover group",
+          isIndependenceWarning && "border-destructive bg-destructive/5"
+        )}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium leading-tight">
+              Test samostalnosti
+            </CardTitle>
+            {isIndependenceWarning ? (
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive animate-pulse-slow" />
+            ) : (
+              <Check className="h-3 w-3 sm:h-4 sm:w-4 text-success" />
+            )}
+          </CardHeader>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className={cn(
+              "text-lg sm:text-2xl font-bold",
+              isIndependenceWarning ? "text-destructive" : "text-success"
+            )}>
+              {topClientPercent.toFixed(1)}%
+            </div>
+            {topClientName && (
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate" title={topClientName}>
+                {topClientName}
+              </p>
+            )}
+            {isIndependenceWarning && (
+              <Badge variant="destructive" className="mt-1 text-[10px]">
+                Upozorenje: Test samostalnost
+              </Badge>
+            )}
           </CardContent>
         </Card>
       </div>
