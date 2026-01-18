@@ -231,7 +231,7 @@ export default function Dashboard() {
         )}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium leading-tight">
-              Test samostalnosti
+              Top klijent
             </CardTitle>
             {isIndependenceWarning ? (
               <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive animate-pulse-slow" />
