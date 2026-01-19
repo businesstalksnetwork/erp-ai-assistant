@@ -554,7 +554,7 @@ export default function InvoiceDetail() {
           )}
           <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
             <Printer className="mr-2 h-4 w-4" />
-            Štampaj
+            {isMobileDevice ? 'Štampaj' : 'Preuzmi'}
           </Button>
         </div>
       </div>
