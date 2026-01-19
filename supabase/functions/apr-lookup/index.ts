@@ -41,27 +41,38 @@ serve(async (req) => {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0',
           },
+          client: httpClient,
         });
 
         console.log('Checkpoint.rs response status:', checkpointResponse.status);
 
         if (checkpointResponse.ok) {
-          const data = await checkpointResponse.json();
-          console.log('Checkpoint.rs response:', JSON.stringify(data));
-
-          if (data && (!Array.isArray(data) || data.length > 0)) {
-            const company = Array.isArray(data) ? data[0] : data;
-            if (company.Naziv || company.Naziv_skraceni) {
-              companyData = {
-                name: company.Naziv || company.Naziv_skraceni || '',
-                address: company.Adresa || '',
-                city: company.Mesto || '',
-                maticni_broj: company.MBR || '',
-              };
-              console.log('Checkpoint.rs match:', companyData);
+          const responseText = await checkpointResponse.text();
+          console.log('Checkpoint.rs raw response:', responseText);
+          
+          try {
+            const data = JSON.parse(responseText);
+            
+            if (data && (!Array.isArray(data) || data.length > 0)) {
+              const company = Array.isArray(data) ? data[0] : data;
+              if (company.Naziv || company.Naziv_skraceni) {
+                companyData = {
+                  name: company.Naziv || company.Naziv_skraceni || '',
+                  address: company.Adresa || '',
+                  city: company.Mesto || '',
+                  maticni_broj: company.MBR || '',
+                };
+                console.log('Checkpoint.rs match:', companyData);
+              }
             }
+          } catch (parseError) {
+            console.log('Checkpoint.rs JSON parse error:', parseError);
           }
+        } else {
+          const errorText = await checkpointResponse.text();
+          console.log('Checkpoint.rs error response:', errorText);
         }
       } catch (e) {
         console.log('Checkpoint.rs request failed:', e);
