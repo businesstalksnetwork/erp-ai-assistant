@@ -29,57 +29,100 @@ serve(async (req) => {
     console.log(`Looking up PIB: ${pib}`);
 
     let companyData = null;
+    const checkpointToken = Deno.env.get('CHECKPOINT_API_TOKEN');
 
-    // Try NBS company account registry first (public search by PIB)
-    try {
-      console.log('Trying NBS registry...');
+    // Try Checkpoint.rs API as primary source
+    if (checkpointToken) {
+      try {
+        console.log('Trying Checkpoint.rs API...');
+        const checkpointUrl = `https://api.checkpoint.rs/api/VratiSubjekt?PIB=${pib}&token=${checkpointToken}`;
+        
+        const checkpointResponse = await fetch(checkpointUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
 
-      const params = new URLSearchParams({
-        CompanyTaxCode: pib,
-        TypeID: '1',
-        'Pagging.CurrentPage': '1',
-        'Pagging.PageSize': '50',
-        isSearchExecuted: 'true',
-      });
+        console.log('Checkpoint.rs response status:', checkpointResponse.status);
 
-      const nbsUrl = `https://webappcenter.nbs.rs/PnWebApp/CompanyAccount/CompanyAccountResident?${params.toString()}`;
+        if (checkpointResponse.ok) {
+          const data = await checkpointResponse.json();
+          console.log('Checkpoint.rs response:', JSON.stringify(data));
 
-      const nbsResponse = await fetch(nbsUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml',
-          'User-Agent': 'Mozilla/5.0',
-        },
-        client: httpClient,
-      });
-
-      console.log('NBS response status:', nbsResponse.status);
-
-      if (nbsResponse.ok) {
-        const html = await nbsResponse.text();
-
-        // Extract first row from HTML table. (Page lists accounts; company data repeats per account.)
-        const rowMatch = html.match(
-          /<tr[^>]*>\s*<td data-title="Назив корисника рачуна">[\s\S]*?<b>\s*([^<]+?)\s*<\/b>[\s\S]*?<td data-title="Матични број">[\s\S]*?<a [^>]*>\s*(\d+)\s*<\/a>[\s\S]*?<td data-title="Порески број">\s*(\d{9})[\s\S]*?<td data-title="Адреса">\s*([^<]+?)\s*<\/td>\s*<td data-title="Место">\s*([^<]+?)\s*<\/td>/
-        );
-
-        if (rowMatch) {
-          const [, name, maticniBroj, , address, city] = rowMatch;
-          companyData = {
-            name: name.trim(),
-            address: `${address.trim()}, ${city.trim()}`,
-            maticni_broj: maticniBroj.trim(),
-          };
-          console.log('NBS match:', { name: companyData.name, maticni_broj: companyData.maticni_broj });
-        } else {
-          console.log('NBS: no match found in HTML');
+          if (data && (!Array.isArray(data) || data.length > 0)) {
+            const company = Array.isArray(data) ? data[0] : data;
+            if (company.Naziv || company.Naziv_skraceni) {
+              companyData = {
+                name: company.Naziv || company.Naziv_skraceni || '',
+                address: company.Adresa || '',
+                city: company.Mesto || '',
+                maticni_broj: company.MBR || '',
+              };
+              console.log('Checkpoint.rs match:', companyData);
+            }
+          }
         }
+      } catch (e) {
+        console.log('Checkpoint.rs request failed:', e);
       }
-    } catch (e) {
-      console.log('NBS request failed:', e);
+    } else {
+      console.log('CHECKPOINT_API_TOKEN not configured, skipping Checkpoint.rs');
     }
 
-    // Try APR API as fallback
+    // Try NBS company account registry as fallback
+    if (!companyData) {
+      try {
+        console.log('Trying NBS registry...');
+
+        const params = new URLSearchParams({
+          CompanyTaxCode: pib,
+          TypeID: '1',
+          'Pagging.CurrentPage': '1',
+          'Pagging.PageSize': '50',
+          isSearchExecuted: 'true',
+        });
+
+        const nbsUrl = `https://webappcenter.nbs.rs/PnWebApp/CompanyAccount/CompanyAccountResident?${params.toString()}`;
+
+        const nbsResponse = await fetch(nbsUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml',
+            'User-Agent': 'Mozilla/5.0',
+          },
+          client: httpClient,
+        });
+
+        console.log('NBS response status:', nbsResponse.status);
+
+        if (nbsResponse.ok) {
+          const html = await nbsResponse.text();
+
+          // Extract first row from HTML table. (Page lists accounts; company data repeats per account.)
+          const rowMatch = html.match(
+            /<tr[^>]*>\s*<td data-title="Назив корисника рачуна">[\s\S]*?<b>\s*([^<]+?)\s*<\/b>[\s\S]*?<td data-title="Матични број">[\s\S]*?<a [^>]*>\s*(\d+)\s*<\/a>[\s\S]*?<td data-title="Порески број">\s*(\d{9})[\s\S]*?<td data-title="Адреса">\s*([^<]+?)\s*<\/td>\s*<td data-title="Место">\s*([^<]+?)\s*<\/td>/
+          );
+
+          if (rowMatch) {
+            const [, name, maticniBroj, , address, city] = rowMatch;
+            companyData = {
+              name: name.trim(),
+              address: `${address.trim()}, ${city.trim()}`,
+              city: city.trim(),
+              maticni_broj: maticniBroj.trim(),
+            };
+            console.log('NBS match:', { name: companyData.name, maticni_broj: companyData.maticni_broj });
+          } else {
+            console.log('NBS: no match found in HTML');
+          }
+        }
+      } catch (e) {
+        console.log('NBS request failed:', e);
+      }
+    }
+
+    // Try APR API as secondary fallback
     if (!companyData) {
       try {
         console.log('Trying APR MBS API...');
@@ -103,6 +146,7 @@ serve(async (req) => {
             companyData = {
               name: company.naziv || company.name || company.fullName || '',
               address: company.sediste || company.adresa || company.address || '',
+              city: '',
               maticni_broj: company.maticniBroj || company.mb || '',
             };
           }
@@ -112,7 +156,7 @@ serve(async (req) => {
       }
     }
 
-    // Try secondary APR endpoint
+    // Try tertiary APR endpoint
     if (!companyData) {
       try {
         console.log('Trying APR ObscKom API...');
@@ -136,6 +180,7 @@ serve(async (req) => {
             companyData = {
               name: company.naziv || company.name || '',
               address: company.adresa || company.address || '',
+              city: '',
               maticni_broj: company.maticniBroj || company.mb || '',
             };
           }
@@ -157,6 +202,7 @@ serve(async (req) => {
         found: true,
         name: companyData.name,
         address: companyData.address,
+        city: companyData.city || '',
         maticni_broj: companyData.maticni_broj,
         pib: pib,
       }),

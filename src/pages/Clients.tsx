@@ -108,6 +108,7 @@ export default function Clients() {
           ...prev,
           name: data.name || prev.name,
           address: data.address || prev.address,
+          city: data.city || prev.city,
           maticni_broj: data.maticni_broj || prev.maticni_broj,
         }));
         toast({ title: 'Podaci pronađeni', description: `Firma: ${data.name}` });
