@@ -35,8 +35,8 @@ serve(async (req) => {
     if (checkpointToken) {
       try {
         console.log('Trying Checkpoint.rs API...');
-        // Try the Subjekt endpoint first (documented endpoint)
-        const checkpointUrl = `https://api.checkpoint.rs/api/Subjekt?PIB=${pib}&token=${checkpointToken}`;
+        // Use VratiSubjekt endpoint with all required parameters
+        const checkpointUrl = `https://api.checkpoint.rs/api/VratiSubjekt?PIB=${pib}&MBR=&naziv=&token=${checkpointToken}`;
         
         const checkpointResponse = await fetch(checkpointUrl, {
           method: 'GET',
