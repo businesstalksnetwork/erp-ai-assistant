@@ -35,7 +35,8 @@ serve(async (req) => {
     if (checkpointToken) {
       try {
         console.log('Trying Checkpoint.rs API...');
-        const checkpointUrl = `https://api.checkpoint.rs/api/VratiSubjekt?PIB=${pib}&token=${checkpointToken}`;
+        // Try the Subjekt endpoint first (documented endpoint)
+        const checkpointUrl = `https://api.checkpoint.rs/api/Subjekt?PIB=${pib}&token=${checkpointToken}`;
         
         const checkpointResponse = await fetch(checkpointUrl, {
           method: 'GET',
@@ -57,12 +58,12 @@ serve(async (req) => {
             
             if (data && (!Array.isArray(data) || data.length > 0)) {
               const company = Array.isArray(data) ? data[0] : data;
-              if (company.Naziv || company.Naziv_skraceni) {
+              if (company.Naziv || company.Naziv_skraceni || company.naziv) {
                 companyData = {
-                  name: company.Naziv || company.Naziv_skraceni || '',
-                  address: company.Adresa || '',
-                  city: company.Mesto || '',
-                  maticni_broj: company.MBR || '',
+                  name: company.Naziv || company.Naziv_skraceni || company.naziv || '',
+                  address: company.Adresa || company.adresa || '',
+                  city: company.Mesto || company.mesto || '',
+                  maticni_broj: company.MBR || company.Mbr || company.mbr || '',
                 };
                 console.log('Checkpoint.rs match:', companyData);
               }
