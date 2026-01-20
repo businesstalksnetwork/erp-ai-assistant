@@ -126,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    localStorage.removeItem('pausalbox_selected_company_id');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
