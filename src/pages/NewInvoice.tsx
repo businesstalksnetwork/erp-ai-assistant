@@ -14,6 +14,7 @@ import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -64,6 +65,8 @@ export default function NewInvoice() {
   const [fetchingRate, setFetchingRate] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
   const lastAppliedCurrencyRef = useRef<string | null>(null);
+  // For domestic clients with prices agreed in foreign currency
+  const [useForeignCalculation, setUseForeignCalculation] = useState(false);
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
@@ -155,10 +158,11 @@ export default function NewInvoice() {
     fetchNextNumber();
   }, [selectedCompany, formData.invoice_type, formData.service_date, formData.issue_date]);
 
-  // Fetch NBS exchange rate when currency and date change
+  // Fetch NBS exchange rate when currency and date change (for foreign clients OR domestic with foreign calculation)
   useEffect(() => {
     const fetchExchangeRate = async () => {
-      if (formData.client_type !== 'foreign' || !formData.foreign_currency || !formData.issue_date) {
+      const needsRate = formData.client_type === 'foreign' || useForeignCalculation;
+      if (!needsRate || !formData.foreign_currency || !formData.issue_date) {
         return;
       }
 
@@ -190,11 +194,12 @@ export default function NewInvoice() {
     };
 
     fetchExchangeRate();
-  }, [formData.foreign_currency, formData.issue_date, formData.client_type]);
+  }, [formData.foreign_currency, formData.issue_date, formData.client_type, useForeignCalculation]);
 
-  // Auto-calculate unit_price from foreign_amount * exchange_rate for each item (foreign clients)
+  // Auto-calculate unit_price from foreign_amount * exchange_rate for each item (foreign clients OR domestic with foreign calculation)
   useEffect(() => {
-    if (formData.client_type === 'foreign' && formData.exchange_rate > 0) {
+    const needsCalculation = formData.client_type === 'foreign' || useForeignCalculation;
+    if (needsCalculation && formData.exchange_rate > 0) {
       setItems(prev => prev.map(item => {
         if (item.foreign_amount > 0) {
           return {
@@ -205,7 +210,7 @@ export default function NewInvoice() {
         return item;
       }));
     }
-  }, [formData.exchange_rate, formData.client_type]);
+  }, [formData.exchange_rate, formData.client_type, useForeignCalculation]);
 
   // Clear linked advance when changing invoice type or client
   useEffect(() => {
@@ -336,8 +341,9 @@ export default function NewInvoice() {
       
       const updated = { ...item, [field]: value };
       
-      // Auto-calculate unit_price when foreign_amount changes for foreign clients
-      if (field === 'foreign_amount' && formData.client_type === 'foreign' && formData.exchange_rate > 0) {
+      // Auto-calculate unit_price when foreign_amount changes for foreign clients OR domestic with foreign calculation
+      const needsCalculation = formData.client_type === 'foreign' || useForeignCalculation;
+      if (field === 'foreign_amount' && needsCalculation && formData.exchange_rate > 0) {
         updated.unit_price = Math.round((value as number) * formData.exchange_rate * 100) / 100;
       }
       
@@ -807,7 +813,80 @@ export default function NewInvoice() {
                   </div>
                 </>
               )}
+              
+              {/* Domestic client: foreign calculation toggle */}
+              {formData.client_type === 'domestic' && (
+                <div className="md:col-span-3 flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+                  <Switch
+                    id="useForeignCalculation"
+                    checked={useForeignCalculation}
+                    onCheckedChange={(checked) => {
+                      setUseForeignCalculation(checked);
+                      if (!checked) {
+                        // Reset foreign-related fields when turning off
+                        setFormData(prev => ({ ...prev, foreign_currency: '', exchange_rate: 0 }));
+                        setItems(prev => prev.map(item => ({ ...item, foreign_amount: 0 })));
+                      }
+                    }}
+                  />
+                  <Label htmlFor="useForeignCalculation" className="cursor-pointer">
+                    Cena dogovorena u devizama (preračun po kursu NBS)
+                  </Label>
+                </div>
+              )}
             </div>
+            
+            {/* Domestic client with foreign calculation: currency and rate fields */}
+            {formData.client_type === 'domestic' && useForeignCalculation && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-2">
+                  <Label htmlFor="domestic_foreign_currency">Valuta</Label>
+                  <Select
+                    value={formData.foreign_currency}
+                    onValueChange={(v) => setFormData({ ...formData, foreign_currency: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Izaberi valutu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="domestic_exchange_rate" className="flex items-center gap-2">
+                    Srednji kurs NBS
+                    {fetchingRate && <Loader2 className="h-3 w-3 animate-spin" />}
+                  </Label>
+                  <Input
+                    id="domestic_exchange_rate"
+                    type="number"
+                    step="0.0001"
+                    value={formData.exchange_rate || ''}
+                    onChange={(e) => setFormData({ ...formData, exchange_rate: parseFloat(e.target.value) || 0 })}
+                    placeholder="117.1234"
+                    className={fetchingRate ? 'opacity-50' : ''}
+                  />
+                  {rateNote && (
+                    <p className="text-xs text-muted-foreground">{rateNote}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Preračunato</Label>
+                  <div className="h-10 px-3 py-2 rounded-md border bg-muted font-medium text-sm">
+                    {totalForeignAmount > 0 && formData.exchange_rate > 0 ? (
+                      <>
+                        {totalForeignAmount.toFixed(2)} {formData.foreign_currency} = {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Unesite iznose u devizama</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -889,15 +968,16 @@ export default function NewInvoice() {
                                     key={service.id}
                                     value={service.name}
                                     onSelect={() => {
-                                      const price = formData.client_type === 'foreign' && service.default_foreign_price
+                                      const needsForeignCalc = formData.client_type === 'foreign' || useForeignCalculation;
+                                      const price = needsForeignCalc && service.default_foreign_price
                                         ? service.default_foreign_price
                                         : service.default_unit_price || 0;
                                       
-                                      const foreignAmt = formData.client_type === 'foreign' 
+                                      const foreignAmt = needsForeignCalc 
                                         ? (service.default_foreign_price || 0) 
                                         : 0;
                                       
-                                      const unitPrice = formData.client_type === 'foreign' && formData.exchange_rate > 0
+                                      const unitPrice = needsForeignCalc && formData.exchange_rate > 0
                                         ? foreignAmt * formData.exchange_rate
                                         : (service.default_unit_price || 0);
                                       
@@ -937,7 +1017,7 @@ export default function NewInvoice() {
                   </div>
                 </div>
 
-                <div className={`grid grid-cols-1 gap-4 ${formData.client_type === 'foreign' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                <div className={`grid grid-cols-1 gap-4 ${(formData.client_type === 'foreign' || useForeignCalculation) ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                   <div className="space-y-2">
                     <Label>Tip</Label>
                     <Select
@@ -964,7 +1044,7 @@ export default function NewInvoice() {
                       placeholder="1"
                     />
                   </div>
-                  {formData.client_type === 'foreign' && (
+                  {(formData.client_type === 'foreign' || useForeignCalculation) && (
                     <div className="space-y-2">
                       <Label>Iznos ({formData.foreign_currency || 'DEV'})</Label>
                       <Input
@@ -986,8 +1066,8 @@ export default function NewInvoice() {
                       value={item.unit_price || ''}
                       onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
-                      readOnly={formData.client_type === 'foreign'}
-                      className={formData.client_type === 'foreign' ? 'bg-muted' : ''}
+                      readOnly={formData.client_type === 'foreign' || useForeignCalculation}
+                      className={(formData.client_type === 'foreign' || useForeignCalculation) ? 'bg-muted' : ''}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1024,6 +1104,12 @@ export default function NewInvoice() {
                 {servicesTotal > 0 && (
                   <div className="text-sm text-muted-foreground">
                     Usluge: {new Intl.NumberFormat('sr-RS').format(servicesTotal)} RSD
+                  </div>
+                )}
+                {/* Show foreign calculation summary for domestic clients */}
+                {useForeignCalculation && formData.foreign_currency && totalForeignAmount > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {totalForeignAmount.toFixed(2)} {formData.foreign_currency} × {formData.exchange_rate} = {new Intl.NumberFormat('sr-RS').format(totalAmount)} RSD
                   </div>
                 )}
                 <div className="text-xl font-bold">
