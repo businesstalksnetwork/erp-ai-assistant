@@ -728,6 +728,99 @@ export type Database = {
         }
         Relationships: []
       }
+      sef_invoices: {
+        Row: {
+          company_id: string
+          counterparty_address: string | null
+          counterparty_maticni_broj: string | null
+          counterparty_name: string
+          counterparty_pib: string | null
+          created_at: string | null
+          currency: string | null
+          delivery_date: string | null
+          due_date: string | null
+          fetched_at: string | null
+          id: string
+          invoice_number: string
+          invoice_type: string
+          issue_date: string
+          linked_invoice_id: string | null
+          local_status: string | null
+          processed_at: string | null
+          sef_invoice_id: string
+          sef_status: string
+          total_amount: number
+          ubl_xml: string | null
+          updated_at: string | null
+          vat_amount: number | null
+        }
+        Insert: {
+          company_id: string
+          counterparty_address?: string | null
+          counterparty_maticni_broj?: string | null
+          counterparty_name: string
+          counterparty_pib?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivery_date?: string | null
+          due_date?: string | null
+          fetched_at?: string | null
+          id?: string
+          invoice_number: string
+          invoice_type: string
+          issue_date: string
+          linked_invoice_id?: string | null
+          local_status?: string | null
+          processed_at?: string | null
+          sef_invoice_id: string
+          sef_status: string
+          total_amount?: number
+          ubl_xml?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+        }
+        Update: {
+          company_id?: string
+          counterparty_address?: string | null
+          counterparty_maticni_broj?: string | null
+          counterparty_name?: string
+          counterparty_pib?: string | null
+          created_at?: string | null
+          currency?: string | null
+          delivery_date?: string | null
+          due_date?: string | null
+          fetched_at?: string | null
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string
+          linked_invoice_id?: string | null
+          local_status?: string | null
+          processed_at?: string | null
+          sef_invoice_id?: string
+          sef_status?: string
+          total_amount?: number
+          ubl_xml?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sef_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sef_invoices_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_catalog: {
         Row: {
           company_id: string
