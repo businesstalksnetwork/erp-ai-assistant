@@ -127,7 +127,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const showSubscriptionBanner = !isAdmin && profile?.subscription_end && subscriptionDaysLeft <= 7;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background print:min-h-0 print:h-auto print:bg-white">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
         <Link to="/dashboard" className="transition-transform hover:scale-105">
@@ -295,10 +295,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className={cn(
-        "lg:pl-64 print:pl-0 print:pt-0",
+        "lg:pl-64 print:pl-0 print:pt-0 print:p-0 print:m-0",
         showSubscriptionBanner ? "pt-[108px] lg:pt-12" : "pt-16 lg:pt-0"
       )}>
-        <div className="p-4 lg:p-8 print:p-0">{children}</div>
+        <div className="p-4 lg:p-8 print:p-0 print:m-0">{children}</div>
       </main>
     </div>
   );
