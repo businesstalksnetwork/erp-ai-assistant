@@ -75,7 +75,7 @@ export default function SEFCenter() {
   // Hooks
   const { fetchPurchaseInvoices, acceptInvoice, rejectInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isProcessing, isLoadingXML, isEnriching } = useSEFPurchaseInvoices();
   const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting } = useSEFStorage(companyId);
-  const { activeJob, isStarting, progress, startLongSync } = useSEFLongSync(companyId);
+  const { activeJob, isStarting, progress, startLongSync, dismissJobStatus } = useSEFLongSync(companyId);
 
   // Count incomplete invoices
   const incompleteCount = purchaseInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
@@ -213,6 +213,70 @@ export default function SEFCenter() {
         </Button>
       </div>
 
+      {/* Global Sync Status - ALWAYS VISIBLE */}
+      {activeJob && (
+        <Card className={
+          activeJob.status === 'running' || activeJob.status === 'pending'
+            ? "border-primary/20 bg-primary/5"
+            : activeJob.status === 'completed'
+            ? "border-green-500/20 bg-green-500/5"
+            : "border-destructive/20 bg-destructive/5"
+        }>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                )}
+                {activeJob.status === 'completed' && (
+                  <Check className="h-5 w-5 text-green-600" />
+                )}
+                {activeJob.status === 'failed' && (
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                )}
+                
+                <div>
+                  <span className="font-medium">
+                    {activeJob.invoice_type === 'purchase' ? 'Ulazne' : 'Izlazne'} fakture: 
+                    {(activeJob.status === 'running' || activeJob.status === 'pending') && ' Preuzimanje u toku...'}
+                    {activeJob.status === 'completed' && ` Završeno (${activeJob.invoices_saved} sačuvano)`}
+                    {activeJob.status === 'failed' && ' Greška'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Dismiss button for completed/failed */}
+              {(activeJob.status === 'completed' || activeJob.status === 'failed') && (
+                <Button variant="ghost" size="sm" onClick={dismissJobStatus}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Progress bar only for running */}
+            {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+              <>
+                <Progress value={progress} className="my-2" />
+                <div className="flex flex-wrap justify-between text-sm text-muted-foreground gap-2">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Mesec: {activeJob.current_month || 'Priprema...'}
+                  </span>
+                  <span>{activeJob.processed_months}/{activeJob.total_months} meseci</span>
+                  <span>{activeJob.invoices_found} pronađeno</span>
+                  <span>{activeJob.invoices_saved} sačuvano</span>
+                </div>
+              </>
+            )}
+            
+            {/* Error message */}
+            {activeJob.status === 'failed' && activeJob.error_message && (
+              <p className="text-sm text-destructive mt-2">{activeJob.error_message}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="purchase" className="flex items-center gap-2">
@@ -254,54 +318,6 @@ export default function SEFCenter() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Long Sync Progress Card */}
-              {activeJob && activeJob.invoice_type === 'purchase' && (activeJob.status === 'pending' || activeJob.status === 'running') && (
-                <Card className="border-primary/20 bg-primary/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="font-medium">Preuzimanje u toku...</span>
-                    </div>
-                    <Progress value={progress} className="mb-2" />
-                    <div className="flex flex-wrap justify-between text-sm text-muted-foreground gap-2">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Mesec: {activeJob.current_month || 'Priprema...'}
-                      </span>
-                      <span>{activeJob.processed_months}/{activeJob.total_months} meseci</span>
-                      <span>{activeJob.invoices_found} pronađeno</span>
-                      <span>{activeJob.invoices_saved} sačuvano</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Completed/Failed status */}
-              {activeJob && activeJob.invoice_type === 'purchase' && activeJob.status === 'completed' && (
-                <Card className="border-green-500/20 bg-green-500/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      <Check className="h-5 w-5 text-green-600" />
-                      <span className="font-medium text-green-700">
-                        Sinhronizacija završena: {activeJob.invoices_found} pronađeno, {activeJob.invoices_saved} sačuvano
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {activeJob && activeJob.invoice_type === 'purchase' && activeJob.status === 'failed' && (
-                <Card className="border-destructive/20 bg-destructive/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="h-5 w-5 text-destructive" />
-                      <span className="font-medium text-destructive">
-                        Greška: {activeJob.error_message || 'Nepoznata greška'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Date Range and Fetch */}
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -458,54 +474,6 @@ export default function SEFCenter() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Long Sync Progress Card for Sales */}
-              {activeJob && activeJob.invoice_type === 'sales' && (activeJob.status === 'pending' || activeJob.status === 'running') && (
-                <Card className="border-primary/20 bg-primary/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="font-medium">Preuzimanje u toku...</span>
-                    </div>
-                    <Progress value={progress} className="mb-2" />
-                    <div className="flex flex-wrap justify-between text-sm text-muted-foreground gap-2">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Mesec: {activeJob.current_month || 'Priprema...'}
-                      </span>
-                      <span>{activeJob.processed_months}/{activeJob.total_months} meseci</span>
-                      <span>{activeJob.invoices_found} pronađeno</span>
-                      <span>{activeJob.invoices_saved} sačuvano</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Completed/Failed status for Sales */}
-              {activeJob && activeJob.invoice_type === 'sales' && activeJob.status === 'completed' && (
-                <Card className="border-green-500/20 bg-green-500/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      <Check className="h-5 w-5 text-green-600" />
-                      <span className="font-medium text-green-700">
-                        Sinhronizacija završena: {activeJob.invoices_found} pronađeno, {activeJob.invoices_saved} sačuvano
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {activeJob && activeJob.invoice_type === 'sales' && activeJob.status === 'failed' && (
-                <Card className="border-destructive/20 bg-destructive/5 mb-6">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="h-5 w-5 text-destructive" />
-                      <span className="font-medium text-destructive">
-                        Greška: {activeJob.error_message || 'Nepoznata greška'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Sync button for sales invoices */}
               <div className="flex justify-end mb-6">

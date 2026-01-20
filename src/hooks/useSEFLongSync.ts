@@ -24,6 +24,7 @@ interface UseSEFLongSyncResult {
   isStarting: boolean;
   progress: number;
   stopPolling: () => void;
+  dismissJobStatus: () => void;
 }
 
 export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
@@ -36,6 +37,11 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
   const progress = activeJob 
     ? Math.round((activeJob.processed_months / activeJob.total_months) * 100)
     : 0;
+
+  // Dismiss job status (for completed/failed jobs)
+  const dismissJobStatus = useCallback(() => {
+    setActiveJob(null);
+  }, []);
 
   // Stop polling
   const stopPolling = useCallback(() => {
@@ -136,12 +142,13 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     }
   };
 
-  // Check for existing running job on mount
+  // Check for existing job on mount (active or recent completed)
   useEffect(() => {
     if (!companyId) return;
 
     const checkExistingJob = async () => {
-      const { data } = await supabase
+      // First check for active (pending/running) job
+      const { data: runningJob } = await supabase
         .from('sef_sync_jobs')
         .select('*')
         .eq('company_id', companyId)
@@ -150,11 +157,30 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         .limit(1)
         .maybeSingle();
 
-      if (data) {
-        setActiveJob(data as SyncJob);
+      if (runningJob) {
+        setActiveJob(runningJob as SyncJob);
         // Start polling for existing job
-        const interval = setInterval(() => pollJobStatus(data.id), 3000);
+        const interval = setInterval(() => pollJobStatus(runningJob.id), 3000);
         setPollingInterval(interval);
+        return;
+      }
+
+      // If no active job, load the most recent completed/failed job (within last 24h)
+      const yesterday = new Date();
+      yesterday.setHours(yesterday.getHours() - 24);
+      
+      const { data: lastJob } = await supabase
+        .from('sef_sync_jobs')
+        .select('*')
+        .eq('company_id', companyId)
+        .in('status', ['completed', 'failed'])
+        .gte('completed_at', yesterday.toISOString())
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastJob) {
+        setActiveJob(lastJob as SyncJob);
       }
     };
 
@@ -177,6 +203,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     activeJob,
     isStarting,
     progress,
-    stopPolling
+    stopPolling,
+    dismissJobStatus
   };
 }
