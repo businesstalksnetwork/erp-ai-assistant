@@ -14,3 +14,18 @@ verify_jwt = true
 
 [functions.delete-user]
 verify_jwt = false
+
+[functions.sef-fetch-purchase-invoices]
+verify_jwt = true
+
+[functions.sef-get-invoice-xml]
+verify_jwt = true
+
+[functions.sef-accept-reject-invoice]
+verify_jwt = true
+
+[functions.sef-enrich-invoices]
+verify_jwt = true
+
+[functions.sef-background-sync]
+verify_jwt = false
