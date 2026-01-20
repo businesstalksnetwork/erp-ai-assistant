@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SyncJob {
   id: string;
   company_id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'partial';
   invoice_type: string;
   total_months: number;
   processed_months: number;
@@ -29,13 +30,16 @@ interface UseSEFLongSyncResult {
 
 export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isStarting, setIsStarting] = useState(false);
   const [activeJob, setActiveJob] = useState<SyncJob | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // Use ref for polling interval to avoid re-renders
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate progress percentage
   const progress = activeJob 
-    ? Math.round((activeJob.processed_months / activeJob.total_months) * 100)
+    ? Math.round((activeJob.processed_months / Math.max(activeJob.total_months, 1)) * 100)
     : 0;
 
   // Dismiss job status (for completed/failed jobs)
@@ -45,14 +49,14 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
 
   // Stop polling
   const stopPolling = useCallback(() => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
-  }, [pollingInterval]);
+  }, []);
 
-  // Poll for job status
-  const pollJobStatus = useCallback(async (jobId: string) => {
+  // Poll for job status by ID - stable function
+  const pollJobStatusById = useCallback(async (jobId: string) => {
     try {
       const { data, error } = await supabase
         .from('sef_sync_jobs')
@@ -65,27 +69,32 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         return;
       }
 
-      setActiveJob(data as SyncJob);
+      const job = data as SyncJob;
+      setActiveJob(job);
 
       // Stop polling if job is done
-      if (data.status === 'completed') {
+      if (job.status === 'completed' || job.status === 'partial') {
         stopPolling();
+        
+        // Invalidate queries to refresh invoice list
+        queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+        
         toast({
           title: 'Sinhronizacija završena',
-          description: `Pronađeno ${data.invoices_found} faktura, sačuvano ${data.invoices_saved}`,
+          description: `Pronađeno ${job.invoices_found} faktura, sačuvano ${job.invoices_saved}`,
         });
-      } else if (data.status === 'failed') {
+      } else if (job.status === 'failed') {
         stopPolling();
         toast({
           title: 'Greška pri sinhronizaciji',
-          description: data.error_message || 'Nepoznata greška',
+          description: job.error_message || 'Nepoznata greška',
           variant: 'destructive',
         });
       }
     } catch (e) {
       console.error('Poll error:', e);
     }
-  }, [stopPolling, toast]);
+  }, [stopPolling, queryClient, toast]);
 
   // Start long sync
   const startLongSync = async (
@@ -105,9 +114,9 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
       if (!data.success) {
         if (data.jobId) {
           // Already running - start polling existing job
-          pollJobStatus(data.jobId);
-          const interval = setInterval(() => pollJobStatus(data.jobId), 3000);
-          setPollingInterval(interval);
+          pollJobStatusById(data.jobId);
+          stopPolling();
+          pollingIntervalRef.current = setInterval(() => pollJobStatusById(data.jobId), 3000);
           
           toast({
             title: 'Sinhronizacija već u toku',
@@ -124,9 +133,9 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
       });
 
       // Start polling
-      pollJobStatus(data.jobId);
-      const interval = setInterval(() => pollJobStatus(data.jobId), 3000);
-      setPollingInterval(interval);
+      pollJobStatusById(data.jobId);
+      stopPolling();
+      pollingIntervalRef.current = setInterval(() => pollJobStatusById(data.jobId), 3000);
 
       return data.jobId;
     } catch (e) {
@@ -142,45 +151,64 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     }
   };
 
-  // Check for existing job on mount (active or recent completed)
+  // Check for existing job on mount - ONLY depends on companyId
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId) {
+      setActiveJob(null);
+      return;
+    }
 
     const checkExistingJob = async () => {
-      // First check for active (pending/running) job
-      const { data: runningJob } = await supabase
-        .from('sef_sync_jobs')
-        .select('*')
-        .eq('company_id', companyId)
-        .in('status', ['pending', 'running'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      try {
+        // First check for active (pending/running) job
+        const { data: runningJob, error: runningError } = await supabase
+          .from('sef_sync_jobs')
+          .select('*')
+          .eq('company_id', companyId)
+          .in('status', ['pending', 'running'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (runningJob) {
-        setActiveJob(runningJob as SyncJob);
-        // Start polling for existing job
-        const interval = setInterval(() => pollJobStatus(runningJob.id), 3000);
-        setPollingInterval(interval);
-        return;
-      }
+        if (runningError) {
+          console.error('Error checking running job:', runningError);
+          return;
+        }
 
-      // If no active job, load the most recent completed/failed job (within last 24h)
-      const yesterday = new Date();
-      yesterday.setHours(yesterday.getHours() - 24);
-      
-      const { data: lastJob } = await supabase
-        .from('sef_sync_jobs')
-        .select('*')
-        .eq('company_id', companyId)
-        .in('status', ['completed', 'failed'])
-        .gte('completed_at', yesterday.toISOString())
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        if (runningJob) {
+          console.log('Found running job:', runningJob.id);
+          setActiveJob(runningJob as SyncJob);
+          // Start polling for existing job
+          stopPolling();
+          pollingIntervalRef.current = setInterval(() => pollJobStatusById(runningJob.id), 3000);
+          return;
+        }
 
-      if (lastJob) {
-        setActiveJob(lastJob as SyncJob);
+        // If no active job, load the most recent completed/failed job (within last 24h)
+        const yesterday = new Date();
+        yesterday.setHours(yesterday.getHours() - 24);
+        
+        const { data: lastJob, error: lastError } = await supabase
+          .from('sef_sync_jobs')
+          .select('*')
+          .eq('company_id', companyId)
+          .in('status', ['completed', 'failed', 'partial'])
+          .gte('completed_at', yesterday.toISOString())
+          .order('completed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastError) {
+          console.error('Error checking last job:', lastError);
+          return;
+        }
+
+        if (lastJob) {
+          console.log('Found recent completed job:', lastJob.id);
+          setActiveJob(lastJob as SyncJob);
+        }
+      } catch (e) {
+        console.error('Check existing job error:', e);
       }
     };
 
@@ -189,14 +217,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     return () => {
       stopPolling();
     };
-  }, [companyId, pollJobStatus, stopPolling]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopPolling();
-    };
-  }, [stopPolling]);
+  }, [companyId]); // Only companyId as dependency - stopPolling and pollJobStatusById are stable refs
 
   return {
     startLongSync,
