@@ -69,8 +69,8 @@ export default function NewInvoice() {
   const lastAppliedCurrencyRef = useRef<string | null>(null);
   // For domestic clients with prices agreed in foreign currency
   const [useForeignCalculation, setUseForeignCalculation] = useState(false);
-  // SEF sending toggle - defaults to true if company has SEF enabled
-  const [sendToSefEnabled, setSendToSefEnabled] = useState(true);
+  // SEF sending toggle - defaults to false, enabled when SEF-registered client is selected
+  const [sendToSefEnabled, setSendToSefEnabled] = useState(false);
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
@@ -263,6 +263,8 @@ export default function NewInvoice() {
         client_vat_number: '',
         client_type: 'domestic',
       }));
+      // New client - SEF disabled by default
+      setSendToSefEnabled(false);
       return;
     }
 
@@ -280,6 +282,12 @@ export default function NewInvoice() {
         client_vat_number: client.vat_number || '',
         client_type: client.client_type,
       }));
+      
+      // Auto-enable SEF toggle if client is domestic AND SEF-registered
+      setSendToSefEnabled(
+        client.client_type === 'domestic' && 
+        client.sef_registered === true
+      );
     }
   };
 

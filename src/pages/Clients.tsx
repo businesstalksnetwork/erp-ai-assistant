@@ -34,7 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 export default function Clients() {
   const { selectedCompany } = useSelectedCompany();
@@ -53,6 +54,7 @@ export default function Clients() {
     maticni_broj: '',
     vat_number: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
+    sef_registered: false,
   });
 
   const resetForm = () => {
@@ -65,6 +67,7 @@ export default function Clients() {
       maticni_broj: '',
       vat_number: '',
       client_type: 'domestic',
+      sef_registered: false,
     });
     setEditId(null);
   };
@@ -84,6 +87,7 @@ export default function Clients() {
       maticni_broj: client.maticni_broj || '',
       vat_number: client.vat_number || '',
       client_type: client.client_type,
+      sef_registered: client.sef_registered || false,
     });
     setEditId(client.id);
     setIsOpen(true);
@@ -275,6 +279,20 @@ export default function Clients() {
                         maxLength={8}
                       />
                     </div>
+                    {/* SEF Registration Toggle */}
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="sef-registered" className="cursor-pointer">Registrovan u SEF sistemu</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Klijent je registrovan za prijem elektronskih faktura
+                        </p>
+                      </div>
+                      <Switch
+                        id="sef-registered"
+                        checked={formData.sef_registered}
+                        onCheckedChange={(checked) => setFormData({ ...formData, sef_registered: checked })}
+                      />
+                    </div>
                   </>
                 ) : (
                   <div className="space-y-2">
@@ -331,9 +349,17 @@ export default function Clients() {
                     <CardTitle className="text-base sm:text-lg truncate">{client.name}</CardTitle>
                     <CardDescription className="truncate text-xs sm:text-sm">{client.address || 'Bez adrese'}</CardDescription>
                   </div>
-                  <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs flex-shrink-0">
-                    {client.client_type === 'domestic' ? 'Domaći' : 'Strani'}
-                  </Badge>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {client.sef_registered && (
+                      <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] sm:text-xs">
+                        <Send className="h-3 w-3 mr-1" />
+                        SEF
+                      </Badge>
+                    )}
+                    <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
+                      {client.client_type === 'domestic' ? 'Domaći' : 'Strani'}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
