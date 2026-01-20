@@ -364,9 +364,9 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
                 </div>
               </div>
 
-              <ScrollArea className="max-h-[250px] border rounded-lg">
+              <div className="h-[200px] overflow-auto border rounded-lg">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead>Datum</TableHead>
                       <TableHead>Broj računa</TableHead>
@@ -395,7 +395,7 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
                     ))}
                   </TableBody>
                 </Table>
-              </ScrollArea>
+              </div>
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
