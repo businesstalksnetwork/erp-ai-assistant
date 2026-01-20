@@ -312,6 +312,12 @@ async function processMonth(
       }
     }
 
+    // Skip empty invoices - don't save if no meaningful data was retrieved
+    if (!invoiceNumber && !issueDate && totalAmount === 0 && !supplierName) {
+      console.log(`Skipping invoice ${invoiceId} - no data available from API`);
+      continue;
+    }
+
     // Upsert invoice
     const { error } = await supabase
       .from('sef_invoices')
