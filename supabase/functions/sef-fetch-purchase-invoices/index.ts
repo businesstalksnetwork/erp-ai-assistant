@@ -14,6 +14,9 @@ const toNullableDate = (val: string | undefined | null): string | null => {
   return val;
 };
 
+// Helper for delay between API calls to avoid rate limiting
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface SEFPurchaseInvoice {
   sefInvoiceId: string;
   invoiceNumber: string;
@@ -121,7 +124,14 @@ serve(async (req) => {
     const invoices: SEFPurchaseInvoice[] = [];
     const newInvoicesForStorage: any[] = [];
 
-    for (const invoiceId of invoiceIds) {
+    for (let i = 0; i < invoiceIds.length; i++) {
+      const invoiceId = invoiceIds[i];
+      
+      // Add delay between requests to avoid rate limiting (429)
+      if (i > 0) {
+        await delay(300);
+      }
+      
       try {
         const invoiceResponse = await fetch(
           `${SEF_API_BASE}/purchase-invoice?invoiceId=${invoiceId}`,
@@ -173,6 +183,29 @@ serve(async (req) => {
               vat_amount: invoice.vatAmount || null,
               currency: invoice.currency || 'RSD',
               sef_status: invoice.status || 'Unknown',
+              local_status: 'pending',
+            });
+          }
+        } else if (invoiceResponse.status === 429) {
+          // Rate limited - store placeholder to track the invoice ID
+          console.warn(`Rate limited for invoice ${invoiceId}, storing placeholder`);
+          if (!existingSefIds.has(invoiceId)) {
+            newInvoicesForStorage.push({
+              company_id: companyId,
+              sef_invoice_id: invoiceId,
+              invoice_type: 'purchase',
+              invoice_number: null,
+              issue_date: null,
+              delivery_date: null,
+              due_date: null,
+              counterparty_name: null,
+              counterparty_pib: null,
+              counterparty_maticni_broj: null,
+              counterparty_address: null,
+              total_amount: 0,
+              vat_amount: null,
+              currency: 'RSD',
+              sef_status: 'Pending',
               local_status: 'pending',
             });
           }
