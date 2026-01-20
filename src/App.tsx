@@ -24,6 +24,7 @@ import ServiceCatalog from "./pages/ServiceCatalog";
 import ForeignPaymentInstructions from "./pages/ForeignPaymentInstructions";
 import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
+import SEFCenter from "./pages/SEFCenter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -91,6 +92,7 @@ function AppRoutes() {
       <Route path="/analytics" element={<ProtectedRoute><InvoiceAnalytics /></ProtectedRoute>} />
       <Route path="/kpo" element={<ProtectedRoute><KPOBook /></ProtectedRoute>} />
       <Route path="/fiscal" element={<ProtectedRoute><FiscalCashRegister /></ProtectedRoute>} />
+      <Route path="/sef" element={<ProtectedRoute><SEFCenter /></ProtectedRoute>} />
       <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute><ServiceCatalog /></ProtectedRoute>} />
       <Route path="/foreign-payments" element={<ProtectedRoute><ForeignPaymentInstructions /></ProtectedRoute>} />
