@@ -44,21 +44,21 @@ function pickNumber(data: any, keys: string[], fallback: number = 0): number {
 }
 
 // Parse UBL XML to extract basic invoice data
-function parseUblXml(xml: string): {
+function parseUblXml(xml: string, invoiceType: 'purchase' | 'sales' = 'purchase'): {
   invoiceNumber: string | null;
   issueDate: string | null;
   totalAmount: number;
   currency: string | null;
-  supplierName: string | null;
-  supplierPib: string | null;
+  counterpartyName: string | null;
+  counterpartyPib: string | null;
 } {
   const result = {
     invoiceNumber: null as string | null,
     issueDate: null as string | null,
     totalAmount: 0,
     currency: null as string | null,
-    supplierName: null as string | null,
-    supplierPib: null as string | null,
+    counterpartyName: null as string | null,
+    counterpartyPib: null as string | null,
   };
 
   try {
@@ -74,14 +74,18 @@ function parseUblXml(xml: string): {
     const currencyMatch = xml.match(/<cbc:DocumentCurrencyCode>([^<]+)<\/cbc:DocumentCurrencyCode>/);
     if (currencyMatch) result.currency = currencyMatch[1];
 
-    const supplierPartyMatch = xml.match(/<cac:AccountingSupplierParty>([\s\S]*?)<\/cac:AccountingSupplierParty>/);
-    if (supplierPartyMatch) {
-      const supplierBlock = supplierPartyMatch[1];
-      const nameMatch = supplierBlock.match(/<cbc:Name>([^<]+)<\/cbc:Name>/);
-      if (nameMatch) result.supplierName = nameMatch[1];
+    // For purchase invoices, counterparty is supplier; for sales, it's customer
+    const partyTag = invoiceType === 'sales' ? 'AccountingCustomerParty' : 'AccountingSupplierParty';
+    const partyRegex = new RegExp(`<cac:${partyTag}>([\\s\\S]*?)<\\/cac:${partyTag}>`);
+    const partyMatch = xml.match(partyRegex);
+    
+    if (partyMatch) {
+      const partyBlock = partyMatch[1];
+      const nameMatch = partyBlock.match(/<cbc:Name>([^<]+)<\/cbc:Name>/);
+      if (nameMatch) result.counterpartyName = nameMatch[1];
       
-      const pibMatch = supplierBlock.match(/<cbc:CompanyID[^>]*>([^<]+)<\/cbc:CompanyID>/);
-      if (pibMatch) result.supplierPib = pibMatch[1];
+      const pibMatch = partyBlock.match(/<cbc:CompanyID[^>]*>([^<]+)<\/cbc:CompanyID>/);
+      if (pibMatch) result.counterpartyPib = pibMatch[1];
     }
   } catch (e) {
     console.error('Error parsing UBL XML:', e);
@@ -106,8 +110,11 @@ async function fetchInvoiceIdsByStatus(
   dateFrom: string,
   dateTo: string,
   status: string,
+  invoiceType: 'purchase' | 'sales',
   maxRetries: number = 3
 ): Promise<string[]> {
+  const endpoint = invoiceType === 'sales' ? 'sales-invoice' : 'purchase-invoice';
+  
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const params = new URLSearchParams({
@@ -116,7 +123,7 @@ async function fetchInvoiceIdsByStatus(
         dateTo: dateTo,
       });
 
-      const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids?${params.toString()}`, {
+      const response = await fetch(`${SEF_API_BASE}/${endpoint}/ids?${params.toString()}`, {
         method: 'POST',
         headers: {
           'ApiKey': apiKey,
@@ -136,6 +143,10 @@ async function fetchInvoiceIdsByStatus(
       }
 
       const data = await response.json();
+      // Use correct field based on invoice type
+      if (invoiceType === 'sales') {
+        return data?.SalesInvoiceIds || data?.salesInvoiceIds || [];
+      }
       return data?.PurchaseInvoiceIds || data?.purchaseInvoiceIds || [];
     } catch (e) {
       console.error(`Error fetching IDs for status ${status}:`, e);
@@ -153,7 +164,8 @@ async function fetchInvoiceIdsByStatus(
 async function buildStatusMap(
   apiKey: string,
   dateFrom: string,
-  dateTo: string
+  dateTo: string,
+  invoiceType: 'purchase' | 'sales'
 ): Promise<Map<string, string>> {
   const statusMap = new Map<string, string>();
   const statuses = ['New', 'Seen', 'Approved', 'Rejected', 'Cancelled'];
@@ -162,7 +174,7 @@ async function buildStatusMap(
     if (i > 0) await delay(400);
     
     const status = statuses[i];
-    const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status);
+    const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status, invoiceType);
     
     for (const id of ids) {
       const existingPriority = STATUS_PRIORITY[statusMap.get(id) || ''] || 0;
@@ -194,7 +206,7 @@ async function processMonth(
   console.log(`Processing ${invoiceType} invoices for ${dateFrom} to ${dateTo}`);
 
   // Build status map
-  const statusMap = await buildStatusMap(apiKey, dateFrom, dateTo);
+  const statusMap = await buildStatusMap(apiKey, dateFrom, dateTo, invoiceType);
   
   if (statusMap.size === 0) {
     console.log(`No invoices found for ${dateFrom} to ${dateTo}`);
@@ -246,10 +258,20 @@ async function processMonth(
         issueDate = pickString(data, ['issueDate', 'IssueDate', 'InvoiceIssueDate']);
         deliveryDate = pickString(data, ['deliveryDate', 'DeliveryDate']);
         dueDate = pickString(data, ['dueDate', 'DueDate', 'PaymentDueDate']);
-        supplierName = pickString(data, ['supplierName', 'SupplierName', 'Supplier', 'SenderName']);
-        supplierPib = pickString(data, ['supplierPib', 'SupplierPib', 'SupplierTaxId']);
-        supplierMaticniBroj = pickString(data, ['supplierMaticniBroj', 'SupplierMaticniBroj']);
-        supplierAddress = pickString(data, ['supplierAddress', 'SupplierAddress']);
+        
+        // Counterparty: for purchase invoices it's supplier, for sales it's buyer
+        if (invoiceType === 'sales') {
+          supplierName = pickString(data, ['buyerName', 'BuyerName', 'Buyer', 'ReceiverName', 'CustomerName']);
+          supplierPib = pickString(data, ['buyerPib', 'BuyerPib', 'BuyerTaxId', 'CustomerTaxId']);
+          supplierMaticniBroj = pickString(data, ['buyerMaticniBroj', 'BuyerMaticniBroj', 'BuyerRegistrationNumber']);
+          supplierAddress = pickString(data, ['buyerAddress', 'BuyerAddress', 'CustomerAddress']);
+        } else {
+          supplierName = pickString(data, ['supplierName', 'SupplierName', 'Supplier', 'SenderName']);
+          supplierPib = pickString(data, ['supplierPib', 'SupplierPib', 'SupplierTaxId']);
+          supplierMaticniBroj = pickString(data, ['supplierMaticniBroj', 'SupplierMaticniBroj']);
+          supplierAddress = pickString(data, ['supplierAddress', 'SupplierAddress']);
+        }
+        
         totalAmount = pickNumber(data, ['totalAmount', 'TotalAmount', 'payableAmount', 'PayableAmount']);
         vatAmount = pickNumber(data, ['vatAmount', 'VatAmount', 'taxAmount']);
         currency = pickString(data, ['documentCurrencyCode', 'currency', 'Currency'], 'RSD') || 'RSD';
@@ -276,13 +298,13 @@ async function processMonth(
 
         if (xmlResponse.ok) {
           xmlData = await xmlResponse.text();
-          const parsed = parseUblXml(xmlData);
+          const parsed = parseUblXml(xmlData, invoiceType);
           
           if (!invoiceNumber && parsed.invoiceNumber) invoiceNumber = parsed.invoiceNumber;
           if (!issueDate && parsed.issueDate) issueDate = parsed.issueDate;
           if (totalAmount === 0 && parsed.totalAmount) totalAmount = parsed.totalAmount;
-          if (!supplierName && parsed.supplierName) supplierName = parsed.supplierName;
-          if (!supplierPib && parsed.supplierPib) supplierPib = parsed.supplierPib;
+          if (!supplierName && parsed.counterpartyName) supplierName = parsed.counterpartyName;
+          if (!supplierPib && parsed.counterpartyPib) supplierPib = parsed.counterpartyPib;
           if (!currency && parsed.currency) currency = parsed.currency || 'RSD';
         }
       } catch (e) {
