@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCompanies } from '@/hooks/useCompanies';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X, ExternalLink } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,6 +39,7 @@ const companySchema = z.object({
 });
 
 export default function Companies() {
+  const navigate = useNavigate();
   const { companies, isLoading, createCompany, updateCompany, deleteCompany } = useCompanies();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -182,7 +184,7 @@ export default function Companies() {
         logo_url: logoUrl 
       } as any);
     } else {
-      const newCompany = await createCompany.mutateAsync(formData);
+      const newCompany = await createCompany.mutateAsync({ ...formData, sef_api_key: null });
       if (logoFile && newCompany?.id) {
         const logoUrl = await uploadLogo(newCompany.id);
         if (logoUrl) {
@@ -385,21 +387,34 @@ export default function Companies() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {companies.map((company) => (
-            <Card key={company.id}>
+            <Card 
+              key={company.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/company/${company.id}`)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {company.name}
-                      {company.is_active && (
-                        <Badge variant="outline" className="bg-success/10 text-success border-success">
-                          Aktivna
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription>{company.address}</CardDescription>
+                  <div className="flex items-center gap-3">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                    ) : (
+                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {company.name}
+                        {company.is_active && (
+                          <Badge variant="outline" className="bg-success/10 text-success border-success">
+                            Aktivna
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>{company.address}</CardDescription>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button size="icon" variant="ghost" onClick={() => handleEdit(company)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -419,12 +434,16 @@ export default function Companies() {
                     <p className="text-muted-foreground">Matični broj</p>
                     <p className="font-mono">{company.maticni_broj}</p>
                   </div>
-                  {company.bank_account && (
+                  {company.is_client_company && (
                     <div className="col-span-2">
-                      <p className="text-muted-foreground">Broj računa</p>
-                      <p className="font-mono">{company.bank_account}</p>
+                      <p className="text-muted-foreground">Klijent</p>
+                      <p className="text-sm">{company.client_name}</p>
                     </div>
                   )}
+                </div>
+                <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Klikni za detalje</span>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
                 </div>
               </CardContent>
             </Card>

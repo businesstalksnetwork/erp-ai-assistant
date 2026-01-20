@@ -14,6 +14,7 @@ export interface Company {
   maticni_broj: string;
   bank_account: string | null;
   logo_url: string | null;
+  sef_api_key: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
