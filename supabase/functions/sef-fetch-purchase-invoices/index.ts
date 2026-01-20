@@ -8,6 +8,12 @@ const corsHeaders = {
 
 const SEF_API_BASE = 'https://efaktura.mfin.gov.rs/api/publicApi';
 
+// Helper to convert empty strings to null for date fields
+const toNullableDate = (val: string | undefined | null): string | null => {
+  if (!val || val.trim() === '') return null;
+  return val;
+};
+
 interface SEFPurchaseInvoice {
   sefInvoiceId: string;
   invoiceNumber: string;
@@ -81,10 +87,12 @@ serve(async (req) => {
     const idsResponseData = await idsResponse.json();
     console.log('SEF IDs API response:', JSON.stringify(idsResponseData));
 
-    // Handle different response formats
+    // Handle different response formats (SEF API uses PurchaseInvoiceIds with capital P)
     let invoiceIds: string[] = [];
     if (Array.isArray(idsResponseData)) {
       invoiceIds = idsResponseData;
+    } else if (idsResponseData?.PurchaseInvoiceIds) {
+      invoiceIds = idsResponseData.PurchaseInvoiceIds;
     } else if (idsResponseData?.purchaseInvoiceIds) {
       invoiceIds = idsResponseData.purchaseInvoiceIds;
     } else if (idsResponseData?.ids) {
@@ -153,18 +161,18 @@ serve(async (req) => {
               company_id: companyId,
               sef_invoice_id: invoice.sefInvoiceId,
               invoice_type: 'purchase',
-              invoice_number: invoice.invoiceNumber,
-              issue_date: invoice.issueDate,
-              delivery_date: invoice.deliveryDate,
-              due_date: invoice.dueDate,
+              invoice_number: invoice.invoiceNumber || null,
+              issue_date: toNullableDate(invoice.issueDate),
+              delivery_date: toNullableDate(invoice.deliveryDate),
+              due_date: toNullableDate(invoice.dueDate),
               counterparty_name: invoice.supplierName,
-              counterparty_pib: invoice.supplierPib,
-              counterparty_maticni_broj: invoice.supplierMaticniBroj,
-              counterparty_address: invoice.supplierAddress,
-              total_amount: invoice.totalAmount,
-              vat_amount: invoice.vatAmount,
-              currency: invoice.currency,
-              sef_status: invoice.status,
+              counterparty_pib: invoice.supplierPib || null,
+              counterparty_maticni_broj: invoice.supplierMaticniBroj || null,
+              counterparty_address: invoice.supplierAddress || null,
+              total_amount: invoice.totalAmount || 0,
+              vat_amount: invoice.vatAmount || null,
+              currency: invoice.currency || 'RSD',
+              sef_status: invoice.status || 'Unknown',
               local_status: 'pending',
             });
           }
