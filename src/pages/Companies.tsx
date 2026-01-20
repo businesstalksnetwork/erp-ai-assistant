@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X, ExternalLink } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X, ExternalLink, CheckCircle2, Circle } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -403,14 +403,25 @@ export default function Companies() {
                       </div>
                     )}
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        {company.name}
-                        {company.is_active && (
-                          <Badge variant="outline" className="bg-success/10 text-success border-success">
-                            Aktivna
-                          </Badge>
-                        )}
-                      </CardTitle>
+                    <CardTitle className="flex items-center gap-2 flex-wrap">
+                      {company.name}
+                      {company.is_active && (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success">
+                          Aktivna
+                        </Badge>
+                      )}
+                      {company.sef_api_key ? (
+                        <span className="flex items-center gap-1" title="SEF API ključ podešen">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-xs text-green-600 dark:text-green-400">SEF</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1" title="SEF API ključ nije podešen">
+                          <Circle className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">SEF</span>
+                        </span>
+                      )}
+                    </CardTitle>
                       <CardDescription>{company.address}</CardDescription>
                     </div>
                   </div>
