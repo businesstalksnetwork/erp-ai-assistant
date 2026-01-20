@@ -42,7 +42,7 @@ export default function CompanyProfile() {
     name: '',
     address: '',
     city: '',
-    country: '',
+    country: 'Srbija',
     pib: '',
     maticni_broj: '',
     is_active: true,
@@ -58,15 +58,15 @@ export default function CompanyProfile() {
         setCompany(found);
         setSefApiKey(found.sef_api_key || '');
         setBankAccount(found.bank_account || '');
-        setEditForm({
-          name: found.name,
-          address: found.address,
-          city: found.city || '',
-          country: found.country || '',
-          pib: found.pib,
-          maticni_broj: found.maticni_broj,
-          is_active: found.is_active,
-        });
+      setEditForm({
+        name: found.name,
+        address: found.address,
+        city: found.city || '',
+        country: found.country || 'Srbija',
+        pib: found.pib,
+        maticni_broj: found.maticni_broj,
+        is_active: found.is_active,
+      });
       }
     }
   }, [companies, id]);
