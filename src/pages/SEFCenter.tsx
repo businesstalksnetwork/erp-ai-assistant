@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useSEFPurchaseInvoices } from '@/hooks/useSEFPurchaseInvoices';
 import { useSEFStorage, StoredSEFInvoice } from '@/hooks/useSEFStorage';
@@ -12,9 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar } from 'lucide-react';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
 
@@ -86,6 +86,12 @@ export default function SEFCenter() {
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   
+  // Pagination state
+  const [purchasePage, setPurchasePage] = useState(1);
+  const [purchasePerPage, setPurchasePerPage] = useState(20);
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesPerPage, setSalesPerPage] = useState(20);
+  
   // Dialogs
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewXML, setPreviewXML] = useState('');
@@ -98,6 +104,54 @@ export default function SEFCenter() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+
+  // Filtered invoices by date range
+  const filteredPurchaseInvoices = useMemo(() => {
+    return purchaseInvoices.filter(inv => {
+      const issueDate = inv.issue_date;
+      if (!issueDate) return true;
+      if (dateFrom && issueDate < dateFrom) return false;
+      if (dateTo && issueDate > dateTo) return false;
+      return true;
+    });
+  }, [purchaseInvoices, dateFrom, dateTo]);
+
+  const filteredSalesInvoices = useMemo(() => {
+    return salesInvoices.filter(inv => {
+      const issueDate = inv.issue_date;
+      if (!issueDate) return true;
+      if (dateFrom && issueDate < dateFrom) return false;
+      if (dateTo && issueDate > dateTo) return false;
+      return true;
+    });
+  }, [salesInvoices, dateFrom, dateTo]);
+
+  // Paginated invoices
+  const paginatedPurchaseInvoices = useMemo(() => {
+    const start = (purchasePage - 1) * purchasePerPage;
+    return filteredPurchaseInvoices.slice(start, start + purchasePerPage);
+  }, [filteredPurchaseInvoices, purchasePage, purchasePerPage]);
+
+  const paginatedSalesInvoices = useMemo(() => {
+    const start = (salesPage - 1) * salesPerPage;
+    return filteredSalesInvoices.slice(start, start + salesPerPage);
+  }, [filteredSalesInvoices, salesPage, salesPerPage]);
+
+  const totalPurchasePages = Math.ceil(filteredPurchaseInvoices.length / purchasePerPage);
+  const totalSalesPages = Math.ceil(filteredSalesInvoices.length / salesPerPage);
+
+  // Reset to page 1 when filters change
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setPurchasePage(1);
+    setSalesPage(1);
+  };
+
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setPurchasePage(1);
+    setSalesPage(1);
+  };
 
   // Handlers
   const handleFetchPurchase = async () => {
@@ -200,6 +254,71 @@ export default function SEFCenter() {
     );
   }
 
+  // Pagination component
+  const PaginationControls = ({ 
+    page, 
+    setPage, 
+    perPage, 
+    setPerPage, 
+    totalItems, 
+    totalPages 
+  }: { 
+    page: number; 
+    setPage: (p: number) => void; 
+    perPage: number; 
+    setPerPage: (p: number) => void; 
+    totalItems: number; 
+    totalPages: number; 
+  }) => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+      {/* Per page selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Po strani:</span>
+        <Select value={String(perPage)} onValueChange={(v) => {
+          setPerPage(Number(v));
+          setPage(1);
+        }}>
+          <SelectTrigger className="w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10</SelectItem>
+            <SelectItem value="20">20</SelectItem>
+            <SelectItem value="50">50</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">
+          Ukupno: {totalItems}
+        </span>
+      </div>
+      
+      {/* Page navigation */}
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => setPage(page - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="hidden sm:inline ml-1">Prethodna</span>
+        </Button>
+        <span className="text-sm min-w-[100px] text-center">
+          Strana {page} od {totalPages || 1}
+        </span>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => setPage(page + 1)}
+        >
+          <span className="hidden sm:inline mr-1">Sledeća</span>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -218,7 +337,7 @@ export default function SEFCenter() {
         <Card className={
           activeJob.status === 'running' || activeJob.status === 'pending'
             ? "border-primary/20 bg-primary/5"
-            : activeJob.status === 'completed'
+            : activeJob.status === 'completed' || activeJob.status === 'partial'
             ? "border-green-500/20 bg-green-500/5"
             : "border-destructive/20 bg-destructive/5"
         }>
@@ -228,7 +347,7 @@ export default function SEFCenter() {
                 {(activeJob.status === 'running' || activeJob.status === 'pending') && (
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 )}
-                {activeJob.status === 'completed' && (
+                {(activeJob.status === 'completed' || activeJob.status === 'partial') && (
                   <Check className="h-5 w-5 text-green-600" />
                 )}
                 {activeJob.status === 'failed' && (
@@ -239,14 +358,14 @@ export default function SEFCenter() {
                   <span className="font-medium">
                     {activeJob.invoice_type === 'purchase' ? 'Ulazne' : 'Izlazne'} fakture: 
                     {(activeJob.status === 'running' || activeJob.status === 'pending') && ' Preuzimanje u toku...'}
-                    {activeJob.status === 'completed' && ` Završeno (${activeJob.invoices_saved} sačuvano)`}
+                    {(activeJob.status === 'completed' || activeJob.status === 'partial') && ` Završeno (${activeJob.invoices_saved} sačuvano)`}
                     {activeJob.status === 'failed' && ' Greška'}
                   </span>
                 </div>
               </div>
               
               {/* Dismiss button for completed/failed */}
-              {(activeJob.status === 'completed' || activeJob.status === 'failed') && (
+              {(activeJob.status === 'completed' || activeJob.status === 'failed' || activeJob.status === 'partial') && (
                 <Button variant="ghost" size="sm" onClick={dismissJobStatus}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -283,16 +402,16 @@ export default function SEFCenter() {
             <Inbox className="h-4 w-4" />
             <span className="hidden sm:inline">Ulazne fakture</span>
             <span className="sm:hidden">Ulazne</span>
-            {purchaseInvoices.length > 0 && (
-              <Badge variant="secondary" className="ml-1">{purchaseInvoices.length}</Badge>
+            {filteredPurchaseInvoices.length > 0 && (
+              <Badge variant="secondary" className="ml-1">{filteredPurchaseInvoices.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="sales" className="flex items-center gap-2">
             <Send className="h-4 w-4" />
             <span className="hidden sm:inline">Izlazne fakture</span>
             <span className="sm:hidden">Izlazne</span>
-            {salesInvoices.length > 0 && (
-              <Badge variant="secondary" className="ml-1">{salesInvoices.length}</Badge>
+            {filteredSalesInvoices.length > 0 && (
+              <Badge variant="secondary" className="ml-1">{filteredSalesInvoices.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="archive" className="flex items-center gap-2">
@@ -325,14 +444,14 @@ export default function SEFCenter() {
                   <Input
                     type="date"
                     value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    onChange={(e) => handleDateFromChange(e.target.value)}
                     className="w-full sm:w-40"
                   />
                   <span className="hidden sm:flex items-center text-muted-foreground">do</span>
                   <Input
                     type="date"
                     value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    onChange={(e) => handleDateToChange(e.target.value)}
                     className="w-full sm:w-40"
                   />
                 </div>
@@ -379,83 +498,97 @@ export default function SEFCenter() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : purchaseInvoices.length === 0 ? (
+              ) : filteredPurchaseInvoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nema ulaznih faktura</p>
+                  <p>Nema ulaznih faktura{dateFrom || dateTo ? ' za izabrani period' : ''}</p>
                   <p className="text-sm">Kliknite "Preuzmi sa SEF-a" da preuzmete nove fakture</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Broj fakture</TableHead>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Dobavljač</TableHead>
-                        <TableHead className="text-right">Iznos</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Akcije</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {purchaseInvoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                          <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{invoice.counterparty_name}</div>
-                              {invoice.counterparty_pib && (
-                                <div className="text-xs text-muted-foreground">PIB: {invoice.counterparty_pib}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(invoice.total_amount, invoice.currency)}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(invoice.sef_status, invoice.local_status)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handlePreview(invoice)}
-                                title="Pregled"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {invoice.local_status === 'pending' && invoice.sef_status !== 'Approved' && invoice.sef_status !== 'Rejected' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleApprove(invoice)}
-                                    disabled={isProcessing}
-                                    title="Odobri"
-                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleOpenReject(invoice.sef_invoice_id)}
-                                    disabled={isProcessing}
-                                    title="Odbij"
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Broj fakture</TableHead>
+                          <TableHead>Datum</TableHead>
+                          <TableHead>Dobavljač</TableHead>
+                          <TableHead className="text-right">Iznos</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Akcije</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedPurchaseInvoices.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                            <TableCell>{formatDate(invoice.issue_date)}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{invoice.counterparty_name}</div>
+                                {invoice.counterparty_pib && (
+                                  <div className="text-xs text-muted-foreground">PIB: {invoice.counterparty_pib}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(invoice.total_amount, invoice.currency)}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(invoice.sef_status, invoice.local_status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handlePreview(invoice)}
+                                  title="Pregled"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {invoice.local_status === 'pending' && invoice.sef_status !== 'Approved' && invoice.sef_status !== 'Rejected' && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleApprove(invoice)}
+                                      disabled={isProcessing}
+                                      title="Odobri"
+                                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleOpenReject(invoice.sef_invoice_id)}
+                                      disabled={isProcessing}
+                                      title="Odbij"
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Pagination for Purchase */}
+                  {filteredPurchaseInvoices.length > 10 && (
+                    <PaginationControls
+                      page={purchasePage}
+                      setPage={setPurchasePage}
+                      perPage={purchasePerPage}
+                      setPerPage={setPurchasePerPage}
+                      totalItems={filteredPurchaseInvoices.length}
+                      totalPages={totalPurchasePages}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -475,8 +608,23 @@ export default function SEFCenter() {
             </CardHeader>
             <CardContent>
 
-              {/* Sync button for sales invoices */}
-              <div className="flex justify-end mb-6">
+              {/* Date filter and Sync button */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => handleDateFromChange(e.target.value)}
+                    className="w-full sm:w-40"
+                  />
+                  <span className="hidden sm:flex items-center text-muted-foreground">do</span>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => handleDateToChange(e.target.value)}
+                    className="w-full sm:w-40"
+                  />
+                </div>
                 <Button 
                   variant="outline" 
                   onClick={() => handleStartLongSync('sales')} 
@@ -496,57 +644,71 @@ export default function SEFCenter() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : salesInvoices.length === 0 ? (
+              ) : filteredSalesInvoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nema izlaznih faktura u arhivi</p>
+                  <p>Nema izlaznih faktura{dateFrom || dateTo ? ' za izabrani period' : ''}</p>
                   <p className="text-sm">Fakture poslate na SEF će se automatski čuvati ovde, ili kliknite dugme iznad da preuzmete istoriju.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Broj fakture</TableHead>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Kupac</TableHead>
-                        <TableHead className="text-right">Iznos</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Akcije</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {salesInvoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                          <TableCell>{formatDate(invoice.issue_date)}</TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{invoice.counterparty_name}</div>
-                              {invoice.counterparty_pib && (
-                                <div className="text-xs text-muted-foreground">PIB: {invoice.counterparty_pib}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(invoice.total_amount, invoice.currency)}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(invoice.sef_status, invoice.local_status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handlePreview(invoice)}
-                              title="Pregled"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Broj fakture</TableHead>
+                          <TableHead>Datum</TableHead>
+                          <TableHead>Kupac</TableHead>
+                          <TableHead className="text-right">Iznos</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Akcije</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedSalesInvoices.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                            <TableCell>{formatDate(invoice.issue_date)}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{invoice.counterparty_name}</div>
+                                {invoice.counterparty_pib && (
+                                  <div className="text-xs text-muted-foreground">PIB: {invoice.counterparty_pib}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(invoice.total_amount, invoice.currency)}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(invoice.sef_status, invoice.local_status)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handlePreview(invoice)}
+                                title="Pregled"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Pagination for Sales */}
+                  {filteredSalesInvoices.length > 10 && (
+                    <PaginationControls
+                      page={salesPage}
+                      setPage={setSalesPage}
+                      perPage={salesPerPage}
+                      setPerPage={setSalesPerPage}
+                      totalItems={filteredSalesInvoices.length}
+                      totalPages={totalSalesPages}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
