@@ -101,6 +101,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          fiscal_enabled: boolean
           id: string
           is_active: boolean
           logo_url: string | null
@@ -117,6 +118,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          fiscal_enabled?: boolean
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -133,6 +135,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          fiscal_enabled?: boolean
           id?: string
           is_active?: boolean
           logo_url?: string | null

@@ -55,6 +55,7 @@ export default function Companies() {
     maticni_broj: '',
     bank_account: '',
     is_active: true,
+    fiscal_enabled: false,
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -72,6 +73,7 @@ export default function Companies() {
       maticni_broj: '',
       bank_account: '',
       is_active: true,
+      fiscal_enabled: false,
     });
     setErrors({});
     setEditId(null);
@@ -95,6 +97,7 @@ export default function Companies() {
       maticni_broj: company.maticni_broj,
       bank_account: company.bank_account || '',
       is_active: company.is_active,
+      fiscal_enabled: company.fiscal_enabled,
     });
     setEditId(company.id);
     setExistingLogoUrl((company as any).logo_url || null);
