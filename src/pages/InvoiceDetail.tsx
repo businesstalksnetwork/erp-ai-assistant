@@ -514,7 +514,7 @@ export default function InvoiceDetail() {
     amountForPayment > 0;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:absolute print:top-0 print:left-0 print:m-0 print:max-w-none print:w-full">
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />

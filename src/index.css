@@ -486,8 +486,17 @@
     print-color-adjust: exact !important;
   }
 
+  /* KRITIČNO: Potpuno ukloni print:hidden elemente iz toka dokumenta */
   .print\:hidden {
     display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
   }
 
   .print\:shadow-none {
@@ -498,10 +507,33 @@
     border: none !important;
   }
 
+  /* Resetuj layout klase koje zauzimaju prostor */
+  .min-h-screen {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .lg\:pl-64 {
+    padding-left: 0 !important;
+  }
+
+  .pt-16, .pt-\[108px\] {
+    padding-top: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   /* Compact invoice layout for single page */
   .print-invoice {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
     max-width: 100% !important;
-    padding: 0 !important;
+    padding: 8mm !important;
     margin: 0 !important;
     background: white !important;
   }
