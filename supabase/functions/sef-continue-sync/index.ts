@@ -20,16 +20,16 @@ serve(async (req) => {
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Find partial jobs that haven't been updated in the last minute
+    // Find partial jobs that haven't been updated in the last 30 seconds
     // (to avoid picking up jobs that are still being processed)
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString();
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     
     const { data: partialJobs, error: fetchError } = await supabase
       .from('sef_sync_jobs')
       .select('id, company_id, invoice_type, total_months, last_processed_month, updated_at')
       .eq('status', 'partial')
-      .lt('updated_at', oneMinuteAgo) // Not updated in last minute
+      .lt('updated_at', thirtySecondsAgo) // Not updated in last 30 seconds
       .order('updated_at', { ascending: true })
       .limit(1);
     

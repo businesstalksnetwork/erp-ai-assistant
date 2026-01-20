@@ -196,7 +196,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
           .from('sef_sync_jobs')
           .select('*')
           .eq('company_id', companyId)
-          .in('status', ['pending', 'running'])
+          .in('status', ['pending', 'running', 'partial'])
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
