@@ -32,6 +32,7 @@ import {
   BarChart3,
   ListChecks,
   Banknote,
+  FileStack,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
 const userNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
+  { href: '/sef', label: 'SEF Centar', icon: FileStack },
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator },
