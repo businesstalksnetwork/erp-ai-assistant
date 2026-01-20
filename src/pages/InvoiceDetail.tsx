@@ -768,7 +768,7 @@ export default function InvoiceDetail() {
                     </div>
                   </div>
                   <Separator />
-                  <div className="bg-slate-800 text-white px-6 py-4 rounded-lg">
+                  <div className="bg-slate-800 text-white px-6 py-4 rounded-lg w-full">
                     <p className="text-sm text-slate-300">{t('amount_due')}</p>
                     {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.foreign_amount && invoice.exchange_rate ? (
                       <>
@@ -785,7 +785,7 @@ export default function InvoiceDetail() {
                   </div>
                 </>
               ) : (
-                <div className="bg-slate-800 text-white px-6 py-4 rounded-lg">
+                <div className="bg-slate-800 text-white px-6 py-4 rounded-lg w-full">
                   <p className="text-sm text-slate-300">
                     {invoice.invoice_type === 'advance' ? t('paid') : t('amount_due')}
                   </p>
