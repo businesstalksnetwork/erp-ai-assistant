@@ -13,6 +13,7 @@ export interface Client {
   maticni_broj: string | null;
   vat_number: string | null;
   client_type: 'domestic' | 'foreign';
+  sef_registered: boolean;
   created_at: string;
 }
 

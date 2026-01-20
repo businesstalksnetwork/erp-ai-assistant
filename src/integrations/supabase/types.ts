@@ -56,6 +56,7 @@ export type Database = {
           maticni_broj: string | null
           name: string
           pib: string | null
+          sef_registered: boolean
           vat_number: string | null
         }
         Insert: {
@@ -69,6 +70,7 @@ export type Database = {
           maticni_broj?: string | null
           name: string
           pib?: string | null
+          sef_registered?: boolean
           vat_number?: string | null
         }
         Update: {
@@ -82,6 +84,7 @@ export type Database = {
           maticni_broj?: string | null
           name?: string
           pib?: string | null
+          sef_registered?: boolean
           vat_number?: string | null
         }
         Relationships: [
