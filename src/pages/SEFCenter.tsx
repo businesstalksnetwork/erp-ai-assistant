@@ -682,7 +682,7 @@ export default function SEFCenter() {
                       ) : (
                         <Download className="h-4 w-4 mr-2" />
                       )}
-                      Retry dopuna ({incompleteCount})
+                      Osveži
                     </Button>
                   )}
                 </div>
