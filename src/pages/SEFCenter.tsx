@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
 
@@ -99,6 +99,13 @@ export default function SEFCenter() {
   const [salesPage, setSalesPage] = useState(1);
   const [salesPerPage, setSalesPerPage] = useState(20);
   
+  // Sorting state
+  type SortField = 'date' | 'amount' | 'status' | null;
+  type SortDirection = 'asc' | 'desc';
+  const [purchaseSort, setPurchaseSort] = useState<{ field: SortField; direction: SortDirection }>({ field: null, direction: 'desc' });
+  const [salesSort, setSalesSort] = useState<{ field: SortField; direction: SortDirection }>({ field: null, direction: 'desc' });
+  const [archiveSort, setArchiveSort] = useState<{ field: SortField; direction: SortDirection }>({ field: null, direction: 'desc' });
+  
   // Dialogs
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewXML, setPreviewXML] = useState('');
@@ -112,9 +119,36 @@ export default function SEFCenter() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
+  // Helper function for sorting
+  const sortInvoices = (invoices: StoredSEFInvoice[], sort: { field: SortField; direction: SortDirection }) => {
+    if (!sort.field) return invoices;
+    
+    return [...invoices].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sort.field) {
+        case 'date':
+          const dateA = a.issue_date || '';
+          const dateB = b.issue_date || '';
+          comparison = dateA.localeCompare(dateB);
+          break;
+        case 'amount':
+          comparison = (a.total_amount || 0) - (b.total_amount || 0);
+          break;
+        case 'status':
+          const statusA = a.sef_status || '';
+          const statusB = b.sef_status || '';
+          comparison = statusA.localeCompare(statusB);
+          break;
+      }
+      
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+  };
+
   // Filtered invoices by date range AND search query
   const filteredPurchaseInvoices = useMemo(() => {
-    return purchaseInvoices.filter(inv => {
+    const filtered = purchaseInvoices.filter(inv => {
       const issueDate = inv.issue_date;
       if (!issueDate) return true;
       if (dateFrom && issueDate < dateFrom) return false;
@@ -131,10 +165,12 @@ export default function SEFCenter() {
       
       return true;
     });
-  }, [purchaseInvoices, dateFrom, dateTo, searchQuery]);
+    
+    return sortInvoices(filtered, purchaseSort);
+  }, [purchaseInvoices, dateFrom, dateTo, searchQuery, purchaseSort]);
 
   const filteredSalesInvoices = useMemo(() => {
-    return salesInvoices.filter(inv => {
+    const filtered = salesInvoices.filter(inv => {
       const issueDate = inv.issue_date;
       if (!issueDate) return true;
       if (dateFrom && issueDate < dateFrom) return false;
@@ -151,7 +187,14 @@ export default function SEFCenter() {
       
       return true;
     });
-  }, [salesInvoices, dateFrom, dateTo, searchQuery]);
+    
+    return sortInvoices(filtered, salesSort);
+  }, [salesInvoices, dateFrom, dateTo, searchQuery, salesSort]);
+
+  // Sorted archive invoices
+  const sortedStoredInvoices = useMemo(() => {
+    return sortInvoices(storedInvoices, archiveSort);
+  }, [storedInvoices, archiveSort]);
 
   // Search suggestions from all invoices
   const searchSuggestions = useMemo(() => {
@@ -234,6 +277,58 @@ export default function SEFCenter() {
     setPurchasePage(1);
     setSalesPage(1);
   };
+
+  // Toggle sort handler
+  const toggleSort = (
+    currentSort: { field: SortField; direction: SortDirection },
+    setSort: React.Dispatch<React.SetStateAction<{ field: SortField; direction: SortDirection }>>,
+    field: SortField
+  ) => {
+    if (currentSort.field === field) {
+      // Toggle direction or clear
+      if (currentSort.direction === 'desc') {
+        setSort({ field, direction: 'asc' });
+      } else {
+        setSort({ field: null, direction: 'desc' });
+      }
+    } else {
+      // New field, start with desc
+      setSort({ field, direction: 'desc' });
+    }
+  };
+
+  // Sortable column header component
+  const SortableHeader = ({ 
+    field, 
+    currentSort, 
+    setSort, 
+    children, 
+    className = '' 
+  }: { 
+    field: SortField; 
+    currentSort: { field: SortField; direction: SortDirection }; 
+    setSort: React.Dispatch<React.SetStateAction<{ field: SortField; direction: SortDirection }>>; 
+    children: React.ReactNode; 
+    className?: string;
+  }) => (
+    <TableHead 
+      className={`cursor-pointer hover:bg-muted/50 select-none ${className}`}
+      onClick={() => toggleSort(currentSort, setSort, field)}
+    >
+      <div className={`flex items-center gap-1 ${className.includes('text-right') ? 'justify-end' : ''}`}>
+        {children}
+        {currentSort.field === field ? (
+          currentSort.direction === 'desc' ? (
+            <ArrowDown className="h-4 w-4" />
+          ) : (
+            <ArrowUp className="h-4 w-4" />
+          )
+        ) : (
+          <ArrowUpDown className="h-4 w-4 opacity-30" />
+        )}
+      </div>
+    </TableHead>
+  );
 
   const handleSelectSuggestion = (suggestion: { label: string; type: 'purchase' | 'sales' }) => {
     setSearchQuery(suggestion.label.split(' - ')[0]); // Use invoice number part
@@ -708,10 +803,16 @@ export default function SEFCenter() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Broj fakture</TableHead>
-                          <TableHead>Datum</TableHead>
+                          <SortableHeader field="date" currentSort={purchaseSort} setSort={setPurchaseSort}>
+                            Datum
+                          </SortableHeader>
                           <TableHead>Dobavljač</TableHead>
-                          <TableHead className="text-right">Iznos</TableHead>
-                          <TableHead>Status</TableHead>
+                          <SortableHeader field="amount" currentSort={purchaseSort} setSort={setPurchaseSort} className="text-right">
+                            Iznos
+                          </SortableHeader>
+                          <SortableHeader field="status" currentSort={purchaseSort} setSort={setPurchaseSort}>
+                            Status
+                          </SortableHeader>
                           <TableHead className="text-right">Akcije</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -942,10 +1043,16 @@ export default function SEFCenter() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Broj fakture</TableHead>
-                          <TableHead>Datum</TableHead>
+                          <SortableHeader field="date" currentSort={salesSort} setSort={setSalesSort}>
+                            Datum
+                          </SortableHeader>
                           <TableHead>Kupac</TableHead>
-                          <TableHead className="text-right">Iznos</TableHead>
-                          <TableHead>Status</TableHead>
+                          <SortableHeader field="amount" currentSort={salesSort} setSort={setSalesSort} className="text-right">
+                            Iznos
+                          </SortableHeader>
+                          <SortableHeader field="status" currentSort={salesSort} setSort={setSalesSort}>
+                            Status
+                          </SortableHeader>
                           <TableHead className="text-right">Akcije</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1029,15 +1136,21 @@ export default function SEFCenter() {
                       <TableRow>
                         <TableHead>Tip</TableHead>
                         <TableHead>Broj fakture</TableHead>
-                        <TableHead>Datum</TableHead>
+                        <SortableHeader field="date" currentSort={archiveSort} setSort={setArchiveSort}>
+                          Datum
+                        </SortableHeader>
                         <TableHead>Partner</TableHead>
-                        <TableHead className="text-right">Iznos</TableHead>
-                        <TableHead>Status</TableHead>
+                        <SortableHeader field="amount" currentSort={archiveSort} setSort={setArchiveSort} className="text-right">
+                          Iznos
+                        </SortableHeader>
+                        <SortableHeader field="status" currentSort={archiveSort} setSort={setArchiveSort}>
+                          Status
+                        </SortableHeader>
                         <TableHead className="text-right">Akcije</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {storedInvoices.map((invoice) => (
+                      {sortedStoredInvoices.map((invoice) => (
                         <TableRow key={invoice.id}>
                           <TableCell>
                             <Badge variant={invoice.invoice_type === 'purchase' ? 'outline' : 'default'}>
