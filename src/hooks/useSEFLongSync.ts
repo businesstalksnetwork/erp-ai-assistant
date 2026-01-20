@@ -39,16 +39,40 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
   
   // Use ref for polling interval to avoid re-renders
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track dismissed job IDs in localStorage
+  const DISMISSED_JOBS_KEY = 'sef_dismissed_job_ids';
+  
+  const getDismissedJobIds = useCallback((): string[] => {
+    try {
+      const stored = localStorage.getItem(DISMISSED_JOBS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }, []);
+  
+  const addDismissedJobId = useCallback((jobId: string) => {
+    const dismissed = getDismissedJobIds();
+    if (!dismissed.includes(jobId)) {
+      // Keep only last 50 dismissed jobs to avoid localStorage bloat
+      const updated = [...dismissed, jobId].slice(-50);
+      localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(updated));
+    }
+  }, [getDismissedJobIds]);
 
   // Calculate progress percentage
   const progress = activeJob 
     ? Math.round((activeJob.processed_months / Math.max(activeJob.total_months, 1)) * 100)
     : 0;
 
-  // Dismiss job status (for completed/failed jobs)
+  // Dismiss job status (for completed/failed jobs) - now persists to localStorage
   const dismissJobStatus = useCallback(() => {
+    if (activeJob) {
+      addDismissedJobId(activeJob.id);
+    }
     setActiveJob(null);
-  }, []);
+  }, [activeJob, addDismissedJobId]);
 
   // Stop polling
   const stopPolling = useCallback(() => {
@@ -255,6 +279,12 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         }
 
         if (lastJob) {
+          // Check if this job was already dismissed by the user
+          const dismissedIds = getDismissedJobIds();
+          if (dismissedIds.includes(lastJob.id)) {
+            console.log('Skipping dismissed job:', lastJob.id);
+            return;
+          }
           console.log('Found recent completed job:', lastJob.id);
           setActiveJob(lastJob as SyncJob);
         }
