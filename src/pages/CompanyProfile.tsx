@@ -508,29 +508,52 @@ export default function CompanyProfile() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* SEF Integration Status */}
+              {/* SEF Integration Toggle */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <FileStack className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="font-medium">SEF Centar</p>
-                    <p className="text-xs text-muted-foreground">Sistem e-Faktura integracija</p>
+                    <p className="text-xs text-muted-foreground">
+                      Sistem e-Faktura integracija
+                      {company.sef_enabled && !company.sef_api_key && (
+                        <span className="text-amber-500 ml-1">• API ključ nije podešen</span>
+                      )}
+                      {company.sef_enabled && company.sef_api_key && (
+                        <span className="text-green-500 ml-1">• Povezano</span>
+                      )}
+                    </p>
                   </div>
                 </div>
-                {company.sef_api_key ? (
-                  <Badge className="bg-green-600 hover:bg-green-700">Aktivno</Badge>
-                ) : (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => {
-                      const tabsTrigger = document.querySelector('[value="sef"]') as HTMLElement;
-                      tabsTrigger?.click();
+                <div className="flex items-center gap-3">
+                  {company.sef_enabled && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        const tabsTrigger = document.querySelector('[value="sef"]') as HTMLElement;
+                        tabsTrigger?.click();
+                      }}
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Konfiguriši
+                    </Button>
+                  )}
+                  <Switch
+                    checked={company.sef_enabled}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await updateCompany.mutateAsync({ 
+                          id: company.id, 
+                          sef_enabled: checked 
+                        });
+                        toast.success(checked ? 'SEF Centar uključen' : 'SEF Centar isključen');
+                      } catch (error) {
+                        toast.error('Greška pri promeni statusa');
+                      }
                     }}
-                  >
-                    Konfiguriši
-                  </Button>
-                )}
+                  />
+                </div>
               </div>
 
               {/* Fiscal Cash Register Toggle */}

@@ -109,6 +109,7 @@ export type Database = {
           name: string
           pib: string
           sef_api_key: string | null
+          sef_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -126,6 +127,7 @@ export type Database = {
           name: string
           pib: string
           sef_api_key?: string | null
+          sef_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -143,6 +145,7 @@ export type Database = {
           name?: string
           pib?: string
           sef_api_key?: string | null
+          sef_enabled?: boolean
           updated_at?: string
           user_id?: string
         }

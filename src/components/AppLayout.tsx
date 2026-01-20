@@ -88,8 +88,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     
     const conditionalItems = [];
     
-    // SEF Centar - only if sef_api_key is configured
-    if (selectedCompany?.sef_api_key) {
+    // SEF Centar - only if sef_enabled is true
+    if (selectedCompany?.sef_enabled) {
       conditionalItems.push({ href: '/sef', label: 'SEF Centar', icon: FileStack });
     }
     
