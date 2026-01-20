@@ -112,44 +112,58 @@ interface SEFPurchaseInvoice {
   status: string;
 }
 
-// Fetch invoice IDs for a specific status
+// Fetch invoice IDs for a specific status with retry logic for rate limiting
 async function fetchInvoiceIdsByStatus(
   apiKey: string,
   dateFrom: string,
   dateTo: string,
-  status: string
+  status: string,
+  maxRetries: number = 3
 ): Promise<string[]> {
-  try {
-    const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'ApiKey': apiKey,
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        dateFrom,
-        dateTo,
-        status: [status],
-      }),
-    });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ApiKey': apiKey,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          dateFrom,
+          dateTo,
+          status: [status],
+        }),
+      });
 
-    if (!response.ok) {
-      console.log(`Status ${status} fetch returned ${response.status}`);
+      if (response.status === 429) {
+        const waitTime = (attempt + 1) * 1500; // Exponential backoff: 1.5s, 3s, 4.5s
+        console.log(`Rate limited on status ${status}, waiting ${waitTime}ms before retry (attempt ${attempt + 1}/${maxRetries})...`);
+        await delay(waitTime);
+        continue;
+      }
+
+      if (!response.ok) {
+        console.log(`Status ${status} fetch returned ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      const ids = data?.PurchaseInvoiceIds || data?.purchaseInvoiceIds || [];
+      return ids;
+    } catch (e) {
+      console.error(`Error fetching IDs for status ${status}:`, e);
+      if (attempt < maxRetries - 1) {
+        await delay((attempt + 1) * 1000);
+        continue;
+      }
       return [];
     }
-
-    const data = await response.json();
-    const ids = data?.PurchaseInvoiceIds || data?.purchaseInvoiceIds || [];
-    console.log(`Status '${status}': found ${ids.length} invoices`);
-    return ids;
-  } catch (e) {
-    console.error(`Error fetching IDs for status ${status}:`, e);
-    return [];
   }
+  return [];
 }
 
-// Build a map of invoiceId -> status by querying each status separately
+// Build a map of invoiceId -> status SEQUENTIALLY to respect rate limits (max 3 req/sec)
 async function buildStatusMap(
   apiKey: string,
   dateFrom: string,
@@ -158,18 +172,18 @@ async function buildStatusMap(
   const statusMap = new Map<string, string>();
   const statuses = ['New', 'Seen', 'Approved', 'Rejected', 'Cancelled'];
 
-  console.log('Building status map by querying each status...');
+  console.log('Building status map sequentially to respect rate limits...');
   
-  // Fetch all statuses in parallel for speed
-  const results = await Promise.all(
-    statuses.map(async (status) => {
-      const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status);
-      return { status, ids };
-    })
-  );
-
-  // Build the map
-  for (const { status, ids } of results) {
+  for (let i = 0; i < statuses.length; i++) {
+    // Add delay between requests (400ms = max 2.5 req/sec, well under 3 req/sec limit)
+    if (i > 0) {
+      await delay(400);
+    }
+    
+    const status = statuses[i];
+    const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status);
+    console.log(`Status '${status}': found ${ids.length} invoices`);
+    
     for (const id of ids) {
       statusMap.set(id, status);
     }
@@ -208,10 +222,13 @@ serve(async (req) => {
       throw new Error('SEF API ključ nije podešen za ovu kompaniju');
     }
 
-    // STEP 1: Build status map by querying each status separately
+    // STEP 1: Build status map by querying each status separately (sequential to respect rate limits)
     const statusMap = await buildStatusMap(company.sef_api_key, dateFrom, dateTo);
 
-    // STEP 2: Fetch all invoice IDs (query with all statuses)
+    // Add delay before next API call
+    await delay(400);
+
+    // STEP 2: Fetch all invoice IDs (query with all statuses) with retry logic
     const idsRequestBody = {
       dateFrom,
       dateTo,
@@ -220,15 +237,30 @@ serve(async (req) => {
 
     console.log('Requesting all SEF purchase invoice IDs...');
 
-    const idsResponse = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'ApiKey': company.sef_api_key,
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(idsRequestBody),
-    });
+    let idsResponse: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      idsResponse = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ApiKey': company.sef_api_key,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(idsRequestBody),
+      });
+      
+      if (idsResponse.status === 429) {
+        const waitTime = (attempt + 1) * 1500;
+        console.log(`Rate limited on all IDs request, waiting ${waitTime}ms before retry...`);
+        await delay(waitTime);
+        continue;
+      }
+      break;
+    }
+    
+    if (!idsResponse) {
+      throw new Error('Failed to fetch invoice IDs after retries');
+    }
 
     if (!idsResponse.ok) {
       const errorText = await idsResponse.text();
@@ -265,9 +297,9 @@ serve(async (req) => {
     for (let i = 0; i < invoiceIds.length; i++) {
       const invoiceId = invoiceIds[i];
       
-      // Add delay between requests to avoid rate limiting (429)
+      // Add delay between requests to avoid rate limiting (max 3 req/sec)
       if (i > 0) {
-        await delay(500);
+        await delay(600); // 600ms ensures we stay under 2 req/sec for safety margin
       }
 
       // Get status from our pre-built map - THIS IS THE KEY FIX!
