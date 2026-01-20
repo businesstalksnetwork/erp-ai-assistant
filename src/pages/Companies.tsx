@@ -56,6 +56,7 @@ export default function Companies() {
     bank_account: '',
     is_active: true,
     fiscal_enabled: false,
+    sef_enabled: false,
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export default function Companies() {
       bank_account: '',
       is_active: true,
       fiscal_enabled: false,
+      sef_enabled: false,
     });
     setErrors({});
     setEditId(null);
@@ -98,6 +100,7 @@ export default function Companies() {
       bank_account: company.bank_account || '',
       is_active: company.is_active,
       fiscal_enabled: company.fiscal_enabled,
+      sef_enabled: company.sef_enabled,
     });
     setEditId(company.id);
     setExistingLogoUrl((company as any).logo_url || null);
