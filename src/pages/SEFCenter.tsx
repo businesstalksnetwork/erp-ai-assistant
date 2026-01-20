@@ -546,93 +546,12 @@ export default function SEFCenter() {
             </CardHeader>
             <CardContent>
 
-              {/* Search and Date Range */}
+              {/* Date Range, Search, and Buttons */}
               <div className="flex flex-col gap-4 mb-6">
-                {/* Search with autocomplete */}
-                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={searchInputRef}
-                        placeholder="Pretraži po broju ili partneru..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          handleSearchChange(e.target.value);
-                          if (e.target.value.length >= 1) {
-                            setSearchOpen(true);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (searchQuery.length >= 1) {
-                            setSearchOpen(true);
-                          }
-                        }}
-                        className="pl-10 pr-10"
-                      />
-                      {searchQuery && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
-                          onClick={clearSearch}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[var(--radix-popover-trigger-width)] p-0" 
-                    align="start"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <Command>
-                      <CommandList>
-                        {searchSuggestions.length === 0 ? (
-                          <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
-                        ) : (
-                          <>
-                            {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
-                              <CommandGroup heading="Ulazne fakture">
-                                {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
-                                  <CommandItem
-                                    key={`purchase-${idx}`}
-                                    value={suggestion.label}
-                                    onSelect={() => handleSelectSuggestion(suggestion)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
-                                    <span>{suggestion.label}</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            )}
-                            {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
-                              <CommandGroup heading="Izlazne fakture">
-                                {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
-                                  <CommandItem
-                                    key={`sales-${idx}`}
-                                    value={suggestion.label}
-                                    onSelect={() => handleSelectSuggestion(suggestion)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Send className="h-4 w-4 mr-2 text-muted-foreground" />
-                                    <span>{suggestion.label}</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            )}
-                          </>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                
-                {/* Date Range and Fetch */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                {/* Mobile: Search first, Desktop: inline with dates */}
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  {/* Date Range - first on desktop */}
+                  <div className="flex flex-col sm:flex-row gap-2 order-2 lg:order-1">
                     <Input
                       type="date"
                       value={dateFrom}
@@ -647,6 +566,92 @@ export default function SEFCenter() {
                       className="w-full sm:w-40"
                     />
                   </div>
+                  
+                  {/* Search with autocomplete - before dates on mobile, after on desktop */}
+                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <div className="relative order-1 lg:order-2 lg:flex-1 lg:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          ref={searchInputRef}
+                          placeholder="Pretraži po broju ili partneru..."
+                          value={searchQuery}
+                          onChange={(e) => {
+                            handleSearchChange(e.target.value);
+                            if (e.target.value.length >= 1) {
+                              setSearchOpen(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (searchQuery.length >= 1) {
+                              setSearchOpen(true);
+                            }
+                          }}
+                          className="pl-10 pr-10"
+                        />
+                        {searchQuery && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                            onClick={clearSearch}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-[var(--radix-popover-trigger-width)] p-0" 
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Command>
+                        <CommandList>
+                          {searchSuggestions.length === 0 ? (
+                            <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
+                          ) : (
+                            <>
+                              {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
+                                <CommandGroup heading="Ulazne fakture">
+                                  {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
+                                    <CommandItem
+                                      key={`purchase-${idx}`}
+                                      value={suggestion.label}
+                                      onSelect={() => handleSelectSuggestion(suggestion)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{suggestion.label}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )}
+                              {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
+                                <CommandGroup heading="Izlazne fakture">
+                                  {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
+                                    <CommandItem
+                                      key={`sales-${idx}`}
+                                      value={suggestion.label}
+                                      onSelect={() => handleSelectSuggestion(suggestion)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Send className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{suggestion.label}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )}
+                            </>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {/* Buttons row */}
+                <div className="flex flex-wrap gap-2">
                   <Button onClick={handleFetchPurchase} disabled={isFetching || isEnriching || (activeJob?.status === 'running')}>
                     {isFetching ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -803,92 +808,12 @@ export default function SEFCenter() {
             </CardHeader>
             <CardContent>
 
-              {/* Search and Date Range */}
+              {/* Date Range, Search, and Buttons */}
               <div className="flex flex-col gap-4 mb-6">
-                {/* Search with autocomplete */}
-                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Pretraži po broju ili partneru..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          handleSearchChange(e.target.value);
-                          if (e.target.value.length >= 1) {
-                            setSearchOpen(true);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (searchQuery.length >= 1) {
-                            setSearchOpen(true);
-                          }
-                        }}
-                        className="pl-10 pr-10"
-                      />
-                      {searchQuery && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
-                          onClick={clearSearch}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[var(--radix-popover-trigger-width)] p-0" 
-                    align="start"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <Command>
-                      <CommandList>
-                        {searchSuggestions.length === 0 ? (
-                          <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
-                        ) : (
-                          <>
-                            {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
-                              <CommandGroup heading="Ulazne fakture">
-                                {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
-                                  <CommandItem
-                                    key={`purchase-${idx}`}
-                                    value={suggestion.label}
-                                    onSelect={() => handleSelectSuggestion(suggestion)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
-                                    <span>{suggestion.label}</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            )}
-                            {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
-                              <CommandGroup heading="Izlazne fakture">
-                                {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
-                                  <CommandItem
-                                    key={`sales-${idx}`}
-                                    value={suggestion.label}
-                                    onSelect={() => handleSelectSuggestion(suggestion)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Send className="h-4 w-4 mr-2 text-muted-foreground" />
-                                    <span>{suggestion.label}</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            )}
-                          </>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                
-                {/* Date filter and Sync button */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                {/* Mobile: Search first, Desktop: inline with dates */}
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  {/* Date Range - first on desktop */}
+                  <div className="flex flex-col sm:flex-row gap-2 order-2 lg:order-1">
                     <Input
                       type="date"
                       value={dateFrom}
@@ -903,6 +828,91 @@ export default function SEFCenter() {
                       className="w-full sm:w-40"
                     />
                   </div>
+                  
+                  {/* Search with autocomplete - before dates on mobile, after on desktop */}
+                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <div className="relative order-1 lg:order-2 lg:flex-1 lg:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Pretraži po broju ili partneru..."
+                          value={searchQuery}
+                          onChange={(e) => {
+                            handleSearchChange(e.target.value);
+                            if (e.target.value.length >= 1) {
+                              setSearchOpen(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (searchQuery.length >= 1) {
+                              setSearchOpen(true);
+                            }
+                          }}
+                          className="pl-10 pr-10"
+                        />
+                        {searchQuery && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                            onClick={clearSearch}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-[var(--radix-popover-trigger-width)] p-0" 
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Command>
+                        <CommandList>
+                          {searchSuggestions.length === 0 ? (
+                            <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
+                          ) : (
+                            <>
+                              {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
+                                <CommandGroup heading="Ulazne fakture">
+                                  {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
+                                    <CommandItem
+                                      key={`purchase-${idx}`}
+                                      value={suggestion.label}
+                                      onSelect={() => handleSelectSuggestion(suggestion)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{suggestion.label}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )}
+                              {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
+                                <CommandGroup heading="Izlazne fakture">
+                                  {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
+                                    <CommandItem
+                                      key={`sales-${idx}`}
+                                      value={suggestion.label}
+                                      onSelect={() => handleSelectSuggestion(suggestion)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Send className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{suggestion.label}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )}
+                            </>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {/* Buttons row */}
+                <div className="flex flex-wrap gap-2">
                   <Button 
                     variant="outline" 
                     onClick={() => handleStartLongSync('sales')} 
