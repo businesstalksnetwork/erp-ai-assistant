@@ -1,5 +1,31 @@
 // UBL XML Parser for SEF (Serbian e-Invoice System)
 
+// Sanitize XML string to remove invalid characters that break DOMParser
+function sanitizeXml(xml: string): string {
+  return xml
+    // Remove BOM
+    .replace(/^\uFEFF/, '')
+    // Remove control characters except tab, newline, carriage return
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    // Fix common encoding issues
+    .replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+}
+
+// Extract Invoice XML from DocumentBody using regex (more robust fallback)
+function extractInvoiceFromDocumentBody(xml: string): string | null {
+  // Try to find DocumentBody content
+  const bodyMatch = xml.match(/<(?:env:)?DocumentBody[^>]*>([\s\S]*?)<\/(?:env:)?DocumentBody>/i);
+  if (bodyMatch) {
+    const bodyContent = bodyMatch[1];
+    // Extract Invoice from body
+    const invoiceMatch = bodyContent.match(/<(?:\w+:)?Invoice[\s\S]*?<\/(?:\w+:)?Invoice>/i);
+    if (invoiceMatch) {
+      return invoiceMatch[0];
+    }
+  }
+  return null;
+}
+
 export interface ParsedSEFInvoice {
   // Basic info
   invoiceNumber: string;
@@ -306,33 +332,80 @@ export function extractInvoiceFromEnvelope(xmlString: string): string {
 
 // Main parser function
 export function parseUBLInvoice(xmlString: string): ParsedSEFInvoice | null {
-  try {
-    // First, extract Invoice from envelope if needed
-    const invoiceXml = extractInvoiceFromEnvelope(xmlString);
-    
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(invoiceXml, 'text/xml');
-    
-    // Check for parse errors
-    const parseError = doc.querySelector('parsererror');
-    if (parseError) {
-      console.error('XML parse error:', parseError.textContent);
-      // If parsing extracted invoice fails, try original
-      if (invoiceXml !== xmlString) {
-        console.log('Retrying with original XML...');
-        const origDoc = parser.parseFromString(xmlString, 'text/xml');
-        if (!origDoc.querySelector('parsererror')) {
-          return parseFromDocument(origDoc);
-        }
-      }
-      return null;
-    }
-    
-    return parseFromDocument(doc);
-  } catch (error) {
-    console.error('Error parsing UBL XML:', error);
+  if (!xmlString || xmlString.trim().length === 0) {
+    console.warn('Empty XML string provided');
     return null;
   }
+
+  const parser = new DOMParser();
+
+  // Sanitize input first
+  const sanitized = sanitizeXml(xmlString);
+
+  // Attempt 1: Extract invoice from envelope with full sanitization
+  try {
+    const invoiceXml = extractInvoiceFromEnvelope(sanitized);
+    const doc = parser.parseFromString(invoiceXml, 'text/xml');
+    
+    const parseError = doc.querySelector('parsererror');
+    if (!parseError) {
+      const result = parseFromDocument(doc);
+      if (result && result.invoiceNumber) return result;
+    }
+  } catch (e) {
+    console.warn('Attempt 1 failed:', e);
+  }
+
+  // Attempt 2: Parse sanitized original XML directly
+  try {
+    const doc = parser.parseFromString(sanitized, 'text/xml');
+    
+    const parseError = doc.querySelector('parsererror');
+    if (!parseError) {
+      const result = parseFromDocument(doc);
+      if (result && result.invoiceNumber) return result;
+    }
+  } catch (e) {
+    console.warn('Attempt 2 failed:', e);
+  }
+
+  // Attempt 3: Extract from DocumentBody using regex
+  try {
+    const bodyInvoice = extractInvoiceFromDocumentBody(sanitized);
+    if (bodyInvoice) {
+      const doc = parser.parseFromString(sanitizeXml(bodyInvoice), 'text/xml');
+      const parseError = doc.querySelector('parsererror');
+      if (!parseError) {
+        const result = parseFromDocument(doc);
+        if (result && result.invoiceNumber) return result;
+      }
+    }
+  } catch (e) {
+    console.warn('Attempt 3 failed:', e);
+  }
+
+  // Attempt 4: Aggressive regex extraction of Invoice element
+  try {
+    // Remove all base64 content first
+    let cleaned = sanitized.replace(/<[^>]*Binary[^>]*>[^<]*<\/[^>]*Binary[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<env:DocumentPdf[^>]*>[\s\S]*?<\/env:DocumentPdf>/gi, '');
+    cleaned = cleaned.replace(/<DocumentPdf[^>]*>[\s\S]*?<\/DocumentPdf>/gi, '');
+    
+    const invoiceMatch = cleaned.match(/<(?:\w+:)?Invoice[^>]*xmlns[^>]*>[\s\S]*?<\/(?:\w+:)?Invoice>/i);
+    if (invoiceMatch) {
+      const doc = parser.parseFromString(sanitizeXml(invoiceMatch[0]), 'text/xml');
+      const parseError = doc.querySelector('parsererror');
+      if (!parseError) {
+        const result = parseFromDocument(doc);
+        if (result) return result;
+      }
+    }
+  } catch (e) {
+    console.warn('Attempt 4 failed:', e);
+  }
+
+  console.error('All parsing attempts failed for UBL invoice');
+  return null;
 }
 
 // Parse from DOM Document
