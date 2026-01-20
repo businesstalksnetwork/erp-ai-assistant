@@ -364,7 +364,7 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 border rounded-lg">
+              <ScrollArea className="max-h-[250px] border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
