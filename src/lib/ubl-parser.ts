@@ -205,18 +205,68 @@ function parseVatBreakdown(doc: Document): ParsedSEFInvoice['vatBreakdown'] {
   return breakdown;
 }
 
+// Extract Invoice XML from SEF DocumentEnvelope wrapper
+function extractInvoiceFromEnvelope(xmlString: string): string {
+  // Check if this is a SEF envelope structure
+  if (xmlString.includes('<env:DocumentEnvelope') || 
+      xmlString.includes('DocumentEnvelope') ||
+      xmlString.includes('<env:')) {
+    
+    // Try to extract the Invoice element using regex
+    // The Invoice element is typically after the DocumentPdf section
+    const invoiceMatch = xmlString.match(/<Invoice\s[^>]*xmlns[^>]*>[\s\S]*?<\/Invoice>/);
+    if (invoiceMatch) {
+      console.log('Extracted Invoice from envelope, length:', invoiceMatch[0].length);
+      return invoiceMatch[0];
+    }
+    
+    // Alternative: try without xmlns requirement
+    const simpleMatch = xmlString.match(/<Invoice[^>]*>[\s\S]*<\/Invoice>/);
+    if (simpleMatch) {
+      console.log('Extracted Invoice (simple match) from envelope, length:', simpleMatch[0].length);
+      return simpleMatch[0];
+    }
+    
+    console.warn('Could not extract Invoice from envelope structure');
+  }
+  
+  return xmlString;
+}
+
 // Main parser function
 export function parseUBLInvoice(xmlString: string): ParsedSEFInvoice | null {
   try {
+    // First, extract Invoice from envelope if needed
+    const invoiceXml = extractInvoiceFromEnvelope(xmlString);
+    
     const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlString, 'text/xml');
+    const doc = parser.parseFromString(invoiceXml, 'text/xml');
     
     // Check for parse errors
     const parseError = doc.querySelector('parsererror');
     if (parseError) {
       console.error('XML parse error:', parseError.textContent);
+      // If parsing extracted invoice fails, try original
+      if (invoiceXml !== xmlString) {
+        console.log('Retrying with original XML...');
+        const origDoc = parser.parseFromString(xmlString, 'text/xml');
+        if (!origDoc.querySelector('parsererror')) {
+          return parseFromDocument(origDoc);
+        }
+      }
       return null;
     }
+    
+    return parseFromDocument(doc);
+  } catch (error) {
+    console.error('Error parsing UBL XML:', error);
+    return null;
+  }
+}
+
+// Parse from DOM Document
+function parseFromDocument(doc: Document): ParsedSEFInvoice | null {
+  try {
     
     // Basic info
     const invoiceNumber = getTextContent(findElement(doc, 'ID'));
@@ -287,7 +337,7 @@ export function parseUBLInvoice(xmlString: string): ParsedSEFInvoice | null {
       bankAccount
     };
   } catch (error) {
-    console.error('Error parsing UBL XML:', error);
+    console.error('Error in parseFromDocument:', error);
     return null;
   }
 }
