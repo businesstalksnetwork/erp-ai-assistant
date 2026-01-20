@@ -666,7 +666,7 @@ export default function SEFCenter() {
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <Calendar
                         mode="single"
                         selected={dateFrom ? new Date(dateFrom) : undefined}
@@ -684,7 +684,7 @@ export default function SEFCenter() {
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <Calendar
                         mode="single"
                         selected={dateTo ? new Date(dateTo) : undefined}
@@ -953,7 +953,7 @@ export default function SEFCenter() {
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <Calendar
                         mode="single"
                         selected={dateFrom ? new Date(dateFrom) : undefined}
@@ -971,7 +971,7 @@ export default function SEFCenter() {
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <Calendar
                         mode="single"
                         selected={dateTo ? new Date(dateTo) : undefined}
