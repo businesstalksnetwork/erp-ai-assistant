@@ -94,14 +94,19 @@ async function fetchInvoiceIdsByStatus(
 ): Promise<string[]> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
+      // SEF API expects query parameters, not body!
+      const params = new URLSearchParams({
+        status: status,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+      });
+
+      const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids?${params.toString()}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'ApiKey': apiKey,
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ dateFrom, dateTo, status: [status] }),
       });
 
       if (response.status === 429) {
