@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check, ChevronsUpDown } from 'lucide-react';
+import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check, ChevronsUpDown, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -69,6 +69,8 @@ export default function NewInvoice() {
   const lastAppliedCurrencyRef = useRef<string | null>(null);
   // For domestic clients with prices agreed in foreign currency
   const [useForeignCalculation, setUseForeignCalculation] = useState(false);
+  // SEF sending toggle - defaults to true if company has SEF enabled
+  const [sendToSefEnabled, setSendToSefEnabled] = useState(true);
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
@@ -549,9 +551,9 @@ export default function NewInvoice() {
           : 'Faktura';
       toast.success(`${typeLabel} uspešno kreirana`);
       
-      // Automatski pošalji na SEF ako su ispunjeni uslovi
-      // Uslovi: SEF uključen, API ključ postoji, nije proforma, domaći klijent
+      // Automatski pošalji na SEF ako je korisnik uključio opciju i ispunjeni su uslovi
       if (
+        sendToSefEnabled &&
         selectedCompany.sef_enabled && 
         selectedCompany.sef_api_key && 
         formData.invoice_type !== 'proforma' &&
@@ -635,6 +637,36 @@ export default function NewInvoice() {
             </RadioGroup>
           </CardContent>
         </Card>
+
+        {/* SEF Integration Toggle */}
+        {selectedCompany.sef_enabled && 
+         selectedCompany.sef_api_key && 
+         formData.invoice_type !== 'proforma' && 
+         formData.client_type === 'domestic' && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Send className="h-4 w-4" />
+                SEF Integracija
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="sef-toggle" className="cursor-pointer">Pošalji na SEF</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatski registruj fakturu u Sistemu elektronskih faktura
+                  </p>
+                </div>
+                <Switch 
+                  id="sef-toggle"
+                  checked={sendToSefEnabled} 
+                  onCheckedChange={setSendToSefEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Template Selection */}
         {templatesForType.length > 0 && (
