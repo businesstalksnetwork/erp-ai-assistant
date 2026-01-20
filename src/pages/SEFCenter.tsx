@@ -644,19 +644,19 @@ export default function SEFCenter() {
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
-                <div className="flex flex-col sm:flex-row gap-2 order-2 lg:order-1">
+                <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   <Input
                     type="date"
                     value={dateFrom}
                     onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-40"
+                    className="w-full sm:w-32"
                   />
-                  <span className="hidden sm:flex items-center text-muted-foreground">do</span>
+                  <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
                   <Input
                     type="date"
                     value={dateTo}
                     onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-40"
+                    className="w-full sm:w-32"
                   />
                 </div>
                 
@@ -909,19 +909,19 @@ export default function SEFCenter() {
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
-                <div className="flex flex-col sm:flex-row gap-2 order-2 lg:order-1">
+                <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   <Input
                     type="date"
                     value={dateFrom}
                     onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-40"
+                    className="w-full sm:w-32"
                   />
-                  <span className="hidden sm:flex items-center text-muted-foreground">do</span>
+                  <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
                   <Input
                     type="date"
                     value={dateTo}
                     onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-40"
+                    className="w-full sm:w-32"
                   />
                 </div>
                 
