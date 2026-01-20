@@ -38,6 +38,7 @@ interface CreateTemplateInput {
   client_address?: string | null;
   client_pib?: string | null;
   client_maticni_broj?: string | null;
+  client_vat_number?: string | null;
   client_type: string;
   foreign_currency?: string | null;
   items: TemplateItem[];

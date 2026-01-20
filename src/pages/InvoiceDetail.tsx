@@ -15,24 +15,23 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Helper funkcija za formatiranje broja računa za IPS (format XXX-XXXXXXXXXXXXX-XX, ukupno 18 cifara)
+// Helper funkcija za formatiranje broja računa za IPS (tačno 18 UZASTOPNIH cifara BEZ crtica - NBS standard)
 function formatAccountForIPS(account: string): string {
   const parts = account.replace(/\s/g, '').split('-');
 
   if (parts.length === 3) {
     // Svaki deo: samo cifre, pa normalizuj na tačnu dužinu
     const bank = parts[0].replace(/\D/g, '').padStart(3, '0').slice(0, 3);
-    // Srednji deo mora imati 13 cifara; dopuna nulama ide unutar srednjeg dela (posle prve crte)
+    // Srednji deo mora imati 13 cifara; dopuna nulama ide unutar srednjeg dela
     const middle = parts[1].replace(/\D/g, '').padStart(13, '0').slice(0, 13);
     const control = parts[2].replace(/\D/g, '').padStart(2, '0').slice(0, 2);
 
-    // NBS IPS očekuje format sa crticama
-    return `${bank}-${middle}-${control}`;
+    // NBS IPS zahteva 18 uzastopnih cifara BEZ crtica!
+    return `${bank}${middle}${control}`;
   }
 
-  // Fallback: samo cifre, dopuni na 18 i formatiraj sa crticama
-  const digits = account.replace(/\D/g, '').padStart(18, '0').slice(0, 18);
-  return `${digits.slice(0, 3)}-${digits.slice(3, 16)}-${digits.slice(16)}`;
+  // Fallback: samo cifre, dopuni na 18
+  return account.replace(/\D/g, '').padStart(18, '0').slice(0, 18);
 }
 
 // Funkcija za generisanje IPS QR koda prema NBS standardu

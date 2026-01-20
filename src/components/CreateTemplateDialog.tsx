@@ -76,7 +76,7 @@ export function CreateTemplateDialog({ invoice, items, companyId }: CreateTempla
       items: templateItems,
       payment_method: invoice.payment_method,
       note: invoice.note,
-    } as any);
+    });
 
     setName('');
     setOpen(false);
