@@ -156,7 +156,9 @@ function getTextContent(element: Element | null): string {
 }
 
 // Helper to find element by tag name (handles namespaces)
-function findElement(parent: Element | Document, tagName: string): Element | null {
+function findElement(parent: Element | Document | null, tagName: string): Element | null {
+  if (!parent) return null;
+
   // Try with common namespace prefixes
   const prefixes = ['', 'cbc:', 'cac:', 'ubl:', 'Invoice:'];
   for (const prefix of prefixes) {
@@ -172,17 +174,19 @@ function findElement(parent: Element | Document, tagName: string): Element | nul
 }
 
 // Helper to find all elements by tag name
-function findAllElements(parent: Element | Document, tagName: string): Element[] {
+function findAllElements(parent: Element | Document | null, tagName: string): Element[] {
+  if (!parent) return [];
+
   const results: Element[] = [];
   const prefixes = ['', 'cbc:', 'cac:', 'ubl:', 'Invoice:'];
-  
+
   for (const prefix of prefixes) {
     const elements = parent.getElementsByTagName(prefix + tagName);
     for (let i = 0; i < elements.length; i++) {
       results.push(elements[i]);
     }
   }
-  
+
   // Also try by local name
   const all = parent.getElementsByTagName('*');
   for (let i = 0; i < all.length; i++) {
@@ -190,7 +194,7 @@ function findAllElements(parent: Element | Document, tagName: string): Element[]
       results.push(all[i]);
     }
   }
-  
+
   return results;
 }
 
