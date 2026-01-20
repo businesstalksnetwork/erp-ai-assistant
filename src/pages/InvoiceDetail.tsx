@@ -888,7 +888,7 @@ export default function InvoiceDetail() {
           )}
 
           {/* Paušal box logo - na dnu */}
-          <div className="flex justify-center pt-2 print:pt-1">
+          <div className="flex justify-center pt-6 print:pt-4">
             <img
               src={pausalBoxLogo}
               alt="Paušal box"
