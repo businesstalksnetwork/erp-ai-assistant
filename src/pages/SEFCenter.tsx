@@ -70,8 +70,11 @@ export default function SEFCenter() {
   const companyId = selectedCompany?.id || null;
 
   // Hooks
-  const { fetchPurchaseInvoices, acceptInvoice, rejectInvoice, getInvoiceXML, isFetching, isProcessing, isLoadingXML } = useSEFPurchaseInvoices();
+  const { fetchPurchaseInvoices, acceptInvoice, rejectInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isProcessing, isLoadingXML, isEnriching } = useSEFPurchaseInvoices();
   const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting } = useSEFStorage(companyId);
+
+  // Count incomplete invoices
+  const incompleteCount = purchaseInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
   const { getSEFStatus } = useSEF();
 
   // State
@@ -97,6 +100,14 @@ export default function SEFCenter() {
     if (!companyId) return;
     const result = await fetchPurchaseInvoices(companyId, dateFrom, dateTo);
     // Force refresh after edge function completes
+    if (result.success) {
+      setTimeout(() => refetch(), 500);
+    }
+  };
+
+  const handleEnrichInvoices = async () => {
+    if (!companyId) return;
+    const result = await enrichIncompleteInvoices(companyId);
     if (result.success) {
       setTimeout(() => refetch(), 500);
     }
@@ -249,7 +260,7 @@ export default function SEFCenter() {
                     className="w-full sm:w-40"
                   />
                 </div>
-                <Button onClick={handleFetchPurchase} disabled={isFetching}>
+                <Button onClick={handleFetchPurchase} disabled={isFetching || isEnriching}>
                   {isFetching ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
@@ -257,6 +268,21 @@ export default function SEFCenter() {
                   )}
                   Preuzmi sa SEF-a
                 </Button>
+                {incompleteCount > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleEnrichInvoices} 
+                    disabled={isFetching || isEnriching}
+                    title={`${incompleteCount} faktura bez podataka`}
+                  >
+                    {isEnriching ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Retry dopuna ({incompleteCount})
+                  </Button>
+                )}
               </div>
 
               {/* Invoice List */}
