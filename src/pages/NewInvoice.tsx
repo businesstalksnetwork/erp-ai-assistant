@@ -6,6 +6,7 @@ import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
+import { useSEF } from '@/hooks/useSEF';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,7 @@ export default function NewInvoice() {
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
   const { templates, getTemplatesByType } = useInvoiceTemplates(selectedCompany?.id || null);
   const { getInstructionByCurrency } = useForeignPaymentInstructions(selectedCompany?.id || null);
+  const { sendToSEF } = useSEF();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
@@ -546,6 +548,23 @@ export default function NewInvoice() {
           ? 'Avansna faktura' 
           : 'Faktura';
       toast.success(`${typeLabel} uspešno kreirana`);
+      
+      // Automatski pošalji na SEF ako su ispunjeni uslovi
+      // Uslovi: SEF uključen, API ključ postoji, nije proforma, domaći klijent
+      if (
+        selectedCompany.sef_enabled && 
+        selectedCompany.sef_api_key && 
+        formData.invoice_type !== 'proforma' &&
+        formData.client_type === 'domestic'
+      ) {
+        // Pošalji na SEF u pozadini (ne čekamo rezultat)
+        sendToSEF(invoice.id, selectedCompany.id, { silent: false }).then(result => {
+          if (!result.success) {
+            console.error('SEF auto-send failed:', result.error);
+          }
+        });
+      }
+      
       navigate('/invoices');
     } catch (error) {
       console.error('Error creating invoice:', error);

@@ -45,6 +45,11 @@ export interface Invoice {
   payment_status: PaymentStatus;
   paid_amount: number;
   payment_date: string | null;
+  // SEF fields
+  sef_status: string | null;
+  sef_invoice_id: string | null;
+  sef_sent_at: string | null;
+  sef_error: string | null;
 }
 
 export function useInvoices(companyId: string | null) {

@@ -10,14 +10,19 @@ interface SEFSendResult {
   message?: string;
 }
 
+interface SendOptions {
+  silent?: boolean; // If true, don't show toast notifications
+}
+
 export function useSEF() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSending, setIsSending] = useState(false);
   const [isStornoSending, setIsStornoSending] = useState(false);
 
-  const sendToSEF = async (invoiceId: string, companyId: string): Promise<SEFSendResult> => {
+  const sendToSEF = async (invoiceId: string, companyId: string, options?: SendOptions): Promise<SEFSendResult> => {
     setIsSending(true);
+    const silent = options?.silent ?? false;
     
     try {
       const { data, error } = await supabase.functions.invoke('sef-send-invoice', {
@@ -29,10 +34,12 @@ export function useSEF() {
       }
 
       if (data.success) {
-        toast({
-          title: 'Uspešno poslato na SEF',
-          description: `ID fakture na SEF-u: ${data.sefInvoiceId}`,
-        });
+        if (!silent) {
+          toast({
+            title: 'Uspešno poslato na SEF',
+            description: `ID fakture na SEF-u: ${data.sefInvoiceId}`,
+          });
+        }
         
         // Refresh invoices
         await queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -44,8 +51,9 @@ export function useSEF() {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Greška pri slanju na SEF';
       
+      // Always show errors (even in silent mode)
       toast({
-        title: 'Greška',
+        title: 'SEF greška',
         description: errorMessage,
         variant: 'destructive',
       });
@@ -59,9 +67,11 @@ export function useSEF() {
   const sendStornoToSEF = async (
     stornoInvoiceId: string, 
     companyId: string, 
-    originalSefId: string
+    originalSefId: string,
+    options?: SendOptions
   ): Promise<SEFSendResult> => {
     setIsStornoSending(true);
+    const silent = options?.silent ?? false;
     
     try {
       const { data, error } = await supabase.functions.invoke('sef-send-invoice', {
@@ -78,10 +88,12 @@ export function useSEF() {
       }
 
       if (data.success) {
-        toast({
-          title: 'Storno poslat na SEF',
-          description: `ID storno fakture na SEF-u: ${data.sefInvoiceId}`,
-        });
+        if (!silent) {
+          toast({
+            title: 'Storno poslat na SEF',
+            description: `ID storno fakture na SEF-u: ${data.sefInvoiceId}`,
+          });
+        }
         
         await queryClient.invalidateQueries({ queryKey: ['invoices'] });
         
@@ -92,8 +104,9 @@ export function useSEF() {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Greška pri storniranju na SEF';
       
+      // Always show errors
       toast({
-        title: 'Greška',
+        title: 'SEF greška',
         description: errorMessage,
         variant: 'destructive',
       });

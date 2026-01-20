@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useSEF } from '@/hooks/useSEF';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +64,7 @@ type FilterType = 'all' | 'invoices' | 'proforma' | 'advance';
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice, updatePaymentStatus } = useInvoices(selectedCompany?.id || null);
+  const { sendToSEF, sendStornoToSEF } = useSEF();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
   const [stornoId, setStornoId] = useState<string | null>(null);
@@ -109,8 +111,24 @@ export default function Invoices() {
   };
 
   const handleConvert = async () => {
-    if (convertId && convertServiceDate) {
-      await convertProformaToInvoice.mutateAsync({ proformaId: convertId, serviceDate: convertServiceDate });
+    if (convertId && convertServiceDate && selectedCompany) {
+      const proforma = invoices.find(i => i.id === convertId);
+      const result = await convertProformaToInvoice.mutateAsync({ proformaId: convertId, serviceDate: convertServiceDate });
+      
+      // Automatski pošalji na SEF ako su ispunjeni uslovi
+      if (
+        selectedCompany.sef_enabled && 
+        selectedCompany.sef_api_key && 
+        proforma?.client_type === 'domestic' &&
+        result?.id
+      ) {
+        sendToSEF(result.id, selectedCompany.id, { silent: false }).then(sefResult => {
+          if (!sefResult.success) {
+            console.error('SEF auto-send failed:', sefResult.error);
+          }
+        });
+      }
+      
       setConvertId(null);
       setConvertServiceDate('');
     }
@@ -122,7 +140,23 @@ export default function Invoices() {
     const invoice = invoices.find(i => i.id === stornoId);
     if (!invoice) return;
 
-    await stornoInvoice.mutateAsync(stornoId);
+    const result = await stornoInvoice.mutateAsync(stornoId);
+    
+    // Automatski storniraj na SEF-u ako je originalna faktura bila na SEF-u
+    if (
+      selectedCompany.sef_enabled && 
+      selectedCompany.sef_api_key && 
+      invoice.sef_invoice_id &&
+      invoice.client_type === 'domestic' &&
+      result?.stornoInvoice?.id
+    ) {
+      sendStornoToSEF(result.stornoInvoice.id, selectedCompany.id, invoice.sef_invoice_id, { silent: false }).then(sefResult => {
+        if (!sefResult.success) {
+          console.error('SEF storno auto-send failed:', sefResult.error);
+        }
+      });
+    }
+    
     setStornoId(null);
   };
 
