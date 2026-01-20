@@ -49,16 +49,31 @@ function generateIPSQRCode(params: {
   const formattedAccount = formatAccountForIPS(params.receiverAccount);
   const amountStr = params.amount.toFixed(2).replace('.', ',');
 
-  // Podaci o platiocu - spoji ime i adresu sa CRLF (NBS standard)
-  const payerInfoRaw = [params.payerName?.trim(), params.payerAddress?.trim()]
-    .filter(Boolean)
-    .join('\r\n');
+  // NBS IPS: sadržaj vrednosti ne sme da sadrži delimiter "|"; takođe izbacujemo "\r" radi kompatibilnosti
+  const sanitize = (value: string) => value.replace(/\|/g, ' ').replace(/\r/g, '').trim();
 
-  // Ograniči dužinu (neke aplikacije odbijaju preduga polja)
-  const payerInfo = payerInfoRaw.slice(0, 140);
+  // Podaci o platiocu (P) su opcionи; ako ih šaljemo moraju biti max 70 karaktera ukupno i max 3 reda.
+  // Radi kompatibilnosti izbegavamo preduga polja i koristimo "\n" kao separator reda (bez \r).
+  const payerName = params.payerName ? sanitize(params.payerName) : '';
+  const payerAddressOneLine = params.payerAddress ? sanitize(params.payerAddress).replace(/\n+/g, ' ') : '';
 
-  // Svrha plaćanja - ukloni newline karaktere (mora biti jedna linija)
-  const cleanPurpose = params.paymentPurpose.replace(/[\r\n]+/g, ' ').substring(0, 35);
+  let payerInfo = '';
+  if (payerName) {
+    payerInfo = payerName.slice(0, 70);
+
+    if (payerAddressOneLine) {
+      const sep = '\n';
+      const remaining = 70 - (payerInfo.length + sep.length);
+      if (remaining > 0) {
+        payerInfo = `${payerInfo}${sep}${payerAddressOneLine.slice(0, remaining)}`;
+      }
+    }
+  }
+
+  // Svrha plaćanja - jedna linija, max 35, bez "|"
+  const cleanPurpose = sanitize(params.paymentPurpose)
+    .replace(/[\n]+/g, ' ')
+    .substring(0, 35);
 
   // Reference - samo cifre
   const cleanReference = params.paymentReference.replace(/\D/g, '');
@@ -74,15 +89,17 @@ function generateIPSQRCode(params: {
     'V:01',
     'C:1',
     `R:${formattedAccount}`,
-    `N:${params.receiverName.substring(0, 70)}`,
+    `N:${sanitize(params.receiverName).substring(0, 70)}`,
     `I:RSD${amountStr}`,
-    `SF:${sf}`,
-    `S:${cleanPurpose}`,
   ];
 
+  // Po preporukama NBS redosled je: ... I, P, SF, S, RO
   if (payerInfo) {
     parts.push(`P:${payerInfo}`);
   }
+
+  parts.push(`SF:${sf}`);
+  parts.push(`S:${cleanPurpose}`);
 
   // Dodaj poziv na broj ako je definisan
   if (cleanReference) {
