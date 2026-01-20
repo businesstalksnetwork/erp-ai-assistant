@@ -17,6 +17,7 @@ interface SyncJob {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 interface UseSEFLongSyncResult {
@@ -199,23 +200,25 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         }
 
         if (runningJob) {
-          const jobAge = Date.now() - new Date(runningJob.started_at || runningJob.created_at).getTime();
-          const TEN_MINUTES = 10 * 60 * 1000;
+          // Use updated_at for activity check (updated by trigger on every progress update)
+          const lastActivity = runningJob.updated_at || runningJob.started_at || runningJob.created_at;
+          const activityAge = Date.now() - new Date(lastActivity).getTime();
+          const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes without activity = stale
           
-          // If job is older than 10 minutes and still running, mark it as failed
-          if (jobAge > TEN_MINUTES) {
-            console.log('Job is stale, marking as failed:', runningJob.id);
+          // If job has no activity for 5+ minutes, mark it as failed
+          if (activityAge > FIVE_MINUTES) {
+            console.log('Job is stale (no activity for 5+ min), marking as failed:', runningJob.id);
             await supabase
               .from('sef_sync_jobs')
               .update({
                 status: 'failed',
-                error_message: 'Timeout - sinhronizacija je automatski prekinuta',
+                error_message: 'Timeout - sinhronizacija je automatski prekinuta zbog neaktivnosti',
                 completed_at: new Date().toISOString()
               })
               .eq('id', runningJob.id);
             // Don't return, continue to check for last completed job
           } else {
-            console.log('Found running job:', runningJob.id);
+            console.log('Found active running job:', runningJob.id);
             setActiveJob(runningJob as SyncJob);
             // Start polling for existing job
             stopPolling();

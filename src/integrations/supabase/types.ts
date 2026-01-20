@@ -845,6 +845,7 @@ export type Database = {
           started_at: string | null
           status: string
           total_months: number
+          updated_at: string | null
         }
         Insert: {
           company_id: string
@@ -860,6 +861,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           total_months?: number
+          updated_at?: string | null
         }
         Update: {
           company_id?: string
@@ -875,6 +877,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           total_months?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
