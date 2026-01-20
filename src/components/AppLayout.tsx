@@ -4,6 +4,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useTheme } from '@/lib/theme-context';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { CompanySelector } from '@/components/CompanySelector';
 import {
@@ -42,15 +43,20 @@ import logoLight from '@/assets/pausal-box-logo-light.png';
 import logoDark from '@/assets/pausal-box-logo-dark.png';
 import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
 
-const baseNavItems = [
+// Main navigation items (above separator)
+const mainNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
-  { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
+];
+
+// Secondary navigation items (below separator)
+const secondaryNavItems = [
+  { href: '/companies', label: 'Moja Kompanija', icon: Building2 },
 ];
 
 const adminNavItems = [
@@ -80,7 +86,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Build dynamic navigation based on company settings
   const getFilteredNavItems = () => {
-    const items = [...baseNavItems];
+    const items = [...mainNavItems];
     
     // Find position after Analitika to insert conditional items
     const analyticsIndex = items.findIndex(i => i.href === '/analytics');
@@ -101,10 +107,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // Insert conditional items after Analitika
     items.splice(insertPosition, 0, ...conditionalItems);
     
-    return items;
+    // Build secondary navigation with conditional Admin Panel
+    const secondary = [...secondaryNavItems];
+    if (isAdmin) {
+      secondary.push(...adminNavItems);
+    }
+    
+    return { main: items, secondary };
   };
 
-  const navItems = isAdmin ? [...getFilteredNavItems(), ...adminNavItems] : getFilteredNavItems();
+  const filteredNavItems = getFilteredNavItems();
 
   // Show blocked screen for blocked users (except admins)
   if (isBlocked && !isAdmin) {
@@ -190,7 +202,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
+            {/* Main navigation */}
+            {filteredNavItems.main.map((item) => {
               const isActive = location.pathname === item.href;
               const showBadge = item.href === '/reminders' && upcomingCount > 0;
               return (
@@ -212,6 +225,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         {upcomingCount}
                       </Badge>
                     )}
+                  </Link>
+              );
+            })}
+
+            {/* Separator */}
+            <Separator className="my-3 bg-sidebar-border" />
+
+            {/* Secondary navigation - Moja Kompanija + Admin Panel */}
+            {filteredNavItems.secondary.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-1'
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+                    {item.label}
                   </Link>
               );
             })}
