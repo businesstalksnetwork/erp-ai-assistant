@@ -126,6 +126,16 @@ async function fetchInvoiceIdsByStatus(
   return [];
 }
 
+// Status priority - higher number = more "final" status that shouldn't be overwritten
+const STATUS_PRIORITY: Record<string, number> = {
+  'Unknown': 0,
+  'New': 1,
+  'Seen': 2,
+  'Cancelled': 3,
+  'Rejected': 4,
+  'Approved': 5,
+};
+
 // Build status map sequentially
 async function buildStatusMap(apiKey: string, dateFrom: string, dateTo: string): Promise<Map<string, string>> {
   const statusMap = new Map<string, string>();
@@ -135,11 +145,21 @@ async function buildStatusMap(apiKey: string, dateFrom: string, dateTo: string):
     if (i > 0) await delay(400);
     const status = statuses[i];
     const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status);
+    console.log(`Status '${status}': found ${ids.length} invoices`);
+    
     for (const id of ids) {
-      statusMap.set(id, status);
+      const existingStatus = statusMap.get(id);
+      const existingPriority = existingStatus ? (STATUS_PRIORITY[existingStatus] || 0) : 0;
+      const newPriority = STATUS_PRIORITY[status] || 0;
+      
+      // Only update if new status has higher priority
+      if (newPriority > existingPriority) {
+        statusMap.set(id, status);
+      }
     }
   }
 
+  console.log(`Built status map with ${statusMap.size} entries`);
   return statusMap;
 }
 
