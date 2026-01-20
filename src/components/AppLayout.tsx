@@ -42,13 +42,11 @@ import logoLight from '@/assets/pausal-box-logo-light.png';
 import logoDark from '@/assets/pausal-box-logo-dark.png';
 import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
 
-const userNavItems = [
+const baseNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
-  { href: '/sef', label: 'SEF Centar', icon: FileStack },
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
-  { href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
@@ -80,7 +78,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     navigate('/');
   };
 
-  const navItems = isAdmin ? [...userNavItems, ...adminNavItems] : userNavItems;
+  // Build dynamic navigation based on company settings
+  const getFilteredNavItems = () => {
+    const items = [...baseNavItems];
+    
+    // Find position after Analitika to insert conditional items
+    const analyticsIndex = items.findIndex(i => i.href === '/analytics');
+    const insertPosition = analyticsIndex + 1;
+    
+    const conditionalItems = [];
+    
+    // SEF Centar - only if sef_api_key is configured
+    if (selectedCompany?.sef_api_key) {
+      conditionalItems.push({ href: '/sef', label: 'SEF Centar', icon: FileStack });
+    }
+    
+    // Fiskalna kasa - only if fiscal_enabled is true
+    if (selectedCompany?.fiscal_enabled) {
+      conditionalItems.push({ href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator });
+    }
+    
+    // Insert conditional items after Analitika
+    items.splice(insertPosition, 0, ...conditionalItems);
+    
+    return items;
+  };
+
+  const navItems = isAdmin ? [...getFilteredNavItems(), ...adminNavItems] : getFilteredNavItems();
 
   // Show blocked screen for blocked users (except admins)
   if (isBlocked && !isAdmin) {

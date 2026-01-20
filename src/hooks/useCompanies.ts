@@ -15,6 +15,7 @@ export interface Company {
   bank_account: string | null;
   logo_url: string | null;
   sef_api_key: string | null;
+  fiscal_enabled: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

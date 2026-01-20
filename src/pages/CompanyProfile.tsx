@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Building2, CreditCard, FileStack, Eye, EyeOff, Plus, Pencil, Trash2, CheckCircle2, XCircle, Upload, X } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, FileStack, Eye, EyeOff, Plus, Pencil, Trash2, CheckCircle2, XCircle, Upload, X, Calculator, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 
 const CURRENCIES = ['EUR', 'USD', 'CHF', 'GBP'];
 
@@ -267,20 +268,25 @@ export default function CompanyProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Osnovni podaci</span>
+            <span className="hidden sm:inline">Podaci</span>
             <span className="sm:hidden">Podaci</span>
           </TabsTrigger>
           <TabsTrigger value="bank" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Bankovni računi</span>
+            <span className="hidden sm:inline">Računi</span>
             <span className="sm:hidden">Računi</span>
+          </TabsTrigger>
+          <TabsTrigger value="services" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Servisi</span>
+            <span className="sm:hidden">Servisi</span>
           </TabsTrigger>
           <TabsTrigger value="sef" className="flex items-center gap-2">
             <FileStack className="h-4 w-4" />
-            <span className="hidden sm:inline">SEF Integracija</span>
+            <span className="hidden sm:inline">SEF</span>
             <span className="sm:hidden">SEF</span>
           </TabsTrigger>
         </TabsList>
@@ -485,6 +491,76 @@ export default function CompanyProfile() {
                   <p className="text-sm">Dodajte instrukcije za brže kreiranje faktura</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Services Tab */}
+        <TabsContent value="services">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Servisi
+              </CardTitle>
+              <CardDescription>
+                Upravljajte dodatnim servisima za ovu firmu
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* SEF Integration Status */}
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileStack className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">SEF Centar</p>
+                    <p className="text-xs text-muted-foreground">Sistem e-Faktura integracija</p>
+                  </div>
+                </div>
+                {company.sef_api_key ? (
+                  <Badge className="bg-green-600 hover:bg-green-700">Aktivno</Badge>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      const tabsTrigger = document.querySelector('[value="sef"]') as HTMLElement;
+                      tabsTrigger?.click();
+                    }}
+                  >
+                    Konfiguriši
+                  </Button>
+                )}
+              </div>
+
+              {/* Fiscal Cash Register Toggle */}
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Calculator className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Fiskalna kasa</p>
+                    <p className="text-xs text-muted-foreground">Uvoz i praćenje fiskalnih računa</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={company.fiscal_enabled}
+                  onCheckedChange={async (checked) => {
+                    try {
+                      await updateCompany.mutateAsync({ 
+                        id: company.id, 
+                        fiscal_enabled: checked 
+                      });
+                      toast.success(checked ? 'Fiskalna kasa uključena' : 'Fiskalna kasa isključena');
+                    } catch (error) {
+                      toast.error('Greška pri promeni statusa');
+                    }
+                  }}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground pt-2">
+                Aktivirani servisi će se pojaviti u bočnoj navigaciji aplikacije.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
