@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import SEFInvoicePreview from '@/components/SEFInvoicePreview';
 
 const formatCurrency = (amount: number, currency = 'RSD') => {
   return new Intl.NumberFormat('sr-RS', {
@@ -539,10 +540,10 @@ export default function SEFCenter() {
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Pregled fakture: {previewInvoice?.invoice_number}
+              Pregled fakture: {previewInvoice?.invoice_number || previewInvoice?.sef_invoice_id}
             </DialogTitle>
             <DialogDescription>
               {previewInvoice?.counterparty_name} • {formatDate(previewInvoice?.issue_date || '')}
@@ -553,46 +554,16 @@ export default function SEFCenter() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : previewXML ? (
+            <SEFInvoicePreview 
+              xml={previewXML} 
+              sefInvoiceId={previewInvoice?.sef_invoice_id}
+              fetchedAt={previewInvoice?.fetched_at || undefined}
+            />
           ) : (
-            <ScrollArea className="h-[60vh]">
-              <div className="space-y-4">
-                {/* Invoice Summary */}
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Iznos</div>
-                    <div className="text-lg font-bold">
-                      {formatCurrency(previewInvoice?.total_amount || 0, previewInvoice?.currency)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Status</div>
-                    <div>{previewInvoice && getStatusBadge(previewInvoice.sef_status, previewInvoice.local_status)}</div>
-                  </div>
-                  {previewInvoice?.counterparty_pib && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">PIB partnera</div>
-                      <div>{previewInvoice.counterparty_pib}</div>
-                    </div>
-                  )}
-                  {previewInvoice?.due_date && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Rok plaćanja</div>
-                      <div>{formatDate(previewInvoice.due_date)}</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* UBL XML */}
-                {previewXML && (
-                  <div>
-                    <div className="text-sm font-medium mb-2">UBL XML</div>
-                    <pre className="p-4 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono">
-                      {previewXML}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
+            <div className="text-center py-8 text-muted-foreground">
+              Nema dostupnog XML sadržaja za ovu fakturu.
+            </div>
           )}
           
           <DialogFooter>
