@@ -11,7 +11,6 @@ const SEF_API_BASE = 'https://efaktura.mfin.gov.rs/api/publicApi';
 // Helper to convert empty strings to null for date fields
 const toNullableDate = (val: string | undefined | null): string | null => {
   if (!val || val.trim() === '') return null;
-  // Validate it's a parseable date
   const parsed = new Date(val);
   if (isNaN(parsed.getTime())) return null;
   return val;
@@ -24,12 +23,10 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 function pickString(data: any, keys: string[], fallback: string | null = null): string | null {
   if (!data || typeof data !== 'object') return fallback;
   for (const key of keys) {
-    // Direct key access
     if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
       return String(data[key]);
     }
   }
-  // Try nested paths (e.g., "supplier.name")
   for (const key of keys) {
     if (key.includes('.')) {
       const parts = key.split('.');
@@ -71,23 +68,18 @@ function parseUblXml(xml: string): {
   };
 
   try {
-    // Extract invoice number (ID tag)
     const idMatch = xml.match(/<cbc:ID>([^<]+)<\/cbc:ID>/);
     if (idMatch) result.invoiceNumber = idMatch[1];
 
-    // Extract issue date
     const dateMatch = xml.match(/<cbc:IssueDate>([^<]+)<\/cbc:IssueDate>/);
     if (dateMatch) result.issueDate = dateMatch[1];
 
-    // Extract payable amount
     const amountMatch = xml.match(/<cbc:PayableAmount[^>]*>([^<]+)<\/cbc:PayableAmount>/);
     if (amountMatch) result.totalAmount = parseFloat(amountMatch[1]) || 0;
 
-    // Extract currency
     const currencyMatch = xml.match(/<cbc:DocumentCurrencyCode>([^<]+)<\/cbc:DocumentCurrencyCode>/);
     if (currencyMatch) result.currency = currencyMatch[1];
 
-    // Extract supplier name from AccountingSupplierParty
     const supplierPartyMatch = xml.match(/<cac:AccountingSupplierParty>([\s\S]*?)<\/cac:AccountingSupplierParty>/);
     if (supplierPartyMatch) {
       const supplierBlock = supplierPartyMatch[1];
@@ -120,6 +112,73 @@ interface SEFPurchaseInvoice {
   status: string;
 }
 
+// Fetch invoice IDs for a specific status
+async function fetchInvoiceIdsByStatus(
+  apiKey: string,
+  dateFrom: string,
+  dateTo: string,
+  status: string
+): Promise<string[]> {
+  try {
+    const response = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ApiKey': apiKey,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        dateFrom,
+        dateTo,
+        status: [status],
+      }),
+    });
+
+    if (!response.ok) {
+      console.log(`Status ${status} fetch returned ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const ids = data?.PurchaseInvoiceIds || data?.purchaseInvoiceIds || [];
+    console.log(`Status '${status}': found ${ids.length} invoices`);
+    return ids;
+  } catch (e) {
+    console.error(`Error fetching IDs for status ${status}:`, e);
+    return [];
+  }
+}
+
+// Build a map of invoiceId -> status by querying each status separately
+async function buildStatusMap(
+  apiKey: string,
+  dateFrom: string,
+  dateTo: string
+): Promise<Map<string, string>> {
+  const statusMap = new Map<string, string>();
+  const statuses = ['New', 'Seen', 'Approved', 'Rejected', 'Cancelled'];
+
+  console.log('Building status map by querying each status...');
+  
+  // Fetch all statuses in parallel for speed
+  const results = await Promise.all(
+    statuses.map(async (status) => {
+      const ids = await fetchInvoiceIdsByStatus(apiKey, dateFrom, dateTo, status);
+      return { status, ids };
+    })
+  );
+
+  // Build the map
+  for (const { status, ids } of results) {
+    for (const id of ids) {
+      statusMap.set(id, status);
+    }
+  }
+
+  console.log(`Built status map with ${statusMap.size} entries`);
+  return statusMap;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -149,14 +208,17 @@ serve(async (req) => {
       throw new Error('SEF API ključ nije podešen za ovu kompaniju');
     }
 
-    // Fetch purchase invoice IDs from SEF
+    // STEP 1: Build status map by querying each status separately
+    const statusMap = await buildStatusMap(company.sef_api_key, dateFrom, dateTo);
+
+    // STEP 2: Fetch all invoice IDs (query with all statuses)
     const idsRequestBody = {
       dateFrom,
       dateTo,
       status: ['New', 'Seen', 'Approved', 'Rejected', 'Cancelled']
     };
 
-    console.log('Requesting SEF purchase invoice IDs...');
+    console.log('Requesting all SEF purchase invoice IDs...');
 
     const idsResponse = await fetch(`${SEF_API_BASE}/purchase-invoice/ids`, {
       method: 'POST',
@@ -175,9 +237,7 @@ serve(async (req) => {
     }
 
     const idsResponseData = await idsResponse.json();
-    console.log('SEF IDs API response:', JSON.stringify(idsResponseData));
-
-    // Handle different response formats (SEF API uses PurchaseInvoiceIds with capital P)
+    
     let invoiceIds: string[] = [];
     if (Array.isArray(idsResponseData)) {
       invoiceIds = idsResponseData;
@@ -196,7 +256,7 @@ serve(async (req) => {
 
     console.log(`Found ${invoiceIds.length} purchase invoice IDs from SEF`);
 
-    // Fetch details for each invoice
+    // STEP 3: Fetch details for each invoice
     const invoices: SEFPurchaseInvoice[] = [];
     const invoicesForStorage: any[] = [];
     let successCount = 0;
@@ -210,6 +270,9 @@ serve(async (req) => {
         await delay(500);
       }
 
+      // Get status from our pre-built map - THIS IS THE KEY FIX!
+      const status = statusMap.get(invoiceId) || 'Unknown';
+
       let invoiceNumber: string | null = null;
       let issueDate: string | null = null;
       let deliveryDate: string | null = null;
@@ -221,7 +284,6 @@ serve(async (req) => {
       let totalAmount: number = 0;
       let vatAmount: number = 0;
       let currency: string = 'RSD';
-      let status: string = 'Unknown';
       let xmlData: string | null = null;
       
       try {
@@ -239,14 +301,11 @@ serve(async (req) => {
         if (invoiceResponse.ok) {
           const data = await invoiceResponse.json();
           
-          // Log first invoice structure for debugging - more detailed
           if (i === 0) {
-            console.log('=== SAMPLE INVOICE FULL JSON ===');
-            console.log(JSON.stringify(data, null, 2));
-            console.log('=== TOP-LEVEL KEYS ===', Object.keys(data || {}));
+            console.log('=== SAMPLE INVOICE JSON ===');
+            console.log('Top-level keys:', Object.keys(data || {}));
           }
           
-          // Use robust field extraction with multiple possible field names
           invoiceNumber = pickString(data, [
             'invoiceNumber', 'InvoiceNumber', 'Number', 'number', 'ID', 'Id', 'id',
             'DocumentNumber', 'documentNumber'
@@ -290,31 +349,10 @@ serve(async (req) => {
             'CurrencyCode', 'currencyCode'
           ], 'RSD') || 'RSD';
           
-          // Extended status field search - SEF API uses various field names
-          const foundStatus = pickString(data, [
-            'status', 'Status', 
-            'InvoiceStatus', 'invoiceStatus',
-            'DocumentStatus', 'documentStatus',
-            'StatusCode', 'statusCode',
-            'PurchaseInvoiceStatus', 'purchaseInvoiceStatus',
-            'State', 'state',
-            'CirStatus', 'cirStatus',
-            'InvoiceState', 'invoiceState'
-          ], null);
-          
-          // If no status found, log available fields for debugging
-          if (foundStatus === null && i < 3) {
-            console.log(`Invoice ${invoiceId} - no status field found. Available fields:`, Object.keys(data || {}));
-          }
-          
-          // Default to 'New' if no status found (most likely for newly fetched invoices)
-          status = foundStatus || 'New';
-          
           successCount++;
         } else if (invoiceResponse.status === 429) {
           console.warn(`Rate limited for invoice ${invoiceId}`);
           rateLimitCount++;
-          status = 'Pending';
         } else {
           console.warn(`Failed to fetch invoice ${invoiceId}: ${invoiceResponse.status}`);
         }
@@ -327,7 +365,7 @@ serve(async (req) => {
         console.log(`Invoice ${invoiceId} missing key fields, trying XML fallback...`);
         
         try {
-          await delay(400); // Additional delay before XML request
+          await delay(400);
           
           const xmlResponse = await fetch(
             `${SEF_API_BASE}/purchase-invoice/xml?invoiceId=${invoiceId}`,
@@ -344,9 +382,8 @@ serve(async (req) => {
             xmlData = await xmlResponse.text();
             const parsed = parseUblXml(xmlData);
             
-            console.log(`XML fallback for ${invoiceId}: found number=${parsed.invoiceNumber}, date=${parsed.issueDate}, amount=${parsed.totalAmount}, supplier=${parsed.supplierName}`);
+            console.log(`XML fallback for ${invoiceId}: number=${parsed.invoiceNumber}, amount=${parsed.totalAmount}`);
             
-            // Fill in missing fields from XML
             if (!invoiceNumber && parsed.invoiceNumber) invoiceNumber = parsed.invoiceNumber;
             if (!issueDate && parsed.issueDate) issueDate = parsed.issueDate;
             if (totalAmount === 0 && parsed.totalAmount) totalAmount = parsed.totalAmount;
@@ -375,12 +412,11 @@ serve(async (req) => {
         totalAmount,
         vatAmount,
         currency,
-        status,
+        status, // Now using status from statusMap!
       };
 
       invoices.push(invoice);
 
-      // Prepare for storage - ALWAYS add for upsert (will update existing placeholders)
       invoicesForStorage.push({
         company_id: companyId,
         sef_invoice_id: invoiceId,
@@ -396,22 +432,21 @@ serve(async (req) => {
         total_amount: totalAmount || 0,
         vat_amount: vatAmount || null,
         currency: currency || 'RSD',
-        sef_status: status || 'Unknown',
+        sef_status: status, // Now using status from statusMap!
         local_status: 'pending',
-        ubl_xml: xmlData, // Store XML if we fetched it
+        ubl_xml: xmlData,
         fetched_at: new Date().toISOString(),
       });
     }
 
     console.log(`Processed ${invoicesForStorage.length} invoices, ${successCount} with full JSON data, ${rateLimitCount} rate limited`);
 
-    // Upsert all invoices - UPDATE existing records (NO ignoreDuplicates)
+    // Upsert all invoices
     if (invoicesForStorage.length > 0) {
       const { error: upsertError } = await supabase
         .from('sef_invoices')
         .upsert(invoicesForStorage, {
           onConflict: 'company_id,sef_invoice_id,invoice_type'
-          // Removed ignoreDuplicates: true - this will UPDATE existing placeholder records
         });
 
       if (upsertError) {
