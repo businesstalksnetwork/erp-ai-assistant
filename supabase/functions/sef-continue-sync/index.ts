@@ -72,11 +72,16 @@ serve(async (req) => {
     }
     
     // Continue the job by calling sef-long-sync with continueJobId
-    console.log(`Continuing job ${job.id}...`);
+    // Pass internal cron token for authorization
+    const cronToken = Deno.env.get('CHECKPOINT_API_TOKEN');
+    console.log(`Continuing job ${job.id} with internal auth token...`);
     
     const { error: invokeError } = await supabase.functions.invoke('sef-long-sync', {
       body: {
         continueJobId: job.id,
+      },
+      headers: {
+        'x-cron-token': cronToken || '',
       },
     });
     
