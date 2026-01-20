@@ -11,18 +11,82 @@ function sanitizeXml(xml: string): string {
     .replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
 }
 
-// Extract Invoice XML from DocumentBody using regex (more robust fallback)
-function extractInvoiceFromDocumentBody(xml: string): string | null {
-  // Try to find DocumentBody content
-  const bodyMatch = xml.match(/<(?:env:)?DocumentBody[^>]*>([\s\S]*?)<\/(?:env:)?DocumentBody>/i);
-  if (bodyMatch) {
-    const bodyContent = bodyMatch[1];
-    // Extract Invoice from body
-    const invoiceMatch = bodyContent.match(/<(?:\w+:)?Invoice[\s\S]*?<\/(?:\w+:)?Invoice>/i);
-    if (invoiceMatch) {
-      return invoiceMatch[0];
+// Remove large blocks using indexOf/substring (more reliable than regex for huge base64)
+function removeBlocksUsingIndexOf(xml: string, startTag: string, endTag: string): string {
+  let result = xml;
+  let startIdx = result.indexOf(startTag);
+  
+  while (startIdx !== -1) {
+    const endIdx = result.indexOf(endTag, startIdx);
+    if (endIdx === -1) break;
+    
+    // Remove from startIdx to endIdx + endTag.length
+    result = result.substring(0, startIdx) + result.substring(endIdx + endTag.length);
+    startIdx = result.indexOf(startTag);
+  }
+  
+  return result;
+}
+
+// Remove all large PDF/binary blocks using string manipulation
+function removePdfAndBinaryBlocks(xml: string): string {
+  let result = xml;
+  
+  // Remove DocumentPdf blocks (with various prefixes)
+  result = removeBlocksUsingIndexOf(result, '<env:DocumentPdf', '</env:DocumentPdf>');
+  result = removeBlocksUsingIndexOf(result, '<DocumentPdf', '</DocumentPdf>');
+  
+  // Remove EmbeddedDocumentBinaryObject blocks
+  result = removeBlocksUsingIndexOf(result, '<cbc:EmbeddedDocumentBinaryObject', '</cbc:EmbeddedDocumentBinaryObject>');
+  result = removeBlocksUsingIndexOf(result, '<EmbeddedDocumentBinaryObject', '</EmbeddedDocumentBinaryObject>');
+  
+  return result;
+}
+
+// Extract Invoice XML directly using indexOf (fastest and most reliable)
+function extractInvoiceUsingIndexOf(xml: string): string | null {
+  const startPatterns = ['<Invoice ', '<Invoice>'];
+  const endTag = '</Invoice>';
+  
+  for (const startPattern of startPatterns) {
+    const startIdx = xml.indexOf(startPattern);
+    if (startIdx === -1) continue;
+    
+    const endIdx = xml.indexOf(endTag, startIdx);
+    if (endIdx === -1) continue;
+    
+    const invoiceXml = xml.substring(startIdx, endIdx + endTag.length);
+    if (invoiceXml.length > 100) {
+      console.log(`[UBL Parser] Extracted Invoice via indexOf: ${invoiceXml.length} chars (pos ${startIdx}-${endIdx + endTag.length})`);
+      return invoiceXml;
     }
   }
+  
+  return null;
+}
+
+// Extract Invoice from DocumentBody boundaries
+function extractFromDocumentBody(xml: string): string | null {
+  const bodyPatterns = [
+    { start: '<env:DocumentBody', end: '</env:DocumentBody>' },
+    { start: '<DocumentBody', end: '</DocumentBody>' },
+  ];
+  
+  for (const pattern of bodyPatterns) {
+    const bodyStartIdx = xml.indexOf(pattern.start);
+    if (bodyStartIdx === -1) continue;
+    
+    const bodyEndIdx = xml.indexOf(pattern.end, bodyStartIdx);
+    if (bodyEndIdx === -1) continue;
+    
+    const bodyContent = xml.substring(bodyStartIdx, bodyEndIdx + pattern.end.length);
+    const invoiceXml = extractInvoiceUsingIndexOf(bodyContent);
+    if (invoiceXml) {
+      console.log(`[UBL Parser] Extracted Invoice from DocumentBody: ${invoiceXml.length} chars`);
+      return invoiceXml;
+    }
+  }
+  
   return null;
 }
 
@@ -231,7 +295,7 @@ function parseVatBreakdown(doc: Document): ParsedSEFInvoice['vatBreakdown'] {
   return breakdown;
 }
 
-// Extract Invoice XML from SEF DocumentEnvelope wrapper using DOM-based approach
+// Extract Invoice XML from SEF DocumentEnvelope wrapper
 export function extractInvoiceFromEnvelope(xmlString: string): string {
   // Check if this is a SEF envelope structure
   const isEnvelope = xmlString.includes('<env:DocumentEnvelope') || 
@@ -242,92 +306,57 @@ export function extractInvoiceFromEnvelope(xmlString: string): string {
     return xmlString;
   }
   
-  console.log('Detected SEF envelope structure, attempting extraction...');
+  console.log(`[UBL Parser] Processing SEF envelope: ${xmlString.length} chars`);
   
-  // STEP 1: Remove large base64 blocks BEFORE parsing to speed up processing
-  let cleanedXml = xmlString;
+  // STEP 1: Try direct extraction FIRST (before removing PDF - fastest path)
+  let invoiceXml = extractInvoiceUsingIndexOf(xmlString);
+  if (invoiceXml && invoiceXml.length > 100) {
+    return sanitizeXml(invoiceXml);
+  }
   
-  // Remove DocumentPdf block (contains huge base64 PDF)
-  cleanedXml = cleanedXml.replace(/<env:DocumentPdf[^>]*>[\s\S]*?<\/env:DocumentPdf>/gi, '');
-  cleanedXml = cleanedXml.replace(/<DocumentPdf[^>]*>[\s\S]*?<\/DocumentPdf>/gi, '');
+  // STEP 2: Try extraction from DocumentBody
+  invoiceXml = extractFromDocumentBody(xmlString);
+  if (invoiceXml && invoiceXml.length > 100) {
+    return sanitizeXml(invoiceXml);
+  }
   
-  // Remove any EmbeddedDocumentBinaryObject blocks
-  cleanedXml = cleanedXml.replace(/<[^>]*EmbeddedDocumentBinaryObject[^>]*>[\s\S]*?<\/[^>]*EmbeddedDocumentBinaryObject>/gi, '');
-  cleanedXml = cleanedXml.replace(/<cbc:EmbeddedDocumentBinaryObject[^>]*>[\s\S]*?<\/cbc:EmbeddedDocumentBinaryObject>/gi, '');
+  // STEP 3: Remove PDF/binary blocks using indexOf (not regex!)
+  console.log('[UBL Parser] Removing PDF/binary blocks...');
+  const cleanedXml = removePdfAndBinaryBlocks(xmlString);
+  console.log(`[UBL Parser] After removal: ${cleanedXml.length} chars (removed ${xmlString.length - cleanedXml.length} chars)`);
   
-  console.log(`Cleaned XML length: ${cleanedXml.length} (original: ${xmlString.length})`);
+  // STEP 4: Try extraction again on cleaned XML
+  invoiceXml = extractInvoiceUsingIndexOf(cleanedXml);
+  if (invoiceXml && invoiceXml.length > 100) {
+    return sanitizeXml(invoiceXml);
+  }
   
-  // STEP 2: Try DOM-based extraction on cleaned XML
+  // STEP 5: Try DOM parsing on cleaned XML
   try {
     const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanedXml, 'text/xml');
+    const doc = parser.parseFromString(sanitizeXml(cleanedXml), 'text/xml');
     
-    // Check for parse errors
     const parseError = doc.querySelector('parsererror');
     if (!parseError) {
-      // Find Invoice element by localName (handles any prefix)
       const allElements = doc.getElementsByTagName('*');
       for (let i = 0; i < allElements.length; i++) {
         if (allElements[i].localName === 'Invoice') {
-          const invoiceEl = allElements[i];
           const serializer = new XMLSerializer();
-          const invoiceXml = serializer.serializeToString(invoiceEl);
-          if (invoiceXml && invoiceXml.length > 100) {
-            console.log('Extracted Invoice via DOM, length:', invoiceXml.length);
-            return invoiceXml;
+          const serialized = serializer.serializeToString(allElements[i]);
+          if (serialized && serialized.length > 100) {
+            console.log('[UBL Parser] Extracted Invoice via DOM:', serialized.length, 'chars');
+            return sanitizeXml(serialized);
           }
-        }
-      }
-      
-      // Try getElementsByTagNameNS as fallback
-      const invoiceElements = doc.getElementsByTagNameNS('*', 'Invoice');
-      if (invoiceElements.length > 0) {
-        const serializer = new XMLSerializer();
-        const invoiceXml = serializer.serializeToString(invoiceElements[0]);
-        if (invoiceXml && invoiceXml.length > 100) {
-          console.log('Extracted Invoice via NS getElementsByTagName, length:', invoiceXml.length);
-          return invoiceXml;
         }
       }
     }
   } catch (e) {
-    console.warn('DOM extraction failed:', e);
+    console.warn('[UBL Parser] DOM extraction failed:', e);
   }
   
-  // STEP 3: Regex fallback for various Invoice formats
-  const patterns = [
-    // Standard UBL Invoice with namespace declaration
-    /<Invoice\s+[^>]*xmlns[^>]*>[\s\S]*?<\/Invoice>/i,
-    // Simple Invoice without xmlns
-    /<Invoice>[\s\S]*?<\/Invoice>/i,
-    // Prefixed Invoice (e.g., ubl:Invoice, cac:Invoice)
-    /<[a-z]+:Invoice[^>]*>[\s\S]*?<\/[a-z]+:Invoice>/i,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = cleanedXml.match(pattern);
-    if (match && match[0].length > 100) {
-      console.log('Extracted Invoice via regex, length:', match[0].length);
-      return match[0];
-    }
-  }
-  
-  // STEP 4: Try to get content from DocumentBody
-  const docBodyMatch = cleanedXml.match(/<env:DocumentBody[^>]*>([\s\S]*?)<\/env:DocumentBody>/i) ||
-                       cleanedXml.match(/<DocumentBody[^>]*>([\s\S]*?)<\/DocumentBody>/i);
-  
-  if (docBodyMatch && docBodyMatch[1]) {
-    const bodyContent = docBodyMatch[1].trim();
-    // Check if body contains Invoice structure
-    if (bodyContent.includes('cbc:ID') || bodyContent.includes('InvoiceLine') || bodyContent.includes('AccountingSupplierParty')) {
-      console.log('Using DocumentBody content, length:', bodyContent.length);
-      return bodyContent;
-    }
-  }
-  
-  // STEP 5: Return cleaned XML as last resort (without the huge PDF)
-  console.log('Returning cleaned XML without PDF, length:', cleanedXml.length);
-  return cleanedXml;
+  // STEP 6: Return cleaned XML as last resort
+  console.log('[UBL Parser] Returning cleaned XML:', cleanedXml.length, 'chars');
+  return sanitizeXml(cleanedXml);
 }
 
 // Main parser function
@@ -371,7 +400,7 @@ export function parseUBLInvoice(xmlString: string): ParsedSEFInvoice | null {
 
   // Attempt 3: Extract from DocumentBody using regex
   try {
-    const bodyInvoice = extractInvoiceFromDocumentBody(sanitized);
+    const bodyInvoice = extractFromDocumentBody(sanitized);
     if (bodyInvoice) {
       const doc = parser.parseFromString(sanitizeXml(bodyInvoice), 'text/xml');
       const parseError = doc.querySelector('parsererror');
