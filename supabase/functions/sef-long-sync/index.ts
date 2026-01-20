@@ -12,6 +12,7 @@ const corsHeaders = {
 };
 
 const SEF_API_BASE = 'https://efaktura.mfin.gov.rs/api/publicApi';
+const MONTHS_PER_CHUNK = 12; // Process 12 months per function call to avoid timeouts
 
 // Helper for delay between API calls
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -321,48 +322,77 @@ async function processMonth(
   return { found: invoiceIds.length, saved: savedCount };
 }
 
-// Main background processing function
+// Calculate month offset from a date label like "2024-06"
+function calculateMonthOffset(monthLabel: string): number {
+  const [year, month] = monthLabel.split('-').map(Number);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  
+  return (currentYear - year) * 12 + (currentMonth - month);
+}
+
+// Main background processing function with chunking
 async function processLongSync(
   supabase: any,
   jobId: string,
   companyId: string,
   apiKey: string,
   yearsBack: number,
-  invoiceType: 'purchase' | 'sales'
+  invoiceType: 'purchase' | 'sales',
+  resumeFromMonth: string | null = null
 ) {
   try {
+    const totalMonths = yearsBack * 12;
+    
+    // Calculate starting point
+    let startOffset: number;
+    let processedMonthsBase: number;
+    let totalFound: number;
+    let totalSaved: number;
+    
+    if (resumeFromMonth) {
+      // Resume: calculate offset from the last processed month
+      startOffset = calculateMonthOffset(resumeFromMonth) - 1;
+      
+      // Get current progress from job
+      const { data: jobData } = await supabase
+        .from('sef_sync_jobs')
+        .select('processed_months, invoices_found, invoices_saved')
+        .eq('id', jobId)
+        .single();
+      
+      processedMonthsBase = jobData?.processed_months || 0;
+      totalFound = jobData?.invoices_found || 0;
+      totalSaved = jobData?.invoices_saved || 0;
+      
+      console.log(`Resuming from month ${resumeFromMonth}, offset ${startOffset}, already processed ${processedMonthsBase}`);
+    } else {
+      // Fresh start
+      startOffset = totalMonths - 1;
+      processedMonthsBase = 0;
+      totalFound = 0;
+      totalSaved = 0;
+    }
+    
     // Update job status to running
     await supabase
       .from('sef_sync_jobs')
       .update({ 
         status: 'running',
-        started_at: new Date().toISOString()
+        started_at: resumeFromMonth ? undefined : new Date().toISOString()
       })
       .eq('id', jobId);
 
     const now = new Date();
-    const totalMonths = yearsBack * 12;
-    let processedMonths = 0;
-    let totalFound = 0;
-    let totalSaved = 0;
+    let processedInChunk = 0;
 
-    // Process each month, starting from oldest
-    for (let monthsAgo = totalMonths - 1; monthsAgo >= 0; monthsAgo--) {
+    // Process months, starting from the calculated offset
+    for (let monthsAgo = startOffset; monthsAgo >= 0; monthsAgo--) {
       const targetDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
       const year = targetDate.getFullYear();
       const month = targetDate.getMonth() + 1;
       const currentMonthLabel = `${year}-${String(month).padStart(2, '0')}`;
-
-      // Update progress
-      await supabase
-        .from('sef_sync_jobs')
-        .update({
-          current_month: currentMonthLabel,
-          processed_months: processedMonths,
-          invoices_found: totalFound,
-          invoices_saved: totalSaved
-        })
-        .eq('id', jobId);
 
       // Process month
       const { found, saved } = await processMonth(
@@ -377,9 +407,38 @@ async function processLongSync(
 
       totalFound += found;
       totalSaved += saved;
-      processedMonths++;
+      processedInChunk++;
+      
+      const totalProcessedMonths = processedMonthsBase + processedInChunk;
 
-      console.log(`Completed month ${currentMonthLabel}: ${found} found, ${saved} saved. Total: ${totalFound}/${totalSaved}`);
+      // Update progress (triggers updated_at via database trigger)
+      await supabase
+        .from('sef_sync_jobs')
+        .update({
+          current_month: currentMonthLabel,
+          last_processed_month: currentMonthLabel,
+          processed_months: totalProcessedMonths,
+          invoices_found: totalFound,
+          invoices_saved: totalSaved
+        })
+        .eq('id', jobId);
+
+      console.log(`Completed month ${currentMonthLabel}: ${found} found, ${saved} saved. Total: ${totalProcessedMonths}/${totalMonths}`);
+
+      // Check if we've completed a chunk and there's more to do
+      if (processedInChunk >= MONTHS_PER_CHUNK && monthsAgo > 0) {
+        console.log(`Chunk complete (${processedInChunk} months). Marking as partial for cron to continue.`);
+        
+        await supabase
+          .from('sef_sync_jobs')
+          .update({
+            status: 'partial'
+            // Don't set completed_at - cron will continue
+          })
+          .eq('id', jobId);
+        
+        return; // Exit - cron will pick up and continue
+      }
 
       // Add delay between months to avoid overloading
       if (monthsAgo > 0) {
@@ -387,7 +446,7 @@ async function processLongSync(
       }
     }
 
-    // Mark as completed
+    // All months completed - mark as done
     await supabase
       .from('sef_sync_jobs')
       .update({
@@ -425,9 +484,79 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { companyId, yearsBack = 3, invoiceType = 'purchase' } = await req.json();
+    const { companyId, yearsBack = 3, invoiceType = 'purchase', continueJobId } = await req.json();
 
+    // If continuing an existing partial job
+    if (continueJobId) {
+      console.log(`Continuing partial job ${continueJobId}`);
+      
+      const { data: existingJob, error: jobError } = await supabase
+        .from('sef_sync_jobs')
+        .select('*, companies!inner(sef_api_key)')
+        .eq('id', continueJobId)
+        .eq('status', 'partial')
+        .single();
+      
+      if (jobError || !existingJob) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Partial job not found or not in partial status'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404
+          }
+        );
+      }
+      
+      const apiKey = (existingJob.companies as any).sef_api_key;
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'SEF API key not found' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
+      }
+      
+      // Continue processing in background
+      EdgeRuntime.waitUntil(
+        processLongSync(
+          supabase,
+          existingJob.id,
+          existingJob.company_id,
+          apiKey,
+          existingJob.total_months / 12,
+          existingJob.invoice_type as 'purchase' | 'sales',
+          existingJob.last_processed_month
+        )
+      );
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jobId: existingJob.id,
+          message: 'Continuing sync in background'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Starting a new sync
     console.log(`Starting long sync for company ${companyId}, ${yearsBack} years back, type: ${invoiceType}`);
+
+    if (!companyId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'companyId is required' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
 
     // Get company with SEF API key
     const { data: company, error: companyError } = await supabase
@@ -444,13 +573,13 @@ serve(async (req) => {
       throw new Error('SEF API ključ nije podešen za ovu kompaniju');
     }
 
-    // Check for existing running job
+    // Check for existing running/partial job
     const { data: existingJob } = await supabase
       .from('sef_sync_jobs')
       .select('id, status')
       .eq('company_id', companyId)
       .eq('invoice_type', invoiceType)
-      .in('status', ['pending', 'running'])
+      .in('status', ['pending', 'running', 'partial'])
       .maybeSingle();
 
     if (existingJob) {
@@ -501,11 +630,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         jobId: job.id,
-        message: `Pokrenuto preuzimanje ${invoiceType === 'purchase' ? 'ulaznih' : 'izlaznih'} faktura za ${yearsBack} ${yearsBack === 1 ? 'godinu' : 'godine'} unazad`
+        message: `Sinhronizacija pokrenuta za ${totalMonths} meseci`
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -513,7 +640,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Nepoznata greška'
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
