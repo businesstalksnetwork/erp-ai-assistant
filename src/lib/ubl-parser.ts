@@ -205,31 +205,81 @@ function parseVatBreakdown(doc: Document): ParsedSEFInvoice['vatBreakdown'] {
   return breakdown;
 }
 
-// Extract Invoice XML from SEF DocumentEnvelope wrapper
+// Extract Invoice XML from SEF DocumentEnvelope wrapper using DOM-based approach
 function extractInvoiceFromEnvelope(xmlString: string): string {
   // Check if this is a SEF envelope structure
-  if (xmlString.includes('<env:DocumentEnvelope') || 
-      xmlString.includes('DocumentEnvelope') ||
-      xmlString.includes('<env:')) {
-    
-    // Try to extract the Invoice element using regex
-    // The Invoice element is typically after the DocumentPdf section
-    const invoiceMatch = xmlString.match(/<Invoice\s[^>]*xmlns[^>]*>[\s\S]*?<\/Invoice>/);
-    if (invoiceMatch) {
-      console.log('Extracted Invoice from envelope, length:', invoiceMatch[0].length);
-      return invoiceMatch[0];
-    }
-    
-    // Alternative: try without xmlns requirement
-    const simpleMatch = xmlString.match(/<Invoice[^>]*>[\s\S]*<\/Invoice>/);
-    if (simpleMatch) {
-      console.log('Extracted Invoice (simple match) from envelope, length:', simpleMatch[0].length);
-      return simpleMatch[0];
-    }
-    
-    console.warn('Could not extract Invoice from envelope structure');
+  const isEnvelope = xmlString.includes('<env:DocumentEnvelope') || 
+                     xmlString.includes('DocumentEnvelope') ||
+                     xmlString.includes('<env:DocumentBody');
+  
+  if (!isEnvelope) {
+    return xmlString;
   }
   
+  console.log('Detected SEF envelope structure, attempting extraction...');
+  
+  // Method 1: DOM-based extraction (most reliable)
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlString, 'text/xml');
+    
+    // Check for parse errors in envelope
+    if (!doc.querySelector('parsererror')) {
+      // Find Invoice element by localName (handles any prefix)
+      const allElements = doc.getElementsByTagName('*');
+      for (let i = 0; i < allElements.length; i++) {
+        if (allElements[i].localName === 'Invoice') {
+          const invoiceEl = allElements[i];
+          const serializer = new XMLSerializer();
+          const invoiceXml = serializer.serializeToString(invoiceEl);
+          console.log('Extracted Invoice via DOM, length:', invoiceXml.length);
+          return invoiceXml;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('DOM extraction failed:', e);
+  }
+  
+  // Method 2: Enhanced regex extraction (fallback)
+  // First, try to remove the large DocumentPdf block to speed up regex
+  let cleanedXml = xmlString;
+  const pdfBlockMatch = xmlString.match(/<env:DocumentPdf[^>]*>[\s\S]*?<\/env:DocumentPdf>/);
+  if (pdfBlockMatch) {
+    cleanedXml = xmlString.replace(pdfBlockMatch[0], '');
+    console.log('Removed DocumentPdf block for faster regex processing');
+  }
+  
+  // Try regex patterns with various prefixes
+  const patterns = [
+    // Standard Invoice with namespace
+    /<Invoice\s+[^>]*xmlns[^>]*>[\s\S]*<\/Invoice>/,
+    // Invoice without namespace declaration  
+    /<Invoice[^>]*>[\s\S]*<\/Invoice>/,
+    // Prefixed Invoice (e.g., ubl:Invoice)
+    /<\w+:Invoice[^>]*>[\s\S]*<\/\w+:Invoice>/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = cleanedXml.match(pattern);
+    if (match) {
+      console.log('Extracted Invoice via regex, length:', match[0].length);
+      return match[0];
+    }
+  }
+  
+  // If cleaned XML failed, try original XML
+  if (cleanedXml !== xmlString) {
+    for (const pattern of patterns) {
+      const match = xmlString.match(pattern);
+      if (match) {
+        console.log('Extracted Invoice from original XML, length:', match[0].length);
+        return match[0];
+      }
+    }
+  }
+  
+  console.warn('Could not extract Invoice from envelope structure');
   return xmlString;
 }
 
