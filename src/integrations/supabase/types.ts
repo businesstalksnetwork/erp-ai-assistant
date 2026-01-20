@@ -830,6 +830,62 @@ export type Database = {
           },
         ]
       }
+      sef_sync_jobs: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          created_at: string | null
+          current_month: string | null
+          error_message: string | null
+          id: string
+          invoice_type: string
+          invoices_found: number
+          invoices_saved: number
+          processed_months: number
+          started_at: string | null
+          status: string
+          total_months: number
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          current_month?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_type?: string
+          invoices_found?: number
+          invoices_saved?: number
+          processed_months?: number
+          started_at?: string | null
+          status?: string
+          total_months?: number
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          current_month?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_type?: string
+          invoices_found?: number
+          invoices_saved?: number
+          processed_months?: number
+          started_at?: string | null
+          status?: string
+          total_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sef_sync_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_catalog: {
         Row: {
           company_id: string
