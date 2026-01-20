@@ -739,7 +739,7 @@ export type Database = {
           company_id: string
           counterparty_address: string | null
           counterparty_maticni_broj: string | null
-          counterparty_name: string
+          counterparty_name: string | null
           counterparty_pib: string | null
           created_at: string | null
           currency: string | null
@@ -747,9 +747,9 @@ export type Database = {
           due_date: string | null
           fetched_at: string | null
           id: string
-          invoice_number: string
+          invoice_number: string | null
           invoice_type: string
-          issue_date: string
+          issue_date: string | null
           linked_invoice_id: string | null
           local_status: string | null
           processed_at: string | null
@@ -764,7 +764,7 @@ export type Database = {
           company_id: string
           counterparty_address?: string | null
           counterparty_maticni_broj?: string | null
-          counterparty_name: string
+          counterparty_name?: string | null
           counterparty_pib?: string | null
           created_at?: string | null
           currency?: string | null
@@ -772,9 +772,9 @@ export type Database = {
           due_date?: string | null
           fetched_at?: string | null
           id?: string
-          invoice_number: string
+          invoice_number?: string | null
           invoice_type: string
-          issue_date: string
+          issue_date?: string | null
           linked_invoice_id?: string | null
           local_status?: string | null
           processed_at?: string | null
@@ -789,7 +789,7 @@ export type Database = {
           company_id?: string
           counterparty_address?: string | null
           counterparty_maticni_broj?: string | null
-          counterparty_name?: string
+          counterparty_name?: string | null
           counterparty_pib?: string | null
           created_at?: string | null
           currency?: string | null
@@ -797,9 +797,9 @@ export type Database = {
           due_date?: string | null
           fetched_at?: string | null
           id?: string
-          invoice_number?: string
+          invoice_number?: string | null
           invoice_type?: string
-          issue_date?: string
+          issue_date?: string | null
           linked_invoice_id?: string | null
           local_status?: string | null
           processed_at?: string | null
