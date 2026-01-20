@@ -8,7 +8,7 @@ declare const EdgeRuntime: {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-token',
 };
 
 const SEF_API_BASE = 'https://efaktura.mfin.gov.rs/api/publicApi';
@@ -482,13 +482,29 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { companyId, yearsBack = 3, invoiceType = 'purchase', continueJobId } = await req.json();
 
-    // If continuing an existing partial job
+    // If continuing an existing partial job (called by cron runner)
     if (continueJobId) {
-      console.log(`Continuing partial job ${continueJobId}`);
+      // Validate internal cron token for continuation requests
+      const cronToken = req.headers.get('x-cron-token');
+      const expectedToken = Deno.env.get('CHECKPOINT_API_TOKEN');
+      
+      if (!cronToken || cronToken !== expectedToken) {
+        console.error('Unauthorized cron call - invalid or missing x-cron-token');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401
+          }
+        );
+      }
+      
+      console.log(`Continuing partial job ${continueJobId} (authorized via cron token)`);
       
       const { data: existingJob, error: jobError } = await supabase
         .from('sef_sync_jobs')
@@ -542,6 +558,58 @@ serve(async (req) => {
           message: 'Continuing sync in background'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For new sync requests: validate user JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - missing auth header' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      );
+    }
+
+    // Create user-scoped client to validate JWT and check company access
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error('Invalid user JWT:', claimsError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`User ${userId} starting long sync for company ${companyId}`);
+
+    // Verify user owns this company (RLS will handle this via user-scoped client)
+    const { data: userCompany, error: userCompanyError } = await userSupabase
+      .from('companies')
+      .select('id')
+      .eq('id', companyId)
+      .maybeSingle();
+
+    if (userCompanyError || !userCompany) {
+      console.error('User does not have access to company:', companyId);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - no access to company' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403
+        }
       );
     }
 
