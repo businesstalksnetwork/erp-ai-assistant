@@ -576,24 +576,43 @@ serve(async (req) => {
     // Check for existing running/partial job
     const { data: existingJob } = await supabase
       .from('sef_sync_jobs')
-      .select('id, status')
+      .select('id, status, updated_at')
       .eq('company_id', companyId)
       .eq('invoice_type', invoiceType)
       .in('status', ['pending', 'running', 'partial'])
       .maybeSingle();
 
     if (existingJob) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Sinhronizacija je već u toku',
-          jobId: existingJob.id
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 409
-        }
-      );
+      // Check if job is stale (no activity for 10+ minutes) - auto-reset it
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const jobUpdatedAt = new Date(existingJob.updated_at);
+      
+      if (jobUpdatedAt < tenMinutesAgo) {
+        console.log(`Existing job ${existingJob.id} is stale (${existingJob.status}, last updated ${existingJob.updated_at}). Auto-resetting.`);
+        
+        await supabase
+          .from('sef_sync_jobs')
+          .update({
+            status: 'failed',
+            error_message: 'Automatski resetovan - nema aktivnosti 10+ minuta',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', existingJob.id);
+        
+        // Continue to create a new job
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Sinhronizacija je već u toku',
+            jobId: existingJob.id
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 409
+          }
+        );
+      }
     }
 
     // Create new job
