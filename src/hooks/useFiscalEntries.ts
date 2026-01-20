@@ -11,6 +11,7 @@ export interface FiscalEntry {
   transaction_type: string;
   amount: number;
   year: number;
+  is_foreign: boolean;
   created_at: string;
 }
 
@@ -21,6 +22,8 @@ export interface FiscalDailySummary {
   total_amount: number;
   sales_amount: number;
   refunds_amount: number;
+  domestic_amount: number;
+  foreign_amount: number;
   year: number;
   kpo_entry_id: string | null;
   created_at: string;
@@ -91,8 +94,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
   });
 
   const importFiscalData = useMutation({
-    mutationFn: async (data: { entries: ParsedFiscalData[], companyId: string, kpoItemType?: KpoItemType }) => {
-      const { entries: parsedEntries, companyId, kpoItemType = 'products' } = data;
+    mutationFn: async (data: { entries: ParsedFiscalData[], companyId: string, kpoItemType?: KpoItemType, isForeign?: boolean }) => {
+      const { entries: parsedEntries, companyId, kpoItemType = 'products', isForeign = false } = data;
       
       // Group entries by date for daily summaries
       const dailyGroups: Record<string, ParsedFiscalData[]> = {};
@@ -117,6 +120,7 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
           transaction_type: entry.transaction_type,
           amount: entry.transaction_type === 'Рефундација' ? -Math.abs(entry.amount) : entry.amount,
           year: new Date(entry.entry_date).getFullYear(),
+          is_foreign: isForeign,
         });
       }
       
@@ -139,6 +143,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
           .reduce((sum, e) => sum + Math.abs(e.amount), 0);
         
         const total = sales - refunds;
+        const domesticAmount = isForeign ? 0 : total;
+        const foreignAmount = isForeign ? total : 0;
         const entryYear = new Date(date).getFullYear();
         
         // Format date for KPO description
@@ -192,13 +198,24 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
         };
 
         if (existingSummary) {
-          // Update existing summary
+          // Update existing summary - need to merge with existing domestic/foreign amounts
+          const { data: currentSummary } = await supabase
+            .from('fiscal_daily_summary' as any)
+            .select('domestic_amount, foreign_amount')
+            .eq('id', (existingSummary as any).id)
+            .single();
+
+          const existingDomestic = Number((currentSummary as any)?.domestic_amount || 0);
+          const existingForeign = Number((currentSummary as any)?.foreign_amount || 0);
+
           const { error: updateSummaryError } = await supabase
             .from('fiscal_daily_summary' as any)
             .update({
               sales_amount: sales,
               refunds_amount: refunds,
               total_amount: total,
+              domestic_amount: isForeign ? existingDomestic : existingDomestic + total,
+              foreign_amount: isForeign ? existingForeign + total : existingForeign,
             })
             .eq('id', (existingSummary as any).id);
 
@@ -237,6 +254,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
               sales_amount: sales,
               refunds_amount: refunds,
               total_amount: total,
+              domestic_amount: domesticAmount,
+              foreign_amount: foreignAmount,
               year: entryYear,
               kpo_entry_id: kpoId,
             });
@@ -302,7 +321,10 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
         .delete()
         .eq('id', (existingSummary as any).id);
     } else {
-      // Recalculate totals
+      // Recalculate totals - separate domestic and foreign
+      const domesticEntries = typedEntries.filter(e => !e.is_foreign);
+      const foreignEntries = typedEntries.filter(e => e.is_foreign);
+      
       const sales = typedEntries
         .filter(e => e.transaction_type === 'Продаја')
         .reduce((sum, e) => sum + e.amount, 0);
@@ -310,6 +332,9 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
         .filter(e => e.transaction_type === 'Рефундација')
         .reduce((sum, e) => sum + Math.abs(e.amount), 0);
       const total = sales - refunds;
+      
+      const domesticTotal = domesticEntries.reduce((sum, e) => sum + e.amount, 0);
+      const foreignTotal = foreignEntries.reduce((sum, e) => sum + e.amount, 0);
 
       // Update daily summary
       await supabase
@@ -318,6 +343,8 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
           sales_amount: sales,
           refunds_amount: refunds,
           total_amount: total,
+          domestic_amount: domesticTotal,
+          foreign_amount: foreignTotal,
         })
         .eq('id', (existingSummary as any).id);
 
@@ -649,6 +676,42 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     },
   });
 
+  // Update is_foreign status of a single fiscal entry
+  const updateFiscalEntryForeign = useMutation({
+    mutationFn: async (data: { entryId: string; companyId: string; entryDate: string; isForeign: boolean }) => {
+      const { entryId, companyId, entryDate, isForeign } = data;
+
+      // Update the entry
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .update({ is_foreign: isForeign })
+        .eq('id', entryId);
+
+      if (error) throw error;
+
+      // Recalculate daily summary to update domestic/foreign amounts
+      await recalculateDaySummary(companyId, entryDate);
+
+      return { entryId, isForeign };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Ažurirano',
+        description: data.isForeign ? 'Račun označen kao strani promet' : 'Račun označen kao domaći promet',
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['limits'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const totals = {
     sales: entries.filter(e => e.transaction_type === 'Продаја').reduce((sum, e) => sum + e.amount, 0),
     refunds: entries.filter(e => e.transaction_type === 'Рефундација').reduce((sum, e) => sum + Math.abs(e.amount), 0),
@@ -667,5 +730,6 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     deleteFiscalEntriesByDate,
     deleteFiscalEntriesByDateRange,
     deleteFiscalEntriesByYear,
+    updateFiscalEntryForeign,
   };
 }

@@ -18,11 +18,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Package, Wrench } from 'lucide-react';
+import { Loader2, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Package, Wrench, Home, Globe } from 'lucide-react';
 import { ParsedFiscalData, useFiscalEntries, KpoItemType } from '@/hooks/useFiscalEntries';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 interface FiscalImportDialogProps {
   open: boolean;
@@ -79,6 +80,7 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
   const [parsedData, setParsedData] = useState<ParsedFiscalData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [kpoItemType, setKpoItemType] = useState<KpoItemType>('products');
+  const [isForeign, setIsForeign] = useState(false);
   
   const { importFiscalData } = useFiscalEntries(companyId);
 
@@ -194,12 +196,13 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
   const handleImport = useCallback(async () => {
     if (parsedData.length === 0) return;
     
-    await importFiscalData.mutateAsync({ entries: parsedData, companyId, kpoItemType });
+    await importFiscalData.mutateAsync({ entries: parsedData, companyId, kpoItemType, isForeign });
     setParsedData([]);
     setFile(null);
     setKpoItemType('products');
+    setIsForeign(false);
     onOpenChange(false);
-  }, [parsedData, companyId, importFiscalData, onOpenChange, kpoItemType]);
+  }, [parsedData, companyId, importFiscalData, onOpenChange, kpoItemType, isForeign]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -307,28 +310,58 @@ export function FiscalImportDialog({ open, onOpenChange, companyId }: FiscalImpo
               </div>
 
               {/* KPO Item Type Selection */}
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <p className="text-sm font-medium mb-3">Evidentiraj u KPO kao:</p>
-                <RadioGroup 
-                  value={kpoItemType} 
-                  onValueChange={(value) => setKpoItemType(value as KpoItemType)}
-                  className="flex gap-6"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="products" id="products" />
-                    <Label htmlFor="products" className="flex items-center gap-2 cursor-pointer">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      Proizvodi
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="services" id="services" />
-                    <Label htmlFor="services" className="flex items-center gap-2 cursor-pointer">
-                      <Wrench className="h-4 w-4 text-muted-foreground" />
-                      Usluge
-                    </Label>
-                  </div>
-                </RadioGroup>
+              <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-3">Evidentiraj u KPO kao:</p>
+                  <RadioGroup 
+                    value={kpoItemType} 
+                    onValueChange={(value) => setKpoItemType(value as KpoItemType)}
+                    className="flex gap-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="products" id="products" />
+                      <Label htmlFor="products" className="flex items-center gap-2 cursor-pointer">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        Proizvodi
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="services" id="services" />
+                      <Label htmlFor="services" className="flex items-center gap-2 cursor-pointer">
+                        <Wrench className="h-4 w-4 text-muted-foreground" />
+                        Usluge
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <p className="text-sm font-medium mb-3">Tip prometa:</p>
+                  <RadioGroup 
+                    value={isForeign ? 'foreign' : 'domestic'} 
+                    onValueChange={(value) => setIsForeign(value === 'foreign')}
+                    className="flex flex-col gap-3 sm:flex-row sm:gap-6"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="domestic" id="domestic" />
+                      <Label htmlFor="domestic" className="flex items-center gap-2 cursor-pointer">
+                        <Home className="h-4 w-4 text-muted-foreground" />
+                        <span>Domaći promet</span>
+                        <span className="text-xs text-muted-foreground">(ulazi u limit od 8M)</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="foreign" id="foreign" />
+                      <Label htmlFor="foreign" className="flex items-center gap-2 cursor-pointer">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span>Strani promet</span>
+                        <span className="text-xs text-muted-foreground">(ne ulazi u limit od 8M)</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </div>
 
               <ScrollArea className="flex-1 border rounded-lg">

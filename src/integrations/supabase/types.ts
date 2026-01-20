@@ -149,6 +149,8 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          domestic_amount: number
+          foreign_amount: number
           id: string
           kpo_entry_id: string | null
           refunds_amount: number
@@ -160,6 +162,8 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          domestic_amount?: number
+          foreign_amount?: number
           id?: string
           kpo_entry_id?: string | null
           refunds_amount?: number
@@ -171,6 +175,8 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          domestic_amount?: number
+          foreign_amount?: number
           id?: string
           kpo_entry_id?: string | null
           refunds_amount?: number
@@ -204,6 +210,7 @@ export type Database = {
           created_at: string
           entry_date: string
           id: string
+          is_foreign: boolean
           receipt_number: string
           transaction_type: string
           year: number
@@ -215,6 +222,7 @@ export type Database = {
           created_at?: string
           entry_date: string
           id?: string
+          is_foreign?: boolean
           receipt_number: string
           transaction_type: string
           year: number
@@ -226,6 +234,7 @@ export type Database = {
           created_at?: string
           entry_date?: string
           id?: string
+          is_foreign?: boolean
           receipt_number?: string
           transaction_type?: string
           year?: number
