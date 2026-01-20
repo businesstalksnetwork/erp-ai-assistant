@@ -661,9 +661,9 @@ export default function SEFCenter() {
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
-                        <CalendarIcon className="mr-1 h-3 w-3" />
+                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                        <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -679,9 +679,9 @@ export default function SEFCenter() {
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
-                        <CalendarIcon className="mr-1 h-3 w-3" />
+                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
+                        <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -948,9 +948,9 @@ export default function SEFCenter() {
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
-                        <CalendarIcon className="mr-1 h-3 w-3" />
+                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                        <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -966,9 +966,9 @@ export default function SEFCenter() {
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
-                        <CalendarIcon className="mr-1 h-3 w-3" />
+                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
+                        <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
