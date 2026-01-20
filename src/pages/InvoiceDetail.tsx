@@ -15,18 +15,24 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Helper funkcija za formatiranje broja računa za IPS (tačno 18 cifara)
+// Helper funkcija za formatiranje broja računa za IPS (format XXX-XXXXXXXXXXXXX-XX, ukupno 18 cifara)
 function formatAccountForIPS(account: string): string {
   const parts = account.replace(/\s/g, '').split('-');
+
   if (parts.length === 3) {
     // Svaki deo: samo cifre, pa normalizuj na tačnu dužinu
-    const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
-    const middle = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
-    const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
-    return `${bank}${middle}${control}`;
+    const bank = parts[0].replace(/\D/g, '').padStart(3, '0').slice(0, 3);
+    // Srednji deo mora imati 13 cifara; dopuna nulama ide unutar srednjeg dela (posle prve crte)
+    const middle = parts[1].replace(/\D/g, '').padStart(13, '0').slice(0, 13);
+    const control = parts[2].replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+
+    // NBS IPS očekuje format sa crticama
+    return `${bank}-${middle}-${control}`;
   }
-  // Fallback: samo cifre, dopuni na 18
-  return account.replace(/\D/g, '').padStart(18, '0').substring(0, 18);
+
+  // Fallback: samo cifre, dopuni na 18 i formatiraj sa crticama
+  const digits = account.replace(/\D/g, '').padStart(18, '0').slice(0, 18);
+  return `${digits.slice(0, 3)}-${digits.slice(3, 16)}-${digits.slice(16)}`;
 }
 
 // Funkcija za generisanje IPS QR koda prema NBS standardu
@@ -43,23 +49,27 @@ function generateIPSQRCode(params: {
 }): string {
   const formattedAccount = formatAccountForIPS(params.receiverAccount);
   const amountStr = params.amount.toFixed(2).replace('.', ',');
-  
+
   // Podaci o platiocu - spoji ime i adresu sa CRLF (NBS standard)
-  const payerInfo = [params.payerName?.trim(), params.payerAddress?.trim()]
-    .filter(Boolean).join('\r\n');
-  
+  const payerInfoRaw = [params.payerName?.trim(), params.payerAddress?.trim()]
+    .filter(Boolean)
+    .join('\r\n');
+
+  // Ograniči dužinu (neke aplikacije odbijaju preduga polja)
+  const payerInfo = payerInfoRaw.slice(0, 140);
+
   // Svrha plaćanja - ukloni newline karaktere (mora biti jedna linija)
   const cleanPurpose = params.paymentPurpose.replace(/[\r\n]+/g, ' ').substring(0, 35);
-  
+
   // Reference - samo cifre
   const cleanReference = params.paymentReference.replace(/\D/g, '');
-  
+
   // Šifra plaćanja - tačno 3 cifre
   const sf = params.paymentCode.replace(/\D/g, '').padStart(3, '0').substring(0, 3);
-  
+
   // Model - tačno 2 cifre
   const model = params.paymentModel.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
-  
+
   const parts = [
     'K:PR',
     'V:01',
@@ -67,16 +77,20 @@ function generateIPSQRCode(params: {
     `R:${formattedAccount}`,
     `N:${params.receiverName.substring(0, 70)}`,
     `I:RSD${amountStr}`,
-    `P:${payerInfo}`,
     `SF:${sf}`,
     `S:${cleanPurpose}`,
   ];
-  
-  // Dodaj poziv na broj ako je definisan
-  if (model && cleanReference) {
-    parts.push(`RO:${model}${cleanReference}`);
+
+  if (payerInfo) {
+    parts.push(`P:${payerInfo}`);
   }
-  
+
+  // Dodaj poziv na broj ako je definisan
+  if (cleanReference) {
+    // Model 00 + numerička referenca
+    parts.push(`RO:00${cleanReference}`);
+  }
+
   return parts.join('|');
 }
 
@@ -808,8 +822,9 @@ export default function InvoiceDetail() {
                   <div className="flex-shrink-0">
                     <QRCodeSVG
                       value={ipsString}
-                      size={120}
-                      level="M"
+                      size={160}
+                      level="L"
+                      includeMargin
                     />
                   </div>
                   <div className="text-sm space-y-1 flex-1">
