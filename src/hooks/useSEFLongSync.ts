@@ -11,6 +11,7 @@ interface SyncJob {
   total_months: number;
   processed_months: number;
   current_month: string | null;
+  last_processed_month: string | null;
   invoices_found: number;
   invoices_saved: number;
   error_message: string | null;
@@ -74,12 +75,12 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
       const job = data as SyncJob;
       setActiveJob(job);
 
-      // Stop polling if job is done
-      if (job.status === 'completed' || job.status === 'partial') {
+      if (job.status === 'completed') {
         stopPolling();
         
         // Invalidate queries to refresh invoice list
         queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+        queryClient.invalidateQueries({ queryKey: ['sef-purchase-invoices'] });
         
         toast({
           title: 'Sinhronizacija završena',
@@ -92,7 +93,13 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
           description: job.error_message || 'Nepoznata greška',
           variant: 'destructive',
         });
+      } else if (job.status === 'partial') {
+        // Partial status - cron will continue automatically
+        // Keep polling so user sees continuous progress
+        // User doesn't see any difference - just looks like it's still running
+        console.log('Job in partial status - cron will continue, keeping poll active');
       }
+      // For 'running' or 'pending' - keep polling (default behavior)
     } catch (e) {
       console.error('Poll error:', e);
     }
@@ -203,11 +210,12 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
           // Use updated_at for activity check (updated by trigger on every progress update)
           const lastActivity = runningJob.updated_at || runningJob.started_at || runningJob.created_at;
           const activityAge = Date.now() - new Date(lastActivity).getTime();
-          const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes without activity = stale
+          const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes without activity = stale
           
-          // If job has no activity for 5+ minutes, mark it as failed
-          if (activityAge > FIVE_MINUTES) {
-            console.log('Job is stale (no activity for 5+ min), marking as failed:', runningJob.id);
+          // If job has no activity for 10+ minutes, mark it as failed
+          // (increased from 5 to 10 to allow cron time to pick up partial jobs)
+          if (activityAge > TEN_MINUTES) {
+            console.log('Job is stale (no activity for 10+ min), marking as failed:', runningJob.id);
             await supabase
               .from('sef_sync_jobs')
               .update({
@@ -218,9 +226,9 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
               .eq('id', runningJob.id);
             // Don't return, continue to check for last completed job
           } else {
-            console.log('Found active running job:', runningJob.id);
+            console.log('Found active running/partial job:', runningJob.id, 'status:', runningJob.status);
             setActiveJob(runningJob as SyncJob);
-            // Start polling for existing job
+            // Start polling for existing job (works for both running and partial)
             stopPolling();
             pollingIntervalRef.current = setInterval(() => pollJobStatusById(runningJob.id), 3000);
             return;

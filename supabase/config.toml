@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.sef-long-sync]
 verify_jwt = true
+
+[functions.sef-continue-sync]
+verify_jwt = false

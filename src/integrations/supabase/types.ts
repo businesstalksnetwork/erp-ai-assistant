@@ -841,6 +841,7 @@ export type Database = {
           invoice_type: string
           invoices_found: number
           invoices_saved: number
+          last_processed_month: string | null
           processed_months: number
           started_at: string | null
           status: string
@@ -857,6 +858,7 @@ export type Database = {
           invoice_type?: string
           invoices_found?: number
           invoices_saved?: number
+          last_processed_month?: string | null
           processed_months?: number
           started_at?: string | null
           status?: string
@@ -873,6 +875,7 @@ export type Database = {
           invoice_type?: string
           invoices_found?: number
           invoices_saved?: number
+          last_processed_month?: string | null
           processed_months?: number
           started_at?: string | null
           status?: string
