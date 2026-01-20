@@ -46,6 +46,7 @@ export function useSEFPurchaseInvoices() {
   const [isFetching, setIsFetching] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingXML, setIsLoadingXML] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
 
   const fetchPurchaseInvoices = async (
     companyId: string,
@@ -212,13 +213,54 @@ export function useSEFPurchaseInvoices() {
     }
   };
 
+  const enrichIncompleteInvoices = async (companyId: string): Promise<{ success: boolean; enrichedCount?: number; error?: string }> => {
+    setIsEnriching(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sef-enrich-invoices', {
+        body: { companyId },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Greška pri dopuni faktura');
+      }
+
+      if (data.success) {
+        toast({
+          title: 'Dopuna završena',
+          description: data.message,
+        });
+        
+        await queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+        
+        return data;
+      } else {
+        throw new Error(data.error || 'Nepoznata greška');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Greška pri dopuni';
+      
+      toast({
+        title: 'Greška',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
   return {
     fetchPurchaseInvoices,
     acceptInvoice,
     rejectInvoice,
     getInvoiceXML,
+    enrichIncompleteInvoices,
     isFetching,
     isProcessing,
     isLoadingXML,
+    isEnriching,
   };
 }
