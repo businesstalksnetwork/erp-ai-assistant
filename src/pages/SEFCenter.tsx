@@ -559,6 +559,7 @@ export default function SEFCenter() {
               xml={previewXML} 
               sefInvoiceId={previewInvoice?.sef_invoice_id}
               fetchedAt={previewInvoice?.fetched_at || undefined}
+              invoiceNumber={previewInvoice?.invoice_number || undefined}
             />
           ) : (
             <div className="text-center py-8 text-muted-foreground">

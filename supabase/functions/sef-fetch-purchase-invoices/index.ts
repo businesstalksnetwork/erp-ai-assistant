@@ -239,10 +239,11 @@ serve(async (req) => {
         if (invoiceResponse.ok) {
           const data = await invoiceResponse.json();
           
-          // Log first invoice structure for debugging
+          // Log first invoice structure for debugging - more detailed
           if (i === 0) {
-            console.log('Sample invoice JSON keys:', Object.keys(data || {}));
-            console.log('Sample invoice data snippet:', JSON.stringify(data).substring(0, 500));
+            console.log('=== SAMPLE INVOICE FULL JSON ===');
+            console.log(JSON.stringify(data, null, 2));
+            console.log('=== TOP-LEVEL KEYS ===', Object.keys(data || {}));
           }
           
           // Use robust field extraction with multiple possible field names
@@ -288,10 +289,26 @@ serve(async (req) => {
             'documentCurrencyCode', 'DocumentCurrencyCode', 'currency', 'Currency',
             'CurrencyCode', 'currencyCode'
           ], 'RSD') || 'RSD';
-          status = pickString(data, [
-            'status', 'Status', 'InvoiceStatus', 'invoiceStatus',
-            'DocumentStatus', 'documentStatus'
-          ], 'Unknown') || 'Unknown';
+          
+          // Extended status field search - SEF API uses various field names
+          const foundStatus = pickString(data, [
+            'status', 'Status', 
+            'InvoiceStatus', 'invoiceStatus',
+            'DocumentStatus', 'documentStatus',
+            'StatusCode', 'statusCode',
+            'PurchaseInvoiceStatus', 'purchaseInvoiceStatus',
+            'State', 'state',
+            'CirStatus', 'cirStatus',
+            'InvoiceState', 'invoiceState'
+          ], null);
+          
+          // If no status found, log available fields for debugging
+          if (foundStatus === null && i < 3) {
+            console.log(`Invoice ${invoiceId} - no status field found. Available fields:`, Object.keys(data || {}));
+          }
+          
+          // Default to 'New' if no status found (most likely for newly fetched invoices)
+          status = foundStatus || 'New';
           
           successCount++;
         } else if (invoiceResponse.status === 429) {
