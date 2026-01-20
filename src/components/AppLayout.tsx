@@ -31,7 +31,6 @@ import {
   ChevronRight,
   BarChart3,
   ListChecks,
-  Banknote,
   FileStack,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -54,7 +53,6 @@ const userNavItems = [
   { href: '/companies', label: 'Firme', icon: Building2 },
   { href: '/clients', label: 'Klijenti', icon: Users },
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
-  { href: '/foreign-payments', label: 'Devizno plaćanje', icon: Banknote },
 ];
 
 const adminNavItems = [
