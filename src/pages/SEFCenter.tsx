@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useSEFPurchaseInvoices } from '@/hooks/useSEFPurchaseInvoices';
 import { useSEFStorage, StoredSEFInvoice } from '@/hooks/useSEFStorage';
@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
 
@@ -86,6 +88,11 @@ export default function SEFCenter() {
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
   // Pagination state
   const [purchasePage, setPurchasePage] = useState(1);
   const [purchasePerPage, setPurchasePerPage] = useState(20);
@@ -105,16 +112,26 @@ export default function SEFCenter() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Filtered invoices by date range
+  // Filtered invoices by date range AND search query
   const filteredPurchaseInvoices = useMemo(() => {
     return purchaseInvoices.filter(inv => {
       const issueDate = inv.issue_date;
       if (!issueDate) return true;
       if (dateFrom && issueDate < dateFrom) return false;
       if (dateTo && issueDate > dateTo) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesNumber = inv.invoice_number?.toLowerCase().includes(query);
+        const matchesPartner = inv.counterparty_name?.toLowerCase().includes(query);
+        const matchesPib = inv.counterparty_pib?.toLowerCase().includes(query);
+        if (!matchesNumber && !matchesPartner && !matchesPib) return false;
+      }
+      
       return true;
     });
-  }, [purchaseInvoices, dateFrom, dateTo]);
+  }, [purchaseInvoices, dateFrom, dateTo, searchQuery]);
 
   const filteredSalesInvoices = useMemo(() => {
     return salesInvoices.filter(inv => {
@@ -122,9 +139,68 @@ export default function SEFCenter() {
       if (!issueDate) return true;
       if (dateFrom && issueDate < dateFrom) return false;
       if (dateTo && issueDate > dateTo) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesNumber = inv.invoice_number?.toLowerCase().includes(query);
+        const matchesPartner = inv.counterparty_name?.toLowerCase().includes(query);
+        const matchesPib = inv.counterparty_pib?.toLowerCase().includes(query);
+        if (!matchesNumber && !matchesPartner && !matchesPib) return false;
+      }
+      
       return true;
     });
-  }, [salesInvoices, dateFrom, dateTo]);
+  }, [salesInvoices, dateFrom, dateTo, searchQuery]);
+
+  // Search suggestions from all invoices
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 1) return [];
+    
+    const query = searchQuery.toLowerCase();
+    const suggestions: Array<{
+      type: 'purchase' | 'sales';
+      invoiceNumber: string | null;
+      counterpartyName: string | null;
+      label: string;
+    }> = [];
+    
+    // From purchase invoices
+    purchaseInvoices.forEach(inv => {
+      if (
+        inv.invoice_number?.toLowerCase().includes(query) ||
+        inv.counterparty_name?.toLowerCase().includes(query) ||
+        inv.counterparty_pib?.toLowerCase().includes(query)
+      ) {
+        suggestions.push({
+          type: 'purchase',
+          invoiceNumber: inv.invoice_number,
+          counterpartyName: inv.counterparty_name,
+          label: `${inv.invoice_number || 'Bez broja'} - ${inv.counterparty_name || 'Nepoznat'}`,
+        });
+      }
+    });
+    
+    // From sales invoices
+    salesInvoices.forEach(inv => {
+      if (
+        inv.invoice_number?.toLowerCase().includes(query) ||
+        inv.counterparty_name?.toLowerCase().includes(query) ||
+        inv.counterparty_pib?.toLowerCase().includes(query)
+      ) {
+        suggestions.push({
+          type: 'sales',
+          invoiceNumber: inv.invoice_number,
+          counterpartyName: inv.counterparty_name,
+          label: `${inv.invoice_number || 'Bez broja'} - ${inv.counterparty_name || 'Nepoznat'}`,
+        });
+      }
+    });
+    
+    // Deduplicate by label and limit to 10
+    const unique = [...new Map(suggestions.map(s => [s.label, s])).values()];
+    return unique.slice(0, 10);
+  }, [purchaseInvoices, salesInvoices, searchQuery]);
 
   // Paginated invoices
   const paginatedPurchaseInvoices = useMemo(() => {
@@ -149,6 +225,27 @@ export default function SEFCenter() {
 
   const handleDateToChange = (value: string) => {
     setDateTo(value);
+    setPurchasePage(1);
+    setSalesPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPurchasePage(1);
+    setSalesPage(1);
+  };
+
+  const handleSelectSuggestion = (suggestion: { label: string; type: 'purchase' | 'sales' }) => {
+    setSearchQuery(suggestion.label.split(' - ')[0]); // Use invoice number part
+    setSearchOpen(false);
+    setPurchasePage(1);
+    setSalesPage(1);
+    // Switch to appropriate tab
+    setActiveTab(suggestion.type);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
     setPurchasePage(1);
     setSalesPage(1);
   };
@@ -449,59 +546,144 @@ export default function SEFCenter() {
             </CardHeader>
             <CardContent>
 
-              {/* Date Range and Fetch */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                  <span className="hidden sm:flex items-center text-muted-foreground">do</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
-                <Button onClick={handleFetchPurchase} disabled={isFetching || isEnriching || (activeJob?.status === 'running')}>
-                  {isFetching ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Preuzmi sa SEF-a
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleStartLongSync('purchase')} 
-                  disabled={isStarting || (activeJob?.status === 'running')}
-                  title="Preuzmi sve fakture za poslednjih 3 godine"
-                >
-                  {isStarting ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  Preuzmi sve (3 god.)
-                </Button>
-                {incompleteCount > 0 && (
+              {/* Search and Date Range */}
+              <div className="flex flex-col gap-4 mb-6">
+                {/* Search with autocomplete */}
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        ref={searchInputRef}
+                        placeholder="Pretraži po broju ili partneru..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          handleSearchChange(e.target.value);
+                          if (e.target.value.length >= 1) {
+                            setSearchOpen(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (searchQuery.length >= 1) {
+                            setSearchOpen(true);
+                          }
+                        }}
+                        className="pl-10 pr-10"
+                      />
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                          onClick={clearSearch}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-[var(--radix-popover-trigger-width)] p-0" 
+                    align="start"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <Command>
+                      <CommandList>
+                        {searchSuggestions.length === 0 ? (
+                          <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
+                        ) : (
+                          <>
+                            {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
+                              <CommandGroup heading="Ulazne fakture">
+                                {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
+                                  <CommandItem
+                                    key={`purchase-${idx}`}
+                                    value={suggestion.label}
+                                    onSelect={() => handleSelectSuggestion(suggestion)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    <span>{suggestion.label}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                            {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
+                              <CommandGroup heading="Izlazne fakture">
+                                {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
+                                  <CommandItem
+                                    key={`sales-${idx}`}
+                                    value={suggestion.label}
+                                    onSelect={() => handleSelectSuggestion(suggestion)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Send className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    <span>{suggestion.label}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                {/* Date Range and Fetch */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                    <span className="hidden sm:flex items-center text-muted-foreground">do</span>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                  </div>
+                  <Button onClick={handleFetchPurchase} disabled={isFetching || isEnriching || (activeJob?.status === 'running')}>
+                    {isFetching ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Preuzmi sa SEF-a
+                  </Button>
                   <Button 
                     variant="outline" 
-                    onClick={handleEnrichInvoices} 
-                    disabled={isFetching || isEnriching}
-                    title={`${incompleteCount} faktura bez podataka`}
+                    onClick={() => handleStartLongSync('purchase')} 
+                    disabled={isStarting || (activeJob?.status === 'running')}
+                    title="Preuzmi sve fakture za poslednjih 3 godine"
                   >
-                    {isEnriching ? (
+                    {isStarting ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Download className="h-4 w-4 mr-2" />
                     )}
-                    Retry dopuna ({incompleteCount})
+                    Preuzmi sve (3 god.)
                   </Button>
-                )}
+                  {incompleteCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleEnrichInvoices} 
+                      disabled={isFetching || isEnriching}
+                      title={`${incompleteCount} faktura bez podataka`}
+                    >
+                      {isEnriching ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      Retry dopuna ({incompleteCount})
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Invoice List */}
@@ -512,8 +694,10 @@ export default function SEFCenter() {
               ) : filteredPurchaseInvoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nema ulaznih faktura{dateFrom || dateTo ? ' za izabrani period' : ''}</p>
-                  <p className="text-sm">Kliknite "Preuzmi sa SEF-a" da preuzmete nove fakture</p>
+                  <p>Nema ulaznih faktura{searchQuery ? ` za "${searchQuery}"` : (dateFrom || dateTo ? ' za izabrani period' : '')}</p>
+                  <p className="text-sm">
+                    {searchQuery ? 'Pokušajte drugu pretragu' : 'Kliknite "Preuzmi sa SEF-a" da preuzmete nove fakture'}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -619,36 +803,120 @@ export default function SEFCenter() {
             </CardHeader>
             <CardContent>
 
-              {/* Date filter and Sync button */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                  <span className="hidden sm:flex items-center text-muted-foreground">do</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
+              {/* Search and Date Range */}
+              <div className="flex flex-col gap-4 mb-6">
+                {/* Search with autocomplete */}
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Pretraži po broju ili partneru..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                          handleSearchChange(e.target.value);
+                          if (e.target.value.length >= 1) {
+                            setSearchOpen(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (searchQuery.length >= 1) {
+                            setSearchOpen(true);
+                          }
+                        }}
+                        className="pl-10 pr-10"
+                      />
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                          onClick={clearSearch}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-[var(--radix-popover-trigger-width)] p-0" 
+                    align="start"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <Command>
+                      <CommandList>
+                        {searchSuggestions.length === 0 ? (
+                          <CommandEmpty>Nema rezultata za "{searchQuery}"</CommandEmpty>
+                        ) : (
+                          <>
+                            {searchSuggestions.filter(s => s.type === 'purchase').length > 0 && (
+                              <CommandGroup heading="Ulazne fakture">
+                                {searchSuggestions.filter(s => s.type === 'purchase').map((suggestion, idx) => (
+                                  <CommandItem
+                                    key={`purchase-${idx}`}
+                                    value={suggestion.label}
+                                    onSelect={() => handleSelectSuggestion(suggestion)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    <span>{suggestion.label}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                            {searchSuggestions.filter(s => s.type === 'sales').length > 0 && (
+                              <CommandGroup heading="Izlazne fakture">
+                                {searchSuggestions.filter(s => s.type === 'sales').map((suggestion, idx) => (
+                                  <CommandItem
+                                    key={`sales-${idx}`}
+                                    value={suggestion.label}
+                                    onSelect={() => handleSelectSuggestion(suggestion)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Send className="h-4 w-4 mr-2 text-muted-foreground" />
+                                    <span>{suggestion.label}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                {/* Date filter and Sync button */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => handleDateFromChange(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                    <span className="hidden sm:flex items-center text-muted-foreground">do</span>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => handleDateToChange(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleStartLongSync('sales')} 
+                    disabled={isStarting || (activeJob?.status === 'running')}
+                    title="Preuzmi sve izlazne fakture za poslednjih 3 godine"
+                  >
+                    {isStarting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Preuzmi sve (3 god.)
+                  </Button>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleStartLongSync('sales')} 
-                  disabled={isStarting || (activeJob?.status === 'running')}
-                  title="Preuzmi sve izlazne fakture za poslednjih 3 godine"
-                >
-                  {isStarting ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  Preuzmi sve (3 god.)
-                </Button>
               </div>
 
               {isLoading ? (
@@ -658,8 +926,10 @@ export default function SEFCenter() {
               ) : filteredSalesInvoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nema izlaznih faktura{dateFrom || dateTo ? ' za izabrani period' : ''}</p>
-                  <p className="text-sm">Fakture poslate na SEF će se automatski čuvati ovde, ili kliknite dugme iznad da preuzmete istoriju.</p>
+                  <p>Nema izlaznih faktura{searchQuery ? ` za "${searchQuery}"` : (dateFrom || dateTo ? ' za izabrani period' : '')}</p>
+                  <p className="text-sm">
+                    {searchQuery ? 'Pokušajte drugu pretragu' : 'Fakture poslate na SEF će se automatski čuvati ovde, ili kliknite dugme iznad da preuzmete istoriju.'}
+                  </p>
                 </div>
               ) : (
                 <>
