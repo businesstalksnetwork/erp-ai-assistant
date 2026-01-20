@@ -2,11 +2,12 @@ import React, { useMemo, useRef, useState } from 'react';
 import { parseUBLInvoice, formatSEFDate, formatSEFAmount } from '@/lib/ubl-parser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, Code, Printer, Download } from 'lucide-react';
+import { FileText, Code, Printer, Download, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface SEFInvoicePreviewProps {
   xml: string;
@@ -21,18 +22,56 @@ const SEFInvoicePreview: React.FC<SEFInvoicePreviewProps> = ({
   fetchedAt,
   invoiceNumber 
 }) => {
-  const parsed = useMemo(() => parseUBLInvoice(xml), [xml]);
+  const [parseKey, setParseKey] = useState(0);
+  const [showRawXml, setShowRawXml] = useState(false);
+  
+  const parsed = useMemo(() => parseUBLInvoice(xml), [xml, parseKey]);
   const printRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleRetryParse = () => {
+    setParseKey(prev => prev + 1);
+    toast.info('Pokušavam ponovo da parsiram fakturu...');
+  };
   
   if (!parsed) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        <p>Nije moguće parsirati XML fakturu.</p>
-        <pre className="mt-4 p-4 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono text-left">
-          {xml}
-        </pre>
+      <div className="p-4 space-y-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Nije moguće generisati formatirani prikaz</AlertTitle>
+          <AlertDescription>
+            Parser nije uspeo da obradi ovu fakturu. Možete pogledati sirovi XML ili pokušati ponovo.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRetryParse}
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Pokušaj ponovo
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={() => setShowRawXml(!showRawXml)}
+            className="gap-2"
+          >
+            <Code className="h-4 w-4" />
+            {showRawXml ? 'Sakrij XML' : 'Prikaži XML'}
+          </Button>
+        </div>
+
+        {showRawXml && (
+          <pre className="text-xs overflow-auto whitespace-pre-wrap bg-muted p-4 rounded max-h-[60vh] border">
+            {xml}
+          </pre>
+        )}
       </div>
     );
   }
