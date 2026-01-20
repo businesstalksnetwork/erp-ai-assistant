@@ -102,6 +102,12 @@ export default function SEFCenter() {
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   
+  // Date picker popover state (controlled)
+  const [purchaseDateFromOpen, setPurchaseDateFromOpen] = useState(false);
+  const [purchaseDateToOpen, setPurchaseDateToOpen] = useState(false);
+  const [salesDateFromOpen, setSalesDateFromOpen] = useState(false);
+  const [salesDateToOpen, setSalesDateToOpen] = useState(false);
+  
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -132,6 +138,14 @@ export default function SEFCenter() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  
+  // Helper to close all date pickers
+  const closeAllDatePickers = () => {
+    setPurchaseDateFromOpen(false);
+    setPurchaseDateToOpen(false);
+    setSalesDateFromOpen(false);
+    setSalesDateToOpen(false);
+  };
 
   // Helper function for sorting
   const sortInvoices = (invoices: StoredSEFInvoice[], sort: { field: SortField; direction: SortDirection }) => {
@@ -371,6 +385,8 @@ export default function SEFCenter() {
 
   const handleStartLongSync = async (invoiceType: 'purchase' | 'sales') => {
     if (!companyId) return;
+    // Close all date pickers before starting sync
+    closeAllDatePickers();
     await startLongSync(companyId, invoiceType, 3);
     // Refresh after starting
     setTimeout(() => refetch(), 1000);
@@ -659,36 +675,42 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover>
+                  <Popover open={purchaseDateFromOpen} onOpenChange={setPurchaseDateFromOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
                       <Calendar
                         mode="single"
                         selected={dateFrom ? new Date(dateFrom) : undefined}
-                        onSelect={(date) => handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        onSelect={(date) => {
+                          handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
+                          setPurchaseDateFromOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover>
+                  <Popover open={purchaseDateToOpen} onOpenChange={setPurchaseDateToOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
                       <Calendar
                         mode="single"
                         selected={dateTo ? new Date(dateTo) : undefined}
-                        onSelect={(date) => handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        onSelect={(date) => {
+                          handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
+                          setPurchaseDateToOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                       />
@@ -946,36 +968,42 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover>
+                  <Popover open={salesDateFromOpen} onOpenChange={setSalesDateFromOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
                       <Calendar
                         mode="single"
                         selected={dateFrom ? new Date(dateFrom) : undefined}
-                        onSelect={(date) => handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        onSelect={(date) => {
+                          handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
+                          setSalesDateFromOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover>
+                  <Popover open={salesDateToOpen} onOpenChange={setSalesDateToOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
                       <Calendar
                         mode="single"
                         selected={dateTo ? new Date(dateTo) : undefined}
-                        onSelect={(date) => handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        onSelect={(date) => {
+                          handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
+                          setSalesDateToOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                       />
