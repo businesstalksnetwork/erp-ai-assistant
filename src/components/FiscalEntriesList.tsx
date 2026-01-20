@@ -22,7 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2, Loader2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Trash2, Loader2, Home, Globe, ChevronDown } from 'lucide-react';
 
 interface FiscalEntriesListProps {
   entries: FiscalEntry[];
@@ -44,7 +50,7 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
   const [deleteMode, setDeleteMode] = useState<'single' | 'bulk'>('single');
   const [entryToDelete, setEntryToDelete] = useState<FiscalEntry | null>(null);
 
-  const { deleteFiscalEntry, deleteFiscalEntries } = useFiscalEntries(companyId, year);
+  const { deleteFiscalEntry, deleteFiscalEntries, updateFiscalEntryForeign } = useFiscalEntries(companyId, year);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -94,7 +100,17 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
     setEntryToDelete(null);
   };
 
+  const handleToggleForeign = async (entry: FiscalEntry) => {
+    await updateFiscalEntryForeign.mutateAsync({
+      entryId: entry.id,
+      companyId,
+      entryDate: entry.entry_date,
+      isForeign: !entry.is_foreign,
+    });
+  };
+
   const isDeleting = deleteFiscalEntry.isPending || deleteFiscalEntries.isPending;
+  const isUpdating = updateFiscalEntryForeign.isPending;
   const allSelected = entries.length > 0 && selectedIds.size === entries.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < entries.length;
 
@@ -147,6 +163,7 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
               <TableHead>Broj računa</TableHead>
               <TableHead>Poslovni prostor</TableHead>
               <TableHead>Tip</TableHead>
+              <TableHead>Promet</TableHead>
               <TableHead className="text-right">Iznos</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
@@ -169,6 +186,47 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
                   <Badge variant={entry.transaction_type === 'Продаја' ? 'default' : 'destructive'}>
                     {entry.transaction_type === 'Продаја' ? 'Prodaja' : 'Refundacija'}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 px-2 gap-1"
+                        disabled={isUpdating}
+                      >
+                        {entry.is_foreign ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            <Globe className="h-3 w-3 mr-1" />
+                            Strani
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            <Home className="h-3 w-3 mr-1" />
+                            Domaći
+                          </Badge>
+                        )}
+                        <ChevronDown className="h-3 w-3 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem 
+                        onClick={() => !entry.is_foreign || handleToggleForeign(entry)}
+                        className={!entry.is_foreign ? 'bg-accent' : ''}
+                      >
+                        <Home className="h-4 w-4 mr-2" />
+                        Domaći promet
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => entry.is_foreign || handleToggleForeign(entry)}
+                        className={entry.is_foreign ? 'bg-accent' : ''}
+                      >
+                        <Globe className="h-4 w-4 mr-2" />
+                        Strani promet
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
                 <TableCell className={`text-right font-mono ${entry.transaction_type === 'Рефундација' ? 'text-red-600' : ''}`}>
                   {entry.transaction_type === 'Рефундација' ? '-' : ''}{formatCurrency(Math.abs(entry.amount))}

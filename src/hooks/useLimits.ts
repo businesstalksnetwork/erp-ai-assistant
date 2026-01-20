@@ -65,10 +65,10 @@ export function useLimits(companyId: string | null) {
         .gte('summary_date', yearStart)
         .lte('summary_date', yearEnd);
 
-      // Get rolling fiscal data
+      // Get rolling fiscal data - use domestic_amount for 8M limit
       const { data: rollingFiscal } = await supabase
         .from('fiscal_daily_summary' as any)
-        .select('total_amount')
+        .select('total_amount, domestic_amount')
         .eq('company_id', companyId!)
         .gte('summary_date', rollingStartStr)
         .lte('summary_date', todayStr);
@@ -81,14 +81,16 @@ export function useLimits(companyId: string | null) {
 
       const fiscalYearlyTotal = (yearlyFiscal as any[] || []).reduce((sum: number, f: any) => sum + Number(f.total_amount), 0);
       const fiscalRollingTotal = (rollingFiscal as any[] || []).reduce((sum: number, f: any) => sum + Number(f.total_amount), 0);
+      // For 8M limit, use only domestic fiscal amounts
+      const fiscalRollingDomestic = (rollingFiscal as any[] || []).reduce((sum: number, f: any) => sum + Number(f.domestic_amount || 0), 0);
 
       // Total = invoices + fiscal
       const yearlyTotal = yearlyInvoiceTotal + fiscalYearlyTotal;
       const rollingTotal = rollingInvoiceTotal + fiscalRollingTotal;
       
-      // Domestic includes fiscal (fiscal is always domestic)
+      // Domestic includes fiscal domestic (not all fiscal)
       const yearlyDomesticTotal = yearlyDomestic + fiscalYearlyTotal;
-      const rollingDomesticTotal = rollingDomestic + fiscalRollingTotal;
+      const rollingDomesticTotal = rollingDomestic + fiscalRollingDomestic;
 
       return {
         yearlyTotal,
