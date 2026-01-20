@@ -335,19 +335,19 @@ export default function SEFCenter() {
       {/* Global Sync Status - ALWAYS VISIBLE */}
       {activeJob && (
         <Card className={
-          activeJob.status === 'running' || activeJob.status === 'pending'
+          activeJob.status === 'running' || activeJob.status === 'pending' || activeJob.status === 'partial'
             ? "border-primary/20 bg-primary/5"
-            : activeJob.status === 'completed' || activeJob.status === 'partial'
+            : activeJob.status === 'completed'
             ? "border-green-500/20 bg-green-500/5"
             : "border-destructive/20 bg-destructive/5"
         }>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+                {(activeJob.status === 'running' || activeJob.status === 'pending' || activeJob.status === 'partial') && (
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 )}
-                {(activeJob.status === 'completed' || activeJob.status === 'partial') && (
+                {activeJob.status === 'completed' && (
                   <Check className="h-5 w-5 text-green-600" />
                 )}
                 {activeJob.status === 'failed' && (
@@ -358,36 +358,39 @@ export default function SEFCenter() {
                   <span className="font-medium">
                     {activeJob.invoice_type === 'purchase' ? 'Ulazne' : 'Izlazne'} fakture: 
                     {(activeJob.status === 'running' || activeJob.status === 'pending') && ' Preuzimanje u toku...'}
-                    {(activeJob.status === 'completed' || activeJob.status === 'partial') && ` Završeno (${activeJob.invoices_saved} sačuvano)`}
+                    {activeJob.status === 'partial' && ' Nastavljamo automatski...'}
+                    {activeJob.status === 'completed' && ` Završeno (${activeJob.invoices_saved} sačuvano)`}
                     {activeJob.status === 'failed' && ' Greška'}
                   </span>
                 </div>
               </div>
               
-              {/* Cancel button for running jobs */}
-              {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+              {/* Cancel button for running/partial jobs */}
+              {(activeJob.status === 'running' || activeJob.status === 'pending' || activeJob.status === 'partial') && (
                 <Button variant="ghost" size="sm" onClick={cancelJob} className="text-destructive hover:text-destructive">
                   <X className="h-4 w-4 mr-1" />
                   Prekini
                 </Button>
               )}
               
-              {/* Dismiss button for completed/failed */}
-              {(activeJob.status === 'completed' || activeJob.status === 'failed' || activeJob.status === 'partial') && (
+              {/* Dismiss button for completed/failed ONLY */}
+              {(activeJob.status === 'completed' || activeJob.status === 'failed') && (
                 <Button variant="ghost" size="sm" onClick={dismissJobStatus}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
             
-            {/* Progress bar only for running */}
-            {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+            {/* Progress bar for running AND partial */}
+            {(activeJob.status === 'running' || activeJob.status === 'pending' || activeJob.status === 'partial') && (
               <>
                 <Progress value={progress} className="my-2" />
                 <div className="flex flex-wrap justify-between text-sm text-muted-foreground gap-2">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    Mesec: {activeJob.current_month || 'Priprema...'}
+                    {activeJob.status === 'partial' 
+                      ? 'Čeka nastavak...' 
+                      : `Mesec: ${activeJob.current_month || 'Priprema...'}`}
                   </span>
                   <span>{activeJob.processed_months}/{activeJob.total_months} meseci</span>
                   <span>{activeJob.invoices_found} pronađeno</span>
