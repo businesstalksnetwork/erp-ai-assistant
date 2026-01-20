@@ -233,8 +233,8 @@ export default function NewInvoice() {
       
       const instruction = getInstructionByCurrency(formData.foreign_currency);
       if (instruction) {
-        const baseNote = 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.';
-        const paymentSection = `\n\n--- Instrukcije za plaćanje (${formData.foreign_currency}) ---\n${instruction.instructions}`;
+        const baseNote = 'The supplier is not registered for VAT in accordance with Article 33 of the VAT Law.';
+        const paymentSection = `\n\n--- Payment Instructions (${formData.foreign_currency}) ---\n${instruction.instructions}`;
         setFormData(prev => ({ ...prev, note: baseNote + paymentSection }));
         lastAppliedCurrencyRef.current = formData.foreign_currency;
       }
