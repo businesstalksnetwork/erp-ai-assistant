@@ -75,7 +75,7 @@ export default function SEFCenter() {
   // Hooks
   const { fetchPurchaseInvoices, acceptInvoice, rejectInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isProcessing, isLoadingXML, isEnriching } = useSEFPurchaseInvoices();
   const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting } = useSEFStorage(companyId);
-  const { activeJob, isStarting, progress, startLongSync, dismissJobStatus } = useSEFLongSync(companyId);
+  const { activeJob, isStarting, progress, startLongSync, dismissJobStatus, cancelJob } = useSEFLongSync(companyId);
 
   // Count incomplete invoices
   const incompleteCount = purchaseInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
@@ -363,6 +363,14 @@ export default function SEFCenter() {
                   </span>
                 </div>
               </div>
+              
+              {/* Cancel button for running jobs */}
+              {(activeJob.status === 'running' || activeJob.status === 'pending') && (
+                <Button variant="ghost" size="sm" onClick={cancelJob} className="text-destructive hover:text-destructive">
+                  <X className="h-4 w-4 mr-1" />
+                  Prekini
+                </Button>
+              )}
               
               {/* Dismiss button for completed/failed */}
               {(activeJob.status === 'completed' || activeJob.status === 'failed' || activeJob.status === 'partial') && (

@@ -26,6 +26,7 @@ interface UseSEFLongSyncResult {
   progress: number;
   stopPolling: () => void;
   dismissJobStatus: () => void;
+  cancelJob: () => Promise<void>;
 }
 
 export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
@@ -151,6 +152,28 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     }
   };
 
+  // Cancel a running job
+  const cancelJob = useCallback(async () => {
+    if (!activeJob) return;
+    
+    try {
+      await supabase
+        .from('sef_sync_jobs')
+        .update({
+          status: 'failed',
+          error_message: 'Korisnik je prekinuo sinhronizaciju',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', activeJob.id);
+      
+      stopPolling();
+      setActiveJob(null);
+      toast({ title: 'Sinhronizacija prekinuta' });
+    } catch (e) {
+      console.error('Error canceling job:', e);
+    }
+  }, [activeJob, stopPolling, toast]);
+
   // Check for existing job on mount - ONLY depends on companyId
   useEffect(() => {
     if (!companyId) {
@@ -176,12 +199,29 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         }
 
         if (runningJob) {
-          console.log('Found running job:', runningJob.id);
-          setActiveJob(runningJob as SyncJob);
-          // Start polling for existing job
-          stopPolling();
-          pollingIntervalRef.current = setInterval(() => pollJobStatusById(runningJob.id), 3000);
-          return;
+          const jobAge = Date.now() - new Date(runningJob.started_at || runningJob.created_at).getTime();
+          const TEN_MINUTES = 10 * 60 * 1000;
+          
+          // If job is older than 10 minutes and still running, mark it as failed
+          if (jobAge > TEN_MINUTES) {
+            console.log('Job is stale, marking as failed:', runningJob.id);
+            await supabase
+              .from('sef_sync_jobs')
+              .update({
+                status: 'failed',
+                error_message: 'Timeout - sinhronizacija je automatski prekinuta',
+                completed_at: new Date().toISOString()
+              })
+              .eq('id', runningJob.id);
+            // Don't return, continue to check for last completed job
+          } else {
+            console.log('Found running job:', runningJob.id);
+            setActiveJob(runningJob as SyncJob);
+            // Start polling for existing job
+            stopPolling();
+            pollingIntervalRef.current = setInterval(() => pollJobStatusById(runningJob.id), 3000);
+            return;
+          }
         }
 
         // If no active job, load the most recent completed/failed job (within last 24h)
@@ -225,6 +265,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     isStarting,
     progress,
     stopPolling,
-    dismissJobStatus
+    dismissJobStatus,
+    cancelJob
   };
 }
