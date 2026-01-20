@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
 
@@ -34,6 +35,19 @@ const formatDate = (dateStr: string) => {
     return format(new Date(dateStr), 'dd.MM.yyyy');
   } catch {
     return dateStr;
+  }
+};
+
+const formatShortDate = (dateString: string) => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear().toString().slice(-2);
+    return `${day}.${month}.${year}`;
+  } catch {
+    return dateString;
   }
 };
 
@@ -645,19 +659,41 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-32"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom ? new Date(dateFrom) : undefined}
+                        onSelect={(date) => handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-32"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {dateTo ? formatShortDate(dateTo) : "Do"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo ? new Date(dateTo) : undefined}
+                        onSelect={(date) => handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 
                 {/* Search with autocomplete - before dates on mobile, after on desktop */}
@@ -910,19 +946,41 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="w-full sm:w-32"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom ? new Date(dateFrom) : undefined}
+                        onSelect={(date) => handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => handleDateToChange(e.target.value)}
-                    className="w-full sm:w-32"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full sm:w-28 justify-start text-left font-normal h-9 text-sm">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {dateTo ? formatShortDate(dateTo) : "Do"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo ? new Date(dateTo) : undefined}
+                        onSelect={(date) => handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 
                 {/* Search with autocomplete - before dates on mobile, after on desktop */}
