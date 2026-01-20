@@ -95,8 +95,11 @@ export default function SEFCenter() {
   // Handlers
   const handleFetchPurchase = async () => {
     if (!companyId) return;
-    await fetchPurchaseInvoices(companyId, dateFrom, dateTo);
-    refetch();
+    const result = await fetchPurchaseInvoices(companyId, dateFrom, dateTo);
+    // Force refresh after edge function completes
+    if (result.success) {
+      setTimeout(() => refetch(), 500);
+    }
   };
 
   const handlePreview = async (invoice: StoredSEFInvoice) => {
