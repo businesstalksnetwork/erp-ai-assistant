@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useReminders, Reminder } from '@/hooks/useReminders';
+import { startOfDay, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 import {
   Dialog,
@@ -43,7 +53,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import PausalniPdfDialog, { PausalniType } from '@/components/PausalniPdfDialog';
@@ -278,8 +288,97 @@ export default function Reminders() {
     }
   };
 
-  const activeReminders = reminders.filter(r => !r.is_completed);
   const completedReminders = reminders.filter(r => r.is_completed);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Categorize active reminders
+  const today = startOfDay(new Date());
+  const currentMonthEnd = endOfMonth(today);
+  const threeMonthsLater = endOfMonth(addMonths(today, 3));
+  const yearEnd = endOfYear(today);
+
+  const categorizedReminders = useMemo(() => {
+    const activeReminders = reminders.filter(r => !r.is_completed);
+    
+    const overdue = activeReminders.filter(r => {
+      const dueDate = startOfDay(new Date(r.due_date));
+      return isBefore(dueDate, today);
+    }).sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+
+    const currentMonth = activeReminders.filter(r => {
+      const dueDate = startOfDay(new Date(r.due_date));
+      return !isBefore(dueDate, today) && !isAfter(dueDate, currentMonthEnd);
+    }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    const nextThreeMonths = activeReminders.filter(r => {
+      const dueDate = startOfDay(new Date(r.due_date));
+      return isAfter(dueDate, currentMonthEnd) && !isAfter(dueDate, threeMonthsLater);
+    }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    const untilEndOfYear = activeReminders.filter(r => {
+      const dueDate = startOfDay(new Date(r.due_date));
+      return isAfter(dueDate, threeMonthsLater) && !isAfter(dueDate, yearEnd);
+    }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
+  }, [reminders, today, currentMonthEnd, threeMonthsLater, yearEnd]);
+
+  const allActiveReminders = [
+    ...categorizedReminders.overdue,
+    ...categorizedReminders.currentMonth,
+    ...categorizedReminders.nextThreeMonths,
+    ...categorizedReminders.untilEndOfYear,
+  ];
+
+  // Pagination calculations
+  const totalActiveReminders = allActiveReminders.length;
+  const totalPages = Math.ceil(totalActiveReminders / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  // Get paginated items for each category
+  const getPaginatedCategory = (category: Reminder[], categoryStartIndex: number) => {
+    const categoryEndIndex = categoryStartIndex + category.length;
+    if (categoryEndIndex <= startIndex || categoryStartIndex >= endIndex) {
+      return { items: [] as Reminder[], nextStartIndex: categoryEndIndex };
+    }
+    const sliceStart = Math.max(0, startIndex - categoryStartIndex);
+    const sliceEnd = Math.min(category.length, endIndex - categoryStartIndex);
+    return { items: category.slice(sliceStart, sliceEnd), nextStartIndex: categoryEndIndex };
+  };
+
+  let runningIndex = 0;
+  const paginatedOverdue = getPaginatedCategory(categorizedReminders.overdue, runningIndex);
+  runningIndex = paginatedOverdue.nextStartIndex;
+  const paginatedCurrentMonth = getPaginatedCategory(categorizedReminders.currentMonth, runningIndex);
+  runningIndex = paginatedCurrentMonth.nextStartIndex;
+  const paginatedNextThreeMonths = getPaginatedCategory(categorizedReminders.nextThreeMonths, runningIndex);
+  runningIndex = paginatedNextThreeMonths.nextStartIndex;
+  const paginatedUntilEndOfYear = getPaginatedCategory(categorizedReminders.untilEndOfYear, runningIndex);
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
+
+  const getPageNumbers = (): (number | 'ellipsis')[] => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('ellipsis');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const isOverdue = (dueDate: string) => {
     return new Date(dueDate) < new Date(new Date().toDateString());
@@ -419,6 +518,72 @@ export default function Reminders() {
     setPausalniType(type);
     setPausalniDialogOpen(true);
   };
+
+  // Helper to render a single reminder item
+  const renderReminderItem = (reminder: Reminder, showOverdueBadge: boolean) => (
+    <div
+      key={reminder.id}
+      className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border ${
+        showOverdueBadge ? 'border-destructive bg-destructive/5' : 'bg-secondary'
+      }`}
+    >
+      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+        <Checkbox
+          checked={reminder.is_completed}
+          onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
+          className="mt-1 sm:mt-0 flex-shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
+            {showOverdueBadge && (
+              <Badge variant="destructive" className="text-[10px] sm:text-xs">Istekao</Badge>
+            )}
+            {reminder.recurrence_type && reminder.recurrence_type !== 'none' && (
+              <Badge variant="secondary" className="gap-1 text-[10px] sm:text-xs">
+                <Repeat className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <span className="hidden sm:inline">
+                  {reminder.recurrence_type === 'monthly' && 'Mesečno'}
+                  {reminder.recurrence_type === 'quarterly' && 'Kvartalno'}
+                  {reminder.recurrence_type === 'yearly' && 'Godišnje'}
+                </span>
+              </Badge>
+            )}
+          </div>
+          {reminder.description && (
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{reminder.description}</p>
+          )}
+          <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between sm:justify-end gap-2 pl-7 sm:pl-0">
+        {reminder.amount && (
+          <p className="font-semibold text-sm sm:text-base">{formatCurrency(reminder.amount)}</p>
+        )}
+        <div className="flex gap-1">
+          {reminder.amount && reminder.recipient_account && reminder.recipient_name && (
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
+              <QrCode className="h-4 w-4" />
+            </Button>
+          )}
+          {reminder.attachment_url && (
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleViewAttachment(reminder)} title="Prikaži PDF">
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(reminder)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(reminder.id)}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (!selectedCompany) {
     return (
@@ -753,83 +918,148 @@ export default function Reminders() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Active Reminders */}
-          {activeReminders.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Aktivni podsetnici</CardTitle>
-                <CardDescription>Obaveze koje treba platiti</CardDescription>
+        <div className="space-y-4">
+          {/* Overdue Reminders */}
+          {paginatedOverdue.items.length > 0 && (
+            <Card className="border-destructive/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Istekli
+                  <Badge variant="destructive" className="ml-2">{categorizedReminders.overdue.length}</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activeReminders.map((reminder) => (
-                    <div
-                      key={reminder.id}
-                      className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border ${
-                        isOverdue(reminder.due_date) ? 'border-destructive bg-destructive/5' : 'bg-secondary'
-                      }`}
-                    >
-                      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                        <Checkbox
-                          checked={reminder.is_completed}
-                          onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-                          className="mt-1 sm:mt-0 flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
-                            {isOverdue(reminder.due_date) && (
-                              <Badge variant="destructive" className="text-[10px] sm:text-xs">Istekao</Badge>
-                            )}
-                            {reminder.recurrence_type !== 'none' && (
-                              <Badge variant="secondary" className="gap-1 text-[10px] sm:text-xs">
-                                <Repeat className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                <span className="hidden sm:inline">
-                                  {reminder.recurrence_type === 'monthly' && 'Mesečno'}
-                                  {reminder.recurrence_type === 'quarterly' && 'Kvartalno'}
-                                  {reminder.recurrence_type === 'yearly' && 'Godišnje'}
-                                </span>
-                              </Badge>
-                            )}
-                          </div>
-                          {reminder.description && (
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{reminder.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            Rok: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-2 pl-7 sm:pl-0">
-                        {reminder.amount && (
-                          <p className="font-semibold text-sm sm:text-base">{formatCurrency(reminder.amount)}</p>
-                        )}
-                        <div className="flex gap-1">
-                          {reminder.amount && reminder.recipient_account && reminder.recipient_name && (
-                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleShowQR(reminder)} title="IPS QR kod">
-                              <QrCode className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {reminder.attachment_url && (
-                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleViewAttachment(reminder)} title="Prikaži PDF">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(reminder)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(reminder.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                  {paginatedOverdue.items.map((reminder) => renderReminderItem(reminder, true))}
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Current Month Reminders */}
+          {paginatedCurrentMonth.items.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Tekući mesec
+                  <Badge variant="secondary" className="ml-2">{categorizedReminders.currentMonth.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {paginatedCurrentMonth.items.map((reminder) => renderReminderItem(reminder, false))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Next 3 Months Reminders */}
+          {paginatedNextThreeMonths.items.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  Naredna 3 meseca
+                  <Badge variant="secondary" className="ml-2">{categorizedReminders.nextThreeMonths.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {paginatedNextThreeMonths.items.map((reminder) => renderReminderItem(reminder, false))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Until End of Year Reminders */}
+          {paginatedUntilEndOfYear.items.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarRange className="h-5 w-5" />
+                  Do kraja godine
+                  <Badge variant="secondary" className="ml-2">{categorizedReminders.untilEndOfYear.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {paginatedUntilEndOfYear.items.map((reminder) => renderReminderItem(reminder, false))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty state for active reminders */}
+          {allActiveReminders.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">Nemate aktivnih podsetnika</p>
+                <p className="text-muted-foreground mb-4">Dodajte podsetnik za mesečne obaveze</p>
+                <Button onClick={() => setIsOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Dodaj podsetnik
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pagination */}
+          {totalActiveReminders > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Prikaži:</span>
+                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-[80px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  od {totalActiveReminders} aktivnih
+                </span>
+              </div>
+              
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    {getPageNumbers().map((page, idx) => (
+                      <PaginationItem key={idx}>
+                        {page === 'ellipsis' ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink
+                            onClick={() => setCurrentPage(page)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
           )}
 
           {/* Completed Reminders */}
