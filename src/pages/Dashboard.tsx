@@ -22,8 +22,9 @@ import {
   ArrowRight,
   Sparkles,
   Check,
-  Users,
+  Info,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -125,7 +126,20 @@ export default function Dashboard() {
         )}>
           <CardHeader className="pb-2 p-4 sm:p-6">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base sm:text-lg leading-tight">Godišnji limit (6M)</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle className="text-base sm:text-lg leading-tight">Godišnji limit (6M)</CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                      <Info className="h-3.5 w-3.5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="max-w-xs text-sm" side="bottom" align="start">
+                    <p>Prelaskom limita od 6 miliona dinara, preduzetnik paušalac gubi pravo na paušalno oporezivanje.</p>
+                    <p className="mt-2">Ako limit pređe u prvoj polovini godine, obaveza vođenja knjiga počinje od <strong>01. jula</strong>, dok u slučaju da limit pređe u drugoj polovini godine, obaveza vođenja knjiga počinje od <strong>01. januara naredne godine</strong>.</p>
+                  </PopoverContent>
+                </Popover>
+              </div>
               {limits.limit6MPercent >= 90 && (
                 <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive animate-pulse-slow flex-shrink-0" />
               )}
@@ -159,7 +173,19 @@ export default function Dashboard() {
         )}>
           <CardHeader className="pb-2 p-4 sm:p-6">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base sm:text-lg leading-tight">Klizni limit (8M)</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle className="text-base sm:text-lg leading-tight">Klizni limit (8M)</CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                      <Info className="h-3.5 w-3.5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="max-w-xs text-sm" side="bottom" align="start">
+                    <p>Prelaskom limita od 8 miliona dinara, nastaje obaveza ulaska u sistem PDV, a ujedno započinje i obaveza vođenja poslovnih knjiga od <strong>prvog narednog dana</strong> u odnosu na dan kad je prekoračen limit.</p>
+                  </PopoverContent>
+                </Popover>
+              </div>
               {limits.limit8MPercent >= 90 && (
                 <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive animate-pulse-slow flex-shrink-0" />
               )}
