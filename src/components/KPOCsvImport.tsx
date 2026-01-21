@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,10 +23,11 @@ interface ParsedEntry {
 interface Props {
   companyId: string;
   year: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function KPOCsvImport({ companyId, year }: Props) {
-  const [open, setOpen] = useState(false);
+export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
   const [parsedData, setParsedData] = useState<ParsedEntry[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -152,7 +152,7 @@ export function KPOCsvImport({ companyId, year }: Props) {
       if (error) throw error;
 
       toast.success(`Uvezeno ${entriesToInsert.length} KPO unosa`);
-      setOpen(false);
+      onOpenChange(false);
       setParsedData([]);
       setFileName(null);
       setErrors([]);
@@ -166,8 +166,8 @@ export function KPOCsvImport({ companyId, year }: Props) {
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
+  const handleDialogOpenChange = (newOpen: boolean) => {
+    onOpenChange(newOpen);
     if (!newOpen) {
       setParsedData([]);
       setFileName(null);
@@ -187,13 +187,7 @@ export function KPOCsvImport({ companyId, year }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Upload className="mr-2 h-4 w-4" />
-          Uvezi CSV
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Uvoz KPO knjige iz CSV-a</DialogTitle>
