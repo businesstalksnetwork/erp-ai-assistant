@@ -54,7 +54,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import PausalniPdfDialog, { PausalniType } from '@/components/PausalniPdfDialog';
@@ -591,6 +591,9 @@ export default function Reminders() {
     setPausalniDialogOpen(true);
   };
 
+  // State for bulk select mode
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+
   // Helper to render a single reminder item
   const renderReminderItem = (reminder: Reminder, showOverdueBadge: boolean) => (
     <div
@@ -600,17 +603,15 @@ export default function Reminders() {
       } ${selectedIds.has(reminder.id) ? 'ring-2 ring-primary' : ''}`}
     >
       <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-        <div className="flex items-center gap-2 mt-1 sm:mt-0 flex-shrink-0">
-          <Checkbox
-            checked={selectedIds.has(reminder.id)}
-            onCheckedChange={() => handleToggleSelect(reminder.id)}
-            className="border-muted-foreground/50"
-          />
-          <Checkbox
-            checked={reminder.is_completed}
-            onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-          />
-        </div>
+        {bulkSelectMode && (
+          <div className="flex items-center gap-2 mt-1 sm:mt-0 flex-shrink-0">
+            <Checkbox
+              checked={selectedIds.has(reminder.id)}
+              onCheckedChange={() => handleToggleSelect(reminder.id)}
+              className="border-muted-foreground/50"
+            />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
@@ -637,7 +638,7 @@ export default function Reminders() {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between sm:justify-end gap-2 pl-7 sm:pl-0">
+      <div className="flex items-center justify-between sm:justify-end gap-2 pl-0 sm:pl-0">
         {reminder.amount && (
           <p className="font-semibold text-sm sm:text-base">{formatCurrency(reminder.amount)}</p>
         )}
@@ -654,6 +655,61 @@ export default function Reminders() {
           )}
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEdit(reminder)}>
             <Pencil className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(reminder.id)}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant={reminder.is_completed ? "default" : "outline"}
+            className={`h-8 w-8 ${reminder.is_completed ? 'bg-green-500 hover:bg-green-600 border-green-500' : 'hover:bg-green-100 hover:border-green-500'}`}
+            onClick={() => handleToggle(reminder.id, reminder.is_completed)}
+            title={reminder.is_completed ? "Označeno kao plaćeno" : "Označi kao plaćeno"}
+          >
+            <Check className={`h-4 w-4 ${reminder.is_completed ? 'text-white' : 'text-green-600'}`} />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Helper to render archived reminder item
+  const renderArchivedItem = (reminder: Reminder) => (
+    <div
+      key={reminder.id}
+      className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 ${selectedIds.has(reminder.id) ? 'ring-2 ring-primary' : ''}`}
+    >
+      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+        {bulkSelectMode && (
+          <div className="flex items-center gap-2 mt-1 sm:mt-0 flex-shrink-0">
+            <Checkbox
+              checked={selectedIds.has(reminder.id)}
+              onCheckedChange={() => handleToggleSelect(reminder.id)}
+              className="border-muted-foreground/50"
+            />
+          </div>
+        )}
+        <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-1 sm:mt-0" />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
+          <p className="text-xs text-muted-foreground">
+            Plaćeno: {new Date(reminder.due_date).toLocaleDateString('sr-RS')}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between sm:justify-end gap-2 pl-0 sm:pl-0">
+        {reminder.amount && (
+          <p className="font-semibold text-sm sm:text-base">{formatCurrency(reminder.amount)}</p>
+        )}
+        <div className="flex gap-1">
+          <Button 
+            size="icon" 
+            variant="outline" 
+            className="h-8 w-8"
+            onClick={() => handleToggle(reminder.id, reminder.is_completed)}
+            title="Vrati u aktivne"
+          >
+            <X className="h-4 w-4" />
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(reminder.id)}>
             <Trash2 className="h-4 w-4 text-destructive" />
@@ -993,7 +1049,14 @@ export default function Reminders() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-background">
+            <DropdownMenuItem onClick={() => {
+              setBulkSelectMode(true);
+              setSelectedIds(new Set());
+            }}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Obriši više podsetnika
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openPausalniDialog('porez')}>
               <FileText className="mr-2 h-4 w-4" />
               Podsetnik za poreze
@@ -1045,6 +1108,11 @@ export default function Reminders() {
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline text-sm">Istekli</span>
               <Badge variant="destructive" className="ml-1">{categorizedReminders.overdue.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+              <span className="hidden sm:inline text-sm">Arhivirano</span>
+              <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">{completedReminders.length}</Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -1114,6 +1182,24 @@ export default function Reminders() {
                   <div className="flex flex-col items-center justify-center py-8">
                     <AlertTriangle className="h-10 w-10 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">Nema isteklih podsetnika</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Archived Tab */}
+          <TabsContent value="archived" className="mt-4">
+            <Card className="border-green-200 dark:border-green-800">
+              <CardContent className="pt-6">
+                {completedReminders.length > 0 ? (
+                  <div className="space-y-3">
+                    {completedReminders.map((reminder) => renderArchivedItem(reminder))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <CheckCircle2 className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema arhiviranih podsetnika</p>
                   </div>
                 )}
               </CardContent>
@@ -1192,38 +1278,6 @@ export default function Reminders() {
           </div>
         )}
 
-        {/* Completed Reminders */}
-        {completedReminders.length > 0 && (
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="text-lg text-muted-foreground">Završeni</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {completedReminders.map((reminder) => (
-                  <div
-                    key={reminder.id}
-                    className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50 opacity-60"
-                  >
-                    <Checkbox
-                      checked={reminder.is_completed}
-                      onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-                    />
-                    <div className="flex-1">
-                      <p className="line-through">{reminder.title}</p>
-                    </div>
-                    {reminder.amount && (
-                      <p className="text-sm">{formatCurrency(reminder.amount)}</p>
-                    )}
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(reminder.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
         </div>
       )}
 
@@ -1346,15 +1400,30 @@ export default function Reminders() {
       </AlertDialog>
 
       {/* Floating Action Bar for Bulk Selection */}
-      {selectedIds.size > 0 && (
+      {bulkSelectMode && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-card border rounded-lg shadow-lg p-3 flex items-center gap-4 z-50">
           <span className="text-sm font-medium">{selectedIds.size} selektovano</span>
-          <Button variant="outline" size="sm" onClick={clearSelection}>
-            Poništi
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Obriši
+          {selectedIds.size > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={clearSelection}>
+                Poništi selekciju
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Obriši
+              </Button>
+            </>
+          )}
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={() => {
+              setBulkSelectMode(false);
+              clearSelection();
+            }}
+          >
+            <Check className="h-4 w-4 mr-2" />
+            Gotovo
           </Button>
         </div>
       )}
