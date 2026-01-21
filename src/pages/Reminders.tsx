@@ -488,12 +488,6 @@ export default function Reminders() {
       nezaposlenost: 'Nezaposlenost',
     };
 
-    const contributionRecipients = {
-      pio: 'Републички фонд за ПИО',
-      zdravstveno: 'Републички фонд за здравствено осигурање',
-      nezaposlenost: 'Национална служба за запошљавање',
-    };
-
     try {
       if (data.type === 'doprinosi' && data.contributions) {
         // Create 12 reminders for each of the 3 contribution types = 36 total
@@ -509,8 +503,8 @@ export default function Reminders() {
             const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
             const dueDate = new Date(dueYear, dueDateMonth, 15);
             
-        const reminderDate = new Date(dueDate);
-        reminderDate.setDate(reminderDate.getDate() - 7);
+            const reminderDate = new Date(dueDate);
+            reminderDate.setDate(reminderDate.getDate() - 7);
 
             await createReminder.mutateAsync({
               company_id: selectedCompany.id,
@@ -523,7 +517,7 @@ export default function Reminders() {
               recurrence_type: 'none' as const,
               recurrence_day: null,
               attachment_url: null,
-              recipient_name: contributionRecipients[contribType],
+              recipient_name: data.recipientName, // Uvek 'Пореска управа Републике Србије'
               recipient_account: contrib.recipientAccount,
               payment_model: data.paymentModel,
               payment_reference: data.paymentReference,
