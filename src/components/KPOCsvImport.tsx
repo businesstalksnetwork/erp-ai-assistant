@@ -48,6 +48,31 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i);
 
+  // Parse CSV line respecting quoted values (handles commas inside quotes)
+  const parseCSVLine = (line: string, delimiter: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.replace(/^"|"$/g, '').trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Don't forget the last field
+    result.push(current.replace(/^"|"$/g, '').trim());
+    
+    return result;
+  };
+
   // Detect column indices from header row
   const detectColumnIndices = (headerRow: string[]) => {
     // Normalize headers: lowercase, remove quotes, trim, remove BOM
@@ -159,9 +184,9 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
     }
 
     // Parse header row to detect column indices
-    let headerCols = lines[0].split(';');
+    let headerCols = parseCSVLine(lines[0], ';');
     if (headerCols.length < 3) {
-      headerCols = lines[0].split(',');
+      headerCols = parseCSVLine(lines[0], ',');
     }
     
     const colIdx = detectColumnIndices(headerCols);
@@ -177,11 +202,12 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
       if (!line) continue;
 
       // Split by semicolon (common in Serbian CSV exports)
-      let cols = line.split(';');
+      // Use parseCSVLine to handle quoted values with commas inside
+      let cols = parseCSVLine(line, ';');
       
       // Fallback to comma if semicolon doesn't work
       if (cols.length < 3) {
-        cols = line.split(',');
+        cols = parseCSVLine(line, ',');
       }
 
       if (cols.length < 3) {
