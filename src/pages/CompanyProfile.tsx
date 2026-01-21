@@ -52,22 +52,26 @@ export default function CompanyProfile() {
   // Logo upload
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
+  // Fetch SEF API key separately (direct query for security)
+  const [hasSefApiKey, setHasSefApiKey] = useState(false);
+  
   useEffect(() => {
     if (companies && id) {
       const found = companies.find(c => c.id === id);
       if (found) {
         setCompany(found);
-        setSefApiKey(found.sef_api_key || '');
+        setHasSefApiKey(found.has_sef_api_key || false);
+        setSefApiKey(''); // Don't load the actual key - user enters new one if needed
         setBankAccount(found.bank_account || '');
-      setEditForm({
-        name: found.name,
-        address: found.address,
-        city: found.city || '',
-        country: found.country || 'Srbija',
-        pib: found.pib,
-        maticni_broj: found.maticni_broj,
-        is_active: found.is_active,
-      });
+        setEditForm({
+          name: found.name,
+          address: found.address,
+          city: found.city || '',
+          country: found.country || 'Srbija',
+          pib: found.pib,
+          maticni_broj: found.maticni_broj,
+          is_active: found.is_active,
+        });
       }
     }
   }, [companies, id]);
@@ -76,7 +80,16 @@ export default function CompanyProfile() {
     if (!company) return;
     setIsSavingApiKey(true);
     try {
-      await updateCompany.mutateAsync({ id: company.id, sef_api_key: sefApiKey });
+      // Update SEF API key directly via Supabase (not through Company interface)
+      const { error } = await supabase
+        .from('companies')
+        .update({ sef_api_key: sefApiKey || null })
+        .eq('id', company.id);
+      
+      if (error) throw error;
+      
+      setHasSefApiKey(!!sefApiKey);
+      setSefApiKey(''); // Clear the input after save
       toast.success('SEF API ključ sačuvan');
     } catch (error) {
       toast.error('Greška pri čuvanju API ključa');
@@ -516,10 +529,10 @@ export default function CompanyProfile() {
                     <p className="font-medium">SEF Centar</p>
                     <p className="text-xs text-muted-foreground">
                       Sistem e-Faktura integracija
-                      {company.sef_enabled && !company.sef_api_key && (
+                      {company.sef_enabled && !hasSefApiKey && (
                         <span className="text-amber-500 ml-1">• API ključ nije podešen</span>
                       )}
-                      {company.sef_enabled && company.sef_api_key && (
+                      {company.sef_enabled && hasSefApiKey && (
                         <span className="text-green-500 ml-1">• Povezano</span>
                       )}
                     </p>
@@ -645,9 +658,9 @@ export default function CompanyProfile() {
                   </div>
                   <Button 
                     onClick={handleSaveSefApiKey} 
-                    disabled={isSavingApiKey || sefApiKey === (company.sef_api_key || '')}
+                    disabled={isSavingApiKey || !sefApiKey}
                   >
-                    {isSavingApiKey ? 'Čuvanje...' : 'Sačuvaj'}
+                    {isSavingApiKey ? 'Čuvanje...' : (hasSefApiKey ? 'Zameni ključ' : 'Sačuvaj')}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">

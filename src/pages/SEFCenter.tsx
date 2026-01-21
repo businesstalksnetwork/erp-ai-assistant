@@ -634,7 +634,7 @@ export default function SEFCenter() {
     );
   }
 
-  if (!(selectedCompany as any).sef_api_key) {
+  if (!selectedCompany.has_sef_api_key) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <AlertCircle className="h-12 w-12 mb-4 text-destructive" />

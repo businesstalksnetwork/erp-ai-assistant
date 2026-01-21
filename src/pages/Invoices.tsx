@@ -176,7 +176,7 @@ export default function Invoices() {
       // Automatski pošalji na SEF ako su ispunjeni uslovi
       if (
         selectedCompany.sef_enabled && 
-        selectedCompany.sef_api_key && 
+        selectedCompany.has_sef_api_key && 
         proforma?.client_type === 'domestic' &&
         result?.id
       ) {
@@ -203,7 +203,7 @@ export default function Invoices() {
     // Automatski storniraj na SEF-u ako je originalna faktura bila na SEF-u
     if (
       selectedCompany.sef_enabled && 
-      selectedCompany.sef_api_key && 
+      selectedCompany.has_sef_api_key && 
       invoice.sef_invoice_id &&
       invoice.client_type === 'domestic' &&
       result?.stornoInvoice?.id
