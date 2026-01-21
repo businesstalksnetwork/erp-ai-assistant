@@ -148,10 +148,26 @@ export default function SEFCenter() {
   
   // Helper to close all date pickers
   const closeAllDatePickers = () => {
+    // Blur fokusiran element da se prekine Radix focus lock
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setPurchaseDateFromOpen(false);
     setPurchaseDateToOpen(false);
     setSalesDateFromOpen(false);
     setSalesDateToOpen(false);
+  };
+
+  // Zaštitni handler koji sprečava neželjeno otvaranje tokom sync-a
+  const handleDatePickerOpenChange = (
+    setter: React.Dispatch<React.SetStateAction<boolean>>,
+    newOpen: boolean
+  ) => {
+    // Blokiraj otvaranje ako je sync aktivan
+    if (newOpen && (activeJob?.status === 'running' || activeJob?.status === 'partial' || isStarting)) {
+      return;
+    }
+    setter(newOpen);
   };
 
   // Helper function for sorting
@@ -729,9 +745,13 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover open={purchaseDateFromOpen} onOpenChange={setPurchaseDateFromOpen}>
+                  <Popover 
+                    open={purchaseDateFromOpen} 
+                    onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateFromOpen, open)}
+                    modal={true}
+                  >
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
@@ -750,9 +770,13 @@ export default function SEFCenter() {
                     </PopoverContent>
                   </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover open={purchaseDateToOpen} onOpenChange={setPurchaseDateToOpen}>
+                  <Popover 
+                    open={purchaseDateToOpen} 
+                    onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateToOpen, open)}
+                    modal={true}
+                  >
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
@@ -1022,9 +1046,13 @@ export default function SEFCenter() {
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
                 {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover open={salesDateFromOpen} onOpenChange={setSalesDateFromOpen}>
+                  <Popover 
+                    open={salesDateFromOpen} 
+                    onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateFromOpen, open)}
+                    modal={true}
+                  >
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
@@ -1043,9 +1071,13 @@ export default function SEFCenter() {
                     </PopoverContent>
                   </Popover>
                   <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover open={salesDateToOpen} onOpenChange={setSalesDateToOpen}>
+                  <Popover 
+                    open={salesDateToOpen} 
+                    onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateToOpen, open)}
+                    modal={true}
+                  >
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
