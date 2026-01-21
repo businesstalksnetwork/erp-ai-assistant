@@ -34,7 +34,7 @@ import {
   ListChecks,
   FileStack,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
@@ -72,6 +72,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { upcomingCount, hasPermission, canRequest, requestPermission } = useNotifications(selectedCompany?.id || null);
+  
+  // Track previous company id to detect changes
+  const prevCompanyIdRef = useRef<string | null>(null);
 
   // Request notification permission when user logs in
   useEffect(() => {
@@ -79,6 +82,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       requestPermission();
     }
   }, [canRequest]);
+
+  // Redirect to /dashboard when switching to a client company
+  useEffect(() => {
+    // Skip initial mount and loading state
+    if (!selectedCompany?.id || isViewingClientCompany === undefined) return;
+    
+    // Only redirect if company actually changed (not on initial load)
+    const companyChanged = prevCompanyIdRef.current !== null && prevCompanyIdRef.current !== selectedCompany.id;
+    prevCompanyIdRef.current = selectedCompany.id;
+    
+    if (companyChanged && isViewingClientCompany && location.pathname !== '/dashboard') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [selectedCompany?.id, isViewingClientCompany, navigate, location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
