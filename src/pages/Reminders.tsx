@@ -1364,28 +1364,6 @@ export default function Reminders() {
                        </>
                      )}
                    </div>
-                   {/* Debug QR section */}
-                   <div className="w-full mt-2 border-t pt-2">
-                     <details className="text-xs">
-                       <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                         Debug QR string
-                       </summary>
-                       <div className="mt-2 p-2 bg-muted rounded text-[10px] font-mono break-all max-h-32 overflow-auto">
-                         {ipsString}
-                       </div>
-                       <Button
-                         variant="ghost"
-                         size="sm"
-                         className="mt-1 h-6 text-xs"
-                         onClick={() => {
-                           navigator.clipboard.writeText(ipsString);
-                           toast({ title: "Kopirano!", description: "IPS string kopiran u clipboard" });
-                         }}
-                       >
-                         Kopiraj IPS string
-                       </Button>
-                     </details>
-                   </div>
                  </div>
                );
              })()
