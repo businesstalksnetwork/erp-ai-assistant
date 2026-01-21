@@ -4,6 +4,7 @@ import { useReminders, Reminder } from '@/hooks/useReminders';
 import { startOfDay, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
@@ -1023,193 +1024,206 @@ export default function Reminders() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Overdue Reminders */}
-          {paginatedOverdue.items.length > 0 && (
+          <Tabs defaultValue="currentMonth" className="w-full">
+            <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="currentMonth" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline text-sm">Tekući mesec</span>
+              <Badge variant="secondary" className="ml-1">{categorizedReminders.currentMonth.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="nextThreeMonths" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline text-sm">Naredna 3 meseca</span>
+              <Badge variant="secondary" className="ml-1">{categorizedReminders.nextThreeMonths.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="untilEndOfYear" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+              <CalendarRange className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline text-sm">Do kraja godine</span>
+              <Badge variant="secondary" className="ml-1">{categorizedReminders.untilEndOfYear.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="overdue" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2 data-[state=active]:text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline text-sm">Istekli</span>
+              <Badge variant="destructive" className="ml-1">{categorizedReminders.overdue.length}</Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Current Month Tab */}
+          <TabsContent value="currentMonth" className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
+                {paginatedCurrentMonth.items.length > 0 ? (
+                  <div className="space-y-3">
+                    {paginatedCurrentMonth.items.map((reminder) => renderReminderItem(reminder, false))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema podsetnika za tekući mesec</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Next 3 Months Tab */}
+          <TabsContent value="nextThreeMonths" className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
+                {paginatedNextThreeMonths.items.length > 0 ? (
+                  <div className="space-y-3">
+                    {paginatedNextThreeMonths.items.map((reminder) => renderReminderItem(reminder, false))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <CalendarDays className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema podsetnika za naredna 3 meseca</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Until End of Year Tab */}
+          <TabsContent value="untilEndOfYear" className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
+                {paginatedUntilEndOfYear.items.length > 0 ? (
+                  <div className="space-y-3">
+                    {paginatedUntilEndOfYear.items.map((reminder) => renderReminderItem(reminder, false))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <CalendarRange className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema podsetnika do kraja godine</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Overdue Tab */}
+          <TabsContent value="overdue" className="mt-4">
             <Card className="border-destructive/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-5 w-5" />
-                  Istekli
-                  <Badge variant="destructive" className="ml-2">{categorizedReminders.overdue.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {paginatedOverdue.items.map((reminder) => renderReminderItem(reminder, true))}
-                </div>
+              <CardContent className="pt-6">
+                {paginatedOverdue.items.length > 0 ? (
+                  <div className="space-y-3">
+                    {paginatedOverdue.items.map((reminder) => renderReminderItem(reminder, true))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <AlertTriangle className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema isteklih podsetnika</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
+        </Tabs>
 
-          {/* Current Month Reminders - Always show */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Tekući mesec
-                <Badge variant="secondary" className="ml-2">{categorizedReminders.currentMonth.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {paginatedCurrentMonth.items.length > 0 ? (
-                <div className="space-y-3">
-                  {paginatedCurrentMonth.items.map((reminder) => renderReminderItem(reminder, false))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nema podsetnika za tekući mesec
-                </p>
-              )}
+        {/* Empty state for all reminders */}
+        {allActiveReminders.length === 0 && categorizedReminders.overdue.length === 0 && (
+          <Card className="mt-4">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">Nemate podsetnika</p>
+              <p className="text-muted-foreground mb-4">Dodajte podsetnik za mesečne obaveze</p>
+              <Button onClick={() => setIsOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Dodaj podsetnik
+              </Button>
             </CardContent>
           </Card>
+        )}
 
-          {/* Next 3 Months Reminders - Always show */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
-                Naredna 3 meseca
-                <Badge variant="secondary" className="ml-2">{categorizedReminders.nextThreeMonths.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {paginatedNextThreeMonths.items.length > 0 ? (
-                <div className="space-y-3">
-                  {paginatedNextThreeMonths.items.map((reminder) => renderReminderItem(reminder, false))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nema podsetnika za naredna 3 meseca
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Until End of Year Reminders - Always show */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarRange className="h-5 w-5" />
-                Do kraja godine
-                <Badge variant="secondary" className="ml-2">{categorizedReminders.untilEndOfYear.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {paginatedUntilEndOfYear.items.length > 0 ? (
-                <div className="space-y-3">
-                  {paginatedUntilEndOfYear.items.map((reminder) => renderReminderItem(reminder, false))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nema podsetnika do kraja godine
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Empty state for active reminders */}
-          {allActiveReminders.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">Nemate aktivnih podsetnika</p>
-                <p className="text-muted-foreground mb-4">Dodajte podsetnik za mesečne obaveze</p>
-                <Button onClick={() => setIsOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Dodaj podsetnik
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Pagination */}
-          {totalActiveReminders > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Prikaži:</span>
-                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-[80px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-muted-foreground">
-                  od {totalActiveReminders} aktivnih
-                </span>
-              </div>
-              
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    {getPageNumbers().map((page, idx) => (
-                      <PaginationItem key={idx}>
-                        {page === 'ellipsis' ? (
-                          <PaginationEllipsis />
-                        ) : (
-                          <PaginationLink
-                            onClick={() => setCurrentPage(page)}
-                            isActive={currentPage === page}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        )}
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
+        {/* Pagination */}
+        {totalActiveReminders > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Prikaži:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                <SelectTrigger className="w-[80px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">
+                od {totalActiveReminders} aktivnih
+              </span>
             </div>
-          )}
-
-          {/* Completed Reminders */}
-          {completedReminders.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-muted-foreground">Završeni</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {completedReminders.map((reminder) => (
-                    <div
-                      key={reminder.id}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50 opacity-60"
-                    >
-                      <Checkbox
-                        checked={reminder.is_completed}
-                        onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-                      />
-                      <div className="flex-1">
-                        <p className="line-through">{reminder.title}</p>
-                      </div>
-                      {reminder.amount && (
-                        <p className="text-sm">{formatCurrency(reminder.amount)}</p>
+            
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {getPageNumbers().map((page, idx) => (
+                    <PaginationItem key={idx}>
+                      {page === 'ellipsis' ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
                       )}
-                      <Button size="icon" variant="ghost" onClick={() => setDeleteId(reminder.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                    </PaginationItem>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        )}
+
+        {/* Completed Reminders */}
+        {completedReminders.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="text-lg text-muted-foreground">Završeni</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {completedReminders.map((reminder) => (
+                  <div
+                    key={reminder.id}
+                    className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50 opacity-60"
+                  >
+                    <Checkbox
+                      checked={reminder.is_completed}
+                      onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
+                    />
+                    <div className="flex-1">
+                      <p className="line-through">{reminder.title}</p>
+                    </div>
+                    {reminder.amount && (
+                      <p className="text-sm">{formatCurrency(reminder.amount)}</p>
+                    )}
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(reminder.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         </div>
       )}
 
