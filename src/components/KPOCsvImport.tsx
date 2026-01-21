@@ -136,10 +136,21 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
     
     setIsImporting(true);
     try {
-      const entriesToInsert = parsedData.map((entry) => ({
+      // Get the maximum ordinal_number for this company and year
+      const { data: existingEntries } = await supabase
+        .from('kpo_entries')
+        .select('ordinal_number')
+        .eq('company_id', companyId)
+        .eq('year', year)
+        .order('ordinal_number', { ascending: false })
+        .limit(1);
+      
+      const startOrdinal = (existingEntries?.[0]?.ordinal_number || 0) + 1;
+      
+      const entriesToInsert = parsedData.map((entry, index) => ({
         company_id: companyId,
         year: year,
-        ordinal_number: entry.ordinal_number,
+        ordinal_number: startOrdinal + index,
         document_date: entry.document_date,
         description: entry.description,
         products_amount: entry.products_amount,
