@@ -85,28 +85,24 @@ export default function PausalniPdfDialog({
     setParsedData(null);
 
     try {
-      // Read PDF as ArrayBuffer
+      // Read PDF as ArrayBuffer and convert to base64
       const arrayBuffer = await file.arrayBuffer();
-      
-      // Extract text from PDF using PDF.js-like approach
-      // For now, we'll send the raw text extraction to the edge function
-      // which will use AI to parse it
-      
-      // Convert to base64 for sending
       const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert to base64 for sending to edge function
       let binary = '';
-      uint8Array.forEach(byte => binary += String.fromCharCode(byte));
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64 = btoa(binary);
       
-      // Simple text extraction from PDF (basic approach)
-      // Look for text streams in PDF
-      const text = extractTextFromPdf(uint8Array);
-      
-      console.log('Extracted text length:', text.length);
-      console.log('First 500 chars:', text.substring(0, 500));
+      console.log('Sending PDF to edge function, size:', base64.length);
 
       // Call edge function to parse
       const { data, error: fnError } = await supabase.functions.invoke('parse-pausalni-pdf', {
-        body: { pdfText: text, type }
+        body: { pdfBase64: base64, type }
       });
 
       if (fnError) {
@@ -117,6 +113,18 @@ export default function PausalniPdfDialog({
         throw new Error(data.error);
       }
 
+      // Validate that we got actual data
+      if (type === 'porez' && (!data.monthlyAmounts || data.monthlyAmounts[0] === 0)) {
+        throw new Error('Nije moguće izvući iznose iz PDF-a. Proverite da li ste učitali ispravno rešenje za porez.');
+      }
+      
+      if (type === 'doprinosi' && (!data.contributions || 
+          (data.contributions.pio.monthlyAmounts[0] === 0 && 
+           data.contributions.zdravstveno.monthlyAmounts[0] === 0 &&
+           data.contributions.nezaposlenost.monthlyAmounts[0] === 0))) {
+        throw new Error('Nije moguće izvući iznose iz PDF-a. Proverite da li ste učitali ispravno rešenje za doprinose.');
+      }
+
       setParsedData(data);
     } catch (err) {
       console.error('Error parsing PDF:', err);
@@ -125,53 +133,6 @@ export default function PausalniPdfDialog({
       setIsLoading(false);
     }
   };
-
-  // Basic PDF text extraction
-  function extractTextFromPdf(data: Uint8Array): string {
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data);
-    
-    // Extract text between stream and endstream markers
-    const streams: string[] = [];
-    let pos = 0;
-    
-    while (pos < text.length) {
-      const streamStart = text.indexOf('stream', pos);
-      if (streamStart === -1) break;
-      
-      const streamEnd = text.indexOf('endstream', streamStart);
-      if (streamEnd === -1) break;
-      
-      const content = text.substring(streamStart + 6, streamEnd);
-      // Try to decode if it contains readable text
-      if (content.length > 0) {
-        // Look for text operators like Tj, TJ, '
-        const textMatches = content.match(/\(([^)]+)\)/g);
-        if (textMatches) {
-          streams.push(...textMatches.map(m => m.slice(1, -1)));
-        }
-      }
-      pos = streamEnd + 9;
-    }
-    
-    // Also try to find any Unicode/UTF text patterns
-    const unicodeText = text.match(/[\u0400-\u04FF\u0000-\u007F]+/g);
-    if (unicodeText) {
-      streams.push(...unicodeText.filter(t => t.length > 2));
-    }
-    
-    // Join all extracted text
-    const extracted = streams.join(' ');
-    
-    // If we got very little text, return the raw content for AI to process
-    if (extracted.length < 100) {
-      // Return cleaned raw content
-      return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ')
-                 .replace(/\s+/g, ' ')
-                 .substring(0, 50000); // Limit size
-    }
-    
-    return extracted;
-  }
 
   const handleConfirm = () => {
     if (parsedData) {
