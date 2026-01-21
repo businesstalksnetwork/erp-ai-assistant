@@ -52,10 +52,10 @@ const formatShortDate = (dateString: string) => {
 };
 
 const getStatusBadge = (status: string, localStatus?: string) => {
-  const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' }> = {
     'New': { label: 'Nova', variant: 'default' },
     'Seen': { label: 'Viđena', variant: 'secondary' },
-    'Approved': { label: 'Odobrena', variant: 'default' },
+    'Approved': { label: 'Odobrena', variant: 'success' },
     'Rejected': { label: 'Odbijena', variant: 'destructive' },
     'Sent': { label: 'Poslata', variant: 'default' },
     'Cancelled': { label: 'Stornirana', variant: 'destructive' },
@@ -64,9 +64,9 @@ const getStatusBadge = (status: string, localStatus?: string) => {
     'Unknown': { label: 'Nepoznato', variant: 'outline' },
   };
 
-  const localStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  const localStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' }> = {
     'pending': { label: 'Na čekanju', variant: 'secondary' },
-    'approved': { label: 'Odobreno', variant: 'default' },
+    'approved': { label: 'Odobreno', variant: 'success' },
     'rejected': { label: 'Odbijeno', variant: 'destructive' },
     'imported': { label: 'Uvezeno', variant: 'outline' },
   };
