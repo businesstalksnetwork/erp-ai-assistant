@@ -72,7 +72,9 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
 
   const parseDate = (value: string): string | null => {
     if (!value || value.trim() === '') return null;
-    const trimmed = value.trim();
+    
+    // Strip time part if present (e.g., "16.01.26 11:45:37" -> "16.01.26")
+    const trimmed = value.trim().split(' ')[0];
     
     // Try ISO format (YYYY-MM-DD)
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
