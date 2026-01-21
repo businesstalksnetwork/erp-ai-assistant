@@ -30,13 +30,13 @@ export function useCompanies() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch my own companies
+  // Fetch my own companies - explicitly exclude sef_api_key for security
   const { data: myCompanies = [], isLoading: loadingMy } = useQuery({
     queryKey: ['companies', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, fiscal_enabled, is_active, created_at, updated_at')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -76,10 +76,10 @@ export function useCompanies() {
         .select('id, full_name, email')
         .in('id', clientIds);
 
-      // Get companies for all clients
+      // Get companies for all clients - explicitly exclude sef_api_key for security
       const { data: companies, error } = await supabase
         .from('companies')
-        .select('*')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, fiscal_enabled, is_active, created_at, updated_at')
         .in('user_id', clientIds)
         .order('created_at', { ascending: false });
 

@@ -5,11 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Create HTTP client that doesn't verify SSL certificates
-const httpClient = Deno.createHttpClient({
-  caCerts: [],
-});
-
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -74,7 +69,6 @@ Deno.serve(async (req) => {
             'Accept': 'application/json',
             'User-Agent': 'Mozilla/5.0',
           },
-          client: httpClient,
         });
 
         console.log('Checkpoint.rs response status:', checkpointResponse.status);
@@ -133,7 +127,6 @@ Deno.serve(async (req) => {
             'Accept': 'text/html,application/xhtml+xml',
             'User-Agent': 'Mozilla/5.0',
           },
-          client: httpClient,
         });
 
         console.log('NBS response status:', nbsResponse.status);
@@ -175,7 +168,6 @@ Deno.serve(async (req) => {
               'Accept': 'application/json',
               'User-Agent': 'Mozilla/5.0',
             },
-            client: httpClient,
           }
         );
 
@@ -209,7 +201,6 @@ Deno.serve(async (req) => {
               'Accept': 'application/json',
               'User-Agent': 'Mozilla/5.0',
             },
-            client: httpClient,
           }
         );
 

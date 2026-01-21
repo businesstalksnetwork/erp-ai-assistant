@@ -95,6 +95,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       companies: {
@@ -203,6 +210,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fiscal_daily_summary_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fiscal_daily_summary_kpo_entry_id_fkey"
             columns: ["kpo_entry_id"]
             isOneToOne: false
@@ -256,6 +270,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fiscal_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       foreign_payment_instructions: {
@@ -289,6 +310,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foreign_payment_instructions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -408,6 +436,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -555,6 +590,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_converted_from_proforma_fkey"
             columns: ["converted_from_proforma"]
             isOneToOne: false
@@ -616,6 +658,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpo_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
             referencedColumns: ["id"]
           },
           {
@@ -691,6 +740,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -822,6 +878,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sef_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sef_invoices_linked_invoice_id_fkey"
             columns: ["linked_invoice_id"]
             isOneToOne: false
@@ -917,6 +980,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sef_sync_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       service_catalog: {
@@ -981,7 +1051,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      companies_safe: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          fiscal_enabled: boolean | null
+          id: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          maticni_broj: string | null
+          name: string | null
+          pib: string | null
+          sef_enabled: boolean | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          fiscal_enabled?: boolean | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          maticni_broj?: string | null
+          name?: string | null
+          pib?: string | null
+          sef_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          fiscal_enabled?: boolean | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          maticni_broj?: string | null
+          name?: string | null
+          pib?: string | null
+          sef_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_next_invoice_number: {
