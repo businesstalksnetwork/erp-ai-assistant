@@ -41,9 +41,9 @@ export default function Dashboard() {
   const { upcomingReminders, toggleComplete } = useReminders(selectedCompany?.id || null);
   const { invoices } = useInvoices(selectedCompany?.id || null);
 
-  const handleToggleReminder = async (id: string, currentStatus: boolean) => {
+  const handleToggleReminder = async (id: string) => {
     try {
-      await toggleComplete.mutateAsync({ id, is_completed: currentStatus });
+      await toggleComplete.mutateAsync({ id, is_completed: true });
       toast.success('Podsetnik označen kao plaćen');
     } catch (error) {
       toast.error('Greška pri ažuriranju podsetnika');
@@ -324,7 +324,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3 min-w-0">
                     <Checkbox
                       checked={false}
-                      onCheckedChange={() => handleToggleReminder(reminder.id, reminder.is_completed)}
+                      onCheckedChange={() => handleToggleReminder(reminder.id)}
                       aria-label="Označi kao plaćeno"
                       className="border-warning data-[state=checked]:bg-warning flex-shrink-0"
                     />
