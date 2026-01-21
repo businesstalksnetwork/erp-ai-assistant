@@ -15,6 +15,7 @@ import Clients from "./pages/Clients";
 import Invoices from "./pages/Invoices";
 import NewInvoice from "./pages/NewInvoice";
 import EditInvoice from "./pages/EditInvoice";
+import EditTemplate from "./pages/EditTemplate";
 import InvoiceDetail from "./pages/InvoiceDetail";
 import InvoiceAnalytics from "./pages/InvoiceAnalytics";
 import KPOBook from "./pages/KPOBook";
@@ -91,6 +92,7 @@ function AppRoutes() {
       <Route path="/invoices/new" element={<ProtectedRoute><NewInvoice /></ProtectedRoute>} />
       <Route path="/invoices/:id/edit" element={<ProtectedRoute><EditInvoice /></ProtectedRoute>} />
       <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
+      <Route path="/templates/:id/edit" element={<ProtectedRoute><EditTemplate /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><InvoiceAnalytics /></ProtectedRoute>} />
       <Route path="/kpo" element={<ProtectedRoute><KPOBook /></ProtectedRoute>} />
       <Route path="/fiscal" element={<ProtectedRoute><FiscalCashRegister /></ProtectedRoute>} />

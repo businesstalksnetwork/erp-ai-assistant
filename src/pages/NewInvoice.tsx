@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
@@ -53,13 +53,16 @@ const currencies = ['EUR', 'USD', 'CHF', 'GBP'];
 
 export default function NewInvoice() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const templateIdFromUrl = searchParams.get('template');
   const { selectedCompany } = useSelectedCompany();
   const { createInvoice, closeAdvanceInvoice, getOpenAdvances, invoices } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
   const { activeServices } = useServiceCatalog(selectedCompany?.id || null);
-  const { templates, getTemplatesByType } = useInvoiceTemplates(selectedCompany?.id || null);
+  const { templates, getTemplatesByType, getTemplateById } = useInvoiceTemplates(selectedCompany?.id || null);
   const { getInstructionByCurrency } = useForeignPaymentInstructions(selectedCompany?.id || null);
   const { sendToSEF } = useSEF();
+  const templateAppliedRef = useRef(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [openCatalogPopover, setOpenCatalogPopover] = useState<string | null>(null);
@@ -247,6 +250,44 @@ export default function NewInvoice() {
       lastAppliedCurrencyRef.current = null;
     }
   }, [formData.client_type, formData.foreign_currency, getInstructionByCurrency]);
+
+  // Auto-load template from URL parameter
+  useEffect(() => {
+    if (templateIdFromUrl && templates.length > 0 && !templateAppliedRef.current) {
+      const template = getTemplateById(templateIdFromUrl);
+      if (template) {
+        // Set invoice type first
+        setFormData(prev => ({
+          ...prev,
+          invoice_type: template.invoice_type as 'regular' | 'proforma' | 'advance',
+          client_id: template.client_id || '',
+          client_name: template.client_name,
+          client_address: template.client_address || '',
+          client_pib: template.client_pib || '',
+          client_maticni_broj: template.client_maticni_broj || '',
+          client_vat_number: (template as any).client_vat_number || '',
+          client_type: template.client_type as 'domestic' | 'foreign',
+          foreign_currency: template.foreign_currency || '',
+          exchange_rate: 0,
+          payment_method: template.payment_method || 'Virman',
+          note: template.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.',
+          issue_date: new Date().toISOString().split('T')[0],
+          service_date: '',
+        }));
+
+        setItems(template.items.map(item => ({
+          id: crypto.randomUUID(),
+          description: item.description,
+          item_type: item.item_type,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          foreign_amount: item.foreign_amount || 0,
+        })));
+
+        templateAppliedRef.current = true;
+      }
+    }
+  }, [templateIdFromUrl, templates, getTemplateById]);
 
   // Fill client data when selected
   const handleClientSelect = (clientId: string) => {
