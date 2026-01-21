@@ -26,7 +26,7 @@ export default function InvoiceAnalytics() {
   
   // KPO data
   const kpoYear = selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
-  const { entries: kpoEntries, totals: kpoTotals, isLoading: kpoLoading } = useKPO(selectedCompany?.id || null, kpoYear);
+  const { entries: kpoEntries, totals: kpoTotals, isLoading: kpoLoading, availableYears: kpoAvailableYears } = useKPO(selectedCompany?.id || null, kpoYear);
 
   // Get only regular invoices (not proforma, not advance)
   const regularInvoices = useMemo(() => {
@@ -36,11 +36,13 @@ export default function InvoiceAnalytics() {
     );
   }, [invoices]);
 
-  // Get available years from invoices
+  // Get available years from invoices AND KPO entries
   const availableYears = useMemo(() => {
-    const years = [...new Set(regularInvoices.map(i => i.year))].sort((a, b) => b - a);
-    return years;
-  }, [regularInvoices]);
+    const invoiceYears = [...new Set(regularInvoices.map(i => i.year))];
+    const kpoYears = kpoAvailableYears || [];
+    const allYears = [...new Set([...invoiceYears, ...kpoYears])].sort((a, b) => b - a);
+    return allYears;
+  }, [regularInvoices, kpoAvailableYears]);
 
   // Filter invoices by selected year
   const filteredInvoices = useMemo(() => {
