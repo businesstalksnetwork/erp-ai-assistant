@@ -57,6 +57,7 @@ const mainNavItems = [
 // Secondary navigation items (below separator)
 const secondaryNavItems = [
   { href: '/companies', label: 'Moja Kompanija', icon: Building2 },
+  { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase },
 ];
 
 const adminNavItems = [
@@ -275,10 +276,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="right" align="end" className="w-48">
                 <ChangePasswordDialog asDropdownItem={true} />
-                <DropdownMenuItem onClick={() => { navigate('/bookkeeper'); setMobileMenuOpen(false); }}>
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Knjigovodstvo
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={toggleTheme}>
                   {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
                   {theme === 'light' ? 'Tamna tema' : 'Svetla tema'}
