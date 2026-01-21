@@ -1041,59 +1041,71 @@ export default function Reminders() {
             </Card>
           )}
 
-          {/* Current Month Reminders */}
-          {paginatedCurrentMonth.items.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Tekući mesec
-                  <Badge variant="secondary" className="ml-2">{categorizedReminders.currentMonth.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Current Month Reminders - Always show */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Tekući mesec
+                <Badge variant="secondary" className="ml-2">{categorizedReminders.currentMonth.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paginatedCurrentMonth.items.length > 0 ? (
                 <div className="space-y-3">
                   {paginatedCurrentMonth.items.map((reminder) => renderReminderItem(reminder, false))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nema podsetnika za tekući mesec
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Next 3 Months Reminders */}
-          {paginatedNextThreeMonths.items.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5" />
-                  Naredna 3 meseca
-                  <Badge variant="secondary" className="ml-2">{categorizedReminders.nextThreeMonths.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Next 3 Months Reminders - Always show */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Naredna 3 meseca
+                <Badge variant="secondary" className="ml-2">{categorizedReminders.nextThreeMonths.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paginatedNextThreeMonths.items.length > 0 ? (
                 <div className="space-y-3">
                   {paginatedNextThreeMonths.items.map((reminder) => renderReminderItem(reminder, false))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nema podsetnika za naredna 3 meseca
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Until End of Year Reminders */}
-          {paginatedUntilEndOfYear.items.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CalendarRange className="h-5 w-5" />
-                  Do kraja godine
-                  <Badge variant="secondary" className="ml-2">{categorizedReminders.untilEndOfYear.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Until End of Year Reminders - Always show */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarRange className="h-5 w-5" />
+                Do kraja godine
+                <Badge variant="secondary" className="ml-2">{categorizedReminders.untilEndOfYear.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paginatedUntilEndOfYear.items.length > 0 ? (
                 <div className="space-y-3">
                   {paginatedUntilEndOfYear.items.map((reminder) => renderReminderItem(reminder, false))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nema podsetnika do kraja godine
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Empty state for active reminders */}
           {allActiveReminders.length === 0 && (
