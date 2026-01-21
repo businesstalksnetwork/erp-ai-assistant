@@ -439,6 +439,26 @@ export default function NewInvoice() {
       const isProforma = formData.invoice_type === 'proforma';
       const isAdvance = formData.invoice_type === 'advance';
       
+      // Check if invoice number already exists for this company and year
+      const { data: existingInvoice, error: checkError } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('company_id', selectedCompany!.id)
+        .eq('invoice_number', formData.invoice_number)
+        .eq('year', invoiceYear)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking invoice number:', checkError);
+      }
+      
+      if (existingInvoice) {
+        toast.error(`Faktura sa brojem "${formData.invoice_number}" već postoji za godinu ${invoiceYear}`);
+        setErrors({ invoice_number: `Broj ${formData.invoice_number} već postoji` });
+        setLoading(false);
+        return;
+      }
+      
       // If new client (no client_id), save to clients table first
       let clientId = formData.client_id || null;
       if (!formData.client_id && formData.client_name.trim()) {
@@ -760,7 +780,7 @@ export default function NewInvoice() {
                     id="invoice_number"
                     value={formData.invoice_number}
                     onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                    className="font-mono"
+                    className={cn("font-mono", errors.invoice_number && "border-destructive")}
                   />
                   {formData.invoice_number !== suggestedNumber && suggestedNumber && (
                     <Button 
@@ -774,9 +794,13 @@ export default function NewInvoice() {
                     </Button>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Predlog: {suggestedNumber || 'učitavanje...'} (automatski na osnovu prethodnih)
-                </p>
+                {errors.invoice_number ? (
+                  <p className="text-xs text-destructive">{errors.invoice_number}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Predlog: {suggestedNumber || 'učitavanje...'} (automatski na osnovu prethodnih)
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="issue_date">Datum izdavanja</Label>
