@@ -346,7 +346,7 @@ export default function BookkeeperSettings() {
                             <p className="text-sm text-muted-foreground truncate">{company.address}</p>
                             <p className="text-xs text-primary mt-1">Klijent: {company.client_name}</p>
                           </div>
-                          {company.sef_api_key ? (
+                          {company.has_sef_api_key ? (
                             <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                           ) : null}
                         </div>

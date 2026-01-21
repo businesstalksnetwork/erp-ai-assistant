@@ -627,7 +627,7 @@ export default function NewInvoice() {
       if (
         sendToSefEnabled &&
         selectedCompany.sef_enabled && 
-        selectedCompany.sef_api_key && 
+        selectedCompany.has_sef_api_key && 
         formData.invoice_type !== 'proforma' &&
         formData.client_type === 'domestic'
       ) {
@@ -712,7 +712,7 @@ export default function NewInvoice() {
 
         {/* SEF Integration Toggle */}
         {selectedCompany.sef_enabled && 
-         selectedCompany.sef_api_key && 
+         selectedCompany.has_sef_api_key && 
          formData.invoice_type !== 'proforma' && 
          formData.client_type === 'domestic' && (
           <Card className="border-primary/20 bg-primary/5">

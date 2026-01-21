@@ -61,7 +61,7 @@ export default function Clients() {
   });
 
   // SEF je dostupan samo ako kompanija ima konfigurisan API ključ
-  const isSefConfigured = selectedCompany?.sef_enabled && !!selectedCompany?.sef_api_key;
+  const isSefConfigured = selectedCompany?.sef_enabled && selectedCompany?.has_sef_api_key;
 
   const resetForm = () => {
     setFormData({

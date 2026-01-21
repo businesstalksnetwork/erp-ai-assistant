@@ -190,7 +190,7 @@ export default function Companies() {
         logo_url: logoUrl 
       } as any);
     } else {
-      const newCompany = await createCompany.mutateAsync({ ...formData, sef_api_key: null });
+      const newCompany = await createCompany.mutateAsync({ ...formData });
       if (logoFile && newCompany?.id) {
         const logoUrl = await uploadLogo(newCompany.id);
         if (logoUrl) {
@@ -416,7 +416,7 @@ export default function Companies() {
                           Aktivna
                         </Badge>
                       )}
-                      {company.sef_api_key ? (
+                      {company.has_sef_api_key ? (
                         <span className="flex items-center gap-1" title="SEF API ključ podešen">
                           <CheckCircle2 className="h-4 w-4 text-green-500" />
                           <span className="text-xs text-green-600 dark:text-green-400">SEF</span>

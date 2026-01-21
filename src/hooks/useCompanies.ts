@@ -14,7 +14,8 @@ export interface Company {
   maticni_broj: string;
   bank_account: string | null;
   logo_url: string | null;
-  sef_api_key: string | null;
+  // SECURITY: sef_api_key is NOT included - use has_sef_api_key boolean instead
+  has_sef_api_key: boolean;
   sef_enabled: boolean;
   fiscal_enabled: boolean;
   is_active: boolean;
@@ -36,7 +37,7 @@ export function useCompanies() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, fiscal_enabled, is_active, created_at, updated_at')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -76,10 +77,10 @@ export function useCompanies() {
         .select('id, full_name, email')
         .in('id', clientIds);
 
-      // Get companies for all clients - explicitly exclude sef_api_key for security
+      // Get companies for all clients - use has_sef_api_key instead of sef_api_key for security
       const { data: companies, error } = await supabase
         .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, fiscal_enabled, is_active, created_at, updated_at')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at')
         .in('user_id', clientIds)
         .order('created_at', { ascending: false });
 
@@ -101,7 +102,8 @@ export function useCompanies() {
   const companies = [...myCompanies, ...clientCompanies];
 
   const createCompany = useMutation({
-    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_client_company' | 'client_name' | 'logo_url'> & { logo_url?: string | null }) => {
+    // has_sef_api_key is a computed column, so we exclude it from create
+    mutationFn: async (company: Omit<Company, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_client_company' | 'client_name' | 'logo_url' | 'has_sef_api_key'> & { logo_url?: string | null }) => {
       const { data, error } = await supabase
         .from('companies')
         .insert({

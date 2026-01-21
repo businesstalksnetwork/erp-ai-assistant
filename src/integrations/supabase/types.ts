@@ -112,6 +112,7 @@ export type Database = {
           country: string | null
           created_at: string
           fiscal_enabled: boolean
+          has_sef_api_key: boolean | null
           id: string
           is_active: boolean
           logo_url: string | null
@@ -130,6 +131,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           fiscal_enabled?: boolean
+          has_sef_api_key?: boolean | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           fiscal_enabled?: boolean
+          has_sef_api_key?: boolean | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
@@ -1059,6 +1062,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           fiscal_enabled: boolean | null
+          has_sef_api_key: boolean | null
           id: string | null
           is_active: boolean | null
           logo_url: string | null
@@ -1076,6 +1080,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           fiscal_enabled?: boolean | null
+          has_sef_api_key?: boolean | null
           id?: string | null
           is_active?: boolean | null
           logo_url?: string | null
@@ -1093,6 +1098,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           fiscal_enabled?: boolean | null
+          has_sef_api_key?: boolean | null
           id?: string | null
           is_active?: boolean | null
           logo_url?: string | null
@@ -1107,6 +1113,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_company_sef_api_key: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
       get_next_invoice_number: {
         Args: { p_company_id: string; p_is_proforma: boolean; p_year: number }
         Returns: string
