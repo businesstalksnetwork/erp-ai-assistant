@@ -85,7 +85,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cac:Item>
         <cbc:Name>${escapeXml(item.description)}</cbc:Name>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>O</cbc:ID>
+          <cbc:ID>SS</cbc:ID>
           <cbc:Percent>0</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -179,10 +179,10 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cbc:TaxableAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxableAmount>
       <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:ID>O</cbc:ID>
+        <cbc:ID>SS</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-11-1-4</cbc:TaxExemptionReasonCode>
-        <cbc:TaxExemptionReason>Obveznik nije u sistemu PDV-a</cbc:TaxExemptionReason>
+        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-33</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
@@ -477,7 +477,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       <cac:Item>
         <cbc:Name>${escapeXml(item.description)}</cbc:Name>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>O</cbc:ID>
+          <cbc:ID>SS</cbc:ID>
           <cbc:Percent>0</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -568,10 +568,10 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       <cbc:TaxableAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxableAmount>
       <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:ID>O</cbc:ID>
+        <cbc:ID>SS</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-11-1-4</cbc:TaxExemptionReasonCode>
-        <cbc:TaxExemptionReason>Obveznik nije u sistemu PDV-a</cbc:TaxExemptionReason>
+        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-33</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
