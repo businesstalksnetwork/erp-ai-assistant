@@ -131,12 +131,10 @@ export function useSEFStorage(companyId: string | null) {
         return { invoiceId: existing.id, alreadyExisted: true };
       }
 
-      // Extract year from service/issue date
-      const invoiceYear = sefInvoice.delivery_date 
-        ? new Date(sefInvoice.delivery_date).getFullYear()
-        : sefInvoice.issue_date 
-          ? new Date(sefInvoice.issue_date).getFullYear()
-          : new Date().getFullYear();
+      // Extract year from issue date (KPO year determined by issue_date)
+      const invoiceYear = sefInvoice.issue_date 
+        ? new Date(sefInvoice.issue_date).getFullYear()
+        : new Date().getFullYear();
 
       // Create local invoice
       const { data: invoice, error: invoiceError } = await supabase
@@ -181,8 +179,8 @@ export function useSEFStorage(companyId: string | null) {
         .maybeSingle();
 
       const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
-      const serviceDate = sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0];
-      const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS');
+      const kpoDate = sefInvoice.issue_date || new Date().toISOString().split('T')[0];
+      const formattedDate = new Date(kpoDate).toLocaleDateString('sr-RS');
 
       await supabase.from('kpo_entries').insert({
         company_id: companyId,
@@ -193,7 +191,7 @@ export function useSEFStorage(companyId: string | null) {
         services_amount: sefInvoice.total_amount,
         total_amount: sefInvoice.total_amount,
         year: invoiceYear,
-        document_date: serviceDate,
+        document_date: kpoDate,
       });
 
       // Link SEF invoice to local invoice
@@ -270,12 +268,10 @@ export function useSEFStorage(companyId: string | null) {
             continue;
           }
 
-          // Extract year
-          const invoiceYear = sefInvoice.delivery_date 
-            ? new Date(sefInvoice.delivery_date).getFullYear()
-            : sefInvoice.issue_date 
-              ? new Date(sefInvoice.issue_date).getFullYear()
-              : new Date().getFullYear();
+          // Extract year from issue_date (KPO year determined by issue_date)
+          const invoiceYear = sefInvoice.issue_date 
+            ? new Date(sefInvoice.issue_date).getFullYear()
+            : new Date().getFullYear();
 
           // Create invoice
           const { data: invoice, error } = await supabase
@@ -322,8 +318,8 @@ export function useSEFStorage(companyId: string | null) {
             .maybeSingle();
 
           const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
-          const serviceDate = sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0];
-          const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS');
+          const kpoDate = sefInvoice.issue_date || new Date().toISOString().split('T')[0];
+          const formattedDate = new Date(kpoDate).toLocaleDateString('sr-RS');
 
           await supabase.from('kpo_entries').insert({
             company_id: companyId,
@@ -334,7 +330,7 @@ export function useSEFStorage(companyId: string | null) {
             services_amount: sefInvoice.total_amount,
             total_amount: sefInvoice.total_amount,
             year: invoiceYear,
-            document_date: serviceDate,
+            document_date: kpoDate,
           });
 
           // Link
@@ -576,13 +572,13 @@ export function useSEFStorage(companyId: string | null) {
     mutationFn: async () => {
       if (!companyId) throw new Error('Nije odabrana firma');
       
-      // Find all invoices with sef_invoice_id
+      // Find all invoices with sef_invoice_id (use issue_date for KPO year)
       const { data: invoicesWithSEF, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, total_amount, service_date, client_name, sef_invoice_id')
+        .select('id, invoice_number, total_amount, issue_date, client_name, sef_invoice_id')
         .eq('company_id', companyId)
         .not('sef_invoice_id', 'is', null)
-        .order('service_date', { ascending: true });
+        .order('issue_date', { ascending: true });
       
       if (error) throw error;
       
@@ -601,8 +597,8 @@ export function useSEFStorage(companyId: string | null) {
       
       let created = 0;
       for (const invoice of missing) {
-        const year = invoice.service_date 
-          ? new Date(invoice.service_date).getFullYear() 
+        const year = invoice.issue_date 
+          ? new Date(invoice.issue_date).getFullYear() 
           : new Date().getFullYear();
         
         // Get max ordinal for year
@@ -616,8 +612,8 @@ export function useSEFStorage(companyId: string | null) {
           .maybeSingle();
         
         const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
-        const formattedDate = invoice.service_date 
-          ? new Date(invoice.service_date).toLocaleDateString('sr-RS') 
+        const formattedDate = invoice.issue_date 
+          ? new Date(invoice.issue_date).toLocaleDateString('sr-RS') 
           : '';
         
         const { error: insertError } = await supabase.from('kpo_entries').insert({
@@ -629,7 +625,7 @@ export function useSEFStorage(companyId: string | null) {
           services_amount: invoice.total_amount,
           total_amount: invoice.total_amount,
           year: year,
-          document_date: invoice.service_date,
+          document_date: invoice.issue_date,
         });
         
         if (!insertError) created++;
