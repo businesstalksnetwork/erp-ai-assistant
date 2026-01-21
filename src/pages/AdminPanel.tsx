@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSEFRegistry } from '@/hooks/useSEFRegistry';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -31,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { format, differenceInDays, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
@@ -55,11 +59,18 @@ type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
 export default function AdminPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { getRegistryStats } = useSEFRegistry();
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [extendUser, setExtendUser] = useState<UserProfile | null>(null);
   const [blockUser, setBlockUser] = useState<UserProfile | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // SEF Registry Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [clearExisting, setClearExisting] = useState(true);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -73,6 +84,53 @@ export default function AdminPanel() {
       return data as UserProfile[];
     },
   });
+
+  // SEF Registry Stats
+  const { data: sefStats, refetch: refetchSefStats } = useQuery({
+    queryKey: ['sef-registry-stats'],
+    queryFn: getRegistryStats,
+  });
+
+  // SEF Registry Import Handler
+  const handleSefImport = async (file: File) => {
+    setIsImporting(true);
+    setImportProgress(10);
+
+    try {
+      const text = await file.text();
+      setImportProgress(30);
+
+      const { data, error } = await supabase.functions.invoke('sef-registry-import', {
+        body: { csvContent: text, clearExisting },
+      });
+
+      setImportProgress(90);
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast({
+        title: 'Uvoz završen',
+        description: `Uvezeno ${data.imported?.toLocaleString() || 0} firmi. Grešaka pri parsiranju: ${data.parseErrors || 0}`,
+      });
+
+      setImportProgress(100);
+      refetchSefStats();
+    } catch (error) {
+      console.error('SEF import error:', error);
+      toast({
+        title: 'Greška pri uvozu',
+        description: error instanceof Error ? error.message : 'Nepoznata greška',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const extendSubscription = useMutation({
     mutationFn: async ({ userId, months, startDate }: { userId: string; months: number; startDate: Date }) => {
@@ -311,6 +369,97 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SEF Registry Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            SEF Registar firmi
+          </CardTitle>
+          <CardDescription>
+            Upravljanje spiskom firmi registrovanih u sistemu elektronskih faktura
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Ukupno firmi</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{sefStats?.total?.toLocaleString() || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-600">Aktivne</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{sefStats?.active?.toLocaleString() || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Obrisane</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-muted-foreground">{sefStats?.deleted?.toLocaleString() || 0}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleSefImport(file);
+              }}
+            />
+            
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="clear-existing"
+                checked={clearExisting}
+                onCheckedChange={(checked) => setClearExisting(checked === true)}
+              />
+              <Label htmlFor="clear-existing" className="text-sm">
+                Obriši postojeće podatke pre uvoza
+              </Label>
+            </div>
+
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="gap-2"
+            >
+              {isImporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {isImporting ? 'Uvoz u toku...' : 'Uvezi CSV'}
+            </Button>
+          </div>
+
+          {isImporting && (
+            <div className="space-y-2">
+              <Progress value={importProgress} />
+              <p className="text-sm text-muted-foreground text-center">
+                Uvoz u toku... {importProgress}%
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            CSV format: PIB, JBKJS, Datum registracije (DD.MM.YYYY), Datum brisanja (opciono)
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Users Table */}
       <Card>

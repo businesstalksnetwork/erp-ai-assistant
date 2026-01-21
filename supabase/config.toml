@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.parse-pausalni-pdf]
 verify_jwt = true
+
+[functions.sef-registry-import]
+verify_jwt = true
