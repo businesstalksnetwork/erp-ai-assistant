@@ -75,16 +75,17 @@ function generateIPSQRCode(
   receiverAccount: string,
   amount: number,
   paymentPurpose: string,
-  payerName: string,
+  payerName?: string,
   payerAddress?: string | null,
   paymentCode: string = '253',  // Default 253 for tax payments
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
-  // Sanitize text - remove pipe characters and carriage returns
-  const sanitize = (value: string) => value.replace(/\|/g, ' ').replace(/\r/g, '').replace(/\n/g, ' ').trim();
+  // Sanitize text - remove pipe characters, carriage returns, and collapse multiple spaces
+  const sanitize = (value: string) => 
+    value.replace(/\|/g, ' ').replace(/\r/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Receiver account: format XXX-XXXXXXXXXXXXX-XX (18 digits total)
+  // Receiver account: must be exactly 18 consecutive digits (no dashes)
   const accountParts = receiverAccount.split('-');
   let formattedAccount: string;
   
@@ -100,15 +101,10 @@ function generateIPSQRCode(
   // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
 
-  // Receiver name (max 70 chars, sanitized)
+  // Receiver name (max 70 chars, sanitized, single line)
   const n = sanitize(receiverName).substring(0, 70);
-  
-  // Payer info - join name and address (max 70 chars each, sanitized)
-  const payerNameClean = sanitize(payerName || '').substring(0, 70);
-  const payerAddressClean = sanitize(payerAddress || '').substring(0, 70);
-  const p = [payerNameClean, payerAddressClean].filter(Boolean).join('\n');
 
-  // Payment purpose (max 35 chars, sanitized)
+  // Payment purpose (max 35 chars, sanitized, single line)
   const purpose = sanitize(paymentPurpose).substring(0, 35);
   
   // Payment code (šifra plaćanja) - must be exactly 3 digits
@@ -127,10 +123,30 @@ function generateIPSQRCode(
     `R:${formattedAccount}`,  // Receiver account (18 digits)
     `N:${n}`,         // Receiver name
     `I:RSD${formattedAmount}`, // Amount with currency
-    `P:${p}`,         // Payer info
-    `SF:${sf}`,       // Payment code
-    `S:${purpose}`,   // Purpose
   ];
+
+  // Payer info (P:) - ONLY add if we have payer name, and limit TOTAL to 70 chars
+  // Format: "Name\nAddress" but total must not exceed 70 chars
+  const payerNameClean = sanitize(payerName || '');
+  const payerAddressClean = sanitize(payerAddress || '');
+  
+  if (payerNameClean) {
+    // Calculate how much space we have for address after name + newline
+    const maxAddressLen = Math.max(0, 70 - payerNameClean.length - 1);
+    const truncatedAddress = payerAddressClean.substring(0, maxAddressLen);
+    
+    // Build payer string: name only, or name + address if both exist
+    const payerValue = truncatedAddress 
+      ? `${payerNameClean.substring(0, 70)}\n${truncatedAddress}` 
+      : payerNameClean.substring(0, 70);
+    
+    // Ensure total P: value doesn't exceed 70 chars
+    parts.push(`P:${payerValue.substring(0, 70)}`);
+  }
+
+  // Add payment code and purpose
+  parts.push(`SF:${sf}`);
+  parts.push(`S:${purpose}`);
   
   // Add reference only if both model and reference are provided
   if (model && cleanReference) {
@@ -1285,63 +1301,90 @@ export default function Reminders() {
             </DialogDescription>
           </DialogHeader>
            {selectedReminder && selectedReminder.recipient_account && selectedReminder.recipient_name && selectedReminder.amount && (
-             <div className="flex flex-col items-center space-y-3 sm:space-y-4 py-2 sm:py-4">
-               <div className="bg-white p-3 sm:p-4 rounded-lg">
-                 <QRCodeSVG
-                   value={generateIPSQRCode(
-                     selectedReminder.recipient_name,
-                     selectedReminder.recipient_account,
-                     selectedReminder.amount,
-                     selectedReminder.title,
-                     selectedCompany.name,
-                     selectedCompany.address,
-                     selectedReminder.payment_code || '253',
-                     selectedReminder.payment_model || '97',
-                     selectedReminder.payment_reference || ''
-                   )}
-                   size={160}
-                   level="M"
-                   className="sm:w-[200px] sm:h-[200px]"
-                 />
-               </div>
-              <div className="text-center space-y-1">
-                <p className="font-medium">{selectedReminder.title}</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(selectedReminder.amount)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Primalac: {selectedReminder.recipient_name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Račun: {(() => {
-                    const parts = selectedReminder.recipient_account?.split('-') || [];
-                    if (parts.length === 3) {
-                      const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
-                      const account = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
-                      const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
-                      return `${bank}-${account}-${control}`;
-                    }
-                    return selectedReminder.recipient_account;
-                  })()}
-                </p>
-                {(selectedReminder.payment_model || selectedReminder.payment_reference) && (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Model: {selectedReminder.payment_model || '-'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Poziv na broj: {selectedReminder.payment_reference || '-'}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
+             (() => {
+               const ipsString = generateIPSQRCode(
+                 selectedReminder.recipient_name,
+                 selectedReminder.recipient_account,
+                 selectedReminder.amount,
+                 selectedReminder.title,
+                 selectedCompany?.name,
+                 selectedCompany?.address,
+                 selectedReminder.payment_code || '253',
+                 selectedReminder.payment_model || '97',
+                 selectedReminder.payment_reference || ''
+               );
+               return (
+                 <div className="flex flex-col items-center space-y-3 sm:space-y-4 py-2 sm:py-4">
+                   <div className="bg-white p-3 sm:p-4 rounded-lg">
+                     <QRCodeSVG
+                       value={ipsString}
+                       size={160}
+                       level="L"
+                       className="sm:w-[200px] sm:h-[200px]"
+                     />
+                   </div>
+                   <div className="text-center space-y-1">
+                     <p className="font-medium">{selectedReminder.title}</p>
+                     <p className="text-2xl font-bold text-primary">
+                       {formatCurrency(selectedReminder.amount)}
+                     </p>
+                     <p className="text-sm text-muted-foreground">
+                       Primalac: {selectedReminder.recipient_name}
+                     </p>
+                     <p className="text-sm text-muted-foreground">
+                       Račun: {(() => {
+                         const parts = selectedReminder.recipient_account?.split('-') || [];
+                         if (parts.length === 3) {
+                           const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+                           const account = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
+                           const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+                           return `${bank}-${account}-${control}`;
+                         }
+                         return selectedReminder.recipient_account;
+                       })()}
+                     </p>
+                     {(selectedReminder.payment_model || selectedReminder.payment_reference) && (
+                       <>
+                         <p className="text-sm text-muted-foreground">
+                           Model: {selectedReminder.payment_model || '-'}
+                         </p>
+                         <p className="text-sm text-muted-foreground">
+                           Poziv na broj: {selectedReminder.payment_reference || '-'}
+                         </p>
+                       </>
+                     )}
+                   </div>
+                   {/* Debug QR section */}
+                   <div className="w-full mt-2 border-t pt-2">
+                     <details className="text-xs">
+                       <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                         Debug QR string
+                       </summary>
+                       <div className="mt-2 p-2 bg-muted rounded text-[10px] font-mono break-all max-h-32 overflow-auto">
+                         {ipsString}
+                       </div>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         className="mt-1 h-6 text-xs"
+                         onClick={() => {
+                           navigator.clipboard.writeText(ipsString);
+                           toast({ title: "Kopirano!", description: "IPS string kopiran u clipboard" });
+                         }}
+                       >
+                         Kopiraj IPS string
+                       </Button>
+                     </details>
+                   </div>
+                 </div>
+               );
+             })()
+           )}
+          <div className="flex justify-end">
             <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
               Zatvori
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
