@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.sef-continue-sync]
 verify_jwt = false
+
+[functions.parse-pausalni-pdf]
+verify_jwt = true

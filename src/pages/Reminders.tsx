@@ -37,8 +37,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useToast } from '@/hooks/use-toast';
+import PausalniPdfDialog, { PausalniType } from '@/components/PausalniPdfDialog';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -120,6 +128,7 @@ function generateIPSQRCode(
 export default function Reminders() {
   const { selectedCompany } = useSelectedCompany();
   const { reminders, isLoading, createReminder, updateReminder, deleteReminder, toggleComplete, uploadAttachment, getSignedUrl } = useReminders(selectedCompany?.id || null);
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -127,6 +136,11 @@ export default function Reminders() {
   const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Paušalni PDF dialog state
+  const [pausalniDialogOpen, setPausalniDialogOpen] = useState(false);
+  const [pausalniType, setPausalniType] = useState<PausalniType>('porez');
+  const [isCreatingBulk, setIsCreatingBulk] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -270,6 +284,91 @@ export default function Reminders() {
     return new Date(dueDate) < new Date(new Date().toDateString());
   };
 
+  // Handle paušalni PDF parsed data - create 12 reminders
+  const handlePausalniDataParsed = async (data: {
+    type: PausalniType;
+    year: number;
+    monthlyAmounts: number[];
+    recipientName: string;
+    recipientAccount: string;
+    paymentModel: string;
+    paymentReference: string;
+    paymentCode: string;
+    payerName: string;
+  }) => {
+    if (!selectedCompany) return;
+
+    setIsCreatingBulk(true);
+    
+    const typeLabels: Record<PausalniType, string> = {
+      porez: 'Porez',
+      pio: 'PIO',
+      zdravstveno: 'Zdravstveno',
+      nezaposlenost: 'Nezaposlenost',
+    };
+
+    const months = [
+      'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
+      'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+    ];
+
+    try {
+      // Create 12 reminders for each month
+      for (let i = 0; i < 12; i++) {
+        const monthName = months[i];
+        const amount = data.monthlyAmounts[i] || data.monthlyAmounts[0] || 0;
+        
+        // Due date is 15th of the NEXT month
+        // January payment is due February 15th, etc.
+        const dueMonth = i + 1; // 0=Jan -> due Feb (month 1)
+        const dueYear = dueMonth === 12 ? data.year + 1 : data.year;
+        const dueDateMonth = dueMonth === 12 ? 0 : dueMonth; // December -> January next year
+        const dueDate = new Date(dueYear, dueDateMonth, 15);
+        
+        // Reminder date is 5 days before due date
+        const reminderDate = new Date(dueDate);
+        reminderDate.setDate(reminderDate.getDate() - 5);
+
+        await createReminder.mutateAsync({
+          company_id: selectedCompany.id,
+          title: `${typeLabels[data.type]} - ${monthName} ${data.year}`,
+          description: `Mesečna obaveza za ${monthName.toLowerCase()} ${data.year}. godine`,
+          amount: amount,
+          due_date: dueDate.toISOString().split('T')[0],
+          reminder_date: reminderDate.toISOString().split('T')[0],
+          is_completed: false,
+          recurrence_type: 'none' as const,
+          recurrence_day: null,
+          attachment_url: null,
+          recipient_name: data.recipientName,
+          recipient_account: data.recipientAccount,
+          payment_model: data.paymentModel,
+          payment_reference: data.paymentReference,
+          payment_code: data.paymentCode,
+        });
+      }
+
+      toast({
+        title: 'Podsetnici kreirani',
+        description: `Uspešno kreirano 12 podsetnika za ${typeLabels[data.type]} za ${data.year}. godinu`,
+      });
+    } catch (error) {
+      console.error('Error creating bulk reminders:', error);
+      toast({
+        title: 'Greška',
+        description: 'Došlo je do greške pri kreiranju podsetnika',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingBulk(false);
+    }
+  };
+
+  const openPausalniDialog = (type: PausalniType) => {
+    setPausalniType(type);
+    setPausalniDialogOpen(true);
+  };
+
   if (!selectedCompany) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
@@ -287,13 +386,14 @@ export default function Reminders() {
           <h1 className="text-xl sm:text-2xl font-bold">Podsetnici</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Podsetnici za plaćanje obaveza</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Novi podsetnik
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="flex-1 sm:flex-none">
+                <Plus className="mr-2 h-4 w-4" />
+                Novi podsetnik
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -560,8 +660,39 @@ export default function Reminders() {
             </form>
           </DialogContent>
         </Dialog>
+        
+        {/* Dropdown for paušalni podsetnici */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={isCreatingBulk}>
+              {isCreatingBulk ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreVertical className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openPausalniDialog('pio')}>
+              <FileText className="mr-2 h-4 w-4" />
+              Podsetnik za PIO
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openPausalniDialog('porez')}>
+              <FileText className="mr-2 h-4 w-4" />
+              Podsetnik za poreze
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openPausalniDialog('zdravstveno')}>
+              <FileText className="mr-2 h-4 w-4" />
+              Podsetnik za zdravstveno
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openPausalniDialog('nezaposlenost')}>
+              <FileText className="mr-2 h-4 w-4" />
+              Podsetnik za nezaposlenost
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        </div>
       </div>
-
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -773,6 +904,14 @@ export default function Reminders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Paušalni PDF Dialog */}
+      <PausalniPdfDialog
+        open={pausalniDialogOpen}
+        onOpenChange={setPausalniDialogOpen}
+        type={pausalniType}
+        onDataParsed={handlePausalniDataParsed}
+      />
     </div>
   );
 }
