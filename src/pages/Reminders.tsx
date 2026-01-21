@@ -157,11 +157,11 @@ function generateIPSQRCode(
   parts.push(`SF:${sf}`);
   parts.push(`S:${purpose}`);
   
-  // Koristi model 00 za maksimalnu kompatibilnost (isto kao na fakturama koje rade)
-  // Model 00 = slobodna forma reference, bankarske aplikacije ga univerzalno podržavaju
-  if (cleanReference) {
-    parts.push(`RO:00${cleanReference}`);
-  }
+      // Koristi prosleđeni model (97 za poreske uplatnice, 00 za ostalo)
+      if (cleanReference) {
+        const modelDigits = paymentModel.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+        parts.push(`RO:${modelDigits}${cleanReference}`);
+      }
 
   return parts.join('|');
 }
