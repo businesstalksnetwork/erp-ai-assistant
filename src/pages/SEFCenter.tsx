@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useSEFPurchaseInvoices } from '@/hooks/useSEFPurchaseInvoices';
 import { useSEFStorage, StoredSEFInvoice } from '@/hooks/useSEFStorage';
@@ -169,22 +169,33 @@ export default function SEFCenter() {
     }, 500);
   };
 
+  // Detekcija aktivnog sync-a (za kondicionalno renderovanje)
+  const isSyncActive = isStarting || 
+    activeJob?.status === 'pending' || 
+    activeJob?.status === 'running' || 
+    activeJob?.status === 'partial';
+
   // Zaštitni handler koji sprečava neželjeno otvaranje tokom sync-a
   const handleDatePickerOpenChange = (
     setter: React.Dispatch<React.SetStateAction<boolean>>,
     newOpen: boolean
   ) => {
-    // Blokiraj otvaranje ako je REF aktivan ILI sync aktivan
+    // Blokiraj otvaranje ako je REF aktivan ILI sync aktivan (uključujući 'pending')
     if (newOpen && (
       blockDatePickersRef.current ||
-      activeJob?.status === 'running' || 
-      activeJob?.status === 'partial' || 
-      isStarting
+      isSyncActive
     )) {
       return;
     }
     setter(newOpen);
   };
+
+  // Force close all date pickers when sync becomes active
+  useEffect(() => {
+    if (isSyncActive) {
+      closeAllDatePickers();
+    }
+  }, [isSyncActive]);
 
   // Helper function for sorting
   const sortInvoices = (invoices: StoredSEFInvoice[], sort: { field: SortField; direction: SortDirection }) => {
@@ -764,57 +775,74 @@ export default function SEFCenter() {
 
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
-                {/* Date Range - first on desktop */}
+              {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover 
-                    open={purchaseDateFromOpen} 
-                    onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateFromOpen, open)}
-                    modal={true}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                  {/* Tokom sync-a renderuj samo disabled dugmad BEZ Popover-a */}
+                  {isSyncActive ? (
+                    <>
+                      <Button type="button" variant="outline" disabled className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm opacity-50">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
-                      <Calendar
-                        mode="single"
-                        selected={dateFrom ? new Date(dateFrom) : undefined}
-                        onSelect={(date) => {
-                          handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
-                          setPurchaseDateFromOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover 
-                    open={purchaseDateToOpen} 
-                    onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateToOpen, open)}
-                    modal={true}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
+                      <Button type="button" variant="outline" disabled className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm opacity-50">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
-                      <Calendar
-                        mode="single"
-                        selected={dateTo ? new Date(dateTo) : undefined}
-                        onSelect={(date) => {
-                          handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
-                          setPurchaseDateToOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                    </>
+                  ) : (
+                    <>
+                      <Popover 
+                        open={purchaseDateFromOpen} 
+                        onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateFromOpen, open)}
+                        modal={true}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                            {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                            <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                          <Calendar
+                            mode="single"
+                            selected={dateFrom ? new Date(dateFrom) : undefined}
+                            onSelect={(date) => {
+                              handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
+                              setPurchaseDateFromOpen(false);
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
+                      <Popover 
+                        open={purchaseDateToOpen} 
+                        onOpenChange={(open) => handleDatePickerOpenChange(setPurchaseDateToOpen, open)}
+                        modal={true}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                            {dateTo ? formatShortDate(dateTo) : "Do"}
+                            <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                          <Calendar
+                            mode="single"
+                            selected={dateTo ? new Date(dateTo) : undefined}
+                            onSelect={(date) => {
+                              handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
+                              setPurchaseDateToOpen(false);
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  )}
                 </div>
                 
                 {/* Search with autocomplete - before dates on mobile, after on desktop */}
@@ -1065,57 +1093,74 @@ export default function SEFCenter() {
 
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
-                {/* Date Range - first on desktop */}
+              {/* Date Range - first on desktop */}
                 <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
-                  <Popover 
-                    open={salesDateFromOpen} 
-                    onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateFromOpen, open)}
-                    modal={true}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                  {/* Tokom sync-a renderuj samo disabled dugmad BEZ Popover-a */}
+                  {isSyncActive ? (
+                    <>
+                      <Button type="button" variant="outline" disabled className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm opacity-50">
                         {dateFrom ? formatShortDate(dateFrom) : "Od"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
-                      <Calendar
-                        mode="single"
-                        selected={dateFrom ? new Date(dateFrom) : undefined}
-                        onSelect={(date) => {
-                          handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
-                          setSalesDateFromOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
-                  <Popover 
-                    open={salesDateToOpen} 
-                    onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateToOpen, open)}
-                    modal={true}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                      <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
+                      <Button type="button" variant="outline" disabled className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm opacity-50">
                         {dateTo ? formatShortDate(dateTo) : "Do"}
                         <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
-                      <Calendar
-                        mode="single"
-                        selected={dateTo ? new Date(dateTo) : undefined}
-                        onSelect={(date) => {
-                          handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
-                          setSalesDateToOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                    </>
+                  ) : (
+                    <>
+                      <Popover 
+                        open={salesDateFromOpen} 
+                        onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateFromOpen, open)}
+                        modal={true}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                            {dateFrom ? formatShortDate(dateFrom) : "Od"}
+                            <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                          <Calendar
+                            mode="single"
+                            selected={dateFrom ? new Date(dateFrom) : undefined}
+                            onSelect={(date) => {
+                              handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
+                              setSalesDateFromOpen(false);
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <span className="hidden sm:flex items-center text-muted-foreground text-sm px-1">do</span>
+                      <Popover 
+                        open={salesDateToOpen} 
+                        onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateToOpen, open)}
+                        modal={true}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full sm:w-28 justify-between text-left font-normal h-9 text-sm">
+                            {dateTo ? formatShortDate(dateTo) : "Do"}
+                            <CalendarIcon className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start" side="bottom" sideOffset={8} collisionPadding={{ top: 80 }}>
+                          <Calendar
+                            mode="single"
+                            selected={dateTo ? new Date(dateTo) : undefined}
+                            onSelect={(date) => {
+                              handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
+                              setSalesDateToOpen(false);
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </>
+                  )}
                 </div>
                 
                 {/* Search with autocomplete - before dates on mobile, after on desktop */}
