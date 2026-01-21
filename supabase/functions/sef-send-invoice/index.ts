@@ -181,7 +181,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cac:TaxCategory>
         <cbc:ID>SS</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-33</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReasonCode>PDV-RS-33</cbc:TaxExemptionReasonCode>
         <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
@@ -570,7 +570,7 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       <cac:TaxCategory>
         <cbc:ID>SS</cbc:ID>
         <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>VRBL:RS:PDV-RS-33</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReasonCode>PDV-RS-33</cbc:TaxExemptionReasonCode>
         <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
