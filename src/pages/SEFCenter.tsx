@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, BookOpen } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
@@ -90,7 +90,7 @@ export default function SEFCenter() {
 
   // Hooks
   const { fetchPurchaseInvoices, fetchSalesInvoices, acceptInvoice, rejectInvoice, cancelSalesInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isFetchingSales, isProcessing, isLoadingXML, isEnriching, isCancelling } = useSEFPurchaseInvoices();
-  const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting } = useSEFStorage(companyId);
+  const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting, importToInvoices, bulkImportToInvoices, isImportingToInvoices } = useSEFStorage(companyId);
   const { activeJob, isStarting, progress, startLongSync, dismissJobStatus, cancelJob } = useSEFLongSync(companyId);
 
   // Count incomplete invoices
@@ -229,6 +229,16 @@ export default function SEFCenter() {
   const sortedStoredInvoices = useMemo(() => {
     return sortInvoices(storedInvoices, archiveSort);
   }, [storedInvoices, archiveSort]);
+
+  // Importable sales invoices (not storno/cancelled and not already imported)
+  const importableSalesInvoices = useMemo(() => {
+    return salesInvoices.filter(inv => {
+      const status = inv.sef_status.toLowerCase();
+      const isStorno = status === 'cancelled' || status === 'storno' || status === 'stornirano';
+      const isImported = inv.local_status === 'imported' || inv.linked_invoice_id;
+      return !isStorno && !isImported;
+    });
+  }, [salesInvoices]);
 
   // Search suggestions from all invoices
   const searchSuggestions = useMemo(() => {
@@ -1191,6 +1201,21 @@ export default function SEFCenter() {
                       Osveži podatke ({incompleteSalesCount})
                     </Button>
                   )}
+                  {importableSalesInvoices.length > 0 && (
+                    <Button 
+                      variant="default" 
+                      onClick={() => bulkImportToInvoices(importableSalesInvoices)} 
+                      disabled={isImportingToInvoices}
+                      title={`Uvezi ${importableSalesInvoices.length} faktura u KPO knjigu`}
+                    >
+                      {isImportingToInvoices ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <BookOpen className="h-4 w-4 mr-2" />
+                      )}
+                      Uveži sve u KPO ({importableSalesInvoices.length})
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -1253,6 +1278,23 @@ export default function SEFCenter() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
+                                {/* Import to KPO button - show for non-storno invoices that aren't imported */}
+                                {invoice.sef_status !== 'Cancelled' && 
+                                 invoice.sef_status !== 'Storno' && 
+                                 invoice.sef_status !== 'Stornirano' &&
+                                 invoice.local_status !== 'imported' && 
+                                 !invoice.linked_invoice_id && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => importToInvoices(invoice)}
+                                    disabled={isImportingToInvoices}
+                                    title="Uveži u KPO knjigu"
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    <BookOpen className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 {invoice.sef_status !== 'Cancelled' && invoice.sef_status !== 'Storno' && invoice.sef_status !== 'Rejected' && (
                                   <Button
                                     variant="ghost"

@@ -102,6 +102,233 @@ export function useSEFStorage(companyId: string | null) {
     },
   });
 
+  // Import SEF invoice to local invoices table (creates KPO via trigger)
+  const importToInvoices = useMutation({
+    mutationFn: async (sefInvoice: StoredSEFInvoice) => {
+      if (!companyId) throw new Error('Nije odabrana firma');
+
+      // Check if already imported
+      if (sefInvoice.linked_invoice_id) {
+        throw new Error('Faktura je već uvezena');
+      }
+
+      // Check if invoice with same sef_invoice_id already exists
+      const { data: existing } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('sef_invoice_id', sefInvoice.sef_invoice_id)
+        .maybeSingle();
+
+      if (existing) {
+        // Just link and return
+        await supabase
+          .from('sef_invoices')
+          .update({ 
+            linked_invoice_id: existing.id,
+            local_status: 'imported',
+          })
+          .eq('id', sefInvoice.id);
+        return { invoiceId: existing.id, alreadyExisted: true };
+      }
+
+      // Extract year from service/issue date
+      const invoiceYear = sefInvoice.delivery_date 
+        ? new Date(sefInvoice.delivery_date).getFullYear()
+        : sefInvoice.issue_date 
+          ? new Date(sefInvoice.issue_date).getFullYear()
+          : new Date().getFullYear();
+
+      // Create local invoice
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          company_id: companyId,
+          invoice_number: sefInvoice.invoice_number || sefInvoice.sef_invoice_id,
+          client_name: sefInvoice.counterparty_name || 'Nepoznat kupac',
+          client_pib: sefInvoice.counterparty_pib,
+          client_maticni_broj: sefInvoice.counterparty_maticni_broj,
+          client_address: sefInvoice.counterparty_address,
+          total_amount: sefInvoice.total_amount,
+          unit_price: sefInvoice.total_amount,
+          quantity: 1,
+          issue_date: sefInvoice.issue_date || new Date().toISOString().split('T')[0],
+          service_date: sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0],
+          payment_deadline: sefInvoice.due_date,
+          sef_invoice_id: sefInvoice.sef_invoice_id,
+          sef_status: sefInvoice.sef_status.toLowerCase(),
+          sef_sent_at: new Date().toISOString(),
+          invoice_type: 'regular',
+          is_proforma: false,
+          year: invoiceYear,
+          description: `SEF faktura ${sefInvoice.invoice_number}`,
+          client_type: 'domestic',
+          item_type: 'services',
+          currency: sefInvoice.currency || 'RSD',
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Link SEF invoice to local invoice
+      await supabase
+        .from('sef_invoices')
+        .update({ 
+          linked_invoice_id: invoice.id,
+          local_status: 'imported',
+        })
+        .eq('id', sefInvoice.id);
+
+      return { invoiceId: invoice.id, alreadyExisted: false };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-entries'] });
+      toast({
+        title: result.alreadyExisted ? 'Povezano' : 'Uspešno uvezeno',
+        description: result.alreadyExisted 
+          ? 'SEF faktura je povezana sa postojećom fakturom' 
+          : 'Faktura je kreirana i dodana u KPO knjigu',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Greška',
+        description: error instanceof Error ? error.message : 'Greška pri uvozu fakture',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Bulk import multiple SEF invoices
+  const bulkImportToInvoices = useMutation({
+    mutationFn: async (sefInvoices: StoredSEFInvoice[]) => {
+      if (!companyId) throw new Error('Nije odabrana firma');
+      
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const sefInvoice of sefInvoices) {
+        try {
+          // Skip if already imported
+          if (sefInvoice.linked_invoice_id || sefInvoice.local_status === 'imported') {
+            skipped++;
+            continue;
+          }
+
+          // Skip storno/cancelled invoices
+          const status = sefInvoice.sef_status.toLowerCase();
+          if (status === 'cancelled' || status === 'storno' || status === 'stornirano') {
+            skipped++;
+            continue;
+          }
+
+          // Check if already exists
+          const { data: existing } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('sef_invoice_id', sefInvoice.sef_invoice_id)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase
+              .from('sef_invoices')
+              .update({ 
+                linked_invoice_id: existing.id,
+                local_status: 'imported',
+              })
+              .eq('id', sefInvoice.id);
+            imported++;
+            continue;
+          }
+
+          // Extract year
+          const invoiceYear = sefInvoice.delivery_date 
+            ? new Date(sefInvoice.delivery_date).getFullYear()
+            : sefInvoice.issue_date 
+              ? new Date(sefInvoice.issue_date).getFullYear()
+              : new Date().getFullYear();
+
+          // Create invoice
+          const { data: invoice, error } = await supabase
+            .from('invoices')
+            .insert({
+              company_id: companyId,
+              invoice_number: sefInvoice.invoice_number || sefInvoice.sef_invoice_id,
+              client_name: sefInvoice.counterparty_name || 'Nepoznat kupac',
+              client_pib: sefInvoice.counterparty_pib,
+              client_maticni_broj: sefInvoice.counterparty_maticni_broj,
+              client_address: sefInvoice.counterparty_address,
+              total_amount: sefInvoice.total_amount,
+              unit_price: sefInvoice.total_amount,
+              quantity: 1,
+              issue_date: sefInvoice.issue_date || new Date().toISOString().split('T')[0],
+              service_date: sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0],
+              payment_deadline: sefInvoice.due_date,
+              sef_invoice_id: sefInvoice.sef_invoice_id,
+              sef_status: sefInvoice.sef_status.toLowerCase(),
+              sef_sent_at: new Date().toISOString(),
+              invoice_type: 'regular',
+              is_proforma: false,
+              year: invoiceYear,
+              description: `SEF faktura ${sefInvoice.invoice_number}`,
+              client_type: 'domestic',
+              item_type: 'services',
+            })
+            .select()
+            .single();
+
+          if (error) {
+            errors.push(`${sefInvoice.invoice_number}: ${error.message}`);
+            continue;
+          }
+
+          // Link
+          await supabase
+            .from('sef_invoices')
+            .update({ 
+              linked_invoice_id: invoice.id,
+              local_status: 'imported',
+            })
+            .eq('id', sefInvoice.id);
+
+          imported++;
+        } catch (err) {
+          errors.push(`${sefInvoice.invoice_number}: ${err instanceof Error ? err.message : 'Nepoznata greška'}`);
+        }
+      }
+
+      return { imported, skipped, errors };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-entries'] });
+      
+      if (result.errors.length > 0) {
+        toast({
+          title: `Uvezeno ${result.imported} faktura`,
+          description: `Preskočeno: ${result.skipped}, Greške: ${result.errors.length}`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Uspešno uvezeno',
+          description: `Uvezeno ${result.imported} faktura u KPO knjigu. Preskočeno: ${result.skipped}`,
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Greška',
+        description: error instanceof Error ? error.message : 'Greška pri masovnom uvozu',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Parse UBL XML and extract invoice data
   const parseUBLXML = (xml: string): Partial<StoredSEFInvoice> | null => {
     try {
@@ -300,6 +527,9 @@ export function useSEFStorage(companyId: string | null) {
     refetch,
     updateLocalStatus: updateLocalStatus.mutate,
     linkToLocalInvoice: linkToLocalInvoice.mutate,
+    importToInvoices: importToInvoices.mutate,
+    bulkImportToInvoices: bulkImportToInvoices.mutate,
+    isImportingToInvoices: importToInvoices.isPending || bulkImportToInvoices.isPending,
     importFromXML,
     importFromCSV,
     deleteStoredInvoice: deleteStoredInvoice.mutate,
