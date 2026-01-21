@@ -159,6 +159,14 @@
   }
 }
 
+/* SEF sync protection: never show calendar portals while sync is active */
+body[data-sef-sync-active="1"] .rdp,
+body[data-sef-sync-active="1"] .rdp * {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 @layer utilities {
   .glass {
     @apply bg-card/80 backdrop-blur-xl border border-border/50;

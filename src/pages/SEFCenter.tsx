@@ -151,6 +151,37 @@ export default function SEFCenter() {
   
   // Ref za SINHRONÚ blokadu date picker-a (rešava race condition sa state-om)
   const blockDatePickersRef = useRef(false);
+
+  // Ukloni/sakrij bilo koji DayPicker/Popover portal koji se "zaglavi" u DOM-u
+  const cleanupRogueCalendars = () => {
+    // 1) Ukloni sve Radix popper wrapper-e koji sadrže DayPicker (.rdp)
+    const popperWrappers = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-radix-popper-content-wrapper]'),
+    );
+    popperWrappers.forEach((wrapper) => {
+      if (wrapper.querySelector('.rdp')) {
+        wrapper.remove();
+      }
+    });
+
+    // 2) Fallback: ako je .rdp renderovan direktno (ili u drugim portalima), ukloni najbliži portal
+    const dayPickers = Array.from(document.querySelectorAll<HTMLElement>('.rdp'));
+    dayPickers.forEach((rdp) => {
+      const host =
+        rdp.closest<HTMLElement>('[data-radix-popper-content-wrapper]') ||
+        rdp.closest<HTMLElement>('[data-radix-portal]') ||
+        rdp.closest<HTMLElement>('div[id^="radix-"]');
+
+      if (host) {
+        host.remove();
+      } else {
+        // poslednja linija odbrane
+        rdp.style.display = 'none';
+        rdp.style.visibility = 'hidden';
+        rdp.style.pointerEvents = 'none';
+      }
+    });
+  };
   
   // Helper to close all date pickers AND clean up orphaned Radix portals
   const closeAllDatePickers = () => {
@@ -165,12 +196,9 @@ export default function SEFCenter() {
     setPurchaseDateToOpen(false);
     setSalesDateFromOpen(false);
     setSalesDateToOpen(false);
-    
-    // AGRESIVNO čišćenje: sakri sve Radix popper portale odmah
-    const portals = document.querySelectorAll('[data-radix-popper-content-wrapper]');
-    portals.forEach(portal => {
-      (portal as HTMLElement).style.display = 'none';
-    });
+
+    // AGRESIVNO čišćenje: ukloni bilo koji kalendar portal koji je ostao
+    cleanupRogueCalendars();
     
     // Povećaj epoch da forsiraš remount date picker sekcija (čisti orphaned portale)
     setDatePickerEpoch(prev => prev + 1);
@@ -207,6 +235,34 @@ export default function SEFCenter() {
     if (isSyncActive) {
       closeAllDatePickers();
     }
+  }, [isSyncActive]);
+
+  // Kill-switch tokom sync-a: spreči da se bilo koji kalendar portal uopšte pojavi u DOM-u
+  useEffect(() => {
+    if (!isSyncActive) {
+      document.body.removeAttribute('data-sef-sync-active');
+      return;
+    }
+
+    document.body.setAttribute('data-sef-sync-active', '1');
+    cleanupRogueCalendars();
+
+    const observer = new MutationObserver(() => {
+      cleanupRogueCalendars();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Safety sweeps (neki portali se pojave nakon animacija)
+    const t1 = window.setTimeout(() => cleanupRogueCalendars(), 200);
+    const t2 = window.setTimeout(() => cleanupRogueCalendars(), 1000);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      document.body.removeAttribute('data-sef-sync-active');
+    };
   }, [isSyncActive]);
 
   // Helper function for sorting
@@ -823,7 +879,7 @@ export default function SEFCenter() {
                               handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
                               setPurchaseDateFromOpen(false);
                             }}
-                            initialFocus
+                            initialFocus={!isSyncActive}
                             className="pointer-events-auto"
                           />
                         </PopoverContent>
@@ -848,7 +904,7 @@ export default function SEFCenter() {
                               handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
                               setPurchaseDateToOpen(false);
                             }}
-                            initialFocus
+                            initialFocus={!isSyncActive}
                             className="pointer-events-auto"
                           />
                         </PopoverContent>
@@ -1141,7 +1197,7 @@ export default function SEFCenter() {
                               handleDateFromChange(date ? format(date, 'yyyy-MM-dd') : '');
                               setSalesDateFromOpen(false);
                             }}
-                            initialFocus
+                            initialFocus={!isSyncActive}
                             className="pointer-events-auto"
                           />
                         </PopoverContent>
@@ -1166,7 +1222,7 @@ export default function SEFCenter() {
                               handleDateToChange(date ? format(date, 'yyyy-MM-dd') : '');
                               setSalesDateToOpen(false);
                             }}
-                            initialFocus
+                            initialFocus={!isSyncActive}
                             className="pointer-events-auto"
                           />
                         </PopoverContent>
