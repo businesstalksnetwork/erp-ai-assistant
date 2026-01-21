@@ -169,11 +169,9 @@ export function useReminders(companyId: string | null) {
 
     if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage
-      .from('reminder-attachments')
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
+    // Store the path, not the public URL - the bucket is now private
+    // Use getSignedUrl to access files when needed
+    return fileName;
   };
 
   const getSignedUrl = async (path: string): Promise<string | null> => {
