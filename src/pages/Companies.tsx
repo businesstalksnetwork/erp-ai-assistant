@@ -40,7 +40,7 @@ const companySchema = z.object({
 
 export default function Companies() {
   const navigate = useNavigate();
-  const { companies, isLoading, createCompany, updateCompany, deleteCompany } = useCompanies();
+  const { myCompanies, isLoading, createCompany, updateCompany, deleteCompany } = useCompanies();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export default function Companies() {
     if (!open) resetForm();
   };
 
-  const handleEdit = (company: typeof companies[0]) => {
+  const handleEdit = (company: typeof myCompanies[0]) => {
     setFormData({
       name: company.name,
       address: company.address,
@@ -378,7 +378,7 @@ export default function Companies() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : companies.length === 0 ? (
+      ) : myCompanies.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
@@ -392,7 +392,7 @@ export default function Companies() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {companies.map((company) => (
+          {myCompanies.map((company) => (
             <Card 
               key={company.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"
@@ -451,12 +451,6 @@ export default function Companies() {
                     <p className="text-muted-foreground">Matični broj</p>
                     <p className="font-mono">{company.maticni_broj}</p>
                   </div>
-                  {company.is_client_company && (
-                    <div className="col-span-2">
-                      <p className="text-muted-foreground">Klijent</p>
-                      <p className="text-sm">{company.client_name}</p>
-                    </div>
-                  )}
                 </div>
                 <div className="mt-3 pt-3 border-t flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Klikni za detalje</span>

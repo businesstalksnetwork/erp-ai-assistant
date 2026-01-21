@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBookkeeperInvitations } from '@/hooks/useBookkeeper';
+import { useCompanies } from '@/hooks/useCompanies';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,9 +19,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Check, X, Loader2, Mail, Users, Send, Trash2, UserMinus } from 'lucide-react';
+import { Check, X, Loader2, Mail, Users, Send, Trash2, UserMinus, Building2, ExternalLink, CheckCircle2 } from 'lucide-react';
 
 export default function BookkeeperSettings() {
+  const navigate = useNavigate();
   const {
     sentInvitations,
     receivedInvitations,
@@ -30,6 +33,7 @@ export default function BookkeeperSettings() {
     cancelInvitation,
     removeBookkeeper,
   } = useBookkeeperInvitations();
+  const { clientCompanies } = useCompanies();
 
   const [email, setEmail] = useState('');
   const [removeBookkeeperId, setRemoveBookkeeperId] = useState<string | null>(null);
@@ -307,6 +311,56 @@ export default function BookkeeperSettings() {
               )}
             </CardContent>
           </Card>
+
+          {/* Firme klijenata */}
+          {clientCompanies.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Firme klijenata
+                </CardTitle>
+                <CardDescription>
+                  Firme vaših klijenata kojima imate pristup
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {clientCompanies.map((company) => (
+                    <Card
+                      key={company.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => navigate(`/company/${company.id}`)}
+                    >
+                      <CardContent className="pt-4">
+                        <div className="flex items-start gap-3">
+                          {company.logo_url ? (
+                            <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                          ) : (
+                            <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                              <Building2 className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{company.name}</h4>
+                            <p className="text-sm text-muted-foreground truncate">{company.address}</p>
+                            <p className="text-xs text-primary mt-1">Klijent: {company.client_name}</p>
+                          </div>
+                          {company.sef_api_key ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          ) : null}
+                        </div>
+                        <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
+                          <span>PIB: {company.pib}</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
