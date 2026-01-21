@@ -1,25 +1,32 @@
 import { useState, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useKPO } from '@/hooks/useKPO';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Wallet, Users, Building2, BarChart3, PieChart } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TrendingUp, TrendingDown, Wallet, Users, Building2, BarChart3, PieChart, BookOpen, AlertTriangle } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from 'recharts';
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('sr-RS', {
     style: 'currency',
     currency: 'RSD',
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
   }).format(amount);
 };
 
 export default function InvoiceAnalytics() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  
+  // KPO data
+  const kpoYear = selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
+  const { entries: kpoEntries, totals: kpoTotals, isLoading: kpoLoading } = useKPO(selectedCompany?.id || null, kpoYear);
 
   // Get only regular invoices (not proforma, not advance)
   const regularInvoices = useMemo(() => {
@@ -193,6 +200,35 @@ export default function InvoiceAnalytics() {
     }));
   }, [unpaidByPartner]);
 
+  // KPO monthly data
+  const kpoMonthlyData = useMemo(() => {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+      'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'
+    ];
+    const monthlyMap = new Map<number, number>();
+    
+    kpoEntries.forEach(entry => {
+      if (entry.document_date) {
+        const month = new Date(entry.document_date).getMonth();
+        monthlyMap.set(month, (monthlyMap.get(month) || 0) + Number(entry.total_amount));
+      }
+    });
+    
+    return months.map((name, index) => ({
+      name,
+      kpo: Math.round(monthlyMap.get(index) || 0),
+    }));
+  }, [kpoEntries]);
+
+  // Combined monthly data for comparison chart
+  const combinedMonthlyData = useMemo(() => {
+    return monthlyData.map((item, index) => ({
+      ...item,
+      kpo: kpoMonthlyData[index]?.kpo || 0,
+    }));
+  }, [monthlyData, kpoMonthlyData]);
+
   const chartConfig = {
     fakturisano: {
       label: "Fakturisano",
@@ -209,6 +245,10 @@ export default function InvoiceAnalytics() {
     nenaplaceno: {
       label: "Nenaplaćeno",
       color: "hsl(var(--chart-5))",
+    },
+    kpo: {
+      label: "KPO Promet",
+      color: "hsl(var(--chart-4))",
     },
   };
 
@@ -506,6 +546,104 @@ export default function InvoiceAnalytics() {
           )}
         </CardContent>
       </Card>
+
+      {/* KPO Section */}
+      {selectedYear !== 'all' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              KPO Promet ({selectedYear})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {kpoLoading ? (
+              <p className="text-muted-foreground text-sm">Učitavanje...</p>
+            ) : kpoEntries.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema KPO unosa za izabranu godinu</p>
+            ) : (
+              <>
+                {/* KPO Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-3 mb-6">
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Ukupan KPO promet</p>
+                    <p className="text-2xl font-bold">{formatCurrency(kpoTotals.total)}</p>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Proizvodi</p>
+                    <p className="text-xl font-semibold">{formatCurrency(kpoTotals.products)}</p>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Usluge</p>
+                    <p className="text-xl font-semibold">{formatCurrency(kpoTotals.services)}</p>
+                  </div>
+                </div>
+
+                {/* Warning if KPO differs from invoiced */}
+                {Math.abs(kpoTotals.total - totals.total) > 1000 && totals.total > 0 && (
+                  <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                      KPO promet se razlikuje od fakturisanog iznosa za {formatCurrency(Math.abs(kpoTotals.total - totals.total))}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* KPO vs Invoiced Chart */}
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <BarChart data={combinedMonthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" className="text-xs" />
+                    <YAxis 
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      className="text-xs"
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Bar dataKey="fakturisano" name="Fakturisano" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="kpo" name="KPO Promet" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+
+                {/* Products vs Services Pie */}
+                {(kpoTotals.products > 0 || kpoTotals.services > 0) && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium mb-4">Raspodela: Proizvodi vs Usluge</h4>
+                    <div className="h-[200px] w-full flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={[
+                              { name: 'Proizvodi', value: kpoTotals.products, color: 'hsl(var(--chart-3))' },
+                              { name: 'Usluge', value: kpoTotals.services, color: 'hsl(var(--chart-4))' },
+                            ].filter(item => item.value > 0)}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            <Cell fill="hsl(var(--chart-3))" />
+                            <Cell fill="hsl(var(--chart-4))" />
+                          </Pie>
+                          <ChartTooltip 
+                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                          />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

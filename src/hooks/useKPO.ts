@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface KPOEntry {
@@ -19,6 +19,7 @@ export interface KPOEntry {
 
 export function useKPO(companyId: string | null, year?: number) {
   const currentYear = year || new Date().getFullYear();
+  const queryClient = useQueryClient();
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['kpo', companyId, currentYear],
@@ -63,6 +64,35 @@ export function useKPO(companyId: string | null, year?: number) {
     enabled: !!companyId,
   });
 
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      const { error } = await supabase
+        .from('kpo_entries')
+        .delete()
+        .eq('id', entryId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
+    },
+  });
+
+  const deleteYearMutation = useMutation({
+    mutationFn: async ({ companyId, year }: { companyId: string; year: number }) => {
+      const { error } = await supabase
+        .from('kpo_entries')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('year', year);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
+    },
+  });
+
   const totals = entries.reduce(
     (acc, entry) => ({
       products: acc.products + Number(entry.products_amount),
@@ -77,5 +107,8 @@ export function useKPO(companyId: string | null, year?: number) {
     isLoading,
     totals,
     availableYears,
+    deleteEntry: deleteEntryMutation.mutateAsync,
+    deleteYear: deleteYearMutation.mutateAsync,
+    isDeleting: deleteEntryMutation.isPending || deleteYearMutation.isPending,
   };
 }
