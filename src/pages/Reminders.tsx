@@ -142,9 +142,10 @@ function generateIPSQRCode(
   parts.push(`SF:${sf}`);
   parts.push(`S:${purpose}`);
   
-  // Koristi model 00 za maksimalnu kompatibilnost (kao u InvoiceDetail)
-  if (cleanReference) {
-    parts.push(`RO:00${cleanReference}`);
+  // Koristi originalni model iz baze (97 za poreze, 00 za ostalo)
+  // Model 97 je obavezan za poreske uplatnice sa specifičnom strukturom reference
+  if (cleanReference && model) {
+    parts.push(`RO:${model}${cleanReference}`);
   }
 
   return parts.join('|');
