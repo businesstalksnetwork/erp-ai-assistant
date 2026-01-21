@@ -1,7 +1,5 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Loader2, FileText, Check, AlertCircle } from 'lucide-react';
 import {
   Dialog,
@@ -14,12 +12,28 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-export type PausalniType = 'porez' | 'pio' | 'zdravstveno' | 'nezaposlenost';
+export type PausalniType = 'porez' | 'doprinosi';
+
+interface ParsedContributionData {
+  pio: {
+    monthlyAmounts: number[];
+    recipientAccount: string;
+  };
+  zdravstveno: {
+    monthlyAmounts: number[];
+    recipientAccount: string;
+  };
+  nezaposlenost: {
+    monthlyAmounts: number[];
+    recipientAccount: string;
+  };
+}
 
 interface ParsedPausalniData {
   type: PausalniType;
   year: number;
-  monthlyAmounts: number[];
+  monthlyAmounts: number[]; // For porez
+  contributions?: ParsedContributionData; // For doprinosi
   recipientName: string;
   recipientAccount: string;
   paymentModel: string;
@@ -37,16 +51,12 @@ interface PausalniPdfDialogProps {
 
 const typeLabels: Record<PausalniType, string> = {
   porez: 'Porez na paušalni prihod',
-  pio: 'PIO doprinos (24%)',
-  zdravstveno: 'Zdravstveno osiguranje (10,3%)',
-  nezaposlenost: 'Nezaposlenost (0,75%)',
+  doprinosi: 'Doprinosi (PIO, Zdravstveno, Nezaposlenost)',
 };
 
 const typeDescriptions: Record<PausalniType, string> = {
   porez: 'Učitajte PDF rešenje za porez (PAUS-RESPOR)',
-  pio: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP)',
-  zdravstveno: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP)',
-  nezaposlenost: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP)',
+  doprinosi: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP) - kreira podsetnike za PIO, zdravstveno i nezaposlenost',
 };
 
 export default function PausalniPdfDialog({ 
@@ -254,16 +264,42 @@ export default function PausalniPdfDialog({
                   <span className="text-sm text-muted-foreground">Godina:</span>
                   <span className="text-sm font-medium">{parsedData.year}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Mesečni iznos:</span>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(parsedData.monthlyAmounts[0] || 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Račun:</span>
-                  <span className="text-sm font-medium font-mono">{parsedData.recipientAccount}</span>
-                </div>
+                
+                {parsedData.type === 'doprinosi' && parsedData.contributions ? (
+                  <>
+                    <div className="border-t pt-2 mt-2">
+                      <p className="text-xs text-muted-foreground mb-2">Mesečni iznosi:</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-sm">PIO (24%):</span>
+                          <span className="text-sm font-medium">
+                            {formatCurrency(parsedData.contributions.pio.monthlyAmounts[0] || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm">Zdravstveno (10,3%):</span>
+                          <span className="text-sm font-medium">
+                            {formatCurrency(parsedData.contributions.zdravstveno.monthlyAmounts[0] || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm">Nezaposlenost (0,75%):</span>
+                          <span className="text-sm font-medium">
+                            {formatCurrency(parsedData.contributions.nezaposlenost.monthlyAmounts[0] || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Mesečni iznos:</span>
+                    <span className="text-sm font-medium">
+                      {formatCurrency(parsedData.monthlyAmounts[0] || 0)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Model:</span>
                   <span className="text-sm font-medium">{parsedData.paymentModel}</span>
@@ -275,7 +311,10 @@ export default function PausalniPdfDialog({
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
-                Biće kreirano 12 podsetnika za svaki mesec u {parsedData.year}. godini
+                {parsedData.type === 'doprinosi' 
+                  ? `Biće kreirano 36 podsetnika (12 za svaki tip doprinosa) za ${parsedData.year}. godinu`
+                  : `Biće kreirano 12 podsetnika za svaki mesec u ${parsedData.year}. godini`
+                }
               </p>
             </div>
           )}
@@ -288,7 +327,7 @@ export default function PausalniPdfDialog({
           {parsedData && (
             <Button onClick={handleConfirm}>
               <Check className="mr-2 h-4 w-4" />
-              Kreiraj 12 podsetnika
+              {parsedData.type === 'doprinosi' ? 'Kreiraj 36 podsetnika' : 'Kreiraj 12 podsetnika'}
             </Button>
           )}
           {error && (

@@ -284,11 +284,16 @@ export default function Reminders() {
     return new Date(dueDate) < new Date(new Date().toDateString());
   };
 
-  // Handle paušalni PDF parsed data - create 12 reminders
+  // Handle paušalni PDF parsed data - create reminders
   const handlePausalniDataParsed = async (data: {
     type: PausalniType;
     year: number;
     monthlyAmounts: number[];
+    contributions?: {
+      pio: { monthlyAmounts: number[]; recipientAccount: string };
+      zdravstveno: { monthlyAmounts: number[]; recipientAccount: string };
+      nezaposlenost: { monthlyAmounts: number[]; recipientAccount: string };
+    };
     recipientName: string;
     recipientAccount: string;
     paymentModel: string;
@@ -299,59 +304,104 @@ export default function Reminders() {
     if (!selectedCompany) return;
 
     setIsCreatingBulk(true);
-    
-    const typeLabels: Record<PausalniType, string> = {
-      porez: 'Porez',
-      pio: 'PIO',
-      zdravstveno: 'Zdravstveno',
-      nezaposlenost: 'Nezaposlenost',
-    };
 
     const months = [
       'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
       'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
     ];
 
-    try {
-      // Create 12 reminders for each month
-      for (let i = 0; i < 12; i++) {
-        const monthName = months[i];
-        const amount = data.monthlyAmounts[i] || data.monthlyAmounts[0] || 0;
-        
-        // Due date is 15th of the NEXT month
-        // January payment is due February 15th, etc.
-        const dueMonth = i + 1; // 0=Jan -> due Feb (month 1)
-        const dueYear = dueMonth === 12 ? data.year + 1 : data.year;
-        const dueDateMonth = dueMonth === 12 ? 0 : dueMonth; // December -> January next year
-        const dueDate = new Date(dueYear, dueDateMonth, 15);
-        
-        // Reminder date is 5 days before due date
-        const reminderDate = new Date(dueDate);
-        reminderDate.setDate(reminderDate.getDate() - 5);
+    const contributionLabels = {
+      pio: 'PIO',
+      zdravstveno: 'Zdravstveno',
+      nezaposlenost: 'Nezaposlenost',
+    };
 
-        await createReminder.mutateAsync({
-          company_id: selectedCompany.id,
-          title: `${typeLabels[data.type]} - ${monthName} ${data.year}`,
-          description: `Mesečna obaveza za ${monthName.toLowerCase()} ${data.year}. godine`,
-          amount: amount,
-          due_date: dueDate.toISOString().split('T')[0],
-          reminder_date: reminderDate.toISOString().split('T')[0],
-          is_completed: false,
-          recurrence_type: 'none' as const,
-          recurrence_day: null,
-          attachment_url: null,
-          recipient_name: data.recipientName,
-          recipient_account: data.recipientAccount,
-          payment_model: data.paymentModel,
-          payment_reference: data.paymentReference,
-          payment_code: data.paymentCode,
+    const contributionRecipients = {
+      pio: 'Републички фонд за ПИО',
+      zdravstveno: 'Републички фонд за здравствено осигурање',
+      nezaposlenost: 'Национална служба за запошљавање',
+    };
+
+    try {
+      if (data.type === 'doprinosi' && data.contributions) {
+        // Create 12 reminders for each of the 3 contribution types = 36 total
+        for (const contribType of ['pio', 'zdravstveno', 'nezaposlenost'] as const) {
+          const contrib = data.contributions[contribType];
+          
+          for (let i = 0; i < 12; i++) {
+            const monthName = months[i];
+            const amount = contrib.monthlyAmounts[i] || contrib.monthlyAmounts[0] || 0;
+            
+            const dueMonth = i + 1;
+            const dueYear = dueMonth === 12 ? data.year + 1 : data.year;
+            const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
+            const dueDate = new Date(dueYear, dueDateMonth, 15);
+            
+            const reminderDate = new Date(dueDate);
+            reminderDate.setDate(reminderDate.getDate() - 5);
+
+            await createReminder.mutateAsync({
+              company_id: selectedCompany.id,
+              title: `${contributionLabels[contribType]} - ${monthName} ${data.year}`,
+              description: `Mesečna obaveza za ${monthName.toLowerCase()} ${data.year}. godine`,
+              amount: amount,
+              due_date: dueDate.toISOString().split('T')[0],
+              reminder_date: reminderDate.toISOString().split('T')[0],
+              is_completed: false,
+              recurrence_type: 'none' as const,
+              recurrence_day: null,
+              attachment_url: null,
+              recipient_name: contributionRecipients[contribType],
+              recipient_account: contrib.recipientAccount,
+              payment_model: data.paymentModel,
+              payment_reference: data.paymentReference,
+              payment_code: data.paymentCode,
+            });
+          }
+        }
+
+        toast({
+          title: 'Podsetnici kreirani',
+          description: `Uspešno kreirano 36 podsetnika za doprinose (PIO, Zdravstveno, Nezaposlenost) za ${data.year}. godinu`,
+        });
+      } else {
+        // Create 12 reminders for porez
+        for (let i = 0; i < 12; i++) {
+          const monthName = months[i];
+          const amount = data.monthlyAmounts[i] || data.monthlyAmounts[0] || 0;
+          
+          const dueMonth = i + 1;
+          const dueYear = dueMonth === 12 ? data.year + 1 : data.year;
+          const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
+          const dueDate = new Date(dueYear, dueDateMonth, 15);
+          
+          const reminderDate = new Date(dueDate);
+          reminderDate.setDate(reminderDate.getDate() - 5);
+
+          await createReminder.mutateAsync({
+            company_id: selectedCompany.id,
+            title: `Porez - ${monthName} ${data.year}`,
+            description: `Mesečna obaveza za ${monthName.toLowerCase()} ${data.year}. godine`,
+            amount: amount,
+            due_date: dueDate.toISOString().split('T')[0],
+            reminder_date: reminderDate.toISOString().split('T')[0],
+            is_completed: false,
+            recurrence_type: 'none' as const,
+            recurrence_day: null,
+            attachment_url: null,
+            recipient_name: data.recipientName,
+            recipient_account: data.recipientAccount,
+            payment_model: data.paymentModel,
+            payment_reference: data.paymentReference,
+            payment_code: data.paymentCode,
+          });
+        }
+
+        toast({
+          title: 'Podsetnici kreirani',
+          description: `Uspešno kreirano 12 podsetnika za porez za ${data.year}. godinu`,
         });
       }
-
-      toast({
-        title: 'Podsetnici kreirani',
-        description: `Uspešno kreirano 12 podsetnika za ${typeLabels[data.type]} za ${data.year}. godinu`,
-      });
     } catch (error) {
       console.error('Error creating bulk reminders:', error);
       toast({
@@ -673,21 +723,13 @@ export default function Reminders() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openPausalniDialog('pio')}>
-              <FileText className="mr-2 h-4 w-4" />
-              Podsetnik za PIO
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openPausalniDialog('porez')}>
               <FileText className="mr-2 h-4 w-4" />
               Podsetnik za poreze
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openPausalniDialog('zdravstveno')}>
+            <DropdownMenuItem onClick={() => openPausalniDialog('doprinosi')}>
               <FileText className="mr-2 h-4 w-4" />
-              Podsetnik za zdravstveno
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openPausalniDialog('nezaposlenost')}>
-              <FileText className="mr-2 h-4 w-4" />
-              Podsetnik za nezaposlenost
+              Podsetnik za doprinose
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

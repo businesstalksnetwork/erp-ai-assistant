@@ -5,58 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface ContributionData {
+  monthlyAmounts: number[];
+  recipientAccount: string;
+}
+
 interface ParsedPausalniData {
-  type: 'porez' | 'pio' | 'zdravstveno' | 'nezaposlenost';
+  type: 'porez' | 'doprinosi';
   year: number;
-  monthlyAmounts: number[]; // 12 amounts for each month
+  monthlyAmounts: number[]; // For porez
+  contributions?: {
+    pio: ContributionData;
+    zdravstveno: ContributionData;
+    nezaposlenost: ContributionData;
+  };
   recipientName: string;
   recipientAccount: string;
   paymentModel: string;
   paymentReference: string;
   paymentCode: string;
   payerName: string;
-}
-
-// Helper to parse Serbian number format (1.234,56 or 1,234.56)
-function parseAmount(amountStr: string): number {
-  if (!amountStr) return 0;
-  // Remove spaces
-  let cleaned = amountStr.trim().replace(/\s/g, '');
-  // Handle Serbian format: 1.234,56 -> 1234.56
-  if (cleaned.includes(',') && cleaned.includes('.')) {
-    // If comma comes after dot, it's Serbian format
-    const lastComma = cleaned.lastIndexOf(',');
-    const lastDot = cleaned.lastIndexOf('.');
-    if (lastComma > lastDot) {
-      // Serbian: dots are thousands, comma is decimal
-      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-    } else {
-      // English: commas are thousands, dot is decimal
-      cleaned = cleaned.replace(/,/g, '');
-    }
-  } else if (cleaned.includes(',')) {
-    // Only comma - check position
-    const parts = cleaned.split(',');
-    if (parts.length === 2 && parts[1].length <= 2) {
-      // Decimal comma
-      cleaned = cleaned.replace(',', '.');
-    } else {
-      // Thousands separator
-      cleaned = cleaned.replace(/,/g, '');
-    }
-  }
-  return parseFloat(cleaned) || 0;
-}
-
-// Extract account number from text
-function extractAccount(text: string, pattern: RegExp): string | null {
-  const match = text.match(pattern);
-  if (match) {
-    // Clean and format account
-    const account = match[1].replace(/\s/g, '');
-    return account;
-  }
-  return null;
 }
 
 serve(async (req) => {
@@ -84,47 +52,59 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const systemPrompt = `Ti si AI asistent za ekstrakciju podataka iz PDF rešenja Poreske uprave Republike Srbije za paušalna plaćanja.
+    let systemPrompt: string;
+    
+    if (type === 'doprinosi') {
+      systemPrompt = `Ti si AI asistent za ekstrakciju podataka iz PDF rešenja Poreske uprave Republike Srbije za paušalne doprinose.
 
-Iz teksta treba da ekstrakuješ sledeće podatke u zavisnosti od tipa dokumenta:
+Iz PDF teksta treba da ekstrakuješ:
+1. Mesečne iznose iz tabele za SVA TRI tipa doprinosa:
+   - "Допринос за обавезно ПИО (24%)" - druga kolona u tabeli
+   - "Допринос за обавезно ЗДР (10,3%)" - treća kolona u tabeli  
+   - "Допринос за НЕЗ (0,75%)" - četvrta kolona u tabeli
 
-Za tip "porez":
-- Mesečni iznos poreza na dohodak građana (traži "Обрачуната месечна аконтација пореза на доходак грађана" ili slično)
-- Račun za uplatu (traži "рачун број" ili u uplatnici)
-- Model (obično 97)
-- Poziv na broj (traži "позивом на број" ili slično)
-- Godinu (traži godinu u tekstu)
+2. Poziv na broj (traži "позивом на број" - samo brojevi, bez modela)
 
-Za tip "pio":
-- Mesečne iznose iz kolone "Допринос за обавезно ПИО (24%)" za svih 12 meseci
-- Račun: 840-721313843-74
-- Model: 97
-- Poziv na broj
+3. Godinu iz dokumenta
 
-Za tip "zdravstveno":
-- Mesečne iznose iz kolone "Допринос за обавезно ЗДР (10,3%)" za svih 12 meseci
-- Račun: 840-721325843-61
-- Model: 97
-- Poziv na broj
+Računi su fiksni:
+- PIO: 840-721313843-74
+- Zdravstveno: 840-721325843-61
+- Nezaposlenost: 840-721331843-06
 
-Za tip "nezaposlenost":
-- Mesečne iznose iz kolone "Допринос за НЕЗ (0,75%)" za svih 12 meseci
-- Račun: 840-721331843-06
-- Model: 97
-- Poziv na broj
-
-Vrati odgovor SAMO kao validan JSON bez markdown formatiranja, sa strukturom:
+Vrati odgovor SAMO kao validan JSON bez markdown formatiranja:
 {
-  "monthlyAmounts": [iznos1, iznos2, ..., iznos12], // 12 brojeva za svaki mesec, ako su svi isti stavi isti iznos 12 puta
-  "recipientAccount": "XXX-XXXXXXXXXXXXX-XX",
-  "paymentReference": "samo brojevi bez modela",
+  "pio_amounts": [iznos1, iznos2, ..., iznos12],
+  "zdravstveno_amounts": [iznos1, iznos2, ..., iznos12],
+  "nezaposlenost_amounts": [iznos1, iznos2, ..., iznos12],
+  "paymentReference": "samo brojevi bez modela 97",
+  "year": 2025,
+  "payerName": "ime obveznika ako postoji"
+}
+
+VAŽNO: Ako su svi mesečni iznosi jednaki, stavi isti iznos 12 puta u nizu.`;
+    } else {
+      systemPrompt = `Ti si AI asistent za ekstrakciju podataka iz PDF rešenja Poreske uprave Republike Srbije za paušalni porez.
+
+Iz PDF teksta treba da ekstrakuješ:
+- Mesečni iznos poreza (traži "Обрачуната месечна аконтација пореза на доходак грађана" ili slično)
+- Račun za uplatu (traži "рачун број" - obično 840-711122843-32)
+- Poziv na broj (traži "позивом на број" - samo brojevi, bez modela)
+- Godinu iz dokumenta
+
+Vrati odgovor SAMO kao validan JSON bez markdown formatiranja:
+{
+  "monthlyAmount": 9264.20,
+  "recipientAccount": "840-711122843-32",
+  "paymentReference": "samo brojevi bez modela 97",
   "year": 2025,
   "payerName": "ime obveznika ako postoji"
 }`;
+    }
 
-    const userPrompt = `Ekstrakuj podatke za tip "${type}" iz sledećeg PDF teksta:
+    const userPrompt = `Ekstrakuj podatke iz sledećeg PDF teksta:
 
-${pdfText}`;
+${pdfText.substring(0, 30000)}`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -156,7 +136,6 @@ ${pdfText}`;
     // Parse JSON from AI response
     let parsedData;
     try {
-      // Remove markdown code blocks if present
       let jsonStr = content;
       if (jsonStr.includes('```json')) {
         jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '');
@@ -166,45 +145,59 @@ ${pdfText}`;
       parsedData = JSON.parse(jsonStr.trim());
     } catch (e) {
       console.error('Failed to parse AI response as JSON:', e);
-      // Try to extract data manually as fallback
-      parsedData = {
-        monthlyAmounts: [],
-        recipientAccount: '',
-        paymentReference: '',
-        year: new Date().getFullYear(),
-        payerName: ''
-      };
+      parsedData = {};
     }
 
-    // Set default recipient names based on type
-    const recipientNames: Record<string, string> = {
-      'porez': 'Пореска управа Републике Србије',
-      'pio': 'Републички фонд за ПИО',
-      'zdravstveno': 'Републички фонд за здравствено осигурање',
-      'nezaposlenost': 'Национална служба за запошљавање',
-    };
+    let result: ParsedPausalniData;
 
-    // Set default accounts based on type if not extracted
-    const defaultAccounts: Record<string, string> = {
-      'porez': '840-711122843-32',
-      'pio': '840-721313843-74',
-      'zdravstveno': '840-721325843-61',
-      'nezaposlenost': '840-721331843-06',
-    };
+    if (type === 'doprinosi') {
+      // Process doprinosi (all three types)
+      const ensureArray = (amounts: number[] | number | undefined): number[] => {
+        if (Array.isArray(amounts)) {
+          return amounts.length === 12 ? amounts : Array(12).fill(amounts[0] || 0);
+        }
+        return Array(12).fill(amounts || 0);
+      };
 
-    const result: ParsedPausalniData = {
-      type: type as ParsedPausalniData['type'],
-      year: parsedData.year || new Date().getFullYear(),
-      monthlyAmounts: parsedData.monthlyAmounts?.length === 12 
-        ? parsedData.monthlyAmounts 
-        : Array(12).fill(parsedData.monthlyAmounts?.[0] || 0),
-      recipientName: recipientNames[type] || 'Пореска управа Републике Србије',
-      recipientAccount: parsedData.recipientAccount || defaultAccounts[type] || '',
-      paymentModel: '97',
-      paymentReference: parsedData.paymentReference || '',
-      paymentCode: '253', // Šifra za poreze i doprinose
-      payerName: parsedData.payerName || '',
-    };
+      result = {
+        type: 'doprinosi',
+        year: parsedData.year || new Date().getFullYear(),
+        monthlyAmounts: [], // Not used for doprinosi
+        contributions: {
+          pio: {
+            monthlyAmounts: ensureArray(parsedData.pio_amounts),
+            recipientAccount: '840-721313843-74',
+          },
+          zdravstveno: {
+            monthlyAmounts: ensureArray(parsedData.zdravstveno_amounts),
+            recipientAccount: '840-721325843-61',
+          },
+          nezaposlenost: {
+            monthlyAmounts: ensureArray(parsedData.nezaposlenost_amounts),
+            recipientAccount: '840-721331843-06',
+          },
+        },
+        recipientName: 'Пореска управа Републике Србије',
+        recipientAccount: '840-721313843-74', // Default to PIO
+        paymentModel: '97',
+        paymentReference: parsedData.paymentReference || '',
+        paymentCode: '253',
+        payerName: parsedData.payerName || '',
+      };
+    } else {
+      // Process porez
+      result = {
+        type: 'porez',
+        year: parsedData.year || new Date().getFullYear(),
+        monthlyAmounts: Array(12).fill(parsedData.monthlyAmount || 0),
+        recipientName: 'Пореска управа Републике Србије',
+        recipientAccount: parsedData.recipientAccount || '840-711122843-32',
+        paymentModel: '97',
+        paymentReference: parsedData.paymentReference || '',
+        paymentCode: '253',
+        payerName: parsedData.payerName || '',
+      };
+    }
 
     console.log('Parsed result:', result);
 
