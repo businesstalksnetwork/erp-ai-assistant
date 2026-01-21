@@ -91,30 +91,64 @@ export default function AdminPanel() {
     queryFn: getRegistryStats,
   });
 
-  // SEF Registry Import Handler
+  // SEF Registry Import Handler - Chunked upload for large files
+  const CHUNK_SIZE = 10000; // 10k redova po zahtevu
+  
   const handleSefImport = async (file: File) => {
     setIsImporting(true);
-    setImportProgress(10);
+    setImportProgress(5);
 
     try {
       const text = await file.text();
-      setImportProgress(30);
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        throw new Error('CSV fajl je prazan ili nema podataka');
+      }
+      
+      const header = lines[0];
+      const dataLines = lines.slice(1);
+      const totalLines = dataLines.length;
+      const totalChunks = Math.ceil(totalLines / CHUNK_SIZE);
 
-      const { data, error } = await supabase.functions.invoke('sef-registry-import', {
-        body: { csvContent: text, clearExisting },
-      });
+      let totalImported = 0;
+      let totalErrors = 0;
 
-      setImportProgress(90);
+      setImportProgress(10);
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, totalLines);
+        const chunkLines = dataLines.slice(start, end);
+        
+        // Dodaj header na svaki chunk
+        const csvChunk = [header, ...chunkLines].join('\n');
+
+        const { data, error } = await supabase.functions.invoke('sef-registry-import', {
+          body: { 
+            csvContent: csvChunk, 
+            clearExisting: i === 0 && clearExisting  // Obriši samo na prvom chunk-u
+          },
+        });
+
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+
+        totalImported += data.imported || 0;
+        totalErrors += data.parseErrors || 0;
+
+        // Update progress (10% to 95%)
+        const progressPercent = 10 + Math.round(((i + 1) / totalChunks) * 85);
+        setImportProgress(progressPercent);
+      }
+
+      setImportProgress(100);
 
       toast({
         title: 'Uvoz završen',
-        description: `Uvezeno ${data.imported?.toLocaleString() || 0} firmi. Grešaka pri parsiranju: ${data.parseErrors || 0}`,
+        description: `Uvezeno ${totalImported.toLocaleString()} firmi. Grešaka pri parsiranju: ${totalErrors}`,
       });
 
-      setImportProgress(100);
       refetchSefStats();
     } catch (error) {
       console.error('SEF import error:', error);
@@ -448,9 +482,14 @@ export default function AdminPanel() {
 
           {isImporting && (
             <div className="space-y-2">
-              <Progress value={importProgress} />
+              <Progress value={importProgress} className="h-2" />
               <p className="text-sm text-muted-foreground text-center">
                 Uvoz u toku... {importProgress}%
+                {importProgress > 10 && importProgress < 100 && (
+                  <span className="ml-1">
+                    (~{Math.round(270000 * (importProgress - 10) / 85).toLocaleString()} od ~270.000 firmi)
+                  </span>
+                )}
               </p>
             </div>
           )}
