@@ -1319,7 +1319,16 @@ export default function Reminders() {
                   Primalac: {selectedReminder.recipient_name}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Račun: {selectedReminder.recipient_account}
+                  Račun: {(() => {
+                    const parts = selectedReminder.recipient_account?.split('-') || [];
+                    if (parts.length === 3) {
+                      const bank = parts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
+                      const account = parts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
+                      const control = parts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
+                      return `${bank}-${account}-${control}`;
+                    }
+                    return selectedReminder.recipient_account;
+                  })()}
                 </p>
                 {(selectedReminder.payment_model || selectedReminder.payment_reference) && (
                   <>
