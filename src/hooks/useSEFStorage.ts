@@ -571,6 +571,95 @@ export function useSEFStorage(companyId: string | null) {
     },
   });
 
+  // Sync missing KPO entries for already imported invoices
+  const syncMissingKPOEntries = useMutation({
+    mutationFn: async () => {
+      if (!companyId) throw new Error('Nije odabrana firma');
+      
+      // Find all invoices with sef_invoice_id
+      const { data: invoicesWithSEF, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, total_amount, service_date, client_name, sef_invoice_id')
+        .eq('company_id', companyId)
+        .not('sef_invoice_id', 'is', null)
+        .order('service_date', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Get existing KPO entries
+      const { data: existingKPO } = await supabase
+        .from('kpo_entries')
+        .select('invoice_id')
+        .eq('company_id', companyId);
+      
+      const kpoInvoiceIds = new Set((existingKPO || []).map(k => k.invoice_id));
+      const missing = (invoicesWithSEF || []).filter(inv => !kpoInvoiceIds.has(inv.id));
+      
+      if (missing.length === 0) {
+        return { created: 0, total: 0 };
+      }
+      
+      let created = 0;
+      for (const invoice of missing) {
+        const year = invoice.service_date 
+          ? new Date(invoice.service_date).getFullYear() 
+          : new Date().getFullYear();
+        
+        // Get max ordinal for year
+        const { data: maxOrdinal } = await supabase
+          .from('kpo_entries')
+          .select('ordinal_number')
+          .eq('company_id', companyId)
+          .eq('year', year)
+          .order('ordinal_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+        const formattedDate = invoice.service_date 
+          ? new Date(invoice.service_date).toLocaleDateString('sr-RS') 
+          : '';
+        
+        const { error: insertError } = await supabase.from('kpo_entries').insert({
+          company_id: companyId,
+          invoice_id: invoice.id,
+          ordinal_number: ordinalNumber,
+          description: `Faktura ${invoice.invoice_number}, ${formattedDate}, ${invoice.client_name || 'Nepoznat'}`,
+          products_amount: 0,
+          services_amount: invoice.total_amount,
+          total_amount: invoice.total_amount,
+          year: year,
+          document_date: invoice.service_date,
+        });
+        
+        if (!insertError) created++;
+      }
+      
+      return { created, total: missing.length };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      if (result.created > 0) {
+        toast({
+          title: 'Sinhronizacija završena',
+          description: `Kreirano ${result.created} KPO unosa za postojeće fakture`,
+        });
+      } else {
+        toast({
+          title: 'Sve je sinhronizovano',
+          description: 'Sve fakture već imaju KPO unose',
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Greška pri sinhronizaciji',
+        description: error instanceof Error ? error.message : 'Nepoznata greška',
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     storedInvoices: storedInvoices || [],
     purchaseInvoices,
@@ -586,5 +675,7 @@ export function useSEFStorage(companyId: string | null) {
     importFromCSV,
     deleteStoredInvoice: deleteStoredInvoice.mutate,
     isDeleting: deleteStoredInvoice.isPending,
+    syncMissingKPOEntries: syncMissingKPOEntries.mutate,
+    isSyncingKPO: syncMissingKPOEntries.isPending,
   };
 }
