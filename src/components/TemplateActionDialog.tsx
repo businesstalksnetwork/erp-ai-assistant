@@ -72,9 +72,9 @@ export function TemplateActionDialog({
               <span className="text-muted-foreground">Tip:</span>
               <Badge variant="outline">{getTypeLabel(template.invoice_type)}</Badge>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1">
               <span className="text-muted-foreground">Klijent:</span>
-              <span className="font-medium text-right max-w-[200px] truncate">{template.client_name}</span>
+              <span className="font-medium break-words">{template.client_name}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Stavki:</span>
