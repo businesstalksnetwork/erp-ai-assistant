@@ -89,7 +89,7 @@ export default function SEFCenter() {
   const companyId = selectedCompany?.id || null;
 
   // Hooks
-  const { fetchPurchaseInvoices, acceptInvoice, rejectInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isProcessing, isLoadingXML, isEnriching } = useSEFPurchaseInvoices();
+  const { fetchPurchaseInvoices, fetchSalesInvoices, acceptInvoice, rejectInvoice, cancelSalesInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isFetchingSales, isProcessing, isLoadingXML, isEnriching, isCancelling } = useSEFPurchaseInvoices();
   const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting } = useSEFStorage(companyId);
   const { activeJob, isStarting, progress, startLongSync, dismissJobStatus, cancelJob } = useSEFLongSync(companyId);
 
@@ -138,6 +138,11 @@ export default function SEFCenter() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  
+  // Storno dialog state
+  const [stornoOpen, setStornoOpen] = useState(false);
+  const [stornoInvoice, setStornoInvoice] = useState<StoredSEFInvoice | null>(null);
+  const [stornoComment, setStornoComment] = useState('');
   
   // Helper to close all date pickers
   const closeAllDatePickers = () => {
@@ -383,6 +388,14 @@ export default function SEFCenter() {
     }
   };
 
+  const handleFetchSales = async () => {
+    if (!companyId) return;
+    const result = await fetchSalesInvoices(companyId, dateFrom, dateTo);
+    if (result.success) {
+      setTimeout(() => refetch(), 500);
+    }
+  };
+
   const handleStartLongSync = async (invoiceType: 'purchase' | 'sales') => {
     if (!companyId) return;
     // Close all date pickers before starting sync
@@ -452,6 +465,29 @@ export default function SEFCenter() {
     if (result.success || result.imported > 0) {
       setImportOpen(false);
       setImportFile(null);
+    }
+  };
+
+  const handleOpenStorno = (invoice: StoredSEFInvoice) => {
+    setStornoInvoice(invoice);
+    setStornoComment('');
+    setStornoOpen(true);
+  };
+
+  const handleStorno = async () => {
+    if (!companyId || !stornoInvoice) return;
+    
+    // Determine action based on status
+    const action = stornoInvoice.sef_status === 'Sent' || stornoInvoice.sef_status === 'Approved' || stornoInvoice.sef_status === 'Seen'
+      ? 'storno' 
+      : 'cancel';
+    
+    const result = await cancelSalesInvoice(companyId, stornoInvoice.sef_invoice_id, action, stornoComment);
+    
+    if (result.success) {
+      setStornoOpen(false);
+      setStornoInvoice(null);
+      refetch();
     }
   };
 
@@ -1096,6 +1132,19 @@ export default function SEFCenter() {
                 <div className="flex flex-wrap gap-2 order-3 lg:ml-auto">
                   <Button 
                     variant="outline" 
+                    onClick={handleFetchSales} 
+                    disabled={isFetchingSales}
+                    title="Preuzmi izlazne fakture za izabrani period"
+                  >
+                    {isFetchingSales ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Preuzmi sa SEF-a
+                  </Button>
+                  <Button 
+                    variant="outline" 
                     onClick={() => handleStartLongSync('sales')} 
                     disabled={isStarting || (activeJob?.status === 'running')}
                     title="Preuzmi sve izlazne fakture za poslednjih 3 godine"
@@ -1160,14 +1209,28 @@ export default function SEFCenter() {
                             </TableCell>
                             <TableCell>{getStatusBadge(invoice.sef_status, invoice.local_status)}</TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handlePreview(invoice)}
-                                title="Pregled"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handlePreview(invoice)}
+                                  title="Pregled"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {invoice.sef_status !== 'Cancelled' && invoice.sef_status !== 'Storno' && invoice.sef_status !== 'Rejected' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenStorno(invoice)}
+                                    disabled={isCancelling}
+                                    title="Storniraj fakturu"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1412,6 +1475,47 @@ export default function SEFCenter() {
                 <Download className="h-4 w-4 mr-2" />
               )}
               Uvezi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Storno Dialog */}
+      <Dialog open={stornoOpen} onOpenChange={setStornoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Storniraj fakturu</DialogTitle>
+            <DialogDescription>
+              Da li ste sigurni da želite da stornirate fakturu {stornoInvoice?.invoice_number}? Ova akcija se ne može poništiti.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Razlog storniranja (opciono)</label>
+              <Textarea
+                placeholder="Unesite razlog storniranja..."
+                value={stornoComment}
+                onChange={(e) => setStornoComment(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStornoOpen(false)}>
+              Otkaži
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleStorno}
+              disabled={isCancelling}
+            >
+              {isCancelling ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <X className="h-4 w-4 mr-2" />
+              )}
+              Storniraj
             </Button>
           </DialogFooter>
         </DialogContent>
