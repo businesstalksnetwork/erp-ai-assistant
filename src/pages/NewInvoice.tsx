@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check, ChevronsUpDown, Send } from 'lucide-react';
+import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, Check, ChevronsUpDown, Send, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -74,6 +74,8 @@ export default function NewInvoice() {
   const [useForeignCalculation, setUseForeignCalculation] = useState(false);
   // SEF sending toggle - defaults to false, enabled when SEF-registered client is selected
   const [sendToSefEnabled, setSendToSefEnabled] = useState(false);
+  // Suggested invoice number from database
+  const [suggestedNumber, setSuggestedNumber] = useState<string>('');
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: crypto.randomUUID(), description: '', item_type: 'services', quantity: 1, unit_price: 0, foreign_amount: 0 }
@@ -155,6 +157,7 @@ export default function NewInvoice() {
         });
         
         if (!error && data) {
+          setSuggestedNumber(data);
           setFormData((prev) => ({
             ...prev,
             invoice_number: data,
@@ -752,12 +755,28 @@ export default function NewInvoice() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="invoice_number">Broj dokumenta</Label>
-                <Input
-                  id="invoice_number"
-                  value={formData.invoice_number}
-                  onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                  className="font-mono"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="invoice_number"
+                    value={formData.invoice_number}
+                    onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                    className="font-mono"
+                  />
+                  {formData.invoice_number !== suggestedNumber && suggestedNumber && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setFormData(prev => ({ ...prev, invoice_number: suggestedNumber }))}
+                      title={`Vrati na predlog: ${suggestedNumber}`}
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Predlog: {suggestedNumber || 'učitavanje...'} (automatski na osnovu prethodnih)
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="issue_date">Datum izdavanja</Label>
