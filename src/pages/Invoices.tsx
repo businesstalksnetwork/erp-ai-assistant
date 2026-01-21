@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -48,6 +48,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote, Pencil } from 'lucide-react';
 import { PaymentStatusDialog } from '@/components/PaymentStatusDialog';
 import { TemplatesDropdown } from '@/components/TemplatesDropdown';
@@ -73,30 +82,78 @@ export default function Invoices() {
   const [convertServiceDate, setConvertServiceDate] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const filteredInvoices = invoices.filter((inv) => {
-    const matchesSearch = 
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.client_name.toLowerCase().includes(search.toLowerCase());
-    
-    let matchesFilter = false;
-    switch (filter) {
-      case 'all':
-        matchesFilter = true;
-        break;
-      case 'invoices':
-        matchesFilter = inv.invoice_type === 'regular' || (!inv.is_proforma && inv.invoice_type !== 'advance');
-        break;
-      case 'proforma':
-        matchesFilter = inv.invoice_type === 'proforma' || inv.is_proforma;
-        break;
-      case 'advance':
-        matchesFilter = inv.invoice_type === 'advance';
-        break;
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      const matchesSearch = 
+        inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+        inv.client_name.toLowerCase().includes(search.toLowerCase());
+      
+      let matchesFilter = false;
+      switch (filter) {
+        case 'all':
+          matchesFilter = true;
+          break;
+        case 'invoices':
+          matchesFilter = inv.invoice_type === 'regular' || (!inv.is_proforma && inv.invoice_type !== 'advance');
+          break;
+        case 'proforma':
+          matchesFilter = inv.invoice_type === 'proforma' || inv.is_proforma;
+          break;
+        case 'advance':
+          matchesFilter = inv.invoice_type === 'advance';
+          break;
+      }
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [invoices, search, filter]);
+
+  // Sort by date (newest first) and paginate
+  const sortedInvoices = useMemo(() => {
+    return [...filteredInvoices].sort((a, b) => 
+      new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime()
+    );
+  }, [filteredInvoices]);
+
+  const totalPages = Math.ceil(sortedInvoices.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedInvoices = sortedInvoices.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset page when filters change
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (value: FilterType) => {
+    setFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('ellipsis');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
     }
-    
-    return matchesSearch && matchesFilter;
-  });
+    return pages;
+  };
 
   const handleDelete = async () => {
     if (deleteId) {
@@ -259,11 +316,11 @@ export default function Invoices() {
               <Input
                 placeholder="Pretraži..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <Select value={filter} onValueChange={(v: FilterType) => setFilter(v)}>
+            <Select value={filter} onValueChange={(v: FilterType) => handleFilterChange(v)}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
@@ -281,7 +338,7 @@ export default function Invoices() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredInvoices.length === 0 ? (
+          ) : sortedInvoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg font-medium">Nema faktura</p>
@@ -314,7 +371,7 @@ export default function Invoices() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((invoice) => (
+                    {paginatedInvoices.map((invoice) => (
                       <TableRow key={invoice.id}>
                         <TableCell className="font-medium">
                           {invoice.invoice_number}
@@ -414,7 +471,7 @@ export default function Invoices() {
 
               {/* Mobile Card List */}
               <div className="md:hidden space-y-3">
-                {filteredInvoices.map((invoice) => (
+                {paginatedInvoices.map((invoice) => (
                   <div key={invoice.id} className="border rounded-lg p-3 space-y-2 bg-secondary/30">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -470,6 +527,62 @@ export default function Invoices() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination */}
+              {sortedInvoices.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Prikaži:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                      <SelectTrigger className="w-[80px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">
+                      od {sortedInvoices.length}
+                    </span>
+                  </div>
+                  
+                  {totalPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => setCurrentPage(page)}
+                                isActive={currentPage === page}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
             </>
           )}
         </CardContent>

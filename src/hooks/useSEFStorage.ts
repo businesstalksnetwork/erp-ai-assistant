@@ -170,6 +170,32 @@ export function useSEFStorage(companyId: string | null) {
 
       if (invoiceError) throw invoiceError;
 
+      // Create KPO entry (trigger was removed, so we create manually)
+      const { data: maxOrdinal } = await supabase
+        .from('kpo_entries')
+        .select('ordinal_number')
+        .eq('company_id', companyId)
+        .eq('year', invoiceYear)
+        .order('ordinal_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+      const serviceDate = sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0];
+      const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS');
+
+      await supabase.from('kpo_entries').insert({
+        company_id: companyId,
+        invoice_id: invoice.id,
+        ordinal_number: ordinalNumber,
+        description: `Faktura ${sefInvoice.invoice_number || sefInvoice.sef_invoice_id}, ${formattedDate}, ${sefInvoice.counterparty_name || 'Nepoznat'}`,
+        products_amount: 0,
+        services_amount: sefInvoice.total_amount,
+        total_amount: sefInvoice.total_amount,
+        year: invoiceYear,
+        document_date: serviceDate,
+      });
+
       // Link SEF invoice to local invoice
       await supabase
         .from('sef_invoices')
@@ -284,6 +310,32 @@ export function useSEFStorage(companyId: string | null) {
             errors.push(`${sefInvoice.invoice_number}: ${error.message}`);
             continue;
           }
+
+          // Create KPO entry
+          const { data: maxOrdinal } = await supabase
+            .from('kpo_entries')
+            .select('ordinal_number')
+            .eq('company_id', companyId)
+            .eq('year', invoiceYear)
+            .order('ordinal_number', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+          const serviceDate = sefInvoice.delivery_date || sefInvoice.issue_date || new Date().toISOString().split('T')[0];
+          const formattedDate = new Date(serviceDate).toLocaleDateString('sr-RS');
+
+          await supabase.from('kpo_entries').insert({
+            company_id: companyId,
+            invoice_id: invoice.id,
+            ordinal_number: ordinalNumber,
+            description: `Faktura ${sefInvoice.invoice_number || sefInvoice.sef_invoice_id}, ${formattedDate}, ${sefInvoice.counterparty_name || 'Nepoznat'}`,
+            products_amount: 0,
+            services_amount: sefInvoice.total_amount,
+            total_amount: sefInvoice.total_amount,
+            year: invoiceYear,
+            document_date: serviceDate,
+          });
 
           // Link
           await supabase
