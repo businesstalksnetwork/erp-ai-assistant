@@ -146,8 +146,14 @@ export default function SEFCenter() {
   const [stornoInvoice, setStornoInvoice] = useState<StoredSEFInvoice | null>(null);
   const [stornoComment, setStornoComment] = useState('');
   
+  // Ref za SINHRONÚ blokadu date picker-a (rešava race condition sa state-om)
+  const blockDatePickersRef = useRef(false);
+  
   // Helper to close all date pickers
   const closeAllDatePickers = () => {
+    // ODMAH postavi blokadu (sinhrono, bez čekanja na re-render)
+    blockDatePickersRef.current = true;
+    
     // Blur fokusiran element da se prekine Radix focus lock
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
@@ -156,6 +162,11 @@ export default function SEFCenter() {
     setPurchaseDateToOpen(false);
     setSalesDateFromOpen(false);
     setSalesDateToOpen(false);
+    
+    // Reset blokade nakon kratkog delay-a (500ms je dovoljno za Radix event propagaciju)
+    setTimeout(() => {
+      blockDatePickersRef.current = false;
+    }, 500);
   };
 
   // Zaštitni handler koji sprečava neželjeno otvaranje tokom sync-a
@@ -163,8 +174,13 @@ export default function SEFCenter() {
     setter: React.Dispatch<React.SetStateAction<boolean>>,
     newOpen: boolean
   ) => {
-    // Blokiraj otvaranje ako je sync aktivan
-    if (newOpen && (activeJob?.status === 'running' || activeJob?.status === 'partial' || isStarting)) {
+    // Blokiraj otvaranje ako je REF aktivan ILI sync aktivan
+    if (newOpen && (
+      blockDatePickersRef.current ||
+      activeJob?.status === 'running' || 
+      activeJob?.status === 'partial' || 
+      isStarting
+    )) {
       return;
     }
     setter(newOpen);
@@ -426,8 +442,13 @@ export default function SEFCenter() {
 
   const handleStartLongSync = async (invoiceType: 'purchase' | 'sales') => {
     if (!companyId) return;
-    // Close all date pickers before starting sync
+    
+    // Zatvori sve date pickere i postavi blokadu ODMAH
     closeAllDatePickers();
+    
+    // Kratka pauza da se DOM stabilizuje i Radix eventi propagiraju
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     await startLongSync(companyId, invoiceType, 3);
     // Refresh after starting
     setTimeout(() => refetch(), 1000);
