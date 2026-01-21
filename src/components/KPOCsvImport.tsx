@@ -48,6 +48,53 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i);
 
+  // Detect column indices from header row
+  const detectColumnIndices = (headerRow: string[]) => {
+    // Normalize headers: lowercase, remove quotes, trim, remove BOM
+    const normalizedHeaders = headerRow.map(h => 
+      h.toLowerCase()
+        .replace(/^[\ufeff"]+|["]+$/g, '') // Remove BOM and quotes
+        .trim()
+    );
+    
+    // Find date column: must contain 'datum' but NOT 'izmen', 'vreme', 'preuzim', 'promen'
+    const forbiddenDateWords = ['izmen', 'izmjen', 'vreme', 'vrijeme', 'preuzim', 'promen', 'promjen'];
+    const dateColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('datum') && 
+      !forbiddenDateWords.some(forbidden => h.includes(forbidden))
+    );
+    
+    const ordinalColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('r.br') || h.includes('rbr') || h.includes('redni') || h === 'br'
+    );
+    
+    const descColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('opis') || h.includes('naziv')
+    );
+    
+    const productsColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('proizvod') || h.includes('roba')
+    );
+    
+    const servicesColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('uslug')
+    );
+    
+    const totalColIndex = normalizedHeaders.findIndex(h => 
+      h.includes('ukupno') || h.includes('iznos')
+    );
+    
+    return {
+      ordinal: ordinalColIndex >= 0 ? ordinalColIndex : 0,
+      date: dateColIndex >= 0 ? dateColIndex : 1,
+      description: descColIndex >= 0 ? descColIndex : 2,
+      products: productsColIndex >= 0 ? productsColIndex : 3,
+      services: servicesColIndex >= 0 ? servicesColIndex : 4,
+      total: totalColIndex >= 0 ? totalColIndex : 5,
+      dateDetected: dateColIndex >= 0,
+    };
+  };
+
   const parseNumber = (value: string): number => {
     if (!value || value.trim() === '' || value.trim() === '-') return 0;
     
@@ -104,7 +151,27 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
     const entries: ParsedEntry[] = [];
     const parseErrors: string[] = [];
 
-    // Skip header row
+    if (lines.length < 2) {
+      parseErrors.push('CSV fajl je prazan ili nema podataka');
+      setParsedData([]);
+      setErrors(parseErrors);
+      return;
+    }
+
+    // Parse header row to detect column indices
+    let headerCols = lines[0].split(';');
+    if (headerCols.length < 3) {
+      headerCols = lines[0].split(',');
+    }
+    
+    const colIdx = detectColumnIndices(headerCols);
+    
+    // Warn if date column wasn't detected by name
+    if (!colIdx.dateDetected) {
+      parseErrors.push('Upozorenje: Kolona "Datum" nije pronađena po imenu, korišćena je druga kolona');
+    }
+
+    // Parse data rows (skip header)
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
@@ -117,23 +184,24 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
         cols = line.split(',');
       }
 
-      // Expected format: R.br.; Datum; Opis; Proizvodi (RSD); Usluge (RSD); Ukupno (RSD)
       if (cols.length < 3) {
         parseErrors.push(`Red ${i + 1}: Nedovoljan broj kolona`);
         continue;
       }
 
+      // Use detected column indices instead of hardcoded values
+      const description = cols[colIdx.description]?.replace(/^"|"$/g, '').trim() || '';
+      
       // Skip summary row
-      const description = cols[2]?.replace(/^"|"$/g, '').trim() || '';
       if (description.toUpperCase().includes('UKUPNO')) continue;
 
       const entry: ParsedEntry = {
-        ordinal_number: parseInt(cols[0]) || i,
-        document_date: parseDate(cols[1] || ''),
+        ordinal_number: parseInt(cols[colIdx.ordinal]) || i,
+        document_date: parseDate(cols[colIdx.date] || ''),
         description: description,
-        products_amount: parseNumber(cols[3] || '0'),
-        services_amount: parseNumber(cols[4] || '0'),
-        total_amount: parseNumber(cols[5] || '0'),
+        products_amount: parseNumber(cols[colIdx.products] || '0'),
+        services_amount: parseNumber(cols[colIdx.services] || '0'),
+        total_amount: parseNumber(cols[colIdx.total] || '0'),
       };
 
       // Validate required fields
@@ -148,6 +216,17 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
       }
 
       entries.push(entry);
+    }
+
+    // Check for suspicious date patterns (all same month could indicate wrong column)
+    if (entries.length > 5) {
+      const months = entries
+        .filter(e => e.document_date)
+        .map(e => e.document_date!.substring(5, 7));
+      const uniqueMonths = new Set(months);
+      if (uniqueMonths.size === 1 && months.length > 5) {
+        parseErrors.push(`Upozorenje: Svi datumi su u istom mesecu (${months[0]}) - proveri da li je ispravna kolona izabrana`);
+      }
     }
 
     setParsedData(entries);
