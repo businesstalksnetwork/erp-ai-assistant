@@ -95,6 +95,7 @@ export default function SEFCenter() {
 
   // Count incomplete invoices
   const incompleteCount = purchaseInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
+  const incompleteSalesCount = salesInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
   const { getSEFStatus } = useSEF();
 
   // State
@@ -1156,6 +1157,21 @@ export default function SEFCenter() {
                     )}
                     Preuzmi sve (3 god.)
                   </Button>
+                  {incompleteSalesCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => companyId && enrichIncompleteInvoices(companyId).then(() => setTimeout(() => refetch(), 500))} 
+                      disabled={isFetching || isEnriching}
+                      title={`${incompleteSalesCount} faktura bez kompletnih podataka`}
+                    >
+                      {isEnriching ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Osveži ({incompleteSalesCount})
+                    </Button>
+                  )}
                 </div>
               </div>
 
