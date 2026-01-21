@@ -68,6 +68,23 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Cyrillic to Latin conversion for Serbian banking app compatibility
+function cyrillicToLatin(text: string): string {
+  const map: Record<string, string> = {
+    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Ђ': 'Đ', 'Е': 'E',
+    'Ж': 'Ž', 'З': 'Z', 'И': 'I', 'Ј': 'J', 'К': 'K', 'Л': 'L', 'Љ': 'Lj',
+    'М': 'M', 'Н': 'N', 'Њ': 'Nj', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S',
+    'Т': 'T', 'Ћ': 'Ć', 'У': 'U', 'Ф': 'F', 'Х': 'H', 'Ц': 'C', 'Ч': 'Č',
+    'Џ': 'Dž', 'Ш': 'Š',
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'ђ': 'đ', 'е': 'e',
+    'ж': 'ž', 'з': 'z', 'и': 'i', 'ј': 'j', 'к': 'k', 'л': 'l', 'љ': 'lj',
+    'м': 'm', 'н': 'n', 'њ': 'nj', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's',
+    'т': 't', 'ћ': 'ć', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'č',
+    'џ': 'dž', 'ш': 'š'
+  };
+  return text.split('').map(char => map[char] || char).join('');
+}
+
 // Generate IPS QR code string for Serbian payments (NBS standard)
 // Format: https://ips.nbs.rs/PDF/Tehnicki_standard_IPS_QR_koda.pdf
 function generateIPSQRCode(
@@ -101,8 +118,8 @@ function generateIPSQRCode(
   // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
 
-  // Receiver name (max 70 chars, sanitized, single line)
-  const n = sanitize(receiverName).substring(0, 70);
+  // Receiver name (max 70 chars, sanitized, single line, converted to Latin)
+  const n = sanitize(cyrillicToLatin(receiverName)).substring(0, 70);
 
   // Payment purpose (max 35 chars, sanitized, single line)
   const purpose = sanitize(paymentPurpose).substring(0, 35);
@@ -112,8 +129,6 @@ function generateIPSQRCode(
 
   // Reference - only digits, no dashes or other characters
   const cleanReference = paymentReference.replace(/\D/g, '');
-  // Model - exactly 2 digits
-  const model = paymentModel.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
   
   // Build IPS QR code string with | as separator (per NBS standard)
   const parts = [
@@ -121,7 +136,7 @@ function generateIPSQRCode(
     'V:01',           // Version: 01
     'C:1',            // Character set: 1 = UTF-8
     `R:${formattedAccount}`,  // Receiver account (18 digits)
-    `N:${n}`,         // Receiver name
+    `N:${n}`,         // Receiver name (Latin script)
     `I:RSD${formattedAmount}`, // Amount with currency
   ];
 
@@ -142,10 +157,10 @@ function generateIPSQRCode(
   parts.push(`SF:${sf}`);
   parts.push(`S:${purpose}`);
   
-  // Koristi originalni model iz baze (97 za poreze, 00 za ostalo)
-  // Model 97 je obavezan za poreske uplatnice sa specifičnom strukturom reference
-  if (cleanReference && model) {
-    parts.push(`RO:${model}${cleanReference}`);
+  // Koristi model 00 za maksimalnu kompatibilnost (isto kao na fakturama koje rade)
+  // Model 00 = slobodna forma reference, bankarske aplikacije ga univerzalno podržavaju
+  if (cleanReference) {
+    parts.push(`RO:00${cleanReference}`);
   }
 
   return parts.join('|');
