@@ -44,9 +44,11 @@ export function useSEFPurchaseInvoices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isFetching, setIsFetching] = useState(false);
+  const [isFetchingSales, setIsFetchingSales] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingXML, setIsLoadingXML] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchPurchaseInvoices = async (
     companyId: string,
@@ -252,15 +254,106 @@ export function useSEFPurchaseInvoices() {
     }
   };
 
+  const fetchSalesInvoices = async (
+    companyId: string,
+    dateFrom: string,
+    dateTo: string
+  ): Promise<FetchResult> => {
+    setIsFetchingSales(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sef-fetch-sales-invoices', {
+        body: { companyId, dateFrom, dateTo },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Greška pri preuzimanju izlaznih faktura');
+      }
+
+      if (data.success) {
+        toast({
+          title: 'Izlazne fakture preuzete',
+          description: `Pronađeno ${data.totalFound} faktura, sačuvano: ${data.storedCount}`,
+        });
+        
+        await queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+        
+        return data;
+      } else {
+        throw new Error(data.error || 'Nepoznata greška');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Greška pri preuzimanju';
+      
+      toast({
+        title: 'Greška',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      return { success: false, invoices: [], error: errorMessage };
+    } finally {
+      setIsFetchingSales(false);
+    }
+  };
+
+  const cancelSalesInvoice = async (
+    companyId: string,
+    sefInvoiceId: string,
+    action: 'cancel' | 'storno',
+    comment?: string
+  ): Promise<AcceptRejectResult> => {
+    setIsCancelling(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sef-cancel-sales-invoice', {
+        body: { companyId, sefInvoiceId, action, comment },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Greška pri storniranju');
+      }
+
+      if (data.success) {
+        toast({
+          title: 'Uspešno',
+          description: data.message,
+        });
+        
+        await queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
+        
+        return data;
+      } else {
+        throw new Error(data.error || 'Nepoznata greška');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Greška pri storniranju';
+      
+      toast({
+        title: 'Greška',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return {
     fetchPurchaseInvoices,
+    fetchSalesInvoices,
     acceptInvoice,
     rejectInvoice,
+    cancelSalesInvoice,
     getInvoiceXML,
     enrichIncompleteInvoices,
     isFetching,
+    isFetchingSales,
     isProcessing,
     isLoadingXML,
     isEnriching,
+    isCancelling,
   };
 }
