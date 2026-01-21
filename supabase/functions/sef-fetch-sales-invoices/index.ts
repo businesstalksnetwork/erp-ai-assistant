@@ -324,7 +324,8 @@ serve(async (req) => {
         await delay(600);
       }
 
-      const status = statusMap.get(invoiceId) || 'Unknown';
+      // Start with statusMap value as fallback
+      let status = statusMap.get(invoiceId) || 'Unknown';
 
       let invoiceNumber: string | null = null;
       let issueDate: string | null = null;
@@ -401,6 +402,49 @@ serve(async (req) => {
             'documentCurrencyCode', 'DocumentCurrencyCode', 'currency', 'Currency',
             'CurrencyCode', 'currencyCode'
           ], 'RSD') || 'RSD';
+          
+          // CRITICAL: Get status from invoice details - this is the source of truth
+          const detailStatus = pickString(data, [
+            'status', 'Status', 'InvoiceStatus', 'invoiceStatus',
+            'DocumentStatus', 'documentStatus'
+          ]);
+          
+          if (detailStatus) {
+            // Normalize status string
+            const normalizedStatus = detailStatus.trim();
+            // Map various status values to consistent names
+            if (['Storno', 'Stornoed', 'Storned', 'Stornirano'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Storno';
+            } else if (['Cancelled', 'Canceled', 'Otkazano'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Cancelled';
+            } else if (['Approved', 'Odobreno'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Approved';
+            } else if (['Rejected', 'Odbijeno'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Rejected';
+            } else if (['Seen', 'Vidjeno', 'Viđeno'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Seen';
+            } else if (['Sent', 'Poslato'].some(s => 
+              normalizedStatus.toLowerCase().includes(s.toLowerCase())
+            )) {
+              status = 'Sent';
+            } else {
+              // Use the status as-is if we don't recognize it
+              status = normalizedStatus;
+            }
+            console.log(`Invoice ${invoiceId} (${invoiceNumber}): status from detail = '${detailStatus}' -> normalized = '${status}'`);
+          } else {
+            console.log(`Invoice ${invoiceId} (${invoiceNumber}): no status in detail, using statusMap = '${status}'`);
+          }
           
           successCount++;
         } else if (invoiceResponse.status === 429) {

@@ -414,6 +414,12 @@ export default function SEFCenter() {
     }
   };
 
+  const handleFetchSalesInvoices = async () => {
+    if (!companyId) return;
+    await fetchSalesInvoices(companyId, dateFrom, dateTo);
+    setTimeout(() => refetch(), 500);
+  };
+
   const handlePreview = async (invoice: StoredSEFInvoice) => {
     if (!companyId) return;
     
@@ -1157,6 +1163,19 @@ export default function SEFCenter() {
                     )}
                     Preuzmi sve (3 god.)
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleFetchSalesInvoices} 
+                    disabled={isFetchingSales}
+                    title="Osveži statuse svih izlaznih faktura za izabrani period"
+                  >
+                    {isFetchingSales ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Osveži statuse
+                  </Button>
                   {incompleteSalesCount > 0 && (
                     <Button 
                       variant="outline" 
@@ -1169,7 +1188,7 @@ export default function SEFCenter() {
                       ) : (
                         <RefreshCw className="h-4 w-4 mr-2" />
                       )}
-                      Osveži ({incompleteSalesCount})
+                      Osveži podatke ({incompleteSalesCount})
                     </Button>
                   )}
                 </div>
