@@ -18,8 +18,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { BookOpen, Building2, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { BookOpen, Building2, Loader2, Trash2 } from 'lucide-react';
 import { KPOPdfExport } from '@/components/KPOPdfExport';
+import { KPOCsvExport } from '@/components/KPOCsvExport';
+import { toast } from 'sonner';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -33,7 +47,7 @@ export default function KPOBook() {
   const { selectedCompany } = useSelectedCompany();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
-  const { entries, isLoading, totals, availableYears } = useKPO(selectedCompany?.id || null, year);
+  const { entries, isLoading, totals, availableYears, deleteEntry, deleteYear, isDeleting } = useKPO(selectedCompany?.id || null, year);
 
   const years = availableYears.length > 0 ? availableYears : [currentYear];
 
@@ -47,6 +61,24 @@ export default function KPOBook() {
     );
   }
 
+  const handleDeleteEntry = async (entryId: string) => {
+    try {
+      await deleteEntry(entryId);
+      toast.success('KPO unos obrisan');
+    } catch (error) {
+      toast.error('Greška pri brisanju unosa');
+    }
+  };
+
+  const handleDeleteYear = async () => {
+    try {
+      await deleteYear({ companyId: selectedCompany.id, year });
+      toast.success(`Obrisano ${entries.length} unosa za ${year}. godinu`);
+    } catch (error) {
+      toast.error('Greška pri brisanju unosa');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -56,7 +88,7 @@ export default function KPOBook() {
             Knjiga o ostvarenom prometu za {selectedCompany.name}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <KPOPdfExport
             entries={entries}
             totals={totals}
@@ -65,6 +97,41 @@ export default function KPOBook() {
             companyPib={selectedCompany.pib}
             companyAddress={selectedCompany.address}
           />
+          <KPOCsvExport
+            entries={entries}
+            totals={totals}
+            year={year}
+            companyName={selectedCompany.name}
+          />
+          
+          {entries.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Obriši godinu
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Obrisati sve KPO unose za {year}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ova akcija će trajno obrisati {entries.length} unosa. Ovo se ne može poništiti.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Odustani</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteYear}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Obriši sve
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          
           <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
@@ -110,6 +177,7 @@ export default function KPOBook() {
                     <TableHead className="text-right w-[150px]">Proizvodi</TableHead>
                     <TableHead className="text-right w-[150px]">Usluge</TableHead>
                     <TableHead className="text-right w-[150px]">Ukupno</TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -125,6 +193,17 @@ export default function KPOBook() {
                       </TableCell>
                       <TableCell className="text-right font-mono font-semibold">
                         {formatCurrency(entry.total_amount)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          disabled={isDeleting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -143,6 +222,7 @@ export default function KPOBook() {
                     <TableCell className="text-right font-mono font-bold text-lg">
                       {formatCurrency(totals.total)}
                     </TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
