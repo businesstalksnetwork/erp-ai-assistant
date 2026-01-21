@@ -6,6 +6,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -32,8 +40,13 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
   const [errors, setErrors] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(year);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  
+  // Generate year options (current year +1 to -5)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i);
 
   const parseNumber = (value: string): number => {
     if (!value || value.trim() === '' || value.trim() === '-') return 0;
@@ -141,7 +154,7 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
         .from('kpo_entries')
         .select('ordinal_number')
         .eq('company_id', companyId)
-        .eq('year', year)
+        .eq('year', selectedYear)
         .order('ordinal_number', { ascending: false })
         .limit(1);
       
@@ -149,7 +162,7 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
       
       const entriesToInsert = parsedData.map((entry, index) => ({
         company_id: companyId,
-        year: year,
+        year: selectedYear,
         ordinal_number: startOrdinal + index,
         document_date: entry.document_date,
         description: entry.description,
@@ -183,6 +196,7 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
       setParsedData([]);
       setFileName(null);
       setErrors([]);
+      setSelectedYear(year);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -203,6 +217,26 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>Uvoz KPO knjige iz CSV-a</DialogTitle>
         </DialogHeader>
+
+        {/* Year selection */}
+        <div className="space-y-2">
+          <Label>Godina za uvoz</Label>
+          <Select 
+            value={selectedYear.toString()} 
+            onValueChange={(v) => setSelectedYear(parseInt(v))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Izaberi godinu" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y.toString()}>
+                  {y}. godina
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* File upload area */}
         <div className="border-2 border-dashed rounded-lg p-6 text-center">
@@ -230,7 +264,7 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Pronađeno {parsedData.length} unosa za uvoz u {year}. godinu</span>
+              <span>Pronađeno {parsedData.length} unosa za uvoz u {selectedYear}. godinu</span>
             </div>
 
             {/* Table preview */}
