@@ -16,6 +16,9 @@ export interface LimitsData {
   limit8MRemaining: number;
   fiscalYearlyTotal: number;
   fiscalRollingTotal: number;
+  fiscalRollingDomestic: number;
+  kpoRollingTotal: number;
+  invoiceRollingDomestic: number;
 }
 
 export function useLimits(companyId: string | null) {
@@ -68,10 +71,26 @@ export function useLimits(companyId: string | null) {
       // Get rolling fiscal data - use domestic_amount for 8M limit
       const { data: rollingFiscal } = await supabase
         .from('fiscal_daily_summary' as any)
-        .select('total_amount, domestic_amount')
+        .select('total_amount, domestic_amount, kpo_entry_id')
         .eq('company_id', companyId!)
         .gte('summary_date', rollingStartStr)
         .lte('summary_date', todayStr);
+
+      // Get independent KPO entries (not linked to invoices or fiscal) in rolling period
+      const { data: rollingKPO } = await supabase
+        .from('kpo_entries')
+        .select('id, total_amount')
+        .eq('company_id', companyId!)
+        .is('invoice_id', null)
+        .gte('document_date', rollingStartStr)
+        .lte('document_date', todayStr);
+
+      // Filter out KPO entries that are linked to fiscal_daily_summary
+      const fiscalKpoIdSet = new Set((rollingFiscal as any[] || [])
+        .filter((f: any) => f.kpo_entry_id)
+        .map((f: any) => f.kpo_entry_id));
+      const independentKpo = (rollingKPO || []).filter((k: any) => !fiscalKpoIdSet.has(k.id));
+      const kpoRollingTotal = independentKpo.reduce((sum: number, k: any) => sum + Number(k.total_amount), 0);
 
       const yearlyInvoiceTotal = yearlyInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
       const yearlyDomestic = yearlyInvoices?.filter(i => i.client_type === 'domestic').reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
@@ -88,9 +107,9 @@ export function useLimits(companyId: string | null) {
       const yearlyTotal = yearlyInvoiceTotal + fiscalYearlyTotal;
       const rollingTotal = rollingInvoiceTotal + fiscalRollingTotal;
       
-      // Domestic includes fiscal domestic (not all fiscal)
+      // Domestic includes fiscal domestic + KPO (treat all KPO as domestic)
       const yearlyDomesticTotal = yearlyDomestic + fiscalYearlyTotal;
-      const rollingDomesticTotal = rollingDomestic + fiscalRollingDomestic;
+      const rollingDomesticTotal = rollingDomestic + fiscalRollingDomestic + kpoRollingTotal;
 
       return {
         yearlyTotal,
@@ -103,6 +122,9 @@ export function useLimits(companyId: string | null) {
         limit8MRemaining: Math.max(LIMIT_8M - rollingDomesticTotal, 0),
         fiscalYearlyTotal,
         fiscalRollingTotal,
+        fiscalRollingDomestic,
+        kpoRollingTotal,
+        invoiceRollingDomestic: rollingDomestic,
       };
     },
     enabled: !!companyId,
@@ -120,6 +142,9 @@ export function useLimits(companyId: string | null) {
       limit8MRemaining: LIMIT_8M,
       fiscalYearlyTotal: 0,
       fiscalRollingTotal: 0,
+      fiscalRollingDomestic: 0,
+      kpoRollingTotal: 0,
+      invoiceRollingDomestic: 0,
     },
     isLoading,
     LIMIT_6M,

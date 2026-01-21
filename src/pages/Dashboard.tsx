@@ -181,6 +181,23 @@ export default function Dashboard() {
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Preostalo: {formatCurrency(limits.limit8MRemaining)}
               </p>
+              {/* Breakdown when KPO exists */}
+              {limits.kpoRollingTotal > 0 && (
+                <div className="text-xs text-muted-foreground mt-2 space-y-0.5 border-t pt-2">
+                  <div className="flex justify-between">
+                    <span>Fakture:</span>
+                    <span>{formatCurrency(limits.invoiceRollingDomestic)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Fiskalna kasa:</span>
+                    <span>{formatCurrency(limits.fiscalRollingDomestic)}</span>
+                  </div>
+                  <div className="flex justify-between text-primary font-medium">
+                    <span>KPO (uvoz):</span>
+                    <span>{formatCurrency(limits.kpoRollingTotal)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
