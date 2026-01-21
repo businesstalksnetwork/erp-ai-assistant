@@ -49,25 +49,21 @@ function generateIPSQRCode(params: {
   const formattedAccount = formatAccountForIPS(params.receiverAccount);
   const amountStr = params.amount.toFixed(2).replace('.', ',');
 
-  // NBS IPS: sadržaj vrednosti ne sme da sadrži delimiter "|"; takođe izbacujemo "\r" radi kompatibilnosti
-  const sanitize = (value: string) => value.replace(/\|/g, ' ').replace(/\r/g, '').trim();
+  // NBS IPS: uklanjamo delimiter "|", "\r", "\n" i kolapsujemo razmake za maksimalnu kompatibilnost
+  const sanitize = (value: string) => 
+    value.replace(/\|/g, ' ').replace(/\r/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Podaci o platiocu (P) su opcionи; ako ih šaljemo moraju biti max 70 karaktera ukupno i max 3 reda.
-  // Radi kompatibilnosti izbegavamo preduga polja i koristimo "\n" kao separator reda (bez \r).
+  // Podaci o platiocu (P) - max 70 karaktera, jedna linija za bolju kompatibilnost sa bankarskim aplikacijama
   const payerName = params.payerName ? sanitize(params.payerName) : '';
-  const payerAddressOneLine = params.payerAddress ? sanitize(params.payerAddress).replace(/\n+/g, ' ') : '';
+  const payerAddressOneLine = params.payerAddress ? sanitize(params.payerAddress) : '';
 
   let payerInfo = '';
   if (payerName) {
-    payerInfo = payerName.slice(0, 70);
-
-    if (payerAddressOneLine) {
-      const sep = '\n';
-      const remaining = 70 - (payerInfo.length + sep.length);
-      if (remaining > 0) {
-        payerInfo = `${payerInfo}${sep}${payerAddressOneLine.slice(0, remaining)}`;
-      }
-    }
+    // Kombinujemo ime i adresu u jednu liniju, max 70 karaktera
+    const fullPayer = payerAddressOneLine 
+      ? `${payerName} ${payerAddressOneLine}` 
+      : payerName;
+    payerInfo = fullPayer.substring(0, 70);
   }
 
   // Svrha plaćanja - jedna linija, max 35, bez "|"
