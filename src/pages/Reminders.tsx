@@ -131,17 +131,11 @@ function generateIPSQRCode(
   const payerAddressClean = sanitize(payerAddress || '');
   
   if (payerNameClean) {
-    // Calculate how much space we have for address after name + newline
-    const maxAddressLen = Math.max(0, 70 - payerNameClean.length - 1);
-    const truncatedAddress = payerAddressClean.substring(0, maxAddressLen);
-    
-    // Build payer string: name only, or name + address if both exist
-    const payerValue = truncatedAddress 
-      ? `${payerNameClean.substring(0, 70)}\n${truncatedAddress}` 
-      : payerNameClean.substring(0, 70);
-    
-    // Ensure total P: value doesn't exceed 70 chars
-    parts.push(`P:${payerValue.substring(0, 70)}`);
+    // Kombinujemo ime i adresu u jednu liniju, max 70 karaktera za bolju kompatibilnost
+    const fullPayer = payerAddressClean 
+      ? `${payerNameClean} ${payerAddressClean}` 
+      : payerNameClean;
+    parts.push(`P:${fullPayer.substring(0, 70)}`);
   }
 
   // Add payment code and purpose
