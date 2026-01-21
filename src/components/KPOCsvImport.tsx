@@ -50,8 +50,22 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
 
   const parseNumber = (value: string): number => {
     if (!value || value.trim() === '' || value.trim() === '-') return 0;
-    // Handle both comma and dot as decimal separators
-    const cleaned = value.trim().replace(/\s/g, '').replace(',', '.');
+    
+    let cleaned = value.trim().replace(/\s/g, '');
+    
+    // Handle format: 47,000.00 (comma as thousands, dot as decimal)
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      cleaned = cleaned.replace(/,/g, '');
+    } 
+    // Handle format: 47.000,00 (dot as thousands, comma as decimal)
+    else if (cleaned.includes('.') && cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    }
+    // Handle format: 47000,00 (only comma as decimal)
+    else if (cleaned.includes(',')) {
+      cleaned = cleaned.replace(',', '.');
+    }
+    
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
   };
@@ -65,11 +79,19 @@ export function KPOCsvImport({ companyId, year, open, onOpenChange }: Props) {
       return trimmed;
     }
     
-    // Try DD.MM.YYYY format
-    const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (match) {
-      const [, day, month, yearPart] = match;
+    // Try DD.MM.YYYY format (full year)
+    const matchFull = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (matchFull) {
+      const [, day, month, yearPart] = matchFull;
       return `${yearPart}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Try DD.MM.YY format (short year)
+    const matchShort = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
+    if (matchShort) {
+      const [, day, month, shortYear] = matchShort;
+      const fullYear = parseInt(shortYear) > 50 ? `19${shortYear}` : `20${shortYear}`;
+      return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
     
     return null;
