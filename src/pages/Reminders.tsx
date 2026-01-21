@@ -1437,9 +1437,27 @@ export default function Reminders() {
       {bulkSelectMode && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-card border rounded-lg shadow-lg p-3 flex items-center gap-4 z-50">
           <span className="text-sm font-medium">{selectedIds.size} selektovano</span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              // Select/deselect all active reminders
+              const allActive = allActiveReminders;
+              const allSelected = allActive.length > 0 && allActive.every(r => selectedIds.has(r.id));
+              if (allSelected) {
+                setSelectedIds(new Set());
+              } else {
+                setSelectedIds(new Set(allActive.map(r => r.id)));
+              }
+            }}
+          >
+            {allActiveReminders.length > 0 && allActiveReminders.every(r => selectedIds.has(r.id)) 
+              ? 'Poništi sve' 
+              : 'Selektuj sve'}
+          </Button>
           {selectedIds.size > 0 && (
             <>
-              <Button variant="outline" size="sm" onClick={clearSelection}>
+              <Button variant="ghost" size="sm" onClick={clearSelection}>
                 Poništi selekciju
               </Button>
               <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
