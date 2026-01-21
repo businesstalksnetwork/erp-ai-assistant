@@ -168,17 +168,18 @@ async function fetchInvoiceIdsByStatus(
 }
 
 // Status priority - higher number = more "final" status that shouldn't be overwritten
+// Storno and Cancelled are final states that should not be overwritten by Approved
 const STATUS_PRIORITY: Record<string, number> = {
   'Unknown': 0,
   'Draft': 1,
   'Sending': 2,
   'Sent': 3,
   'Seen': 4,
-  'Cancelled': 5,
-  'Storno': 5,
+  'Approved': 5,
   'Rejected': 6,
-  'Approved': 7,
-  'Mistake': 8,
+  'Cancelled': 7,
+  'Storno': 8,
+  'Mistake': 9,
 };
 
 // Build a map of invoiceId -> status SEQUENTIALLY to respect rate limits
