@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { BookOpen, Building2, Loader2, Trash2 } from 'lucide-react';
 import { KPOPdfExport } from '@/components/KPOPdfExport';
 import { KPOCsvExport } from '@/components/KPOCsvExport';
+import { KPOCsvImport } from '@/components/KPOCsvImport';
 import { toast } from 'sonner';
 
 function formatCurrency(amount: number): string {
@@ -89,6 +90,7 @@ export default function KPOBook() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <KPOCsvImport companyId={selectedCompany.id} year={year} />
           <KPOPdfExport
             entries={entries}
             totals={totals}
