@@ -404,46 +404,39 @@ serve(async (req) => {
           ], 'RSD') || 'RSD';
           
           // CRITICAL: Get status from invoice details - this is the source of truth
+          // SEF API returns Status field directly in JSON response
           const detailStatus = pickString(data, [
-            'status', 'Status', 'InvoiceStatus', 'invoiceStatus',
+            'Status', 'status', 'InvoiceStatus', 'invoiceStatus',
             'DocumentStatus', 'documentStatus'
           ]);
+          
+          console.log(`Invoice ${invoiceId}: raw Status field = '${detailStatus}'`);
           
           if (detailStatus) {
             // Normalize status string
             const normalizedStatus = detailStatus.trim();
             // Map various status values to consistent names
-            if (['Storno', 'Stornoed', 'Storned', 'Stornirano'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            // Check exact matches first for common SEF statuses
+            const statusLower = normalizedStatus.toLowerCase();
+            if (statusLower === 'storno' || statusLower === 'stornoed' || statusLower === 'stornirano') {
               status = 'Storno';
-            } else if (['Cancelled', 'Canceled', 'Otkazano'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            } else if (statusLower === 'cancelled' || statusLower === 'canceled' || statusLower === 'otkazano') {
               status = 'Cancelled';
-            } else if (['Approved', 'Odobreno'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            } else if (statusLower === 'approved' || statusLower === 'odobreno') {
               status = 'Approved';
-            } else if (['Rejected', 'Odbijeno'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            } else if (statusLower === 'rejected' || statusLower === 'odbijeno') {
               status = 'Rejected';
-            } else if (['Seen', 'Vidjeno', 'Viđeno'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            } else if (statusLower === 'seen' || statusLower === 'vidjeno' || statusLower === 'viđeno') {
               status = 'Seen';
-            } else if (['Sent', 'Poslato'].some(s => 
-              normalizedStatus.toLowerCase().includes(s.toLowerCase())
-            )) {
+            } else if (statusLower === 'sent' || statusLower === 'poslato') {
               status = 'Sent';
             } else {
               // Use the status as-is if we don't recognize it
               status = normalizedStatus;
             }
-            console.log(`Invoice ${invoiceId} (${invoiceNumber}): status from detail = '${detailStatus}' -> normalized = '${status}'`);
+            console.log(`Invoice ${invoiceId} (${invoiceNumber || 'no-number'}): status = '${detailStatus}' -> normalized = '${status}'`);
           } else {
-            console.log(`Invoice ${invoiceId} (${invoiceNumber}): no status in detail, using statusMap = '${status}'`);
+            console.log(`Invoice ${invoiceId}: no status in detail JSON, using statusMap = '${status}'`);
           }
           
           successCount++;
