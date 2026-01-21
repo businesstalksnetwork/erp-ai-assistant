@@ -110,6 +110,9 @@ export default function SEFCenter() {
   const [salesDateFromOpen, setSalesDateFromOpen] = useState(false);
   const [salesDateToOpen, setSalesDateToOpen] = useState(false);
   
+  // Date picker epoch za forsiranje remount-a (čisti orphaned Radix portale)
+  const [datePickerEpoch, setDatePickerEpoch] = useState(0);
+  
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -149,7 +152,7 @@ export default function SEFCenter() {
   // Ref za SINHRONÚ blokadu date picker-a (rešava race condition sa state-om)
   const blockDatePickersRef = useRef(false);
   
-  // Helper to close all date pickers
+  // Helper to close all date pickers AND clean up orphaned Radix portals
   const closeAllDatePickers = () => {
     // ODMAH postavi blokadu (sinhrono, bez čekanja na re-render)
     blockDatePickersRef.current = true;
@@ -162,6 +165,15 @@ export default function SEFCenter() {
     setPurchaseDateToOpen(false);
     setSalesDateFromOpen(false);
     setSalesDateToOpen(false);
+    
+    // AGRESIVNO čišćenje: sakri sve Radix popper portale odmah
+    const portals = document.querySelectorAll('[data-radix-popper-content-wrapper]');
+    portals.forEach(portal => {
+      (portal as HTMLElement).style.display = 'none';
+    });
+    
+    // Povećaj epoch da forsiraš remount date picker sekcija (čisti orphaned portale)
+    setDatePickerEpoch(prev => prev + 1);
     
     // Reset blokade nakon kratkog delay-a (500ms je dovoljno za Radix event propagaciju)
     setTimeout(() => {
@@ -457,8 +469,8 @@ export default function SEFCenter() {
     // Zatvori sve date pickere i postavi blokadu ODMAH
     closeAllDatePickers();
     
-    // Kratka pauza da se DOM stabilizuje i Radix eventi propagiraju
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Duža pauza da se DOM stabilizuje, Radix eventi propagiraju i portali očiste
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     await startLongSync(companyId, invoiceType, 3);
     // Refresh after starting
@@ -776,7 +788,7 @@ export default function SEFCenter() {
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
               {/* Date Range - first on desktop */}
-                <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
+                <div key={`purchase-datepickers-${datePickerEpoch}`} className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   {/* Tokom sync-a renderuj samo disabled dugmad BEZ Popover-a */}
                   {isSyncActive ? (
                     <>
@@ -1094,7 +1106,7 @@ export default function SEFCenter() {
               {/* Date Range, Search, and Buttons - all inline on desktop */}
               <div className="flex flex-col lg:flex-row lg:items-center lg:flex-wrap gap-4 mb-6">
               {/* Date Range - first on desktop */}
-                <div className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
+                <div key={`sales-datepickers-${datePickerEpoch}`} className="flex flex-col sm:flex-row items-center gap-1 order-2 lg:order-1">
                   {/* Tokom sync-a renderuj samo disabled dugmad BEZ Popover-a */}
                   {isSyncActive ? (
                     <>
@@ -1111,7 +1123,7 @@ export default function SEFCenter() {
                   ) : (
                     <>
                       <Popover 
-                        open={salesDateFromOpen} 
+                        open={salesDateFromOpen}
                         onOpenChange={(open) => handleDatePickerOpenChange(setSalesDateFromOpen, open)}
                         modal={true}
                       >
