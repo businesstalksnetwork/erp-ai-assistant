@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useClients } from '@/hooks/useClients';
+import { useSEFRegistry, SEFRegistryResult } from '@/hooks/useSEFRegistry';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,17 +35,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 export default function Clients() {
   const { selectedCompany } = useSelectedCompany();
   const { clients, isLoading, createClient, updateClient, deleteClient } = useClients(selectedCompany?.id || null);
+  const { checkPibInRegistry, isChecking: isSefChecking } = useSEFRegistry();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [sefCheckResult, setSefCheckResult] = useState<SEFRegistryResult | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -70,12 +73,37 @@ export default function Clients() {
       sef_registered: false,
     });
     setEditId(null);
+    setSefCheckResult(null);
   };
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) resetForm();
   };
+
+  // Check SEF registry when PIB changes
+  const handlePibChange = useCallback(async (pib: string) => {
+    setFormData(prev => ({ ...prev, pib }));
+    setSefCheckResult(null);
+
+    // Only check when PIB has 9 digits
+    if (pib.length === 9 && /^\d{9}$/.test(pib)) {
+      const result = await checkPibInRegistry(pib);
+      setSefCheckResult(result);
+      
+      if (result.found && result.isActive) {
+        // Automatically enable SEF registration for active companies
+        setFormData(prev => ({ ...prev, sef_registered: true }));
+        
+        toast({
+          title: '✓ Firma je u SEF registru',
+          description: result.registrationDate 
+            ? `Registrovana od: ${new Date(result.registrationDate).toLocaleDateString('sr-Latn-RS')}`
+            : 'Firma je aktivna u SEF sistemu',
+        });
+      }
+    }
+  }, [checkPibInRegistry, toast]);
 
   const handleEdit = (client: typeof clients[0]) => {
     setFormData({
@@ -248,7 +276,7 @@ export default function Clients() {
                         <Input
                           id="pib"
                           value={formData.pib}
-                          onChange={(e) => setFormData({ ...formData, pib: e.target.value })}
+                          onChange={(e) => handlePibChange(e.target.value.replace(/\D/g, ''))}
                           placeholder="123456789"
                           maxLength={9}
                           className="flex-1"
@@ -268,6 +296,38 @@ export default function Clients() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">Unesite PIB i kliknite na lupu za automatsko povlačenje podataka (NBS/APR)</p>
+                      
+                      {/* SEF Registry Status Indicator */}
+                      {isSefChecking && formData.pib.length === 9 && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Provera SEF registra...</span>
+                        </div>
+                      )}
+                      
+                      {sefCheckResult?.found && sefCheckResult.isActive && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>
+                            Firma je registrovana u SEF sistemu
+                            {sefCheckResult.registrationDate && ` od ${new Date(sefCheckResult.registrationDate).toLocaleDateString('sr-Latn-RS')}`}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {sefCheckResult?.found && !sefCheckResult.isActive && (
+                        <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-500">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Firma je bila u SEF registru, ali je obrisana</span>
+                        </div>
+                      )}
+                      
+                      {sefCheckResult?.found === false && formData.pib.length === 9 && !isSefChecking && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Firma nije pronađena u SEF registru</span>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="maticni_broj">Matični broj</Label>

@@ -830,6 +830,33 @@ export type Database = {
           },
         ]
       }
+      sef_registry: {
+        Row: {
+          created_at: string | null
+          deletion_date: string | null
+          id: string
+          jbkjs: string | null
+          pib: string
+          registration_date: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deletion_date?: string | null
+          id?: string
+          jbkjs?: string | null
+          pib: string
+          registration_date?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deletion_date?: string | null
+          id?: string
+          jbkjs?: string | null
+          pib?: string
+          registration_date?: string | null
+        }
+        Relationships: []
+      }
       sef_sync_jobs: {
         Row: {
           company_id: string
