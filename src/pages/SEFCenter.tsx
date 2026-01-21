@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, BookOpen } from 'lucide-react';
+import { AlertCircle, Check, X, Download, Upload, RefreshCw, Eye, FileText, Inbox, Send, Archive, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, BookOpen, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
@@ -90,7 +91,7 @@ export default function SEFCenter() {
 
   // Hooks
   const { fetchPurchaseInvoices, fetchSalesInvoices, acceptInvoice, rejectInvoice, cancelSalesInvoice, getInvoiceXML, enrichIncompleteInvoices, isFetching, isFetchingSales, isProcessing, isLoadingXML, isEnriching, isCancelling } = useSEFPurchaseInvoices();
-  const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting, importToInvoices, bulkImportToInvoices, isImportingToInvoices } = useSEFStorage(companyId);
+  const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting, importToInvoices, bulkImportToInvoices, isImportingToInvoices, syncMissingKPOEntries, isSyncingKPO } = useSEFStorage(companyId);
   const { activeJob, isStarting, progress, startLongSync, dismissJobStatus, cancelJob } = useSEFLongSync(companyId);
 
   // Count incomplete invoices
@@ -1160,62 +1161,57 @@ export default function SEFCenter() {
                     )}
                     Preuzmi sa SEF-a
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleStartLongSync('sales')} 
-                    disabled={isStarting || (activeJob?.status === 'running')}
-                    title="Preuzmi sve izlazne fakture za poslednjih 3 godine"
-                  >
-                    {isStarting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    Preuzmi sve (3 god.)
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleFetchSalesInvoices} 
-                    disabled={isFetchingSales}
-                    title="Osveži statuse svih izlaznih faktura za izabrani period"
-                  >
-                    {isFetchingSales ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Osveži statuse
-                  </Button>
-                  {incompleteSalesCount > 0 && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => companyId && enrichIncompleteInvoices(companyId).then(() => setTimeout(() => refetch(), 500))} 
-                      disabled={isFetching || isEnriching}
-                      title={`${incompleteSalesCount} faktura bez kompletnih podataka`}
-                    >
-                      {isEnriching ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
+                  
+                  {/* Dropdown for other actions */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" title="Više opcija">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => handleStartLongSync('sales')}
+                        disabled={isStarting || (activeJob?.status === 'running')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Preuzmi sve (3 god.)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={handleFetchSalesInvoices} 
+                        disabled={isFetchingSales}
+                      >
                         <RefreshCw className="h-4 w-4 mr-2" />
+                        Osveži statuse
+                      </DropdownMenuItem>
+                      {incompleteSalesCount > 0 && (
+                        <DropdownMenuItem 
+                          onClick={() => companyId && enrichIncompleteInvoices(companyId).then(() => setTimeout(() => refetch(), 500))}
+                          disabled={isFetching || isEnriching}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Osveži podatke ({incompleteSalesCount})
+                        </DropdownMenuItem>
                       )}
-                      Osveži podatke ({incompleteSalesCount})
-                    </Button>
-                  )}
-                  {importableSalesInvoices.length > 0 && (
-                    <Button 
-                      variant="default" 
-                      onClick={() => bulkImportToInvoices(importableSalesInvoices)} 
-                      disabled={isImportingToInvoices}
-                      title={`Uvezi ${importableSalesInvoices.length} faktura u KPO knjigu`}
-                    >
-                      {isImportingToInvoices ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => syncMissingKPOEntries()}
+                        disabled={isSyncingKPO}
+                      >
                         <BookOpen className="h-4 w-4 mr-2" />
+                        Sinhronizuj postojeće u KPO
+                      </DropdownMenuItem>
+                      {importableSalesInvoices.length > 0 && (
+                        <DropdownMenuItem 
+                          onClick={() => bulkImportToInvoices(importableSalesInvoices)}
+                          disabled={isImportingToInvoices}
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Uveži sve u KPO ({importableSalesInvoices.length})
+                        </DropdownMenuItem>
                       )}
-                      Uveži sve u KPO ({importableSalesInvoices.length})
-                    </Button>
-                  )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
