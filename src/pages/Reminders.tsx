@@ -360,10 +360,21 @@ export default function Reminders() {
     }).sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
 
     // Tekući mesec: svi podsetnici unutar tekućeg meseca (1. do kraja), bez obzira da li je rok prošao
+    // Sortiranje: prvo oni sa prošlim rokom (hitni), pa ostali po datumu
     const currentMonth = activeReminders.filter(r => {
       const dueDate = startOfDay(new Date(r.due_date));
       return !isBefore(dueDate, currentMonthStart) && !isAfter(dueDate, currentMonthEnd);
-    }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+    }).sort((a, b) => {
+      const dateA = startOfDay(new Date(a.due_date));
+      const dateB = startOfDay(new Date(b.due_date));
+      const aIsPast = isBefore(dateA, today);
+      const bIsPast = isBefore(dateB, today);
+      // Ako jedan je prošao a drugi nije, prošao ide prvi
+      if (aIsPast && !bIsPast) return -1;
+      if (!aIsPast && bIsPast) return 1;
+      // Ako su oba prošla ili oba nisu, sortiraj po datumu
+      return dateA.getTime() - dateB.getTime();
+    });
 
     const nextThreeMonths = activeReminders.filter(r => {
       const dueDate = startOfDay(new Date(r.due_date));
@@ -376,7 +387,7 @@ export default function Reminders() {
     }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
     return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
-  }, [filteredReminders, currentMonthStart, currentMonthEnd, threeMonthsLater, yearEnd]);
+  }, [filteredReminders, today, currentMonthStart, currentMonthEnd, threeMonthsLater, yearEnd]);
 
   // All active reminders for bulk operations and empty state
   const allActiveReminders = [
@@ -615,12 +626,20 @@ export default function Reminders() {
   // State for bulk select mode
   const [bulkSelectMode, setBulkSelectMode] = useState(false);
 
+  // Helper to check if a reminder's due date has passed (for urgent indicator in current month)
+  const isPastDueDate = (dueDate: string) => {
+    return startOfDay(new Date(dueDate)) < today;
+  };
+
   // Helper to render a single reminder item
-  const renderReminderItem = (reminder: Reminder, showOverdueBadge: boolean) => (
+  // showOverdueBadge: for expired tab (red)
+  // showUrgentBadge: for current month items that passed due date (orange)
+  const renderReminderItem = (reminder: Reminder, showOverdueBadge: boolean, showUrgentBadge: boolean = false) => (
     <div
       key={reminder.id}
       className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border ${
-        showOverdueBadge ? 'border-destructive bg-destructive/5' : 'bg-secondary'
+        showOverdueBadge ? 'border-destructive bg-destructive/5' : 
+        showUrgentBadge ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20' : 'bg-secondary'
       } ${selectedIds.has(reminder.id) ? 'ring-2 ring-primary' : ''}`}
     >
       <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
@@ -638,6 +657,9 @@ export default function Reminders() {
             <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
             {showOverdueBadge && (
               <Badge variant="destructive" className="text-[10px] sm:text-xs">Istekao</Badge>
+            )}
+            {showUrgentBadge && (
+              <Badge className="text-[10px] sm:text-xs bg-orange-500 hover:bg-orange-600 text-white">Hitno</Badge>
             )}
             {reminder.recurrence_type && reminder.recurrence_type !== 'none' && (
               <Badge variant="secondary" className="gap-1 text-[10px] sm:text-xs">
@@ -1143,7 +1165,7 @@ export default function Reminders() {
               <CardContent className="pt-6">
                 {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {paginatedItems.map((reminder) => renderReminderItem(reminder, false))}
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, false, isPastDueDate(reminder.due_date)))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
