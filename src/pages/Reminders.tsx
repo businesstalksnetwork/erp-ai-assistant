@@ -53,7 +53,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import PausalniPdfDialog, { PausalniType } from '@/components/PausalniPdfDialog';
@@ -76,44 +76,47 @@ function generateIPSQRCode(
   paymentPurpose: string,
   payerName: string,
   payerAddress?: string | null,
-  paymentCode: string = '289',
+  paymentCode: string = '253',  // Default 253 for tax payments
   paymentModel: string = '97',
   paymentReference: string = ''
 ): string {
+  // Sanitize text - remove pipe characters and carriage returns
+  const sanitize = (value: string) => value.replace(/\|/g, ' ').replace(/\r/g, '').replace(/\n/g, ' ').trim();
+
   // Receiver account: format XXX-XXXXXXXXXXXXX-XX (18 digits total)
-  // The middle part should be padded with zeros to 13 digits
   const accountParts = receiverAccount.split('-');
   let formattedAccount: string;
   
   if (accountParts.length === 3) {
-    // Format: bank (3) - account (13, pad with zeros at start) - control (2)
     const bank = accountParts[0].replace(/\D/g, '').padStart(3, '0').substring(0, 3);
     const account = accountParts[1].replace(/\D/g, '').padStart(13, '0').substring(0, 13);
     const control = accountParts[2].replace(/\D/g, '').padStart(2, '0').substring(0, 2);
     formattedAccount = bank + account + control;
   } else {
-    // Fallback: just remove non-digits and pad to 18
     formattedAccount = receiverAccount.replace(/\D/g, '').padStart(18, '0').substring(0, 18);
   }
 
-  // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator, no spaces)
+  // Amount: NBS IPS uses format "RSD1234,56" (comma as decimal separator)
   const formattedAmount = amount.toFixed(2).replace('.', ',');
 
-  // Receiver name (max 70 chars)
-  const n = receiverName.trim().substring(0, 70);
+  // Receiver name (max 70 chars, sanitized)
+  const n = sanitize(receiverName).substring(0, 70);
   
-  // Payer info - join name and address with newline
-  const p = [payerName?.trim(), payerAddress?.trim()].filter(Boolean).join('\n');
+  // Payer info - join name and address (max 70 chars each, sanitized)
+  const payerNameClean = sanitize(payerName || '').substring(0, 70);
+  const payerAddressClean = sanitize(payerAddress || '').substring(0, 70);
+  const p = [payerNameClean, payerAddressClean].filter(Boolean).join('\n');
 
-  // Payment purpose (max 35 chars)
-  const purpose = paymentPurpose.trim().substring(0, 35);
+  // Payment purpose (max 35 chars, sanitized)
+  const purpose = sanitize(paymentPurpose).substring(0, 35);
   
-  // Payment code (šifra plaćanja) - must be 3 digits
-  const sf = paymentCode.trim().padStart(3, '0').substring(0, 3);
+  // Payment code (šifra plaćanja) - must be exactly 3 digits
+  const sf = paymentCode.replace(/\D/g, '').padStart(3, '0').substring(0, 3);
 
-  // Reference (poziv na broj) - model + reference number, no separator
-  const ref = paymentReference.trim();
-  const model = paymentModel.trim();
+  // Reference - only digits, no dashes or other characters
+  const cleanReference = paymentReference.replace(/\D/g, '');
+  // Model - exactly 2 digits
+  const model = paymentModel.replace(/\D/g, '').padStart(2, '0').substring(0, 2);
   
   // Build IPS QR code string with | as separator (per NBS standard)
   const parts = [
@@ -129,8 +132,8 @@ function generateIPSQRCode(
   ];
   
   // Add reference only if both model and reference are provided
-  if (model && ref) {
-    parts.push(`RO:${model}${ref}`);
+  if (model && cleanReference) {
+    parts.push(`RO:${model}${cleanReference}`);
   }
 
   return parts.join('|');
@@ -152,6 +155,14 @@ export default function Reminders() {
   const [pausalniDialogOpen, setPausalniDialogOpen] = useState(false);
   const [pausalniType, setPausalniType] = useState<PausalniType>('porez');
   const [isCreatingBulk, setIsCreatingBulk] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -166,7 +177,7 @@ export default function Reminders() {
     recipient_account: '',
     payment_model: '97',
     payment_reference: '',
-    payment_code: '289',
+    payment_code: '253',
   });
 
   const resetForm = () => {
@@ -183,7 +194,7 @@ export default function Reminders() {
       recipient_account: '',
       payment_model: '97',
       payment_reference: '',
-      payment_code: '289',
+      payment_code: '253',
     });
     setEditId(null);
   };
@@ -207,7 +218,7 @@ export default function Reminders() {
       recipient_account: reminder.recipient_account || '',
       payment_model: reminder.payment_model || '97',
       payment_reference: reminder.payment_reference || '',
-      payment_code: reminder.payment_code || '289',
+      payment_code: reminder.payment_code || '253',
     });
     setEditId(reminder.id);
     setIsOpen(true);
@@ -253,7 +264,7 @@ export default function Reminders() {
       recipient_account: formData.recipient_account || null,
       payment_model: formData.payment_model || '97',
       payment_reference: formData.payment_reference || null,
-      payment_code: formData.payment_code || '289',
+      payment_code: formData.payment_code || '253',
     };
 
     if (editId) {
@@ -288,7 +299,18 @@ export default function Reminders() {
     }
   };
 
-  const completedReminders = reminders.filter(r => r.is_completed);
+  // Filter reminders by search query
+  const filteredReminders = useMemo(() => {
+    if (!searchQuery.trim()) return reminders;
+    const query = searchQuery.toLowerCase();
+    return reminders.filter(r =>
+      r.title.toLowerCase().includes(query) ||
+      r.description?.toLowerCase().includes(query) ||
+      r.recipient_name?.toLowerCase().includes(query)
+    );
+  }, [reminders, searchQuery]);
+
+  const completedReminders = filteredReminders.filter(r => r.is_completed);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -301,7 +323,7 @@ export default function Reminders() {
   const yearEnd = endOfYear(today);
 
   const categorizedReminders = useMemo(() => {
-    const activeReminders = reminders.filter(r => !r.is_completed);
+    const activeReminders = filteredReminders.filter(r => !r.is_completed);
     
     const overdue = activeReminders.filter(r => {
       const dueDate = startOfDay(new Date(r.due_date));
@@ -324,7 +346,7 @@ export default function Reminders() {
     }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
     return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
-  }, [reminders, today, currentMonthEnd, threeMonthsLater, yearEnd]);
+  }, [filteredReminders, today, currentMonthEnd, threeMonthsLater, yearEnd]);
 
   const allActiveReminders = [
     ...categorizedReminders.overdue,
@@ -382,6 +404,55 @@ export default function Reminders() {
 
   const isOverdue = (dueDate: string) => {
     return new Date(dueDate) < new Date(new Date().toDateString());
+  };
+
+  // Bulk selection handlers
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (category: Reminder[]) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      const allSelected = category.every(r => newSet.has(r.id));
+      if (allSelected) {
+        category.forEach(r => newSet.delete(r.id));
+      } else {
+        category.forEach(r => newSet.add(r.id));
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      for (const id of selectedIds) {
+        await deleteReminder.mutateAsync(id);
+      }
+      toast({ title: `Obrisano ${selectedIds.size} podsetnika` });
+      setSelectedIds(new Set());
+      setBulkDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({ title: 'Greška', description: 'Došlo je do greške pri brisanju', variant: 'destructive' });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
   };
 
   // Handle paušalni PDF parsed data - create reminders
@@ -525,14 +596,20 @@ export default function Reminders() {
       key={reminder.id}
       className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border ${
         showOverdueBadge ? 'border-destructive bg-destructive/5' : 'bg-secondary'
-      }`}
+      } ${selectedIds.has(reminder.id) ? 'ring-2 ring-primary' : ''}`}
     >
       <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-        <Checkbox
-          checked={reminder.is_completed}
-          onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
-          className="mt-1 sm:mt-0 flex-shrink-0"
-        />
+        <div className="flex items-center gap-2 mt-1 sm:mt-0 flex-shrink-0">
+          <Checkbox
+            checked={selectedIds.has(reminder.id)}
+            onCheckedChange={() => handleToggleSelect(reminder.id)}
+            className="border-muted-foreground/50"
+          />
+          <Checkbox
+            checked={reminder.is_completed}
+            onCheckedChange={() => handleToggle(reminder.id, reminder.is_completed)}
+          />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-sm sm:text-base">{reminder.title}</p>
@@ -610,6 +687,33 @@ export default function Reminders() {
                 Novi podsetnik
               </Button>
             </DialogTrigger>
+
+      {/* Search Input */}
+      <div className="relative flex-1 sm:max-w-xs">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Pretraži podsetnike..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="pl-10 pr-8"
+        />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+            onClick={() => {
+              setSearchQuery('');
+              setCurrentPage(1);
+            }}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -1117,7 +1221,7 @@ export default function Reminders() {
                      selectedReminder.title,
                      selectedCompany.name,
                      selectedCompany.address,
-                     selectedReminder.payment_code || '289',
+                     selectedReminder.payment_code || '253',
                      selectedReminder.payment_model || '97',
                      selectedReminder.payment_reference || ''
                    )}
@@ -1185,6 +1289,49 @@ export default function Reminders() {
         type={pausalniType}
         onDataParsed={handlePausalniDataParsed}
       />
+
+      {/* Bulk Delete Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Obriši {selectedIds.size} podsetnika?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ova akcija će trajno obrisati sve selektovane podsetnike. Ova radnja se ne može poništiti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Brisanje...
+                </>
+              ) : (
+                `Obriši ${selectedIds.size}`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Floating Action Bar for Bulk Selection */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-card border rounded-lg shadow-lg p-3 flex items-center gap-4 z-50">
+          <span className="text-sm font-medium">{selectedIds.size} selektovano</span>
+          <Button variant="outline" size="sm" onClick={clearSelection}>
+            Poništi
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Obriši
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
