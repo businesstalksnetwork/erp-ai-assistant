@@ -378,6 +378,7 @@ export default function Reminders() {
     return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
   }, [filteredReminders, currentMonthStart, currentMonthEnd, threeMonthsLater, yearEnd]);
 
+  // All active reminders for bulk operations and empty state
   const allActiveReminders = [
     ...categorizedReminders.overdue,
     ...categorizedReminders.currentMonth,
@@ -385,31 +386,28 @@ export default function Reminders() {
     ...categorizedReminders.untilEndOfYear,
   ];
 
-  // Pagination calculations
-  const totalActiveReminders = allActiveReminders.length;
-  const totalPages = Math.ceil(totalActiveReminders / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  // Active tab state for independent pagination
+  const [activeTab, setActiveTab] = useState('currentMonth');
 
-  // Get paginated items for each category
-  const getPaginatedCategory = (category: Reminder[], categoryStartIndex: number) => {
-    const categoryEndIndex = categoryStartIndex + category.length;
-    if (categoryEndIndex <= startIndex || categoryStartIndex >= endIndex) {
-      return { items: [] as Reminder[], nextStartIndex: categoryEndIndex };
+  // Get reminders for the active tab
+  const getActiveTabReminders = () => {
+    switch (activeTab) {
+      case 'currentMonth': return categorizedReminders.currentMonth;
+      case 'nextThreeMonths': return categorizedReminders.nextThreeMonths;
+      case 'untilEndOfYear': return categorizedReminders.untilEndOfYear;
+      case 'overdue': return categorizedReminders.overdue;
+      case 'archived': return completedReminders;
+      default: return [];
     }
-    const sliceStart = Math.max(0, startIndex - categoryStartIndex);
-    const sliceEnd = Math.min(category.length, endIndex - categoryStartIndex);
-    return { items: category.slice(sliceStart, sliceEnd), nextStartIndex: categoryEndIndex };
   };
 
-  let runningIndex = 0;
-  const paginatedOverdue = getPaginatedCategory(categorizedReminders.overdue, runningIndex);
-  runningIndex = paginatedOverdue.nextStartIndex;
-  const paginatedCurrentMonth = getPaginatedCategory(categorizedReminders.currentMonth, runningIndex);
-  runningIndex = paginatedCurrentMonth.nextStartIndex;
-  const paginatedNextThreeMonths = getPaginatedCategory(categorizedReminders.nextThreeMonths, runningIndex);
-  runningIndex = paginatedNextThreeMonths.nextStartIndex;
-  const paginatedUntilEndOfYear = getPaginatedCategory(categorizedReminders.untilEndOfYear, runningIndex);
+  const activeTabReminders = getActiveTabReminders();
+  const totalItems = activeTabReminders.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedItems = activeTabReminders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
@@ -1110,7 +1108,7 @@ export default function Reminders() {
         </Card>
       ) : (
         <div className="space-y-4">
-          <Tabs defaultValue="currentMonth" className="w-full">
+          <Tabs defaultValue="currentMonth" value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); }} className="w-full">
             <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="currentMonth" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
               <Calendar className="h-4 w-4 shrink-0" />
@@ -1143,9 +1141,9 @@ export default function Reminders() {
           <TabsContent value="currentMonth" className="mt-4">
             <Card>
               <CardContent className="pt-6">
-                {paginatedCurrentMonth.items.length > 0 ? (
+                {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {paginatedCurrentMonth.items.map((reminder) => renderReminderItem(reminder, false))}
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, false))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
@@ -1161,9 +1159,9 @@ export default function Reminders() {
           <TabsContent value="nextThreeMonths" className="mt-4">
             <Card>
               <CardContent className="pt-6">
-                {paginatedNextThreeMonths.items.length > 0 ? (
+                {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {paginatedNextThreeMonths.items.map((reminder) => renderReminderItem(reminder, false))}
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, false))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
@@ -1179,9 +1177,9 @@ export default function Reminders() {
           <TabsContent value="untilEndOfYear" className="mt-4">
             <Card>
               <CardContent className="pt-6">
-                {paginatedUntilEndOfYear.items.length > 0 ? (
+                {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {paginatedUntilEndOfYear.items.map((reminder) => renderReminderItem(reminder, false))}
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, false))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
@@ -1197,9 +1195,9 @@ export default function Reminders() {
           <TabsContent value="overdue" className="mt-4">
             <Card className="border-destructive/50">
               <CardContent className="pt-6">
-                {paginatedOverdue.items.length > 0 ? (
+                {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {paginatedOverdue.items.map((reminder) => renderReminderItem(reminder, true))}
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, true))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
@@ -1215,9 +1213,12 @@ export default function Reminders() {
           <TabsContent value="archived" className="mt-4">
             <Card className="border-green-200 dark:border-green-800">
               <CardContent className="pt-6">
-                {completedReminders.length > 0 ? (
+                {paginatedItems.length > 0 ? (
                   <div className="space-y-3">
-                    {completedReminders.map((reminder) => renderArchivedItem(reminder))}
+                    {activeTab === 'archived' 
+                      ? paginatedItems.map((reminder) => renderArchivedItem(reminder))
+                      : paginatedItems.map((reminder) => renderReminderItem(reminder, false))
+                    }
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">
@@ -1246,7 +1247,7 @@ export default function Reminders() {
         )}
 
         {/* Pagination */}
-        {totalActiveReminders > 0 && (
+        {totalItems > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t mt-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Prikaži:</span>
@@ -1261,7 +1262,7 @@ export default function Reminders() {
                 </SelectContent>
               </Select>
               <span className="text-sm text-muted-foreground">
-                od {totalActiveReminders} aktivnih
+                od {totalItems} podsetnika
               </span>
             </div>
             
