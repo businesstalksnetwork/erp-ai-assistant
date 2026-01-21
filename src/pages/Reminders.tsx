@@ -52,6 +52,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2 } from 'lucide-react';
@@ -1093,13 +1094,6 @@ export default function Reminders() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-background">
-            <DropdownMenuItem onClick={() => {
-              setBulkSelectMode(true);
-              setSelectedIds(new Set());
-            }}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Obriši više podsetnika
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openPausalniDialog('porez')}>
               <FileText className="mr-2 h-4 w-4" />
               Podsetnik za poreze
@@ -1107,6 +1101,14 @@ export default function Reminders() {
             <DropdownMenuItem onClick={() => openPausalniDialog('doprinosi')}>
               <FileText className="mr-2 h-4 w-4" />
               Podsetnik za doprinose
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => {
+              setBulkSelectMode(true);
+              setSelectedIds(new Set());
+            }}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Obriši više podsetnika
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
