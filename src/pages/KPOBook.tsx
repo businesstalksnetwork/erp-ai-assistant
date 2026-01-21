@@ -27,12 +27,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Building2, Loader2, Trash2 } from 'lucide-react';
-import { KPOPdfExport } from '@/components/KPOPdfExport';
-import { KPOCsvExport } from '@/components/KPOCsvExport';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BookOpen, Building2, Download, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react';
 import { KPOCsvImport } from '@/components/KPOCsvImport';
 import { toast } from 'sonner';
 
@@ -48,6 +52,8 @@ export default function KPOBook() {
   const { selectedCompany } = useSelectedCompany();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { entries, isLoading, totals, availableYears, deleteEntry, deleteYear, isDeleting } = useKPO(selectedCompany?.id || null, year);
 
   const years = availableYears.length > 0 ? availableYears : [currentYear];
@@ -75,9 +81,126 @@ export default function KPOBook() {
     try {
       await deleteYear({ companyId: selectedCompany.id, year });
       toast.success(`Obrisano ${entries.length} unosa za ${year}. godinu`);
+      setDeleteDialogOpen(false);
     } catch (error) {
       toast.error('Greška pri brisanju unosa');
     }
+  };
+
+  const handleCsvExport = () => {
+    if (entries.length === 0) return;
+    
+    const headers = ['R.br.', 'Datum', 'Opis', 'Proizvodi (RSD)', 'Usluge (RSD)', 'Ukupno (RSD)'];
+    const rows = entries.map(entry => [
+      entry.display_ordinal,
+      entry.document_date || '',
+      `"${entry.description}"`,
+      entry.products_amount.toString().replace('.', ','),
+      entry.services_amount.toString().replace('.', ','),
+      entry.total_amount.toString().replace('.', ','),
+    ]);
+    
+    // Add totals row
+    rows.push([
+      '',
+      '',
+      '"UKUPNO"',
+      totals.products.toString().replace('.', ','),
+      totals.services.toString().replace('.', ','),
+      totals.total.toString().replace('.', ','),
+    ]);
+    
+    const csv = [headers.join(';'), ...rows.map(row => row.join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `KPO_${selectedCompany?.name}_${year}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePdfExport = () => {
+    if (entries.length === 0) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const formatCurrencyLocal = (amount: number) => {
+      return new Intl.NumberFormat('sr-RS', {
+        style: 'currency',
+        currency: 'RSD',
+        maximumFractionDigits: 0,
+      }).format(amount);
+    };
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>KPO Knjiga ${year}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+          h1 { font-size: 18px; margin-bottom: 5px; }
+          .header { margin-bottom: 20px; }
+          .company-info { color: #666; margin-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .text-right { text-align: right; }
+          .font-mono { font-family: monospace; }
+          .font-bold { font-weight: bold; }
+          tfoot td { background-color: #f5f5f5; font-weight: bold; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>KPO KNJIGA - ${year}. GODINA</h1>
+          <div class="company-info">
+            <div><strong>${selectedCompany?.name}</strong></div>
+            <div>PIB: ${selectedCompany?.pib}</div>
+            <div>${selectedCompany?.address}</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 60px">R.br.</th>
+              <th>Opis prometa</th>
+              <th style="width: 120px" class="text-right">Proizvodi</th>
+              <th style="width: 120px" class="text-right">Usluge</th>
+              <th style="width: 120px" class="text-right">Ukupno</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(entry => `
+              <tr>
+                <td class="font-mono">${entry.display_ordinal}</td>
+                <td>${entry.description}</td>
+                <td class="text-right font-mono">${entry.products_amount > 0 ? formatCurrencyLocal(entry.products_amount) : '-'}</td>
+                <td class="text-right font-mono">${entry.services_amount > 0 ? formatCurrencyLocal(entry.services_amount) : '-'}</td>
+                <td class="text-right font-mono font-bold">${formatCurrencyLocal(entry.total_amount)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">UKUPNO</td>
+              <td class="text-right font-mono">${formatCurrencyLocal(totals.products)}</td>
+              <td class="text-right font-mono">${formatCurrencyLocal(totals.services)}</td>
+              <td class="text-right font-mono">${formatCurrencyLocal(totals.total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   return (
@@ -89,51 +212,7 @@ export default function KPOBook() {
             Knjiga o ostvarenom prometu za {selectedCompany.name}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <KPOCsvImport companyId={selectedCompany.id} year={year} />
-          <KPOPdfExport
-            entries={entries}
-            totals={totals}
-            year={year}
-            companyName={selectedCompany.name}
-            companyPib={selectedCompany.pib}
-            companyAddress={selectedCompany.address}
-          />
-          <KPOCsvExport
-            entries={entries}
-            totals={totals}
-            year={year}
-            companyName={selectedCompany.name}
-          />
-          
-          {entries.length > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Obriši godinu
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Obrisati sve KPO unose za {year}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ova akcija će trajno obrisati {entries.length} unosa. Ovo se ne može poništiti.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Odustani</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteYear}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Obriši sve
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          
+        <div className="flex items-center gap-2">
           <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
@@ -146,8 +225,68 @@ export default function KPOBook() {
               ))}
             </SelectContent>
           </Select>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => setImportDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Uvezi CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleCsvExport} disabled={entries.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Izvezi CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handlePdfExport} disabled={entries.length === 0}>
+                <FileText className="mr-2 h-4 w-4" />
+                Izvezi PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onSelect={() => setDeleteDialogOpen(true)}
+                disabled={entries.length === 0}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Obriši godinu
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      {/* CSV Import Dialog */}
+      <KPOCsvImport 
+        companyId={selectedCompany.id} 
+        year={year}
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+      />
+
+      {/* Delete Year Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Obrisati sve KPO unose za {year}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ova akcija će trajno obrisati {entries.length} unosa. Ovo se ne može poništiti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Odustani</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteYear}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Obriši sve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>
