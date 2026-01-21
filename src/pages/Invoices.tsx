@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/tooltip';
 import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote, Pencil } from 'lucide-react';
 import { PaymentStatusDialog } from '@/components/PaymentStatusDialog';
+import { TemplatesDropdown } from '@/components/TemplatesDropdown';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -239,12 +240,15 @@ export default function Invoices() {
           <h1 className="text-xl sm:text-2xl font-bold">Fakture</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Upravljajte fakturama i predračunima</p>
         </div>
-        <Button asChild size="sm" className="w-full sm:w-auto">
-          <Link to="/invoices/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova faktura
-          </Link>
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <TemplatesDropdown companyId={selectedCompany?.id || null} />
+          <Button asChild size="sm" className="flex-1 sm:flex-none">
+            <Link to="/invoices/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nova faktura
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -118,11 +118,45 @@ export function useInvoiceTemplates(companyId: string | null) {
     },
   });
 
+  const updateTemplate = useMutation({
+    mutationFn: async (input: { id: string } & Partial<CreateTemplateInput>) => {
+      const { id, items, ...updates } = input;
+      const updateData: Record<string, unknown> = { ...updates };
+      if (items) {
+        updateData.items = JSON.stringify(items);
+      }
+      
+      const { data, error } = await supabase
+        .from('invoice_templates')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice-templates', companyId] });
+      toast.success('Šablon je uspešno ažuriran');
+    },
+    onError: (error) => {
+      console.error('Error updating template:', error);
+      toast.error('Greška pri ažuriranju šablona');
+    },
+  });
+
+  const getTemplateById = (id: string) => {
+    return templates.find(t => t.id === id) || null;
+  };
+
   return {
     templates,
     isLoading,
     getTemplatesByType,
+    getTemplateById,
     createTemplate,
     deleteTemplate,
+    updateTemplate,
   };
 }
