@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useReminders, Reminder } from '@/hooks/useReminders';
-import { startOfDay, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
+import { startOfDay, startOfMonth, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -345,6 +345,7 @@ export default function Reminders() {
 
   // Categorize active reminders
   const today = startOfDay(new Date());
+  const currentMonthStart = startOfMonth(today);
   const currentMonthEnd = endOfMonth(today);
   const threeMonthsLater = endOfMonth(addMonths(today, 3));
   const yearEnd = endOfYear(today);
@@ -352,14 +353,16 @@ export default function Reminders() {
   const categorizedReminders = useMemo(() => {
     const activeReminders = filteredReminders.filter(r => !r.is_completed);
     
+    // Istekli: samo podsetnici čiji je due_date bio PRE početka tekućeg meseca
     const overdue = activeReminders.filter(r => {
       const dueDate = startOfDay(new Date(r.due_date));
-      return isBefore(dueDate, today);
+      return isBefore(dueDate, currentMonthStart);
     }).sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
 
+    // Tekući mesec: svi podsetnici unutar tekućeg meseca (1. do kraja), bez obzira da li je rok prošao
     const currentMonth = activeReminders.filter(r => {
       const dueDate = startOfDay(new Date(r.due_date));
-      return !isBefore(dueDate, today) && !isAfter(dueDate, currentMonthEnd);
+      return !isBefore(dueDate, currentMonthStart) && !isAfter(dueDate, currentMonthEnd);
     }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
     const nextThreeMonths = activeReminders.filter(r => {
@@ -373,7 +376,7 @@ export default function Reminders() {
     }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
     return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
-  }, [filteredReminders, today, currentMonthEnd, threeMonthsLater, yearEnd]);
+  }, [filteredReminders, currentMonthStart, currentMonthEnd, threeMonthsLater, yearEnd]);
 
   const allActiveReminders = [
     ...categorizedReminders.overdue,
