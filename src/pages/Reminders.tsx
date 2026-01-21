@@ -337,8 +337,8 @@ export default function Reminders() {
             const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
             const dueDate = new Date(dueYear, dueDateMonth, 15);
             
-            const reminderDate = new Date(dueDate);
-            reminderDate.setDate(reminderDate.getDate() - 5);
+        const reminderDate = new Date(dueDate);
+        reminderDate.setDate(reminderDate.getDate() - 7);
 
             await createReminder.mutateAsync({
               company_id: selectedCompany.id,
@@ -375,8 +375,8 @@ export default function Reminders() {
           const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
           const dueDate = new Date(dueYear, dueDateMonth, 15);
           
-          const reminderDate = new Date(dueDate);
-          reminderDate.setDate(reminderDate.getDate() - 5);
+            const reminderDate = new Date(dueDate);
+            reminderDate.setDate(reminderDate.getDate() - 7);
 
           await createReminder.mutateAsync({
             company_id: selectedCompany.id,
