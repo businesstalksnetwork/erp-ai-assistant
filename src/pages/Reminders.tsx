@@ -142,9 +142,9 @@ function generateIPSQRCode(
   parts.push(`SF:${sf}`);
   parts.push(`S:${purpose}`);
   
-  // Add reference only if both model and reference are provided
-  if (model && cleanReference) {
-    parts.push(`RO:${model}${cleanReference}`);
+  // Koristi model 00 za maksimalnu kompatibilnost (kao u InvoiceDetail)
+  if (cleanReference) {
+    parts.push(`RO:00${cleanReference}`);
   }
 
   return parts.join('|');
