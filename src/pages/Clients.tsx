@@ -60,6 +60,9 @@ export default function Clients() {
     sef_registered: false,
   });
 
+  // SEF je dostupan samo ako kompanija ima konfigurisan API ključ
+  const isSefConfigured = selectedCompany?.sef_enabled && !!selectedCompany?.sef_api_key;
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -81,13 +84,13 @@ export default function Clients() {
     if (!open) resetForm();
   };
 
-  // Check SEF registry when PIB changes
+  // Check SEF registry when PIB changes - SAMO ako je SEF konfigurisan
   const handlePibChange = useCallback(async (pib: string) => {
     setFormData(prev => ({ ...prev, pib }));
     setSefCheckResult(null);
 
-    // Only check when PIB has 9 digits
-    if (pib.length === 9 && /^\d{9}$/.test(pib)) {
+    // Proveri SEF registar SAMO ako kompanija ima konfigurisan SEF
+    if (isSefConfigured && pib.length === 9 && /^\d{9}$/.test(pib)) {
       const result = await checkPibInRegistry(pib);
       setSefCheckResult(result);
       
@@ -103,7 +106,7 @@ export default function Clients() {
         });
       }
     }
-  }, [checkPibInRegistry, toast]);
+  }, [checkPibInRegistry, toast, isSefConfigured]);
 
   const handleEdit = (client: typeof clients[0]) => {
     setFormData({
@@ -297,15 +300,15 @@ export default function Clients() {
                       </div>
                       <p className="text-xs text-muted-foreground">Unesite PIB i kliknite na lupu za automatsko povlačenje podataka (NBS/APR)</p>
                       
-                      {/* SEF Registry Status Indicator */}
-                      {isSefChecking && formData.pib.length === 9 && (
+                      {/* SEF Registry Status Indicator - samo ako je SEF konfigurisan */}
+                      {isSefConfigured && isSefChecking && formData.pib.length === 9 && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <span>Provera SEF registra...</span>
                         </div>
                       )}
                       
-                      {sefCheckResult?.found && sefCheckResult.isActive && (
+                      {isSefConfigured && sefCheckResult?.found && sefCheckResult.isActive && (
                         <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500">
                           <CheckCircle className="h-4 w-4" />
                           <span>
@@ -315,14 +318,14 @@ export default function Clients() {
                         </div>
                       )}
                       
-                      {sefCheckResult?.found && !sefCheckResult.isActive && (
+                      {isSefConfigured && sefCheckResult?.found && !sefCheckResult.isActive && (
                         <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-500">
                           <AlertCircle className="h-4 w-4" />
                           <span>Firma je bila u SEF registru, ali je obrisana</span>
                         </div>
                       )}
                       
-                      {sefCheckResult?.found === false && formData.pib.length === 9 && !isSefChecking && (
+                      {isSefConfigured && sefCheckResult?.found === false && formData.pib.length === 9 && !isSefChecking && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <AlertCircle className="h-4 w-4" />
                           <span>Firma nije pronađena u SEF registru</span>
@@ -339,20 +342,22 @@ export default function Clients() {
                         maxLength={8}
                       />
                     </div>
-                    {/* SEF Registration Toggle */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="sef-registered" className="cursor-pointer">Registrovan u SEF sistemu</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Klijent je registrovan za prijem elektronskih faktura
-                        </p>
+                    {/* SEF Registration Toggle - samo ako je SEF konfigurisan */}
+                    {isSefConfigured && (
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="sef-registered" className="cursor-pointer">Registrovan u SEF sistemu</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Klijent je registrovan za prijem elektronskih faktura
+                          </p>
+                        </div>
+                        <Switch
+                          id="sef-registered"
+                          checked={formData.sef_registered}
+                          onCheckedChange={(checked) => setFormData({ ...formData, sef_registered: checked })}
+                        />
                       </div>
-                      <Switch
-                        id="sef-registered"
-                        checked={formData.sef_registered}
-                        onCheckedChange={(checked) => setFormData({ ...formData, sef_registered: checked })}
-                      />
-                    </div>
+                    )}
                   </>
                 ) : (
                   <div className="space-y-2">
@@ -410,7 +415,7 @@ export default function Clients() {
                     <CardDescription className="truncate text-xs sm:text-sm">{client.address || 'Bez adrese'}</CardDescription>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    {client.sef_registered && (
+                    {isSefConfigured && client.sef_registered && (
                       <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] sm:text-xs">
                         <Send className="h-3 w-3 mr-1" />
                         SEF
