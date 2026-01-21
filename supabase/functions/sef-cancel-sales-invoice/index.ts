@@ -59,8 +59,8 @@ serve(async (req) => {
       // Storno is for sent/approved invoices - uses body with comment
       endpoint = `${SEF_API_BASE}/sales-invoice/storno`;
       body = {
-        invoiceId: sefInvoiceId,
-        comment: comment || 'Storniranje fakture'
+        InvoiceId: parseInt(sefInvoiceId),
+        StornoComment: comment || 'Storniranje fakture'
       };
       console.log(`Storno invoice via: ${endpoint}`, body);
     }
