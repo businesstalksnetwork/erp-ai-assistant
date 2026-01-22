@@ -44,6 +44,102 @@ export type Database = {
         }
         Relationships: []
       }
+      bookkeeper_earnings: {
+        Row: {
+          bookkeeper_id: string
+          client_id: string
+          client_payment_amount: number
+          commission_amount: number
+          commission_rate: number
+          created_at: string | null
+          id: string
+          invoice_id: string | null
+          payment_month: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          bookkeeper_id: string
+          client_id: string
+          client_payment_amount?: number
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_month: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          bookkeeper_id?: string
+          client_id?: string
+          client_payment_amount?: number
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_month?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookkeeper_earnings_bookkeeper_id_fkey"
+            columns: ["bookkeeper_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookkeeper_earnings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bookkeeper_referrals: {
+        Row: {
+          bookkeeper_id: string
+          client_id: string
+          created_at: string | null
+          id: string
+          referred_at: string | null
+        }
+        Insert: {
+          bookkeeper_id: string
+          client_id: string
+          created_at?: string | null
+          id?: string
+          referred_at?: string | null
+        }
+        Update: {
+          bookkeeper_id?: string
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          referred_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookkeeper_referrals_bookkeeper_id_fkey"
+            columns: ["bookkeeper_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookkeeper_referrals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -768,12 +864,16 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: string
+          agency_name: string | null
+          agency_pib: string | null
           block_reason: string | null
           company_name: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
+          invited_by_user_id: string | null
           is_trial: boolean | null
           max_companies: number
           pib: string | null
@@ -782,12 +882,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_type?: string
+          agency_name?: string | null
+          agency_pib?: string | null
           block_reason?: string | null
           company_name?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
+          invited_by_user_id?: string | null
           is_trial?: boolean | null
           max_companies?: number
           pib?: string | null
@@ -796,12 +900,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_type?: string
+          agency_name?: string | null
+          agency_pib?: string | null
           block_reason?: string | null
           company_name?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          invited_by_user_id?: string | null
           is_trial?: boolean | null
           max_companies?: number
           pib?: string | null
@@ -809,7 +917,15 @@ export type Database = {
           subscription_end?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sef_invoices: {
         Row: {
