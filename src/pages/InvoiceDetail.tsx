@@ -371,7 +371,7 @@ export default function InvoiceDetail() {
       const actualHeight = wrapper.scrollHeight;
       wrapper.style.height = actualHeight + 'px';
 
-      // Pojačaj kontrast na canvas-u - AGRESIVNO za mobilni
+      // Pojačaj kontrast na canvas-u - ULTRA AGRESIVNO za mobilni
       const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
         const ctx = targetCanvas.getContext('2d');
         if (!ctx) return;
@@ -380,50 +380,52 @@ export default function InvoiceDetail() {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        // MAKSIMALAN kontrast za mobilni - svi pikseli postaju ili crni ili beli
-        const contrast = isMobile ? 3.0 : 1.3;
-        // Snizi prag tako da sav tekst postane čisto crn
-        const blackThreshold = isMobile ? 230 : 245;
-
-        const clamp = (v: number) => Math.max(0, Math.min(255, v));
+        // ULTRA agresivan prag - SVE što nije skoro potpuno belo postaje crno
+        // Ovo osigurava da čak i svetlo sivi tekst postane čisto crn
+        const blackThreshold = isMobile ? 245 : 240;
 
         for (let i = 0; i < data.length; i += 4) {
           const a = data[i + 3];
           if (a === 0) continue;
 
-          let r = data[i];
-          let g = data[i + 1];
-          let b = data[i + 2];
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
 
-          // Čista bela pozadina - ali samo za jako svetle piksele
-          if (r > 250 && g > 250 && b > 250) {
-            data[i] = 255;
-            data[i + 1] = 255;
-            data[i + 2] = 255;
-            continue;
-          }
+          // Izračunaj luminance (percepcijski ponderisana svetlina)
+          const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
-          // Na mobilnom: svi pikseli ispod praga luminance postaju ČISTO CRNI
+          // Na mobilnom: STROGA binarizacija - crno ili belo, bez sive
           if (isMobile) {
-            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-            if (luminance < blackThreshold) {
+            if (luminance >= blackThreshold) {
+              // Samo skoro-beli pikseli ostaju beli
+              data[i] = 255;
+              data[i + 1] = 255;
+              data[i + 2] = 255;
+            } else {
+              // SVE OSTALO postaje ČISTO CRNO - uključujući svetlo sivi tekst
+              data[i] = 0;
+              data[i + 1] = 0;
+              data[i + 2] = 0;
+            }
+          } else {
+            // Desktop: blaža binarizacija
+            if (luminance >= blackThreshold) {
+              data[i] = 255;
+              data[i + 1] = 255;
+              data[i + 2] = 255;
+            } else if (luminance < 200) {
+              // Tamniji pikseli postaju crni
               data[i] = 0;
               data[i + 1] = 0;
               data[i + 2] = 0;
             } else {
-              // Svetli pikseli postaju beli
-              data[i] = 255;
-              data[i + 1] = 255;
-              data[i + 2] = 255;
+              // Srednja zona - pojačaj kontrast
+              const factor = 2.5;
+              data[i] = Math.max(0, Math.min(255, (r - 128) * factor + 128));
+              data[i + 1] = Math.max(0, Math.min(255, (g - 128) * factor + 128));
+              data[i + 2] = Math.max(0, Math.min(255, (b - 128) * factor + 128));
             }
-          } else {
-            // Desktop: samo pojačaj kontrast
-            r = (r - 128) * contrast + 128;
-            g = (g - 128) * contrast + 128;
-            b = (b - 128) * contrast + 128;
-            data[i] = clamp(r);
-            data[i + 1] = clamp(g);
-            data[i + 2] = clamp(b);
           }
         }
 
