@@ -131,9 +131,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // Build secondary navigation with dynamic company label
     const secondary = [];
     
-    // Bookkeepers don't have their own companies, show profile instead
+    // Svi korisnici vide "Moja Kompanija"
+    secondary.push({ href: '/companies', label: companyLabel, icon: Building2 });
+    
+    // Za ne-knjigovođe, dodaj i link ka Knjigovodstvo u sekundarnu navigaciju
+    // (knjigovođe ga već imaju gore, pa ne treba duplikat)
     if (!isBookkeeper) {
-      secondary.push({ href: '/companies', label: companyLabel, icon: Building2 });
       secondary.push(bookkeepingNavItem);
     }
     
@@ -228,6 +231,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 clientCompanies={clientCompanies}
                 onSelect={setSelectedCompany}
               />
+            </div>
+          )}
+
+          {/* Bookkeeper quick access - samo za knjigovođe */}
+          {isBookkeeper && (
+            <div className="px-4 pt-4 pb-2">
+              <Link
+                to="/bookkeeper"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                  location.pathname === '/bookkeeper'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-1'
+                )}
+              >
+                <Briefcase className={cn("h-5 w-5 transition-transform", location.pathname === '/bookkeeper' && "scale-110")} />
+                Knjigovodstvo
+              </Link>
+              <Separator className="mt-3 bg-sidebar-border" />
             </div>
           )}
 
