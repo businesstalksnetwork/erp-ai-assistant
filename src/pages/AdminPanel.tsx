@@ -145,7 +145,7 @@ export default function AdminPanel() {
 
       if (regError) throw regError;
 
-      // 2. Get all ACCEPTED invites from companies table
+      // 2. Get all ACCEPTED invites from companies table (nova šema)
       const { data: companyInvites, error: compError } = await supabase
         .from('companies')
         .select('bookkeeper_email, bookkeeper_id, name')
@@ -154,8 +154,30 @@ export default function AdminPanel() {
 
       if (compError) throw compError;
 
-      // 3. Group companies by bookkeeper email
+      // 3. Get all ACCEPTED invites from bookkeeper_clients table (stara šema)
+      const { data: bookkeeperClients, error: bcError } = await supabase
+        .from('bookkeeper_clients')
+        .select('bookkeeper_id, bookkeeper_email, client_id, status')
+        .eq('status', 'accepted');
+
+      if (bcError) throw bcError;
+
+      // 4. Fetch client profile names for bookkeeper_clients
+      const clientIds = [...new Set((bookkeeperClients || []).map(bc => bc.client_id))];
+      let clientProfiles: { id: string; full_name: string | null; email: string }[] = [];
+      if (clientIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', clientIds);
+        clientProfiles = profiles || [];
+      }
+      const clientProfileMap = new Map(clientProfiles.map(p => [p.id, p]));
+
+      // 5. Group companies by bookkeeper email from BOTH sources
       const companiesMap = new Map<string, { id: string; name: string }[]>();
+      
+      // From companies table (nova šema)
       for (const comp of companyInvites || []) {
         const email = comp.bookkeeper_email;
         if (!email) continue;
@@ -164,11 +186,25 @@ export default function AdminPanel() {
         companiesMap.set(email, existing);
       }
 
-      // 4. Find emails of invited bookkeepers that are NOT registered as bookkeeper type
+      // From bookkeeper_clients table (stara šema)
+      for (const bc of bookkeeperClients || []) {
+        const email = bc.bookkeeper_email;
+        if (!email) continue;
+        const existing = companiesMap.get(email) || [];
+        const clientProfile = clientProfileMap.get(bc.client_id);
+        const clientName = clientProfile?.full_name || clientProfile?.email || 'Nepoznat klijent';
+        // Avoid duplicates - check if this client is already added
+        if (!existing.some(e => e.id === bc.client_id)) {
+          existing.push({ id: bc.client_id, name: clientName });
+        }
+        companiesMap.set(email, existing);
+      }
+
+      // 6. Find emails of invited bookkeepers that are NOT registered as bookkeeper type
       const registeredEmails = new Set((registeredBookkeepers || []).map(bp => bp.email));
       const invitedOnlyEmails = Array.from(companiesMap.keys()).filter(email => !registeredEmails.has(email));
 
-      // 5. Fetch profiles for those emails (if they exist in profiles)
+      // 7. Fetch profiles for those emails (if they exist in profiles)
       let invitedProfiles: any[] = [];
       if (invitedOnlyEmails.length > 0) {
         const { data: profiles } = await supabase
@@ -178,7 +214,7 @@ export default function AdminPanel() {
         invitedProfiles = profiles || [];
       }
 
-      // 6. For emails without a profile, create placeholder entries
+      // 8. For emails without a profile, create placeholder entries
       const profileEmailSet = new Set(invitedProfiles.map(p => p.email));
       const placeholderProfiles = invitedOnlyEmails
         .filter(email => !profileEmailSet.has(email))
@@ -196,10 +232,10 @@ export default function AdminPanel() {
           account_type: 'unknown',
         }));
 
-      // 7. Combine all profiles
+      // 9. Combine all profiles
       const allProfiles = [...(registeredBookkeepers || []), ...invitedProfiles, ...placeholderProfiles];
 
-      // 8. Build final bookkeeper info
+      // 10. Build final bookkeeper info
       return allProfiles.map((bk): BookkeeperInfo => {
         const companies = companiesMap.get(bk.email) || [];
         return {
