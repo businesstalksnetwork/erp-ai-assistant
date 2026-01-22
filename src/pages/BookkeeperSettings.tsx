@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { toast } from 'sonner';
 import { Check, X, Loader2, Mail, Users, Send, Building2, ExternalLink, CheckCircle2, Clock, UserCheck, UserX, Settings } from 'lucide-react';
 
@@ -125,32 +125,22 @@ export default function BookkeeperSettings() {
   // Filter companies that have a bookkeeper invitation
   const companiesWithBookkeeper = myCompanies.filter(c => c.bookkeeper_email);
 
+  const isBookkeeper = profile?.account_type === 'bookkeeper';
+
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">Knjigovodstvo</h1>
         <p className="text-muted-foreground">
-          Upravljajte povezivanjem sa knjigovođom ili klijentima
+          {isBookkeeper 
+            ? 'Upravljajte pozivnicama i kompanijama vaših klijenata'
+            : 'Upravljajte povezivanjem sa knjigovođom'}
         </p>
       </div>
 
-      <Tabs defaultValue="client" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="client" className="flex items-center gap-2">
-            <Send className="h-4 w-4" />
-            Ja sam klijent
-          </TabsTrigger>
-          <TabsTrigger value="bookkeeper" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Ja sam knjigovođa
-            {pendingInvitations.length > 0 && (
-              <Badge variant="destructive" className="ml-1">{pendingInvitations.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Client Tab - View bookkeeper status per company */}
-        <TabsContent value="client" className="space-y-4">
+      {/* Za paušalce - direktan prikaz "Moje kompanije" bez tabova */}
+      {!isBookkeeper && (
+        <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -215,16 +205,19 @@ export default function BookkeeperSettings() {
           <p className="text-sm text-muted-foreground text-center">
             💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
           </p>
-        </TabsContent>
+        </>
+      )}
 
-        {/* Bookkeeper Tab - Receive invitations and manage clients */}
-        <TabsContent value="bookkeeper" className="space-y-4">
+      {/* Za knjigovođe - direktan prikaz pozivnica i klijenata bez tabova */}
+      {isBookkeeper && (
+        <>
           {pendingInvitations.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
                   Pozivnice na čekanju
+                  <Badge variant="destructive" className="ml-1">{pendingInvitations.length}</Badge>
                 </CardTitle>
                 <CardDescription>
                   Klijenti koji žele da budete njihov knjigovođa za navedene kompanije
@@ -332,8 +325,8 @@ export default function BookkeeperSettings() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 }
