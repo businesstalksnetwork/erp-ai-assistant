@@ -68,6 +68,7 @@ interface UserProfile {
   is_trial: boolean;
   created_at: string;
   max_companies: number;
+  account_type: 'pausal' | 'bookkeeper';
 }
 
 interface BookkeeperInfo {
@@ -346,6 +347,33 @@ export default function AdminPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: 'Ograničenje broja firmi ažurirano' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateAccountType = useMutation({
+    mutationFn: async ({ userId, accountType }: { userId: string; accountType: 'pausal' | 'bookkeeper' }) => {
+      const updates: Record<string, any> = { account_type: accountType };
+      
+      // Ako postaje knjigovodja, ukloni pretplatu (besplatno)
+      if (accountType === 'bookkeeper') {
+        updates.subscription_end = null;
+        updates.is_trial = false;
+      }
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-bookkeepers'] });
+      toast({ title: 'Tip naloga ažuriran' });
     },
     onError: (error: Error) => {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
@@ -1101,6 +1129,7 @@ export default function AdminPanel() {
         onExtend={(userId, months, startDate) => extendSubscription.mutate({ userId, months, startDate })}
         onSetExactDate={(userId, date) => setExactDate.mutate({ userId, date })}
         onUpdateMaxCompanies={(userId, maxCompanies) => updateMaxCompanies.mutate({ userId, maxCompanies })}
+        onUpdateAccountType={(userId, accountType) => updateAccountType.mutate({ userId, accountType })}
       />
 
       {/* Block User Dialog */}
