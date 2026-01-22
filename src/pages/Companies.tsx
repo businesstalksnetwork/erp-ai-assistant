@@ -217,14 +217,17 @@ export default function Companies() {
 
   const maxCompanies = profile?.max_companies ?? 1;
   const canAddCompany = isAdmin || myCompanies.length < maxCompanies;
+  const hasMultipleCompanies = maxCompanies > 1 || myCompanies.length > 1;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Firme</h1>
+          <h1 className="text-2xl font-bold">
+            {hasMultipleCompanies ? 'Moje Kompanije' : 'Moja Kompanija'}
+          </h1>
           <p className="text-muted-foreground">
-            Upravljajte vašim firmama
+            {hasMultipleCompanies ? 'Upravljajte vašim kompanijama' : 'Upravljajte vašom kompanijom'}
             {!isAdmin && maxCompanies > 0 && (
               <span className="ml-2 text-xs">
                 ({myCompanies.length}/{maxCompanies})
@@ -242,14 +245,14 @@ export default function Companies() {
                     className={!canAddCompany && !editId ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Nova firma
+                    Dodaj kompaniju
                   </Button>
                 </DialogTrigger>
               </span>
             </TooltipTrigger>
             {!canAddCompany && !editId && (
               <TooltipContent>
-                <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'firme' : 'firmi'}</p>
+                <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'kompanije' : 'kompanija'}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -426,8 +429,8 @@ export default function Companies() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">Nemate dodatu nijednu firmu</p>
-            <p className="text-muted-foreground mb-4">Dodajte vašu prvu firmu da biste počeli sa radom</p>
+            <p className="text-lg font-medium">Nemate dodatu nijednu kompaniju</p>
+            <p className="text-muted-foreground mb-4">Dodajte vašu prvu kompaniju da biste počeli sa radom</p>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
@@ -437,13 +440,13 @@ export default function Companies() {
                     className={!canAddCompany ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Dodaj firmu
+                    Dodaj kompaniju
                   </Button>
                 </span>
               </TooltipTrigger>
               {!canAddCompany && (
                 <TooltipContent>
-                  <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'firme' : 'firmi'}</p>
+                  <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'kompanije' : 'kompanija'}</p>
                 </TooltipContent>
               )}
             </Tooltip>
