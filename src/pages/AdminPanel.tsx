@@ -132,6 +132,8 @@ export default function AdminPanel() {
   // Bookkeepers query - fetch all users with account_type = 'bookkeeper'
   const { data: bookkeepers = [], isLoading: isLoadingBookkeepers } = useQuery({
     queryKey: ['admin-bookkeepers'],
+    refetchOnMount: 'always',
+    staleTime: 30000,
     queryFn: async () => {
       // Get all profiles with account_type = 'bookkeeper'
       const { data: bookkeepersProfiles, error: bkError } = await supabase
