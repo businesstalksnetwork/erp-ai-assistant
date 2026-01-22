@@ -54,11 +54,8 @@ const mainNavItems = [
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
 ];
 
-// Secondary navigation items (below separator)
-const secondaryNavItems = [
-  { href: '/companies', label: 'Moja Kompanija', icon: Building2 },
-  { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase },
-];
+// Secondary navigation items (below separator) - dynamically built in getFilteredNavItems
+const bookkeepingNavItem = { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase };
 
 const adminNavItems = [
   { href: '/admin', label: 'Admin Panel', icon: Shield },
@@ -125,8 +122,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // Insert conditional items after Analitika
     items.splice(insertPosition, 0, ...conditionalItems);
     
-    // Build secondary navigation with conditional Admin Panel
-    const secondary = [...secondaryNavItems];
+    // Dynamic company label based on max_companies or actual count
+    const maxCompanies = profile?.max_companies ?? 1;
+    const companyLabel = myCompanies.length > 1 || maxCompanies > 1 
+      ? 'Moje Kompanije' 
+      : 'Moja Kompanija';
+    
+    // Build secondary navigation with dynamic company label
+    const secondary = [
+      { href: '/companies', label: companyLabel, icon: Building2 },
+      bookkeepingNavItem,
+    ];
+    
     if (isAdmin) {
       secondary.push(...adminNavItems);
     }
