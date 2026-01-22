@@ -5,20 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ContributionData {
-  monthlyAmounts: number[];
-  recipientAccount: string;
+interface MonthlyEntry {
+  month: number; // 1-12
+  pio: number;
+  zdravstveno: number;
+  nezaposlenost: number;
 }
 
 interface ParsedPausalniData {
   type: 'porez' | 'doprinosi';
   year: number;
-  monthlyAmounts: number[];
-  contributions?: {
-    pio: ContributionData;
-    zdravstveno: ContributionData;
-    nezaposlenost: ContributionData;
-  };
+  monthlyAmounts: number[]; // For porez
+  entries?: MonthlyEntry[]; // For doprinosi - only months that exist in the document
   recipientName: string;
   recipientAccount: string;
   paymentModel: string;
@@ -63,37 +61,37 @@ serve(async (req) => {
     if (type === 'doprinosi') {
       systemPrompt = `Ti si AI asistent za ekstrakciju podataka iz PDF rešenja Poreske uprave Republike Srbije za paušalne doprinose (PAUS-RESDOP).
 
-KRITIČNO - TAČNI PODACI koje treba ekstraktovati:
+KRITIČNO - Ovo rešenje može sadržati podatke samo za NEKE mesece i samo za NEKE tipove doprinosa!
 
-1. GODINA: Pronađi "за период од 01.01.YYYY. до 31.12.YYYY. године" - to je godina dokumenta (npr. 2025)
+STRUKTURA KOJU TRAŽIŠ:
+1. Tabela sa kolonama: Месец, Допринос за ПИО, Допринос за ЗДР, Допринос за НЕЗ
+2. Svaki red ima: naziv meseca i iznose (može biti "-" ili prazno ako nema)
 
-2. MESEČNI IZNOSI sa DVE DECIMALE:
-   - "Допринос за обавезно ПИО (24%)" - npr. 22234.09
-   - "Допринос за обавезно ЗДР (10,3%)" - npr. 9542.13
-   - "Допринос за НЕЗ (0,75%)" - npr. 694.82
-   
-   Iznosi u PDF-u su formatirani kao "22.234,09" - konvertuj u broj: 22234.09
+EKSTRAKCIJA:
+1. GODINA: Pronađi period "од XX.XX.YYYY. до XX.XX.YYYY" ili godinu u naslovu
+2. TABELA: Za svaki mesec koji postoji, ekstrahuj iznose. Ako je polje prazno ili "-", iznos je 0.
+   - Iznosi u PDF-u su formatirani kao "22.234,09" - konvertuj u broj: 22234.09
+3. POZIV NA BROJ: "позивом на број: 97 XXXXX" - uzmi samo brojeve posle 97
+4. IME OBVEZNIKA
 
-3. POZIV NA BROJ: Pronađi "позивом на број: 97 XXXXXXXXXXXXXXXXXXX" 
-   - Uzmi SAMO brojeve posle "97", bez samog "97"
-   - Primer: ako piše "97 2322390000006200242", vrati "2322390000006200242"
-
-4. IME OBVEZNIKA: Pronađi ime poreskog obveznika
-
-Vrati odgovor SAMO kao validan JSON bez markdown formatiranja:
+Vrati JSON:
 {
   "year": 2025,
-  "pio_amount": 22234.09,
-  "zdravstveno_amount": 9542.13,
-  "nezaposlenost_amount": 694.82,
+  "entries": [
+    { "month": 10, "pio": 15234.09, "zdravstveno": 0, "nezaposlenost": 0 },
+    { "month": 11, "pio": 22234.09, "zdravstveno": 0, "nezaposlenost": 0 },
+    { "month": 12, "pio": 22234.09, "zdravstveno": 0, "nezaposlenost": 0 }
+  ],
   "paymentReference": "2322390000006200242",
   "payerName": "Ime Prezime PR"
 }
 
 VAŽNO:
-- Svi iznosi moraju biti BROJEVI sa dve decimale (ne stringovi)
-- Godina mora biti 4-cifreni broj (2024, 2025, 2026...)
-- paymentReference je SAMO brojevi, bez modela "97"`;
+- Uključi SAMO mesece koji postoje u tabeli dokumenta
+- month: 1=januar, 2=februar, ..., 10=oktobar, 11=novembar, 12=decembar
+- Ako je iznos prazan, "-" ili ne postoji, stavi 0
+- NE pretpostavljaj podatke - ekstrahuj samo ono što vidiš u dokumentu
+- Svi iznosi moraju biti BROJEVI sa dve decimale (ne stringovi)`;
     } else {
       systemPrompt = `Ti si AI asistent za ekstrakciju podataka iz PDF rešenja Poreske uprave Republike Srbije za paušalni porez (PAUS-RESPOR).
 
@@ -195,33 +193,27 @@ VAŽNO:
     let result: ParsedPausalniData;
 
     if (type === 'doprinosi') {
-      // Validate amounts
-      const pioAmount = Number(parsedData.pio_amount) || 0;
-      const zdravstvenoAmount = Number(parsedData.zdravstveno_amount) || 0;
-      const nezaposlenostAmount = Number(parsedData.nezaposlenost_amount) || 0;
-
-      if (pioAmount < 1000) {
-        console.warn('PIO amount seems too low:', pioAmount);
+      // New structure: entries array with only existing months
+      const entries = parsedData.entries || [];
+      
+      // Validate that we have at least one entry
+      if (entries.length === 0) {
+        console.warn('No entries found in parsed data');
       }
+
+      // Log entries for debugging
+      console.log('Parsed entries:', entries);
 
       result = {
         type: 'doprinosi',
         year: parsedData.year,
         monthlyAmounts: [],
-        contributions: {
-          pio: {
-            monthlyAmounts: Array(12).fill(pioAmount),
-            recipientAccount: ACCOUNTS.pio,
-          },
-          zdravstveno: {
-            monthlyAmounts: Array(12).fill(zdravstvenoAmount),
-            recipientAccount: ACCOUNTS.zdravstveno,
-          },
-          nezaposlenost: {
-            monthlyAmounts: Array(12).fill(nezaposlenostAmount),
-            recipientAccount: ACCOUNTS.nezaposlenost,
-          },
-        },
+        entries: entries.map((e: { month: number; pio: number; zdravstveno: number; nezaposlenost: number }) => ({
+          month: Number(e.month),
+          pio: Number(e.pio) || 0,
+          zdravstveno: Number(e.zdravstveno) || 0,
+          nezaposlenost: Number(e.nezaposlenost) || 0,
+        })),
         recipientName: 'Пореска управа Републике Србије',
         recipientAccount: ACCOUNTS.pio,
         paymentModel: '97',
