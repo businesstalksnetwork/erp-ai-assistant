@@ -8,9 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { InviteClientDialog } from '@/components/InviteClientDialog';
 
 import { toast } from 'sonner';
-import { Check, X, Loader2, Mail, Users, Send, Building2, ExternalLink, CheckCircle2, Clock, UserCheck, UserX, Settings } from 'lucide-react';
+import { Check, X, Loader2, Mail, Users, Send, Building2, ExternalLink, CheckCircle2, Clock, UserCheck, UserX, Settings, UserPlus } from 'lucide-react';
 
 interface CompanyWithOwner {
   id: string;
@@ -30,6 +31,7 @@ export default function BookkeeperSettings() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { myCompanies, clientCompanies, isLoading: companiesLoading } = useCompanies();
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const { acceptInvitation, rejectInvitation } = useCompanyBookkeeper();
 
   // Fetch pending invitations for me as bookkeeper (from companies table)
@@ -204,14 +206,20 @@ export default function BookkeeperSettings() {
       {/* Kompanije klijenata - prikaži ako je efektivni knjigovođa */}
       {showBookkeeperSection && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Kompanije klijenata
-            </CardTitle>
-            <CardDescription>
-              Kompanije vaših klijenata kojima imate pristup
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Kompanije klijenata
+              </CardTitle>
+              <CardDescription className="mt-1.5">
+                Kompanije vaših klijenata kojima imate pristup
+              </CardDescription>
+            </div>
+            <Button onClick={() => setInviteDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Pozovi klijenta
+            </Button>
           </CardHeader>
           <CardContent>
             {clientCompanies.length === 0 ? (
@@ -323,6 +331,11 @@ export default function BookkeeperSettings() {
       <p className="text-sm text-muted-foreground text-center">
         💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
       </p>
+
+      <InviteClientDialog 
+        open={inviteDialogOpen} 
+        onOpenChange={setInviteDialogOpen} 
+      />
     </div>
   );
 }
