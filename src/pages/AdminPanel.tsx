@@ -43,7 +43,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 import { format, differenceInDays, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
@@ -92,6 +99,14 @@ export default function AdminPanel() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [clearExisting, setClearExisting] = useState(true);
+
+  // Pagination state - Users
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const [usersItemsPerPage, setUsersItemsPerPage] = useState(10);
+
+  // Pagination state - Bookkeepers
+  const [bookkeepersCurrentPage, setBookkeepersCurrentPage] = useState(1);
+  const [bookkeepersItemsPerPage, setBookkeepersItemsPerPage] = useState(10);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -524,6 +539,59 @@ export default function AdminPanel() {
            bk.clients.some(c => c.email.toLowerCase().includes(searchLower) || c.full_name?.toLowerCase().includes(searchLower));
   });
 
+  // Users pagination
+  const usersTotalPages = Math.ceil(filteredUsers.length / usersItemsPerPage);
+  const usersStartIndex = (usersCurrentPage - 1) * usersItemsPerPage;
+  const paginatedUsers = filteredUsers.slice(usersStartIndex, usersStartIndex + usersItemsPerPage);
+
+  // Bookkeepers pagination
+  const bookkeepersTotalPages = Math.ceil(filteredBookkeepers.length / bookkeepersItemsPerPage);
+  const bookkeepersStartIndex = (bookkeepersCurrentPage - 1) * bookkeepersItemsPerPage;
+  const paginatedBookkeepers = filteredBookkeepers.slice(bookkeepersStartIndex, bookkeepersStartIndex + bookkeepersItemsPerPage);
+
+  // Reset page when filter/search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setUsersCurrentPage(1);
+  };
+
+  const handleFilterChange = (value: FilterType) => {
+    setFilter(value);
+    setUsersCurrentPage(1);
+  };
+
+  const handleUsersItemsPerPageChange = (value: string) => {
+    setUsersItemsPerPage(Number(value));
+    setUsersCurrentPage(1);
+  };
+
+  const handleBookkeeperSearchChange = (value: string) => {
+    setBookkeeperSearch(value);
+    setBookkeepersCurrentPage(1);
+  };
+
+  const handleBookkeepersItemsPerPageChange = (value: string) => {
+    setBookkeepersItemsPerPage(Number(value));
+    setBookkeepersCurrentPage(1);
+  };
+
+  // Helper function for page numbers
+  const getPageNumbers = (currentPage: number, totalPages: number): (number | 'ellipsis')[] => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('ellipsis');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   // Stats
   const activeCount = users.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
   const trialCount = users.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
@@ -623,11 +691,11 @@ export default function AdminPanel() {
                     <Input
                       placeholder="Pretraži..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       className="pl-9 w-[200px]"
                     />
                   </div>
-                  <Select value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+                  <Select value={filter} onValueChange={(v) => handleFilterChange(v as FilterType)}>
                     <SelectTrigger className="w-[160px]">
                       <SelectValue />
                     </SelectTrigger>
@@ -658,7 +726,7 @@ export default function AdminPanel() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
+                    {paginatedUsers.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.email}</TableCell>
                         <TableCell>{user.full_name || '-'}</TableCell>
@@ -704,7 +772,7 @@ export default function AdminPanel() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredUsers.length === 0 && (
+                    {paginatedUsers.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nema korisnika za prikaz
@@ -714,6 +782,68 @@ export default function AdminPanel() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Users Pagination */}
+              {filteredUsers.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Prikaži:</span>
+                    <Select value={usersItemsPerPage.toString()} onValueChange={handleUsersItemsPerPageChange}>
+                      <SelectTrigger className="w-[80px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">od {filteredUsers.length}</span>
+                  </div>
+                  
+                  {usersTotalPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <button 
+                            onClick={() => setUsersCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={usersCurrentPage === 1}
+                            className="flex items-center gap-1 px-2.5 py-2 text-sm font-medium rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Prethodna</span>
+                          </button>
+                        </PaginationItem>
+                        {getPageNumbers(usersCurrentPage, usersTotalPages).map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => setUsersCurrentPage(page)}
+                                isActive={usersCurrentPage === page}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <button 
+                            onClick={() => setUsersCurrentPage(p => Math.min(usersTotalPages, p + 1))}
+                            disabled={usersCurrentPage === usersTotalPages}
+                            className="flex items-center gap-1 px-2.5 py-2 text-sm font-medium rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            <span>Sledeća</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -737,7 +867,7 @@ export default function AdminPanel() {
                   <Input
                     placeholder="Pretraži..."
                     value={bookkeeperSearch}
-                    onChange={(e) => setBookkeeperSearch(e.target.value)}
+                    onChange={(e) => handleBookkeeperSearchChange(e.target.value)}
                     className="pl-9 w-[200px]"
                   />
                 </div>
@@ -749,52 +879,116 @@ export default function AdminPanel() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Ime</TableHead>
-                        <TableHead>Broj klijenata</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Klijenti</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredBookkeepers.map((bk) => (
-                        <TableRow key={bk.bookkeeper_email}>
-                          <TableCell className="font-medium">{bk.bookkeeper_email}</TableCell>
-                          <TableCell>{bk.full_name || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{bk.client_count}</Badge>
-                          </TableCell>
-                          <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
-                          <TableCell className="max-w-[300px]">
-                            <div className="flex flex-wrap gap-1">
-                              {bk.clients.slice(0, 3).map((client) => (
-                                <Badge key={client.id} variant="outline" className="text-xs">
-                                  {client.full_name || client.email.split('@')[0]}
-                                </Badge>
-                              ))}
-                              {bk.clients.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{bk.clients.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {filteredBookkeepers.length === 0 && (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                            Nema knjigovođa za prikaz
-                          </TableCell>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Ime</TableHead>
+                          <TableHead>Broj klijenata</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Klijenti</TableHead>
                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedBookkeepers.map((bk) => (
+                          <TableRow key={bk.bookkeeper_email}>
+                            <TableCell className="font-medium">{bk.bookkeeper_email}</TableCell>
+                            <TableCell>{bk.full_name || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{bk.client_count}</Badge>
+                            </TableCell>
+                            <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
+                            <TableCell className="max-w-[300px]">
+                              <div className="flex flex-wrap gap-1">
+                                {bk.clients.slice(0, 3).map((client) => (
+                                  <Badge key={client.id} variant="outline" className="text-xs">
+                                    {client.full_name || client.email.split('@')[0]}
+                                  </Badge>
+                                ))}
+                                {bk.clients.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{bk.clients.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {paginatedBookkeepers.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                              Nema knjigovođa za prikaz
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Bookkeepers Pagination */}
+                  {filteredBookkeepers.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Prikaži:</span>
+                        <Select value={bookkeepersItemsPerPage.toString()} onValueChange={handleBookkeepersItemsPerPageChange}>
+                          <SelectTrigger className="w-[80px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">od {filteredBookkeepers.length}</span>
+                      </div>
+                      
+                      {bookkeepersTotalPages > 1 && (
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <button 
+                                onClick={() => setBookkeepersCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={bookkeepersCurrentPage === 1}
+                                className="flex items-center gap-1 px-2.5 py-2 text-sm font-medium rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                <span>Prethodna</span>
+                              </button>
+                            </PaginationItem>
+                            {getPageNumbers(bookkeepersCurrentPage, bookkeepersTotalPages).map((page, idx) => (
+                              <PaginationItem key={idx}>
+                                {page === 'ellipsis' ? (
+                                  <PaginationEllipsis />
+                                ) : (
+                                  <PaginationLink
+                                    onClick={() => setBookkeepersCurrentPage(page)}
+                                    isActive={bookkeepersCurrentPage === page}
+                                    className="cursor-pointer"
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                )}
+                              </PaginationItem>
+                            ))}
+                            <PaginationItem>
+                              <button 
+                                onClick={() => setBookkeepersCurrentPage(p => Math.min(bookkeepersTotalPages, p + 1))}
+                                disabled={bookkeepersCurrentPage === bookkeepersTotalPages}
+                                className="flex items-center gap-1 px-2.5 py-2 text-sm font-medium rounded-md hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                              >
+                                <span>Sledeća</span>
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
                       )}
-                    </TableBody>
-                  </Table>
-                </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
