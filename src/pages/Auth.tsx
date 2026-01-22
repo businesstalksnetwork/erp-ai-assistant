@@ -489,11 +489,8 @@ export default function Auth() {
                         }`}
                       >
                         <RadioGroupItem value="pausal" id="type-pausal" className="sr-only" />
-                        <Building2 className="h-6 w-6 mb-2" />
-                        <span className="font-medium">Paušalac</span>
-                        <span className="text-xs text-muted-foreground text-center mt-1">
-                          Preduzetnik
-                        </span>
+                              <Building2 className="h-6 w-6 mb-2" />
+                              <span className="font-medium">Paušalac</span>
                       </Label>
                       <Label
                         htmlFor="type-bookkeeper"
@@ -504,11 +501,8 @@ export default function Auth() {
                         }`}
                       >
                         <RadioGroupItem value="bookkeeper" id="type-bookkeeper" className="sr-only" />
-                        <Calculator className="h-6 w-6 mb-2" />
-                        <span className="font-medium">Knjigovođa</span>
-                        <span className="text-xs text-muted-foreground text-center mt-1">
-                          Besplatno
-                        </span>
+                              <Calculator className="h-6 w-6 mb-2" />
+                              <span className="font-medium">Knjigovođa</span>
                       </Label>
                     </RadioGroup>
                   </div>
