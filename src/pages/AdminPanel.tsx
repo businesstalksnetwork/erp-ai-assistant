@@ -637,7 +637,6 @@ export default function AdminPanel() {
                       <TableHead>Registrovan</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Pretplata</TableHead>
-                      <TableHead>Razlog blokiranja</TableHead>
                       <TableHead className="text-right">Akcije</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -653,9 +652,6 @@ export default function AdminPanel() {
                         </TableCell>
                         <TableCell>{getStatusBadge(user)}</TableCell>
                         <TableCell>{getSubscriptionBadge(user)}</TableCell>
-                        <TableCell className="max-w-[200px] truncate" title={user.block_reason || ''}>
-                          {user.block_reason || '-'}
-                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
@@ -699,7 +695,7 @@ export default function AdminPanel() {
                     ))}
                     {filteredUsers.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nema korisnika za prikaz
                         </TableCell>
                       </TableRow>
