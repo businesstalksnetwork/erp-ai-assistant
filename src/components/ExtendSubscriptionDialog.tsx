@@ -28,10 +28,12 @@ interface ExtendSubscriptionDialogProps {
     is_trial?: boolean;
     created_at?: string;
     max_companies?: number;
+    account_type?: string;
   } | null;
   onExtend: (userId: string, months: number, startDate: Date) => void;
   onSetExactDate?: (userId: string, date: Date) => void;
   onUpdateMaxCompanies?: (userId: string, maxCompanies: number) => void;
+  onUpdateAccountType?: (userId: string, accountType: 'pausal' | 'bookkeeper') => void;
 }
 
 export function ExtendSubscriptionDialog({
@@ -41,18 +43,21 @@ export function ExtendSubscriptionDialog({
   onExtend,
   onSetExactDate,
   onUpdateMaxCompanies,
+  onUpdateAccountType,
 }: ExtendSubscriptionDialogProps) {
   const [selectedMonths, setSelectedMonths] = useState<number | null>(null);
   const [startDateOption, setStartDateOption] = useState<'trial_end' | 'today' | 'custom'>('trial_end');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [exactDate, setExactDate] = useState<Date | undefined>(undefined);
   const [maxCompanies, setMaxCompanies] = useState<number>(1);
-  const [activeTab, setActiveTab] = useState<'extend' | 'exact' | 'companies'>('extend');
+  const [accountType, setAccountType] = useState<'pausal' | 'bookkeeper'>('pausal');
+  const [activeTab, setActiveTab] = useState<'extend' | 'exact' | 'companies' | 'account'>('extend');
 
   // Sync state when user changes or dialog opens
   useEffect(() => {
     if (user && open) {
       setMaxCompanies(user.max_companies || 1);
+      setAccountType((user.account_type as 'pausal' | 'bookkeeper') || 'pausal');
       if (user.subscription_end) {
         setExactDate(new Date(user.subscription_end));
       } else {
@@ -105,6 +110,13 @@ export function ExtendSubscriptionDialog({
     }
   };
 
+  const handleUpdateAccountType = () => {
+    if (onUpdateAccountType && accountType !== user?.account_type) {
+      onUpdateAccountType(user.id, accountType);
+      resetAndClose();
+    }
+  };
+
   const resetAndClose = () => {
     setSelectedMonths(null);
     setStartDateOption('trial_end');
@@ -142,10 +154,11 @@ export function ExtendSubscriptionDialog({
           </div>
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="extend">Produži</TabsTrigger>
-              <TabsTrigger value="exact">Tačan datum</TabsTrigger>
+              <TabsTrigger value="exact">Datum</TabsTrigger>
               <TabsTrigger value="companies">Firme</TabsTrigger>
+              <TabsTrigger value="account">Tip</TabsTrigger>
             </TabsList>
 
             <TabsContent value="extend" className="space-y-4">
@@ -288,6 +301,54 @@ export function ExtendSubscriptionDialog({
                 className="w-full"
               >
                 Sačuvaj ograničenje
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="account" className="space-y-4">
+              <div className="space-y-3">
+                <Label>Tip korisničkog naloga</Label>
+                <RadioGroup
+                  value={accountType}
+                  onValueChange={(v) => setAccountType(v as 'pausal' | 'bookkeeper')}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pausal" id="pausal" />
+                    <Label htmlFor="pausal" className="cursor-pointer">
+                      <span className="font-medium">Paušalac</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        — Standardni korisnik sa pretplatom
+                      </span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="bookkeeper" id="bookkeeper" />
+                    <Label htmlFor="bookkeeper" className="cursor-pointer">
+                      <span className="font-medium">Knjigovođa</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        — Besplatan pristup, referral program
+                      </span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {accountType !== user?.account_type && (
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <p className="text-sm text-muted-foreground">
+                    {accountType === 'bookkeeper' 
+                      ? 'Korisnik će dobiti besplatan pristup i moći će da upravlja klijentskim kompanijama.'
+                      : 'Korisnik će morati da ima aktivnu pretplatu i upravljaće sopstvenim kompanijama.'}
+                  </p>
+                </div>
+              )}
+
+              <Button 
+                onClick={handleUpdateAccountType} 
+                disabled={!onUpdateAccountType || accountType === user?.account_type}
+                className="w-full"
+              >
+                Sačuvaj tip naloga
               </Button>
             </TabsContent>
           </Tabs>
