@@ -258,8 +258,30 @@ export default function InvoiceDetail() {
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = ''; // Uklanja naslov iz browser header-a
-    window.print();
-    document.title = originalTitle;
+    
+    // Safari/macOS fix: Dinamički resetuj sve height stilove pre štampe
+    const elementsToReset = document.querySelectorAll('html, body, #root, #root > div, main, .min-h-screen, .h-screen');
+    const originalStyles: { element: Element; style: string }[] = [];
+    
+    elementsToReset.forEach(el => {
+      const htmlEl = el as HTMLElement;
+      originalStyles.push({ element: el, style: htmlEl.getAttribute('style') || '' });
+      htmlEl.style.height = 'auto';
+      htmlEl.style.minHeight = '0';
+      htmlEl.style.maxHeight = 'none';
+      htmlEl.style.overflow = 'visible';
+    });
+    
+    // Kratka pauza da se stilovi primene
+    requestAnimationFrame(() => {
+      window.print();
+      
+      // Vrati originalne stilove
+      originalStyles.forEach(({ element, style }) => {
+        (element as HTMLElement).setAttribute('style', style);
+      });
+      document.title = originalTitle;
+    });
   };
 
 
@@ -560,7 +582,7 @@ export default function InvoiceDetail() {
     amountForPayment > 0;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:absolute print:top-0 print:left-0 print:m-0 print:max-w-none print:w-full">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:absolute print:top-0 print:left-0 print:m-0 print:max-w-none print:w-full print:space-y-2 print:h-auto print:min-h-0 print:overflow-visible">
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -605,7 +627,7 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      <Card className="print:shadow-none print:border-0">
+      <Card className="print:shadow-none print:border-0 print:h-auto print:min-h-0 print:overflow-visible">
         <CardHeader className="text-center border-b">
           {/* Logo firme izdavaoca - gore */}
           {(selectedCompany as any).logo_url && (
