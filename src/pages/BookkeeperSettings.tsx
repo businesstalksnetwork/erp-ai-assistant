@@ -122,115 +122,113 @@ export default function BookkeeperSettings() {
     );
   }
 
-  // Filter companies that have a bookkeeper invitation
-  const companiesWithBookkeeper = myCompanies.filter(c => c.bookkeeper_email);
-
-  const isBookkeeper = profile?.account_type === 'bookkeeper';
+  // Korisnik je "efektivni knjigovođa" ako ima klijentske kompanije ili pending pozivnice
+  const hasClientCompanies = clientCompanies.length > 0;
+  const hasPendingInvitations = pendingInvitations.length > 0;
+  const isRegisteredBookkeeper = profile?.account_type === 'bookkeeper';
+  const showBookkeeperSection = hasClientCompanies || isRegisteredBookkeeper || hasPendingInvitations;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">Knjigovodstvo</h1>
         <p className="text-muted-foreground">
-          {isBookkeeper 
+          {showBookkeeperSection 
             ? 'Upravljajte pozivnicama i kompanijama vaših klijenata'
             : 'Upravljajte povezivanjem sa knjigovođom'}
         </p>
       </div>
 
-      {/* Za paušalce - direktan prikaz "Moje kompanije" bez tabova */}
-      {!isBookkeeper && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Moje kompanije
-              </CardTitle>
-              <CardDescription>
-                Pozovite knjigovođu za svaku kompaniju pojedinačno u podešavanjima kompanije
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {myCompanies.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nemate kreiranih kompanija.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {myCompanies.map((company) => (
-                    <div
-                      key={company.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {company.logo_url ? (
-                          <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
-                        ) : (
-                          <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium">{company.name}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>PIB: {company.pib}</span>
-                            {company.bookkeeper_email && (
-                              <>
-                                <span>•</span>
-                                <span>{company.bookkeeper_email}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
+      {/* Pozivnice na čekanju - prikaži ako ima pending pozivnica */}
+      {hasPendingInvitations && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Pozivnice na čekanju
+              <Badge variant="destructive" className="ml-1">{pendingInvitations.length}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Klijenti koji žele da budete njihov knjigovođa za navedene kompanije
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingInvitations.map((company) => (
+                <div
+                  key={company.id}
+                  className="flex items-center justify-between p-4 border rounded-lg bg-secondary/30"
+                >
+                  <div className="flex items-center gap-3">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                    ) : (
+                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      <div className="flex items-center gap-3">
-                        {getBookkeeperStatusBadge(company.bookkeeper_status)}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/company/${company.id}`)}
-                        >
-                          <Settings className="h-4 w-4 mr-1" />
-                          Podešavanja
-                        </Button>
-                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{company.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Od: {company.owner_name || company.owner_email || 'Nepoznat korisnik'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">PIB: {company.pib}</p>
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReject(company.id)}
+                      disabled={rejectInvitation.isPending}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Odbij
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAccept(company.id)}
+                      disabled={acceptInvitation.isPending}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Prihvati
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <p className="text-sm text-muted-foreground text-center">
-            💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
-          </p>
-        </>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Za knjigovođe - direktan prikaz pozivnica i klijenata bez tabova */}
-      {isBookkeeper && (
-        <>
-          {pendingInvitations.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Pozivnice na čekanju
-                  <Badge variant="destructive" className="ml-1">{pendingInvitations.length}</Badge>
-                </CardTitle>
-                <CardDescription>
-                  Klijenti koji žele da budete njihov knjigovođa za navedene kompanije
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {pendingInvitations.map((company) => (
-                    <div
-                      key={company.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-secondary/30"
-                    >
-                      <div className="flex items-center gap-3">
+      {/* Kompanije klijenata - prikaži ako je efektivni knjigovođa */}
+      {showBookkeeperSection && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Kompanije klijenata
+            </CardTitle>
+            <CardDescription>
+              Kompanije vaših klijenata kojima imate pristup
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {clientCompanies.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nemate povezanih klijenata. Kada klijent pošalje pozivnicu za svoju kompaniju i vi je prihvatite,
+                kompanija će se pojaviti ovde.
+              </p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {clientCompanies.map((company) => (
+                  <Card
+                    key={company.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/company/${company.id}`)}
+                  >
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
                         {company.logo_url ? (
                           <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
                         ) : (
@@ -238,95 +236,93 @@ export default function BookkeeperSettings() {
                             <Building2 className="h-5 w-5 text-muted-foreground" />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium">{company.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Od: {company.owner_name || company.owner_email || 'Nepoznat korisnik'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">PIB: {company.pib}</p>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{company.name}</h4>
+                          <p className="text-sm text-muted-foreground truncate">{company.address}</p>
+                          <p className="text-xs text-primary mt-1">Klijent: {company.client_name}</p>
                         </div>
+                        {company.has_sef_api_key ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        ) : null}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReject(company.id)}
-                          disabled={rejectInvitation.isPending}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Odbij
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleAccept(company.id)}
-                          disabled={acceptInvitation.isPending}
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Prihvati
-                        </Button>
+                      <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
+                        <span>PIB: {company.pib}</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Moje kompanije - prikaži uvek */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Moje kompanije
+          </CardTitle>
+          <CardDescription>
+            Pozovite knjigovođu za svaku kompaniju pojedinačno u podešavanjima kompanije
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {myCompanies.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nemate kreiranih kompanija.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {myCompanies.map((company) => (
+                <div
+                  key={company.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                    ) : (
+                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{company.name}</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>PIB: {company.pib}</span>
+                        {company.bookkeeper_email && (
+                          <>
+                            <span>•</span>
+                            <span>{company.bookkeeper_email}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Kompanije klijenata
-              </CardTitle>
-              <CardDescription>
-                Kompanije vaših klijenata kojima imate pristup
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {clientCompanies.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nemate povezanih klijenata. Kada klijent pošalje pozivnicu za svoju kompaniju i vi je prihvatite,
-                  kompanija će se pojaviti ovde.
-                </p>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {clientCompanies.map((company) => (
-                    <Card
-                      key={company.id}
-                      className="cursor-pointer hover:shadow-md transition-shadow"
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {getBookkeeperStatusBadge(company.bookkeeper_status)}
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => navigate(`/company/${company.id}`)}
                     >
-                      <CardContent className="pt-4">
-                        <div className="flex items-start gap-3">
-                          {company.logo_url ? (
-                            <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
-                          ) : (
-                            <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
-                              <Building2 className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{company.name}</h4>
-                            <p className="text-sm text-muted-foreground truncate">{company.address}</p>
-                            <p className="text-xs text-primary mt-1">Klijent: {company.client_name}</p>
-                          </div>
-                          {company.has_sef_api_key ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          ) : null}
-                        </div>
-                        <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
-                          <span>PIB: {company.pib}</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      <Settings className="h-4 w-4 mr-1" />
+                      Podešavanja
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <p className="text-sm text-muted-foreground text-center">
+        💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
+      </p>
     </div>
   );
 }
