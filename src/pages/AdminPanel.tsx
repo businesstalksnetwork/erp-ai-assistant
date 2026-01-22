@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import {
   Pagination,
   PaginationContent,
@@ -78,7 +78,7 @@ interface BookkeeperInfo {
   agency_name: string | null;
   agency_pib: string | null;
   client_count: number;
-  clients: { id: string; email: string; full_name: string | null }[];
+  clients: { id: string; email: string; full_name: string | null; name?: string }[];
   subscription_end: string | null;
   status: 'pending' | 'approved' | 'rejected';
   is_trial: boolean;
@@ -113,6 +113,21 @@ export default function AdminPanel() {
   // Pagination state - Bookkeepers
   const [bookkeepersCurrentPage, setBookkeepersCurrentPage] = useState(1);
   const [bookkeepersItemsPerPage, setBookkeepersItemsPerPage] = useState(10);
+
+  // Expanded bookkeepers state
+  const [expandedBookkeepers, setExpandedBookkeepers] = useState<Set<string>>(new Set());
+  
+  const toggleBookkeeperExpand = (id: string) => {
+    setExpandedBookkeepers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -972,6 +987,7 @@ export default function AdminPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[40px]"></TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Ime</TableHead>
                           <TableHead>Tip</TableHead>
@@ -985,92 +1001,101 @@ export default function AdminPanel() {
                       </TableHeader>
                       <TableBody>
                         {paginatedBookkeepers.map((bk) => (
-                          <TableRow key={bk.id}>
-                            <TableCell className="font-medium">{bk.email}</TableCell>
-                            <TableCell>{bk.full_name || '-'}</TableCell>
-                            <TableCell>
-                              {bk.is_invited_only ? (
-                                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                                  Pozvan
-                                </Badge>
-                              ) : (
-                                <Badge variant="default" className="bg-primary">
-                                  Registrovan
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{bk.agency_name || '-'}</TableCell>
-                            <TableCell>{bk.agency_pib || '-'}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary">{bk.client_count}</Badge>
-                                {bk.clients.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                    {bk.clients.slice(0, 2).map((company, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {company.full_name}
-                                      </Badge>
-                                    ))}
-                                    {bk.clients.length > 2 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        +{bk.clients.length - 2}
-                                      </Badge>
-                                    )}
-                                  </div>
+                          <>
+                            <TableRow key={bk.id} className="cursor-pointer hover:bg-muted/50" onClick={() => bk.client_count > 0 && toggleBookkeeperExpand(bk.id)}>
+                              <TableCell className="w-[40px]">
+                                {bk.client_count > 0 && (
+                                  <ChevronDown 
+                                    className={`h-4 w-4 text-muted-foreground transition-transform ${expandedBookkeepers.has(bk.id) ? 'rotate-0' : '-rotate-90'}`}
+                                  />
                                 )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
-                            <TableCell>
-                              {format(new Date(bk.created_at), 'dd. MMM yyyy.', { locale: sr })}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {bk.status === 'rejected' ? (
-                                    <DropdownMenuItem onClick={() => unblockUser.mutate(bk.id)}>
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Odblokiraj
+                              </TableCell>
+                              <TableCell className="font-medium">{bk.email}</TableCell>
+                              <TableCell>{bk.full_name || '-'}</TableCell>
+                              <TableCell>
+                                {bk.is_invited_only ? (
+                                  <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                    Pozvan
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="default" className="bg-primary">
+                                    Registrovan
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{bk.agency_name || '-'}</TableCell>
+                              <TableCell>{bk.agency_pib || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{bk.client_count}</Badge>
+                              </TableCell>
+                              <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
+                              <TableCell>
+                                {format(new Date(bk.created_at), 'dd. MMM yyyy.', { locale: sr })}
+                              </TableCell>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    {bk.status === 'rejected' ? (
+                                      <DropdownMenuItem onClick={() => unblockUser.mutate(bk.id)}>
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Odblokiraj
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem onClick={() => setBlockUser({
+                                        id: bk.id,
+                                        email: bk.email,
+                                        full_name: bk.full_name,
+                                        pib: bk.agency_pib,
+                                        company_name: bk.agency_name,
+                                        status: bk.status,
+                                        subscription_end: bk.subscription_end,
+                                        block_reason: bk.block_reason,
+                                        is_trial: bk.is_trial,
+                                        created_at: bk.created_at,
+                                        max_companies: 1,
+                                        account_type: 'bookkeeper',
+                                      })}>
+                                        <Ban className="h-4 w-4 mr-2" />
+                                        Blokiraj
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem 
+                                      onClick={() => setDeleteUserId(bk.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Obriši korisnika
                                     </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem onClick={() => setBlockUser({
-                                      id: bk.id,
-                                      email: bk.email,
-                                      full_name: bk.full_name,
-                                      pib: bk.agency_pib,
-                                      company_name: bk.agency_name,
-                                      status: bk.status,
-                                      subscription_end: bk.subscription_end,
-                                      block_reason: bk.block_reason,
-                                      is_trial: bk.is_trial,
-                                      created_at: bk.created_at,
-                                      max_companies: 1,
-                                      account_type: 'bookkeeper',
-                                    })}>
-                                      <Ban className="h-4 w-4 mr-2" />
-                                      Blokiraj
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem 
-                                    onClick={() => setDeleteUserId(bk.id)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Obriši korisnika
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                            {expandedBookkeepers.has(bk.id) && bk.clients.length > 0 && (
+                              <TableRow key={`${bk.id}-expanded`} className="bg-muted/30 hover:bg-muted/30">
+                                <TableCell colSpan={10} className="py-3">
+                                  <div className="pl-6">
+                                    <p className="text-sm font-medium text-muted-foreground mb-2">Firme klijenti ({bk.clients.length}):</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {bk.clients.map((company) => (
+                                        <Badge key={company.id} variant="outline" className="text-sm">
+                                          {company.full_name || company.name || company.email}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
                         ))}
                         {paginatedBookkeepers.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                               Nema knjigovođa za prikaz
                             </TableCell>
                           </TableRow>
