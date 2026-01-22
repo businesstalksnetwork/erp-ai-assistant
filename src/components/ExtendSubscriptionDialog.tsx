@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -49,15 +49,17 @@ export function ExtendSubscriptionDialog({
   const [maxCompanies, setMaxCompanies] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'extend' | 'exact' | 'companies'>('extend');
 
-  // Sync state when user changes
-  useState(() => {
-    if (user) {
+  // Sync state when user changes or dialog opens
+  useEffect(() => {
+    if (user && open) {
       setMaxCompanies(user.max_companies || 1);
       if (user.subscription_end) {
         setExactDate(new Date(user.subscription_end));
+      } else {
+        setExactDate(undefined);
       }
     }
-  });
+  }, [user, open]);
 
   if (!user) return null;
 
