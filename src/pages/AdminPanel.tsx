@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Table,
   TableBody,
@@ -424,7 +425,16 @@ export default function AdminPanel() {
 
   const getStatusBadge = (user: UserProfile) => {
     if (user.status === 'rejected') {
-      return <Badge variant="destructive">Blokiran</Badge>;
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="destructive" className="cursor-help">Blokiran</Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-[200px]">{user.block_reason || 'Razlog nije naveden'}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
     }
     if (user.status === 'pending') {
       return <Badge variant="outline" className="bg-warning/10 text-warning border-warning">Čeka</Badge>;
@@ -515,6 +525,7 @@ export default function AdminPanel() {
   const blockedCount = users.filter(u => u.status === 'rejected').length;
 
   return (
+    <TooltipProvider>
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -928,5 +939,6 @@ export default function AdminPanel() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 }
