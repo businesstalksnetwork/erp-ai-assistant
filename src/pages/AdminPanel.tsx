@@ -130,79 +130,86 @@ export default function AdminPanel() {
     },
   });
 
-  // Bookkeepers query - fetch all users with account_type = 'bookkeeper' AND invited bookkeepers
+  // Bookkeepers query - fetch from companies table (accepted invites) + registered bookkeepers
   const { data: bookkeepers = [], isLoading: isLoadingBookkeepers } = useQuery({
     queryKey: ['admin-bookkeepers'],
     refetchOnMount: 'always',
     staleTime: 30000,
     queryFn: async () => {
-      // Get all profiles with account_type = 'bookkeeper'
-      const { data: bookkeepersProfiles, error: bkError } = await supabase
+      // 1. Get all profiles with account_type = 'bookkeeper'
+      const { data: registeredBookkeepers, error: regError } = await supabase
         .from('profiles')
         .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at, account_type')
         .eq('account_type', 'bookkeeper')
         .order('created_at', { ascending: false });
 
-      if (bkError) throw bkError;
+      if (regError) throw regError;
 
-      // Get all accepted bookkeeper relations to count clients
-      const { data: relations, error: relError } = await supabase
-        .from('bookkeeper_clients')
-        .select('bookkeeper_email, client_id, profiles!bookkeeper_clients_client_id_fkey(id, email, full_name)')
-        .eq('status', 'accepted');
+      // 2. Get all ACCEPTED invites from companies table
+      const { data: companyInvites, error: compError } = await supabase
+        .from('companies')
+        .select('bookkeeper_email, bookkeeper_id, name')
+        .eq('bookkeeper_status', 'accepted')
+        .not('bookkeeper_email', 'is', null);
 
-      if (relError) throw relError;
+      if (compError) throw compError;
 
-      // Group clients by bookkeeper email
-      const clientsMap = new Map<string, { id: string; email: string; full_name: string | null }[]>();
-      const bookkeeperEmails = new Set<string>();
-      for (const rel of relations || []) {
-        const profile = rel.profiles as any;
-        const client = {
-          id: rel.client_id,
-          email: profile?.email || 'Nepoznat',
-          full_name: profile?.full_name || null,
-        };
-        const existing = clientsMap.get(rel.bookkeeper_email);
-        if (existing) {
-          existing.push(client);
-        } else {
-          clientsMap.set(rel.bookkeeper_email, [client]);
-        }
-        bookkeeperEmails.add(rel.bookkeeper_email);
+      // 3. Group companies by bookkeeper email
+      const companiesMap = new Map<string, { id: string; name: string }[]>();
+      for (const comp of companyInvites || []) {
+        const email = comp.bookkeeper_email;
+        if (!email) continue;
+        const existing = companiesMap.get(email) || [];
+        existing.push({ id: comp.bookkeeper_id || email, name: comp.name });
+        companiesMap.set(email, existing);
       }
 
-      // Find emails of invited bookkeepers that are NOT registered as bookkeeper type
-      const registeredEmails = new Set((bookkeepersProfiles || []).map(bp => bp.email));
-      const additionalEmails = Array.from(bookkeeperEmails).filter(email => !registeredEmails.has(email));
+      // 4. Find emails of invited bookkeepers that are NOT registered as bookkeeper type
+      const registeredEmails = new Set((registeredBookkeepers || []).map(bp => bp.email));
+      const invitedOnlyEmails = Array.from(companiesMap.keys()).filter(email => !registeredEmails.has(email));
 
-      // Fetch profiles for additional bookkeepers (invited but not registered as bookkeeper)
-      let additionalProfiles: any[] = [];
-      if (additionalEmails.length > 0) {
-        const { data: addProfiles, error: addError } = await supabase
+      // 5. Fetch profiles for those emails (if they exist in profiles)
+      let invitedProfiles: any[] = [];
+      if (invitedOnlyEmails.length > 0) {
+        const { data: profiles } = await supabase
           .from('profiles')
           .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at, account_type')
-          .in('email', additionalEmails);
-        
-        if (!addError && addProfiles) {
-          additionalProfiles = addProfiles;
-        }
+          .in('email', invitedOnlyEmails);
+        invitedProfiles = profiles || [];
       }
 
-      // Combine all bookkeeper profiles
-      const allBookkeeperProfiles = [...(bookkeepersProfiles || []), ...additionalProfiles];
+      // 6. For emails without a profile, create placeholder entries
+      const profileEmailSet = new Set(invitedProfiles.map(p => p.email));
+      const placeholderProfiles = invitedOnlyEmails
+        .filter(email => !profileEmailSet.has(email))
+        .map(email => ({
+          id: email, // Use email as ID for placeholders
+          email,
+          full_name: null,
+          agency_name: null,
+          agency_pib: null,
+          subscription_end: null,
+          status: 'approved',
+          is_trial: false,
+          block_reason: null,
+          created_at: null,
+          account_type: 'unknown',
+        }));
 
-      // Build final bookkeeper info
-      return allBookkeeperProfiles.map((bk): BookkeeperInfo => {
-        const clients = clientsMap.get(bk.email) || [];
+      // 7. Combine all profiles
+      const allProfiles = [...(registeredBookkeepers || []), ...invitedProfiles, ...placeholderProfiles];
+
+      // 8. Build final bookkeeper info
+      return allProfiles.map((bk): BookkeeperInfo => {
+        const companies = companiesMap.get(bk.email) || [];
         return {
           id: bk.id,
           email: bk.email,
           full_name: bk.full_name,
           agency_name: bk.agency_name,
           agency_pib: bk.agency_pib,
-          client_count: clients.length,
-          clients,
+          client_count: companies.length, // Number of companies, not clients
+          clients: companies.map(c => ({ id: c.id, email: c.name, full_name: c.name })), // Company names for tooltip
           subscription_end: bk.subscription_end,
           status: bk.status as 'pending' | 'approved' | 'rejected',
           is_trial: bk.is_trial ?? false,
@@ -928,7 +935,7 @@ export default function AdminPanel() {
                           <TableHead>Tip</TableHead>
                           <TableHead>Agencija</TableHead>
                           <TableHead>PIB agencije</TableHead>
-                          <TableHead>Klijenti</TableHead>
+                          <TableHead>Firme</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Registrovan</TableHead>
                           <TableHead className="text-right">Akcije</TableHead>
@@ -957,9 +964,9 @@ export default function AdminPanel() {
                                 <Badge variant="secondary">{bk.client_count}</Badge>
                                 {bk.clients.length > 0 && (
                                   <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                    {bk.clients.slice(0, 2).map((client) => (
-                                      <Badge key={client.id} variant="outline" className="text-xs">
-                                        {client.full_name || client.email.split('@')[0]}
+                                    {bk.clients.slice(0, 2).map((company, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {company.full_name}
                                       </Badge>
                                     ))}
                                     {bk.clients.length > 2 && (
