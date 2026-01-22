@@ -763,6 +763,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_trial: boolean | null
+          max_companies: number
           pib: string | null
           status: Database["public"]["Enums"]["approval_status"]
           subscription_end: string | null
@@ -776,6 +777,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_trial?: boolean | null
+          max_companies?: number
           pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
@@ -789,6 +791,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_trial?: boolean | null
+          max_companies?: number
           pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
