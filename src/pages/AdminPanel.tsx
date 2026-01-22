@@ -37,7 +37,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil } from 'lucide-react';
 import { format, differenceInDays, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
@@ -664,43 +670,37 @@ export default function AdminPanel() {
                         <TableCell>{getStatusBadge(user)}</TableCell>
                         <TableCell>{getSubscriptionBadge(user)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setExtendUser(user)}
-                              title="Produži pretplatu"
-                            >
-                              <Calendar className="h-4 w-4" />
-                            </Button>
-                            {user.status === 'rejected' ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => unblockUser.mutate(user.id)}
-                                title="Odblokiraj"
-                              >
-                                <CheckCircle className="h-4 w-4" />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setBlockUser(user)}
-                                title="Blokiraj"
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setExtendUser(user)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Uredi pretplatu
+                              </DropdownMenuItem>
+                              {user.status === 'rejected' ? (
+                                <DropdownMenuItem onClick={() => unblockUser.mutate(user.id)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Odblokiraj
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setBlockUser(user)}>
+                                  <Ban className="h-4 w-4 mr-2" />
+                                  Blokiraj
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem 
+                                onClick={() => setDeleteUserId(user.id)}
+                                className="text-destructive focus:text-destructive"
                               >
-                                <Ban className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setDeleteUserId(user.id)}
-                              title="Obriši"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Obriši korisnika
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
