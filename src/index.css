@@ -436,8 +436,35 @@ body[data-sef-sync-active="1"] .rdp * {
 
 /* Print styles for invoices */
 @media print {
-  /* KRITIČNO: Sprečiti praznu drugu stranu na MacBook-u */
-  html, body, #root, #root > div, main, [class*="Layout"] {
+  /* KRITIČNO: Sprečiti praznu drugu stranu - Safari/macOS kompatibilno */
+  html {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  
+  #root > div,
+  #root > div > div,
+  main,
+  [class*="Layout"] {
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -461,6 +488,20 @@ body[data-sef-sync-active="1"] .rdp * {
   body > #root {
     display: block !important;
     height: auto !important;
+  }
+  
+  /* Safari/WebKit specifično - forsiraj single page */
+  .print-invoice {
+    -webkit-region-break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  
+  /* Sprečiti bilo kakve praznine nakon poslednjeg elementa */
+  .print-invoice::after,
+  .print-invoice > *:last-child::after {
+    content: none !important;
+    display: none !important;
   }
 
   /* Hide toasts in print */
