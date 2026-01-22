@@ -12,6 +12,7 @@ interface Profile {
   subscription_end: string | null;
   block_reason: string | null;
   is_trial: boolean;
+  max_companies: number;
 }
 
 interface AuthContextType {
@@ -48,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (profileData) {
-      setProfile(profileData as Profile);
+      setProfile({
+        ...profileData,
+        max_companies: (profileData as any).max_companies ?? 1,
+      } as Profile);
     }
 
     const { data: roleData } = await supabase

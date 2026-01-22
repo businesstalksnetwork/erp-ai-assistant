@@ -12,9 +12,10 @@ import {
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Pencil } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ExtendSubscriptionDialogProps {
   open: boolean;
@@ -26,8 +27,11 @@ interface ExtendSubscriptionDialogProps {
     subscription_end: string | null;
     is_trial?: boolean;
     created_at?: string;
+    max_companies?: number;
   } | null;
   onExtend: (userId: string, months: number, startDate: Date) => void;
+  onSetExactDate?: (userId: string, date: Date) => void;
+  onUpdateMaxCompanies?: (userId: string, maxCompanies: number) => void;
 }
 
 export function ExtendSubscriptionDialog({
@@ -35,18 +39,31 @@ export function ExtendSubscriptionDialog({
   onOpenChange,
   user,
   onExtend,
+  onSetExactDate,
+  onUpdateMaxCompanies,
 }: ExtendSubscriptionDialogProps) {
   const [selectedMonths, setSelectedMonths] = useState<number | null>(null);
   const [startDateOption, setStartDateOption] = useState<'trial_end' | 'today' | 'custom'>('trial_end');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [exactDate, setExactDate] = useState<Date | undefined>(undefined);
+  const [maxCompanies, setMaxCompanies] = useState<number>(1);
+  const [activeTab, setActiveTab] = useState<'extend' | 'exact' | 'companies'>('extend');
+
+  // Sync state when user changes
+  useState(() => {
+    if (user) {
+      setMaxCompanies(user.max_companies || 1);
+      if (user.subscription_end) {
+        setExactDate(new Date(user.subscription_end));
+      }
+    }
+  });
 
   if (!user) return null;
 
   const today = new Date();
   const trialEndDate = user.subscription_end ? new Date(user.subscription_end) : today;
   
-  // Za trial korisnike: mogu birati početni datum
-  // Za postojeće pretplatnike: uvek od datuma isteka
   const isTrial = user.is_trial === true;
   
   const getStartDate = () => {
@@ -65,11 +82,30 @@ export function ExtendSubscriptionDialog({
   const handleExtend = () => {
     if (selectedMonths) {
       onExtend(user.id, selectedMonths, startDate);
-      setSelectedMonths(null);
-      setStartDateOption('trial_end');
-      setCustomDate(undefined);
-      onOpenChange(false);
+      resetAndClose();
     }
+  };
+
+  const handleSetExactDate = () => {
+    if (exactDate && onSetExactDate) {
+      onSetExactDate(user.id, exactDate);
+      resetAndClose();
+    }
+  };
+
+  const handleUpdateMaxCompanies = () => {
+    if (onUpdateMaxCompanies && maxCompanies >= 1) {
+      onUpdateMaxCompanies(user.id, maxCompanies);
+      resetAndClose();
+    }
+  };
+
+  const resetAndClose = () => {
+    setSelectedMonths(null);
+    setStartDateOption('trial_end');
+    setCustomDate(undefined);
+    setActiveTab('extend');
+    onOpenChange(false);
   };
 
   return (
@@ -78,10 +114,10 @@ export function ExtendSubscriptionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5" />
-            Produži pretplatu
+            Upravljanje pretplatom
           </DialogTitle>
           <DialogDescription>
-            Izaberite period za produženje pretplate
+            Podešavanje pretplate i ograničenja za korisnika
           </DialogDescription>
         </DialogHeader>
 
@@ -100,85 +136,161 @@ export function ExtendSubscriptionDialog({
             </p>
           </div>
 
-          {isTrial && (
-            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
-              <p className="text-sm font-medium">Računaj pretplatu od:</p>
-              <RadioGroup
-                value={startDateOption}
-                onValueChange={(value) => setStartDateOption(value as 'trial_end' | 'today' | 'custom')}
-                className="space-y-2"
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="extend">Produži</TabsTrigger>
+              <TabsTrigger value="exact">Tačan datum</TabsTrigger>
+              <TabsTrigger value="companies">Firme</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="extend" className="space-y-4">
+              {isTrial && (
+                <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+                  <p className="text-sm font-medium">Računaj pretplatu od:</p>
+                  <RadioGroup
+                    value={startDateOption}
+                    onValueChange={(value) => setStartDateOption(value as 'trial_end' | 'today' | 'custom')}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="trial_end" id="trial_end" />
+                      <Label htmlFor="trial_end" className="text-sm cursor-pointer">
+                        Isteka triala ({format(trialEndDate, 'dd.MM.yyyy.')})
+                        <span className="text-xs text-muted-foreground ml-1">— preporučeno</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="today" id="today" />
+                      <Label htmlFor="today" className="text-sm cursor-pointer">
+                        Današnjeg dana ({format(today, 'dd.MM.yyyy.')})
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="custom" id="custom" />
+                      <Label htmlFor="custom" className="text-sm cursor-pointer">
+                        Izaberi datum
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {startDateOption === 'custom' && (
+                    <div className="border rounded-md bg-background">
+                      <Calendar
+                        mode="single"
+                        selected={customDate}
+                        onSelect={setCustomDate}
+                        locale={sr}
+                        className="rounded-md"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2 relative z-10">
+                <p className="text-sm text-muted-foreground">Produži za:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 3, 6].map((months) => (
+                    <Button
+                      key={months}
+                      type="button"
+                      variant={selectedMonths === months ? 'default' : 'outline'}
+                      onClick={() => setSelectedMonths(months)}
+                      className="w-full"
+                    >
+                      {months} {months === 1 ? 'mesec' : months < 5 ? 'meseca' : 'meseci'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {newEndDate && (
+                <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                  <p className="text-sm text-muted-foreground">Novi datum isteka:</p>
+                  <p className="text-sm font-medium text-success">
+                    {format(newEndDate, 'dd. MMMM yyyy.', { locale: sr })}
+                  </p>
+                </div>
+              )}
+
+              <Button 
+                onClick={handleExtend} 
+                disabled={!selectedMonths || (startDateOption === 'custom' && !customDate)}
+                className="w-full"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="trial_end" id="trial_end" />
-                  <Label htmlFor="trial_end" className="text-sm cursor-pointer">
-                    Isteka triala ({format(trialEndDate, 'dd.MM.yyyy.')})
-                    <span className="text-xs text-muted-foreground ml-1">— preporučeno</span>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="today" id="today" />
-                  <Label htmlFor="today" className="text-sm cursor-pointer">
-                    Današnjeg dana ({format(today, 'dd.MM.yyyy.')})
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <Label htmlFor="custom" className="text-sm cursor-pointer">
-                    Izaberi datum
-                  </Label>
-                </div>
-              </RadioGroup>
-              
-              {startDateOption === 'custom' && (
+                Produži pretplatu
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="exact" className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Izaberite tačan datum isteka pretplate:</p>
                 <div className="border rounded-md bg-background">
                   <Calendar
                     mode="single"
-                    selected={customDate}
-                    onSelect={setCustomDate}
+                    selected={exactDate}
+                    onSelect={setExactDate}
                     locale={sr}
                     className="rounded-md"
                   />
                 </div>
+              </div>
+
+              {exactDate && (
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <p className="text-sm text-muted-foreground">Novi datum isteka:</p>
+                  <p className="text-sm font-medium">
+                    {format(exactDate, 'dd. MMMM yyyy.', { locale: sr })}
+                  </p>
+                </div>
               )}
-            </div>
-          )}
 
-          <div className="space-y-2 relative z-10">
-            <p className="text-sm text-muted-foreground">Produži za:</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 3, 6].map((months) => (
-                <Button
-                  key={months}
-                  type="button"
-                  variant={selectedMonths === months ? 'default' : 'outline'}
-                  onClick={() => setSelectedMonths(months)}
-                  className="w-full"
-                >
-                  {months} {months === 1 ? 'mesec' : months < 5 ? 'meseca' : 'meseci'}
-                </Button>
-              ))}
-            </div>
-          </div>
+              <Button 
+                onClick={handleSetExactDate} 
+                disabled={!exactDate || !onSetExactDate}
+                className="w-full"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Postavi datum
+              </Button>
+            </TabsContent>
 
-          {newEndDate && (
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-              <p className="text-sm text-muted-foreground">Novi datum isteka:</p>
-              <p className="text-sm font-medium text-success">
-                {format(newEndDate, 'dd. MMMM yyyy.', { locale: sr })}
-              </p>
-            </div>
-          )}
+            <TabsContent value="companies" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="max_companies">Maksimalan broj firmi</Label>
+                <p className="text-xs text-muted-foreground">
+                  Standardno ograničenje je 1 firma po korisniku. 
+                  Možete omogućiti korisniku da doda više firmi.
+                </p>
+                <Input
+                  id="max_companies"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={maxCompanies}
+                  onChange={(e) => setMaxCompanies(parseInt(e.target.value) || 1)}
+                />
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <p className="text-sm text-muted-foreground">Trenutno ograničenje:</p>
+                <p className="text-sm font-medium">{user.max_companies || 1} firma</p>
+              </div>
+
+              <Button 
+                onClick={handleUpdateMaxCompanies} 
+                disabled={!onUpdateMaxCompanies || maxCompanies < 1}
+                className="w-full"
+              >
+                Sačuvaj ograničenje
+              </Button>
+            </TabsContent>
+          </Tabs>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Otkaži
-          </Button>
-          <Button 
-            onClick={handleExtend} 
-            disabled={!selectedMonths || (startDateOption === 'custom' && !customDate)}
-          >
-            Produži
+            Zatvori
           </Button>
         </DialogFooter>
       </DialogContent>

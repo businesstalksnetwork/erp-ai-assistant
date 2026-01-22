@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X, ExternalLink, CheckCircle2, Circle } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Loader2, Upload, X, ExternalLink, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,6 +42,7 @@ const companySchema = z.object({
 export default function Companies() {
   const navigate = useNavigate();
   const { myCompanies, isLoading, createCompany, updateCompany, deleteCompany } = useCompanies();
+  const { profile, isAdmin } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -208,16 +210,26 @@ export default function Companies() {
     }
   };
 
+  const maxCompanies = profile?.max_companies ?? 1;
+  const canAddCompany = isAdmin || myCompanies.length < maxCompanies;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Firme</h1>
-          <p className="text-muted-foreground">Upravljajte vašim firmama</p>
+          <p className="text-muted-foreground">
+            Upravljajte vašim firmama
+            {!isAdmin && maxCompanies > 0 && (
+              <span className="ml-2 text-xs">
+                ({myCompanies.length}/{maxCompanies})
+              </span>
+            )}
+          </p>
         </div>
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!canAddCompany && !editId}>
               <Plus className="mr-2 h-4 w-4" />
               Nova firma
             </Button>
@@ -374,6 +386,19 @@ export default function Companies() {
         </Dialog>
       </div>
 
+      {/* Limit warning */}
+      {!isAdmin && !canAddCompany && myCompanies.length > 0 && (
+        <Card className="border-warning bg-warning/5">
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
+            <p className="text-sm">
+              Dostigli ste ograničenje od {maxCompanies} {maxCompanies === 1 ? 'firme' : 'firmi'}. 
+              Kontaktirajte administratora za proširenje limita.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -384,7 +409,7 @@ export default function Companies() {
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium">Nemate dodatu nijednu firmu</p>
             <p className="text-muted-foreground mb-4">Dodajte vašu prvu firmu da biste počeli sa radom</p>
-            <Button onClick={() => setIsOpen(true)}>
+            <Button onClick={() => setIsOpen(true)} disabled={!canAddCompany}>
               <Plus className="mr-2 h-4 w-4" />
               Dodaj firmu
             </Button>

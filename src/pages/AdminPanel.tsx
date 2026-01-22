@@ -52,6 +52,7 @@ interface UserProfile {
   block_reason: string | null;
   is_trial: boolean;
   created_at: string;
+  max_companies: number;
 }
 
 type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
@@ -81,7 +82,10 @@ export default function AdminPanel() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as UserProfile[];
+      return (data || []).map((u: any) => ({
+        ...u,
+        max_companies: u.max_companies ?? 1,
+      })) as UserProfile[];
     },
   });
 
@@ -185,6 +189,47 @@ export default function AdminPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: 'Pretplata produžena' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const setExactDate = useMutation({
+    mutationFn: async ({ userId, date }: { userId: string; date: Date }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          subscription_end: date.toISOString().split('T')[0],
+          is_trial: false,
+          status: 'approved',
+          block_reason: null
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast({ title: 'Datum pretplate ažuriran' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateMaxCompanies = useMutation({
+    mutationFn: async ({ userId, maxCompanies }: { userId: string; maxCompanies: number }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ max_companies: maxCompanies } as any)
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast({ title: 'Ograničenje broja firmi ažurirano' });
     },
     onError: (error: Error) => {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
@@ -629,6 +674,8 @@ export default function AdminPanel() {
         onOpenChange={(open) => !open && setExtendUser(null)}
         user={extendUser}
         onExtend={(userId, months, startDate) => extendSubscription.mutate({ userId, months, startDate })}
+        onSetExactDate={(userId, date) => setExactDate.mutate({ userId, date })}
+        onUpdateMaxCompanies={(userId, maxCompanies) => updateMaxCompanies.mutate({ userId, maxCompanies })}
       />
 
       {/* Block User Dialog */}
