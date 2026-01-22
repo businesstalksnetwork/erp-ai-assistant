@@ -1,113 +1,120 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBookkeeperInvitations } from '@/hooks/useBookkeeper';
+import { useQuery } from '@tanstack/react-query';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useCompanyBookkeeper } from '@/hooks/useCompanyBookkeeper';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Check, X, Loader2, Mail, Users, Send, Trash2, UserMinus, Building2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Check, X, Loader2, Mail, Users, Send, Building2, ExternalLink, CheckCircle2, Clock, UserCheck, UserX, Settings } from 'lucide-react';
+
+interface CompanyWithOwner {
+  id: string;
+  name: string;
+  address: string;
+  pib: string;
+  logo_url: string | null;
+  has_sef_api_key: boolean;
+  bookkeeper_status: string;
+  bookkeeper_invited_at: string;
+  user_id: string;
+  owner_name?: string;
+  owner_email?: string;
+}
 
 export default function BookkeeperSettings() {
   const navigate = useNavigate();
-  const {
-    sentInvitations,
-    receivedInvitations,
-    myClients,
-    isLoading,
-    sendInvitation,
-    respondToInvitation,
-    cancelInvitation,
-    removeBookkeeper,
-  } = useBookkeeperInvitations();
-  const { clientCompanies } = useCompanies();
+  const { user, profile } = useAuth();
+  const { myCompanies, clientCompanies, isLoading: companiesLoading } = useCompanies();
+  const { acceptInvitation, rejectInvitation } = useCompanyBookkeeper();
 
-  const [email, setEmail] = useState('');
-  const [removeBookkeeperId, setRemoveBookkeeperId] = useState<string | null>(null);
-  const removeBookkeeperInfo = sentInvitations.find(inv => inv.id === removeBookkeeperId);
+  // Fetch pending invitations for me as bookkeeper (from companies table)
+  const { data: pendingInvitations = [], isLoading: invitationsLoading } = useQuery({
+    queryKey: ['bookkeeper-pending-invitations', profile?.email],
+    queryFn: async () => {
+      if (!profile?.email) return [];
 
-  const handleSendInvitation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
+      // Get companies where I'm invited as bookkeeper (pending status)
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('id, name, address, pib, logo_url, has_sef_api_key, bookkeeper_status, bookkeeper_invited_at, user_id')
+        .eq('bookkeeper_email', profile.email)
+        .eq('bookkeeper_status', 'pending');
 
+      if (error) throw error;
+      if (!companies?.length) return [];
+
+      // Fetch owner profiles
+      const ownerIds = companies.map(c => c.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', ownerIds);
+
+      return companies.map(company => ({
+        ...company,
+        owner_name: profiles?.find(p => p.id === company.user_id)?.full_name,
+        owner_email: profiles?.find(p => p.id === company.user_id)?.email,
+      })) as CompanyWithOwner[];
+    },
+    enabled: !!profile?.email,
+  });
+
+  const handleAccept = async (companyId: string) => {
     try {
-      await sendInvitation.mutateAsync(email);
-      toast.success('Pozivnica poslata!');
-      setEmail('');
-    } catch (error: any) {
-      if (error.code === '23505') {
-        toast.error('Već ste poslali pozivnicu ovom knjigovođi');
-      } else {
-        toast.error('Greška pri slanju pozivnice');
-      }
-    }
-  };
-
-  const handleAccept = async (id: string) => {
-    try {
-      await respondToInvitation.mutateAsync({ id, status: 'accepted' });
-      toast.success('Pozivnica prihvaćena! Sada možete videti firme ovog klijenta.');
+      await acceptInvitation.mutateAsync(companyId);
+      toast.success('Pozivnica prihvaćena! Sada možete videti podatke ove kompanije.');
     } catch (error) {
       toast.error('Greška pri prihvatanju pozivnice');
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (companyId: string) => {
     try {
-      await respondToInvitation.mutateAsync({ id, status: 'rejected' });
+      await rejectInvitation.mutateAsync(companyId);
       toast.success('Pozivnica odbijena');
     } catch (error) {
       toast.error('Greška pri odbijanju pozivnice');
     }
   };
 
-  const handleCancel = async (id: string) => {
-    try {
-      await cancelInvitation.mutateAsync(id);
-      toast.success('Pozivnica otkazana');
-    } catch (error) {
-      toast.error('Greška pri otkazivanju pozivnice');
-    }
-  };
-
-  const handleRemoveBookkeeper = async () => {
-    if (!removeBookkeeperId) return;
-    try {
-      await removeBookkeeper.mutateAsync(removeBookkeeperId);
-      toast.success('Pristup knjigovođi je uklonjen');
-      setRemoveBookkeeperId(null);
-    } catch (error) {
-      toast.error('Greška pri uklanjanju pristupa');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getBookkeeperStatusBadge = (status: string | null | undefined) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary">Na čekanju</Badge>;
+        return (
+          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+            <Clock className="h-3 w-3 mr-1" />
+            Na čekanju
+          </Badge>
+        );
       case 'accepted':
-        return <Badge variant="default" className="bg-green-600">Prihvaćeno</Badge>;
+        return (
+          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+            <UserCheck className="h-3 w-3 mr-1" />
+            Povezan
+          </Badge>
+        );
       case 'rejected':
-        return <Badge variant="destructive">Odbijeno</Badge>;
+        return (
+          <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50">
+            <UserX className="h-3 w-3 mr-1" />
+            Odbijeno
+          </Badge>
+        );
       default:
-        return null;
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Nema knjigovođu
+          </Badge>
+        );
     }
   };
 
-  if (isLoading) {
+  if (companiesLoading || invitationsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -115,7 +122,8 @@ export default function BookkeeperSettings() {
     );
   }
 
-  const pendingReceived = receivedInvitations.filter(inv => inv.status === 'pending');
+  // Filter companies that have a bookkeeper invitation
+  const companiesWithBookkeeper = myCompanies.filter(c => c.bookkeeper_email);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
@@ -135,101 +143,83 @@ export default function BookkeeperSettings() {
           <TabsTrigger value="bookkeeper" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Ja sam knjigovođa
-            {pendingReceived.length > 0 && (
-              <Badge variant="destructive" className="ml-1">{pendingReceived.length}</Badge>
+            {pendingInvitations.length > 0 && (
+              <Badge variant="destructive" className="ml-1">{pendingInvitations.length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
-        {/* Client Tab - Send invitations to bookkeeper */}
+        {/* Client Tab - View bookkeeper status per company */}
         <TabsContent value="client" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Pozovi knjigovođu
+                <Building2 className="h-5 w-5" />
+                Moje kompanije
               </CardTitle>
               <CardDescription>
-                Unesite email adresu vašeg knjigovođe da bi mogao da pristupi vašim podacima
+                Pozovite knjigovođu za svaku kompaniju pojedinačno u podešavanjima kompanije
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSendInvitation} className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="email" className="sr-only">Email knjigovođe</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@knjigovodja.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" disabled={sendInvitation.isPending || !email.trim()}>
-                  {sendInvitation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Pošalji pozivnicu'
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {sentInvitations.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Moje pozivnice</CardTitle>
-                <CardDescription>Pozivnice koje ste poslali knjigovođama</CardDescription>
-              </CardHeader>
-              <CardContent>
+              {myCompanies.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nemate kreiranih kompanija.
+                </p>
+              ) : (
                 <div className="space-y-3">
-                  {sentInvitations.map((inv) => (
+                  {myCompanies.map((company) => (
                     <div
-                      key={inv.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      key={company.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <div>
-                        <p className="font-medium">{inv.bookkeeper_email}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Poslato: {new Date(inv.created_at).toLocaleDateString('sr-RS')}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        {company.logo_url ? (
+                          <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                        ) : (
+                          <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{company.name}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>PIB: {company.pib}</span>
+                            {company.bookkeeper_email && (
+                              <>
+                                <span>•</span>
+                                <span>{company.bookkeeper_email}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(inv.status)}
-                        {inv.status === 'pending' && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleCancel(inv.id)}
-                            title="Otkaži pozivnicu"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                        {inv.status === 'accepted' && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setRemoveBookkeeperId(inv.id)}
-                            title="Ukloni pristup knjigovođi"
-                          >
-                            <UserMinus className="h-4 w-4 mr-1" />
-                            Ukloni pristup
-                          </Button>
-                        )}
+                      <div className="flex items-center gap-3">
+                        {getBookkeeperStatusBadge(company.bookkeeper_status)}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/company/${company.id}`)}
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Podešavanja
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
+
+          <p className="text-sm text-muted-foreground text-center">
+            💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
+          </p>
         </TabsContent>
 
         {/* Bookkeeper Tab - Receive invitations and manage clients */}
         <TabsContent value="bookkeeper" className="space-y-4">
-          {pendingReceived.length > 0 && (
+          {pendingInvitations.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -237,34 +227,46 @@ export default function BookkeeperSettings() {
                   Pozivnice na čekanju
                 </CardTitle>
                 <CardDescription>
-                  Klijenti koji žele da budete njihov knjigovođa
+                  Klijenti koji žele da budete njihov knjigovođa za navedene kompanije
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {pendingReceived.map((inv) => (
+                  {pendingInvitations.map((company) => (
                     <div
-                      key={inv.id}
-                      className="flex items-center justify-between p-3 border rounded-lg bg-secondary/30"
+                      key={company.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-secondary/30"
                     >
-                      <div>
-                        <p className="font-medium">{inv.client_name || 'Nepoznat korisnik'}</p>
-                        <p className="text-sm text-muted-foreground">{inv.client_email}</p>
+                      <div className="flex items-center gap-3">
+                        {company.logo_url ? (
+                          <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                        ) : (
+                          <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{company.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Od: {company.owner_name || company.owner_email || 'Nepoznat korisnik'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">PIB: {company.pib}</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleReject(inv.id)}
-                          disabled={respondToInvitation.isPending}
+                          onClick={() => handleReject(company.id)}
+                          disabled={rejectInvitation.isPending}
                         >
                           <X className="h-4 w-4 mr-1" />
                           Odbij
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleAccept(inv.id)}
-                          disabled={respondToInvitation.isPending}
+                          onClick={() => handleAccept(company.id)}
+                          disabled={acceptInvitation.isPending}
                         >
                           <Check className="h-4 w-4 mr-1" />
                           Prihvati
@@ -280,51 +282,20 @@ export default function BookkeeperSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Moji klijenti
+                <Building2 className="h-5 w-5" />
+                Kompanije klijenata
               </CardTitle>
               <CardDescription>
-                Klijenti čije podatke možete videti i uređivati
+                Kompanije vaših klijenata kojima imate pristup
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {myClients.length === 0 ? (
+              {clientCompanies.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Nemate povezanih klijenata. Kada klijent pošalje pozivnicu i vi je prihvatite,
-                  pojaviće se ovde.
+                  Nemate povezanih klijenata. Kada klijent pošalje pozivnicu za svoju kompaniju i vi je prihvatite,
+                  kompanija će se pojaviti ovde.
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {myClients.map((client) => (
-                    <div
-                      key={client.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{client.client_name || 'Korisnik'}</p>
-                        <p className="text-sm text-muted-foreground">{client.client_email}</p>
-                      </div>
-                      <Badge variant="default" className="bg-green-600">Povezan</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Firme klijenata */}
-          {clientCompanies.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Firme klijenata
-                </CardTitle>
-                <CardDescription>
-                  Firme vaših klijenata kojima imate pristup
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   {clientCompanies.map((company) => (
                     <Card
@@ -358,35 +329,11 @@ export default function BookkeeperSettings() {
                     </Card>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Remove Bookkeeper Confirmation Dialog */}
-      <AlertDialog open={!!removeBookkeeperId} onOpenChange={() => setRemoveBookkeeperId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ukloni pristup knjigovođi?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Da li ste sigurni da želite da uklonite pristup knjigovođi{' '}
-              <strong>{removeBookkeeperInfo?.bookkeeper_email}</strong>?
-              <br /><br />
-              Knjigovođa više neće moći da vidi vaše podatke. Možete ponovo poslati pozivnicu ako se predomislite.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Otkaži</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleRemoveBookkeeper}
-            >
-              Ukloni pristup
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

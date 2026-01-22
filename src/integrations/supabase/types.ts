@@ -108,6 +108,10 @@ export type Database = {
         Row: {
           address: string
           bank_account: string | null
+          bookkeeper_email: string | null
+          bookkeeper_id: string | null
+          bookkeeper_invited_at: string | null
+          bookkeeper_status: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -127,6 +131,10 @@ export type Database = {
         Insert: {
           address: string
           bank_account?: string | null
+          bookkeeper_email?: string | null
+          bookkeeper_id?: string | null
+          bookkeeper_invited_at?: string | null
+          bookkeeper_status?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -146,6 +154,10 @@ export type Database = {
         Update: {
           address?: string
           bank_account?: string | null
+          bookkeeper_email?: string | null
+          bookkeeper_id?: string | null
+          bookkeeper_invited_at?: string | null
+          bookkeeper_status?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -1137,6 +1149,7 @@ export type Database = {
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_bookkeeper_for: { Args: { client_user_id: string }; Returns: boolean }
+      is_company_bookkeeper: { Args: { company_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
