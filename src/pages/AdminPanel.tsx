@@ -72,14 +72,18 @@ interface UserProfile {
 }
 
 interface BookkeeperInfo {
-  bookkeeper_id: string | null;
-  bookkeeper_email: string;
+  id: string;
+  email: string;
   full_name: string | null;
+  agency_name: string | null;
+  agency_pib: string | null;
   client_count: number;
   clients: { id: string; email: string; full_name: string | null }[];
   subscription_end: string | null;
   status: 'pending' | 'approved' | 'rejected';
   is_trial: boolean;
+  block_reason: string | null;
+  created_at: string;
 }
 
 type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
@@ -125,84 +129,62 @@ export default function AdminPanel() {
     },
   });
 
-  // Bookkeepers query
+  // Bookkeepers query - fetch all users with account_type = 'bookkeeper'
   const { data: bookkeepers = [], isLoading: isLoadingBookkeepers } = useQuery({
     queryKey: ['admin-bookkeepers'],
     queryFn: async () => {
-      // Get all accepted bookkeeper relations
+      // Get all profiles with account_type = 'bookkeeper'
+      const { data: bookkeepersProfiles, error: bkError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at')
+        .eq('account_type', 'bookkeeper')
+        .order('created_at', { ascending: false });
+
+      if (bkError) throw bkError;
+
+      // Get all accepted bookkeeper relations to count clients
       const { data: relations, error: relError } = await supabase
         .from('bookkeeper_clients')
-        .select('bookkeeper_id, bookkeeper_email, client_id')
+        .select('bookkeeper_email, client_id, profiles!bookkeeper_clients_client_id_fkey(id, email, full_name)')
         .eq('status', 'accepted');
 
       if (relError) throw relError;
 
-      // Group by bookkeeper_email
-      const bookkeeperMap = new Map<string, { 
-        bookkeeper_id: string | null;
-        bookkeeper_email: string;
-        client_ids: string[];
-      }>();
-
+      // Group clients by bookkeeper email
+      const clientsMap = new Map<string, { id: string; email: string; full_name: string | null }[]>();
       for (const rel of relations || []) {
-        const existing = bookkeeperMap.get(rel.bookkeeper_email);
+        const profile = rel.profiles as any;
+        const client = {
+          id: rel.client_id,
+          email: profile?.email || 'Nepoznat',
+          full_name: profile?.full_name || null,
+        };
+        const existing = clientsMap.get(rel.bookkeeper_email);
         if (existing) {
-          existing.client_ids.push(rel.client_id);
-          if (!existing.bookkeeper_id && rel.bookkeeper_id) {
-            existing.bookkeeper_id = rel.bookkeeper_id;
-          }
+          existing.push(client);
         } else {
-          bookkeeperMap.set(rel.bookkeeper_email, {
-            bookkeeper_id: rel.bookkeeper_id,
-            bookkeeper_email: rel.bookkeeper_email,
-            client_ids: [rel.client_id],
-          });
+          clientsMap.set(rel.bookkeeper_email, [client]);
         }
       }
 
-      // Get profiles for bookkeepers and clients
-      const allUserIds = new Set<string>();
-      for (const bk of bookkeeperMap.values()) {
-        if (bk.bookkeeper_id) allUserIds.add(bk.bookkeeper_id);
-        bk.client_ids.forEach(id => allUserIds.add(id));
-      }
-
-      const { data: profiles, error: profError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, subscription_end, status, is_trial')
-        .in('id', Array.from(allUserIds));
-
-      if (profError) throw profError;
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
       // Build final bookkeeper info
-      const result: BookkeeperInfo[] = [];
-      for (const bk of bookkeeperMap.values()) {
-        const bkProfile = bk.bookkeeper_id ? profileMap.get(bk.bookkeeper_id) : null;
-        const clients = bk.client_ids.map(cid => {
-          const cp = profileMap.get(cid);
-          return {
-            id: cid,
-            email: cp?.email || 'Nepoznat',
-            full_name: cp?.full_name || null,
-          };
-        });
-
-        result.push({
-          bookkeeper_id: bk.bookkeeper_id,
-          bookkeeper_email: bk.bookkeeper_email,
-          full_name: bkProfile?.full_name || null,
+      return (bookkeepersProfiles || []).map((bk): BookkeeperInfo => {
+        const clients = clientsMap.get(bk.email) || [];
+        return {
+          id: bk.id,
+          email: bk.email,
+          full_name: bk.full_name,
+          agency_name: bk.agency_name,
+          agency_pib: bk.agency_pib,
           client_count: clients.length,
           clients,
-          subscription_end: bkProfile?.subscription_end || null,
-          status: bkProfile?.status || 'pending',
-          is_trial: bkProfile?.is_trial ?? true,
-        });
-      }
-
-      // Sort by client count descending
-      return result.sort((a, b) => b.client_count - a.client_count);
+          subscription_end: bk.subscription_end,
+          status: bk.status as 'pending' | 'approved' | 'rejected',
+          is_trial: bk.is_trial ?? false,
+          block_reason: bk.block_reason,
+          created_at: bk.created_at,
+        };
+      });
     },
   });
 
@@ -529,8 +511,10 @@ export default function AdminPanel() {
     return <Badge variant="outline" className="bg-success/10 text-success border-success">Aktivan</Badge>;
   };
 
-  // Filter users
-  const filteredUsers = users.filter(user => {
+  // Filter users - only show pausal users (bookkeepers go to separate tab)
+  const pausalUsers = users.filter(u => u.account_type !== 'bookkeeper');
+  
+  const filteredUsers = pausalUsers.filter(user => {
     const subInfo = getSubscriptionInfo(user);
     
     // Search filter
@@ -562,8 +546,9 @@ export default function AdminPanel() {
   const filteredBookkeepers = bookkeepers.filter(bk => {
     if (!bookkeeperSearch) return true;
     const searchLower = bookkeeperSearch.toLowerCase();
-    return bk.bookkeeper_email.toLowerCase().includes(searchLower) ||
+    return bk.email.toLowerCase().includes(searchLower) ||
            bk.full_name?.toLowerCase().includes(searchLower) ||
+           bk.agency_name?.toLowerCase().includes(searchLower) ||
            bk.clients.some(c => c.email.toLowerCase().includes(searchLower) || c.full_name?.toLowerCase().includes(searchLower));
   });
 
@@ -620,11 +605,11 @@ export default function AdminPanel() {
     return pages;
   };
 
-  // Stats
-  const activeCount = users.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
-  const trialCount = users.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
-  const expiredCount = users.filter(u => getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
-  const blockedCount = users.filter(u => u.status === 'rejected').length;
+  // Stats - only count pausal users (excluding bookkeepers)
+  const activeCount = pausalUsers.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
+  const trialCount = pausalUsers.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
+  const expiredCount = pausalUsers.filter(u => getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
+  const blockedCount = pausalUsers.filter(u => u.status === 'rejected').length;
 
   return (
     <TooltipProvider>
@@ -887,7 +872,7 @@ export default function AdminPanel() {
                     Knjigovođe
                   </CardTitle>
                   <CardDescription>
-                    {bookkeepers.length} aktivnih knjigovođa • Ukupno {bookkeepers.reduce((sum, bk) => sum + bk.client_count, 0)} klijenata
+                    {filteredBookkeepers.length} od {bookkeepers.length} knjigovođa • Ukupno {bookkeepers.reduce((sum, bk) => sum + bk.client_count, 0)} klijenata
                   </CardDescription>
                 </div>
                 <div className="relative">
@@ -914,39 +899,91 @@ export default function AdminPanel() {
                         <TableRow>
                           <TableHead>Email</TableHead>
                           <TableHead>Ime</TableHead>
-                          <TableHead>Broj klijenata</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>Agencija</TableHead>
+                          <TableHead>PIB agencije</TableHead>
                           <TableHead>Klijenti</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Registrovan</TableHead>
+                          <TableHead className="text-right">Akcije</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedBookkeepers.map((bk) => (
-                          <TableRow key={bk.bookkeeper_email}>
-                            <TableCell className="font-medium">{bk.bookkeeper_email}</TableCell>
+                          <TableRow key={bk.id}>
+                            <TableCell className="font-medium">{bk.email}</TableCell>
                             <TableCell>{bk.full_name || '-'}</TableCell>
+                            <TableCell>{bk.agency_name || '-'}</TableCell>
+                            <TableCell>{bk.agency_pib || '-'}</TableCell>
                             <TableCell>
-                              <Badge variant="secondary">{bk.client_count}</Badge>
-                            </TableCell>
-                            <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
-                            <TableCell className="max-w-[300px]">
-                              <div className="flex flex-wrap gap-1">
-                                {bk.clients.slice(0, 3).map((client) => (
-                                  <Badge key={client.id} variant="outline" className="text-xs">
-                                    {client.full_name || client.email.split('@')[0]}
-                                  </Badge>
-                                ))}
-                                {bk.clients.length > 3 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{bk.clients.length - 3}
-                                  </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{bk.client_count}</Badge>
+                                {bk.clients.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                    {bk.clients.slice(0, 2).map((client) => (
+                                      <Badge key={client.id} variant="outline" className="text-xs">
+                                        {client.full_name || client.email.split('@')[0]}
+                                      </Badge>
+                                    ))}
+                                    {bk.clients.length > 2 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{bk.clients.length - 2}
+                                      </Badge>
+                                    )}
+                                  </div>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
+                            <TableCell>
+                              {format(new Date(bk.created_at), 'dd. MMM yyyy.', { locale: sr })}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {bk.status === 'rejected' ? (
+                                    <DropdownMenuItem onClick={() => unblockUser.mutate(bk.id)}>
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      Odblokiraj
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => setBlockUser({
+                                      id: bk.id,
+                                      email: bk.email,
+                                      full_name: bk.full_name,
+                                      pib: bk.agency_pib,
+                                      company_name: bk.agency_name,
+                                      status: bk.status,
+                                      subscription_end: bk.subscription_end,
+                                      block_reason: bk.block_reason,
+                                      is_trial: bk.is_trial,
+                                      created_at: bk.created_at,
+                                      max_companies: 1,
+                                      account_type: 'bookkeeper',
+                                    })}>
+                                      <Ban className="h-4 w-4 mr-2" />
+                                      Blokiraj
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem 
+                                    onClick={() => setDeleteUserId(bk.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Obriši korisnika
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
                         {paginatedBookkeepers.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                               Nema knjigovođa za prikaz
                             </TableCell>
                           </TableRow>
