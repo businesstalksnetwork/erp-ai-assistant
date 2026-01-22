@@ -18,6 +18,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -228,12 +233,26 @@ export default function Companies() {
           </p>
         </div>
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
-            <Button disabled={!canAddCompany && !editId}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova firma
-            </Button>
-          </DialogTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <DialogTrigger asChild>
+                  <Button 
+                    disabled={!canAddCompany && !editId}
+                    className={!canAddCompany && !editId ? 'opacity-50 cursor-not-allowed' : ''}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova firma
+                  </Button>
+                </DialogTrigger>
+              </span>
+            </TooltipTrigger>
+            {!canAddCompany && !editId && (
+              <TooltipContent>
+                <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'firme' : 'firmi'}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
           <DialogContent>
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -409,10 +428,25 @@ export default function Companies() {
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium">Nemate dodatu nijednu firmu</p>
             <p className="text-muted-foreground mb-4">Dodajte vašu prvu firmu da biste počeli sa radom</p>
-            <Button onClick={() => setIsOpen(true)} disabled={!canAddCompany}>
-              <Plus className="mr-2 h-4 w-4" />
-              Dodaj firmu
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button 
+                    onClick={() => setIsOpen(true)} 
+                    disabled={!canAddCompany}
+                    className={!canAddCompany ? 'opacity-50 cursor-not-allowed' : ''}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Dodaj firmu
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!canAddCompany && (
+                <TooltipContent>
+                  <p>Dostigli ste limit od {maxCompanies} {maxCompanies === 1 ? 'firme' : 'firmi'}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
           </CardContent>
         </Card>
       ) : (
