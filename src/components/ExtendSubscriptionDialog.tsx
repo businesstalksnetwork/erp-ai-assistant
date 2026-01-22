@@ -90,7 +90,10 @@ export function ExtendSubscriptionDialog({
 
   const handleSetExactDate = () => {
     if (exactDate && onSetExactDate) {
-      onSetExactDate(user.id, exactDate);
+      // Create date at noon to avoid timezone issues when converting to ISO string
+      const dateAtNoon = new Date(exactDate);
+      dateAtNoon.setHours(12, 0, 0, 0);
+      onSetExactDate(user.id, dateAtNoon);
       resetAndClose();
     }
   };
