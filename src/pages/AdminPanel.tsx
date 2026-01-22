@@ -84,6 +84,7 @@ interface BookkeeperInfo {
   is_trial: boolean;
   block_reason: string | null;
   created_at: string;
+  is_invited_only?: boolean; // true ako je samo pozvan, nije registrovan kao bookkeeper
 }
 
 type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
@@ -129,7 +130,7 @@ export default function AdminPanel() {
     },
   });
 
-  // Bookkeepers query - fetch all users with account_type = 'bookkeeper'
+  // Bookkeepers query - fetch all users with account_type = 'bookkeeper' AND invited bookkeepers
   const { data: bookkeepers = [], isLoading: isLoadingBookkeepers } = useQuery({
     queryKey: ['admin-bookkeepers'],
     refetchOnMount: 'always',
@@ -138,7 +139,7 @@ export default function AdminPanel() {
       // Get all profiles with account_type = 'bookkeeper'
       const { data: bookkeepersProfiles, error: bkError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at')
+        .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at, account_type')
         .eq('account_type', 'bookkeeper')
         .order('created_at', { ascending: false });
 
@@ -154,6 +155,7 @@ export default function AdminPanel() {
 
       // Group clients by bookkeeper email
       const clientsMap = new Map<string, { id: string; email: string; full_name: string | null }[]>();
+      const bookkeeperEmails = new Set<string>();
       for (const rel of relations || []) {
         const profile = rel.profiles as any;
         const client = {
@@ -167,10 +169,31 @@ export default function AdminPanel() {
         } else {
           clientsMap.set(rel.bookkeeper_email, [client]);
         }
+        bookkeeperEmails.add(rel.bookkeeper_email);
       }
 
+      // Find emails of invited bookkeepers that are NOT registered as bookkeeper type
+      const registeredEmails = new Set((bookkeepersProfiles || []).map(bp => bp.email));
+      const additionalEmails = Array.from(bookkeeperEmails).filter(email => !registeredEmails.has(email));
+
+      // Fetch profiles for additional bookkeepers (invited but not registered as bookkeeper)
+      let additionalProfiles: any[] = [];
+      if (additionalEmails.length > 0) {
+        const { data: addProfiles, error: addError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, agency_name, agency_pib, subscription_end, status, is_trial, block_reason, created_at, account_type')
+          .in('email', additionalEmails);
+        
+        if (!addError && addProfiles) {
+          additionalProfiles = addProfiles;
+        }
+      }
+
+      // Combine all bookkeeper profiles
+      const allBookkeeperProfiles = [...(bookkeepersProfiles || []), ...additionalProfiles];
+
       // Build final bookkeeper info
-      return (bookkeepersProfiles || []).map((bk): BookkeeperInfo => {
+      return allBookkeeperProfiles.map((bk): BookkeeperInfo => {
         const clients = clientsMap.get(bk.email) || [];
         return {
           id: bk.id,
@@ -185,6 +208,7 @@ export default function AdminPanel() {
           is_trial: bk.is_trial ?? false,
           block_reason: bk.block_reason,
           created_at: bk.created_at,
+          is_invited_only: bk.account_type !== 'bookkeeper',
         };
       });
     },
@@ -901,6 +925,7 @@ export default function AdminPanel() {
                         <TableRow>
                           <TableHead>Email</TableHead>
                           <TableHead>Ime</TableHead>
+                          <TableHead>Tip</TableHead>
                           <TableHead>Agencija</TableHead>
                           <TableHead>PIB agencije</TableHead>
                           <TableHead>Klijenti</TableHead>
@@ -914,6 +939,17 @@ export default function AdminPanel() {
                           <TableRow key={bk.id}>
                             <TableCell className="font-medium">{bk.email}</TableCell>
                             <TableCell>{bk.full_name || '-'}</TableCell>
+                            <TableCell>
+                              {bk.is_invited_only ? (
+                                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                  Pozvan
+                                </Badge>
+                              ) : (
+                                <Badge variant="default" className="bg-primary">
+                                  Registrovan
+                                </Badge>
+                              )}
+                            </TableCell>
                             <TableCell>{bk.agency_name || '-'}</TableCell>
                             <TableCell>{bk.agency_pib || '-'}</TableCell>
                             <TableCell>
