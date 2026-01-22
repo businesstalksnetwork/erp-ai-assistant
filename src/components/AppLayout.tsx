@@ -64,7 +64,7 @@ const adminNavItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, isAdmin, profile, isBlocked, subscriptionDaysLeft, isSubscriptionExpired } = useAuth();
+  const { signOut, isAdmin, profile, isBlocked, subscriptionDaysLeft, isSubscriptionExpired, isBookkeeper } = useAuth();
   const { selectedCompany, setSelectedCompany, companies, myCompanies, clientCompanies, isViewingClientCompany } = useSelectedCompany();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -129,10 +129,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       : 'Moja Kompanija';
     
     // Build secondary navigation with dynamic company label
-    const secondary = [
-      { href: '/companies', label: companyLabel, icon: Building2 },
-      bookkeepingNavItem,
-    ];
+    const secondary = [];
+    
+    // Bookkeepers don't have their own companies, show profile instead
+    if (!isBookkeeper) {
+      secondary.push({ href: '/companies', label: companyLabel, icon: Building2 });
+      secondary.push(bookkeepingNavItem);
+    }
+    
+    // Profile link for all users
+    secondary.push({ href: '/profile', label: 'Moj Profil', icon: Users });
     
     if (isAdmin) {
       secondary.push(...adminNavItems);
@@ -148,8 +154,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <BlockedUserScreen reason={profile?.block_reason || null} onSignOut={handleSignOut} />;
   }
 
-  // Check if subscription banner should show
-  const showSubscriptionBanner = !isAdmin && profile?.subscription_end && subscriptionDaysLeft <= 7;
+  // Check if subscription banner should show (not for bookkeepers - they have free access)
+  const showSubscriptionBanner = !isAdmin && !isBookkeeper && profile?.subscription_end && subscriptionDaysLeft <= 7;
 
   return (
     <div className="min-h-screen bg-background print:min-h-0 print:h-auto print:bg-white">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Building2, Calculator } from 'lucide-react';
 import { z } from 'zod';
 import { useTheme } from '@/lib/theme-context';
 import logoLight from '@/assets/pausal-box-logo-light.png';
@@ -18,39 +19,49 @@ const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
 
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
+type AccountType = 'pausal' | 'bookkeeper';
 
 const isPasswordRecoveryUrl = () => {
   const hash = window.location.hash;
   const params = new URLSearchParams(window.location.search);
-
   return hash.includes('type=recovery') || hash.includes('access_token') || params.get('type') === 'recovery';
 };
 
-// Synchronously check BEFORE first render (hash or query-string, depending on auth flow)
 const getInitialMode = (): AuthMode => (isPasswordRecoveryUrl() ? 'reset-password' : 'default');
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const { theme } = useTheme();
   const logo = theme === 'dark' ? logoDark : logoLight;
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string; pib?: string; companyName?: string }>({});
+  const [errors, setErrors] = useState<{ 
+    email?: string; 
+    password?: string; 
+    fullName?: string; 
+    confirmPassword?: string; 
+    pib?: string; 
+    companyName?: string;
+    agencyName?: string;
+    agencyPib?: string;
+  }>({});
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
+  const [accountType, setAccountType] = useState<AccountType>('pausal');
+  
+  // Get referral ID from URL if present
+  const referralId = searchParams.get('ref');
 
   const isRecovery = isPasswordRecoveryUrl();
 
   useEffect(() => {
-    // Only redirect if NOT in recovery flow
     if (user && mode !== 'reset-password' && !isRecovery) {
       navigate('/dashboard', { replace: true });
     }
   }, [user, mode, isRecovery, navigate]);
 
   useEffect(() => {
-    // If the recovery link uses PKCE, we will land on /auth?type=recovery&code=...
-    // We must exchange that one-time code for a session before calling updateUser().
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     const type = params.get('type');
@@ -70,8 +81,6 @@ export default function Auth() {
             navigate('/auth', { replace: true });
             return;
           }
-
-          // Remove the one-time code from the URL, keep recovery mode.
           navigate('/auth?type=recovery', { replace: true });
           setMode('reset-password');
         })
@@ -79,7 +88,13 @@ export default function Auth() {
     }
   }, [navigate, toast]);
 
-  const validateForm = (email: string, password: string, fullName?: string, pib?: string, companyName?: string) => {
+  const validateForm = (
+    email: string, 
+    password: string, 
+    fullName?: string, 
+    accountType?: AccountType,
+    fields?: { pib?: string; companyName?: string; agencyName?: string; agencyPib?: string }
+  ) => {
     const newErrors: typeof errors = {};
     
     const emailResult = emailSchema.safeParse(email);
@@ -96,12 +111,22 @@ export default function Auth() {
       newErrors.fullName = 'Ime mora imati najmanje 2 karaktera';
     }
 
-    if (pib !== undefined && pib.trim().length < 9) {
-      newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
+    if (accountType === 'pausal' && fields) {
+      if (fields.pib !== undefined && fields.pib.trim().length < 9) {
+        newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
+      }
+      if (fields.companyName !== undefined && fields.companyName.trim().length < 2) {
+        newErrors.companyName = 'Naziv firme mora imati najmanje 2 karaktera';
+      }
     }
 
-    if (companyName !== undefined && companyName.trim().length < 2) {
-      newErrors.companyName = 'Naziv firme mora imati najmanje 2 karaktera';
+    if (accountType === 'bookkeeper' && fields) {
+      if (fields.agencyName !== undefined && fields.agencyName.trim().length < 2) {
+        newErrors.agencyName = 'Naziv agencije mora imati najmanje 2 karaktera';
+      }
+      if (fields.agencyPib !== undefined && fields.agencyPib.trim().length < 9) {
+        newErrors.agencyPib = 'PIB agencije mora imati najmanje 9 karaktera';
+      }
     }
     
     setErrors(newErrors);
@@ -148,15 +173,29 @@ export default function Auth() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
-    const pib = formData.get('pib') as string;
-    const companyName = formData.get('companyName') as string;
+    
+    // Fields based on account type
+    const pib = accountType === 'pausal' ? formData.get('pib') as string : undefined;
+    const companyName = accountType === 'pausal' ? formData.get('companyName') as string : undefined;
+    const agencyName = accountType === 'bookkeeper' ? formData.get('agencyName') as string : undefined;
+    const agencyPib = accountType === 'bookkeeper' ? formData.get('agencyPib') as string : undefined;
 
-    if (!validateForm(email, password, fullName, pib, companyName)) {
+    if (!validateForm(email, password, fullName, accountType, { pib, companyName, agencyName, agencyPib })) {
       setLoading(false);
       return;
     }
 
-    const { error } = await signUp(email, password, fullName, pib, companyName);
+    const { error } = await signUp(
+      email, 
+      password, 
+      fullName, 
+      accountType === 'pausal' ? pib! : '', 
+      accountType === 'pausal' ? companyName! : '',
+      accountType,
+      agencyName,
+      agencyPib,
+      referralId || undefined
+    );
 
     if (error) {
       let message = error.message;
@@ -169,9 +208,12 @@ export default function Auth() {
         variant: 'destructive',
       });
     } else {
+      const successMessage = accountType === 'bookkeeper' 
+        ? 'Dobrodošli! Vaš nalog za knjigovođu je kreiran. Korišćenje je besplatno!'
+        : 'Dobrodošli! Imate 7 dana besplatnog probnog perioda.';
       toast({
         title: 'Registracija uspešna',
-        description: 'Dobrodošli! Imate 7 dana besplatnog probnog perioda.',
+        description: successMessage,
       });
       navigate('/dashboard');
     }
@@ -250,7 +292,6 @@ export default function Auth() {
         title: 'Lozinka promenjena',
         description: 'Vaša lozinka je uspešno promenjena. Prijavite se novom lozinkom.',
       });
-      // Clear recovery params from the URL (so we don't stay in recovery mode)
       navigate('/auth', { replace: true });
       await supabase.auth.signOut();
       setMode('default');
@@ -431,6 +472,47 @@ export default function Auth() {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  {/* Account Type Selection */}
+                  <div className="space-y-3">
+                    <Label>Tip naloga *</Label>
+                    <RadioGroup
+                      value={accountType}
+                      onValueChange={(value) => setAccountType(value as AccountType)}
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      <Label
+                        htmlFor="type-pausal"
+                        className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                          accountType === 'pausal' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <RadioGroupItem value="pausal" id="type-pausal" className="sr-only" />
+                        <Building2 className="h-6 w-6 mb-2" />
+                        <span className="font-medium">Paušalac</span>
+                        <span className="text-xs text-muted-foreground text-center mt-1">
+                          Preduzetnik
+                        </span>
+                      </Label>
+                      <Label
+                        htmlFor="type-bookkeeper"
+                        className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                          accountType === 'bookkeeper' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <RadioGroupItem value="bookkeeper" id="type-bookkeeper" className="sr-only" />
+                        <Calculator className="h-6 w-6 mb-2" />
+                        <span className="font-medium">Knjigovođa</span>
+                        <span className="text-xs text-muted-foreground text-center mt-1">
+                          Besplatno
+                        </span>
+                      </Label>
+                    </RadioGroup>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Ime i prezime *</Label>
                     <Input
@@ -442,28 +524,60 @@ export default function Auth() {
                     />
                     {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-company">Naziv firme *</Label>
-                    <Input
-                      id="signup-company"
-                      name="companyName"
-                      type="text"
-                      placeholder="PR Marko Marković"
-                      required
-                    />
-                    {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-pib">PIB *</Label>
-                    <Input
-                      id="signup-pib"
-                      name="pib"
-                      type="text"
-                      placeholder="123456789"
-                      required
-                    />
-                    {errors.pib && <p className="text-sm text-destructive">{errors.pib}</p>}
-                  </div>
+
+                  {/* Dynamic fields based on account type */}
+                  {accountType === 'pausal' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-company">Naziv firme *</Label>
+                        <Input
+                          id="signup-company"
+                          name="companyName"
+                          type="text"
+                          placeholder="PR Marko Marković"
+                          required
+                        />
+                        {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-pib">PIB *</Label>
+                        <Input
+                          id="signup-pib"
+                          name="pib"
+                          type="text"
+                          placeholder="123456789"
+                          required
+                        />
+                        {errors.pib && <p className="text-sm text-destructive">{errors.pib}</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-agency">Naziv agencije *</Label>
+                        <Input
+                          id="signup-agency"
+                          name="agencyName"
+                          type="text"
+                          placeholder="Knjigovodstvena agencija XYZ"
+                          required
+                        />
+                        {errors.agencyName && <p className="text-sm text-destructive">{errors.agencyName}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-agency-pib">PIB agencije *</Label>
+                        <Input
+                          id="signup-agency-pib"
+                          name="agencyPib"
+                          type="text"
+                          placeholder="123456789"
+                          required
+                        />
+                        {errors.agencyPib && <p className="text-sm text-destructive">{errors.agencyPib}</p>}
+                      </div>
+                    </>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email *</Label>
                     <Input
@@ -491,7 +605,10 @@ export default function Auth() {
                     Registruj se
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Nakon registracije dobijate 7 dana besplatnog probnog perioda.
+                    {accountType === 'bookkeeper' 
+                      ? 'Korišćenje aplikacije je besplatno za knjigovođe. Zaradite 20% od pretplata vaših klijenata!'
+                      : 'Nakon registracije dobijate 7 dana besplatnog probnog perioda.'
+                    }
                   </p>
                 </form>
               </TabsContent>

@@ -27,6 +27,7 @@ import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
 import SEFCenter from "./pages/SEFCenter";
 import CompanyProfile from "./pages/CompanyProfile";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/services" element={<ProtectedRoute><ServiceCatalog /></ProtectedRoute>} />
       
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
