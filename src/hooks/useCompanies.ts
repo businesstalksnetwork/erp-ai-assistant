@@ -21,6 +21,11 @@ export interface Company {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Bookkeeper fields
+  bookkeeper_email?: string | null;
+  bookkeeper_id?: string | null;
+  bookkeeper_status?: 'pending' | 'accepted' | 'rejected' | null;
+  bookkeeper_invited_at?: string | null;
   // For client companies
   is_client_company?: boolean;
   client_name?: string;
@@ -37,7 +42,7 @@ export function useCompanies() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -47,51 +52,70 @@ export function useCompanies() {
     enabled: !!user,
   });
 
-  // Fetch client companies (as bookkeeper)
+  // Fetch client companies (as bookkeeper) - using NEW company-level bookkeeper system
   const { data: clientCompanies = [], isLoading: loadingClients } = useQuery({
     queryKey: ['client-companies', user?.id],
     queryFn: async () => {
-      // First get my email from profile
+      // Get companies where I am the accepted bookkeeper (new system)
+      const { data: companiesWithMe, error: newError } = await supabase
+        .from('companies')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
+        .eq('bookkeeper_id', user!.id)
+        .eq('bookkeeper_status', 'accepted')
+        .order('created_at', { ascending: false });
+
+      if (newError) throw newError;
+
+      // Also check old bookkeeper_clients table for backwards compatibility
       const { data: profile } = await supabase
         .from('profiles')
         .select('email')
         .eq('id', user!.id)
         .single();
 
-      if (!profile?.email) return [];
+      let oldCompanies: any[] = [];
+      if (profile?.email) {
+        const { data: clientRelations } = await supabase
+          .from('bookkeeper_clients')
+          .select('client_id')
+          .eq('bookkeeper_email', profile.email)
+          .eq('status', 'accepted');
 
-      // Get accepted client relationships
-      const { data: clientRelations, error: relError } = await supabase
-        .from('bookkeeper_clients')
-        .select('client_id')
-        .eq('bookkeeper_email', profile.email)
-        .eq('status', 'accepted');
+        if (clientRelations?.length) {
+          const clientIds = clientRelations.map(r => r.client_id);
+          const { data: companies } = await supabase
+            .from('companies')
+            .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
+            .in('user_id', clientIds)
+            .order('created_at', { ascending: false });
+          
+          oldCompanies = companies || [];
+        }
+      }
 
-      if (relError || !clientRelations?.length) return [];
+      // Merge both lists (avoiding duplicates)
+      const allCompanies = [...(companiesWithMe || [])];
+      const existingIds = new Set(allCompanies.map(c => c.id));
+      
+      for (const company of oldCompanies) {
+        if (!existingIds.has(company.id)) {
+          allCompanies.push(company);
+        }
+      }
 
-      const clientIds = clientRelations.map(r => r.client_id);
-
-      // Get client profiles for names
-      const { data: clientProfiles } = await supabase
+      // Get owner profiles for names
+      const ownerIds = [...new Set(allCompanies.map(c => c.user_id))];
+      const { data: ownerProfiles } = await supabase
         .from('profiles')
         .select('id, full_name, email')
-        .in('id', clientIds);
-
-      // Get companies for all clients - use has_sef_api_key instead of sef_api_key for security
-      const { data: companies, error } = await supabase
-        .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at')
-        .in('user_id', clientIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+        .in('id', ownerIds);
 
       // Mark these as client companies and add client name
-      return (companies || []).map(company => ({
+      return allCompanies.map(company => ({
         ...company,
         is_client_company: true,
-        client_name: clientProfiles?.find(p => p.id === company.user_id)?.full_name || 
-                    clientProfiles?.find(p => p.id === company.user_id)?.email || 
+        client_name: ownerProfiles?.find(p => p.id === company.user_id)?.full_name || 
+                    ownerProfiles?.find(p => p.id === company.user_id)?.email || 
                     'Klijent',
       })) as Company[];
     },

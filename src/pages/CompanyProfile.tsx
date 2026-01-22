@@ -2,8 +2,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
+import { useCompanyBookkeeper } from '@/hooks/useCompanyBookkeeper';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Building2, CreditCard, FileStack, Eye, EyeOff, Plus, Pencil, Trash2, CheckCircle2, XCircle, Upload, X, Calculator, Settings } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, FileStack, Eye, EyeOff, Plus, Pencil, Trash2, CheckCircle2, XCircle, Upload, X, Calculator, Settings, Users, Mail, Clock, UserCheck, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +25,7 @@ export default function CompanyProfile() {
   const navigate = useNavigate();
   const { companies, isLoading: companiesLoading, updateCompany, deleteCompany } = useCompanies();
   const { instructions, isLoading: instructionsLoading, createInstruction, updateInstruction, deleteInstruction } = useForeignPaymentInstructions(id || null);
+  const { inviteBookkeeper, cancelInvitation, removeBookkeeper } = useCompanyBookkeeper();
   
   const [company, setCompany] = useState<Company | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -54,6 +56,10 @@ export default function CompanyProfile() {
 
   // Fetch SEF API key separately (direct query for security)
   const [hasSefApiKey, setHasSefApiKey] = useState(false);
+  
+  // Bookkeeper dialog state
+  const [isBookkeeperDialogOpen, setIsBookkeeperDialogOpen] = useState(false);
+  const [bookkeeperEmail, setBookkeeperEmail] = useState('');
   
   useEffect(() => {
     if (companies && id) {
@@ -594,6 +600,98 @@ export default function CompanyProfile() {
                 />
               </div>
 
+              {/* Bookkeeper Section */}
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Knjigovođa</p>
+                    {company.bookkeeper_email ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">{company.bookkeeper_email}</p>
+                        {company.bookkeeper_status === 'pending' && (
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Na čekanju
+                          </Badge>
+                        )}
+                        {company.bookkeeper_status === 'accepted' && (
+                          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 text-xs">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Povezan
+                          </Badge>
+                        )}
+                        {company.bookkeeper_status === 'rejected' && (
+                          <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 text-xs">
+                            <UserX className="h-3 w-3 mr-1" />
+                            Odbijeno
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nije dodeljen knjigovođa</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {company.bookkeeper_email && company.bookkeeper_status === 'pending' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline">
+                          Otkaži poziv
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Otkazati pozivnicu?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Pozivnica za {company.bookkeeper_email} će biti otkazana.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Ne</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => cancelInvitation.mutate(company.id)}>
+                            Da, otkaži
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  {company.bookkeeper_email && company.bookkeeper_status === 'accepted' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="text-destructive">
+                          Ukloni pristup
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Ukloniti pristup knjigovođi?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {company.bookkeeper_email} više neće moći da pristupa podacima ove kompanije.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Ne</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => removeBookkeeper.mutate(company.id)}>
+                            Da, ukloni
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  {(!company.bookkeeper_email || company.bookkeeper_status === 'rejected') && (
+                    <Button size="sm" onClick={() => {
+                      setBookkeeperEmail('');
+                      setIsBookkeeperDialogOpen(true);
+                    }}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Pozovi knjigovođu
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               <p className="text-xs text-muted-foreground pt-2">
                 Aktivirani servisi će se pojaviti u bočnoj navigaciji aplikacije.
               </p>
@@ -791,6 +889,51 @@ export default function CompanyProfile() {
             <Button variant="outline" onClick={() => setIsInstructionDialogOpen(false)}>Otkaži</Button>
             <Button onClick={handleSaveInstruction} disabled={createInstruction.isPending || updateInstruction.isPending}>
               Sačuvaj
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bookkeeper Invitation Dialog */}
+      <Dialog open={isBookkeeperDialogOpen} onOpenChange={setIsBookkeeperDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pozovi knjigovođu</DialogTitle>
+            <DialogDescription>
+              Unesite email adresu vašeg knjigovođe. Pozivnica će biti poslata na tu adresu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bookkeeper_email">Email adresa knjigovođe</Label>
+              <Input
+                id="bookkeeper_email"
+                type="email"
+                value={bookkeeperEmail}
+                onChange={(e) => setBookkeeperEmail(e.target.value)}
+                placeholder="knjigovodja@primer.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBookkeeperDialogOpen(false)}>
+              Otkaži
+            </Button>
+            <Button 
+              onClick={() => {
+                if (!bookkeeperEmail.trim()) {
+                  toast.error('Unesite email adresu');
+                  return;
+                }
+                if (company) {
+                  inviteBookkeeper.mutate({ companyId: company.id, email: bookkeeperEmail });
+                  setIsBookkeeperDialogOpen(false);
+                }
+              }}
+              disabled={inviteBookkeeper.isPending}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Pošalji pozivnicu
             </Button>
           </DialogFooter>
         </DialogContent>
