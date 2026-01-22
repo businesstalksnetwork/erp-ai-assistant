@@ -162,40 +162,46 @@ export default function AdminPanel() {
 
       if (bcError) throw bcError;
 
-      // 4. Fetch client profile names for bookkeeper_clients
-      const clientIds = [...new Set((bookkeeperClients || []).map(bc => bc.client_id))];
-      let clientProfiles: { id: string; full_name: string | null; email: string }[] = [];
-      if (clientIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', clientIds);
-        clientProfiles = profiles || [];
-      }
-      const clientProfileMap = new Map(clientProfiles.map(p => [p.id, p]));
+      // 4. Fetch ALL companies to count companies per bookkeeper (not just clients)
+      const { data: allCompanies } = await supabase
+        .from('companies')
+        .select('id, name, user_id, bookkeeper_id, bookkeeper_email, bookkeeper_status');
 
-      // 5. Group companies by bookkeeper email from BOTH sources
+      // 5. Build a map of client_id -> their companies (for stara šema)
+      const clientCompaniesMap = new Map<string, { id: string; name: string }[]>();
+      for (const comp of allCompanies || []) {
+        const existing = clientCompaniesMap.get(comp.user_id) || [];
+        existing.push({ id: comp.id, name: comp.name });
+        clientCompaniesMap.set(comp.user_id, existing);
+      }
+
+      // 6. Group companies by bookkeeper email from BOTH sources
       const companiesMap = new Map<string, { id: string; name: string }[]>();
       
-      // From companies table (nova šema)
+      // From companies table (nova šema) - direktno postavljeni bookkeeper
       for (const comp of companyInvites || []) {
         const email = comp.bookkeeper_email;
         if (!email) continue;
         const existing = companiesMap.get(email) || [];
-        existing.push({ id: comp.bookkeeper_id || email, name: comp.name });
+        // Avoid duplicates
+        if (!existing.some(e => e.id === (comp.bookkeeper_id || email))) {
+          existing.push({ id: comp.bookkeeper_id || email, name: comp.name });
+        }
         companiesMap.set(email, existing);
       }
 
-      // From bookkeeper_clients table (stara šema)
+      // From bookkeeper_clients table (stara šema) - dodaj SVE kompanije tog klijenta
       for (const bc of bookkeeperClients || []) {
         const email = bc.bookkeeper_email;
         if (!email) continue;
         const existing = companiesMap.get(email) || [];
-        const clientProfile = clientProfileMap.get(bc.client_id);
-        const clientName = clientProfile?.full_name || clientProfile?.email || 'Nepoznat klijent';
-        // Avoid duplicates - check if this client is already added
-        if (!existing.some(e => e.id === bc.client_id)) {
-          existing.push({ id: bc.client_id, name: clientName });
+        // Get all companies owned by this client
+        const clientCompanies = clientCompaniesMap.get(bc.client_id) || [];
+        for (const comp of clientCompanies) {
+          // Avoid duplicates
+          if (!existing.some(e => e.id === comp.id)) {
+            existing.push({ id: comp.id, name: comp.name });
+          }
         }
         companiesMap.set(email, existing);
       }
