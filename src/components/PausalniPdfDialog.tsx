@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Check, AlertCircle } from 'lucide-react';
 import {
@@ -14,26 +14,18 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type PausalniType = 'porez' | 'doprinosi';
 
-interface ParsedContributionData {
-  pio: {
-    monthlyAmounts: number[];
-    recipientAccount: string;
-  };
-  zdravstveno: {
-    monthlyAmounts: number[];
-    recipientAccount: string;
-  };
-  nezaposlenost: {
-    monthlyAmounts: number[];
-    recipientAccount: string;
-  };
+export interface MonthlyEntry {
+  month: number; // 1-12
+  pio: number;
+  zdravstveno: number;
+  nezaposlenost: number;
 }
 
-interface ParsedPausalniData {
+export interface ParsedPausalniData {
   type: PausalniType;
   year: number;
   monthlyAmounts: number[]; // For porez
-  contributions?: ParsedContributionData; // For doprinosi
+  entries?: MonthlyEntry[]; // For doprinosi - only months that exist
   recipientName: string;
   recipientAccount: string;
   paymentModel: string;
@@ -56,8 +48,13 @@ const typeLabels: Record<PausalniType, string> = {
 
 const typeDescriptions: Record<PausalniType, string> = {
   porez: 'Učitajte PDF rešenje za porez (PAUS-RESPOR)',
-  doprinosi: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP) - kreira podsetnike za PIO, zdravstveno i nezaposlenost',
+  doprinosi: 'Učitajte PDF rešenje za doprinose (PAUS-RESDOP) - kreira podsetnike samo za tipove i mesece koji postoje u dokumentu',
 };
+
+const months = [
+  'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
+  'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+];
 
 export default function PausalniPdfDialog({ 
   open, 
@@ -118,11 +115,20 @@ export default function PausalniPdfDialog({
         throw new Error('Nije moguće izvući iznose iz PDF-a. Proverite da li ste učitali ispravno rešenje za porez.');
       }
       
-      if (type === 'doprinosi' && (!data.contributions || 
-          (data.contributions.pio.monthlyAmounts[0] === 0 && 
-           data.contributions.zdravstveno.monthlyAmounts[0] === 0 &&
-           data.contributions.nezaposlenost.monthlyAmounts[0] === 0))) {
-        throw new Error('Nije moguće izvući iznose iz PDF-a. Proverite da li ste učitali ispravno rešenje za doprinose.');
+      if (type === 'doprinosi') {
+        // New validation for entries-based structure
+        if (!data.entries || data.entries.length === 0) {
+          throw new Error('Nije moguće izvući podatke iz PDF-a. Proverite da li ste učitali ispravno rešenje za doprinose.');
+        }
+        
+        // Check if at least one entry has a non-zero amount
+        const hasAnyAmount = data.entries.some(
+          (e: MonthlyEntry) => e.pio > 0 || e.zdravstveno > 0 || e.nezaposlenost > 0
+        );
+        
+        if (!hasAnyAmount) {
+          throw new Error('PDF ne sadrži iznose za doprinose. Proverite da li ste učitali ispravno rešenje.');
+        }
       }
 
       setParsedData(data);
@@ -159,9 +165,35 @@ export default function PausalniPdfDialog({
     }).format(amount);
   };
 
+  // Calculate reminder count for doprinosi
+  const reminderCount = useMemo(() => {
+    if (!parsedData || parsedData.type !== 'doprinosi' || !parsedData.entries) {
+      return 0;
+    }
+    
+    let count = 0;
+    for (const entry of parsedData.entries) {
+      if (entry.pio > 0) count++;
+      if (entry.zdravstveno > 0) count++;
+      if (entry.nezaposlenost > 0) count++;
+    }
+    return count;
+  }, [parsedData]);
+
+  // Detect which contribution types exist
+  const detectedTypes = useMemo(() => {
+    if (!parsedData?.entries) return { pio: false, zdravstveno: false, nezaposlenost: false };
+    
+    return {
+      pio: parsedData.entries.some(e => e.pio > 0),
+      zdravstveno: parsedData.entries.some(e => e.zdravstveno > 0),
+      nezaposlenost: parsedData.entries.some(e => e.nezaposlenost > 0),
+    };
+  }, [parsedData]);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{typeLabels[type]}</DialogTitle>
           <DialogDescription>
@@ -226,29 +258,42 @@ export default function PausalniPdfDialog({
                   <span className="text-sm font-medium">{parsedData.year}</span>
                 </div>
                 
-                {parsedData.type === 'doprinosi' && parsedData.contributions ? (
+                {parsedData.type === 'doprinosi' && parsedData.entries ? (
                   <>
                     <div className="border-t pt-2 mt-2">
+                      <p className="text-xs text-muted-foreground mb-2">Pronađeni tipovi doprinosa:</p>
+                      <div className="flex gap-2 flex-wrap mb-3">
+                        {detectedTypes.pio && (
+                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">PIO</span>
+                        )}
+                        {detectedTypes.zdravstveno && (
+                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">Zdravstveno</span>
+                        )}
+                        {detectedTypes.nezaposlenost && (
+                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">Nezaposlenost</span>
+                        )}
+                      </div>
+                      
                       <p className="text-xs text-muted-foreground mb-2">Mesečni iznosi:</p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm">PIO (24%):</span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(parsedData.contributions.pio.monthlyAmounts[0] || 0)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Zdravstveno (10,3%):</span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(parsedData.contributions.zdravstveno.monthlyAmounts[0] || 0)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Nezaposlenost (0,75%):</span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(parsedData.contributions.nezaposlenost.monthlyAmounts[0] || 0)}
-                          </span>
-                        </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {parsedData.entries.map(entry => (
+                          <div key={entry.month} className="text-sm border-b border-border/50 pb-2 last:border-0">
+                            <div className="font-medium text-foreground mb-1">
+                              {months[entry.month - 1]}:
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 text-xs">
+                              {entry.pio > 0 && (
+                                <span>PIO: {formatCurrency(entry.pio)}</span>
+                              )}
+                              {entry.zdravstveno > 0 && (
+                                <span>ZDR: {formatCurrency(entry.zdravstveno)}</span>
+                              )}
+                              {entry.nezaposlenost > 0 && (
+                                <span>NEZ: {formatCurrency(entry.nezaposlenost)}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </>
@@ -273,7 +318,7 @@ export default function PausalniPdfDialog({
 
               <p className="text-xs text-muted-foreground text-center">
                 {parsedData.type === 'doprinosi' 
-                  ? `Biće kreirano 36 podsetnika (12 za svaki tip doprinosa) za ${parsedData.year}. godinu`
+                  ? `Biće kreirano ${reminderCount} podsetnika za ${parsedData.year}. godinu`
                   : `Biće kreirano 12 podsetnika za svaki mesec u ${parsedData.year}. godini`
                 }
               </p>
@@ -288,7 +333,7 @@ export default function PausalniPdfDialog({
           {parsedData && (
             <Button onClick={handleConfirm}>
               <Check className="mr-2 h-4 w-4" />
-              {parsedData.type === 'doprinosi' ? 'Kreiraj 36 podsetnika' : 'Kreiraj 12 podsetnika'}
+              {parsedData.type === 'doprinosi' ? `Kreiraj ${reminderCount} podsetnika` : 'Kreiraj 12 podsetnika'}
             </Button>
           )}
           {error && (

@@ -58,7 +58,7 @@ import {
 import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
-import PausalniPdfDialog, { PausalniType } from '@/components/PausalniPdfDialog';
+import PausalniPdfDialog, { PausalniType, ParsedPausalniData, MonthlyEntry } from '@/components/PausalniPdfDialog';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -496,48 +496,45 @@ export default function Reminders() {
   };
 
   // Handle paušalni PDF parsed data - create reminders
-  const handlePausalniDataParsed = async (data: {
-    type: PausalniType;
-    year: number;
-    monthlyAmounts: number[];
-    contributions?: {
-      pio: { monthlyAmounts: number[]; recipientAccount: string };
-      zdravstveno: { monthlyAmounts: number[]; recipientAccount: string };
-      nezaposlenost: { monthlyAmounts: number[]; recipientAccount: string };
-    };
-    recipientName: string;
-    recipientAccount: string;
-    paymentModel: string;
-    paymentReference: string;
-    paymentCode: string;
-    payerName: string;
-  }) => {
+  const handlePausalniDataParsed = async (data: ParsedPausalniData) => {
     if (!selectedCompany) return;
 
     setIsCreatingBulk(true);
 
-    const months = [
+    const monthNames = [
       'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
       'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
     ];
 
-    const contributionLabels = {
+    const contributionLabels: Record<string, string> = {
       pio: 'PIO',
       zdravstveno: 'Zdravstveno',
       nezaposlenost: 'Nezaposlenost',
     };
 
+    const accounts: Record<string, string> = {
+      pio: '840-721313843-74',
+      zdravstveno: '840-721325843-61',
+      nezaposlenost: '840-721331843-06',
+    };
+
     try {
-      if (data.type === 'doprinosi' && data.contributions) {
-        // Create 12 reminders for each of the 3 contribution types = 36 total
-        for (const contribType of ['pio', 'zdravstveno', 'nezaposlenost'] as const) {
-          const contrib = data.contributions[contribType];
+      if (data.type === 'doprinosi' && data.entries) {
+        // Create reminders ONLY for months and types that exist with amount > 0
+        let createdCount = 0;
+        
+        for (const entry of data.entries) {
+          const monthName = monthNames[entry.month - 1];
           
-          for (let i = 0; i < 12; i++) {
-            const monthName = months[i];
-            const amount = contrib.monthlyAmounts[i] || contrib.monthlyAmounts[0] || 0;
+          // Process each contribution type, but only if amount > 0
+          for (const contribType of ['pio', 'zdravstveno', 'nezaposlenost'] as const) {
+            const amount = entry[contribType];
             
-            const dueMonth = i + 1;
+            // Skip if amount is 0 or undefined
+            if (!amount || amount <= 0) continue;
+            
+            // Calculate due date (15th of following month)
+            const dueMonth = entry.month;
             const dueYear = dueMonth === 12 ? data.year + 1 : data.year;
             const dueDateMonth = dueMonth === 12 ? 0 : dueMonth;
             const dueDate = new Date(dueYear, dueDateMonth, 15);
@@ -556,23 +553,25 @@ export default function Reminders() {
               recurrence_type: 'none' as const,
               recurrence_day: null,
               attachment_url: null,
-              recipient_name: data.recipientName, // Uvek 'Пореска управа Републике Србије'
-              recipient_account: contrib.recipientAccount,
+              recipient_name: data.recipientName,
+              recipient_account: accounts[contribType],
               payment_model: data.paymentModel,
               payment_reference: data.paymentReference,
               payment_code: data.paymentCode,
             });
+            
+            createdCount++;
           }
         }
 
         toast({
           title: 'Podsetnici kreirani',
-          description: `Uspešno kreirano 36 podsetnika za doprinose (PIO, Zdravstveno, Nezaposlenost) za ${data.year}. godinu`,
+          description: `Uspešno kreirano ${createdCount} podsetnika za ${data.year}. godinu`,
         });
       } else {
         // Create 12 reminders for porez
         for (let i = 0; i < 12; i++) {
-          const monthName = months[i];
+          const monthName = monthNames[i];
           const amount = data.monthlyAmounts[i] || data.monthlyAmounts[0] || 0;
           
           const dueMonth = i + 1;
