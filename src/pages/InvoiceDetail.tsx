@@ -282,7 +282,7 @@ export default function InvoiceDetail() {
     wrapper.style.height = 'auto';
     wrapper.style.overflow = 'visible';
     wrapper.style.background = 'white';
-    wrapper.style.padding = '24px 20px 32px 20px'; // Kompaktnije za PDF
+    wrapper.style.padding = '16px 16px 20px 16px'; // Kompaktnije margine za jednu stranu
     wrapper.className = 'pdf-export';
 
     // Kloniraj sadržaj fakture
@@ -295,6 +295,24 @@ export default function InvoiceDetail() {
     clone.style.overflow = 'visible';
     clone.style.position = 'relative';
     clone.style.paddingBottom = '24px'; // Dodatni prostor na dnu
+    
+    // KRITIČNO: Sprečiti page-break unutar klona
+    clone.style.breakInside = 'avoid';
+    clone.style.pageBreakInside = 'avoid';
+    
+    // Pronađi Card komponentu i forsiraj break-inside: avoid
+    const cardElement = clone.querySelector('.rounded-lg');
+    if (cardElement) {
+      (cardElement as HTMLElement).style.breakInside = 'avoid';
+      (cardElement as HTMLElement).style.pageBreakInside = 'avoid';
+      
+      // Osiguraj da se header ne odvaja od content-a
+      const header = cardElement.querySelector('[class*="border-b"]');
+      if (header) {
+        (header as HTMLElement).style.breakAfter = 'avoid';
+        (header as HTMLElement).style.pageBreakAfter = 'avoid';
+      }
+    }
     
     // Sakrij print:hidden elemente u klonu
     clone.querySelectorAll('.print\\:hidden').forEach(el => {

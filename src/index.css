@@ -341,6 +341,33 @@ body[data-sef-sync-active="1"] .rdp * {
   -webkit-text-fill-color: #000000 !important;
 }
 
+/* KRITIČNO: Sprečiti deljenje Card komponente na više stranica */
+.pdf-export .print-invoice .rounded-lg,
+.pdf-export .print-invoice [class*="Card"],
+.pdf-export .print-invoice > div {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+/* Header i Content moraju ostati zajedno */
+.pdf-export .print-invoice [class*="CardHeader"],
+.pdf-export .print-invoice [class*="border-b"] {
+  break-after: avoid !important;
+  page-break-after: avoid !important;
+}
+
+.pdf-export .print-invoice [class*="CardContent"] {
+  break-before: avoid !important;
+  page-break-before: avoid !important;
+}
+
+/* Cela faktura kao jedinstven blok */
+.pdf-export .print-invoice {
+  display: block !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
 /* Kompaktni razmaci za PDF - da sve stane na jednu stranu */
 .pdf-export .print-invoice .space-y-6 > * + * {
   margin-top: 8px !important;
@@ -544,6 +571,25 @@ body[data-sef-sync-active="1"] .rdp * {
     padding: 3mm !important;
     margin: 0 !important;
     background: white !important;
+  }
+
+  /* Cela Card kao jedinstven blok - ne deli se */
+  .print-invoice [class*="Card"],
+  .print-invoice .rounded-lg {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Header i Content ne smeju da se odvajaju */
+  .print-invoice [class*="CardHeader"],
+  .print-invoice [class*="border-b"] {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+  
+  .print-invoice [class*="CardContent"] {
+    break-before: avoid !important;
+    page-break-before: avoid !important;
   }
 
   .print-invoice * {
