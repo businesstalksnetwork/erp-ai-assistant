@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -35,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser } from 'lucide-react';
 import { format, differenceInDays, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
@@ -55,6 +56,17 @@ interface UserProfile {
   max_companies: number;
 }
 
+interface BookkeeperInfo {
+  bookkeeper_id: string | null;
+  bookkeeper_email: string;
+  full_name: string | null;
+  client_count: number;
+  clients: { id: string; email: string; full_name: string | null }[];
+  subscription_end: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  is_trial: boolean;
+}
+
 type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
 
 export default function AdminPanel() {
@@ -66,6 +78,7 @@ export default function AdminPanel() {
   const [blockUser, setBlockUser] = useState<UserProfile | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [bookkeeperSearch, setBookkeeperSearch] = useState('');
   
   // SEF Registry Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +99,87 @@ export default function AdminPanel() {
         ...u,
         max_companies: u.max_companies ?? 1,
       })) as UserProfile[];
+    },
+  });
+
+  // Bookkeepers query
+  const { data: bookkeepers = [], isLoading: isLoadingBookkeepers } = useQuery({
+    queryKey: ['admin-bookkeepers'],
+    queryFn: async () => {
+      // Get all accepted bookkeeper relations
+      const { data: relations, error: relError } = await supabase
+        .from('bookkeeper_clients')
+        .select('bookkeeper_id, bookkeeper_email, client_id')
+        .eq('status', 'accepted');
+
+      if (relError) throw relError;
+
+      // Group by bookkeeper_email
+      const bookkeeperMap = new Map<string, { 
+        bookkeeper_id: string | null;
+        bookkeeper_email: string;
+        client_ids: string[];
+      }>();
+
+      for (const rel of relations || []) {
+        const existing = bookkeeperMap.get(rel.bookkeeper_email);
+        if (existing) {
+          existing.client_ids.push(rel.client_id);
+          if (!existing.bookkeeper_id && rel.bookkeeper_id) {
+            existing.bookkeeper_id = rel.bookkeeper_id;
+          }
+        } else {
+          bookkeeperMap.set(rel.bookkeeper_email, {
+            bookkeeper_id: rel.bookkeeper_id,
+            bookkeeper_email: rel.bookkeeper_email,
+            client_ids: [rel.client_id],
+          });
+        }
+      }
+
+      // Get profiles for bookkeepers and clients
+      const allUserIds = new Set<string>();
+      for (const bk of bookkeeperMap.values()) {
+        if (bk.bookkeeper_id) allUserIds.add(bk.bookkeeper_id);
+        bk.client_ids.forEach(id => allUserIds.add(id));
+      }
+
+      const { data: profiles, error: profError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, subscription_end, status, is_trial')
+        .in('id', Array.from(allUserIds));
+
+      if (profError) throw profError;
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Build final bookkeeper info
+      const result: BookkeeperInfo[] = [];
+      for (const bk of bookkeeperMap.values()) {
+        const bkProfile = bk.bookkeeper_id ? profileMap.get(bk.bookkeeper_id) : null;
+        const clients = bk.client_ids.map(cid => {
+          const cp = profileMap.get(cid);
+          return {
+            id: cid,
+            email: cp?.email || 'Nepoznat',
+            full_name: cp?.full_name || null,
+          };
+        });
+
+        result.push({
+          bookkeeper_id: bk.bookkeeper_id,
+          bookkeeper_email: bk.bookkeeper_email,
+          full_name: bkProfile?.full_name || null,
+          client_count: clients.length,
+          clients,
+          subscription_end: bkProfile?.subscription_end || null,
+          status: bkProfile?.status || 'pending',
+          is_trial: bkProfile?.is_trial ?? true,
+        });
+      }
+
+      // Sort by client count descending
+      return result.sort((a, b) => b.client_count - a.client_count);
     },
   });
 
@@ -359,6 +453,23 @@ export default function AdminPanel() {
     return <Badge variant="outline">{info.label}</Badge>;
   };
 
+  const getBookkeeperStatusBadge = (bk: BookkeeperInfo) => {
+    if (bk.status === 'rejected') {
+      return <Badge variant="destructive">Blokiran</Badge>;
+    }
+    if (!bk.subscription_end) {
+      return <Badge variant="outline">N/A</Badge>;
+    }
+    const daysLeft = differenceInDays(new Date(bk.subscription_end), new Date());
+    if (daysLeft < 0) {
+      return <Badge variant="destructive">Istekao</Badge>;
+    }
+    if (bk.is_trial) {
+      return <Badge variant="secondary" className="bg-warning/10 text-warning border-warning">Trial</Badge>;
+    }
+    return <Badge variant="outline" className="bg-success/10 text-success border-success">Aktivan</Badge>;
+  };
+
   // Filter users
   const filteredUsers = users.filter(user => {
     const subInfo = getSubscriptionInfo(user);
@@ -386,6 +497,15 @@ export default function AdminPanel() {
       default:
         return true;
     }
+  });
+
+  // Filter bookkeepers
+  const filteredBookkeepers = bookkeepers.filter(bk => {
+    if (!bookkeeperSearch) return true;
+    const searchLower = bookkeeperSearch.toLowerCase();
+    return bk.bookkeeper_email.toLowerCase().includes(searchLower) ||
+           bk.full_name?.toLowerCase().includes(searchLower) ||
+           bk.clients.some(c => c.email.toLowerCase().includes(searchLower) || c.full_name?.toLowerCase().includes(searchLower));
   });
 
   // Stats
@@ -449,224 +569,328 @@ export default function AdminPanel() {
         </Card>
       </div>
 
-      {/* SEF Registry Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            SEF Registar firmi
-          </CardTitle>
-          <CardDescription>
-            Upravljanje spiskom firmi registrovanih u sistemu elektronskih faktura
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Ukupno firmi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{sefStats?.total?.toLocaleString() || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-green-600">Aktivne</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{sefStats?.active?.toLocaleString() || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Obrisane</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-muted-foreground">{sefStats?.deleted?.toLocaleString() || 0}</div>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Tabs */}
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="users" className="gap-2">
+            <Users className="h-4 w-4" />
+            Korisnici
+          </TabsTrigger>
+          <TabsTrigger value="bookkeepers" className="gap-2">
+            <BookUser className="h-4 w-4" />
+            Knjigovođe
+          </TabsTrigger>
+          <TabsTrigger value="sef-registry" className="gap-2">
+            <Database className="h-4 w-4" />
+            SEF registar firmi
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".csv"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleSefImport(file);
-              }}
-            />
-            
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="clear-existing"
-                checked={clearExisting}
-                onCheckedChange={(checked) => setClearExisting(checked === true)}
-              />
-              <Label htmlFor="clear-existing" className="text-sm">
-                Obriši postojeće podatke pre uvoza
-              </Label>
-            </div>
+        {/* Users Tab */}
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Korisnici
+                  </CardTitle>
+                  <CardDescription>
+                    {filteredUsers.length} od {users.length} korisnika
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pretraži..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 w-[200px]"
+                    />
+                  </div>
+                  <Select value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Svi korisnici</SelectItem>
+                      <SelectItem value="active">Aktivni</SelectItem>
+                      <SelectItem value="trial">Trial</SelectItem>
+                      <SelectItem value="expired">Istekla pretplata</SelectItem>
+                      <SelectItem value="blocked">Blokirani</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Ime</TableHead>
+                      <TableHead>Firma</TableHead>
+                      <TableHead>PIB</TableHead>
+                      <TableHead>Registrovan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Pretplata</TableHead>
+                      <TableHead>Razlog blokiranja</TableHead>
+                      <TableHead className="text-right">Akcije</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell>{user.full_name || '-'}</TableCell>
+                        <TableCell>{user.company_name || '-'}</TableCell>
+                        <TableCell>{user.pib || '-'}</TableCell>
+                        <TableCell>
+                          {format(new Date(user.created_at), 'dd. MMM yyyy.', { locale: sr })}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(user)}</TableCell>
+                        <TableCell>{getSubscriptionBadge(user)}</TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={user.block_reason || ''}>
+                          {user.block_reason || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setExtendUser(user)}
+                              title="Produži pretplatu"
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </Button>
+                            {user.status === 'rejected' ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => unblockUser.mutate(user.id)}
+                                title="Odblokiraj"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setBlockUser(user)}
+                                title="Blokiraj"
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeleteUserId(user.id)}
+                              title="Obriši"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredUsers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          Nema korisnika za prikaz
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="gap-2"
-            >
-              {isImporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+        {/* Bookkeepers Tab */}
+        <TabsContent value="bookkeepers">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BookUser className="h-5 w-5" />
+                    Knjigovođe
+                  </CardTitle>
+                  <CardDescription>
+                    {bookkeepers.length} aktivnih knjigovođa • Ukupno {bookkeepers.reduce((sum, bk) => sum + bk.client_count, 0)} klijenata
+                  </CardDescription>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pretraži..."
+                    value={bookkeeperSearch}
+                    onChange={(e) => setBookkeeperSearch(e.target.value)}
+                    className="pl-9 w-[200px]"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingBookkeepers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
               ) : (
-                <Upload className="h-4 w-4" />
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Ime</TableHead>
+                        <TableHead>Broj klijenata</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Klijenti</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookkeepers.map((bk) => (
+                        <TableRow key={bk.bookkeeper_email}>
+                          <TableCell className="font-medium">{bk.bookkeeper_email}</TableCell>
+                          <TableCell>{bk.full_name || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{bk.client_count}</Badge>
+                          </TableCell>
+                          <TableCell>{getBookkeeperStatusBadge(bk)}</TableCell>
+                          <TableCell className="max-w-[300px]">
+                            <div className="flex flex-wrap gap-1">
+                              {bk.clients.slice(0, 3).map((client) => (
+                                <Badge key={client.id} variant="outline" className="text-xs">
+                                  {client.full_name || client.email.split('@')[0]}
+                                </Badge>
+                              ))}
+                              {bk.clients.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{bk.clients.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredBookkeepers.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            Nema knjigovođa za prikaz
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
-              {isImporting ? 'Uvoz u toku...' : 'Uvezi CSV'}
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {isImporting && (
-            <div className="space-y-2">
-              <Progress value={importProgress} className="h-2" />
-              <p className="text-sm text-muted-foreground text-center">
-                Uvoz u toku... {importProgress}%
-                {importProgress > 10 && importProgress < 100 && (
-                  <span className="ml-1">
-                    (~{Math.round(270000 * (importProgress - 10) / 85).toLocaleString()} od ~270.000 firmi)
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            CSV format: PIB, JBKJS, Datum registracije (DD.MM.YYYY), Datum brisanja (opciono)
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+        {/* SEF Registry Tab */}
+        <TabsContent value="sef-registry">
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Korisnici
+                <Database className="h-5 w-5" />
+                SEF Registar firmi
               </CardTitle>
               <CardDescription>
-                {filteredUsers.length} od {users.length} korisnika
+                Upravljanje spiskom firmi registrovanih u sistemu elektronskih faktura
               </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pretraži..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-[200px]"
-                />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Ukupno firmi</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{sefStats?.total?.toLocaleString() || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-green-600">Aktivne</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{sefStats?.active?.toLocaleString() || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Obrisane</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-muted-foreground">{sefStats?.deleted?.toLocaleString() || 0}</div>
+                  </CardContent>
+                </Card>
               </div>
-              <Select value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Svi korisnici</SelectItem>
-                  <SelectItem value="active">Aktivni</SelectItem>
-                  <SelectItem value="trial">Trial</SelectItem>
-                  <SelectItem value="expired">Istekla pretplata</SelectItem>
-                  <SelectItem value="blocked">Blokirani</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Ime</TableHead>
-                  <TableHead>Firma</TableHead>
-                  <TableHead>PIB</TableHead>
-                  <TableHead>Registrovan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pretplata</TableHead>
-                  <TableHead>Razlog blokiranja</TableHead>
-                  <TableHead className="text-right">Akcije</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
-                    <TableCell>{user.full_name || '-'}</TableCell>
-                    <TableCell>{user.company_name || '-'}</TableCell>
-                    <TableCell>{user.pib || '-'}</TableCell>
-                    <TableCell>
-                      {format(new Date(user.created_at), 'dd. MMM yyyy.', { locale: sr })}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(user)}</TableCell>
-                    <TableCell>{getSubscriptionBadge(user)}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={user.block_reason || ''}>
-                      {user.block_reason || '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setExtendUser(user)}
-                          title="Produži pretplatu"
-                        >
-                          <Calendar className="h-4 w-4" />
-                        </Button>
-                        {user.status === 'rejected' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => unblockUser.mutate(user.id)}
-                            title="Odblokiraj"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setBlockUser(user)}
-                            title="Blokiraj"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeleteUserId(user.id)}
-                          title="Obriši"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredUsers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      Nema korisnika za prikaz
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleSefImport(file);
+                  }}
+                />
+                
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="clear-existing"
+                    checked={clearExisting}
+                    onCheckedChange={(checked) => setClearExisting(checked === true)}
+                  />
+                  <Label htmlFor="clear-existing" className="text-sm">
+                    Obriši postojeće podatke pre uvoza
+                  </Label>
+                </div>
+
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="gap-2"
+                >
+                  {isImporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isImporting ? 'Uvoz u toku...' : 'Uvezi CSV'}
+                </Button>
+              </div>
+
+              {isImporting && (
+                <div className="space-y-2">
+                  <Progress value={importProgress} className="h-2" />
+                  <p className="text-sm text-muted-foreground text-center">
+                    Uvoz u toku... {importProgress}%
+                    {importProgress > 10 && importProgress < 100 && (
+                      <span className="ml-1">
+                        (~{Math.round(270000 * (importProgress - 10) / 85).toLocaleString()} od ~270.000 firmi)
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                CSV format: PIB, JBKJS, Datum registracije (DD.MM.YYYY), Datum brisanja (opciono)
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Extend Subscription Dialog */}
       <ExtendSubscriptionDialog
