@@ -256,32 +256,101 @@ export default function InvoiceDetail() {
   }
 
   const handlePrint = () => {
-    const originalTitle = document.title;
-    document.title = ''; // Uklanja naslov iz browser header-a
-    
-    // Safari/macOS fix: Dinamički resetuj sve height stilove pre štampe
-    const elementsToReset = document.querySelectorAll('html, body, #root, #root > div, main, .min-h-screen, .h-screen');
-    const originalStyles: { element: Element; style: string }[] = [];
-    
-    elementsToReset.forEach(el => {
-      const htmlEl = el as HTMLElement;
-      originalStyles.push({ element: el, style: htmlEl.getAttribute('style') || '' });
-      htmlEl.style.height = 'auto';
-      htmlEl.style.minHeight = '0';
-      htmlEl.style.maxHeight = 'none';
-      htmlEl.style.overflow = 'visible';
-    });
-    
-    // Kratka pauza da se stilovi primene
-    requestAnimationFrame(() => {
+    // Najpouzdanije rešenje za Safari/macOS “praznu drugu stranu”:
+    // štampaj iz izolovanog prozora koji sadrži SAMO fakturu.
+    const invoiceElement = document.querySelector('.print-invoice') as HTMLElement | null;
+    if (!invoiceElement) {
       window.print();
-      
-      // Vrati originalne stilove
-      originalStyles.forEach(({ element, style }) => {
-        (element as HTMLElement).setAttribute('style', style);
-      });
-      document.title = originalTitle;
-    });
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      // fallback (npr. ako je pop-up blokiran)
+      window.print();
+      return;
+    }
+
+    const styles = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"], style')
+    )
+      .map((el) => (el as HTMLElement).outerHTML)
+      .join('\n');
+
+    // Kloniraj i ukloni elemente koji su UI-only
+    const clone = invoiceElement.cloneNode(true) as HTMLElement;
+    clone.classList.remove('animate-fade-in');
+    clone.querySelectorAll('.print\\:hidden').forEach((el) => el.remove());
+
+    // Ime dokumenta (bez "/")
+    const docType = invoice.invoice_type === 'proforma' || invoice.is_proforma
+      ? 'Predracun'
+      : invoice.invoice_type === 'advance'
+        ? 'Avans'
+        : 'Faktura';
+    const safeNumber = invoice.invoice_number.replace(/\//g, '-');
+    const title = `${docType} ${safeNumber}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="sr">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${title}</title>
+          ${styles}
+          <style>
+            /* Safari/macOS: izbegni bug sa praznom drugom stranom */
+            @page { size: A4; margin: 0mm; }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              height: auto !important;
+              min-height: 0 !important;
+              overflow: visible !important;
+            }
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              background: white !important;
+            }
+            .print-invoice {
+              position: static !important;
+              top: auto !important;
+              left: auto !important;
+              margin: 0 auto !important;
+              width: 100% !important;
+              max-width: none !important;
+              padding: 3mm !important;
+            }
+            .print-invoice, .print-invoice * {
+              transform: none !important;
+              filter: none !important;
+              animation: none !important;
+              transition: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${clone.outerHTML}
+          <script>
+            window.onload = function () {
+              // Kratka pauza da se CSS definitivno primeni
+              setTimeout(function () {
+                window.focus();
+                window.print();
+                // Zatvori prozor nakon starta print-a
+                setTimeout(function(){ window.close(); }, 50);
+              }, 200);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
 
@@ -582,7 +651,7 @@ export default function InvoiceDetail() {
     amountForPayment > 0;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:absolute print:top-0 print:left-0 print:m-0 print:max-w-none print:w-full print:space-y-2 print:h-auto print:min-h-0 print:overflow-visible">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:m-0 print:max-w-none print:w-full print:space-y-2 print:h-auto print:min-h-0 print:overflow-visible">
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/invoices')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
