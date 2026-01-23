@@ -55,7 +55,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2 } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2, List } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import PausalniPdfDialog, { PausalniType, ParsedPausalniData, MonthlyEntry } from '@/components/PausalniPdfDialog';
@@ -387,7 +387,10 @@ export default function Reminders() {
       return isAfter(dueDate, threeMonthsLater) && !isAfter(dueDate, yearEnd);
     }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
-    return { overdue, currentMonth, nextThreeMonths, untilEndOfYear };
+    // Svi aktivni podsetnici (uključujući i one za narednu godinu) - sortirano po datumu
+    const all = activeReminders.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    return { overdue, currentMonth, nextThreeMonths, untilEndOfYear, all };
   }, [filteredReminders, today, currentMonthStart, currentMonthEnd, threeMonthsLater, yearEnd]);
 
   // All active reminders for bulk operations and empty state
@@ -409,6 +412,7 @@ export default function Reminders() {
       case 'untilEndOfYear': return categorizedReminders.untilEndOfYear;
       case 'overdue': return categorizedReminders.overdue;
       case 'archived': return completedReminders;
+      case 'all': return categorizedReminders.all;
       default: return [];
     }
   };
@@ -1158,6 +1162,11 @@ export default function Reminders() {
               <span className="hidden sm:inline text-sm">Arhivirano</span>
               <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">{completedReminders.length}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="all" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+              <List className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline text-sm">Svi</span>
+              <Badge variant="secondary" className="ml-1">{categorizedReminders.all.length}</Badge>
+            </TabsTrigger>
           </TabsList>
 
           {/* Current Month Tab */}
@@ -1247,6 +1256,24 @@ export default function Reminders() {
                   <div className="flex flex-col items-center justify-center py-8">
                     <CheckCircle2 className="h-10 w-10 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">Nema arhiviranih podsetnika</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* All Reminders Tab */}
+          <TabsContent value="all" className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
+                {paginatedItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {paginatedItems.map((reminder) => renderReminderItem(reminder, isOverdue(reminder.due_date), isPastDueDate(reminder.due_date)))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <List className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nema aktivnih podsetnika</p>
                   </div>
                 )}
               </CardContent>
