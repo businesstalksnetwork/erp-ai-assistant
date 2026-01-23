@@ -180,11 +180,17 @@ export function useReminders(companyId: string | null) {
       ? path.split('reminder-attachments/')[1] 
       : path;
     
+    console.log('Getting signed URL for path:', pathOnly);
+    
     const { data, error } = await supabase.storage
       .from('reminder-attachments')
       .createSignedUrl(pathOnly, 3600); // 1 hour
 
-    if (error) return null;
+    if (error) {
+      console.error('Error getting signed URL:', error);
+      return null;
+    }
+    console.log('Signed URL generated:', data.signedUrl);
     return data.signedUrl;
   };
 
