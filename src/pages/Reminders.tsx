@@ -55,7 +55,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2, List } from 'lucide-react';
+import { Bell, Plus, Pencil, Trash2, Loader2, Building2, Calendar, QrCode, FileText, Repeat, Download, MoreVertical, AlertTriangle, CalendarDays, CalendarRange, Search, X, Check, CheckCircle2, List, Image, File, Paperclip } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import PausalniPdfDialog, { PausalniType, ParsedPausalniData, MonthlyEntry } from '@/components/PausalniPdfDialog';
@@ -201,6 +201,7 @@ export default function Reminders() {
     recurrence_type: 'none' as 'none' | 'monthly' | 'quarterly' | 'yearly',
     recurrence_day: '',
     attachment_url: '',
+    attachment_name: '',
     recipient_name: '',
     recipient_account: '',
     payment_model: '97',
@@ -218,6 +219,7 @@ export default function Reminders() {
       recurrence_type: 'none',
       recurrence_day: '',
       attachment_url: '',
+      attachment_name: '',
       recipient_name: '',
       recipient_account: '',
       payment_model: '97',
@@ -233,6 +235,11 @@ export default function Reminders() {
   };
 
   const handleEdit = (reminder: Reminder) => {
+    // Extract filename from attachment_url if exists
+    const attachmentName = reminder.attachment_url 
+      ? reminder.attachment_url.split('/').pop() || 'Prilog'
+      : '';
+    
     setFormData({
       title: reminder.title,
       description: reminder.description || '',
@@ -242,6 +249,7 @@ export default function Reminders() {
       recurrence_type: reminder.recurrence_type || 'none',
       recurrence_day: reminder.recurrence_day?.toString() || '',
       attachment_url: reminder.attachment_url || '',
+      attachment_name: attachmentName,
       recipient_name: reminder.recipient_name || '',
       recipient_account: reminder.recipient_account || '',
       payment_model: reminder.payment_model || '97',
@@ -252,23 +260,80 @@ export default function Reminders() {
     setIsOpen(true);
   };
 
+  // Allowed file types for attachments
+  const ALLOWED_FILE_TYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) {
+      return <Image className="h-4 w-4 text-blue-500" />;
+    }
+    if (ext === 'pdf') {
+      return <FileText className="h-4 w-4 text-red-500" />;
+    }
+    if (['doc', 'docx'].includes(ext || '')) {
+      return <File className="h-4 w-4 text-blue-600" />;
+    }
+    return <Paperclip className="h-4 w-4" />;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedCompany) return;
 
-    if (file.type !== 'application/pdf') {
-      alert('Samo PDF fajlovi su dozvoljeni');
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast({
+        title: 'Nepodržani format',
+        description: 'Dozvoljeni formati: PDF, JPG, PNG, WEBP, DOC, DOCX',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'Fajl je prevelik',
+        description: 'Maksimalna veličina je 10MB',
+        variant: 'destructive',
+      });
       return;
     }
 
     setUploading(true);
     try {
       const url = await uploadAttachment(selectedCompany.id, file);
-      setFormData(prev => ({ ...prev, attachment_url: url }));
+      setFormData(prev => ({ 
+        ...prev, 
+        attachment_url: url,
+        attachment_name: file.name,
+      }));
+      toast({
+        title: 'Fajl učitan',
+        description: file.name,
+      });
     } catch (error) {
       console.error('Upload error:', error);
+      toast({
+        title: 'Greška pri učitavanju',
+        description: 'Pokušajte ponovo',
+        variant: 'destructive',
+      });
     }
     setUploading(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -928,27 +993,34 @@ export default function Reminders() {
                   )}
                 </div>
 
-                {/* PDF Attachment */}
+                {/* File Attachment */}
                 <div className="border-t pt-4 space-y-2">
-                  <Label>Prilog (PDF)</Label>
+                  <Label>Prilog (PDF, slika, dokument)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Dozvoljeni formati: PDF, JPG, PNG, WEBP, DOC, DOCX (max 10MB)
+                  </p>
                   <input
                     type="file"
-                    accept="application/pdf"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     ref={fileInputRef}
                     className="hidden"
                     onChange={handleFileUpload}
                   />
                   {formData.attachment_url ? (
-                    <div className="flex items-center gap-2 p-2 bg-secondary rounded">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm flex-1 truncate">PDF priložen</span>
+                    <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg border">
+                      {getFileIcon(formData.attachment_name || formData.attachment_url)}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium truncate block">
+                          {formData.attachment_name || 'Prilog'}
+                        </span>
+                      </div>
                       <Button 
                         type="button" 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => setFormData({ ...formData, attachment_url: '' })}
+                        onClick={() => setFormData({ ...formData, attachment_url: '', attachment_name: '' })}
                       >
-                        Ukloni
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
@@ -962,9 +1034,9 @@ export default function Reminders() {
                       {uploading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
-                        <FileText className="mr-2 h-4 w-4" />
+                        <Paperclip className="mr-2 h-4 w-4" />
                       )}
-                      {uploading ? 'Učitavanje...' : 'Dodaj PDF'}
+                      {uploading ? 'Učitavanje...' : 'Dodaj prilog'}
                     </Button>
                   )}
                 </div>
@@ -1074,8 +1146,8 @@ export default function Reminders() {
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                   Otkaži
                 </Button>
-                <Button type="submit" disabled={createReminder.isPending || updateReminder.isPending}>
-                  {(createReminder.isPending || updateReminder.isPending) && (
+                <Button type="submit" disabled={createReminder.isPending || updateReminder.isPending || uploading}>
+                  {(createReminder.isPending || updateReminder.isPending || uploading) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {editId ? 'Sačuvaj' : 'Dodaj'}
