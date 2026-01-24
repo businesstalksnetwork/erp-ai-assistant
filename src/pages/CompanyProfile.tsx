@@ -67,7 +67,6 @@ export default function CompanyProfile() {
       if (found) {
         setCompany(found);
         setHasSefApiKey(found.has_sef_api_key || false);
-        setSefApiKey(''); // Don't load the actual key - user enters new one if needed
         setBankAccount(found.bank_account || '');
         setEditForm({
           name: found.name,
