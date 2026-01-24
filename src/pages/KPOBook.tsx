@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useKPO } from '@/hooks/useKPO';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,9 +37,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { BookOpen, Building2, Check, Download, FileText, Loader2, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
+import { BookOpen, Building2, Check, ChevronLeft, ChevronRight, Download, FileText, Loader2, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
 import { KPOCsvImport } from '@/components/KPOCsvImport';
 import { toast } from 'sonner';
+
+const ITEMS_PER_PAGE = 15;
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
@@ -56,6 +58,7 @@ export default function KPOBook() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [newEntry, setNewEntry] = useState({
     document_date: '',
     description: '',
@@ -64,6 +67,17 @@ export default function KPOBook() {
   });
   
   const { entries, isLoading, totals, availableYears, addEntry, deleteEntry, deleteYear, isAdding, isDeleting } = useKPO(selectedCompany?.id || null, year);
+
+  // Reset pagination when year changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [year]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(entries.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, entries.length);
+  const paginatedEntries = entries.slice(startIndex, endIndex);
 
   const years = availableYears.length > 0 ? availableYears : [currentYear];
 
@@ -248,6 +262,13 @@ export default function KPOBook() {
     printWindow.document.close();
   };
 
+  // Pluralization helper
+  const getEntryWord = (count: number) => {
+    if (count === 1) return 'unos';
+    if (count >= 2 && count <= 4) return 'unosa';
+    return 'unosa';
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -342,7 +363,10 @@ export default function KPOBook() {
         <CardHeader>
           <CardTitle>Evidencija prometa - {year}. godina</CardTitle>
           <CardDescription>
-            Automatski generisano na osnovu izdatih faktura
+            {entries.length > 0 
+              ? `Ukupno ${entries.length} ${getEntryWord(entries.length)} za ${year}. godinu`
+              : 'Automatski generisano na osnovu izdatih faktura'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -363,136 +387,175 @@ export default function KPOBook() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">R.br.</TableHead>
-                    <TableHead>Opis</TableHead>
-                    <TableHead className="text-right w-[150px]">Proizvodi</TableHead>
-                    <TableHead className="text-right w-[150px]">Usluge</TableHead>
-                    <TableHead className="text-right w-[150px]">Ukupno</TableHead>
-                    <TableHead className="w-[60px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-mono">{entry.display_ordinal}</TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {entry.products_amount > 0 ? formatCurrency(entry.products_amount) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {entry.services_amount > 0 ? formatCurrency(entry.services_amount) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-semibold">
-                        {formatCurrency(entry.total_amount)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteEntry(entry.id)}
-                          disabled={isDeleting}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">R.br.</TableHead>
+                      <TableHead>Opis</TableHead>
+                      <TableHead className="text-right w-[150px]">Proizvodi</TableHead>
+                      <TableHead className="text-right w-[150px]">Usluge</TableHead>
+                      <TableHead className="text-right w-[150px]">Ukupno</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
-                  ))}
-                  {/* Inline add row */}
-                  {isAddingEntry && (
-                    <TableRow className="bg-muted/50">
-                      <TableCell className="font-mono text-muted-foreground">
-                        {entries.length + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
+                  </TableHeader>
+                  <TableBody>
+                    {/* Inline add row - AT THE TOP */}
+                    {isAddingEntry && (
+                      <TableRow className="bg-primary/5 border-2 border-primary/30">
+                        <TableCell className="font-mono font-bold text-lg text-primary">
+                          {entries.length + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Input
+                              type="date"
+                              value={newEntry.document_date}
+                              onChange={(e) => setNewEntry(prev => ({ ...prev, document_date: e.target.value }))}
+                              className="w-[140px]"
+                              placeholder="Datum"
+                            />
+                            <Input
+                              value={newEntry.description}
+                              onChange={(e) => setNewEntry(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="Opis prometa..."
+                              className="flex-1 min-w-[200px]"
+                              autoFocus
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <Input
-                            type="date"
-                            value={newEntry.document_date}
-                            onChange={(e) => setNewEntry(prev => ({ ...prev, document_date: e.target.value }))}
-                            className="w-[140px]"
-                            placeholder="Datum"
+                            type="number"
+                            value={newEntry.products_amount}
+                            onChange={(e) => setNewEntry(prev => ({ ...prev, products_amount: e.target.value }))}
+                            placeholder="0"
+                            className="w-full text-right"
+                            min="0"
+                            step="0.01"
                           />
+                        </TableCell>
+                        <TableCell>
                           <Input
-                            value={newEntry.description}
-                            onChange={(e) => setNewEntry(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="Opis prometa..."
-                            className="flex-1 min-w-[200px]"
+                            type="number"
+                            value={newEntry.services_amount}
+                            onChange={(e) => setNewEntry(prev => ({ ...prev, services_amount: e.target.value }))}
+                            placeholder="0"
+                            className="w-full text-right"
+                            min="0"
+                            step="0.01"
                           />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={newEntry.products_amount}
-                          onChange={(e) => setNewEntry(prev => ({ ...prev, products_amount: e.target.value }))}
-                          placeholder="0"
-                          className="w-full text-right"
-                          min="0"
-                          step="0.01"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={newEntry.services_amount}
-                          onChange={(e) => setNewEntry(prev => ({ ...prev, services_amount: e.target.value }))}
-                          placeholder="0"
-                          className="w-full text-right"
-                          min="0"
-                          step="0.01"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-semibold">
-                        {formatCurrency((parseFloat(newEntry.products_amount) || 0) + (parseFloat(newEntry.services_amount) || 0))}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
-                            onClick={handleAddEntry}
-                            disabled={isAdding}
-                          >
-                            {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                          </Button>
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatCurrency((parseFloat(newEntry.products_amount) || 0) + (parseFloat(newEntry.services_amount) || 0))}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                              onClick={handleAddEntry}
+                              disabled={isAdding}
+                            >
+                              {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={handleCancelAdd}
+                              disabled={isAdding}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {/* Existing entries - BLUR when adding */}
+                    {paginatedEntries.map((entry) => (
+                      <TableRow 
+                        key={entry.id}
+                        className={isAddingEntry ? "blur-sm opacity-50 pointer-events-none transition-all" : "transition-all"}
+                      >
+                        <TableCell className="font-mono">{entry.display_ordinal}</TableCell>
+                        <TableCell>{entry.description}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {entry.products_amount > 0 ? formatCurrency(entry.products_amount) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {entry.services_amount > 0 ? formatCurrency(entry.services_amount) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatCurrency(entry.total_amount)}
+                        </TableCell>
+                        <TableCell>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={handleCancelAdd}
-                            disabled={isAdding}
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            disabled={isDeleting}
                           >
-                            <X className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter className={isAddingEntry ? "blur-sm opacity-50 transition-all" : "transition-all"}>
+                    <TableRow>
+                      <TableCell colSpan={2} className="font-semibold">
+                        UKUPNO
                       </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {formatCurrency(totals.products)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {formatCurrency(totals.services)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-lg">
+                        {formatCurrency(totals.total)}
+                      </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={2} className="font-semibold">
-                      UKUPNO
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      {formatCurrency(totals.products)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      {formatCurrency(totals.services)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-lg">
-                      {formatCurrency(totals.total)}
-                    </TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
+                  </TableFooter>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && !isAddingEntry && (
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <span className="text-sm text-muted-foreground">
+                    Prikazano {startIndex + 1}-{endIndex} od {entries.length} {getEntryWord(entries.length)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Prethodna
+                    </Button>
+                    <span className="px-3 py-1 text-sm font-medium bg-muted rounded-md">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <Button 
+                      variant="outline"
+                      size="sm" 
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                    >
+                      Sledeća
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
