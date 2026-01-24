@@ -372,7 +372,20 @@ export default function AdminPanel() {
     mutationFn: async ({ userId, months, startDate }: { userId: string; months: number; startDate: Date }) => {
       const newEnd = addMonths(startDate, months);
 
-      const { error } = await supabase
+      // Dohvati profil korisnika za popust
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('partner_discount_percent')
+        .eq('id', userId)
+        .single();
+
+      // Izračunaj iznos na osnovu meseci i popusta
+      const basePrice = months === 1 ? 990 : months === 6 ? 4990 : 9990;
+      const discount = profile?.partner_discount_percent || 0;
+      const amount = Math.round(basePrice * (1 - discount / 100));
+
+      // Ažuriraj profil
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
           subscription_end: newEnd.toISOString().split('T')[0],
@@ -382,11 +395,28 @@ export default function AdminPanel() {
         })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Upiši uplatu za analitiku
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      const { error: paymentError } = await supabase
+        .from('subscription_payments')
+        .insert({
+          user_id: userId,
+          months,
+          amount,
+          discount_percent: discount,
+          subscription_start: startDate.toISOString().split('T')[0],
+          subscription_end: newEnd.toISOString().split('T')[0],
+          admin_id: currentUser?.id
+        });
+
+      if (paymentError) throw paymentError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast({ title: 'Pretplata produžena' });
+      toast({ title: 'Pretplata produžena', description: 'Uplata je zabeležena za analitiku.' });
     },
     onError: (error: Error) => {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
