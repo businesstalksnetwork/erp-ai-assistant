@@ -248,8 +248,8 @@ export default function Documents() {
       </div>
 
       {/* Search + Actions Row */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+      <div className="flex items-center gap-3 flex-wrap justify-between">
+        <div className="relative min-w-[200px] max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Pretraži dokumente..."
@@ -258,14 +258,16 @@ export default function Documents() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" onClick={() => setFolderDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novi folder
-        </Button>
-        <Button onClick={openUploadDialog}>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setFolderDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novi folder
+          </Button>
+          <Button onClick={openUploadDialog}>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload
+          </Button>
+        </div>
       </div>
 
       <Card>
