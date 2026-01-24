@@ -170,6 +170,25 @@ export function useDocuments(companyId: string | null) {
     },
   });
 
+  // Move document to another folder
+  const moveDocument = useMutation({
+    mutationFn: async ({ docId, newFolderId }: { docId: string; newFolderId: string | null }) => {
+      const { error } = await supabase
+        .from('documents')
+        .update({ folder_id: newFolderId })
+        .eq('id', docId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast({ title: 'Dokument je premešten' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Delete document
   const deleteDocument = useMutation({
     mutationFn: async (doc: Document) => {
@@ -227,6 +246,7 @@ export function useDocuments(companyId: string | null) {
     updateFolder,
     deleteFolder,
     uploadDocument,
+    moveDocument,
     deleteDocument,
     getDownloadUrl,
     searchDocuments,
