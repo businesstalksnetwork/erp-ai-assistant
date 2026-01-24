@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     : profile?.subscription_end
       ? Math.ceil((new Date(profile.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
       : 0;
-  const isSubscriptionExpiring = !isBookkeeper && subscriptionDaysLeft <= 7 && subscriptionDaysLeft > 0;
+  const isSubscriptionExpiring = !isBookkeeper && subscriptionDaysLeft <= 14 && subscriptionDaysLeft > 0;
   const isSubscriptionExpired = !isBookkeeper && subscriptionDaysLeft <= 0 && profile?.subscription_end !== null;
 
   return (

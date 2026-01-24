@@ -13,8 +13,8 @@ interface SubscriptionBannerProps {
 export function SubscriptionBanner({ subscriptionEnd, daysLeft, isExpired }: SubscriptionBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
-  // Don't show if more than 7 days left or dismissed
-  if (daysLeft > 7 || dismissed) return null;
+  // Don't show if more than 14 days left or dismissed
+  if (daysLeft > 14 || dismissed) return null;
 
   const formattedDate = subscriptionEnd
     ? format(new Date(subscriptionEnd), 'dd.MM.yyyy.', { locale: sr })
