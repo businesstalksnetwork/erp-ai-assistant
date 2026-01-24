@@ -208,7 +208,8 @@ export function useSEFStorage(companyId: string | null) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['kpo-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
       toast({
         title: result.alreadyExisted ? 'Povezano' : 'Uspešno uvezeno',
         description: result.alreadyExisted 
@@ -353,7 +354,8 @@ export function useSEFStorage(companyId: string | null) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['sef-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['kpo-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
       
       if (result.errors.length > 0) {
         toast({
@@ -635,6 +637,7 @@ export function useSEFStorage(companyId: string | null) {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
       if (result.created > 0) {
         toast({
           title: 'Sinhronizacija završena',
