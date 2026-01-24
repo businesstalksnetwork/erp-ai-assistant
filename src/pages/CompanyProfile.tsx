@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { useCompanyBookkeeper } from '@/hooks/useCompanyBookkeeper';
@@ -23,6 +24,7 @@ const CURRENCIES = ['EUR', 'USD', 'CHF', 'GBP'];
 export default function CompanyProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { companies, isLoading: companiesLoading, updateCompany, deleteCompany } = useCompanies();
   const { instructions, isLoading: instructionsLoading, createInstruction, updateInstruction, deleteInstruction } = useForeignPaymentInstructions(id || null);
   const { inviteBookkeeper, cancelInvitation, removeBookkeeper } = useCompanyBookkeeper();
@@ -95,6 +97,11 @@ export default function CompanyProfile() {
       
       setHasSefApiKey(!!sefApiKey);
       setSefApiKey(''); // Clear the input after save
+      
+      // Invalidate companies queries to refresh sidebar navigation
+      await queryClient.invalidateQueries({ queryKey: ['companies'] });
+      await queryClient.invalidateQueries({ queryKey: ['client-companies'] });
+      
       toast.success('SEF API ključ sačuvan');
     } catch (error) {
       toast.error('Greška pri čuvanju API ključa');
