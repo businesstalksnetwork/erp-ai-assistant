@@ -34,6 +34,7 @@ import {
   ListChecks,
   FileStack,
   Wallet,
+  FolderOpen,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ const mainNavItems = [
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/clients', label: 'Klijenti', icon: Users },
+  { href: '/documents', label: 'Dokumentacija', icon: FolderOpen },
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
 ];
 

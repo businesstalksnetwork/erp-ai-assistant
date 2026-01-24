@@ -22,6 +22,7 @@ import KPOBook from "./pages/KPOBook";
 import FiscalCashRegister from "./pages/FiscalCashRegister";
 import Reminders from "./pages/Reminders";
 import ServiceCatalog from "./pages/ServiceCatalog";
+import Documents from "./pages/Documents";
 
 import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/sef" element={<ProtectedRoute><SEFCenter /></ProtectedRoute>} />
       <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute><ServiceCatalog /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
