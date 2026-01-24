@@ -871,6 +871,10 @@ export type Database = {
           company_name: string | null
           created_at: string
           email: string
+          email_limit_6m_warning: boolean | null
+          email_limit_8m_warning: boolean | null
+          email_reminder_day_before: boolean | null
+          email_reminder_on_due_date: boolean | null
           full_name: string | null
           id: string
           invited_by_user_id: string | null
@@ -889,6 +893,10 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           email: string
+          email_limit_6m_warning?: boolean | null
+          email_limit_8m_warning?: boolean | null
+          email_reminder_day_before?: boolean | null
+          email_reminder_on_due_date?: boolean | null
           full_name?: string | null
           id: string
           invited_by_user_id?: string | null
@@ -907,6 +915,10 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           email?: string
+          email_limit_6m_warning?: boolean | null
+          email_limit_8m_warning?: boolean | null
+          email_reminder_day_before?: boolean | null
+          email_reminder_on_due_date?: boolean | null
           full_name?: string | null
           id?: string
           invited_by_user_id?: string | null

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 import { useBookkeeperReferrals } from '@/hooks/useBookkeeperReferrals';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -22,17 +23,21 @@ import {
   Clock,
   Moon,
   Sun,
-  Wallet
+  Wallet,
+  Mail,
+  Bell,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
 
 export default function Profile() {
-  const { profile, isBookkeeper, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired } = useAuth();
+  const { profile, isBookkeeper, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [updatingEmail, setUpdatingEmail] = useState<string | null>(null);
   
   const { 
     referrals, 
@@ -53,6 +58,33 @@ export default function Profile() {
       description: 'Referral link je kopiran u clipboard.',
     });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const updateEmailPreference = async (field: string, value: boolean) => {
+    if (!user) return;
+    setUpdatingEmail(field);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: value })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      await refreshProfile();
+      toast({
+        title: 'Sačuvano',
+        description: 'Podešavanje email notifikacija je ažurirano.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Greška',
+        description: 'Nije moguće sačuvati podešavanje.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingEmail(null);
+    }
   };
 
   const getSubscriptionStatus = () => {
@@ -284,6 +316,98 @@ export default function Profile() {
                   checked={theme === 'dark'}
                   onCheckedChange={() => toggleTheme()}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Notifications Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email notifikacije
+              </CardTitle>
+              <CardDescription>
+                Izaberite koje notifikacije želite da primate na email
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Reminders Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="font-medium">Podsetnici</h4>
+                </div>
+                
+                <div className="space-y-4 pl-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Dan pre roka</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Primi email dan pre isteka roka podsetnika
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_reminder_day_before ?? true}
+                      onCheckedChange={(checked) => updateEmailPreference('email_reminder_day_before', checked)}
+                      disabled={updatingEmail === 'email_reminder_day_before'}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Na dan dospeća</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Primi email na dan kada podsetnik dospeva
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_reminder_on_due_date ?? false}
+                      onCheckedChange={(checked) => updateEmailPreference('email_reminder_on_due_date', checked)}
+                      disabled={updatingEmail === 'email_reminder_on_due_date'}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Limits Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="font-medium">Upozorenja za limite</h4>
+                </div>
+                
+                <div className="space-y-4 pl-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Limit 6M</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Obavesti me kada dostignem 80% i 90% limita od 6 miliona
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_limit_6m_warning ?? true}
+                      onCheckedChange={(checked) => updateEmailPreference('email_limit_6m_warning', checked)}
+                      disabled={updatingEmail === 'email_limit_6m_warning'}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Limit 8M</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Obavesti me kada dostignem 80% i 90% limita od 8 miliona
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_limit_8m_warning ?? true}
+                      onCheckedChange={(checked) => updateEmailPreference('email_limit_8m_warning', checked)}
+                      disabled={updatingEmail === 'email_limit_8m_warning'}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
