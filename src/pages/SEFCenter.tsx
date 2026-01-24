@@ -94,6 +94,17 @@ export default function SEFCenter() {
   const { purchaseInvoices, salesInvoices, storedInvoices, isLoading, refetch, importFromXML, importFromCSV, deleteStoredInvoice, isDeleting, importToInvoices, bulkImportToInvoices, isImportingToInvoices, syncMissingKPOEntries, isSyncingKPO } = useSEFStorage(companyId);
   const { activeJob, isStarting, progress, startLongSync, dismissJobStatus, cancelJob } = useSEFLongSync(companyId);
 
+  // Auto-dismiss completed/failed jobs after 10 minutes
+  useEffect(() => {
+    if (activeJob && (activeJob.status === 'completed' || activeJob.status === 'failed')) {
+      const timer = setTimeout(() => {
+        dismissJobStatus();
+      }, 10 * 60 * 1000); // 10 minutes
+      
+      return () => clearTimeout(timer);
+    }
+  }, [activeJob?.id, activeJob?.status, dismissJobStatus]);
+
   // Count incomplete invoices
   const incompleteCount = purchaseInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
   const incompleteSalesCount = salesInvoices.filter(inv => !inv.invoice_number || !inv.counterparty_name || inv.total_amount === 0).length;
