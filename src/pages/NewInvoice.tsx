@@ -639,7 +639,15 @@ export default function NewInvoice() {
         });
       }
       
-      navigate('/invoices');
+      // Proveri da li treba automatski otvoriti dijalog za slanje emailom
+      if (
+        selectedCompany.auto_send_invoice_email && 
+        formData.invoice_type !== 'proforma'
+      ) {
+        navigate(`/invoices/${invoice.id}?openSendDialog=true`);
+      } else {
+        navigate('/invoices');
+      }
     } catch (error) {
       console.error('Error creating invoice:', error);
       toast.error('Greška pri kreiranju fakture');

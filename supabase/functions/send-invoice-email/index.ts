@@ -101,10 +101,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Invoice found:", invoice.invoice_number);
 
-    // Fetch company data
+    // Fetch company data with email signatures
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('*')
+      .select('name, email_signature_sr, email_signature_en')
       .eq('id', invoice.company_id)
       .single();
 
@@ -114,6 +114,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Company found:", company.name);
+
+    // Get appropriate signature based on language
+    const signature = language === 'en' 
+      ? (company.email_signature_en || '') 
+      : (company.email_signature_sr || '');
 
     // Fetch email template
     const templateKey = language === 'en' ? 'invoice_send_en' : 'invoice_send_sr';
@@ -144,6 +149,9 @@ const handler = async (req: Request): Promise<Response> => {
       ? formatCurrency(invoice.foreign_amount, invoice.foreign_currency, language)
       : formatCurrency(invoice.total_amount, 'RSD', language);
 
+    // Prepare signature HTML
+    const signatureHtml = signature ? `<div style="margin-top: 16px; white-space: pre-wrap;">${signature}</div>` : '';
+
     const templateData = {
       invoice_number: invoice.invoice_number,
       company_name: company.name,
@@ -152,6 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
       payment_deadline: invoice.payment_deadline ? formatDate(invoice.payment_deadline, language) : '-',
       total_amount: displayAmount,
       pdf_url: pdfUrl,
+      signature: signatureHtml,
     };
 
     // Render email content

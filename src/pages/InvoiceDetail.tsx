@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -187,6 +187,7 @@ const translations: Record<string, { sr: string; en: string }> = {
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, getLinkedAdvance } = useInvoices(selectedCompany?.id || null);
   const { clients } = useClients(selectedCompany?.id || null);
@@ -247,6 +248,15 @@ export default function InvoiceDetail() {
     };
     fetchUserEmail();
   }, []);
+
+  // Auto-open send dialog if URL parameter is present
+  useEffect(() => {
+    if (searchParams.get('openSendDialog') === 'true' && invoice && !isLoading && !loadingItems) {
+      setSendDialogOpen(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams, invoice, isLoading, loadingItems]);
 
   if (!selectedCompany) {
     return (
@@ -1124,6 +1134,8 @@ export default function InvoiceDetail() {
           return pdf.output('blob');
         }}
         userEmail={userEmail}
+        signatureSr={selectedCompany.email_signature_sr}
+        signatureEn={selectedCompany.email_signature_en}
       />
     </div>
   );

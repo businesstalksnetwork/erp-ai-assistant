@@ -36,6 +36,8 @@ interface SendInvoiceDialogProps {
   paymentDeadline?: string;
   generatePdfBlob: () => Promise<Blob>;
   userEmail?: string;
+  signatureSr?: string | null;
+  signatureEn?: string | null;
 }
 
 const translations = {
@@ -65,6 +67,8 @@ export function SendInvoiceDialog({
   paymentDeadline,
   generatePdfBlob,
   userEmail,
+  signatureSr,
+  signatureEn,
 }: SendInvoiceDialogProps) {
   const { sendInvoiceEmail } = useInvoiceEmail();
   const [email, setEmail] = useState(clientEmail || '');
@@ -216,6 +220,14 @@ export function SendInvoiceDialog({
                 <div className="pt-2 border-t">
                   <p className="text-muted-foreground">{t.signoff}</p>
                   <p className="font-medium">{companyName}</p>
+                  {(language === 'sr' ? signatureSr : signatureEn) && (
+                    <div 
+                      className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{ 
+                        __html: (language === 'sr' ? signatureSr : signatureEn) || '' 
+                      }}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>

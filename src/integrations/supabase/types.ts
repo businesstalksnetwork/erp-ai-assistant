@@ -212,6 +212,7 @@ export type Database = {
       companies: {
         Row: {
           address: string
+          auto_send_invoice_email: boolean | null
           bank_account: string | null
           bookkeeper_email: string | null
           bookkeeper_id: string | null
@@ -220,6 +221,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          email_signature_en: string | null
+          email_signature_sr: string | null
           fiscal_enabled: boolean
           has_sef_api_key: boolean | null
           id: string
@@ -235,6 +238,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          auto_send_invoice_email?: boolean | null
           bank_account?: string | null
           bookkeeper_email?: string | null
           bookkeeper_id?: string | null
@@ -243,6 +247,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          email_signature_en?: string | null
+          email_signature_sr?: string | null
           fiscal_enabled?: boolean
           has_sef_api_key?: boolean | null
           id?: string
@@ -258,6 +264,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          auto_send_invoice_email?: boolean | null
           bank_account?: string | null
           bookkeeper_email?: string | null
           bookkeeper_id?: string | null
@@ -266,6 +273,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          email_signature_en?: string | null
+          email_signature_sr?: string | null
           fiscal_enabled?: boolean
           has_sef_api_key?: boolean | null
           id?: string
