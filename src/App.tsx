@@ -25,6 +25,7 @@ import ServiceCatalog from "./pages/ServiceCatalog";
 
 import BookkeeperSettings from "./pages/BookkeeperSettings";
 import AdminPanel from "./pages/AdminPanel";
+import Payouts from "./pages/Payouts";
 import SEFCenter from "./pages/SEFCenter";
 import CompanyProfile from "./pages/CompanyProfile";
 import Profile from "./pages/Profile";
@@ -103,6 +104,7 @@ function AppRoutes() {
       
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/payouts" element={<ProtectedRoute adminOnly><Payouts /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
