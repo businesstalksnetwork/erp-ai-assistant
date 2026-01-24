@@ -1322,6 +1322,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_payments: {
+        Row: {
+          admin_id: string | null
+          amount: number
+          created_at: string | null
+          discount_percent: number | null
+          id: string
+          months: number
+          notes: string | null
+          payment_date: string
+          subscription_end: string
+          subscription_start: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          amount: number
+          created_at?: string | null
+          discount_percent?: number | null
+          id?: string
+          months: number
+          notes?: string | null
+          payment_date?: string
+          subscription_end: string
+          subscription_start: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          amount?: number
+          created_at?: string | null
+          discount_percent?: number | null
+          id?: string
+          months?: number
+          notes?: string | null
+          payment_date?: string
+          subscription_end?: string
+          subscription_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

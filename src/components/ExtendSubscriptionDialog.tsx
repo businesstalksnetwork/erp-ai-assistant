@@ -205,10 +205,16 @@ export function ExtendSubscriptionDialog({
                 </div>
               )}
 
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 mb-4">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  💰 Produženje pretplate se beleži kao uplata za analitiku zarade.
+                </p>
+              </div>
+
               <div className="space-y-2 relative z-10">
                 <p className="text-sm text-muted-foreground">Produži za:</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {[1, 3, 6].map((months) => (
+                  {[1, 6, 12].map((months) => (
                     <Button
                       key={months}
                       type="button"
@@ -216,7 +222,7 @@ export function ExtendSubscriptionDialog({
                       onClick={() => setSelectedMonths(months)}
                       className="w-full"
                     >
-                      {months} {months === 1 ? 'mesec' : months < 5 ? 'meseca' : 'meseci'}
+                      {months} {months === 1 ? 'mesec' : 'meseci'}
                     </Button>
                   ))}
                 </div>
@@ -241,6 +247,12 @@ export function ExtendSubscriptionDialog({
             </TabsContent>
 
             <TabsContent value="exact" className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border mb-4">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  📝 Ručna korekcija datuma — ne beleži se kao uplata.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Izaberite tačan datum isteka pretplate:</p>
                 <div className="border rounded-md bg-background">
