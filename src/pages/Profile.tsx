@@ -342,9 +342,23 @@ export default function Profile() {
                 <div className="space-y-4 pl-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-base">Dan pre roka</Label>
+                      <Label className="text-base">7 dana pre roka</Label>
                       <p className="text-sm text-muted-foreground">
-                        Primi email dan pre isteka roka podsetnika
+                        Primi email podsetnik 7 dana pre isteka roka obaveze
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_reminder_7_days_before ?? true}
+                      onCheckedChange={(checked) => updateEmailPreference('email_reminder_7_days_before', checked)}
+                      disabled={updatingEmail === 'email_reminder_7_days_before'}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Dan pre dospeća</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Primi email dan pre nego što podsetnik dospeva
                       </p>
                     </div>
                     <Switch
@@ -365,6 +379,32 @@ export default function Profile() {
                       checked={profile?.email_reminder_on_due_date ?? false}
                       onCheckedChange={(checked) => updateEmailPreference('email_reminder_on_due_date', checked)}
                       disabled={updatingEmail === 'email_reminder_on_due_date'}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Subscription warnings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="font-medium">Pretplata i trial</h4>
+                </div>
+                
+                <div className="space-y-4 pl-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Upozorenja o isteku</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Primi email 7, 3 i 1 dan pre isteka trial perioda ili pretplate
+                      </p>
+                    </div>
+                    <Switch
+                      checked={profile?.email_subscription_warnings ?? true}
+                      onCheckedChange={(checked) => updateEmailPreference('email_subscription_warnings', checked)}
+                      disabled={updatingEmail === 'email_subscription_warnings'}
                     />
                   </div>
                 </div>
