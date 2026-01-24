@@ -272,7 +272,7 @@ export default function Profile() {
           {isBookkeeper && (
             <TabsTrigger value="company" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Moja Firma</span>
+              <span className="hidden sm:inline">Kompanija</span>
             </TabsTrigger>
           )}
           <TabsTrigger value="security" className="flex items-center gap-2">
@@ -548,7 +548,7 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Podaci o firmi za isplatu
+                  Podaci o kompaniji za isplatu
                 </CardTitle>
                 <CardDescription>
                   Ovi podaci će se koristiti za generisanje naloga za isplatu vaše provizije od referral programa.
