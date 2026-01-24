@@ -12,6 +12,7 @@ export interface Client {
   pib: string | null;
   maticni_broj: string | null;
   vat_number: string | null;
+  email: string | null;
   client_type: 'domestic' | 'foreign';
   sef_registered: boolean;
   created_at: string;

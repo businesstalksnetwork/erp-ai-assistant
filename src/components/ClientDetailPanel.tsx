@@ -117,6 +117,16 @@ export function ClientDetailPanel({
                 <span className="truncate">{[client.address, client.city, client.country].filter(Boolean).join(', ')}</span>
               </div>
             )}
+
+            {/* Email */}
+            {client.email && (
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <a href={`mailto:${client.email}`} className="truncate hover:text-primary transition-colors">
+                  {client.email}
+                </a>
+              </div>
+            )}
             
             <div className="grid grid-cols-2 gap-2 sm:gap-4 pt-2">
               {client.client_type === 'domestic' ? (
