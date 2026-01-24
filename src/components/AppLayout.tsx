@@ -39,6 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import { BlockedUserScreen } from '@/components/BlockedUserScreen';
+import { BookkeeperProfileBanner } from '@/components/BookkeeperProfileBanner';
 import logoLight from '@/assets/pausal-box-logo-light.png';
 import logoDark from '@/assets/pausal-box-logo-dark.png';
 import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
@@ -168,6 +169,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background print:min-h-0 print:h-auto print:bg-white">
+      {/* Bookkeeper Profile Banner - show for bookkeepers without complete payout data */}
+      <BookkeeperProfileBanner />
+      
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
         <Link to="/dashboard" className="transition-transform hover:scale-105">
