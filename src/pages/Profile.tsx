@@ -29,7 +29,9 @@ import {
   Bell,
   AlertTriangle,
   Sparkles,
-  Percent
+  Percent,
+  Building2,
+  Save
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -125,6 +127,13 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
   const [updatingEmail, setUpdatingEmail] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'semi-annual' | 'annual'>('semi-annual');
+  const [savingCompanyInfo, setSavingCompanyInfo] = useState(false);
+  
+  // Bookkeeper company info state
+  const [bookkeeperCompanyName, setBookkeeperCompanyName] = useState(profile?.bookkeeper_company_name || '');
+  const [bookkeeperPib, setBookkeeperPib] = useState(profile?.bookkeeper_pib || '');
+  const [bookkeeperBankAccount, setBookkeeperBankAccount] = useState(profile?.bookkeeper_bank_account || '');
+  const [bookkeeperAddress, setBookkeeperAddress] = useState(profile?.bookkeeper_address || '');
   
   const { 
     referrals, 
@@ -135,6 +144,16 @@ export default function Profile() {
     getReferralLink,
     isLoadingReferrals
   } = useBookkeeperReferrals();
+
+  // Update local state when profile changes
+  useState(() => {
+    if (profile) {
+      setBookkeeperCompanyName(profile.bookkeeper_company_name || '');
+      setBookkeeperPib(profile.bookkeeper_pib || '');
+      setBookkeeperBankAccount(profile.bookkeeper_bank_account || '');
+      setBookkeeperAddress(profile.bookkeeper_address || '');
+    }
+  });
 
   // Partner discount from profile
   const userDiscount = profile?.partner_discount_percent || 0;
@@ -185,6 +204,38 @@ export default function Profile() {
     }
   };
 
+  const saveBookkeeperCompanyInfo = async () => {
+    if (!user) return;
+    setSavingCompanyInfo(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          bookkeeper_company_name: bookkeeperCompanyName || null,
+          bookkeeper_pib: bookkeeperPib || null,
+          bookkeeper_bank_account: bookkeeperBankAccount || null,
+          bookkeeper_address: bookkeeperAddress || null,
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      await refreshProfile();
+      toast({
+        title: 'Sačuvano',
+        description: 'Podaci o firmi su uspešno sačuvani.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Greška',
+        description: 'Nije moguće sačuvati podatke.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingCompanyInfo(false);
+    }
+  };
+
   const getSubscriptionStatus = () => {
     if (isBookkeeper) {
       return { label: 'Besplatno', variant: 'default' as const, color: 'text-green-600' };
@@ -213,11 +264,17 @@ export default function Profile() {
       </div>
 
       <Tabs defaultValue="subscription" className="space-y-6">
-        <TabsList className={`grid w-full ${isBookkeeper ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${isBookkeeper ? 'grid-cols-5' : 'grid-cols-3'}`}>
           <TabsTrigger value="subscription" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Pretplata</span>
           </TabsTrigger>
+          {isBookkeeper && (
+            <TabsTrigger value="company" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Moja Firma</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Bezbednost</span>
@@ -483,6 +540,131 @@ export default function Profile() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Company Tab - Bookkeepers Only */}
+        {isBookkeeper && (
+          <TabsContent value="company" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Podaci o firmi za isplatu
+                </CardTitle>
+                <CardDescription>
+                  Ovi podaci će se koristiti za generisanje naloga za isplatu vaše provizije od referral programa.
+                  Popunite sve obavezne podatke da biste mogli da primate isplate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(!profile?.bookkeeper_company_name || !profile?.bookkeeper_pib || !profile?.bookkeeper_bank_account) && (
+                  <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="font-medium text-amber-700 dark:text-amber-300">Nepotpuni podaci</p>
+                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                        Popunite sve obavezne podatke da biste mogli da primate isplatu provizije.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="bookkeeper_company_name">Naziv firme *</Label>
+                    <input
+                      id="bookkeeper_company_name"
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="npr. Petar Petrović PR RAČUNOVODSTVO PETROVIĆ"
+                      value={bookkeeperCompanyName}
+                      onChange={(e) => setBookkeeperCompanyName(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Pun naziv firme kako je registrovana (sa PR, DOO, itd.)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bookkeeper_pib">PIB *</Label>
+                    <input
+                      id="bookkeeper_pib"
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="9 cifara"
+                      maxLength={9}
+                      value={bookkeeperPib}
+                      onChange={(e) => setBookkeeperPib(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bookkeeper_bank_account">Broj računa *</Label>
+                    <input
+                      id="bookkeeper_bank_account"
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="XXX-XXXXXXXXXXXXX-XX"
+                      value={bookkeeperBankAccount}
+                      onChange={(e) => setBookkeeperBankAccount(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format: 265-1234567890123-45
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="bookkeeper_address">Adresa (opciono)</Label>
+                    <input
+                      id="bookkeeper_address"
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Ulica i broj, poštanski broj, grad"
+                      value={bookkeeperAddress}
+                      onChange={(e) => setBookkeeperAddress(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <Button 
+                    onClick={saveBookkeeperCompanyInfo} 
+                    disabled={savingCompanyInfo || !bookkeeperCompanyName || !bookkeeperPib || !bookkeeperBankAccount}
+                    className="gap-2"
+                  >
+                    {savingCompanyInfo ? (
+                      <>Čuvam...</>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Sačuvaj podatke
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Kako funkcioniše isplata?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  <strong>1.</strong> Kada vaš klijent plati pretplatu, automatski se generiše zapis o vašoj proviziji (20% od iznosa).
+                </p>
+                <p>
+                  <strong>2.</strong> Na kraju svakog meseca, administrator pregleda sve provizije i generiše naloge za isplatu.
+                </p>
+                <p>
+                  <strong>3.</strong> Isplata se vrši na račun koji ste naveli gore, sa šifrom plaćanja 221.
+                </p>
+                <p>
+                  <strong>4.</strong> U tabu "Zarada" možete pratiti sve svoje provizije i status isplata.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">

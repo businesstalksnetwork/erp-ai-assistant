@@ -25,6 +25,11 @@ interface Profile {
   email_subscription_warnings: boolean;
   partner_id: string | null;
   partner_discount_percent: number;
+  // Bookkeeper payout info
+  bookkeeper_company_name: string | null;
+  bookkeeper_pib: string | null;
+  bookkeeper_bank_account: string | null;
+  bookkeeper_address: string | null;
 }
 
 interface AuthContextType {
@@ -84,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email_reminder_on_due_date: (profileData as any).email_reminder_on_due_date ?? false,
         email_limit_6m_warning: (profileData as any).email_limit_6m_warning ?? true,
         email_limit_8m_warning: (profileData as any).email_limit_8m_warning ?? true,
+        bookkeeper_company_name: (profileData as any).bookkeeper_company_name ?? null,
+        bookkeeper_pib: (profileData as any).bookkeeper_pib ?? null,
+        bookkeeper_bank_account: (profileData as any).bookkeeper_bank_account ?? null,
+        bookkeeper_address: (profileData as any).bookkeeper_address ?? null,
       } as Profile);
     }
 

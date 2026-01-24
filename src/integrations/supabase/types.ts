@@ -54,6 +54,8 @@ export type Database = {
           created_at: string | null
           id: string
           invoice_id: string | null
+          paid_at: string | null
+          paid_by: string | null
           payment_month: string
           status: string
           updated_at: string | null
@@ -67,6 +69,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           invoice_id?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           payment_month: string
           status?: string
           updated_at?: string | null
@@ -80,6 +84,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           invoice_id?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           payment_month?: string
           status?: string
           updated_at?: string | null
@@ -994,6 +1000,10 @@ export type Database = {
           agency_name: string | null
           agency_pib: string | null
           block_reason: string | null
+          bookkeeper_address: string | null
+          bookkeeper_bank_account: string | null
+          bookkeeper_company_name: string | null
+          bookkeeper_pib: string | null
           company_name: string | null
           created_at: string
           email: string
@@ -1020,6 +1030,10 @@ export type Database = {
           agency_name?: string | null
           agency_pib?: string | null
           block_reason?: string | null
+          bookkeeper_address?: string | null
+          bookkeeper_bank_account?: string | null
+          bookkeeper_company_name?: string | null
+          bookkeeper_pib?: string | null
           company_name?: string | null
           created_at?: string
           email: string
@@ -1046,6 +1060,10 @@ export type Database = {
           agency_name?: string | null
           agency_pib?: string | null
           block_reason?: string | null
+          bookkeeper_address?: string | null
+          bookkeeper_bank_account?: string | null
+          bookkeeper_company_name?: string | null
+          bookkeeper_pib?: string | null
           company_name?: string | null
           created_at?: string
           email?: string
