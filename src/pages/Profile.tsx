@@ -34,14 +34,20 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
 
-// IPS QR Code generation
+// IPS QR Code generation - NBS standard compliant
 function formatAccountForIPS(account: string): string {
-  const cleanAccount = account.replace(/-/g, '');
-  const parts = cleanAccount.match(/^(\d{3})(\d+)(\d{2})$/);
-  if (!parts) return cleanAccount.padStart(18, '0');
-  const [, bankCode, accountNumber, checkDigits] = parts;
-  const paddedAccountNumber = accountNumber.padStart(13, '0');
-  return `${bankCode}${paddedAccountNumber}${checkDigits}`;
+  // Split by dash for standard Serbian account format (XXX-XXXXXXXXXXXXX-XX)
+  const parts = account.replace(/\s/g, '').split('-');
+
+  if (parts.length === 3) {
+    const bank = parts[0].replace(/\D/g, '').padStart(3, '0').slice(0, 3);
+    const middle = parts[1].replace(/\D/g, '').padStart(13, '0').slice(0, 13);
+    const control = parts[2].replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+    return `${bank}${middle}${control}`;
+  }
+
+  // Fallback: just pad to 18 digits
+  return account.replace(/\D/g, '').padStart(18, '0').slice(0, 18);
 }
 
 function generateSubscriptionIPSQRCode(
@@ -52,7 +58,12 @@ function generateSubscriptionIPSQRCode(
   payerName: string
 ): string {
   const formattedAccount = formatAccountForIPS(recipientAccount);
-  const sanitize = (text: string) => text.replace(/\|/g, '').replace(/\n/g, ' ').substring(0, 70);
+  
+  // CRITICAL: Use comma as decimal separator per NBS IPS standard
+  const amountStr = amount.toFixed(2).replace('.', ',');
+  
+  const sanitize = (value: string) => 
+    value.replace(/\|/g, ' ').replace(/\r/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 70);
   
   const fields = [
     'K:PR',
@@ -60,11 +71,15 @@ function generateSubscriptionIPSQRCode(
     'C:1',
     `R:${formattedAccount}`,
     `N:${sanitize(recipientName)}`,
-    `I:RSD${amount.toFixed(2)}`,
-    `P:${sanitize(payerName || 'Uplatioc')}`,
-    'SF:221',
-    `S:${sanitize(purpose)}`
+    `I:RSD${amountStr}`,
   ];
+  
+  if (payerName) {
+    fields.push(`P:${sanitize(payerName)}`);
+  }
+  
+  fields.push('SF:221');
+  fields.push(`S:${sanitize(purpose).substring(0, 35)}`);
   
   return fields.join('|');
 }
