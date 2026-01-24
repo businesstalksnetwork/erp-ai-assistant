@@ -117,6 +117,7 @@ export function useSEFStorage(companyId: string | null) {
         .from('invoices')
         .select('id')
         .eq('sef_invoice_id', sefInvoice.sef_invoice_id)
+        .eq('company_id', companyId)
         .maybeSingle();
 
       if (existing) {
@@ -255,6 +256,7 @@ export function useSEFStorage(companyId: string | null) {
             .from('invoices')
             .select('id')
             .eq('sef_invoice_id', sefInvoice.sef_invoice_id)
+            .eq('company_id', companyId)
             .maybeSingle();
 
           if (existing) {
