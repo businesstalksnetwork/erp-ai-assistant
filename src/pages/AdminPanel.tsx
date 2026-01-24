@@ -43,7 +43,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail } from 'lucide-react';
+import { EmailTemplateEditor } from '@/components/EmailTemplateEditor';
 import {
   Pagination,
   PaginationContent,
@@ -759,7 +760,7 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Korisnici
@@ -768,9 +769,13 @@ export default function AdminPanel() {
             <BookUser className="h-4 w-4" />
             Knjigovođe
           </TabsTrigger>
+          <TabsTrigger value="email-templates" className="gap-2">
+            <Mail className="h-4 w-4" />
+            Email šabloni
+          </TabsTrigger>
           <TabsTrigger value="sef-registry" className="gap-2">
             <Database className="h-4 w-4" />
-            SEF registar firmi
+            SEF registar
           </TabsTrigger>
         </TabsList>
 
@@ -1167,6 +1172,24 @@ export default function AdminPanel() {
                   )}
                 </>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Email Templates Tab */}
+        <TabsContent value="email-templates">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email šabloni
+              </CardTitle>
+              <CardDescription>
+                Uređivanje sadržaja email notifikacija koje se šalju korisnicima
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EmailTemplateEditor />
             </CardContent>
           </Card>
         </TabsContent>

@@ -17,10 +17,12 @@ interface Profile {
   agency_name: string | null;
   agency_pib: string | null;
   invited_by_user_id: string | null;
+  email_reminder_7_days_before: boolean;
   email_reminder_day_before: boolean;
   email_reminder_on_due_date: boolean;
   email_limit_6m_warning: boolean;
   email_limit_8m_warning: boolean;
+  email_subscription_warnings: boolean;
 }
 
 interface AuthContextType {

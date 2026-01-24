@@ -326,6 +326,42 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          html_content: string
+          id: string
+          name: string
+          placeholders: string[] | null
+          subject: string
+          template_key: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          html_content: string
+          id?: string
+          name: string
+          placeholders?: string[] | null
+          subject: string
+          template_key: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          html_content?: string
+          id?: string
+          name?: string
+          placeholders?: string[] | null
+          subject?: string
+          template_key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fiscal_daily_summary: {
         Row: {
           company_id: string
@@ -927,8 +963,10 @@ export type Database = {
           email: string
           email_limit_6m_warning: boolean | null
           email_limit_8m_warning: boolean | null
+          email_reminder_7_days_before: boolean | null
           email_reminder_day_before: boolean | null
           email_reminder_on_due_date: boolean | null
+          email_subscription_warnings: boolean | null
           full_name: string | null
           id: string
           invited_by_user_id: string | null
@@ -949,8 +987,10 @@ export type Database = {
           email: string
           email_limit_6m_warning?: boolean | null
           email_limit_8m_warning?: boolean | null
+          email_reminder_7_days_before?: boolean | null
           email_reminder_day_before?: boolean | null
           email_reminder_on_due_date?: boolean | null
+          email_subscription_warnings?: boolean | null
           full_name?: string | null
           id: string
           invited_by_user_id?: string | null
@@ -971,8 +1011,10 @@ export type Database = {
           email?: string
           email_limit_6m_warning?: boolean | null
           email_limit_8m_warning?: boolean | null
+          email_reminder_7_days_before?: boolean | null
           email_reminder_day_before?: boolean | null
           email_reminder_on_due_date?: boolean | null
+          email_subscription_warnings?: boolean | null
           full_name?: string | null
           id?: string
           invited_by_user_id?: string | null
