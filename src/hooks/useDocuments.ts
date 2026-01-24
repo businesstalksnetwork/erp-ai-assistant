@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cyrillicToLatin } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 
+// Documents hook v2 - with move and preview support
+
 export interface DocumentFolder {
   id: string;
   company_id: string;
