@@ -314,7 +314,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent px-3 py-2"
+                  className="w-full justify-start text-sidebar-foreground hover:bg-primary hover:text-primary-foreground px-3 py-2"
                 >
                   <div className="flex flex-col items-start text-left flex-1 min-w-0">
                     <span className="font-medium truncate w-full">

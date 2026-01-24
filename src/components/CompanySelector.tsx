@@ -41,7 +41,7 @@ export function CompanySelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80"
+          className="w-full justify-between bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary"
         >
           <span className="truncate">
             {selectedCompany?.name || 'Izaberi firmu'}
