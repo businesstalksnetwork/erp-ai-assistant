@@ -72,6 +72,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   
   // Track previous company id to detect changes
   const prevCompanyIdRef = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
   // Request notification permission when user logs in
   useEffect(() => {
@@ -81,14 +82,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [canRequest]);
 
   // Redirect to /dashboard when switching to a client company
+  // ALI SAMO kada korisnik AKTIVNO promeni kompaniju, ne pri page refresh-u
   useEffect(() => {
-    // Skip initial mount and loading state
+    // Skip if no company selected yet
     if (!selectedCompany?.id || isViewingClientCompany === undefined) return;
     
-    // Only redirect if company actually changed (not on initial load)
-    const companyChanged = prevCompanyIdRef.current !== null && prevCompanyIdRef.current !== selectedCompany.id;
+    // Pri prvom mount-u (uključujući page refresh) samo sačuvaj ID, ne radi redirect
+    if (isInitialMount.current) {
+      prevCompanyIdRef.current = selectedCompany.id;
+      isInitialMount.current = false;
+      return;
+    }
+    
+    // Proveri da li je korisnik AKTIVNO promenio kompaniju
+    const companyChanged = prevCompanyIdRef.current !== selectedCompany.id;
     prevCompanyIdRef.current = selectedCompany.id;
     
+    // Redirect samo ako je korisnik aktivno promenio na kompaniju klijenta
     if (companyChanged && isViewingClientCompany && location.pathname !== '/dashboard') {
       navigate('/dashboard', { replace: true });
     }
