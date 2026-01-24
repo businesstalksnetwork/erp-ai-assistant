@@ -36,7 +36,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BookOpen, Building2, Download, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { BookOpen, Building2, Check, Download, FileText, Loader2, MoreVertical, Plus, Trash2, Upload, X } from 'lucide-react';
 import { KPOCsvImport } from '@/components/KPOCsvImport';
 import { toast } from 'sonner';
 
@@ -54,7 +55,15 @@ export default function KPOBook() {
   const [year, setYear] = useState(currentYear);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const { entries, isLoading, totals, availableYears, deleteEntry, deleteYear, isDeleting } = useKPO(selectedCompany?.id || null, year);
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [newEntry, setNewEntry] = useState({
+    document_date: '',
+    description: '',
+    products_amount: '',
+    services_amount: '',
+  });
+  
+  const { entries, isLoading, totals, availableYears, addEntry, deleteEntry, deleteYear, isAdding, isDeleting } = useKPO(selectedCompany?.id || null, year);
 
   const years = availableYears.length > 0 ? availableYears : [currentYear];
 
@@ -85,6 +94,42 @@ export default function KPOBook() {
     } catch (error) {
       toast.error('Greška pri brisanju unosa');
     }
+  };
+
+  const handleAddEntry = async () => {
+    const products = parseFloat(newEntry.products_amount) || 0;
+    const services = parseFloat(newEntry.services_amount) || 0;
+    
+    if (!newEntry.description.trim()) {
+      toast.error('Unesite opis prometa');
+      return;
+    }
+    
+    if (products === 0 && services === 0) {
+      toast.error('Unesite iznos za proizvode ili usluge');
+      return;
+    }
+
+    try {
+      await addEntry({
+        companyId: selectedCompany.id,
+        year,
+        document_date: newEntry.document_date,
+        description: newEntry.description.trim(),
+        products_amount: products,
+        services_amount: services,
+      });
+      toast.success('KPO unos dodat');
+      setNewEntry({ document_date: '', description: '', products_amount: '', services_amount: '' });
+      setIsAddingEntry(false);
+    } catch (error) {
+      toast.error('Greška pri dodavanju unosa');
+    }
+  };
+
+  const handleCancelAdd = () => {
+    setNewEntry({ document_date: '', description: '', products_amount: '', services_amount: '' });
+    setIsAddingEntry(false);
   };
 
   const handleCsvExport = () => {
@@ -256,6 +301,11 @@ export default function KPOBook() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          <Button onClick={() => setIsAddingEntry(true)} disabled={isAddingEntry}>
+            <Plus className="mr-2 h-4 w-4" />
+            Dodaj unos
+          </Button>
         </div>
       </div>
 
@@ -300,13 +350,17 @@ export default function KPOBook() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : entries.length === 0 ? (
+          ) : entries.length === 0 && !isAddingEntry ? (
             <div className="flex flex-col items-center justify-center py-12">
               <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg font-medium">Nema unosa za {year}. godinu</p>
-              <p className="text-muted-foreground">
-                KPO unosi se automatski kreiraju kada izdate fakturu
+              <p className="text-muted-foreground mb-4">
+                KPO unosi se automatski kreiraju kada izdate fakturu, ili možete ručno dodati unos
               </p>
+              <Button onClick={() => setIsAddingEntry(true)} variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                Dodaj ručni unos
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -348,6 +402,78 @@ export default function KPOBook() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {/* Inline add row */}
+                  {isAddingEntry && (
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-mono text-muted-foreground">
+                        {entries.length + 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Input
+                            type="date"
+                            value={newEntry.document_date}
+                            onChange={(e) => setNewEntry(prev => ({ ...prev, document_date: e.target.value }))}
+                            className="w-[140px]"
+                            placeholder="Datum"
+                          />
+                          <Input
+                            value={newEntry.description}
+                            onChange={(e) => setNewEntry(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Opis prometa..."
+                            className="flex-1 min-w-[200px]"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={newEntry.products_amount}
+                          onChange={(e) => setNewEntry(prev => ({ ...prev, products_amount: e.target.value }))}
+                          placeholder="0"
+                          className="w-full text-right"
+                          min="0"
+                          step="0.01"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={newEntry.services_amount}
+                          onChange={(e) => setNewEntry(prev => ({ ...prev, services_amount: e.target.value }))}
+                          placeholder="0"
+                          className="w-full text-right"
+                          min="0"
+                          step="0.01"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {formatCurrency((parseFloat(newEntry.products_amount) || 0) + (parseFloat(newEntry.services_amount) || 0))}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                            onClick={handleAddEntry}
+                            disabled={isAdding}
+                          >
+                            {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={handleCancelAdd}
+                            disabled={isAdding}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
