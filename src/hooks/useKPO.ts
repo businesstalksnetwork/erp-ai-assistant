@@ -64,6 +64,47 @@ export function useKPO(companyId: string | null, year?: number) {
     enabled: !!companyId,
   });
 
+  const addEntryMutation = useMutation({
+    mutationFn: async (entry: {
+      companyId: string;
+      year: number;
+      document_date: string;
+      description: string;
+      products_amount: number;
+      services_amount: number;
+    }) => {
+      // Dobavi sledeći ordinal_number za ovu godinu
+      const { data: maxOrdinal } = await supabase
+        .from('kpo_entries')
+        .select('ordinal_number')
+        .eq('company_id', entry.companyId)
+        .eq('year', entry.year)
+        .order('ordinal_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const ordinalNumber = (maxOrdinal?.ordinal_number || 0) + 1;
+      const total = entry.products_amount + entry.services_amount;
+
+      const { error } = await supabase.from('kpo_entries').insert({
+        company_id: entry.companyId,
+        ordinal_number: ordinalNumber,
+        document_date: entry.document_date || null,
+        description: entry.description,
+        products_amount: entry.products_amount,
+        services_amount: entry.services_amount,
+        total_amount: total,
+        year: entry.year,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpo'] });
+      queryClient.invalidateQueries({ queryKey: ['kpo-years'] });
+    },
+  });
+
   const deleteEntryMutation = useMutation({
     mutationFn: async (entryId: string) => {
       const { error } = await supabase
@@ -107,8 +148,10 @@ export function useKPO(companyId: string | null, year?: number) {
     isLoading,
     totals,
     availableYears,
+    addEntry: addEntryMutation.mutateAsync,
     deleteEntry: deleteEntryMutation.mutateAsync,
     deleteYear: deleteYearMutation.mutateAsync,
+    isAdding: addEntryMutation.isPending,
     isDeleting: deleteEntryMutation.isPending || deleteYearMutation.isPending,
   };
 }

@@ -32,25 +32,30 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     
     const savedCompanyId = savedCompanyIdRef.current;
     
-    // Pri prvom učitavanju, prioritet ima sačuvana kompanija
-    if (!initialLoadDone.current && savedCompanyId) {
-      const savedCompany = companies.find(c => c.id === savedCompanyId);
-      if (savedCompany) {
-        setSelectedCompany(savedCompany);
-        initialLoadDone.current = true;
-        return;
+    // Pri prvom učitavanju
+    if (!initialLoadDone.current) {
+      // Pokušaj da nađeš sačuvanu kompaniju
+      if (savedCompanyId) {
+        const savedCompany = companies.find(c => c.id === savedCompanyId);
+        if (savedCompany) {
+          setSelectedCompany(savedCompany);
+          initialLoadDone.current = true;
+          return;
+        }
+        // Sačuvana kompanija ne postoji više - obriši stari ID iz storage-a
+        localStorage.removeItem(SELECTED_COMPANY_KEY);
+        savedCompanyIdRef.current = null;
       }
+      
+      // Fallback: izaberi aktivnu ili prvu kompaniju iz myCompanies
+      if (myCompanies.length > 0) {
+        const activeCompany = myCompanies.find(c => c.is_active) || myCompanies[0];
+        setSelectedCompany(activeCompany);
+        localStorage.setItem(SELECTED_COMPANY_KEY, activeCompany.id);
+      }
+      
+      initialLoadDone.current = true;
     }
-    
-    // Fallback: use active company or first from my companies
-    // Ali samo ako nema sačuvane kompanije i nema trenutno izabrane
-    if (myCompanies.length > 0 && !selectedCompany && !savedCompanyId) {
-      const activeCompany = myCompanies.find(c => c.is_active) || myCompanies[0];
-      setSelectedCompany(activeCompany);
-      localStorage.setItem(SELECTED_COMPANY_KEY, activeCompany.id);
-    }
-    
-    initialLoadDone.current = true;
   }, [companies, myCompanies]);
 
   // Update selectedCompany when companies data changes (e.g., after logo upload)
