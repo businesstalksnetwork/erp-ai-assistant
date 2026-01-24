@@ -287,7 +287,7 @@ export default function CompanyProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Podaci</span>
@@ -299,10 +299,6 @@ export default function CompanyProfile() {
           <TabsTrigger value="services" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Servisi</span>
-          </TabsTrigger>
-          <TabsTrigger value="sef" className="flex items-center gap-2">
-            <FileStack className="h-4 w-4" />
-            <span className="hidden sm:inline">SEF</span>
           </TabsTrigger>
           <TabsTrigger value="bookkeeper" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -515,7 +511,7 @@ export default function CompanyProfile() {
         </TabsContent>
 
         {/* Services Tab */}
-        <TabsContent value="services">
+        <TabsContent value="services" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -528,36 +524,23 @@ export default function CompanyProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* SEF Integration Toggle */}
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileStack className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">SEF Centar</p>
-                    <p className="text-xs text-muted-foreground">
-                      Sistem e-Faktura integracija
-                      {company.sef_enabled && !hasSefApiKey && (
-                        <span className="text-amber-500 ml-1">• API ključ nije podešen</span>
-                      )}
-                      {company.sef_enabled && hasSefApiKey && (
-                        <span className="text-green-500 ml-1">• Povezano</span>
-                      )}
-                    </p>
+              <div className="p-4 border rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileStack className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">SEF Centar</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sistem e-Faktura integracija
+                        {company.sef_enabled && !hasSefApiKey && (
+                          <span className="text-amber-500 ml-1">• API ključ nije podešen</span>
+                        )}
+                        {company.sef_enabled && hasSefApiKey && (
+                          <span className="text-green-500 ml-1">• Povezano</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {company.sef_enabled && (
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => {
-                        const tabsTrigger = document.querySelector('[value="sef"]') as HTMLElement;
-                        tabsTrigger?.click();
-                      }}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Konfiguriši
-                    </Button>
-                  )}
                   <Switch
                     checked={company.sef_enabled}
                     onCheckedChange={async (checked) => {
@@ -573,6 +556,71 @@ export default function CompanyProfile() {
                     }}
                   />
                 </div>
+                
+                {/* SEF Configuration - shown when enabled */}
+                {company.sef_enabled && (
+                  <div className="pt-4 border-t space-y-4">
+                    {/* Connection Status */}
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      {hasSefApiKey ? (
+                        <>
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="font-medium text-green-600">Povezano</p>
+                            <p className="text-sm text-muted-foreground">API ključ je konfigurisan</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Nije konfigurisano</p>
+                            <p className="text-sm text-muted-foreground">Unesite API ključ za aktivaciju</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* API Key Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="sef_api_key">SEF API ključ</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            id="sef_api_key"
+                            type={showApiKey ? 'text' : 'password'}
+                            value={sefApiKey}
+                            onChange={(e) => setSefApiKey(e.target.value)}
+                            placeholder="Unesite API ključ sa SEF portala"
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <Button 
+                          onClick={handleSaveSefApiKey} 
+                          disabled={isSavingApiKey || !sefApiKey}
+                        >
+                          {isSavingApiKey ? 'Čuvanje...' : (hasSefApiKey ? 'Zameni ključ' : 'Sačuvaj')}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        API ključ možete preuzeti sa SEF portala (efaktura.mfin.gov.rs) u sekciji Podešavanja → API pristup
+                      </p>
+                    </div>
+
+                    {/* SEF Center Link */}
+                    <Button variant="outline" size="sm" onClick={() => navigate('/sef')}>
+                      <FileStack className="h-4 w-4 mr-2" />
+                      Otvori SEF Centar
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Fiscal Cash Register Toggle */}
@@ -603,84 +651,6 @@ export default function CompanyProfile() {
               <p className="text-xs text-muted-foreground pt-2">
                 Aktivirani servisi će se pojaviti u bočnoj navigaciji aplikacije.
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* SEF Integration Tab */}
-        <TabsContent value="sef">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileStack className="h-5 w-5" />
-                SEF Integracija
-              </CardTitle>
-              <CardDescription>
-                Povežite firmu sa Sistemom e-Faktura za slanje i primanje elektronskih faktura
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Connection Status */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                {sefApiKey ? (
-                  <>
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="font-medium text-green-600">Povezano</p>
-                      <p className="text-sm text-muted-foreground">API ključ je konfigurisan</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Nije konfigurisano</p>
-                      <p className="text-sm text-muted-foreground">Unesite API ključ za aktivaciju</p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* API Key Input */}
-              <div className="space-y-2">
-                <Label htmlFor="sef_api_key">SEF API ključ</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="sef_api_key"
-                      type={showApiKey ? 'text' : 'password'}
-                      value={sefApiKey}
-                      onChange={(e) => setSefApiKey(e.target.value)}
-                      placeholder="Unesite API ključ sa SEF portala"
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <Button 
-                    onClick={handleSaveSefApiKey} 
-                    disabled={isSavingApiKey || !sefApiKey}
-                  >
-                    {isSavingApiKey ? 'Čuvanje...' : (hasSefApiKey ? 'Zameni ključ' : 'Sačuvaj')}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  API ključ možete preuzeti sa SEF portala (efaktura.mfin.gov.rs) u sekciji Podešavanja → API pristup
-                </p>
-              </div>
-
-              {/* SEF Center Link */}
-              <div className="pt-4 border-t">
-                <Button variant="outline" onClick={() => navigate('/sef')}>
-                  <FileStack className="h-4 w-4 mr-2" />
-                  Otvori SEF Centar
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
