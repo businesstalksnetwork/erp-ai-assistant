@@ -877,6 +877,42 @@ export type Database = {
           },
         ]
       }
+      partners: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          discount_percent: number | null
+          free_trial_days: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          discount_percent?: number | null
+          free_trial_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          discount_percent?: number | null
+          free_trial_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       payment_reminders: {
         Row: {
           amount: number | null
@@ -972,6 +1008,8 @@ export type Database = {
           invited_by_user_id: string | null
           is_trial: boolean | null
           max_companies: number
+          partner_discount_percent: number | null
+          partner_id: string | null
           pib: string | null
           status: Database["public"]["Enums"]["approval_status"]
           subscription_end: string | null
@@ -996,6 +1034,8 @@ export type Database = {
           invited_by_user_id?: string | null
           is_trial?: boolean | null
           max_companies?: number
+          partner_discount_percent?: number | null
+          partner_id?: string | null
           pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
@@ -1020,6 +1060,8 @@ export type Database = {
           invited_by_user_id?: string | null
           is_trial?: boolean | null
           max_companies?: number
+          partner_discount_percent?: number | null
+          partner_id?: string | null
           pib?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
@@ -1031,6 +1073,13 @@ export type Database = {
             columns: ["invited_by_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]

@@ -50,8 +50,9 @@ export default function Auth() {
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [accountType, setAccountType] = useState<AccountType>('pausal');
   
-  // Get referral ID from URL if present
+  // Get referral ID and partner code from URL if present
   const referralId = searchParams.get('ref');
+  const partnerCode = searchParams.get('partner');
 
   const isRecovery = isPasswordRecoveryUrl();
 
@@ -194,7 +195,8 @@ export default function Auth() {
       accountType,
       agencyName,
       agencyPib,
-      referralId || undefined
+      referralId || undefined,
+      partnerCode || undefined
     );
 
     if (error) {

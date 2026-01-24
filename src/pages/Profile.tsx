@@ -28,7 +28,8 @@ import {
   Mail,
   Bell,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  Percent
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -134,6 +135,17 @@ export default function Profile() {
     getReferralLink,
     isLoadingReferrals
   } = useBookkeeperReferrals();
+
+  // Partner discount from profile
+  const userDiscount = profile?.partner_discount_percent || 0;
+
+  // Calculate discounted price
+  const getDiscountedPrice = (price: number) => {
+    if (userDiscount > 0) {
+      return Math.round(price * (1 - userDiscount / 100));
+    }
+    return price;
+  };
 
   const handleCopyLink = async () => {
     const link = getReferralLink();
@@ -314,32 +326,62 @@ export default function Profile() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Partner Discount Banner */}
+                {userDiscount > 0 && (
+                  <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full">
+                      <Percent className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-700 dark:text-green-300">Partnerski popust aktivan</p>
+                      <p className="text-sm text-green-600 dark:text-green-400">
+                        Imate trajni popust od {userDiscount}% na sve pretplate
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Plan Selection */}
                 <div className="grid gap-3 sm:grid-cols-3">
-                  {subscriptionPlans.map((plan) => (
-                    <div
-                      key={plan.key}
-                      onClick={() => setSelectedPlan(plan.key)}
-                      className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:border-primary/50 ${
-                        selectedPlan === plan.key
-                          ? 'border-primary bg-primary/5'
-                          : 'border-muted'
-                      }`}
-                    >
-                      {plan.popular && (
-                        <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs">
-                          Najpopularnije
-                        </Badge>
-                      )}
-                      <div className="text-center space-y-1">
-                        <p className="font-semibold">{plan.name}</p>
-                        <p className="text-2xl font-bold">
-                          {plan.price.toLocaleString('sr-RS')} <span className="text-sm font-normal text-muted-foreground">RSD</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{plan.description}</p>
+                  {subscriptionPlans.map((plan) => {
+                    const discountedPrice = getDiscountedPrice(plan.price);
+                    const hasDiscount = userDiscount > 0;
+
+                    return (
+                      <div
+                        key={plan.key}
+                        onClick={() => setSelectedPlan(plan.key)}
+                        className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:border-primary/50 ${
+                          selectedPlan === plan.key
+                            ? 'border-primary bg-primary/5'
+                            : 'border-muted'
+                        }`}
+                      >
+                        {plan.popular && (
+                          <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs">
+                            Najpopularnije
+                          </Badge>
+                        )}
+                        {hasDiscount && (
+                          <Badge variant="secondary" className="absolute -top-2 -right-2 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            -{userDiscount}%
+                          </Badge>
+                        )}
+                        <div className="text-center space-y-1">
+                          <p className="font-semibold">{plan.name}</p>
+                          <div className="text-2xl font-bold">
+                            {hasDiscount && (
+                              <span className="text-sm line-through text-muted-foreground mr-2">
+                                {plan.price.toLocaleString('sr-RS')}
+                              </span>
+                            )}
+                            {discountedPrice.toLocaleString('sr-RS')} <span className="text-sm font-normal text-muted-foreground">RSD</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{plan.description}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Separator />
@@ -352,7 +394,7 @@ export default function Profile() {
                       value={generateSubscriptionIPSQRCode(
                         paymentRecipient.name,
                         paymentRecipient.account,
-                        subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0,
+                        getDiscountedPrice(subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0),
                         `Pretplata PausalBox ${subscriptionPlans.find(p => p.key === selectedPlan)?.months}m`,
                         profile?.full_name || ''
                       )}
@@ -372,7 +414,12 @@ export default function Profile() {
                       
                       <span className="text-muted-foreground">Iznos:</span>
                       <span className="font-bold text-lg text-primary">
-                        {(subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0).toLocaleString('sr-RS')},00 RSD
+                        {getDiscountedPrice(subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0).toLocaleString('sr-RS')},00 RSD
+                        {userDiscount > 0 && (
+                          <span className="text-xs font-normal text-green-600 ml-2">
+                            (popust {userDiscount}%)
+                          </span>
+                        )}
                       </span>
                       
                       <span className="text-muted-foreground">Svrha:</span>

@@ -23,6 +23,8 @@ interface Profile {
   email_limit_6m_warning: boolean;
   email_limit_8m_warning: boolean;
   email_subscription_warnings: boolean;
+  partner_id: string | null;
+  partner_discount_percent: number;
 }
 
 interface AuthContextType {
@@ -46,7 +48,8 @@ interface AuthContextType {
     accountType?: 'pausal' | 'bookkeeper',
     agencyName?: string,
     agencyPib?: string,
-    invitedByUserId?: string
+    invitedByUserId?: string,
+    partnerCode?: string
   ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -139,7 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accountType: 'pausal' | 'bookkeeper' = 'pausal',
     agencyName?: string,
     agencyPib?: string,
-    invitedByUserId?: string
+    invitedByUserId?: string,
+    partnerCode?: string
   ) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -156,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           agency_name: agencyName,
           agency_pib: agencyPib,
           invited_by_user_id: invitedByUserId,
+          partner_code: partnerCode,
         },
       },
     });
