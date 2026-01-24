@@ -75,6 +75,14 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
   const [isSavingBankAccount, setIsSavingBankAccount] = useState(false);
   const [hasSefApiKey, setHasSefApiKey] = useState(company.has_sef_api_key || false);
   
+  // Email settings state
+  const [autoSendEmail, setAutoSendEmail] = useState(company.auto_send_invoice_email || false);
+  const [emailSignatureSr, setEmailSignatureSr] = useState(company.email_signature_sr || '');
+  const [emailSignatureEn, setEmailSignatureEn] = useState(company.email_signature_en || '');
+  const [signatureTab, setSignatureTab] = useState<'sr' | 'en'>('sr');
+  const [isSavingSignature, setIsSavingSignature] = useState(false);
+  const [showSignaturePreview, setShowSignaturePreview] = useState(false);
+  
   // Foreign payment instructions state
   const [isInstructionDialogOpen, setIsInstructionDialogOpen] = useState(false);
   const [editingInstruction, setEditingInstruction] = useState<any>(null);
@@ -102,6 +110,9 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
   useEffect(() => {
     setBankAccount(company.bank_account || '');
     setHasSefApiKey(company.has_sef_api_key || false);
+    setAutoSendEmail(company.auto_send_invoice_email || false);
+    setEmailSignatureSr(company.email_signature_sr || '');
+    setEmailSignatureEn(company.email_signature_en || '');
     setEditForm({
       name: company.name,
       address: company.address,
@@ -640,6 +651,136 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
                     }
                   }}
                 />
+              </div>
+
+              {/* Email Settings */}
+              <div className="p-4 border rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Email podešavanja</p>
+                      <p className="text-xs text-muted-foreground">
+                        Podešavanja za slanje faktura emailom
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t space-y-4">
+                  {/* Auto-send toggle */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Automatsko slanje</p>
+                      <p className="text-xs text-muted-foreground">
+                        Automatski otvori dijalog za slanje emailom nakon kreiranja fakture
+                      </p>
+                    </div>
+                    <Switch
+                      checked={autoSendEmail}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          await updateCompany.mutateAsync({ id: company.id, auto_send_invoice_email: checked });
+                          setAutoSendEmail(checked);
+                          sonnerToast.success(checked ? 'Automatsko slanje uključeno' : 'Automatsko slanje isključeno');
+                        } catch (error) {
+                          sonnerToast.error('Greška pri promeni statusa');
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Email signature */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Potpis emaila</Label>
+                      <div className="flex gap-1">
+                        <Button
+                          variant={signatureTab === 'sr' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSignatureTab('sr')}
+                          className="h-7 text-xs"
+                        >
+                          🇷🇸 Srpski
+                        </Button>
+                        <Button
+                          variant={signatureTab === 'en' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSignatureTab('en')}
+                          className="h-7 text-xs"
+                        >
+                          🇬🇧 English
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Textarea
+                      placeholder={signatureTab === 'sr' 
+                        ? "S poštovanjem,\nPetar Petrović\nDirektor, Firma d.o.o.\nTel: +381 11 123 4567" 
+                        : "Best regards,\nPetar Petrovic\nDirector, Company Ltd.\nTel: +381 11 123 4567"}
+                      value={signatureTab === 'sr' ? emailSignatureSr : emailSignatureEn}
+                      onChange={(e) => {
+                        if (signatureTab === 'sr') {
+                          setEmailSignatureSr(e.target.value);
+                        } else {
+                          setEmailSignatureEn(e.target.value);
+                        }
+                      }}
+                      rows={4}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Potpis će biti dodat na kraj svakog email-a sa fakturom. Podržan je HTML format.
+                    </p>
+
+                    {showSignaturePreview && (
+                      <div className="p-3 bg-muted/50 rounded-lg border">
+                        <p className="text-xs text-muted-foreground mb-2">Pregled potpisa:</p>
+                        <div 
+                          className="text-sm whitespace-pre-wrap"
+                          dangerouslySetInnerHTML={{ 
+                            __html: signatureTab === 'sr' ? emailSignatureSr : emailSignatureEn 
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSignaturePreview(!showSignaturePreview)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        {showSignaturePreview ? 'Sakrij pregled' : 'Pregled'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={isSavingSignature}
+                        onClick={async () => {
+                          setIsSavingSignature(true);
+                          try {
+                            await updateCompany.mutateAsync({
+                              id: company.id,
+                              email_signature_sr: emailSignatureSr || null,
+                              email_signature_en: emailSignatureEn || null,
+                            });
+                            sonnerToast.success('Potpis sačuvan');
+                          } catch (error) {
+                            sonnerToast.error('Greška pri čuvanju potpisa');
+                          } finally {
+                            setIsSavingSignature(false);
+                          }
+                        }}
+                      >
+                        {isSavingSignature ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : null}
+                        Sačuvaj potpis
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <p className="text-xs text-muted-foreground pt-2">

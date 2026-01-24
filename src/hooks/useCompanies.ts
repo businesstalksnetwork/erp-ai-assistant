@@ -29,6 +29,10 @@ export interface Company {
   // For client companies
   is_client_company?: boolean;
   client_name?: string;
+  // Email settings
+  auto_send_invoice_email?: boolean;
+  email_signature_sr?: string | null;
+  email_signature_en?: string | null;
 }
 
 export function useCompanies() {
@@ -42,7 +46,7 @@ export function useCompanies() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at, auto_send_invoice_email, email_signature_sr, email_signature_en')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -59,7 +63,7 @@ export function useCompanies() {
       // Get companies where I am the accepted bookkeeper (new system)
       const { data: companiesWithMe, error: newError } = await supabase
         .from('companies')
-        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
+        .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at, auto_send_invoice_email, email_signature_sr, email_signature_en')
         .eq('bookkeeper_id', user!.id)
         .eq('bookkeeper_status', 'accepted')
         .order('created_at', { ascending: false });
@@ -85,7 +89,7 @@ export function useCompanies() {
           const clientIds = clientRelations.map(r => r.client_id);
           const { data: companies } = await supabase
             .from('companies')
-            .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at')
+            .select('id, user_id, name, address, city, country, pib, maticni_broj, bank_account, logo_url, sef_enabled, has_sef_api_key, fiscal_enabled, is_active, created_at, updated_at, bookkeeper_email, bookkeeper_id, bookkeeper_status, bookkeeper_invited_at, auto_send_invoice_email, email_signature_sr, email_signature_en')
             .in('user_id', clientIds)
             .order('created_at', { ascending: false });
           
