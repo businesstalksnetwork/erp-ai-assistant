@@ -14,6 +14,14 @@ export interface Partner {
   updated_at: string;
 }
 
+export interface PartnerUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  company_name: string | null;
+  created_at: string;
+}
+
 export function usePartners() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -48,6 +56,36 @@ export function usePartners() {
         }
       });
       return stats;
+    },
+  });
+
+  const { data: partnerUsers = {} } = useQuery({
+    queryKey: ["partner-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, company_name, created_at, partner_id")
+        .not("partner_id", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const usersByPartner: Record<string, PartnerUser[]> = {};
+      data.forEach((profile) => {
+        if (profile.partner_id) {
+          if (!usersByPartner[profile.partner_id]) {
+            usersByPartner[profile.partner_id] = [];
+          }
+          usersByPartner[profile.partner_id].push({
+            id: profile.id,
+            email: profile.email || "",
+            full_name: profile.full_name,
+            company_name: profile.company_name,
+            created_at: profile.created_at,
+          });
+        }
+      });
+      return usersByPartner;
     },
   });
 
@@ -100,6 +138,7 @@ export function usePartners() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["partners"] });
+      queryClient.invalidateQueries({ queryKey: ["partner-users"] });
       toast({ title: "Partner uspešno obrisan" });
     },
     onError: (error: Error) => {
@@ -114,6 +153,7 @@ export function usePartners() {
   return {
     partners,
     partnerStats,
+    partnerUsers,
     isLoading,
     createPartner,
     updatePartner,
