@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail, Handshake, Link, Plus, Percent, ToggleLeft, ToggleRight } from 'lucide-react';
 import { EmailTemplateEditor } from '@/components/EmailTemplateEditor';
 import {
   Pagination,
@@ -56,6 +56,8 @@ import { format, differenceInDays, addMonths } from 'date-fns';
 import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
 import { BlockUserDialog } from '@/components/BlockUserDialog';
+import { PartnerDialog } from '@/components/PartnerDialog';
+import { usePartners, Partner } from '@/hooks/usePartners';
 
 interface UserProfile {
   id: string;
@@ -118,6 +120,12 @@ export default function AdminPanel() {
   // Expanded bookkeepers state
   const [expandedBookkeepers, setExpandedBookkeepers] = useState<Set<string>>(new Set());
   
+  // Partners state
+  const { partners, partnerStats, isLoading: partnersLoading, createPartner, updatePartner, deletePartner } = usePartners();
+  const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [deletingPartnerId, setDeletingPartnerId] = useState<string | null>(null);
+
   const toggleBookkeeperExpand = (id: string) => {
     setExpandedBookkeepers(prev => {
       const newSet = new Set(prev);
@@ -760,7 +768,7 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Korisnici
@@ -768,6 +776,10 @@ export default function AdminPanel() {
           <TabsTrigger value="bookkeepers" className="gap-2">
             <BookUser className="h-4 w-4" />
             Knjigovođe
+          </TabsTrigger>
+          <TabsTrigger value="partners" className="gap-2">
+            <Handshake className="h-4 w-4" />
+            Partneri
           </TabsTrigger>
           <TabsTrigger value="email-templates" className="gap-2">
             <Mail className="h-4 w-4" />
@@ -1176,6 +1188,169 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
+        {/* Partners Tab */}
+        <TabsContent value="partners">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Handshake className="h-5 w-5" />
+                    Partneri
+                  </CardTitle>
+                  <CardDescription>
+                    Upravljanje partnerskim programima sa popustima i produženim trial periodima
+                  </CardDescription>
+                </div>
+                <Button onClick={() => { setEditingPartner(null); setPartnerDialogOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Dodaj partnera
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {partnersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : partners.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Handshake className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nema partnera. Dodajte prvog partnera klikom na dugme iznad.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Partner</TableHead>
+                        <TableHead>Kod</TableHead>
+                        <TableHead>Popust</TableHead>
+                        <TableHead>Trial period</TableHead>
+                        <TableHead>Registrovani</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Akcije</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {partners.map((partner) => (
+                        <TableRow key={partner.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{partner.name}</p>
+                              {partner.description && (
+                                <p className="text-xs text-muted-foreground">{partner.description}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs bg-muted px-2 py-1 rounded">{partner.code}</code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
+                                  toast({ title: 'Link kopiran', description: 'Partnerski link je kopiran u clipboard.' });
+                                }}
+                              >
+                                <Link className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {partner.discount_percent > 0 ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                <Percent className="h-3 w-3 mr-1" />
+                                {partner.discount_percent}%
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {partner.free_trial_days !== 14 ? (
+                              <Badge variant="outline">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {partner.free_trial_days} dana
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">14 dana (default)</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {partnerStats[partner.id] || 0} korisnika
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {partner.is_active ? (
+                              <Badge variant="default" className="bg-green-600">
+                                Aktivan
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                Neaktivan
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingPartner(partner); setPartnerDialogOpen(true); }}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Uredi
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
+                                    toast({ title: 'Link kopiran' });
+                                  }}
+                                >
+                                  <Link className="h-4 w-4 mr-2" />
+                                  Kopiraj link
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => updatePartner.mutate({ id: partner.id, is_active: !partner.is_active })}
+                                >
+                                  {partner.is_active ? (
+                                    <>
+                                      <ToggleLeft className="h-4 w-4 mr-2" />
+                                      Deaktiviraj
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ToggleRight className="h-4 w-4 mr-2" />
+                                      Aktiviraj
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => setDeletingPartnerId(partner.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Obriši
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Email Templates Tab */}
         <TabsContent value="email-templates">
           <Card>
@@ -1312,7 +1487,7 @@ export default function AdminPanel() {
         onBlock={(userId, reason) => blockUserMutation.mutate({ userId, reason })}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete User Confirmation Dialog */}
       <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1333,6 +1508,50 @@ export default function AdminPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Partner Confirmation Dialog */}
+      <AlertDialog open={!!deletingPartnerId} onOpenChange={() => setDeletingPartnerId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Obriši partnera?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ova akcija će trajno obrisati partnera. Korisnici koji su se registrovali preko ovog 
+              partnera zadržavaju svoj popust.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingPartnerId) {
+                  deletePartner.mutate(deletingPartnerId);
+                  setDeletingPartnerId(null);
+                }
+              }}
+            >
+              Obriši
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Partner Dialog */}
+      <PartnerDialog
+        open={partnerDialogOpen}
+        onOpenChange={setPartnerDialogOpen}
+        partner={editingPartner}
+        onSave={async (data) => {
+          if (editingPartner) {
+            await updatePartner.mutateAsync({ id: editingPartner.id, ...data });
+          } else {
+            await createPartner.mutateAsync(data);
+          }
+          setPartnerDialogOpen(false);
+          setEditingPartner(null);
+        }}
+        isLoading={createPartner.isPending || updatePartner.isPending}
+      />
     </div>
     </TooltipProvider>
   );
