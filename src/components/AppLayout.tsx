@@ -47,7 +47,6 @@ import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
 const mainNavItems = [
   { href: '/dashboard', label: 'Kontrolna tabla', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
-  { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/kpo', label: 'KPO Knjiga', icon: BookOpen },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
   { href: '/clients', label: 'Klijenti', icon: Users },
@@ -57,7 +56,9 @@ const mainNavItems = [
 // Secondary navigation items (below separator) - dynamically built in getFilteredNavItems
 const bookkeepingNavItem = { href: '/bookkeeper', label: 'Knjigovodstvo', icon: Briefcase };
 
+// Admin-only navigation items
 const adminNavItems = [
+  { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/admin', label: 'Admin Panel', icon: Shield },
 ];
 
@@ -138,26 +139,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       ? 'Moje Kompanije' 
       : 'Moja Kompanija';
     
-    // Build secondary navigation with dynamic company label
-    const secondary = [];
+    // Build profile group - user settings
+    const profileGroup = [];
+    profileGroup.push({ href: '/companies', label: companyLabel, icon: Building2 });
     
-    // Svi korisnici vide "Moja Kompanija"
-    secondary.push({ href: '/companies', label: companyLabel, icon: Building2 });
-    
-    // Za ne-knjigovođe, dodaj i link ka Knjigovodstvo u sekundarnu navigaciju
-    // (knjigovođe ga već imaju gore, pa ne treba duplikat)
+    // Za ne-knjigovođe, dodaj i link ka Knjigovodstvo
     if (!isBookkeeper) {
-      secondary.push(bookkeepingNavItem);
+      profileGroup.push(bookkeepingNavItem);
     }
     
-    // Profile link for all users
-    secondary.push({ href: '/profile', label: 'Moj Profil', icon: Users });
+    profileGroup.push({ href: '/profile', label: 'Moj Profil', icon: Users });
     
-    if (isAdmin) {
-      secondary.push(...adminNavItems);
-    }
+    // Build admin group - admin only features
+    const adminGroup = isAdmin ? adminNavItems : [];
     
-    return { main: items, secondary };
+    return { main: items, profileGroup, adminGroup };
   };
 
   const filteredNavItems = getFilteredNavItems();
@@ -296,8 +292,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Separator */}
             <Separator className="my-3 bg-sidebar-border" />
 
-            {/* Secondary navigation - Moja Kompanija + Admin Panel */}
-            {filteredNavItems.secondary.map((item) => {
+            {/* Profile group - Moja Kompanija, Knjigovodstvo, Moj Profil */}
+            {filteredNavItems.profileGroup.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                   <Link
@@ -316,6 +312,32 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </Link>
               );
             })}
+
+            {/* Admin section - only for admins */}
+            {filteredNavItems.adminGroup.length > 0 && (
+              <>
+                <Separator className="my-3 bg-sidebar-border" />
+                {filteredNavItems.adminGroup.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                          isActive
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/20'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-1'
+                        )}
+                      >
+                        <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+                        {item.label}
+                      </Link>
+                  );
+                })}
+              </>
+            )}
           </nav>
 
           {/* User Dropdown Menu */}
