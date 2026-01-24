@@ -269,6 +269,40 @@ export default function KPOBook() {
     return 'unosa';
   };
 
+  // Calculate dynamic position based on document date
+  const calculateNewEntryPosition = (dateStr: string): number | null => {
+    if (!dateStr) return null;
+    
+    const newDate = new Date(dateStr);
+    let position = 1;
+    
+    for (const entry of entries) {
+      if (entry.document_date && new Date(entry.document_date) < newDate) {
+        position++;
+      }
+    }
+    
+    return position;
+  };
+
+  // Get the position info for display
+  const getPositionInfo = (dateStr: string): { position: number | null; between: string | null } => {
+    const position = calculateNewEntryPosition(dateStr);
+    if (position === null) return { position: null, between: null };
+    
+    const before = position > 1 ? position - 1 : null;
+    const after = position <= entries.length ? position : null;
+    
+    if (before && after) {
+      return { position, between: `Između ${before} i ${after + 1}` };
+    } else if (before) {
+      return { position, between: `Posle ${before}` };
+    } else if (entries.length > 0) {
+      return { position, between: `Pre 1` };
+    }
+    return { position, between: null };
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -405,7 +439,14 @@ export default function KPOBook() {
                     {isAddingEntry && (
                       <TableRow className="bg-primary/5 border-2 border-primary/30">
                         <TableCell className="font-mono font-bold text-lg text-primary">
-                          {entries.length + 1}
+                          <div className="flex flex-col items-center">
+                            <span>{calculateNewEntryPosition(newEntry.document_date) ?? '?'}</span>
+                            {newEntry.document_date && getPositionInfo(newEntry.document_date).between && (
+                              <span className="text-[10px] font-normal text-muted-foreground whitespace-nowrap">
+                                {getPositionInfo(newEntry.document_date).between}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -415,13 +456,13 @@ export default function KPOBook() {
                               onChange={(e) => setNewEntry(prev => ({ ...prev, document_date: e.target.value }))}
                               className="w-[140px]"
                               placeholder="Datum"
+                              autoFocus
                             />
                             <Input
                               value={newEntry.description}
                               onChange={(e) => setNewEntry(prev => ({ ...prev, description: e.target.value }))}
                               placeholder="Opis prometa..."
                               className="flex-1 min-w-[200px]"
-                              autoFocus
                             />
                           </div>
                         </TableCell>
