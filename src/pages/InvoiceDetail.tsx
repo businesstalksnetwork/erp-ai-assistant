@@ -1,14 +1,17 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useClients } from '@/hooks/useClients';
+import { useEmailHistory } from '@/hooks/useInvoiceEmail';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Building2, Loader2, Download } from 'lucide-react';
+import { ArrowLeft, Printer, Building2, Loader2, Download, Mail, CheckCircle, Clock } from 'lucide-react';
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
+import { SendInvoiceDialog } from '@/components/SendInvoiceDialog';
 import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo-light.png';
 import jsPDF from 'jspdf';
@@ -186,13 +189,20 @@ export default function InvoiceDetail() {
   const navigate = useNavigate();
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, getLinkedAdvance } = useInvoices(selectedCompany?.id || null);
+  const { clients } = useClients(selectedCompany?.id || null);
+  const { data: emailHistory = [] } = useEmailHistory(id);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const isMobileDevice = useIsMobile();
 
   const invoice = invoices.find((i) => i.id === id);
   const linkedAdvance = invoice ? getLinkedAdvance(invoice.linked_advance_id) : null;
+  
+  // Get client email if available
+  const client = invoice?.client_id ? clients.find(c => c.id === invoice.client_id) : null;
   
   // Calculate amount for payment
   const advanceAmount = linkedAdvance?.total_amount || 0;
@@ -226,6 +236,17 @@ export default function InvoiceDetail() {
 
     fetchItems();
   }, [id]);
+
+  // Fetch current user email
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setUserEmail(user.email);
+      }
+    };
+    fetchUserEmail();
+  }, []);
 
   if (!selectedCompany) {
     return (
@@ -693,8 +714,61 @@ export default function InvoiceDetail() {
             <Printer className="mr-2 h-4 w-4" />
             {isMobileDevice ? 'Štampaj' : 'Preuzmi'}
           </Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => setSendDialogOpen(true)} 
+            className="flex-1 sm:flex-none"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Pošalji klijentu
+            {emailHistory.length > 0 && (
+              <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-700 border-green-300">
+                {emailHistory.length}
+              </Badge>
+            )}
+          </Button>
         </div>
       </div>
+
+      {/* Email History Section */}
+      {emailHistory.length > 0 && (
+        <Card className="print:hidden">
+          <CardHeader className="py-3 px-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Mail className="h-4 w-4" />
+              Istorija slanja ({emailHistory.length})
+            </div>
+          </CardHeader>
+          <CardContent className="py-2 px-4">
+            <div className="space-y-2">
+              {emailHistory.slice(0, 3).map((log) => (
+                <div key={log.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    {log.status === 'sent' ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5 text-amber-600" />
+                    )}
+                    <span className="text-muted-foreground">
+                      {new Date(log.sent_at).toLocaleDateString('sr-RS', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <span className="truncate max-w-[200px]">{log.sent_to}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {log.language === 'en' ? '🇬🇧 EN' : '🇷🇸 SR'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="print:shadow-none print:border-0 print:h-auto print:min-h-0 print:overflow-visible">
         <CardHeader className="text-center border-b">
@@ -1004,6 +1078,53 @@ export default function InvoiceDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Send Invoice Dialog */}
+      <SendInvoiceDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invoice_number}
+        companyId={selectedCompany.id}
+        companyName={selectedCompany.name}
+        clientEmail={client?.email}
+        clientType={invoice.client_type as 'domestic' | 'foreign'}
+        totalAmount={invoice.foreign_amount && invoice.foreign_currency 
+          ? formatForeignCurrency(invoice.foreign_amount, invoice.foreign_currency)
+          : formatCurrency(invoice.total_amount)}
+        issueDate={new Date(invoice.issue_date).toLocaleDateString('sr-RS')}
+        paymentDeadline={invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('sr-RS') : undefined}
+        generatePdfBlob={async () => {
+          // Reuse the existing PDF generation logic
+          const invoiceElement = document.querySelector('.print-invoice') as HTMLElement;
+          if (!invoiceElement) throw new Error('Invoice element not found');
+          
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;min-height:1123px;height:auto;overflow:visible;background:white;padding:16px';
+          const clone = invoiceElement.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll('.print\\:hidden').forEach(el => (el as HTMLElement).style.display = 'none');
+          wrapper.appendChild(clone);
+          document.body.appendChild(wrapper);
+          
+          await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 300));
+          
+          const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+          document.body.removeChild(wrapper);
+          
+          const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = pdfWidth - 10;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const finalHeight = Math.min(imgHeight, pdfHeight - 10);
+          const finalWidth = imgHeight > pdfHeight - 10 ? (canvas.width * finalHeight) / canvas.height : imgWidth;
+          
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pdfWidth - finalWidth) / 2, 5, finalWidth, finalHeight);
+          return pdf.output('blob');
+        }}
+        userEmail={userEmail}
+      />
     </div>
   );
 }

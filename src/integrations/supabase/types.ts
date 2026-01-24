@@ -154,6 +154,7 @@ export type Database = {
           company_id: string
           country: string | null
           created_at: string
+          email: string | null
           id: string
           maticni_broj: string | null
           name: string
@@ -168,6 +169,7 @@ export type Database = {
           company_id: string
           country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           maticni_broj?: string | null
           name: string
@@ -182,6 +184,7 @@ export type Database = {
           company_id?: string
           country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           maticni_broj?: string | null
           name?: string
@@ -524,6 +527,64 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_email_log: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          invoice_id: string | null
+          language: string | null
+          sent_at: string | null
+          sent_to: string
+          status: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          language?: string | null
+          sent_at?: string | null
+          sent_to: string
+          status?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          language?: string | null
+          sent_at?: string | null
+          sent_to?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_email_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_email_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_email_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]

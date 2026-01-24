@@ -24,5 +24,8 @@ declare module 'jspdf' {
     ): void;
     addPage(): void;
     save(filename: string): void;
+    output(type: 'blob'): Blob;
+    output(type: 'arraybuffer'): ArrayBuffer;
+    output(type: 'datauristring'): string;
   }
 }

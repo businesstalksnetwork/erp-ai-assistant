@@ -48,7 +48,7 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send, CheckCircle, AlertCircle, X, Mail } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ClientDetailPanel } from '@/components/ClientDetailPanel';
 import { cn } from '@/lib/utils';
@@ -76,6 +76,7 @@ export default function Clients() {
     pib: '',
     maticni_broj: '',
     vat_number: '',
+    email: '',
     client_type: 'domestic' as 'domestic' | 'foreign',
     sef_registered: false,
   });
@@ -101,6 +102,7 @@ export default function Clients() {
       pib: '',
       maticni_broj: '',
       vat_number: '',
+      email: '',
       client_type: 'domestic',
       sef_registered: false,
     });
@@ -146,6 +148,7 @@ export default function Clients() {
       pib: client.pib || '',
       maticni_broj: client.maticni_broj || '',
       vat_number: client.vat_number || '',
+      email: client.email || '',
       client_type: client.client_type,
       sef_registered: client.sef_registered || false,
     });
@@ -397,6 +400,22 @@ export default function Clients() {
                 <p className="text-xs text-muted-foreground">Poreski identifikacioni broj stranog klijenta</p>
               </div>
             )}
+            
+            {/* Email field - for all client types */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" />
+                Email klijenta
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="client@example.com"
+              />
+              <p className="text-xs text-muted-foreground">Za slanje faktura emailom</p>
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
