@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.sef-registry-import]
 verify_jwt = true
+
+[functions.send-notification-emails]
+verify_jwt = false
