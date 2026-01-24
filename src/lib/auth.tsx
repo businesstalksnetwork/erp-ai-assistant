@@ -17,6 +17,10 @@ interface Profile {
   agency_name: string | null;
   agency_pib: string | null;
   invited_by_user_id: string | null;
+  email_reminder_day_before: boolean;
+  email_reminder_on_due_date: boolean;
+  email_limit_6m_warning: boolean;
+  email_limit_8m_warning: boolean;
 }
 
 interface AuthContextType {
@@ -71,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         agency_name: (profileData as any).agency_name ?? null,
         agency_pib: (profileData as any).agency_pib ?? null,
         invited_by_user_id: (profileData as any).invited_by_user_id ?? null,
+        email_reminder_day_before: (profileData as any).email_reminder_day_before ?? true,
+        email_reminder_on_due_date: (profileData as any).email_reminder_on_due_date ?? false,
+        email_limit_6m_warning: (profileData as any).email_limit_6m_warning ?? true,
+        email_limit_8m_warning: (profileData as any).email_limit_8m_warning ?? true,
       } as Profile);
     }
 
