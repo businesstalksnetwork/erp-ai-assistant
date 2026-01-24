@@ -33,6 +33,7 @@ import {
   BarChart3,
   ListChecks,
   FileStack,
+  Wallet,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ const bookkeepingNavItem = { href: '/bookkeeper', label: 'Knjigovodstvo', icon: 
 // Admin-only navigation items
 const adminNavItems = [
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
+  { href: '/payouts', label: 'Isplata', icon: Wallet },
   { href: '/admin', label: 'Admin Panel', icon: Shield },
 ];
 
@@ -115,9 +117,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const getFilteredNavItems = () => {
     const items = [...mainNavItems];
     
-    // Find position after Analitika to insert conditional items
-    const analyticsIndex = items.findIndex(i => i.href === '/analytics');
-    const insertPosition = analyticsIndex + 1;
+    // Find position after KPO Knjiga to insert conditional items
+    const kpoIndex = items.findIndex(i => i.href === '/kpo');
+    const insertPosition = kpoIndex + 1;
     
     const conditionalItems = [];
     
@@ -131,7 +133,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       conditionalItems.push({ href: '/fiscal', label: 'Fiskalna kasa', icon: Calculator });
     }
     
-    // Insert conditional items after Analitika
+    // Insert conditional items after KPO Knjiga
     items.splice(insertPosition, 0, ...conditionalItems);
     
     // Dynamic company label based on max_companies or actual count

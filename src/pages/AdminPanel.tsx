@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail, Handshake, Link, Plus, Percent, ToggleLeft, ToggleRight, Wallet, CreditCard } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail, Handshake, Link, Plus, Percent, ToggleLeft, ToggleRight } from 'lucide-react';
 import { EmailTemplateEditor } from '@/components/EmailTemplateEditor';
 import {
   Pagination,
@@ -57,9 +57,7 @@ import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
 import { BlockUserDialog } from '@/components/BlockUserDialog';
 import { PartnerDialog } from '@/components/PartnerDialog';
-import { PayoutDialog } from '@/components/PayoutDialog';
 import { usePartners, Partner } from '@/hooks/usePartners';
-import { useBookkeeperPayouts, BookkeeperPayout } from '@/hooks/useBookkeeperPayouts';
 import { useAuth } from '@/lib/auth';
 
 interface UserProfile {
@@ -129,11 +127,8 @@ export default function AdminPanel() {
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [deletingPartnerId, setDeletingPartnerId] = useState<string | null>(null);
   const [expandedPartners, setExpandedPartners] = useState<Set<string>>(new Set());
-  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
-  const [selectedPayout, setSelectedPayout] = useState<BookkeeperPayout | null>(null);
   
   const { user } = useAuth();
-  const { pendingPayouts, payoutHistory, totalPending, totalPaidThisMonth, bookkeeperCount, markAsPaid, isLoadingPending } = useBookkeeperPayouts();
 
   const togglePartnerExpand = (id: string) => {
     setExpandedPartners(prev => {
@@ -819,7 +814,7 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Korisnici
@@ -831,10 +826,6 @@ export default function AdminPanel() {
           <TabsTrigger value="partners" className="gap-2">
             <Handshake className="h-4 w-4" />
             Partneri
-          </TabsTrigger>
-          <TabsTrigger value="payouts" className="gap-2">
-            <Wallet className="h-4 w-4" />
-            Isplata
           </TabsTrigger>
           <TabsTrigger value="email-templates" className="gap-2">
             <Mail className="h-4 w-4" />
@@ -1455,135 +1446,6 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
-        {/* Payouts Tab */}
-        <TabsContent value="payouts">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                Isplata provizija
-              </CardTitle>
-              <CardDescription>
-                Upravljanje isplatama provizija za knjigovođe
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Stats */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Pending isplata</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-primary">{totalPending.toLocaleString('sr-RS')} RSD</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Knjigovođa sa pending</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{bookkeeperCount}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Isplaćeno ovog meseca</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{totalPaidThisMonth.toLocaleString('sr-RS')} RSD</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Pending Payouts Table */}
-              <div>
-                <h3 className="font-semibold mb-3">Pending isplate</h3>
-                {isLoadingPending ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : pendingPayouts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>Nema pending isplata</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Knjigovođa</TableHead>
-                        <TableHead>Firma</TableHead>
-                        <TableHead>Račun</TableHead>
-                        <TableHead className="text-right">Iznos</TableHead>
-                        <TableHead className="text-right">Akcije</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingPayouts.map((payout) => (
-                        <TableRow key={payout.bookkeeper_id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{payout.bookkeeper_name || 'N/A'}</p>
-                              <p className="text-xs text-muted-foreground">{payout.bookkeeper_email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {payout.bookkeeper_company_name || (
-                              <span className="text-amber-600 text-sm">Nije popunjeno</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {payout.bookkeeper_bank_account || '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-bold">
-                            {payout.pending_amount.toLocaleString('sr-RS')} RSD
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              size="sm" 
-                              onClick={() => { setSelectedPayout(payout); setPayoutDialogOpen(true); }}
-                            >
-                              Generiši nalog
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-
-              {/* Payout History */}
-              {payoutHistory.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Istorija isplata</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Knjigovođa</TableHead>
-                        <TableHead className="text-right">Iznos</TableHead>
-                        <TableHead className="text-right">Stavki</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payoutHistory.slice(0, 10).map((history) => (
-                        <TableRow key={history.id}>
-                          <TableCell>{format(new Date(history.paid_at), 'dd.MM.yyyy.')}</TableCell>
-                          <TableCell>{history.bookkeeper_name || history.bookkeeper_email}</TableCell>
-                          <TableCell className="text-right font-medium">{history.total_amount.toLocaleString('sr-RS')} RSD</TableCell>
-                          <TableCell className="text-right">{history.earnings_count}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Email Templates Tab */}
         <TabsContent value="email-templates">
           <Card>
@@ -1784,21 +1646,6 @@ export default function AdminPanel() {
           setEditingPartner(null);
         }}
         isLoading={createPartner.isPending || updatePartner.isPending}
-      />
-
-      {/* Payout Dialog */}
-      <PayoutDialog
-        open={payoutDialogOpen}
-        onOpenChange={setPayoutDialogOpen}
-        payout={selectedPayout}
-        onMarkAsPaid={() => {
-          if (selectedPayout && user) {
-            markAsPaid.mutate({ bookkeeperIds: [selectedPayout.bookkeeper_id], adminId: user.id });
-            setPayoutDialogOpen(false);
-            setSelectedPayout(null);
-          }
-        }}
-        isMarking={markAsPaid.isPending}
       />
     </div>
     </TooltipProvider>
