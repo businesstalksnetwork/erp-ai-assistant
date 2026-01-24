@@ -19,6 +19,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerClose,
+} from '@/components/ui/drawer';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -41,22 +48,25 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, Building2, Search, Send, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { ClientDetailPanel } from '@/components/ClientDetailPanel';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Clients() {
   const { selectedCompany } = useSelectedCompany();
   const { clients, isLoading, createClient, updateClient, deleteClient } = useClients(selectedCompany?.id || null);
   const { checkPibInRegistry, isChecking: isSefChecking } = useSEFRegistry();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [sefCheckResult, setSefCheckResult] = useState<SEFRegistryResult | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -548,7 +558,7 @@ export default function Clients() {
         </ResizablePanelGroup>
       </div>
 
-      {/* Mobile/Tablet: Card grid with detail sheet */}
+      {/* Mobile/Tablet: Card grid with Drawer for details */}
       <div className="lg:hidden">
         <div className="mb-4">
           <div className="relative">
@@ -566,94 +576,94 @@ export default function Clients() {
           {filteredClients.map((client) => (
             <Card 
               key={client.id} 
-              className={cn(
-                "cursor-pointer transition-colors hover:bg-muted/50",
-                selectedClientId === client.id && "ring-2 ring-primary"
-              )}
-              onClick={() => setSelectedClientId(selectedClientId === client.id ? null : client.id)}
+              className="cursor-pointer transition-colors hover:bg-muted/50 active:scale-[0.98]"
+              onClick={() => {
+                setSelectedClientId(client.id);
+                setMobileDrawerOpen(true);
+              }}
             >
-              <CardHeader className="p-4 sm:p-6">
+              <CardHeader className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base sm:text-lg truncate">{client.name}</CardTitle>
-                    <CardDescription className="truncate text-xs sm:text-sm">{client.address || 'Bez adrese'}</CardDescription>
+                    <CardTitle className="text-sm sm:text-base truncate">{client.name}</CardTitle>
+                    <CardDescription className="truncate text-xs">{client.address || 'Bez adrese'}</CardDescription>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     {isSefConfigured && client.sef_registered && (
-                      <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] sm:text-xs">
-                        <Send className="h-3 w-3 mr-1" />
+                      <Badge variant="outline" className="text-green-600 border-green-600 text-[10px]">
+                        <Send className="h-2.5 w-2.5 mr-0.5" />
                         SEF
                       </Badge>
                     )}
-                    <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
-                      {client.client_type === 'domestic' ? 'Domaći' : 'Strani'}
+                    <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px]">
+                      {client.client_type === 'domestic' ? 'D' : 'S'}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+              <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex gap-3 sm:gap-4 min-w-0">
+                  <div className="flex gap-3 min-w-0 text-xs text-muted-foreground">
                     {client.client_type === 'domestic' ? (
-                      <>
-                        {client.pib && (
-                          <div className="min-w-0">
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">PIB</p>
-                            <p className="font-mono text-xs sm:text-sm truncate">{client.pib}</p>
-                          </div>
-                        )}
-                        {client.maticni_broj && (
-                          <div className="min-w-0">
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">MB</p>
-                            <p className="font-mono text-xs sm:text-sm truncate">{client.maticni_broj}</p>
-                          </div>
-                        )}
-                      </>
+                      client.pib && <span className="font-mono">PIB: {client.pib}</span>
                     ) : (
-                      client.vat_number && (
-                        <div className="min-w-0">
-                          <p className="text-[10px] sm:text-xs text-muted-foreground">VAT</p>
-                          <p className="font-mono text-xs sm:text-sm truncate">{client.vat_number}</p>
-                        </div>
-                      )
+                      client.vat_number && <span className="font-mono truncate">VAT: {client.vat_number}</span>
                     )}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
-                      <Pencil className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleteId(client.id); }}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteId(client.id); }}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 </div>
               </CardContent>
-              
-              {/* Expanded detail for mobile */}
-              {selectedClientId === client.id && (
-                <CardContent className="pt-0 border-t">
-                  <div className="pt-4">
-                    <ClientDetailPanel
-                      client={client}
-                      companyId={selectedCompany.id}
-                      isSefConfigured={isSefConfigured || false}
-                      onEdit={() => handleEdit(client)}
-                      onDelete={() => setDeleteId(client.id)}
-                    />
-                  </div>
-                </CardContent>
-              )}
             </Card>
           ))}
         </div>
         
         {filteredClients.length === 0 && (
           <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
+            <CardContent className="py-8 text-center text-muted-foreground text-sm">
               Nema rezultata pretrage
             </CardContent>
           </Card>
         )}
+        
+        {/* Mobile Drawer for client details */}
+        <Drawer open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <DrawerTitle className="text-base">Detalji klijenta</DrawerTitle>
+                <DrawerClose asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </DrawerClose>
+              </div>
+            </DrawerHeader>
+            <div className="px-4 pb-6 overflow-y-auto">
+              {selectedClient && (
+                <ClientDetailPanel
+                  client={selectedClient}
+                  companyId={selectedCompany.id}
+                  isSefConfigured={isSefConfigured || false}
+                  onEdit={() => {
+                    handleEdit(selectedClient);
+                    setMobileDrawerOpen(false);
+                  }}
+                  onDelete={() => {
+                    setDeleteId(selectedClient.id);
+                    setMobileDrawerOpen(false);
+                  }}
+                />
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

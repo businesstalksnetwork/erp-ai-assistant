@@ -292,24 +292,24 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
         </Badge>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - horizontally scrollable on mobile */}
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="basic" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Podaci</span>
+        <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-4 sm:overflow-visible">
+          <TabsTrigger value="basic" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
+            <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>Podaci</span>
           </TabsTrigger>
-          <TabsTrigger value="bank" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Računi</span>
+          <TabsTrigger value="bank" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
+            <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>Računi</span>
           </TabsTrigger>
-          <TabsTrigger value="services" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Servisi</span>
+          <TabsTrigger value="services" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
+            <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>Servisi</span>
           </TabsTrigger>
-          <TabsTrigger value="bookkeeper" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Knjigovođa</span>
+          <TabsTrigger value="bookkeeper" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>Knjigovođa</span>
           </TabsTrigger>
         </TabsList>
 
