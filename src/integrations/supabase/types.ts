@@ -272,6 +272,60 @@ export type Database = {
         }
         Relationships: []
       }
+      email_notification_log: {
+        Row: {
+          company_id: string
+          created_at: string
+          email_to: string
+          id: string
+          notification_type: string
+          reference_date: string | null
+          reference_id: string | null
+          sent_at: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email_to: string
+          id?: string
+          notification_type: string
+          reference_date?: string | null
+          reference_id?: string | null
+          sent_at?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email_to?: string
+          id?: string
+          notification_type?: string
+          reference_date?: string | null
+          reference_id?: string | null
+          sent_at?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_notification_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_notification_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_daily_summary: {
         Row: {
           company_id: string
