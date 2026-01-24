@@ -3,7 +3,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useDocuments, Document, DocumentFolder } from '@/hooks/useDocuments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -35,7 +35,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   FolderOpen, 
   Plus, 
@@ -50,6 +59,7 @@ import {
   MoreVertical,
   Pencil,
   Loader2,
+  Eye,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
@@ -69,6 +79,11 @@ function getFileIcon(fileType: string | null) {
   return File;
 }
 
+function canPreview(fileType: string | null): boolean {
+  if (!fileType) return false;
+  return fileType === 'application/pdf' || fileType.startsWith('image/');
+}
+
 export default function Documents() {
   const { selectedCompany } = useSelectedCompany();
   const companyId = selectedCompany?.id || null;
@@ -82,6 +97,7 @@ export default function Documents() {
     deleteFolder,
     uploadDocument,
     deleteDocument,
+    moveDocument,
     getDownloadUrl,
     searchDocuments,
   } = useDocuments(companyId);
@@ -93,8 +109,13 @@ export default function Documents() {
   const [editingFolder, setEditingFolder] = useState<DocumentFolder | null>(null);
   const [deleteFolderConfirm, setDeleteFolderConfirm] = useState<DocumentFolder | null>(null);
   const [deleteDocConfirm, setDeleteDocConfirm] = useState<Document | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadFolderId, setUploadFolderId] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter documents based on active tab and search
@@ -114,7 +135,7 @@ export default function Documents() {
     if (!files || !companyId) return;
     
     setIsUploading(true);
-    const folderId = activeTab === 'all' ? null : activeTab;
+    const folderId = uploadFolderId === 'all' ? null : uploadFolderId;
     
     try {
       for (const file of Array.from(files)) {
@@ -123,6 +144,7 @@ export default function Documents() {
         }
         await uploadDocument.mutateAsync({ file, folderId });
       }
+      setUploadDialogOpen(false);
     } finally {
       setIsUploading(false);
     }
@@ -148,6 +170,16 @@ export default function Documents() {
     if (url) {
       window.open(url, '_blank');
     }
+  };
+
+  const handlePreview = async (doc: Document) => {
+    setPreviewDoc(doc);
+    setIsLoadingPreview(true);
+    setPreviewUrl(null);
+    
+    const url = await getDownloadUrl(doc.file_path);
+    setPreviewUrl(url);
+    setIsLoadingPreview(false);
   };
 
   const handleCreateFolder = async () => {
@@ -179,9 +211,18 @@ export default function Documents() {
     setDeleteDocConfirm(null);
   };
 
+  const handleMoveDocument = async (docId: string, newFolderId: string | null) => {
+    await moveDocument.mutateAsync({ docId, newFolderId });
+  };
+
   const openEditFolder = (folder: DocumentFolder) => {
     setEditingFolder(folder);
     setFolderName(folder.name);
+  };
+
+  const openUploadDialog = () => {
+    setUploadFolderId(activeTab);
+    setUploadDialogOpen(true);
   };
 
   if (!selectedCompany) {
@@ -200,108 +241,68 @@ export default function Documents() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FolderOpen className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Dokumentacija</h1>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <FolderOpen className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-bold">Dokumentacija</h1>
+      </div>
+
+      {/* Search + Actions Row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pretraži dokumente..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
-        <Button onClick={() => setFolderDialogOpen(true)}>
+        <Button variant="outline" onClick={() => setFolderDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Novi folder
         </Button>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pretraži dokumente..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+        <Button onClick={openUploadDialog}>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload
+        </Button>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="flex items-center justify-between">
-              <TabsList className="h-auto flex-wrap">
-                <TabsTrigger value="all">Sva dokumentacija</TabsTrigger>
-                {folders.map((folder) => (
-                  <div key={folder.id} className="flex items-center">
-                    <TabsTrigger value={folder.id} className="pr-1">
-                      {folder.name}
-                    </TabsTrigger>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <MoreVertical className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditFolder(folder)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Izmeni
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => setDeleteFolderConfirm(folder)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Obriši
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </TabsList>
-            </div>
+            <TabsList className="h-auto flex-wrap">
+              <TabsTrigger value="all">Sva dokumentacija</TabsTrigger>
+              {folders.map((folder) => (
+                <div key={folder.id} className="flex items-center">
+                  <TabsTrigger value={folder.id} className="pr-1">
+                    {folder.name}
+                  </TabsTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <MoreVertical className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditFolder(folder)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Izmeni
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => setDeleteFolderConfirm(folder)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Obriši
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </TabsList>
 
             <TabsContent value={activeTab} className="mt-4">
-              {/* Upload Zone */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center mb-6 transition-colors ${
-                  isDragging 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-                }`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                />
-                {isUploading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Upload u toku...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-2">
-                      Prevuci fajlove ovde ili{' '}
-                      <Button 
-                        variant="link" 
-                        className="p-0 h-auto"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        klikni za izbor
-                      </Button>
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      PDF, Word, Excel, slike (max 20MB)
-                    </p>
-                  </>
-                )}
-              </div>
-
               {/* Documents Table */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -321,7 +322,7 @@ export default function Documents() {
                       <TableHead>Folder</TableHead>
                       <TableHead>Veličina</TableHead>
                       <TableHead>Datum</TableHead>
-                      <TableHead className="w-[100px]">Akcije</TableHead>
+                      <TableHead className="w-[120px]">Akcije</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -348,6 +349,15 @@ export default function Documents() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
+                              {canPreview(doc.file_type) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handlePreview(doc)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -355,13 +365,39 @@ export default function Documents() {
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDeleteDocConfirm(doc)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Premesti u</DropdownMenuLabel>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleMoveDocument(doc.id, null)}
+                                    disabled={doc.folder_id === null}
+                                  >
+                                    Bez foldera {doc.folder_id === null && '✓'}
+                                  </DropdownMenuItem>
+                                  {folders.map(f => (
+                                    <DropdownMenuItem 
+                                      key={f.id}
+                                      onClick={() => handleMoveDocument(doc.id, f.id)}
+                                      disabled={f.id === doc.folder_id}
+                                    >
+                                      {f.name} {f.id === doc.folder_id && '✓'}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => setDeleteDocConfirm(doc)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Obriši
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -374,6 +410,129 @@ export default function Documents() {
           </Tabs>
         </CardHeader>
       </Card>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload dokumenata</DialogTitle>
+          </DialogHeader>
+          
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+              isDragging 
+                ? 'border-primary bg-primary/5' 
+                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            }`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFileUpload(e.target.files)}
+            />
+            {isUploading ? (
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Upload u toku...</span>
+              </div>
+            ) : (
+              <>
+                <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground mb-2">
+                  Prevuci fajlove ovde ili klikni za izbor
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  PDF, Word, Excel, slike (max 20MB)
+                </p>
+              </>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Folder:</label>
+            <Select value={uploadFolderId} onValueChange={setUploadFolderId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Izaberi folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Bez foldera</SelectItem>
+                {folders.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+              Zatvori
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={() => { setPreviewDoc(null); setPreviewUrl(null); }}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {previewDoc?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 min-h-0 overflow-auto">
+            {isLoadingPreview ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : previewUrl ? (
+              previewDoc?.file_type === 'application/pdf' ? (
+                <iframe 
+                  src={previewUrl} 
+                  className="w-full h-[70vh]" 
+                  title={previewDoc?.name}
+                />
+              ) : previewDoc?.file_type?.startsWith('image/') ? (
+                <img 
+                  src={previewUrl} 
+                  alt={previewDoc?.name} 
+                  className="max-w-full max-h-[70vh] object-contain mx-auto"
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <File className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <p>Preview nije dostupan za ovaj tip fajla.</p>
+                </div>
+              )
+            ) : null}
+          </div>
+          
+          {previewDoc && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Veličina: {formatFileSize(previewDoc.file_size)} | 
+                Datum: {format(new Date(previewDoc.created_at), 'dd.MM.yyyy', { locale: sr })}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleDownload(previewDoc)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Preuzmi
+                </Button>
+                <Button variant="outline" onClick={() => { setPreviewDoc(null); setPreviewUrl(null); }}>
+                  Zatvori
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Folder Dialog */}
       <Dialog 
