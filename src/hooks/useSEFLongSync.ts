@@ -40,26 +40,28 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
   // Use ref for polling interval to avoid re-renders
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Track dismissed job IDs in localStorage
+  // Track dismissed job IDs in localStorage AND React state (to prevent race conditions)
   const DISMISSED_JOBS_KEY = 'sef_dismissed_job_ids';
   
-  const getDismissedJobIds = useCallback((): string[] => {
+  // Initialize dismissed IDs from localStorage into state
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem(DISMISSED_JOBS_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
     }
-  }, []);
+  });
   
   const addDismissedJobId = useCallback((jobId: string) => {
-    const dismissed = getDismissedJobIds();
-    if (!dismissed.includes(jobId)) {
+    setDismissedIds(prev => {
+      if (prev.includes(jobId)) return prev;
       // Keep only last 50 dismissed jobs to avoid localStorage bloat
-      const updated = [...dismissed, jobId].slice(-50);
+      const updated = [...prev, jobId].slice(-50);
       localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(updated));
-    }
-  }, [getDismissedJobIds]);
+      return updated;
+    });
+  }, []);
 
   // Calculate progress percentage
   const progress = activeJob 
@@ -279,8 +281,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
         }
 
         if (lastJob) {
-          // Check if this job was already dismissed by the user
-          const dismissedIds = getDismissedJobIds();
+          // Check if this job was already dismissed by the user (use state, not localStorage)
           if (dismissedIds.includes(lastJob.id)) {
             console.log('Skipping dismissed job:', lastJob.id);
             return;
@@ -298,7 +299,7 @@ export function useSEFLongSync(companyId: string | null): UseSEFLongSyncResult {
     return () => {
       stopPolling();
     };
-  }, [companyId]); // Only companyId as dependency - stopPolling and pollJobStatusById are stable refs
+  }, [companyId, dismissedIds]); // Include dismissedIds to re-check when user dismisses
 
   return {
     startLongSync,
