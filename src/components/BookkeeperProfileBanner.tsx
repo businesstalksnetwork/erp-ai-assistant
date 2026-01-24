@@ -1,10 +1,30 @@
-import { AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 
+const DISMISS_KEY = 'bookkeeper_profile_banner_dismissed';
+const DISMISS_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
 export function BookkeeperProfileBanner() {
   const { profile, isBookkeeper } = useAuth();
+  const [isDismissed, setIsDismissed] = useState(true); // Start hidden to prevent flash
+
+  useEffect(() => {
+    const dismissedAt = localStorage.getItem(DISMISS_KEY);
+    if (dismissedAt) {
+      const elapsed = Date.now() - parseInt(dismissedAt, 10);
+      setIsDismissed(elapsed < DISMISS_DURATION);
+    } else {
+      setIsDismissed(false);
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    setIsDismissed(true);
+  };
 
   // Only show for bookkeepers without complete company data
   const needsProfileData = isBookkeeper && (
@@ -13,19 +33,29 @@ export function BookkeeperProfileBanner() {
     !(profile as any)?.bookkeeper_bank_account
   );
 
-  if (!needsProfileData) return null;
+  if (!needsProfileData || isDismissed) return null;
 
   return (
-    <div className="bg-amber-500 text-white px-4 py-2.5 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2 min-w-0">
+    <div className="bg-warning text-warning-foreground px-4 py-2.5 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 flex-1">
         <AlertTriangle className="h-4 w-4 shrink-0" />
-        <span className="text-sm truncate">
-          Popunite podatke o vašoj firmi da biste primali proviziju od pretplata
+        <span className="text-sm">
+          Popunite podatke o vašoj firmi (naziv, PIB, broj računa) da biste primali proviziju od pretplata klijenata.
         </span>
       </div>
-      <Button variant="secondary" size="sm" asChild className="shrink-0">
-        <Link to="/profile?tab=company">Popuni podatke</Link>
-      </Button>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/profile?tab=company">Popuni podatke</Link>
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7 text-warning-foreground hover:bg-warning-foreground/10"
+          onClick={handleDismiss}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
