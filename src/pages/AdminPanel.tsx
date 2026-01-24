@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -121,10 +121,23 @@ export default function AdminPanel() {
   const [expandedBookkeepers, setExpandedBookkeepers] = useState<Set<string>>(new Set());
   
   // Partners state
-  const { partners, partnerStats, isLoading: partnersLoading, createPartner, updatePartner, deletePartner } = usePartners();
+  const { partners, partnerStats, partnerUsers, isLoading: partnersLoading, createPartner, updatePartner, deletePartner } = usePartners();
   const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [deletingPartnerId, setDeletingPartnerId] = useState<string | null>(null);
+  const [expandedPartners, setExpandedPartners] = useState<Set<string>>(new Set());
+
+  const togglePartnerExpand = (id: string) => {
+    setExpandedPartners(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   const toggleBookkeeperExpand = (id: string) => {
     setExpandedBookkeepers(prev => {
@@ -1263,116 +1276,165 @@ export default function AdminPanel() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {partners.map((partner) => (
-                        <TableRow key={partner.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{partner.name}</p>
-                              {partner.description && (
-                                <p className="text-xs text-muted-foreground">{partner.description}</p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <code className="text-xs bg-muted px-2 py-1 rounded">{partner.code}</code>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
-                                  toast({ title: 'Link kopiran', description: 'Partnerski link je kopiran u clipboard.' });
-                                }}
-                              >
-                                <Link className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {partner.discount_percent > 0 ? (
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                                <Percent className="h-3 w-3 mr-1" />
-                                {partner.discount_percent}%
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {partner.free_trial_days !== 14 ? (
-                              <Badge variant="outline">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {partner.free_trial_days} dana
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">14 dana (default)</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {partnerStats[partner.id] || 0} korisnika
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {partner.is_active ? (
-                              <Badge variant="default" className="bg-green-600">
-                                Aktivan
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">
-                                Neaktivan
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => { setEditingPartner(partner); setPartnerDialogOpen(true); }}>
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Uredi
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
-                                    toast({ title: 'Link kopiran' });
-                                  }}
-                                >
-                                  <Link className="h-4 w-4 mr-2" />
-                                  Kopiraj link
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => updatePartner.mutate({ id: partner.id, is_active: !partner.is_active })}
-                                >
-                                  {partner.is_active ? (
-                                    <>
-                                      <ToggleLeft className="h-4 w-4 mr-2" />
-                                      Deaktiviraj
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ToggleRight className="h-4 w-4 mr-2" />
-                                      Aktiviraj
-                                    </>
+                      {partners.map((partner) => {
+                        const hasUsers = (partnerStats[partner.id] || 0) > 0;
+                        const isExpanded = expandedPartners.has(partner.id);
+                        const users = partnerUsers[partner.id] || [];
+
+                        return (
+                          <React.Fragment key={partner.id}>
+                            <TableRow 
+                              className={hasUsers ? "cursor-pointer hover:bg-muted/50" : ""}
+                              onClick={() => hasUsers && togglePartnerExpand(partner.id)}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {hasUsers && (
+                                    <ChevronDown 
+                                      className={`h-4 w-4 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} 
+                                    />
                                   )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => setDeletingPartnerId(partner.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Obriši
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                  <div>
+                                    <p className="font-medium">{partner.name}</p>
+                                    {partner.description && (
+                                      <p className="text-xs text-muted-foreground">{partner.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-xs bg-muted px-2 py-1 rounded">{partner.code}</code>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
+                                      toast({ title: 'Link kopiran', description: 'Partnerski link je kopiran u clipboard.' });
+                                    }}
+                                  >
+                                    <Link className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {partner.discount_percent > 0 ? (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                    <Percent className="h-3 w-3 mr-1" />
+                                    {partner.discount_percent}%
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {partner.free_trial_days !== 14 ? (
+                                  <Badge variant="outline">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    {partner.free_trial_days} dana
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">14 dana (default)</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {partnerStats[partner.id] || 0} korisnika
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {partner.is_active ? (
+                                  <Badge variant="default" className="bg-green-600">
+                                    Aktivan
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary">
+                                    Neaktivan
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => { setEditingPartner(partner); setPartnerDialogOpen(true); }}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Uredi
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(`${window.location.origin}/auth?partner=${partner.code}`);
+                                        toast({ title: 'Link kopiran' });
+                                      }}
+                                    >
+                                      <Link className="h-4 w-4 mr-2" />
+                                      Kopiraj link
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => updatePartner.mutate({ id: partner.id, is_active: !partner.is_active })}
+                                    >
+                                      {partner.is_active ? (
+                                        <>
+                                          <ToggleLeft className="h-4 w-4 mr-2" />
+                                          Deaktiviraj
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ToggleRight className="h-4 w-4 mr-2" />
+                                          Aktiviraj
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => setDeletingPartnerId(partner.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Obriši
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                            
+                            {/* Expanded row with user list */}
+                            {isExpanded && users.length > 0 && (
+                              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                <TableCell colSpan={7} className="p-0">
+                                  <div className="p-4 pl-10">
+                                    <p className="text-sm font-medium mb-3">
+                                      Registrovani korisnici ({users.length}):
+                                    </p>
+                                    <div className="space-y-2">
+                                      {users.map(user => (
+                                        <div key={user.id} className="flex items-center gap-4 text-sm">
+                                          <span className="text-muted-foreground min-w-[200px]">{user.email}</span>
+                                          {user.full_name && (
+                                            <span className="min-w-[150px]">{user.full_name}</span>
+                                          )}
+                                          {user.company_name && (
+                                            <Badge variant="outline" className="text-xs">
+                                              {user.company_name}
+                                            </Badge>
+                                          )}
+                                          <span className="text-xs text-muted-foreground ml-auto">
+                                            {format(new Date(user.created_at), 'dd.MM.yyyy', { locale: sr })}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
