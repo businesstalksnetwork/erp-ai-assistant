@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   CreditCard, 
   Shield, 
@@ -26,11 +27,80 @@ import {
   Wallet,
   Mail,
   Bell,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
+
+// IPS QR Code generation
+function formatAccountForIPS(account: string): string {
+  const cleanAccount = account.replace(/-/g, '');
+  const parts = cleanAccount.match(/^(\d{3})(\d+)(\d{2})$/);
+  if (!parts) return cleanAccount.padStart(18, '0');
+  const [, bankCode, accountNumber, checkDigits] = parts;
+  const paddedAccountNumber = accountNumber.padStart(13, '0');
+  return `${bankCode}${paddedAccountNumber}${checkDigits}`;
+}
+
+function generateSubscriptionIPSQRCode(
+  recipientName: string,
+  recipientAccount: string,
+  amount: number,
+  purpose: string,
+  payerName: string
+): string {
+  const formattedAccount = formatAccountForIPS(recipientAccount);
+  const sanitize = (text: string) => text.replace(/\|/g, '').replace(/\n/g, ' ').substring(0, 70);
+  
+  const fields = [
+    'K:PR',
+    'V:01',
+    'C:1',
+    `R:${formattedAccount}`,
+    `N:${sanitize(recipientName)}`,
+    `I:RSD${amount.toFixed(2)}`,
+    `P:${sanitize(payerName || 'Uplatioc')}`,
+    'SF:221',
+    `S:${sanitize(purpose)}`
+  ];
+  
+  return fields.join('|');
+}
+
+// Subscription plans
+const subscriptionPlans = [
+  { 
+    key: 'monthly' as const, 
+    name: 'Mesečni', 
+    price: 890, 
+    months: 1,
+    description: 'Za nove korisnike'
+  },
+  { 
+    key: 'semi-annual' as const, 
+    name: 'Polugodišnji', 
+    price: 4450, 
+    months: 6,
+    description: 'Besplatno 1 mesec',
+    popular: true
+  },
+  { 
+    key: 'annual' as const, 
+    name: 'Godišnji', 
+    price: 8900, 
+    months: 12,
+    description: 'Besplatno 2 meseca'
+  }
+];
+
+// Payment recipient info
+const paymentRecipient = {
+  name: 'Nikola Glintic Pr NIKOLA FINCON',
+  account: '265-2010310010198-19',
+  address: 'NOVOSADSKOG SAJMA 6, 21000 Novi Sad'
+};
 
 export default function Profile() {
   const { profile, isBookkeeper, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
@@ -38,6 +108,7 @@ export default function Profile() {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [updatingEmail, setUpdatingEmail] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'semi-annual' | 'annual'>('semi-annual');
   
   const { 
     referrals, 
@@ -214,6 +285,99 @@ export default function Profile() {
               )}
             </CardContent>
           </Card>
+
+          {/* Subscription Payment Section - Only for non-bookkeepers */}
+          {!isBookkeeper && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Produženje pretplate
+                </CardTitle>
+                <CardDescription>
+                  Izaberite paket i skenirajte QR kod za plaćanje
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Plan Selection */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {subscriptionPlans.map((plan) => (
+                    <div
+                      key={plan.key}
+                      onClick={() => setSelectedPlan(plan.key)}
+                      className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:border-primary/50 ${
+                        selectedPlan === plan.key
+                          ? 'border-primary bg-primary/5'
+                          : 'border-muted'
+                      }`}
+                    >
+                      {plan.popular && (
+                        <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 text-xs">
+                          Najpopularnije
+                        </Badge>
+                      )}
+                      <div className="text-center space-y-1">
+                        <p className="font-semibold">{plan.name}</p>
+                        <p className="text-2xl font-bold">
+                          {plan.price.toLocaleString('sr-RS')} <span className="text-sm font-normal text-muted-foreground">RSD</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{plan.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator />
+
+                {/* QR Code and Payment Details */}
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* QR Code */}
+                  <div className="bg-white p-4 rounded-lg shrink-0">
+                    <QRCodeSVG
+                      value={generateSubscriptionIPSQRCode(
+                        paymentRecipient.name,
+                        paymentRecipient.account,
+                        subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0,
+                        `Pretplata PausalBox ${subscriptionPlans.find(p => p.key === selectedPlan)?.months}m`,
+                        profile?.full_name || ''
+                      )}
+                      size={160}
+                      level="L"
+                    />
+                  </div>
+
+                  {/* Payment Details */}
+                  <div className="flex-1 space-y-3 text-sm w-full">
+                    <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-2">
+                      <span className="text-muted-foreground">Primalac:</span>
+                      <span className="font-medium">{paymentRecipient.name}</span>
+                      
+                      <span className="text-muted-foreground">Račun:</span>
+                      <span className="font-mono">{paymentRecipient.account}</span>
+                      
+                      <span className="text-muted-foreground">Iznos:</span>
+                      <span className="font-bold text-lg text-primary">
+                        {(subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0).toLocaleString('sr-RS')},00 RSD
+                      </span>
+                      
+                      <span className="text-muted-foreground">Svrha:</span>
+                      <span>Pretplata PausalBox {subscriptionPlans.find(p => p.key === selectedPlan)?.months} {
+                        subscriptionPlans.find(p => p.key === selectedPlan)?.months === 1 ? 'mesec' : 'meseci'
+                      }</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Note */}
+                <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+                  <p>
+                    ℹ️ Pretplata će biti aktivirana u roku od <strong>24h</strong> od prijema uplate. 
+                    Za pitanja kontaktirajte: <a href="mailto:smartfinnovisad@gmail.com" className="text-primary hover:underline">smartfinnovisad@gmail.com</a>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Account Info Card */}
           <Card>
