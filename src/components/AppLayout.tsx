@@ -167,6 +167,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // Check if subscription banner should show (not for bookkeepers - they have free access)
   const showSubscriptionBanner = !isAdmin && !isBookkeeper && profile?.subscription_end && subscriptionDaysLeft <= 7;
 
+  // Check if bookkeeper profile banner should show
+  const showBookkeeperBanner = isBookkeeper && (
+    !(profile as any)?.bookkeeper_company_name ||
+    !(profile as any)?.bookkeeper_pib ||
+    !(profile as any)?.bookkeeper_bank_account
+  );
+
   return (
     <div className="min-h-screen bg-background print:min-h-0 print:h-auto print:bg-white">
       {/* Bookkeeper Profile Banner - show for bookkeepers without complete payout data */}
@@ -382,7 +389,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className={cn(
         "lg:pl-64 print:pl-0 print:pt-0 print:p-0 print:m-0",
-        showSubscriptionBanner ? "pt-[108px] lg:pt-12" : "pt-16 lg:pt-0"
+        showSubscriptionBanner ? "pt-[108px] lg:pt-12" : "pt-16 lg:pt-0",
+        showBookkeeperBanner && "lg:pt-12"
       )}>
         <div className="p-4 lg:p-8 print:p-0 print:m-0">{children}</div>
       </main>
