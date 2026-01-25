@@ -8,6 +8,7 @@ export interface UserStats {
   expiredTrial: number;
   expiredPaid: number;
   blocked: number;
+  promo: number;
 }
 
 export interface MonthlyData {
@@ -82,7 +83,7 @@ export function useAdminAnalytics() {
     queryFn: async (): Promise<UserStats> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, is_trial, subscription_end, block_reason, status');
+        .select('id, is_trial, subscription_end, block_reason, status, partner_id');
 
       if (error) throw error;
 
@@ -113,6 +114,7 @@ export function useAdminAnalytics() {
           !u.block_reason
         ).length || 0,
         blocked: data?.filter(u => u.block_reason).length || 0,
+        promo: data?.filter(u => u.partner_id !== null).length || 0,
       };
     },
   });
