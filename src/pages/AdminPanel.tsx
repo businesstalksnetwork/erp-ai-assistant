@@ -73,6 +73,7 @@ interface UserProfile {
   created_at: string;
   max_companies: number;
   account_type: 'pausal' | 'bookkeeper';
+  partner_id: string | null;
 }
 
 interface BookkeeperInfo {
@@ -91,7 +92,7 @@ interface BookkeeperInfo {
   is_invited_only?: boolean; // true ako je samo pozvan, nije registrovan kao bookkeeper
 }
 
-type FilterType = 'all' | 'active' | 'trial' | 'expired' | 'blocked';
+type FilterType = 'all' | 'active' | 'trial' | 'promo' | 'expired';
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -678,8 +679,8 @@ export default function AdminPanel() {
         return user.is_trial && user.status !== 'rejected' && subInfo.daysLeft >= 0;
       case 'expired':
         return subInfo.daysLeft < 0 && user.status !== 'rejected';
-      case 'blocked':
-        return user.status === 'rejected';
+      case 'promo':
+        return user.partner_id !== null;
       default:
         return true;
     }
@@ -751,8 +752,8 @@ export default function AdminPanel() {
   // Stats - only count pausal users (excluding bookkeepers)
   const activeCount = pausalUsers.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
   const trialCount = pausalUsers.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
+  const promoCount = pausalUsers.filter(u => u.partner_id !== null).length;
   const expiredCount = pausalUsers.filter(u => getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
-  const blockedCount = pausalUsers.filter(u => u.status === 'rejected').length;
 
   return (
     <TooltipProvider>
@@ -789,23 +790,23 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
 
+        <Card className="cursor-pointer hover:border-purple-500 transition-colors" onClick={() => setFilter('promo')}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Promo</CardTitle>
+            <Handshake className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{promoCount}</div>
+          </CardContent>
+        </Card>
+
         <Card className="cursor-pointer hover:border-destructive transition-colors" onClick={() => setFilter('expired')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Istekla pretplata</CardTitle>
+            <CardTitle className="text-sm font-medium">Istekli</CardTitle>
             <Calendar className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{expiredCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:border-destructive transition-colors" onClick={() => setFilter('blocked')}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Blokirani</CardTitle>
-            <Ban className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{blockedCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -1120,6 +1121,7 @@ export default function AdminPanel() {
                                         created_at: bk.created_at,
                                         max_companies: 1,
                                         account_type: 'bookkeeper',
+                                        partner_id: null,
                                       })}>
                                         <Ban className="h-4 w-4 mr-2" />
                                         Blokiraj
