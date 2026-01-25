@@ -340,36 +340,30 @@ export default function AdminAnalytics() {
         {/* USERS TAB */}
         <TabsContent value="users" className="space-y-6">
           {/* User Status Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
-              title="Aktivni (plaćeni)"
+              title="Ukupno korisnika"
+              value={userStats?.total || 0}
+              icon={Users}
+              className="border-l-4 border-l-blue-500"
+            />
+            <StatCard
+              title="Plaćeni"
               value={userStats?.activePaid || 0}
               icon={UserCheck}
               className="border-l-4 border-l-green-500"
             />
             <StatCard
-              title="Aktivni (trial)"
+              title="Promo"
+              value={userStats?.promo || 0}
+              icon={Handshake}
+              className="border-l-4 border-l-purple-500"
+            />
+            <StatCard
+              title="Trial"
               value={userStats?.activeTrial || 0}
               icon={Clock}
-              className="border-l-4 border-l-blue-500"
-            />
-            <StatCard
-              title="Istekao trial"
-              value={userStats?.expiredTrial || 0}
-              icon={AlertTriangle}
-              className="border-l-4 border-l-yellow-500"
-            />
-            <StatCard
-              title="Istekla pretplata"
-              value={userStats?.expiredPaid || 0}
-              icon={CreditCard}
               className="border-l-4 border-l-orange-500"
-            />
-            <StatCard
-              title="Blokirani"
-              value={userStats?.blocked || 0}
-              icon={UserX}
-              className="border-l-4 border-l-red-500"
             />
           </div>
 
