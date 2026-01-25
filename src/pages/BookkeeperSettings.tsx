@@ -131,10 +131,10 @@ export default function BookkeeperSettings() {
   const showBookkeeperSection = hasClientCompanies || isRegisteredBookkeeper || hasPendingInvitations;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto px-4 sm:px-0">
       <div>
-        <h1 className="text-2xl font-bold">Knjigovodstvo</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl font-bold">Knjigovodstvo</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           {showBookkeeperSection 
             ? 'Upravljajte pozivnicama i kompanijama vaših klijenata'
             : 'Upravljajte povezivanjem sa knjigovođom'}
@@ -159,41 +159,43 @@ export default function BookkeeperSettings() {
               {pendingInvitations.map((company) => (
                 <div
                   key={company.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-secondary/30"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg bg-secondary/30 gap-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     {company.logo_url ? (
-                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border shrink-0" />
                     ) : (
-                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center shrink-0">
                         <Building2 className="h-5 w-5 text-muted-foreground" />
                       </div>
                     )}
-                    <div>
-                      <p className="font-medium">{company.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{company.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">
                         Od: {company.owner_name || company.owner_email || 'Nepoznat korisnik'}
                       </p>
                       <p className="text-xs text-muted-foreground">PIB: {company.pib}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleReject(company.id)}
                       disabled={rejectInvitation.isPending}
+                      className="flex-1 sm:flex-none"
                     >
-                      <X className="h-4 w-4 mr-1" />
-                      Odbij
+                      <X className="h-4 w-4 sm:mr-1" />
+                      <span className="sm:inline">Odbij</span>
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => handleAccept(company.id)}
                       disabled={acceptInvitation.isPending}
+                      className="flex-1 sm:flex-none"
                     >
-                      <Check className="h-4 w-4 mr-1" />
-                      Prihvati
+                      <Check className="h-4 w-4 sm:mr-1" />
+                      <span className="sm:inline">Prihvati</span>
                     </Button>
                   </div>
                 </div>
@@ -206,20 +208,22 @@ export default function BookkeeperSettings() {
       {/* Kompanije klijenata - prikaži ako je efektivni knjigovođa */}
       {showBookkeeperSection && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Kompanije klijenata
-              </CardTitle>
-              <CardDescription className="mt-1.5">
-                Kompanije vaših klijenata kojima imate pristup
-              </CardDescription>
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Kompanije klijenata
+                </CardTitle>
+                <CardDescription className="mt-1.5">
+                  Kompanije vaših klijenata kojima imate pristup
+                </CardDescription>
+              </div>
+              <Button onClick={() => setInviteDialogOpen(true)} className="w-full sm:w-auto">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Pozovi klijenta
+              </Button>
             </div>
-            <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Pozovi klijenta
-            </Button>
           </CardHeader>
           <CardContent>
             {clientCompanies.length === 0 ? (
@@ -228,7 +232,7 @@ export default function BookkeeperSettings() {
                 kompanija će se pojaviti ovde.
               </p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
                 {clientCompanies.map((company) => (
                   <Card
                     key={company.id}
@@ -287,38 +291,39 @@ export default function BookkeeperSettings() {
               {myCompanies.map((company) => (
                 <div
                   key={company.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     {company.logo_url ? (
-                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
+                      <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border shrink-0" />
                     ) : (
-                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center">
+                      <div className="h-10 w-10 bg-muted rounded flex items-center justify-center shrink-0">
                         <Building2 className="h-5 w-5 text-muted-foreground" />
                       </div>
                     )}
-                    <div>
-                      <p className="font-medium">{company.name}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>PIB: {company.pib}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{company.name}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm text-muted-foreground">
+                        <span className="shrink-0">PIB: {company.pib}</span>
                         {company.bookkeeper_email && (
                           <>
-                            <span>•</span>
-                            <span>{company.bookkeeper_email}</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="truncate text-xs sm:text-sm">{company.bookkeeper_email}</span>
                           </>
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                     {getBookkeeperStatusBadge(company.bookkeeper_status)}
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => navigate(`/company/${company.id}`)}
+                      className="shrink-0"
                     >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Podešavanja
+                      <Settings className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Podešavanja</span>
                     </Button>
                   </div>
                 </div>
@@ -328,7 +333,7 @@ export default function BookkeeperSettings() {
         </CardContent>
       </Card>
 
-      <p className="text-sm text-muted-foreground text-center">
+      <p className="text-xs sm:text-sm text-muted-foreground text-center px-2">
         💡 Da biste pozvali knjigovođu, otvorite podešavanja željene kompanije i u tabu "Servisi" pronađite sekciju "Knjigovođa".
       </p>
 
