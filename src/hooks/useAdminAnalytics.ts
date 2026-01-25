@@ -57,6 +57,11 @@ export interface RevenueStats {
   totalPayments: number;
   estimatedMRR: number;
   monthlyData: MonthlyData[];
+  // Real commission calculations
+  pendingCommissions: number;
+  paidCommissions: number;
+  referredActiveCount: number;
+  estimatedCommissions: number;
 }
 
 export interface PaymentRecord {
@@ -260,6 +265,14 @@ export function useAdminAnalytics() {
 
       if (error) throw error;
 
+      // Get admin user IDs to filter them out
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      const adminIds = new Set((adminRoles || []).map(r => r.user_id));
+
       const { data: referrals } = await supabase
         .from('bookkeeper_referrals')
         .select('bookkeeper_id, client_id');
@@ -285,23 +298,26 @@ export function useAdminAnalytics() {
         }
       });
 
-      return bookkeepers?.map(bk => {
-        const bkReferrals = referrals?.filter(r => r.bookkeeper_id === bk.id) || [];
-        const bkClients = clients?.filter(c => c.bookkeeper_id === bk.id && c.status === 'accepted') || [];
-        const bkEarnings = earnings?.filter(e => e.bookkeeper_id === bk.id) || [];
-        
-        const activeClients = (bkClients.length || 0) + (companyBookkeeperCounts[bk.id] || 0);
-        
-        return {
-          id: bk.id,
-          email: bk.email,
-          fullName: bk.full_name,
-          referrals: bkReferrals.length,
-          activeClients,
-          totalEarned: bkEarnings.filter(e => e.status === 'paid').reduce((sum, e) => sum + (e.commission_amount || 0), 0),
-          pendingAmount: bkEarnings.filter(e => e.status === 'pending').reduce((sum, e) => sum + (e.commission_amount || 0), 0),
-        };
-      }).sort((a, b) => b.activeClients - a.activeClients) || [];
+      // Filter out admins from bookkeeper list
+      return bookkeepers
+        ?.filter(bk => !adminIds.has(bk.id))
+        .map(bk => {
+          const bkReferrals = referrals?.filter(r => r.bookkeeper_id === bk.id) || [];
+          const bkClients = clients?.filter(c => c.bookkeeper_id === bk.id && c.status === 'accepted') || [];
+          const bkEarnings = earnings?.filter(e => e.bookkeeper_id === bk.id) || [];
+          
+          const activeClients = (bkClients.length || 0) + (companyBookkeeperCounts[bk.id] || 0);
+          
+          return {
+            id: bk.id,
+            email: bk.email,
+            fullName: bk.full_name,
+            referrals: bkReferrals.length,
+            activeClients,
+            totalEarned: bkEarnings.filter(e => e.status === 'paid').reduce((sum, e) => sum + (e.commission_amount || 0), 0),
+            pendingAmount: bkEarnings.filter(e => e.status === 'pending').reduce((sum, e) => sum + (e.commission_amount || 0), 0),
+          };
+        }).sort((a, b) => b.activeClients - a.activeClients) || [];
     },
   });
 
@@ -355,6 +371,7 @@ export function useAdminAnalytics() {
       if (error) throw error;
 
       const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
       const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
       const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
       const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
@@ -381,10 +398,36 @@ export function useAdminAnalytics() {
         .from('profiles')
         .select('id')
         .eq('is_trial', false)
-        .gte('subscription_end', today.toISOString().split('T')[0]);
+        .gte('subscription_end', todayStr);
 
       const activePaidCount = activeUsers?.length || 0;
       const estimatedMRR = activePaidCount * 990; // 990 RSD average monthly
+
+      // Get REAL commission data from bookkeeper_earnings
+      const { data: pendingEarningsData } = await supabase
+        .from('bookkeeper_earnings')
+        .select('commission_amount')
+        .eq('status', 'pending');
+
+      const { data: paidEarningsData } = await supabase
+        .from('bookkeeper_earnings')
+        .select('commission_amount')
+        .eq('status', 'paid');
+
+      const pendingCommissions = pendingEarningsData?.reduce((sum, e) => sum + (e.commission_amount || 0), 0) || 0;
+      const paidCommissions = paidEarningsData?.reduce((sum, e) => sum + (e.commission_amount || 0), 0) || 0;
+
+      // Get count of active referred users (for future commission projections)
+      const { data: referredActiveUsers } = await supabase
+        .from('profiles')
+        .select('id')
+        .not('invited_by_user_id', 'is', null)
+        .eq('is_trial', false)
+        .gte('subscription_end', todayStr);
+
+      const referredActiveCount = referredActiveUsers?.length || 0;
+      // Estimated monthly commissions = referred active users * 990 * 20%
+      const estimatedCommissions = Math.round(referredActiveCount * 990 * 0.2);
 
       return {
         totalRevenue: payments?.reduce((sum, p) => sum + p.amount, 0) || 0,
@@ -393,6 +436,10 @@ export function useAdminAnalytics() {
         totalPayments: payments?.length || 0,
         estimatedMRR,
         monthlyData,
+        pendingCommissions,
+        paidCommissions,
+        referredActiveCount,
+        estimatedCommissions,
       };
     },
   });
