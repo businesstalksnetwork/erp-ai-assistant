@@ -60,9 +60,22 @@ export function useBookkeeperPayouts() {
       if (error) throw error;
       if (!earnings || earnings.length === 0) return [];
 
-      // Get unique bookkeeper IDs
-      const bookkeeperIds = [...new Set(earnings.map(e => e.bookkeeper_id))];
-      const clientIds = [...new Set(earnings.map(e => e.client_id))];
+      // Get admin user IDs to exclude from payouts
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+      
+      const adminIds = new Set((adminRoles || []).map(r => r.user_id));
+      
+      // Filter out earnings from admin bookkeepers
+      const filteredEarnings = earnings.filter(e => !adminIds.has(e.bookkeeper_id));
+      
+      if (filteredEarnings.length === 0) return [];
+
+      // Get unique bookkeeper IDs (from filtered earnings)
+      const bookkeeperIds = [...new Set(filteredEarnings.map(e => e.bookkeeper_id))];
+      const clientIds = [...new Set(filteredEarnings.map(e => e.client_id))];
 
       // Fetch bookkeeper profiles
       const { data: bookkeeperProfiles } = await supabase
@@ -83,7 +96,7 @@ export function useBookkeeperPayouts() {
       // Group earnings by bookkeeper
       const payoutsMap = new Map<string, BookkeeperPayout>();
 
-      for (const earning of earnings) {
+      for (const earning of filteredEarnings) {
         const bookkeeper = bookkeeperMap.get(earning.bookkeeper_id);
         const client = clientMap.get(earning.client_id);
 
