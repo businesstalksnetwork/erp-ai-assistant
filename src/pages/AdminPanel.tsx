@@ -445,9 +445,7 @@ export default function AdminPanel() {
         .from('profiles')
         .update({ 
           subscription_end: date.toISOString().split('T')[0],
-          is_trial: false,
-          status: 'approved',
-          block_reason: null
+          // is_trial se NE MENJA - ručna korekcija datuma ne aktivira pretplatu
         })
         .eq('id', userId);
 
