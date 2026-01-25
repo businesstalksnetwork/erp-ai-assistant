@@ -36,7 +36,7 @@ export function BookkeeperProfileBanner() {
   if (!needsProfileData || isDismissed) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 lg:left-64 z-40 bg-primary text-primary-foreground px-4 py-2.5 flex items-center justify-between gap-3 print:hidden">
+    <div className="fixed top-[60px] lg:top-0 left-0 right-0 lg:left-64 z-40 bg-primary text-primary-foreground px-4 py-2.5 flex items-center justify-between gap-3 print:hidden">
       <div className="flex items-center gap-2 flex-1">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="text-sm">

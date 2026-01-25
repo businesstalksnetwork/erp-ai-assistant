@@ -268,27 +268,27 @@ export default function Profile() {
       </div>
 
       <Tabs defaultValue="subscription" className="space-y-6">
-        <TabsList className={`grid w-full ${isBookkeeper ? 'grid-cols-5' : 'grid-cols-3'}`}>
-          <TabsTrigger value="subscription" className="flex items-center gap-2">
+        <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible">
+          <TabsTrigger value="subscription" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Pretplata</span>
           </TabsTrigger>
           {isBookkeeper && (
-            <TabsTrigger value="company" className="flex items-center gap-2">
+            <TabsTrigger value="company" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Kompanija</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Bezbednost</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
+          <TabsTrigger value="settings" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Podešavanja</span>
           </TabsTrigger>
           {isBookkeeper && (
-            <TabsTrigger value="earnings" className="flex items-center gap-2">
+            <TabsTrigger value="earnings" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
               <Wallet className="h-4 w-4" />
               <span className="hidden sm:inline">Zarada</span>
             </TabsTrigger>
