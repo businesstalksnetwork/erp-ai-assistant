@@ -19,6 +19,7 @@ import {
   Users, 
   Copy, 
   Check,
+  CheckCircle,
   Calendar,
   TrendingUp,
   Clock,
@@ -31,8 +32,11 @@ import {
   Sparkles,
   Percent,
   Building2,
-  Save
+  Save,
+  Link as LinkIcon,
+  User
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
@@ -121,7 +125,7 @@ const paymentRecipient = {
 };
 
 export default function Profile() {
-  const { profile, isBookkeeper, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
+  const { profile, isBookkeeper, isAdmin, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -864,129 +868,179 @@ export default function Profile() {
         {/* Earnings Tab (Bookkeepers only) */}
         {isBookkeeper && (
           <TabsContent value="earnings" className="space-y-6">
-            {/* Stats Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {isAdmin ? (
               <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
-                      <Users className="h-5 w-5 text-blue-600" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                    Sistem zarade
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 p-6 bg-muted/50 rounded-lg">
+                    <div className="p-3 bg-muted rounded-full">
+                      <AlertTriangle className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{totalReferrals}</p>
-                      <p className="text-sm text-muted-foreground">Ukupno klijenata</p>
+                      <p className="font-medium">Niste uključeni u sistem zarade</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Kao administrator aplikacije, niste uključeni u referral program 
+                        i sistem provizija za knjigovođe.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full">
-                      <Check className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{activeClients}</p>
-                      <p className="text-sm text-muted-foreground">Aktivnih klijenata</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-full">
-                      <TrendingUp className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{totalEarned.toLocaleString('sr-RS')} RSD</p>
-                      <p className="text-sm text-muted-foreground">Ukupna zarada</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-full">
-                      <Clock className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{pendingEarnings.toLocaleString('sr-RS')} RSD</p>
-                      <p className="text-sm text-muted-foreground">Na čekanju</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Referral Link */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Referral link</CardTitle>
-                <CardDescription>
-                  Podelite ovaj link sa potencijalnim klijentima. Kada se registruju i plate pretplatu, 
-                  automatski ćete dobiti 20% provizije.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <code className="flex-1 px-3 py-2 bg-muted rounded-md text-sm overflow-x-auto">
-                    {getReferralLink()}
-                  </code>
-                  <Button variant="outline" size="icon" onClick={handleCopyLink}>
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Referred Clients List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pozvani klijenti</CardTitle>
-                <CardDescription>
-                  Lista klijenata koji su se registrovali preko vašeg referral linka
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingReferrals ? (
-                  <p className="text-muted-foreground">Učitavanje...</p>
-                ) : referrals && referrals.length > 0 ? (
-                  <div className="space-y-3">
-                    {referrals.map((referral) => (
-                      <div key={referral.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{referral.client?.full_name || referral.client?.email}</p>
-                          <p className="text-sm text-muted-foreground">{referral.client?.company_name}</p>
+            ) : (
+              <>
+                {/* Stats Grid */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Users className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="text-right">
-                          <Badge variant={
-                            referral.client?.subscription_end && new Date(referral.client.subscription_end) > new Date()
-                              ? 'default'
-                              : 'secondary'
-                          }>
-                            {referral.client?.subscription_end && new Date(referral.client.subscription_end) > new Date()
-                              ? 'Aktivan'
-                              : referral.client?.is_trial ? 'Trial' : 'Neaktivan'
-                            }
-                          </Badge>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Registrovan {format(new Date(referral.referred_at), 'dd.MM.yyyy.')}
-                          </p>
+                        <div>
+                          <p className="text-2xl font-bold">{referrals.length}</p>
+                          <p className="text-sm text-muted-foreground">Ukupno klijenata</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>Još nema pozvanih klijenata</p>
-                    <p className="text-sm">Podelite vaš referral link da biste privukli klijente</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-500/10 rounded-lg">
+                          <TrendingUp className="h-5 w-5 text-green-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{activeClients}</p>
+                          <p className="text-sm text-muted-foreground">Aktivni klijenti</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                          <Wallet className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">
+                            {pendingEarnings.toLocaleString('sr-RS')} RSD
+                          </p>
+                          <p className="text-sm text-muted-foreground">Zarada na čekanju</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">
+                            {totalEarned.toLocaleString('sr-RS')} RSD
+                          </p>
+                          <p className="text-sm text-muted-foreground">Ukupno isplaćeno</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Referral Link */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <LinkIcon className="h-5 w-5" />
+                      Vaš referral link
+                    </CardTitle>
+                    <CardDescription>
+                      Podelite ovaj link sa klijentima. Za svaku uplatu pretplate korisnika koji se registruje preko vašeg linka, dobijate 20% provizije.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        value={getReferralLink()} 
+                        readOnly 
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(getReferralLink());
+                          toast({
+                            title: 'Kopirano!',
+                            description: 'Link kopiran u clipboard.',
+                          });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Referred Clients List */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Registrovani klijenti
+                    </CardTitle>
+                    <CardDescription>
+                      Lista korisnika koji su se registrovali preko vašeg referral linka
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {referrals.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p>Još uvek nemate registrovane klijente.</p>
+                        <p className="text-sm mt-1">Podelite vaš referral link da biste počeli da zarađujete.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {referrals.map((referral) => (
+                          <div 
+                            key={referral.id} 
+                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-background rounded-full">
+                                <User className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{referral.client?.full_name || referral.client?.email}</p>
+                                <p className="text-sm text-muted-foreground">{referral.client?.company_name}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant={referral.client?.subscription_end ? 'default' : 'secondary'}>
+                                {referral.client?.subscription_end ? 'Aktivan' : 'Na čekanju'}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {referral.referred_at && format(new Date(referral.referred_at), 'dd.MM.yyyy', { locale: sr })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         )}
       </Tabs>
