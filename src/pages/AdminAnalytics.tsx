@@ -138,10 +138,13 @@ export default function AdminAnalytics() {
     { name: 'Blokirani', value: userStats?.blocked || 0, color: 'hsl(var(--chart-5))' },
   ].filter(d => d.value > 0);
 
-  // Revenue projection calculations
+  // Revenue projection calculations - using REAL data
   const estimatedMRR = revenueStats?.estimatedMRR || 0;
-  const bookkeeperCommission = Math.round(estimatedMRR * 0.2); // 20% commission
-  const netMRR = estimatedMRR - bookkeeperCommission;
+  // Use real commission calculations instead of generic 20%
+  const estimatedCommissions = revenueStats?.estimatedCommissions || 0;
+  const pendingCommissions = revenueStats?.pendingCommissions || 0;
+  const referredActiveCount = revenueStats?.referredActiveCount || 0;
+  const netMRR = estimatedMRR - estimatedCommissions;
   const yearlyProjection = estimatedMRR * 12;
   const yearlyNetProjection = netMRR * 12;
 
@@ -743,8 +746,8 @@ export default function AdminAnalytics() {
                       <span className="font-medium">{formatCurrency(estimatedMRR)}</span>
                     </div>
                     <div className="flex justify-between text-red-600">
-                      <span>- Provizije knjigovođa (20%):</span>
-                      <span>{formatCurrency(bookkeeperCommission)}</span>
+                      <span>- Provizije ({referredActiveCount} referiranih korisnika):</span>
+                      <span>{formatCurrency(estimatedCommissions)}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between font-bold">
                       <span>= Neto MRR:</span>
@@ -761,7 +764,7 @@ export default function AdminAnalytics() {
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>- Provizije godišnje:</span>
-                      <span>{formatCurrency(bookkeeperCommission * 12)}</span>
+                      <span>{formatCurrency(estimatedCommissions * 12)}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between font-bold">
                       <span>= Neto godišnje:</span>
