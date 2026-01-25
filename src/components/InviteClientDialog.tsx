@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import { getProductionUrl } from '@/lib/domain';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ export function InviteClientDialog({ open, onOpenChange }: InviteClientDialogPro
   const [sending, setSending] = useState(false);
 
   const referralLink = user?.id 
-    ? `${window.location.origin}/auth?ref=${user.id}` 
+    ? `${getProductionUrl()}/auth?ref=${user.id}` 
     : '';
 
   const handleCopyLink = async () => {

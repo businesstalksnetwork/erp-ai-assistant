@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { getProductionUrl } from '@/lib/domain';
 
 interface Referral {
   id: string;
@@ -100,7 +101,7 @@ export function useBookkeeperReferrals() {
   // Generate referral link
   const getReferralLink = () => {
     if (!user?.id) return '';
-    return `${window.location.origin}/auth?ref=${user.id}`;
+    return `${getProductionUrl()}/auth?ref=${user.id}`;
   };
 
   return {
