@@ -131,7 +131,7 @@ export default function BookkeeperSettings() {
   const showBookkeeperSection = hasClientCompanies || isRegisteredBookkeeper || hasPendingInvitations;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto px-4 sm:px-0">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto px-4 sm:px-0 overflow-x-hidden">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold">Knjigovodstvo</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -232,14 +232,14 @@ export default function BookkeeperSettings() {
                 kompanija će se pojaviti ovde.
               </p>
             ) : (
-              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 overflow-hidden">
                 {clientCompanies.map((company) => (
                   <Card
                     key={company.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
                     onClick={() => navigate(`/company/${company.id}`)}
                   >
-                    <CardContent className="pt-4">
+                    <CardContent className="pt-4 overflow-hidden">
                       <div className="flex items-start gap-3">
                         {company.logo_url ? (
                           <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain rounded border" />
@@ -251,7 +251,7 @@ export default function BookkeeperSettings() {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{company.name}</h4>
                           <p className="text-sm text-muted-foreground truncate">{company.address}</p>
-                          <p className="text-xs text-primary mt-1">Klijent: {company.client_name}</p>
+                          <p className="text-xs text-primary mt-1 truncate">Klijent: {company.client_name}</p>
                         </div>
                         {company.has_sef_api_key ? (
                           <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
