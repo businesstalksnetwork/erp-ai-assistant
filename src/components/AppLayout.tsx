@@ -394,7 +394,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className={cn(
         "lg:pl-64 print:pl-0 print:pt-0 print:p-0 print:m-0",
         showSubscriptionBanner ? "pt-[108px] lg:pt-12" : "pt-16 lg:pt-0",
-        showBookkeeperBanner && "lg:pt-12"
+        showBookkeeperBanner && "pt-[108px] lg:pt-12"
       )}>
         <div className="p-4 lg:p-8 print:p-0 print:m-0">{children}</div>
       </main>

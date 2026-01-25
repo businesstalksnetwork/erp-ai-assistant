@@ -164,24 +164,24 @@ export default function AdminAnalytics() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
+        <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-5 sm:overflow-visible">
+          <TabsTrigger value="overview" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Pregled</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
+          <TabsTrigger value="users" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Korisnici</span>
           </TabsTrigger>
-          <TabsTrigger value="bookkeepers" className="flex items-center gap-2">
+          <TabsTrigger value="bookkeepers" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Briefcase className="h-4 w-4" />
             <span className="hidden sm:inline">Knjigovođe</span>
           </TabsTrigger>
-          <TabsTrigger value="partners" className="flex items-center gap-2">
+          <TabsTrigger value="partners" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Handshake className="h-4 w-4" />
             <span className="hidden sm:inline">Partneri</span>
           </TabsTrigger>
-          <TabsTrigger value="revenue" className="flex items-center gap-2">
+          <TabsTrigger value="revenue" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Zarada</span>
           </TabsTrigger>

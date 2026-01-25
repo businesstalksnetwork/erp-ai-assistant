@@ -154,11 +154,11 @@ export function ExtendSubscriptionDialog({
           </div>
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="extend">Produži</TabsTrigger>
-              <TabsTrigger value="exact">Datum</TabsTrigger>
-              <TabsTrigger value="companies">Firme</TabsTrigger>
-              <TabsTrigger value="account">Tip</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+              <TabsTrigger value="extend" className="text-xs sm:text-sm">Produži</TabsTrigger>
+              <TabsTrigger value="exact" className="text-xs sm:text-sm">Datum</TabsTrigger>
+              <TabsTrigger value="companies" className="text-xs sm:text-sm">Firme</TabsTrigger>
+              <TabsTrigger value="account" className="text-xs sm:text-sm">Tip</TabsTrigger>
             </TabsList>
 
             <TabsContent value="extend" className="space-y-4">

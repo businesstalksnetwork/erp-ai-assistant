@@ -769,7 +769,7 @@ export default function AdminPanel() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card className="cursor-pointer hover:border-success transition-colors" onClick={() => setFilter('active')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Aktivni</CardTitle>
@@ -813,26 +813,26 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="users" className="gap-2">
+        <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-5 sm:overflow-visible">
+          <TabsTrigger value="users" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Users className="h-4 w-4" />
-            Korisnici
+            <span className="hidden sm:inline">Korisnici</span>
           </TabsTrigger>
-          <TabsTrigger value="bookkeepers" className="gap-2">
+          <TabsTrigger value="bookkeepers" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <BookUser className="h-4 w-4" />
-            Knjigovođe
+            <span className="hidden sm:inline">Knjigovođe</span>
           </TabsTrigger>
-          <TabsTrigger value="partners" className="gap-2">
+          <TabsTrigger value="partners" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Handshake className="h-4 w-4" />
-            Partneri
+            <span className="hidden sm:inline">Partneri</span>
           </TabsTrigger>
-          <TabsTrigger value="email-templates" className="gap-2">
+          <TabsTrigger value="email-templates" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Mail className="h-4 w-4" />
-            Email
+            <span className="hidden sm:inline">Email</span>
           </TabsTrigger>
-          <TabsTrigger value="sef-registry" className="gap-2">
+          <TabsTrigger value="sef-registry" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Database className="h-4 w-4" />
-            SEF
+            <span className="hidden sm:inline">SEF</span>
           </TabsTrigger>
         </TabsList>
 
