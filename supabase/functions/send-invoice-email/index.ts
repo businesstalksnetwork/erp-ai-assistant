@@ -180,7 +180,7 @@ const handler = async (req: Request): Promise<Response> => {
       subject: string;
       html: string;
     } = {
-      from: `${company.name} <noreply@resend.dev>`,
+      from: `${company.name} <no-reply@pausalbox.rs>`,
       to: recipients,
       subject: subject,
       html: htmlContent,
@@ -193,7 +193,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailResponse = await resend.emails.send(emailPayload);
 
-    console.log("Email sent successfully:", emailResponse);
+    // Check if Resend returned an error
+    if (emailResponse.error) {
+      console.error("Resend API error:", emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
+
+    console.log("Email sent successfully, ID:", emailResponse.data?.id);
 
     // Log the email in database
     const { error: logError } = await supabase
