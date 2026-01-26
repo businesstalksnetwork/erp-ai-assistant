@@ -159,6 +159,17 @@ export default function Profile() {
     }
   }, [profile]);
 
+  // Show loading state while profile is being fetched
+  if (!profile) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Učitavanje profila...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Partner discount from profile
   const userDiscount = profile?.partner_discount_percent || 0;
 
