@@ -88,21 +88,21 @@ export default function BookkeeperSettings() {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+          <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950">
             <Clock className="h-3 w-3 mr-1" />
             Na čekanju
           </Badge>
         );
       case 'accepted':
         return (
-          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+          <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950">
             <UserCheck className="h-3 w-3 mr-1" />
             Povezan
           </Badge>
         );
       case 'rejected':
         return (
-          <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50">
+          <Badge variant="outline" className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950">
             <UserX className="h-3 w-3 mr-1" />
             Odbijeno
           </Badge>

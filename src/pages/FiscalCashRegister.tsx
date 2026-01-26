@@ -96,19 +96,19 @@ export default function FiscalCashRegister() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupne prodaje</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <TrendingUp className="h-4 w-4 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.sales)}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.sales)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupne refundacije</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <TrendingDown className="h-4 w-4 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">-{formatCurrency(totals.refunds)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">-{formatCurrency(totals.refunds)}</div>
           </CardContent>
         </Card>
         <Card className="bg-primary text-primary-foreground">
@@ -190,10 +190,10 @@ export default function FiscalCashRegister() {
                                 year: 'numeric',
                               })}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-green-600">
+                            <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
                               {formatCurrency(summary.sales_amount)}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-red-600">
+                            <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
                               -{formatCurrency(summary.refunds_amount)}
                             </TableCell>
                             <TableCell className="text-right font-mono font-semibold">
