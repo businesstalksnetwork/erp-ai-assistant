@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.send-invoice-email]
 verify_jwt = true
+
+[functions.sef-registry-auto-update]
+verify_jwt = false
