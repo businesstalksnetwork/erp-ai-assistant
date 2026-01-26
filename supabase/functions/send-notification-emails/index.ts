@@ -63,8 +63,8 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: profile } = await supabase.from('profiles').select('id, email, full_name, email_reminder_7_days_before, email_reminder_day_before, email_reminder_on_due_date, email_limit_6m_warning, email_limit_8m_warning, email_subscription_warnings, subscription_end, is_trial, account_type').eq('id', company.user_id).single();
       if (!profile) continue;
 
-      // Reminders
-      const { data: reminders } = await supabase.from('reminders').select('id, title, due_date, amount').eq('company_id', company.id).eq('is_completed', false).in('due_date', [todayStr, tomorrowStr, in7DaysStr]);
+      // Reminders - FIXED: using correct table name 'payment_reminders'
+      const { data: reminders } = await supabase.from('payment_reminders').select('id, title, due_date, amount').eq('company_id', company.id).eq('is_completed', false).in('due_date', [todayStr, tomorrowStr, in7DaysStr]);
       
       for (const r of reminders || []) {
         const checks = [
@@ -78,7 +78,11 @@ const handler = async (req: Request): Promise<Response> => {
             const data = { full_name: profile.full_name || profile.email, reminder_title: r.title, due_date: formatDate(r.due_date), amount: r.amount ? formatCurrency(r.amount) : null };
             const subject = tpl ? renderTemplate(tpl.subject, data) : `Podsetnik: ${r.title}`;
             const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Podsetnik: ${r.title} - ${formatDate(r.due_date)}</p>`;
-            await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            if (emailRes.error) {
+              console.error(`Failed to send reminder email to ${profile.email}:`, emailRes.error);
+              continue;
+            }
             await logNotification(supabase, company.id, profile.id, c.type, r.id, r.due_date, profile.email, subject);
             sent.reminders++;
           }
@@ -97,7 +101,11 @@ const handler = async (req: Request): Promise<Response> => {
               const data = { full_name: profile.full_name || profile.email, subscription_end_date: formatDate(profile.subscription_end), days_left: d };
               const subject = tpl ? renderTemplate(tpl.subject, data) : `${profile.is_trial ? 'Trial' : 'Pretplata'} ističe za ${d} dana`;
               const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Vaš nalog ističe ${formatDate(profile.subscription_end)}</p>`;
-              await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+              const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+              if (emailRes.error) {
+                console.error(`Failed to send subscription email to ${profile.email}:`, emailRes.error);
+                continue;
+              }
               await logNotification(supabase, company.id, profile.id, type, null, profile.subscription_end, profile.email, subject);
               sent.subscriptions++;
             }
@@ -119,7 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
             const data = { full_name: profile.full_name || profile.email, current_amount: formatCurrency(yearly), limit_amount: formatCurrency(LIMIT_6M), remaining_amount: formatCurrency(Math.max(0, LIMIT_6M - yearly)), limit_percent: Math.round(pct6m) };
             const subject = tpl ? renderTemplate(tpl.subject, data) : `Limit 6M - ${t.p}%`;
             const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Dostigli ste ${t.p}% limita</p>`;
-            await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            if (emailRes.error) {
+              console.error(`Failed to send limit warning email to ${profile.email}:`, emailRes.error);
+              continue;
+            }
             await logNotification(supabase, company.id, profile.id, t.n, null, null, profile.email, subject);
             sent.limits++;
             break;
