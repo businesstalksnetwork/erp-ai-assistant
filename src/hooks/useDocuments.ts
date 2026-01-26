@@ -6,6 +6,22 @@ import { useAuth } from '@/lib/auth';
 
 // Documents hook v2 - with move and preview support
 
+// Sanitize filename for storage - remove special chars, replace spaces
+function sanitizeFilename(filename: string): string {
+  const lastDot = filename.lastIndexOf('.');
+  const name = lastDot > 0 ? filename.substring(0, lastDot) : filename;
+  const ext = lastDot > 0 ? filename.substring(lastDot) : '';
+  
+  const sanitized = cyrillicToLatin(name)
+    .toLowerCase()
+    .replace(/\s+/g, '_')           // spaces -> underscore
+    .replace(/[^a-z0-9_.-]/g, '')   // remove all except letters, numbers, _, -, .
+    .replace(/_+/g, '_')            // multiple underscores -> one
+    .replace(/^_|_$/g, '');         // remove _ from start/end
+  
+  return sanitized + ext.toLowerCase();
+}
+
 export interface DocumentFolder {
   id: string;
   company_id: string;
@@ -135,7 +151,8 @@ export function useDocuments(companyId: string | null) {
     mutationFn: async ({ file, folderId }: { file: File; folderId: string | null }) => {
       const nameNormalized = cyrillicToLatin(file.name).toLowerCase();
       const folderPath = folderId || 'general';
-      const path = `${companyId}/${folderPath}/${Date.now()}_${file.name}`;
+      const safeFilename = sanitizeFilename(file.name);
+      const path = `${companyId}/${folderPath}/${Date.now()}_${safeFilename}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
