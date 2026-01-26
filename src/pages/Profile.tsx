@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 import { useBookkeeperReferrals } from '@/hooks/useBookkeeperReferrals';
@@ -150,14 +150,14 @@ export default function Profile() {
   } = useBookkeeperReferrals();
 
   // Update local state when profile changes
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setBookkeeperCompanyName(profile.bookkeeper_company_name || '');
       setBookkeeperPib(profile.bookkeeper_pib || '');
       setBookkeeperBankAccount(profile.bookkeeper_bank_account || '');
       setBookkeeperAddress(profile.bookkeeper_address || '');
     }
-  });
+  }, [profile]);
 
   // Partner discount from profile
   const userDiscount = profile?.partner_discount_percent || 0;
