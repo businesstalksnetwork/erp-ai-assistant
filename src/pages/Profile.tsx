@@ -531,7 +531,7 @@ export default function Profile() {
                 <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
                   <p>
                     ℹ️ Pretplata će biti aktivirana u roku od <strong>24h</strong> od prijema uplate. 
-                    Za pitanja kontaktirajte: <a href="mailto:nikolaglintic1994@gmail.com" className="text-primary hover:underline">nikolaglintic1994@gmail.com</a>
+                    Za pitanja kontaktirajte: <a href="mailto:kontakt@fincon.rs" className="text-primary hover:underline">kontakt@fincon.rs</a>
                   </p>
                 </div>
               </CardContent>
