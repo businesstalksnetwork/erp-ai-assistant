@@ -16,8 +16,11 @@ interface RegistryEntry {
 function parseDate(dateStr: string): string | null {
   if (!dateStr || dateStr.trim() === '') return null;
   
-  const parts = dateStr.trim().split('.');
-  if (parts.length !== 3) return null;
+  // Remove trailing dot and \r if present
+  const cleanDate = dateStr.trim().replace(/\.?\r?$/, '');
+  
+  const parts = cleanDate.split('.');
+  if (parts.length < 3) return null;
   
   const day = parts[0].padStart(2, '0');
   const month = parts[1].padStart(2, '0');
@@ -98,10 +101,10 @@ Deno.serve(async (req) => {
 
     for (const line of dataLines) {
       try {
-        // Try semicolon first, then comma
-        let cols = parseCSVLine(line, ',');
+        // Try semicolon first (Serbian CSV format), then comma
+        let cols = parseCSVLine(line, ';');
         if (cols.length < 3) {
-          cols = parseCSVLine(line, ';');
+          cols = parseCSVLine(line, ',');
         }
 
         if (cols.length < 3) {
@@ -146,7 +149,20 @@ Deno.serve(async (req) => {
 
       if (error) {
         console.error(`Batch ${i / batchSize + 1} error:`, error);
-        duplicates += batch.length;
+        
+        // Fallback: try single entry upsert for each item in failed batch
+        for (const entry of batch) {
+          const { error: singleError } = await supabase
+            .from('sef_registry')
+            .upsert([entry], { onConflict: 'pib', ignoreDuplicates: false });
+          
+          if (singleError) {
+            console.error(`Single entry error for PIB ${entry.pib}:`, singleError);
+            duplicates++;
+          } else {
+            imported++;
+          }
+        }
       } else {
         imported += batch.length;
       }
