@@ -112,12 +112,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const pib = cols[0].replace(/\D/g, ''); // Keep only digits
+        const pibRaw = cols[0].replace(/\D/g, ''); // Keep only digits
         
-        if (!pib || pib.length !== 9) {
+        // PIB can be 9 or 13 digits
+        if (!pibRaw || (pibRaw.length !== 9 && pibRaw.length !== 13)) {
           parseErrors++;
           continue;
         }
+
+        // Use first 9 digits as the primary PIB identifier
+        const pib = pibRaw.substring(0, 9);
 
         entries.push({
           pib,
@@ -132,13 +136,20 @@ Deno.serve(async (req) => {
 
     console.log(`Parsed ${entries.length} valid entries, ${parseErrors} errors`);
 
+    // Deduplicate entries by PIB (keep last occurrence)
+    const uniqueEntries = Array.from(
+      new Map(entries.map(entry => [entry.pib, entry])).values()
+    );
+
+    console.log(`Deduplicated to ${uniqueEntries.length} unique PIBs`);
+
     // Insert in batches of 1000
     const batchSize = 1000;
     let imported = 0;
     let duplicates = 0;
 
-    for (let i = 0; i < entries.length; i += batchSize) {
-      const batch = entries.slice(i, i + batchSize);
+    for (let i = 0; i < uniqueEntries.length; i += batchSize) {
+      const batch = uniqueEntries.slice(i, i + batchSize);
       
       const { error } = await supabase
         .from('sef_registry')
@@ -169,7 +180,7 @@ Deno.serve(async (req) => {
 
       // Log progress every 10 batches
       if ((i / batchSize) % 10 === 0) {
-        console.log(`Progress: ${i + batch.length}/${entries.length}`);
+        console.log(`Progress: ${i + batch.length}/${uniqueEntries.length}`);
       }
     }
 
@@ -180,6 +191,7 @@ Deno.serve(async (req) => {
         success: true,
         totalLines: lines.length - 1,
         parsed: entries.length,
+        uniquePibs: uniqueEntries.length,
         imported,
         duplicates,
         parseErrors,
