@@ -1,147 +1,207 @@
 
-# Plan: Linkovi za direktno plaćanje nakon registracije
+# Plan: Kompletno poboljšanje Dark Mode stilova (posle logina)
 
-## Opis
-Kreiranje linkova na landing stranici koji vode korisnika direktno na stranicu za plaćanje u profilu nakon uspešne registracije, sa automatski selektovanim planom.
+## Pregled problema
 
-## Tok korisnika
+Aplikacija koristi CSS varijable sa HSL vrednostima za teme, ali na nekim mestima koriste se hardkodirane boje koje nemaju dark mode varijante. Evo identifikovanih problema po stranicama:
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Landing Page (Index.tsx)                                        │
-│   "Započni besplatno" →  /auth?plan=1  (mesečni)               │
-│   "Započni besplatno" →  /auth?plan=6  (polugodišnji)          │
-│   "Započni besplatno" →  /auth?plan=12 (godišnji)              │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ Auth Page (Auth.tsx)                                            │
-│   - Čuva "plan" parametar u localStorage pre registracije       │
-│   - Nakon uspešne registracije:                                 │
-│       ako plan postoji → redirect na /profile?plan=X            │
-│       inače → redirect na /dashboard                            │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ Profile Page (Profile.tsx)                                      │
-│   - Čita "plan" query parametar                                 │
-│   - Automatski otvara "Pretplata" tab                           │
-│   - Auto-selektuje odgovarajući plan (1/6/12 meseci)            │
-│   - Prikazuje QR kod za plaćanje                                │
-└─────────────────────────────────────────────────────────────────┘
+## Problemi po stranicama
+
+### 1. BookkeeperSettings.tsx (linije 87-117)
+**Problem:** Status badge-ovi koriste hardkodirane boje bez dark varijanti:
+- `bg-amber-50` - nevidljivo u dark mode
+- `bg-green-50` - nevidljivo u dark mode  
+- `bg-red-50` - nevidljivo u dark mode
+
+**Rešenje:** Dodati dark varijante:
 ```
+bg-amber-50 → bg-amber-50 dark:bg-amber-950
+text-amber-600 → text-amber-600 dark:text-amber-400
+border-amber-300 → border-amber-300 dark:border-amber-700
+
+bg-green-50 → bg-green-50 dark:bg-green-950
+text-green-600 → text-green-600 dark:text-green-400
+border-green-300 → border-green-300 dark:border-green-700
+
+bg-red-50 → bg-red-50 dark:bg-red-950
+text-red-600 → text-red-600 dark:text-red-400
+border-red-300 → border-red-300 dark:border-red-700
+```
+
+### 2. Profile.tsx (linije 352, 399, 428)
+**Problem:** Baneri koriste hardkodirane boje:
+- Partner discount banner: `bg-green-50` (linija 428)
+- Subscription warning: `bg-orange-50` (linija 399)
+- Bookkeeper badge: `bg-green-50` (linija 352)
+
+**Rešenje:** Već ima delimično rešeno ali treba proveriti:
+- `bg-green-50 dark:bg-green-950` - OK
+- `bg-green-100 dark:bg-green-900` - dodati
+- `bg-orange-50` → dodati `dark:bg-orange-950`
+
+### 3. Invoices.tsx (linije 230, 260-268)
+**Problem:** Payment status badge-ovi:
+- `bg-green-500` za "Plaćeno" - OK (koristi čistu boju)
+- `bg-yellow-500` za "Delimično" - OK
+- `bg-orange-500` za avansne - OK
+
+**Status:** Ove boje rade u oba moda jer su dovoljno zasićene.
+
+### 4. FiscalCashRegister.tsx (linije 100-122)
+**Problem:** Summary kartice koriste hardkodirane boje:
+- `text-green-600` / `text-green-500` - treba proveriti kontrast
+- `text-red-600` / `text-red-500` - treba proveriti kontrast
+- Kartice koriste CSS varijable (`bg-primary`) - OK
+
+**Status:** Uglavnom OK, ali može se poboljšati dodavanjem dark varijanti za tekst.
+
+### 5. SEFCenter.tsx (linije 56-86)
+**Problem:** Status badge-ovi su definisani sa custom varijantama:
+- Koristi `variant: 'success'` i `variant: 'secondary'` - treba proveriti Badge komponentu
+
+**Status:** Ako Badge komponenta ima proper dark mode podršku za `success` varijantu, onda je OK.
+
+### 6. Reminders.tsx
+**Problem:** Recurrence type badge-ovi mogu koristiti hardkodirane boje.
+
+**Rešenje:** Proveriti i dodati dark varijante ako je potrebno.
+
+### 7. AdminPanel.tsx
+**Problem:** Tabela korisnika i stat kartice mogu imati problema sa hover state-ovima.
+
+**Rešenje:** Proveriti hover boje na tabelama.
+
+### 8. Clients.tsx (linije 341-362)
+**Problem:** SEF status indikatori:
+- `text-green-600 dark:text-green-500` - Već ima dark varijantu
+- `text-amber-600 dark:text-amber-500` - Već ima dark varijantu
+
+**Status:** OK - već implementirano.
 
 ## Tehničke izmene
 
-### 1. `src/pages/Index.tsx` - Izmena pricing linkova
+### Fajl 1: `src/pages/BookkeeperSettings.tsx`
 
-Ažurirati linkove u pricing kartama da sadrže `plan` query parametar:
+**Linije 91-116** - Funkcija `getBookkeeperStatusBadge`:
 
+Trenutno:
 ```typescript
-// Umesto:
-<Link to="/auth">Započni besplatno</Link>
-
-// Novo - sa parametrom za broj meseci:
-// Mesečni plan:
-<Link to="/auth?plan=1">Započni besplatno</Link>
-
-// Polugodišnji plan:
-<Link to="/auth?plan=6">Započni besplatno</Link>
-
-// Godišnji plan:
-<Link to="/auth?plan=12">Započni besplatno</Link>
+case 'pending':
+  return (
+    <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
 ```
 
-Potrebno je mapirati index plana na broj meseci:
-- Index 0 (Mesečni) → `plan=1`
-- Index 1 (Polugodišnji) → `plan=6`
-- Index 2 (Godišnji) → `plan=12`
-
-### 2. `src/pages/Auth.tsx` - Čuvanje plana i redirect
-
-**A) Čitanje i čuvanje plan parametra:**
+Novo:
 ```typescript
-// Pored postojećih searchParams:
-const planParam = searchParams.get('plan');
-
-// Čuvanje u localStorage kad korisnik otvori stranicu:
-useEffect(() => {
-  if (planParam) {
-    localStorage.setItem('pendingPlan', planParam);
-  }
-}, [planParam]);
+case 'pending':
+  return (
+    <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950">
 ```
 
-**B) Izmena handleSignUp funkcije:**
-```typescript
-// Umesto:
-navigate('/dashboard');
+Isto za `accepted` (green) i `rejected` (red) case-ove.
 
-// Novo:
-const pendingPlan = localStorage.getItem('pendingPlan');
-if (pendingPlan) {
-  localStorage.removeItem('pendingPlan');
-  navigate(`/profile?plan=${pendingPlan}&tab=subscription`);
-} else {
-  navigate('/dashboard');
-}
+### Fajl 2: `src/pages/Profile.tsx`
+
+**Linija 352** - Bookkeeper free badge:
+```typescript
+// Trenutno:
+className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-lg"
+
+// Proveriti da ima dark varijantu - ako nema, dodati
 ```
 
-### 3. `src/pages/Profile.tsx` - Automatski odabir plana
-
-**A) Čitanje query parametara:**
+**Linija 399** - Subscription warning:
 ```typescript
-import { useSearchParams } from 'react-router-dom';
+// Trenutno:
+className={`p-4 rounded-lg ${isSubscriptionExpired ? 'bg-destructive/10' : 'bg-orange-50 dark:bg-orange-950'}`}
 
-// Na početku komponente:
-const [searchParams, setSearchParams] = useSearchParams();
-const planFromUrl = searchParams.get('plan');
-const tabFromUrl = searchParams.get('tab');
+// Već ima dark varijantu - OK
 ```
 
-**B) Automatski odabir taba:**
+**Linija 428-438** - Partner discount banner:
 ```typescript
-// Izmena defaultValue za Tabs komponentu:
-// Umesto hardkodiranog 'subscription':
-defaultValue={tabFromUrl === 'subscription' ? 'subscription' : 'subscription'}
+// Trenutno ima:
+className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800"
 
-// Ili koristiti state:
-const [activeTab, setActiveTab] = useState(
-  tabFromUrl || 'subscription'
-);
+// Unutrašnji div:
+className="p-2 bg-green-100 dark:bg-green-900 rounded-full"
+
+// Tekst boje:
+className="font-medium text-green-700 dark:text-green-300"
+className="text-sm text-green-600 dark:text-green-400"
+
+// Sve ima dark varijante - OK
 ```
 
-**C) Auto-selekcija plana na mount:**
+### Fajl 3: `src/pages/Reminders.tsx`
+
+Potražiti bilo koje korišćenje hardkodiranih boja u badge-ovima za recurrence type i dodati dark varijante.
+
+### Fajl 4: `src/pages/AdminPanel.tsx`
+
+Proveriti stat kartice i tabelu korisnika za hover state-ove. Većina koristi CSS varijable koje automatski reaguju na temu.
+
+### Fajl 5: `src/pages/Invoices.tsx`
+
+**Linija 230** - Avansna faktura badge:
 ```typescript
-useEffect(() => {
-  if (planFromUrl) {
-    const planMap: Record<string, string> = {
-      '1': 'monthly',
-      '6': 'semiannual',
-      '12': 'annual'
-    };
-    const planKey = planMap[planFromUrl];
-    if (planKey) {
-      setSelectedPlan(planKey);
-    }
-    // Očisti URL parametre
-    setSearchParams({}, { replace: true });
-  }
-}, [planFromUrl]);
+// Trenutno:
+className={invoice.advance_status === 'open' ? 'bg-orange-500 text-white' : ''}
+
+// Orange-500 je dovoljno zasićena, radi u oba moda - OK
 ```
 
-## Fajlovi za izmenu
+### Fajl 6: `src/pages/FiscalCashRegister.tsx`
 
-| Fajl | Izmena |
-|------|--------|
-| `src/pages/Index.tsx` | Dodati `?plan=X` na pricing dugmiće |
-| `src/pages/Auth.tsx` | Čuvanje plan parametra, redirect na /profile nakon registracije |
-| `src/pages/Profile.tsx` | Čitanje plan parametra, auto-selekcija plana |
+**Linije 100-122** - Summary kartice tekst:
+```typescript
+// Trenutno:
+className="text-2xl font-bold text-green-600"
+className="text-2xl font-bold text-red-600"
 
-## Napomene
+// Dodati dark varijante za bolji kontrast:
+className="text-2xl font-bold text-green-600 dark:text-green-400"
+className="text-2xl font-bold text-red-600 dark:text-red-400"
+```
 
-- Plan parametar se čuva u localStorage jer se gubi tokom auth procesa (Supabase redirecti)
-- URL parametri se čiste nakon primene da URL ostane čist
-- Postojeći korisnici (login) neće biti redirektovani na profil jer plan ima smisla samo za nove registracije
+**Linije 192-199** - Tabela boje:
+```typescript
+// Trenutno:
+className="text-right font-mono text-green-600"
+className="text-right font-mono text-red-600"
+
+// Dodati dark varijante:
+className="text-right font-mono text-green-600 dark:text-green-400"
+className="text-right font-mono text-red-600 dark:text-red-400"
+```
+
+### Fajl 7: `src/components/ui/badge.tsx`
+
+Proveriti da `success` i `warning` varijante imaju proper dark mode podršku. Trenutno:
+```typescript
+success: "border-transparent bg-success text-success-foreground hover:bg-success/90 hover:scale-105",
+warning: "border-transparent bg-warning text-warning-foreground hover:bg-warning/90 hover:scale-105",
+```
+
+Ovo koristi CSS varijable (`bg-success`, `text-success-foreground`) koje bi trebalo da rade ako su pravilno definisane u `index.css`.
+
+## Sažetak izmena
+
+| Fajl | Tip izmena | Prioritet |
+|------|------------|-----------|
+| `src/pages/BookkeeperSettings.tsx` | Badge dark varijante (3 statusa) | Visok |
+| `src/pages/FiscalCashRegister.tsx` | Tekst boje za summary i tabelu | Srednji |
+| `src/pages/Profile.tsx` | Provera postojećih dark varijanti | Nizak (već OK) |
+| `src/pages/Invoices.tsx` | Provera badge boja | Nizak (već OK) |
+| `src/pages/Clients.tsx` | Već implementirano | OK |
+| `src/pages/Reminders.tsx` | Proveriti recurrence badge-ove | Nizak |
+
+## Očekivani rezultat
+
+- Svi status badge-ovi će biti čitljivi u dark mode-u
+- Tekst u summary karticama će imati dovoljan kontrast
+- Aplikacija će izgledati konzistentno u oba moda
+
+## Napomena
+
+Većina stranica već koristi Tailwind CSS varijable (`text-muted-foreground`, `bg-card`, `border-border`) koje automatski reaguju na dark mode. Problemi su uglavnom u specifičnim badge-ovima i indikatorima koji koriste hardkodirane boje.
