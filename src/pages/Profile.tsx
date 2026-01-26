@@ -151,6 +151,7 @@ export default function Profile() {
 
   // Update local state when profile changes
   useEffect(() => {
+    console.log('Profile changed:', profile);
     if (profile) {
       setBookkeeperCompanyName(profile.bookkeeper_company_name || '');
       setBookkeeperPib(profile.bookkeeper_pib || '');
@@ -161,6 +162,7 @@ export default function Profile() {
 
   // Show loading state while profile is being fetched
   if (!profile) {
+    console.log('Profile is null/undefined, showing loading');
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -169,6 +171,8 @@ export default function Profile() {
       </div>
     );
   }
+
+  console.log('Profile loaded, rendering component');
 
   // Partner discount from profile
   const userDiscount = profile?.partner_discount_percent || 0;
