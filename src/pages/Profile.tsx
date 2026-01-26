@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 import { useBookkeeperReferrals } from '@/hooks/useBookkeeperReferrals';
@@ -128,10 +129,30 @@ export default function Profile() {
   const { profile, isBookkeeper, isAdmin, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
   const [updatingEmail, setUpdatingEmail] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'semi-annual' | 'annual'>('semi-annual');
   const [savingCompanyInfo, setSavingCompanyInfo] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'subscription');
+
+  // Auto-select plan from URL param
+  useEffect(() => {
+    const planFromUrl = searchParams.get('plan');
+    if (planFromUrl) {
+      const planMap: Record<string, 'monthly' | 'semi-annual' | 'annual'> = {
+        '1': 'monthly',
+        '6': 'semi-annual',
+        '12': 'annual'
+      };
+      const planKey = planMap[planFromUrl];
+      if (planKey) {
+        setSelectedPlan(planKey);
+      }
+      // Clear URL params
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   
   // Bookkeeper company info state
   const [bookkeeperCompanyName, setBookkeeperCompanyName] = useState(profile?.bookkeeper_company_name || '');
@@ -282,7 +303,7 @@ export default function Profile() {
         </p>
       </div>
 
-      <Tabs defaultValue="subscription" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible">
           <TabsTrigger value="subscription" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <CreditCard className="h-4 w-4" />

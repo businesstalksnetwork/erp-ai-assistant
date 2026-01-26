@@ -50,11 +50,19 @@ export default function Auth() {
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [accountType, setAccountType] = useState<AccountType>('pausal');
   
-  // Get referral ID and partner code from URL if present
+  // Get referral ID, partner code and plan from URL if present
   const referralId = searchParams.get('ref');
   const partnerCode = searchParams.get('partner');
+  const planParam = searchParams.get('plan');
 
   const isRecovery = isPasswordRecoveryUrl();
+
+  // Save plan param to localStorage when user opens page
+  useEffect(() => {
+    if (planParam) {
+      localStorage.setItem('pendingPlan', planParam);
+    }
+  }, [planParam]);
 
   useEffect(() => {
     if (user && mode !== 'reset-password' && !isRecovery) {
@@ -217,7 +225,15 @@ export default function Auth() {
         title: 'Registracija uspešna',
         description: successMessage,
       });
-      navigate('/dashboard');
+      
+      // Check for pending plan from pricing page
+      const pendingPlan = localStorage.getItem('pendingPlan');
+      if (pendingPlan) {
+        localStorage.removeItem('pendingPlan');
+        navigate(`/profile?plan=${pendingPlan}&tab=subscription`);
+      } else {
+        navigate('/dashboard');
+      }
     }
 
     setLoading(false);
