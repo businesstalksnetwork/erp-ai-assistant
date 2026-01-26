@@ -432,9 +432,9 @@ export default function Index() {
             </motion.div>
             <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
               {[
-                { name: "Mesečni", price: "990", period: "mesečno", features: ["Sve funkcionalnosti", "Email podrška", "Izvoz podataka"], popular: false },
-                { name: "Polugodišnji", price: "4.950", period: "6 meseci", features: ["Sve funkcionalnosti", "Prioritetna podrška", "Izvoz podataka"], popular: true, badge: "Ušteda 17%" },
-                { name: "Godišnji", price: "9.990", period: "godišnje", features: ["Sve funkcionalnosti", "Premium podrška", "Prioritetni pristup novim funkcijama"], popular: false, badge: "Ušteda 16%" },
+                { name: "Mesečni", price: "990", period: "mesečno", features: ["Sve funkcionalnosti", "Email podrška", "Izvoz podataka"], popular: false, planMonths: 1 },
+                { name: "Polugodišnji", price: "4.950", period: "6 meseci", features: ["Sve funkcionalnosti", "Prioritetna podrška", "Izvoz podataka"], popular: true, badge: "Ušteda 17%", planMonths: 6 },
+                { name: "Godišnji", price: "9.990", period: "godišnje", features: ["Sve funkcionalnosti", "Premium podrška", "Prioritetni pristup novim funkcijama"], popular: false, badge: "Ušteda 16%", planMonths: 12 },
               ].map((plan, index) => (
                 <motion.div 
                   key={plan.name}
@@ -476,7 +476,7 @@ export default function Index() {
                     className={`w-full ${plan.popular ? 'bg-yellow-500 hover:bg-yellow-600 text-slate-900' : ''}`} 
                     variant={plan.popular ? "default" : "outline"}
                   >
-                    <Link to="/auth">Započni besplatno</Link>
+                    <Link to={`/auth?plan=${plan.planMonths}`}>Započni besplatno</Link>
                   </Button>
                 </motion.div>
               ))}
