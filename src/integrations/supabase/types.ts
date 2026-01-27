@@ -563,6 +563,7 @@ export type Database = {
           entry_date: string
           id: string
           is_foreign: boolean
+          is_paid: boolean
           receipt_number: string
           transaction_type: string
           year: number
@@ -575,6 +576,7 @@ export type Database = {
           entry_date: string
           id?: string
           is_foreign?: boolean
+          is_paid?: boolean
           receipt_number: string
           transaction_type: string
           year: number
@@ -587,6 +589,7 @@ export type Database = {
           entry_date?: string
           id?: string
           is_foreign?: boolean
+          is_paid?: boolean
           receipt_number?: string
           transaction_type?: string
           year?: number
