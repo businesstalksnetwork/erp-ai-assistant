@@ -3,6 +3,7 @@ import { useSelectedCompany } from '@/lib/company-context';
 import { useLimits } from '@/hooks/useLimits';
 import { useReminders } from '@/hooks/useReminders';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useFiscalEntries } from '@/hooks/useFiscalEntries';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -23,6 +24,7 @@ import {
   Sparkles,
   Check,
   Info,
+  Store,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -41,6 +43,10 @@ export default function Dashboard() {
   const { upcomingReminders, toggleComplete } = useReminders(selectedCompany?.id || null);
   const { invoices } = useInvoices(selectedCompany?.id || null);
 
+  // Get fiscal data for current year
+  const currentYear = new Date().getFullYear();
+  const { dailySummaries } = useFiscalEntries(selectedCompany?.id || null, currentYear);
+
   const handleToggleReminder = async (id: string) => {
     try {
       await toggleComplete.mutateAsync({ id, is_completed: true });
@@ -53,25 +59,33 @@ export default function Dashboard() {
   const recentInvoices = invoices.filter(i => !i.is_proforma).slice(0, 5);
 
   // Izračunaj udeo najvećeg partnera u godišnjem prometu (Test samostalnosti)
-  const currentYear = new Date().getFullYear();
   const yearlyRegularInvoices = invoices.filter(i => 
     !i.is_proforma && 
     i.invoice_type === 'regular' && 
     i.year === currentYear
   );
 
-  const clientTotals = yearlyRegularInvoices.reduce((acc, inv) => {
+  const clientTotals: Record<string, number> = {};
+  
+  // Add invoices by client
+  yearlyRegularInvoices.forEach(inv => {
     const clientName = inv.client_name;
-    acc[clientName] = (acc[clientName] || 0) + inv.total_amount;
-    return acc;
-  }, {} as Record<string, number>);
+    clientTotals[clientName] = (clientTotals[clientName] || 0) + inv.total_amount;
+  });
+
+  // Add fiscal revenue as "Maloprodaja"
+  const fiscalTotal = dailySummaries.reduce((sum, s) => sum + Number(s.total_amount), 0);
+  if (fiscalTotal > 0) {
+    clientTotals['Maloprodaja'] = fiscalTotal;
+  }
 
   const totalYearlyForIndependence = Object.values(clientTotals).reduce((a, b) => a + b, 0);
   const topClient = Object.entries(clientTotals).sort((a, b) => b[1] - a[1])[0];
   const topClientName = topClient?.[0] || null;
   const topClientAmount = topClient?.[1] || 0;
   const topClientPercent = totalYearlyForIndependence > 0 ? (topClientAmount / totalYearlyForIndependence) * 100 : 0;
-  const isIndependenceWarning = topClientPercent > 70;
+  // Don't show warning if top client is "Maloprodaja" (fiscal/retail sales)
+  const isIndependenceWarning = topClientPercent > 70 && topClientName !== 'Maloprodaja';
 
   if (!isApproved) {
     return (
@@ -290,8 +304,9 @@ export default function Dashboard() {
               {topClientPercent.toFixed(1)}%
             </div>
             {topClientName && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate" title={topClientName}>
-                {topClientName}
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate flex items-center gap-1" title={topClientName}>
+                {topClientName === 'Maloprodaja' && <Store className="h-3 w-3 text-primary shrink-0" />}
+                <span className="truncate">{topClientName}</span>
               </p>
             )}
             {isIndependenceWarning && (
