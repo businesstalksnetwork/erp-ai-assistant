@@ -18,6 +18,7 @@ import EditInvoice from "./pages/EditInvoice";
 import EditTemplate from "./pages/EditTemplate";
 import InvoiceDetail from "./pages/InvoiceDetail";
 import AdminAnalytics from "./pages/AdminAnalytics";
+import InvoiceAnalytics from "./pages/InvoiceAnalytics";
 import KPOBook from "./pages/KPOBook";
 import FiscalCashRegister from "./pages/FiscalCashRegister";
 import Reminders from "./pages/Reminders";
@@ -97,6 +98,7 @@ function AppRoutes() {
       <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
       <Route path="/templates/:id/edit" element={<ProtectedRoute><EditTemplate /></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute adminOnly><AdminAnalytics /></ProtectedRoute>} />
+      <Route path="/invoice-analytics" element={<ProtectedRoute><InvoiceAnalytics /></ProtectedRoute>} />
       <Route path="/kpo" element={<ProtectedRoute><KPOBook /></ProtectedRoute>} />
       <Route path="/fiscal" element={<ProtectedRoute><FiscalCashRegister /></ProtectedRoute>} />
       <Route path="/sef" element={<ProtectedRoute><SEFCenter /></ProtectedRoute>} />
