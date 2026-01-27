@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
-import { useKPO } from '@/hooks/useKPO';
+import { useFiscalEntries } from '@/hooks/useFiscalEntries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, Users, Building2, BarChart3, PieChart, BookOpen, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Users, Store, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('sr-RS', {
@@ -19,30 +17,38 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const formatShortCurrency = (amount: number) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`;
+  }
+  if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}k`;
+  }
+  return amount.toFixed(0);
+};
+
 export default function InvoiceAnalytics() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  
-  // KPO data
-  const kpoYear = selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
-  const { entries: kpoEntries, totals: kpoTotals, isLoading: kpoLoading, availableYears: kpoAvailableYears } = useKPO(selectedCompany?.id || null, kpoYear);
 
-  // Get only regular invoices (not proforma, not advance)
+  const year = selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
+  const { dailySummaries, isLoading: fiscalLoading, availableYears: fiscalYears } = useFiscalEntries(
+    selectedCompany?.id || null,
+    year
+  );
+
+  // Get only regular invoices (not proforma)
   const regularInvoices = useMemo(() => {
-    return invoices.filter(i => 
-      i.invoice_type === 'regular' && 
-      !i.is_proforma
-    );
+    return invoices.filter(i => i.invoice_type === 'regular' && !i.is_proforma);
   }, [invoices]);
 
-  // Get available years from invoices AND KPO entries
+  // Get available years from invoices AND fiscal entries
   const availableYears = useMemo(() => {
     const invoiceYears = [...new Set(regularInvoices.map(i => i.year))];
-    const kpoYears = kpoAvailableYears || [];
-    const allYears = [...new Set([...invoiceYears, ...kpoYears])].sort((a, b) => b - a);
+    const allYears = [...new Set([...invoiceYears, ...(fiscalYears || [])])].sort((a, b) => b - a);
     return allYears;
-  }, [regularInvoices, kpoAvailableYears]);
+  }, [regularInvoices, fiscalYears]);
 
   // Filter invoices by selected year
   const filteredInvoices = useMemo(() => {
@@ -50,207 +56,121 @@ export default function InvoiceAnalytics() {
     return regularInvoices.filter(i => i.year === parseInt(selectedYear));
   }, [regularInvoices, selectedYear]);
 
-  // Calculate totals
+  // Calculate fiscal totals
+  const fiscalTotal = useMemo(() => {
+    return dailySummaries.reduce((sum, s) => sum + Number(s.total_amount), 0);
+  }, [dailySummaries]);
+
+  // Calculate totals (invoices + fiscal)
   const totals = useMemo(() => {
-    const total = filteredInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
-    const paid = filteredInvoices
+    const invoiceTotal = filteredInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
+    const invoicePaid = filteredInvoices
       .filter(i => i.payment_status === 'paid')
       .reduce((sum, i) => sum + Number(i.total_amount), 0);
-    const partiallyPaid = filteredInvoices
+    const invoicePartial = filteredInvoices
       .filter(i => i.payment_status === 'partial')
       .reduce((sum, i) => sum + Number(i.paid_amount || 0), 0);
-    const unpaid = total - paid - partiallyPaid;
+    const invoiceUnpaid = invoiceTotal - invoicePaid - invoicePartial;
 
-    return { total, paid: paid + partiallyPaid, unpaid };
-  }, [filteredInvoices]);
+    // Total includes fiscal (always considered paid)
+    const total = invoiceTotal + fiscalTotal;
+    const paid = invoicePaid + invoicePartial + fiscalTotal;
+    const unpaid = invoiceUnpaid;
 
-  // Top 5 customers by revenue
-  const topCustomers = useMemo(() => {
-    const customerMap = new Map<string, { name: string; total: number }>();
-    
-    filteredInvoices.forEach(invoice => {
-      const current = customerMap.get(invoice.client_name) || { name: invoice.client_name, total: 0 };
-      current.total += Number(invoice.total_amount);
-      customerMap.set(invoice.client_name, current);
+    return { total, paid, unpaid };
+  }, [filteredInvoices, fiscalTotal]);
+
+  // Monthly line chart data (invoices + fiscal combined)
+  const monthlyData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
+    const monthlyMap = new Map<number, number>();
+
+    // Initialize all months
+    months.forEach((_, index) => {
+      monthlyMap.set(index, 0);
     });
 
-    return Array.from(customerMap.values())
+    // Add invoices
+    filteredInvoices.forEach(invoice => {
+      const month = new Date(invoice.issue_date).getMonth();
+      const current = monthlyMap.get(month) || 0;
+      monthlyMap.set(month, current + Number(invoice.total_amount));
+    });
+
+    // Add fiscal
+    dailySummaries.forEach(summary => {
+      const month = new Date(summary.summary_date).getMonth();
+      const current = monthlyMap.get(month) || 0;
+      monthlyMap.set(month, current + Number(summary.total_amount));
+    });
+
+    return months.map((name, index) => ({
+      name,
+      promet: Math.round(monthlyMap.get(index) || 0),
+    }));
+  }, [filteredInvoices, dailySummaries]);
+
+  // Pie chart data - paid vs unpaid (amounts, not counts)
+  const paymentDistributionData = useMemo(() => {
+    const data = [
+      { name: 'Naplaćeno', value: totals.paid, color: 'hsl(var(--chart-2))' },
+      { name: 'Nenaplaćeno', value: totals.unpaid, color: 'hsl(var(--chart-5))' },
+    ].filter(d => d.value > 0);
+
+    return data;
+  }, [totals]);
+
+  // Top 5 partners by total revenue (including fiscal as "Maloprodaja")
+  const topPartnersByRevenue = useMemo(() => {
+    const partnerMap = new Map<string, number>();
+
+    // Add invoices by client
+    filteredInvoices.forEach(invoice => {
+      const current = partnerMap.get(invoice.client_name) || 0;
+      partnerMap.set(invoice.client_name, current + Number(invoice.total_amount));
+    });
+
+    // Add fiscal as "Maloprodaja"
+    if (fiscalTotal > 0) {
+      partnerMap.set('Maloprodaja', fiscalTotal);
+    }
+
+    return Array.from(partnerMap.entries())
+      .map(([name, total]) => ({ name, total }))
       .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [filteredInvoices, fiscalTotal]);
+
+  // Top 5 partners by unpaid amount
+  const topPartnersByUnpaid = useMemo(() => {
+    const partnerMap = new Map<string, number>();
+
+    filteredInvoices.forEach(invoice => {
+      const invoiceTotal = Number(invoice.total_amount);
+      const invoicePaid =
+        invoice.payment_status === 'paid'
+          ? invoiceTotal
+          : invoice.payment_status === 'partial'
+          ? Number(invoice.paid_amount || 0)
+          : 0;
+      const unpaid = invoiceTotal - invoicePaid;
+
+      if (unpaid > 0) {
+        const current = partnerMap.get(invoice.client_name) || 0;
+        partnerMap.set(invoice.client_name, current + unpaid);
+      }
+    });
+
+    return Array.from(partnerMap.entries())
+      .map(([name, unpaid]) => ({ name, unpaid }))
+      .sort((a, b) => b.unpaid - a.unpaid)
       .slice(0, 5);
   }, [filteredInvoices]);
 
-  // Invoiced by partners (all partners)
-  const invoicedByPartner = useMemo(() => {
-    const partnerMap = new Map<string, { name: string; total: number; count: number }>();
-    
-    filteredInvoices.forEach(invoice => {
-      const current = partnerMap.get(invoice.client_name) || { name: invoice.client_name, total: 0, count: 0 };
-      current.total += Number(invoice.total_amount);
-      current.count += 1;
-      partnerMap.set(invoice.client_name, current);
-    });
-
-    const totalInvoiced = filteredInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
-
-    return Array.from(partnerMap.values())
-      .sort((a, b) => b.total - a.total)
-      .map(p => ({ ...p, percentage: totalInvoiced > 0 ? (p.total / totalInvoiced) * 100 : 0 }));
-  }, [filteredInvoices]);
-
-  // Unpaid by partners
-  const unpaidByPartner = useMemo(() => {
-    const partnerMap = new Map<string, { 
-      name: string; 
-      total: number; 
-      paid: number; 
-      unpaid: number;
-      invoiceCount: number;
-    }>();
-    
-    filteredInvoices.forEach(invoice => {
-      const current = partnerMap.get(invoice.client_name) || { 
-        name: invoice.client_name, 
-        total: 0, 
-        paid: 0, 
-        unpaid: 0,
-        invoiceCount: 0
-      };
-      const invoiceTotal = Number(invoice.total_amount);
-      const invoicePaid = invoice.payment_status === 'paid' 
-        ? invoiceTotal 
-        : (invoice.payment_status === 'partial' ? Number(invoice.paid_amount || 0) : 0);
-
-      current.total += invoiceTotal;
-      current.paid += invoicePaid;
-      current.unpaid += (invoiceTotal - invoicePaid);
-      current.invoiceCount += 1;
-      partnerMap.set(invoice.client_name, current);
-    });
-
-    return Array.from(partnerMap.values())
-      .filter(p => p.unpaid > 0)
-      .sort((a, b) => b.unpaid - a.unpaid);
-  }, [filteredInvoices]);
-
-  // Monthly revenue data for bar chart
-  const monthlyData = useMemo(() => {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
-      'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'
-    ];
-    
-    const monthlyMap = new Map<number, { invoiced: number; paid: number }>();
-    
-    // Initialize all months
-    months.forEach((_, index) => {
-      monthlyMap.set(index, { invoiced: 0, paid: 0 });
-    });
-    
-    filteredInvoices.forEach(invoice => {
-      const month = new Date(invoice.issue_date).getMonth();
-      const current = monthlyMap.get(month) || { invoiced: 0, paid: 0 };
-      const invoiceTotal = Number(invoice.total_amount);
-      const invoicePaid = invoice.payment_status === 'paid' 
-        ? invoiceTotal 
-        : (invoice.payment_status === 'partial' ? Number(invoice.paid_amount || 0) : 0);
-      
-      current.invoiced += invoiceTotal;
-      current.paid += invoicePaid;
-      monthlyMap.set(month, current);
-    });
-
-    return months.map((name, index) => {
-      const data = monthlyMap.get(index) || { invoiced: 0, paid: 0 };
-      return {
-        name,
-        fakturisano: Math.round(data.invoiced),
-        naplaceno: Math.round(data.paid),
-      };
-    });
-  }, [filteredInvoices]);
-
-  // Payment status distribution for pie chart
-  const paymentStatusData = useMemo(() => {
-    const paidCount = filteredInvoices.filter(i => i.payment_status === 'paid').length;
-    const partialCount = filteredInvoices.filter(i => i.payment_status === 'partial').length;
-    const unpaidCount = filteredInvoices.filter(i => i.payment_status === 'unpaid' || !i.payment_status).length;
-    
-    return [
-      { name: 'Plaćeno', value: paidCount, color: 'hsl(var(--chart-2))' },
-      { name: 'Delimično', value: partialCount, color: 'hsl(var(--chart-4))' },
-      { name: 'Neplaćeno', value: unpaidCount, color: 'hsl(var(--chart-1))' },
-    ].filter(item => item.value > 0);
-  }, [filteredInvoices]);
-
-  // Top customers for horizontal bar chart
-  const topCustomersChartData = useMemo(() => {
-    return topCustomers.map((customer, index) => ({
-      name: customer.name.length > 15 ? customer.name.substring(0, 15) + '...' : customer.name,
-      fullName: customer.name,
-      iznos: Math.round(customer.total),
-      fill: `hsl(var(--chart-${(index % 5) + 1}))`,
-    }));
-  }, [topCustomers]);
-
-  // Unpaid by partners for horizontal bar chart
-  const unpaidChartData = useMemo(() => {
-    return unpaidByPartner.slice(0, 10).map((partner, index) => ({
-      name: partner.name.length > 15 ? partner.name.substring(0, 15) + '...' : partner.name,
-      fullName: partner.name,
-      nenaplaceno: Math.round(partner.unpaid),
-      fill: `hsl(var(--chart-${(index % 5) + 1}))`,
-    }));
-  }, [unpaidByPartner]);
-
-  // KPO monthly data
-  const kpoMonthlyData = useMemo(() => {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
-      'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'
-    ];
-    const monthlyMap = new Map<number, number>();
-    
-    kpoEntries.forEach(entry => {
-      if (entry.document_date) {
-        const month = new Date(entry.document_date).getMonth();
-        monthlyMap.set(month, (monthlyMap.get(month) || 0) + Number(entry.total_amount));
-      }
-    });
-    
-    return months.map((name, index) => ({
-      name,
-      kpo: Math.round(monthlyMap.get(index) || 0),
-    }));
-  }, [kpoEntries]);
-
-  // Combined monthly data for comparison chart
-  const combinedMonthlyData = useMemo(() => {
-    return monthlyData.map((item, index) => ({
-      ...item,
-      kpo: kpoMonthlyData[index]?.kpo || 0,
-    }));
-  }, [monthlyData, kpoMonthlyData]);
-
   const chartConfig = {
-    fakturisano: {
-      label: "Fakturisano",
-      color: "hsl(var(--chart-1))",
-    },
-    naplaceno: {
-      label: "Naplaćeno",
-      color: "hsl(var(--chart-2))",
-    },
-    iznos: {
-      label: "Iznos",
-      color: "hsl(var(--chart-3))",
-    },
-    nenaplaceno: {
-      label: "Nenaplaćeno",
-      color: "hsl(var(--chart-5))",
-    },
-    kpo: {
-      label: "KPO Promet",
-      color: "hsl(var(--chart-4))",
+    promet: {
+      label: 'Promet',
+      color: 'hsl(var(--chart-1))',
     },
   };
 
@@ -262,7 +182,7 @@ export default function InvoiceAnalytics() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || fiscalLoading) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">Učitavanje...</p>
@@ -271,10 +191,10 @@ export default function InvoiceAnalytics() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Analitika faktura</h1>
+        <h1 className="text-2xl font-bold">Analitika</h1>
         <Select value={selectedYear} onValueChange={setSelectedYear}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Izaberite godinu" />
@@ -282,7 +202,9 @@ export default function InvoiceAnalytics() {
           <SelectContent>
             <SelectItem value="all">Sve godine</SelectItem>
             {availableYears.map(year => (
-              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              <SelectItem key={year} value={year.toString()}>
+                {year}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -292,13 +214,13 @@ export default function InvoiceAnalytics() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ukupno fakturisano</CardTitle>
+            <CardTitle className="text-sm font-medium">Ukupan promet</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totals.total)}</div>
             <p className="text-xs text-muted-foreground">
-              {filteredInvoices.length} faktura
+              {filteredInvoices.length} faktura{fiscalTotal > 0 && ' + fiskalna kasa'}
             </p>
           </CardContent>
         </Card>
@@ -306,10 +228,10 @@ export default function InvoiceAnalytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Naplaćeno</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <TrendingUp className="h-4 w-4 text-chart-2" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.paid)}</div>
+            <div className="text-2xl font-bold text-chart-2">{formatCurrency(totals.paid)}</div>
             <p className="text-xs text-muted-foreground">
               {totals.total > 0 ? ((totals.paid / totals.total) * 100).toFixed(1) : 0}% od ukupnog
             </p>
@@ -319,10 +241,10 @@ export default function InvoiceAnalytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Nenaplaćeno</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.unpaid)}</div>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(totals.unpaid)}</div>
             <p className="text-xs text-muted-foreground">
               {totals.total > 0 ? ((totals.unpaid / totals.total) * 100).toFixed(1) : 0}% od ukupnog
             </p>
@@ -331,8 +253,8 @@ export default function InvoiceAnalytics() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Monthly Revenue Chart */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Monthly Revenue Line Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -341,25 +263,29 @@ export default function InvoiceAnalytics() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredInvoices.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            {totals.total === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
-                  <YAxis 
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                    className="text-xs"
-                  />
-                  <ChartTooltip 
+                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" />
+                  <ChartTooltip
                     content={<ChartTooltipContent />}
                     formatter={(value: number) => formatCurrency(value)}
                   />
                   <Legend />
-                  <Bar dataKey="fakturisano" name="Fakturisano" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="naplaceno" name="Naplaćeno" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="promet"
+                    name="Promet"
+                    stroke="hsl(var(--chart-1))"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ChartContainer>
             )}
           </CardContent>
@@ -369,19 +295,19 @@ export default function InvoiceAnalytics() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Status plaćanja
+              <PieChartIcon className="h-5 w-5" />
+              Naplaćeno / Nenaplaćeno
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {paymentStatusData.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nema podataka</p>
+            {paymentDistributionData.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
               <div className="h-[300px] w-full flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
-                      data={paymentStatusData}
+                      data={paymentDistributionData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -390,22 +316,22 @@ export default function InvoiceAnalytics() {
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {paymentStatusData.map((entry, index) => (
+                      {paymentDistributionData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <ChartTooltip 
-                      formatter={(value: number, name: string) => [`${value} faktura`, name]}
-                    />
+                    <ChartTooltip formatter={(value: number) => formatCurrency(value)} />
                   </RechartsPieChart>
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="flex justify-center gap-4 mt-4">
-              {paymentStatusData.map((item) => (
+            <div className="flex justify-center gap-6 mt-4">
+              {paymentDistributionData.map(item => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-sm text-muted-foreground">{item.name}: {item.value}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {item.name}: {formatCurrency(item.value)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -413,31 +339,38 @@ export default function InvoiceAnalytics() {
         </Card>
       </div>
 
-
-      {/* Top 5 Customers & Invoiced by Partner */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Top 5 Customers */}
+      {/* Top 5 Lists */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top 5 by Revenue */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Top 5 kupaca
+              Top 5 partnera po prometu
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {topCustomers.length === 0 ? (
+            {topPartnersByRevenue.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka</p>
             ) : (
               <div className="space-y-4">
-                {topCustomers.map((customer, index) => (
-                  <div key={customer.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="w-6 h-6 flex items-center justify-center rounded-full">
+                {topPartnersByRevenue.map((partner, index) => (
+                  <div key={partner.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge
+                        variant="outline"
+                        className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
+                      >
                         {index + 1}
                       </Badge>
-                      <span className="font-medium truncate max-w-[200px]">{customer.name}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {partner.name === 'Maloprodaja' && (
+                          <Store className="h-4 w-4 text-primary shrink-0" />
+                        )}
+                        <span className="font-medium truncate">{partner.name}</span>
+                      </div>
                     </div>
-                    <span className="font-semibold">{formatCurrency(customer.total)}</span>
+                    <span className="font-semibold shrink-0">{formatCurrency(partner.total)}</span>
                   </div>
                 ))}
               </div>
@@ -445,207 +378,40 @@ export default function InvoiceAnalytics() {
           </CardContent>
         </Card>
 
-        {/* Invoiced by Partner */}
+        {/* Top 5 by Unpaid */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Fakturisano po partnerima
+              <TrendingDown className="h-5 w-5 text-destructive" />
+              Top 5 partnera po nenaplaćenom
             </CardTitle>
           </CardHeader>
-          <CardContent className="max-h-[300px] overflow-y-auto">
-            {invoicedByPartner.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nema podataka</p>
+          <CardContent>
+            {topPartnersByUnpaid.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Sve je naplaćeno! 🎉</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Partner</TableHead>
-                    <TableHead className="text-right">Iznos</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoicedByPartner.map(partner => (
-                    <TableRow key={partner.name}>
-                      <TableCell className="font-medium truncate max-w-[150px]">{partner.name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
-                      <TableCell className="text-right">{partner.percentage.toFixed(1)}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-4">
+                {topPartnersByUnpaid.map((partner, index) => (
+                  <div key={partner.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge
+                        variant="destructive"
+                        className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
+                      >
+                        {index + 1}
+                      </Badge>
+                      <span className="font-medium truncate">{partner.name}</span>
+                    </div>
+                    <span className="font-semibold text-destructive shrink-0">
+                      {formatCurrency(partner.unpaid)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Unpaid by Partner - Chart + Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <TrendingDown className="h-5 w-5" />
-            Nenaplaćena potraživanja po partnerima
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {unpaidByPartner.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Sve fakture su naplaćene! 🎉</p>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-5">
-              {/* Small Chart - 2 columns */}
-              <div className="md:col-span-2">
-                <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                  <BarChart data={unpaidChartData.slice(0, 5)} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
-                    <XAxis 
-                      type="number" 
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      className="text-xs"
-                    />
-                    <YAxis 
-                      type="category" 
-                      dataKey="name" 
-                      className="text-xs"
-                      width={55}
-                    />
-                    <ChartTooltip 
-                      formatter={(value: number, name: string, props: any) => [formatCurrency(value), props.payload.fullName]}
-                    />
-                    <Bar dataKey="nenaplaceno" name="Nenaplaćeno" radius={[0, 4, 4, 0]}>
-                      {unpaidChartData.slice(0, 5).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill="hsl(var(--chart-1))" />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              
-              {/* Table - 3 columns */}
-              <div className="md:col-span-3 max-h-[250px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Partner</TableHead>
-                      <TableHead className="text-right">Ukupno</TableHead>
-                      <TableHead className="text-right">Naplaćeno</TableHead>
-                      <TableHead className="text-right">Nenaplaćeno</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unpaidByPartner.map(partner => (
-                      <TableRow key={partner.name}>
-                        <TableCell className="font-medium truncate max-w-[120px]">{partner.name}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(partner.total)}</TableCell>
-                        <TableCell className="text-right text-green-600">{formatCurrency(partner.paid)}</TableCell>
-                        <TableCell className="text-right text-destructive font-semibold">{formatCurrency(partner.unpaid)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* KPO Section */}
-      {selectedYear !== 'all' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              KPO Promet ({selectedYear})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {kpoLoading ? (
-              <p className="text-muted-foreground text-sm">Učitavanje...</p>
-            ) : kpoEntries.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nema KPO unosa za izabranu godinu</p>
-            ) : (
-              <>
-                {/* KPO Summary Cards */}
-                <div className="grid gap-4 md:grid-cols-3 mb-6">
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Ukupan KPO promet</p>
-                    <p className="text-2xl font-bold">{formatCurrency(kpoTotals.total)}</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Proizvodi</p>
-                    <p className="text-xl font-semibold">{formatCurrency(kpoTotals.products)}</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Usluge</p>
-                    <p className="text-xl font-semibold">{formatCurrency(kpoTotals.services)}</p>
-                  </div>
-                </div>
-
-                {/* Warning if KPO differs from invoiced */}
-                {Math.abs(kpoTotals.total - totals.total) > 1000 && totals.total > 0 && (
-                  <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                      KPO promet se razlikuje od fakturisanog iznosa za {formatCurrency(Math.abs(kpoTotals.total - totals.total))}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* KPO vs Invoiced Chart */}
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <BarChart data={combinedMonthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" className="text-xs" />
-                    <YAxis 
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      className="text-xs"
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Legend />
-                    <Bar dataKey="fakturisano" name="Fakturisano" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="kpo" name="KPO Promet" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ChartContainer>
-
-                {/* Products vs Services Pie */}
-                {(kpoTotals.products > 0 || kpoTotals.services > 0) && (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium mb-4">Raspodela: Proizvodi vs Usluge</h4>
-                    <div className="h-[200px] w-full flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={[
-                              { name: 'Proizvodi', value: kpoTotals.products, color: 'hsl(var(--chart-3))' },
-                              { name: 'Usluge', value: kpoTotals.services, color: 'hsl(var(--chart-4))' },
-                            ].filter(item => item.value > 0)}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            <Cell fill="hsl(var(--chart-3))" />
-                            <Cell fill="hsl(var(--chart-4))" />
-                          </Pie>
-                          <ChartTooltip 
-                            formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                          />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

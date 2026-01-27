@@ -55,6 +55,7 @@ const mainNavItems = [
   { href: '/clients', label: 'Klijenti', icon: Users },
   { href: '/documents', label: 'Dokumentacija', icon: FolderOpen },
   { href: '/services', label: 'Šifarnik', icon: ListChecks },
+  { href: '/invoice-analytics', label: 'Analitika', icon: BarChart3 },
 ];
 
 // Secondary navigation items (below separator) - dynamically built in getFilteredNavItems
