@@ -12,8 +12,11 @@ export interface FiscalEntry {
   amount: number;
   year: number;
   is_foreign: boolean;
+  is_paid: boolean;
   created_at: string;
 }
+
+export type FiscalPaymentStatus = 'unpaid' | 'partial' | 'paid';
 
 export interface FiscalDailySummary {
   id: string;
@@ -712,15 +715,132 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     },
   });
 
+  // Mark a single fiscal entry as paid/unpaid
+  const updateFiscalEntryPaid = useMutation({
+    mutationFn: async (data: { entryId: string; isPaid: boolean }) => {
+      const { entryId, isPaid } = data;
+
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .update({ is_paid: isPaid })
+        .eq('id', entryId);
+
+      if (error) throw error;
+
+      return { entryId, isPaid };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Ažurirano',
+        description: data.isPaid ? 'Račun označen kao naplaćen' : 'Račun označen kao nenaplaćen',
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Mark multiple fiscal entries as paid/unpaid
+  const updateFiscalEntriesPaid = useMutation({
+    mutationFn: async (data: { entryIds: string[]; isPaid: boolean }) => {
+      const { entryIds, isPaid } = data;
+
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .update({ is_paid: isPaid })
+        .in('id', entryIds);
+
+      if (error) throw error;
+
+      return { count: entryIds.length, isPaid };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Ažurirano',
+        description: data.isPaid 
+          ? `${data.count} računa označeno kao naplaćeno` 
+          : `${data.count} računa označeno kao nenaplaćeno`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Mark all entries for a specific date as paid/unpaid
+  const updateFiscalEntriesByDatePaid = useMutation({
+    mutationFn: async (data: { companyId: string; date: string; isPaid: boolean }) => {
+      const { companyId, date, isPaid } = data;
+
+      const { error } = await supabase
+        .from('fiscal_entries' as any)
+        .update({ is_paid: isPaid })
+        .eq('company_id', companyId)
+        .eq('entry_date', date);
+
+      if (error) throw error;
+
+      return { date, isPaid };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Ažurirano',
+        description: data.isPaid 
+          ? 'Svi računi za dan označeni kao naplaćeni' 
+          : 'Svi računi za dan označeni kao nenaplaćeni',
+      });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscal-daily-summaries'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Greška',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Helper to compute payment status for a date based on entries
+  const getPaymentStatusForDate = (date: string): FiscalPaymentStatus => {
+    const dateEntries = entries.filter(e => e.entry_date === date);
+    if (dateEntries.length === 0) return 'unpaid';
+    
+    const paidCount = dateEntries.filter(e => e.is_paid).length;
+    if (paidCount === 0) return 'unpaid';
+    if (paidCount === dateEntries.length) return 'paid';
+    return 'partial';
+  };
+
+  // Compute payment status for all daily summaries
+  const dailySummariesWithPaymentStatus = dailySummaries.map(summary => ({
+    ...summary,
+    paymentStatus: getPaymentStatusForDate(summary.summary_date),
+  }));
+
   const totals = {
     sales: entries.filter(e => e.transaction_type === 'Продаја').reduce((sum, e) => sum + e.amount, 0),
     refunds: entries.filter(e => e.transaction_type === 'Рефундација').reduce((sum, e) => sum + Math.abs(e.amount), 0),
     total: entries.reduce((sum, e) => sum + e.amount, 0),
+    paidTotal: entries.filter(e => e.is_paid).reduce((sum, e) => sum + e.amount, 0),
+    unpaidTotal: entries.filter(e => !e.is_paid).reduce((sum, e) => sum + e.amount, 0),
   };
 
   return {
     entries,
-    dailySummaries,
+    dailySummaries: dailySummariesWithPaymentStatus,
     isLoading,
     totals,
     availableYears,
@@ -731,5 +851,9 @@ export function useFiscalEntries(companyId: string | null, year?: number) {
     deleteFiscalEntriesByDateRange,
     deleteFiscalEntriesByYear,
     updateFiscalEntryForeign,
+    updateFiscalEntryPaid,
+    updateFiscalEntriesPaid,
+    updateFiscalEntriesByDatePaid,
+    getPaymentStatusForDate,
   };
 }

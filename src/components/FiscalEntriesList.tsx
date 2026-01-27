@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Loader2, Home, Globe, ChevronDown } from 'lucide-react';
+import { Trash2, Loader2, Home, Globe, ChevronDown, CheckCircle2, XCircle, Banknote } from 'lucide-react';
 
 interface FiscalEntriesListProps {
   entries: FiscalEntry[];
@@ -50,7 +50,13 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
   const [deleteMode, setDeleteMode] = useState<'single' | 'bulk'>('single');
   const [entryToDelete, setEntryToDelete] = useState<FiscalEntry | null>(null);
 
-  const { deleteFiscalEntry, deleteFiscalEntries, updateFiscalEntryForeign } = useFiscalEntries(companyId, year);
+  const { 
+    deleteFiscalEntry, 
+    deleteFiscalEntries, 
+    updateFiscalEntryForeign,
+    updateFiscalEntryPaid,
+    updateFiscalEntriesPaid,
+  } = useFiscalEntries(companyId, year);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -109,8 +115,24 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
     });
   };
 
+  const handleTogglePaid = async (entry: FiscalEntry) => {
+    await updateFiscalEntryPaid.mutateAsync({
+      entryId: entry.id,
+      isPaid: !entry.is_paid,
+    });
+  };
+
+  const handleBulkMarkPaid = async (isPaid: boolean) => {
+    if (selectedIds.size === 0) return;
+    await updateFiscalEntriesPaid.mutateAsync({
+      entryIds: Array.from(selectedIds),
+      isPaid,
+    });
+    setSelectedIds(new Set());
+  };
+
   const isDeleting = deleteFiscalEntry.isPending || deleteFiscalEntries.isPending;
-  const isUpdating = updateFiscalEntryForeign.isPending;
+  const isUpdating = updateFiscalEntryForeign.isPending || updateFiscalEntryPaid.isPending || updateFiscalEntriesPaid.isPending;
   const allSelected = entries.length > 0 && selectedIds.size === entries.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < entries.length;
 
@@ -126,23 +148,49 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
     <div className="space-y-4">
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 flex-wrap gap-2">
           <span className="text-sm font-medium">
             Izabrano: {selectedIds.size} računa
           </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDeleteBulk}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
-            )}
-            Obriši izabrane
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBulkMarkPaid(true)}
+              disabled={isUpdating}
+              className="text-chart-2 border-chart-2/30 hover:bg-chart-2/10"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Označi kao naplaćeno
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBulkMarkPaid(false)}
+              disabled={isUpdating}
+              className="text-muted-foreground"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Označi kao nenaplaćeno
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteBulk}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Obriši izabrane
+            </Button>
+          </div>
         </div>
       )}
 
@@ -164,6 +212,7 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
               <TableHead>Poslovni prostor</TableHead>
               <TableHead>Tip</TableHead>
               <TableHead>Promet</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Iznos</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
@@ -228,7 +277,28 @@ export function FiscalEntriesList({ entries, companyId, year }: FiscalEntriesLis
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-                <TableCell className={`text-right font-mono ${entry.transaction_type === 'Рефундација' ? 'text-red-600' : ''}`}>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => handleTogglePaid(entry)}
+                    disabled={isUpdating}
+                  >
+                    {entry.is_paid ? (
+                      <Badge variant="secondary" className="bg-chart-2/10 text-chart-2 border-chart-2/30 cursor-pointer hover:bg-chart-2/20">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Naplaćeno
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80">
+                        <Banknote className="h-3 w-3 mr-1" />
+                        Nenaplaćeno
+                      </Badge>
+                    )}
+                  </Button>
+                </TableCell>
+                <TableCell className={`text-right font-mono ${entry.transaction_type === 'Рефундација' ? 'text-destructive' : ''}`}>
                   {entry.transaction_type === 'Рефундација' ? '-' : ''}{formatCurrency(Math.abs(entry.amount))}
                 </TableCell>
                 <TableCell>

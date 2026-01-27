@@ -33,7 +33,7 @@ export default function InvoiceAnalytics() {
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
 
   const year = selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
-  const { dailySummaries, isLoading: fiscalLoading, availableYears: fiscalYears } = useFiscalEntries(
+  const { dailySummaries, entries: fiscalEntries, isLoading: fiscalLoading, availableYears: fiscalYears, totals: fiscalTotals } = useFiscalEntries(
     selectedCompany?.id || null,
     year
   );
@@ -56,10 +56,18 @@ export default function InvoiceAnalytics() {
     return regularInvoices.filter(i => i.year === parseInt(selectedYear));
   }, [regularInvoices, selectedYear]);
 
-  // Calculate fiscal totals
+  // Calculate fiscal totals based on is_paid status
   const fiscalTotal = useMemo(() => {
-    return dailySummaries.reduce((sum, s) => sum + Number(s.total_amount), 0);
-  }, [dailySummaries]);
+    return fiscalTotals.total;
+  }, [fiscalTotals]);
+
+  const fiscalPaidTotal = useMemo(() => {
+    return fiscalTotals.paidTotal;
+  }, [fiscalTotals]);
+
+  const fiscalUnpaidTotal = useMemo(() => {
+    return fiscalTotals.unpaidTotal;
+  }, [fiscalTotals]);
 
   // Calculate totals (invoices + fiscal)
   const totals = useMemo(() => {
@@ -72,13 +80,13 @@ export default function InvoiceAnalytics() {
       .reduce((sum, i) => sum + Number(i.paid_amount || 0), 0);
     const invoiceUnpaid = invoiceTotal - invoicePaid - invoicePartial;
 
-    // Total includes fiscal (always considered paid)
+    // Total includes fiscal - now respecting is_paid status
     const total = invoiceTotal + fiscalTotal;
-    const paid = invoicePaid + invoicePartial + fiscalTotal;
-    const unpaid = invoiceUnpaid;
+    const paid = invoicePaid + invoicePartial + fiscalPaidTotal;
+    const unpaid = invoiceUnpaid + fiscalUnpaidTotal;
 
     return { total, paid, unpaid };
-  }, [filteredInvoices, fiscalTotal]);
+  }, [filteredInvoices, fiscalTotal, fiscalPaidTotal, fiscalUnpaidTotal]);
 
   // Monthly line chart data (invoices + fiscal combined)
   const monthlyData = useMemo(() => {
@@ -141,7 +149,7 @@ export default function InvoiceAnalytics() {
       .slice(0, 5);
   }, [filteredInvoices, fiscalTotal]);
 
-  // Top 5 partners by unpaid amount
+  // Top 5 partners by unpaid amount (including unpaid fiscal as "Maloprodaja")
   const topPartnersByUnpaid = useMemo(() => {
     const partnerMap = new Map<string, number>();
 
@@ -161,11 +169,16 @@ export default function InvoiceAnalytics() {
       }
     });
 
+    // Add unpaid fiscal as "Maloprodaja"
+    if (fiscalUnpaidTotal > 0) {
+      partnerMap.set('Maloprodaja', fiscalUnpaidTotal);
+    }
+
     return Array.from(partnerMap.entries())
       .map(([name, unpaid]) => ({ name, unpaid }))
       .sort((a, b) => b.unpaid - a.unpaid)
       .slice(0, 5);
-  }, [filteredInvoices]);
+  }, [filteredInvoices, fiscalUnpaidTotal]);
 
   const chartConfig = {
     promet: {

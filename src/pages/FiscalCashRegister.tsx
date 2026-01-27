@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
-import { useFiscalEntries } from '@/hooks/useFiscalEntries';
+import { useFiscalEntries, FiscalPaymentStatus } from '@/hooks/useFiscalEntries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Loader2, Upload, Calculator, TrendingUp, TrendingDown, Trash2, List } from 'lucide-react';
+import { Building2, Loader2, Upload, Calculator, TrendingUp, TrendingDown, Trash2, List, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { FiscalImportDialog } from '@/components/FiscalImportDialog';
 import { FiscalEntriesList } from '@/components/FiscalEntriesList';
 import { FiscalDeleteByDateDialog } from '@/components/FiscalDeleteByDateDialog';
@@ -33,6 +33,51 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+function PaymentStatusBadge({ 
+  status, 
+  onClick, 
+  disabled 
+}: { 
+  status: FiscalPaymentStatus; 
+  onClick?: () => void; 
+  disabled?: boolean;
+}) {
+  const config = {
+    paid: {
+      label: 'Naplaćeno',
+      icon: CheckCircle2,
+      className: 'bg-chart-2/10 text-chart-2 border-chart-2/30 hover:bg-chart-2/20',
+    },
+    partial: {
+      label: 'Delimično',
+      icon: Clock,
+      className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200',
+    },
+    unpaid: {
+      label: 'Nenaplaćeno',
+      icon: AlertCircle,
+      className: 'bg-muted text-muted-foreground hover:bg-muted/80',
+    },
+  };
+
+  const { label, icon: Icon, className } = config[status];
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 px-0"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <Badge variant="secondary" className={`cursor-pointer ${className}`}>
+        <Icon className="h-3 w-3 mr-1" />
+        {label}
+      </Badge>
+    </Button>
+  );
+}
+
 export default function FiscalCashRegister() {
   const { selectedCompany } = useSelectedCompany();
   const currentYear = new Date().getFullYear();
@@ -41,12 +86,34 @@ export default function FiscalCashRegister() {
   const [deleteByDateDialogOpen, setDeleteByDateDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
   
-  const { entries, dailySummaries, isLoading, totals, availableYears } = useFiscalEntries(
+  const { 
+    entries, 
+    dailySummaries, 
+    isLoading, 
+    totals, 
+    availableYears,
+    updateFiscalEntriesByDatePaid,
+  } = useFiscalEntries(
     selectedCompany?.id || null,
     year
   );
 
   const years = availableYears.length > 0 ? availableYears : [currentYear];
+
+  const handleToggleDayPaid = async (date: string, currentStatus: FiscalPaymentStatus) => {
+    if (!selectedCompany) return;
+    
+    // If currently paid, mark as unpaid; otherwise mark as paid
+    const newIsPaid = currentStatus !== 'paid';
+    
+    await updateFiscalEntriesByDatePaid.mutateAsync({
+      companyId: selectedCompany.id,
+      date,
+      isPaid: newIsPaid,
+    });
+  };
+
+  const isUpdating = updateFiscalEntriesByDatePaid.isPending;
 
   if (!selectedCompany) {
     return (
@@ -92,23 +159,35 @@ export default function FiscalCashRegister() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupne prodaje</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500 dark:text-green-400" />
+            <TrendingUp className="h-4 w-4 text-chart-2" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totals.sales)}</div>
+            <div className="text-2xl font-bold text-chart-2">{formatCurrency(totals.sales)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupne refundacije</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500 dark:text-red-400" />
+            <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">-{formatCurrency(totals.refunds)}</div>
+            <div className="text-2xl font-bold text-destructive">-{formatCurrency(totals.refunds)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Naplaćeno</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-chart-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-chart-2">{formatCurrency(totals.paidTotal)}</div>
+            <p className="text-xs text-muted-foreground">
+              {totals.total > 0 ? ((totals.paidTotal / totals.total) * 100).toFixed(1) : 0}% od ukupnog
+            </p>
           </CardContent>
         </Card>
         <Card className="bg-primary text-primary-foreground">
@@ -131,8 +210,8 @@ export default function FiscalCashRegister() {
                 <CardTitle>Fiskalni podaci - {year}. godina</CardTitle>
                 <CardDescription>
                   {activeTab === 'summary' 
-                    ? 'Sumirani promet po danima (uključeno u KPO knjigu)' 
-                    : 'Lista svih fiskalnih računa sa mogućnošću brisanja'}
+                    ? 'Sumirani promet po danima (uključeno u KPO knjigu) - kliknite na status da označite sve račune za dan' 
+                    : 'Lista svih fiskalnih računa sa mogućnošću brisanja i označavanja plaćanja'}
                 </CardDescription>
               </div>
               <TabsList>
@@ -177,6 +256,7 @@ export default function FiscalCashRegister() {
                           <TableHead className="text-right">Prodaje</TableHead>
                           <TableHead className="text-right">Refundacije</TableHead>
                           <TableHead className="text-right">Neto iznos</TableHead>
+                          <TableHead className="text-center">Status plaćanja</TableHead>
                           <TableHead className="text-center">KPO status</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -190,18 +270,25 @@ export default function FiscalCashRegister() {
                                 year: 'numeric',
                               })}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-green-600 dark:text-green-400">
+                            <TableCell className="text-right font-mono text-chart-2">
                               {formatCurrency(summary.sales_amount)}
                             </TableCell>
-                            <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
+                            <TableCell className="text-right font-mono text-destructive">
                               -{formatCurrency(summary.refunds_amount)}
                             </TableCell>
                             <TableCell className="text-right font-mono font-semibold">
                               {formatCurrency(summary.total_amount)}
                             </TableCell>
                             <TableCell className="text-center">
+                              <PaymentStatusBadge
+                                status={summary.paymentStatus}
+                                onClick={() => handleToggleDayPaid(summary.summary_date, summary.paymentStatus)}
+                                disabled={isUpdating}
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
                               {summary.kpo_entry_id ? (
-                                <Badge variant="default" className="bg-green-500">
+                                <Badge variant="default" className="bg-chart-2">
                                   U KPO knjizi
                                 </Badge>
                               ) : (
