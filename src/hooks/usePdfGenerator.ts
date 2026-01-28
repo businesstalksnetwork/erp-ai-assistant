@@ -185,7 +185,7 @@ export async function generateInvoicePdf(
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
 
-    // Pojačaj kontrast na canvas-u
+    // Blago pojačanje kontrasta - bez agresivne binarizacije
     const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
       const ctx = targetCanvas.getContext('2d');
       if (!ctx) return;
@@ -194,46 +194,20 @@ export async function generateInvoicePdf(
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
 
-      // ULTRA agresivan prag - SVE što nije skoro potpuno belo postaje crno
-      const blackThreshold = isMobile ? 245 : 240;
+      // Blago pojačanje kontrasta umesto agresivne binarizacije
+      const contrastFactor = 1.15; // Blago povećanje kontrasta
+      const midpoint = 128;
 
       for (let i = 0; i < data.length; i += 4) {
         const a = data[i + 3];
         if (a === 0) continue;
 
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        // Izračunaj luminance (percepcijski ponderisana svetlina)
-        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-
-        // Na mobilnom: STROGA binarizacija - crno ili belo, bez sive
-        if (isMobile) {
-          if (luminance >= blackThreshold) {
-            data[i] = 255;
-            data[i + 1] = 255;
-            data[i + 2] = 255;
-          } else {
-            data[i] = 0;
-            data[i + 1] = 0;
-            data[i + 2] = 0;
-          }
-        } else {
-          if (luminance >= blackThreshold) {
-            data[i] = 255;
-            data[i + 1] = 255;
-            data[i + 2] = 255;
-          } else if (luminance < 200) {
-            data[i] = 0;
-            data[i + 1] = 0;
-            data[i + 2] = 0;
-          } else {
-            const factor = 2.5;
-            data[i] = Math.max(0, Math.min(255, (r - 128) * factor + 128));
-            data[i + 1] = Math.max(0, Math.min(255, (g - 128) * factor + 128));
-            data[i + 2] = Math.max(0, Math.min(255, (b - 128) * factor + 128));
-          }
+        // Primeni blago pojačanje kontrasta na svaki kanal
+        for (let c = 0; c < 3; c++) {
+          const value = data[i + c];
+          // Pojačaj kontrast oko srednje tačke
+          const adjusted = midpoint + (value - midpoint) * contrastFactor;
+          data[i + c] = Math.max(0, Math.min(255, Math.round(adjusted)));
         }
       }
 
