@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -126,8 +127,8 @@ export function useCompanies() {
     enabled: !!user,
   });
 
-  // Combine all companies
-  const companies = [...myCompanies, ...clientCompanies];
+  // Combine all companies (memoized to avoid re-running effects on every render)
+  const companies = useMemo(() => [...myCompanies, ...clientCompanies], [myCompanies, clientCompanies]);
 
   const createCompany = useMutation({
     // has_sef_api_key is a computed column, so we exclude it from create
