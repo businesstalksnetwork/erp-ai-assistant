@@ -391,6 +391,13 @@ export default function InvoiceDetail() {
 
     setIsGeneratingPDF(true);
 
+    // KRITIČNO: Privremeno ukloni dark mode da bi PDF bio svetao
+    const htmlElement = document.documentElement;
+    const wasDarkMode = htmlElement.classList.contains('dark');
+    if (wasDarkMode) {
+      htmlElement.classList.remove('dark');
+    }
+
     // Detekcija mobilnog uređaja
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
 
@@ -640,6 +647,12 @@ export default function InvoiceDetail() {
     } finally {
       // Ukloni offscreen wrapper
       document.body.removeChild(wrapper);
+      
+      // KRITIČNO: Vrati dark mode ako je bio aktivan
+      if (wasDarkMode) {
+        htmlElement.classList.add('dark');
+      }
+      
       setIsGeneratingPDF(false);
     }
   };
@@ -1109,29 +1122,53 @@ export default function InvoiceDetail() {
           const invoiceElement = document.querySelector('.print-invoice') as HTMLElement;
           if (!invoiceElement) throw new Error('Invoice element not found');
           
+          // KRITIČNO: Privremeno ukloni dark mode da bi PDF bio svetao
+          const htmlEl = document.documentElement;
+          const wasDark = htmlEl.classList.contains('dark');
+          if (wasDark) {
+            htmlEl.classList.remove('dark');
+          }
+          
           const wrapper = document.createElement('div');
           wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;min-height:1123px;height:auto;overflow:visible;background:white;padding:16px';
+          wrapper.className = 'pdf-export';
           const clone = invoiceElement.cloneNode(true) as HTMLElement;
           clone.querySelectorAll('.print\\:hidden').forEach(el => (el as HTMLElement).style.display = 'none');
+          
+          // Forsiraj belu pozadinu i crn tekst na klonu
+          clone.style.backgroundColor = '#ffffff';
+          clone.querySelectorAll('*').forEach(el => {
+            const element = el as HTMLElement;
+            element.style.color = '#000000';
+            element.style.webkitTextFillColor = '#000000';
+          });
+          
           wrapper.appendChild(clone);
           document.body.appendChild(wrapper);
           
-          await document.fonts.ready;
-          await new Promise(r => setTimeout(r, 300));
-          
-          const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-          document.body.removeChild(wrapper);
-          
-          const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const imgWidth = pdfWidth - 10;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          const finalHeight = Math.min(imgHeight, pdfHeight - 10);
-          const finalWidth = imgHeight > pdfHeight - 10 ? (canvas.width * finalHeight) / canvas.height : imgWidth;
-          
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pdfWidth - finalWidth) / 2, 5, finalWidth, finalHeight);
-          return pdf.output('blob');
+          try {
+            await document.fonts.ready;
+            await new Promise(r => setTimeout(r, 300));
+            
+            const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pdfWidth - 10;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const finalHeight = Math.min(imgHeight, pdfHeight - 10);
+            const finalWidth = imgHeight > pdfHeight - 10 ? (canvas.width * finalHeight) / canvas.height : imgWidth;
+            
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pdfWidth - finalWidth) / 2, 5, finalWidth, finalHeight);
+            return pdf.output('blob');
+          } finally {
+            document.body.removeChild(wrapper);
+            // Vrati dark mode ako je bio aktivan
+            if (wasDark) {
+              htmlEl.classList.add('dark');
+            }
+          }
         }}
         userEmail={userEmail}
         signatureSr={selectedCompany.email_signature_sr}
