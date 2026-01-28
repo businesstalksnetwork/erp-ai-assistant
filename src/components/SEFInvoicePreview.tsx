@@ -86,15 +86,64 @@ const SEFInvoicePreview: React.FC<SEFInvoicePreviewProps> = ({
     if (!printRef.current) return;
     
     setIsGeneratingPdf(true);
+    
+    // KRITIČNO: Privremeno ukloni dark mode da bi PDF bio svetao
+    const htmlElement = document.documentElement;
+    const wasDarkMode = htmlElement.classList.contains('dark');
+    if (wasDarkMode) {
+      htmlElement.classList.remove('dark');
+    }
+    
     try {
       const element = printRef.current;
       
-      const canvas = await html2canvas(element, {
+      // Kreiraj offscreen wrapper za konzistentno renderovanje
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.left = '-9999px';
+      wrapper.style.top = '0';
+      wrapper.style.width = '794px';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.backgroundColor = '#ffffff';
+      wrapper.style.padding = '16px';
+      wrapper.className = 'pdf-export';
+      
+      const clone = element.cloneNode(true) as HTMLElement;
+      
+      // Forsiraj svetle boje na klonu
+      clone.style.backgroundColor = '#ffffff';
+      clone.style.background = '#ffffff';
+      clone.style.color = '#000000';
+      
+      clone.querySelectorAll('*').forEach(el => {
+        const htmlEl = el as HTMLElement;
+        htmlEl.style.color = '#000000';
+        htmlEl.style.webkitTextFillColor = '#000000';
+        
+        // Zameni tamne pozadine sa svetlim
+        const computedStyle = window.getComputedStyle(htmlEl);
+        if (computedStyle.backgroundColor !== 'transparent' && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+          const bg = computedStyle.backgroundColor;
+          if (!bg.includes('255, 255, 255') && !bg.includes('rgb(255')) {
+            htmlEl.style.backgroundColor = '#f8f9fa';
+          }
+        }
+      });
+      
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+      
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const canvas = await html2canvas(wrapper, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
+      
+      document.body.removeChild(wrapper);
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92);
       const pdf = new jsPDF({
@@ -126,6 +175,10 @@ const SEFInvoicePreview: React.FC<SEFInvoicePreviewProps> = ({
       console.error('Error generating PDF:', error);
       toast.error('Greška pri generisanju PDF-a');
     } finally {
+      // KRITIČNO: Vrati dark mode ako je bio aktivan
+      if (wasDarkMode) {
+        htmlElement.classList.add('dark');
+      }
       setIsGeneratingPdf(false);
     }
   };
