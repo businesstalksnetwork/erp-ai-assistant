@@ -41,7 +41,7 @@ export async function generateInvoicePdf(
   wrapper.style.overflow = 'visible';
   wrapper.style.background = '#ffffff';
   wrapper.style.backgroundColor = '#ffffff';
-  wrapper.style.padding = '16px 16px 20px 16px';
+  wrapper.style.padding = '40px 16px 20px 16px'; // POVEĆAN GORNJI PADDING ZA DATUME
   wrapper.className = 'pdf-export';
 
   // Kloniraj sadržaj fakture
@@ -69,6 +69,20 @@ export async function generateInvoicePdf(
       (header as HTMLElement).style.pageBreakAfter = 'avoid';
     }
   }
+  
+  // FIX: Osiguraj kompletan okvir tabele STAVKE
+  clone.querySelectorAll('table').forEach(table => {
+    (table as HTMLElement).style.borderCollapse = 'collapse';
+  });
+  clone.querySelectorAll('.border, [class*="border-"]').forEach(el => {
+    const element = el as HTMLElement;
+    const cs = window.getComputedStyle(element);
+    // Osiguraj da border postoji i da je vidljiv
+    if (element.classList.contains('rounded-lg') && element.querySelector('table')) {
+      element.style.border = '1px solid #d1d5db';
+      element.style.overflow = 'hidden';
+    }
+  });
 
   // Sakrij print:hidden elemente u klonu
   clone.querySelectorAll('.print\\:hidden').forEach(el => {
@@ -97,8 +111,7 @@ export async function generateInvoicePdf(
       element.style.borderColor = '#888888';
     }
 
-    // SPECIJALNI SLUČAJ: Tamni blokovi sa belim tekstom (ZA PLAĆANJE sekcija)
-    // Ovi blokovi ostaju tamni jer su dizajnerski element
+    // SPECIJALNI SLUČAJ: Tamni blokovi (ZA PLAĆANJE sekcija) - SADA BELA POZADINA SA CRNIM TEKSTOM
     const isDarkBlock = element.classList.contains('bg-slate-800') || 
                         element.classList.contains('bg-slate-900') ||
                         element.classList.contains('bg-gray-800') ||
@@ -108,23 +121,23 @@ export async function generateInvoicePdf(
     const isInsideDarkBlock = element.closest('.bg-slate-800, .bg-slate-900, .bg-gray-800, .bg-gray-900, .bg-primary');
     
     if (isDarkBlock) {
-      // Zadrži tamnu pozadinu i beli tekst
-      element.style.backgroundColor = '#1e293b'; // slate-800 u light mode
-      element.style.color = '#ffffff';
-      element.style.webkitTextFillColor = '#ffffff';
-      return;
+      // Pretvori u belu pozadinu sa crnom ivicom za PDF
+      element.style.backgroundColor = '#ffffff';
+      element.style.border = '2px solid #1e293b';
+      element.style.color = '#000000';
+      element.style.webkitTextFillColor = '#000000';
+      return; // Prekini dalje procesiranje za ovaj element
     }
     
     if (isInsideDarkBlock) {
-      // Elementi unutar tamnog bloka ostaju sa belim tekstom
-      if (element.classList.contains('text-white')) {
-        element.style.color = '#ffffff';
-        element.style.webkitTextFillColor = '#ffffff';
-      } else if (element.classList.contains('text-slate-200') || element.classList.contains('text-slate-300')) {
-        element.style.color = '#e2e8f0'; // Svetlo siva
-        element.style.webkitTextFillColor = '#e2e8f0';
+      // Elementi unutar tog bloka - crni tekst
+      element.style.color = '#000000';
+      element.style.webkitTextFillColor = '#000000';
+      if (element.classList.contains('text-slate-200') || element.classList.contains('text-slate-300')) {
+        element.style.color = '#4a5568'; // Tamnija siva za labelu
+        element.style.webkitTextFillColor = '#4a5568';
       }
-      return;
+      return; // Prekini dalje procesiranje za ovaj element
     }
 
     // Default: čisto crn tekst za ostale elemente
