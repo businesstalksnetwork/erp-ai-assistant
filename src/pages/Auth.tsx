@@ -487,14 +487,17 @@ export default function Auth() {
               <TabsContent value="signup">
                 {showEmailVerificationMessage ? (
                   <div className="py-8 text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Mail className="h-8 w-8 text-primary" />
+                    <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                      <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-lg font-semibold">Proverite vaš email</h3>
                       <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                         Poslali smo vam email sa linkom za potvrdu. Kliknite na link u emailu da biste aktivirali vaš nalog.
                       </p>
+                      <div className="bg-primary/10 text-primary font-medium py-2 px-4 rounded-lg inline-block mt-2">
+                        🎉 Dobili ste 14 dana besplatnog korišćenja!
+                      </div>
                     </div>
                     <div className="pt-4 border-t space-y-2">
                       <p className="text-xs text-muted-foreground">
@@ -510,140 +513,148 @@ export default function Auth() {
                     </div>
                   </div>
                 ) : (
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  {/* Account Type Selection */}
-                  <div className="space-y-3">
-                    <Label>Tip naloga *</Label>
-                    <RadioGroup
-                      value={accountType}
-                      onValueChange={(value) => setAccountType(value as AccountType)}
-                      className="grid grid-cols-2 gap-3"
-                    >
-                      <Label
-                        htmlFor="type-pausal"
-                        className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                          accountType === 'pausal' 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-border hover:border-primary/50'
-                        }`}
+                <>
+                  {/* Free trial banner */}
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center mb-4">
+                    <p className="text-emerald-700 dark:text-emerald-300 text-sm font-medium">
+                      ✨ Registrujte se i koristite aplikaciju 14 dana potpuno besplatno!
+                    </p>
+                  </div>
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    {/* Account Type Selection */}
+                    <div className="space-y-3">
+                      <Label>Tip naloga *</Label>
+                      <RadioGroup
+                        value={accountType}
+                        onValueChange={(value) => setAccountType(value as AccountType)}
+                        className="grid grid-cols-2 gap-3"
                       >
-                        <RadioGroupItem value="pausal" id="type-pausal" className="sr-only" />
-                              <Building2 className="h-6 w-6 mb-2" />
-                              <span className="font-medium">Paušalac</span>
-                      </Label>
-                      <Label
-                        htmlFor="type-bookkeeper"
-                        className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                          accountType === 'bookkeeper' 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                      >
-                        <RadioGroupItem value="bookkeeper" id="type-bookkeeper" className="sr-only" />
-                              <Calculator className="h-6 w-6 mb-2" />
-                              <span className="font-medium">Knjigovođa</span>
-                      </Label>
-                    </RadioGroup>
-                  </div>
+                        <Label
+                          htmlFor="type-pausal"
+                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                            accountType === 'pausal' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <RadioGroupItem value="pausal" id="type-pausal" className="sr-only" />
+                          <Building2 className="h-6 w-6 mb-2" />
+                          <span className="font-medium">Paušalac</span>
+                        </Label>
+                        <Label
+                          htmlFor="type-bookkeeper"
+                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                            accountType === 'bookkeeper' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <RadioGroupItem value="bookkeeper" id="type-bookkeeper" className="sr-only" />
+                          <Calculator className="h-6 w-6 mb-2" />
+                          <span className="font-medium">Knjigovođa</span>
+                        </Label>
+                      </RadioGroup>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Ime i prezime *</Label>
-                    <Input
-                      id="signup-name"
-                      name="fullName"
-                      type="text"
-                      placeholder="Marko Marković"
-                      required
-                    />
-                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name">Ime i prezime *</Label>
+                      <Input
+                        id="signup-name"
+                        name="fullName"
+                        type="text"
+                        placeholder="Marko Marković"
+                        required
+                      />
+                      {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                    </div>
 
-                  {/* Dynamic fields based on account type */}
-                  {accountType === 'pausal' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-company">Naziv firme *</Label>
-                        <Input
-                          id="signup-company"
-                          name="companyName"
-                          type="text"
-                          placeholder="PR Marko Marković"
-                          required
-                        />
-                        {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-pib">PIB *</Label>
-                        <Input
-                          id="signup-pib"
-                          name="pib"
-                          type="text"
-                          placeholder="123456789"
-                          required
-                        />
-                        {errors.pib && <p className="text-sm text-destructive">{errors.pib}</p>}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-agency">Naziv agencije *</Label>
-                        <Input
-                          id="signup-agency"
-                          name="agencyName"
-                          type="text"
-                          placeholder="Knjigovodstvena agencija XYZ"
-                          required
-                        />
-                        {errors.agencyName && <p className="text-sm text-destructive">{errors.agencyName}</p>}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-agency-pib">PIB agencije *</Label>
-                        <Input
-                          id="signup-agency-pib"
-                          name="agencyPib"
-                          type="text"
-                          placeholder="123456789"
-                          required
-                        />
-                        {errors.agencyPib && <p className="text-sm text-destructive">{errors.agencyPib}</p>}
-                      </div>
-                    </>
-                  )}
+                    {/* Dynamic fields based on account type */}
+                    {accountType === 'pausal' ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-company">Naziv firme *</Label>
+                          <Input
+                            id="signup-company"
+                            name="companyName"
+                            type="text"
+                            placeholder="PR Marko Marković"
+                            required
+                          />
+                          {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-pib">PIB *</Label>
+                          <Input
+                            id="signup-pib"
+                            name="pib"
+                            type="text"
+                            placeholder="123456789"
+                            required
+                          />
+                          {errors.pib && <p className="text-sm text-destructive">{errors.pib}</p>}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-agency">Naziv agencije *</Label>
+                          <Input
+                            id="signup-agency"
+                            name="agencyName"
+                            type="text"
+                            placeholder="Knjigovodstvena agencija XYZ"
+                            required
+                          />
+                          {errors.agencyName && <p className="text-sm text-destructive">{errors.agencyName}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-agency-pib">PIB agencije *</Label>
+                          <Input
+                            id="signup-agency-pib"
+                            name="agencyPib"
+                            type="text"
+                            placeholder="123456789"
+                            required
+                          />
+                          {errors.agencyPib && <p className="text-sm text-destructive">{errors.agencyPib}</p>}
+                        </div>
+                      </>
+                    )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email *</Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      placeholder="vas@email.com"
-                      required
-                    />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Lozinka *</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                    />
-                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Registruj se
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    {accountType === 'bookkeeper' 
-                      ? 'Korišćenje aplikacije je besplatno za knjigovođe. Zaradite 20% od pretplata vaših klijenata!'
-                      : 'Nakon registracije dobijate 7 dana besplatnog probnog perioda.'
-                    }
-                  </p>
-                </form>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Email *</Label>
+                      <Input
+                        id="signup-email"
+                        name="email"
+                        type="email"
+                        placeholder="vas@email.com"
+                        required
+                      />
+                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Lozinka *</Label>
+                      <Input
+                        id="signup-password"
+                        name="password"
+                        type="password"
+                        placeholder="••••••••"
+                        required
+                      />
+                      {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Registruj se
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {accountType === 'bookkeeper' 
+                        ? 'Korišćenje aplikacije je besplatno za knjigovođe. Zaradite 20% od pretplata vaših klijenata!'
+                        : 'Nakon registracije dobijate 14 dana besplatnog probnog perioda.'
+                      }
+                    </p>
+                  </form>
+                </>
                 )}
               </TabsContent>
             </Tabs>
