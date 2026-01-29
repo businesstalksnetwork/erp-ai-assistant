@@ -122,8 +122,11 @@ export default function Auth() {
     }
 
     if (accountType === 'pausal' && fields) {
-      if (fields.pib !== undefined && fields.pib.trim().length < 9) {
-        newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
+      if (fields.pib !== undefined) {
+        const pibTrimmed = fields.pib.trim();
+        if (!/^\d{9}$/.test(pibTrimmed)) {
+          newErrors.pib = 'PIB mora imati tačno 9 cifara';
+        }
       }
       if (fields.companyName !== undefined && fields.companyName.trim().length < 2) {
         newErrors.companyName = 'Naziv firme mora imati najmanje 2 karaktera';
@@ -134,8 +137,11 @@ export default function Auth() {
       if (fields.agencyName !== undefined && fields.agencyName.trim().length < 2) {
         newErrors.agencyName = 'Naziv agencije mora imati najmanje 2 karaktera';
       }
-      if (fields.agencyPib !== undefined && fields.agencyPib.trim().length < 9) {
-        newErrors.agencyPib = 'PIB agencije mora imati najmanje 9 karaktera';
+      if (fields.agencyPib !== undefined) {
+        const agencyPibTrimmed = fields.agencyPib.trim();
+        if (!/^\d{9}$/.test(agencyPibTrimmed)) {
+          newErrors.agencyPib = 'PIB agencije mora imati tačno 9 cifara';
+        }
       }
     }
     
