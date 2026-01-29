@@ -56,3 +56,9 @@ verify_jwt = true
 
 [functions.sef-registry-auto-update]
 verify_jwt = false
+
+[functions.send-verification-email]
+verify_jwt = false
+
+[functions.verify-email]
+verify_jwt = false
