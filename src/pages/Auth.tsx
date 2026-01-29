@@ -199,18 +199,22 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(
-      email, 
-      password, 
-      fullName, 
-      accountType === 'pausal' ? pib! : '', 
-      accountType === 'pausal' ? companyName! : '',
-      accountType,
-      agencyName,
-      agencyPib,
-      referralId || undefined,
-      partnerCode || undefined
-    );
+    const { error, data } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          pib: accountType === 'pausal' ? pib : '',
+          company_name: accountType === 'pausal' ? companyName : '',
+          account_type: accountType,
+          agency_name: agencyName,
+          agency_pib: agencyPib,
+          invited_by_user_id: referralId || undefined,
+          partner_code: partnerCode || undefined,
+        },
+      },
+    });
 
     if (error) {
       let message = error.message;
@@ -222,14 +226,45 @@ export default function Auth() {
         description: message,
         variant: 'destructive',
       });
-    } else {
-      // Email verification required - show message to user
-      toast({
-        title: 'Potvrdite email adresu',
-        description: 'Poslali smo vam email sa linkom za potvrdu. Molimo vas da proverite inbox i potvrdite vašu email adresu pre prijave.',
-        duration: 10000,
-      });
-      setShowEmailVerificationMessage(true);
+      setLoading(false);
+      return;
+    }
+
+    // If signup successful, send custom verification email via Resend
+    if (data.user) {
+      try {
+        const { error: verificationError } = await supabase.functions.invoke('send-verification-email', {
+          body: {
+            user_id: data.user.id,
+            email: email,
+            full_name: fullName,
+          },
+        });
+
+        if (verificationError) {
+          console.error('Error sending verification email:', verificationError);
+          toast({
+            title: 'Upozorenje',
+            description: 'Nalog je kreiran, ali nije bilo moguće poslati verifikacioni email. Kontaktirajte podršku.',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Potvrdite email adresu',
+            description: 'Poslali smo vam email sa verification@pausalbox.rs. Proverite inbox i potvrdite email adresu pre prijave.',
+            duration: 10000,
+          });
+        }
+        setShowEmailVerificationMessage(true);
+      } catch (err) {
+        console.error('Error invoking verification function:', err);
+        toast({
+          title: 'Upozorenje',
+          description: 'Nalog je kreiran, ali nije bilo moguće poslati verifikacioni email.',
+          variant: 'destructive',
+        });
+        setShowEmailVerificationMessage(true);
+      }
     }
 
     setLoading(false);

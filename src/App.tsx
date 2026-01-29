@@ -30,6 +30,7 @@ import AdminPanel from "./pages/AdminPanel";
 import Payouts from "./pages/Payouts";
 import SEFCenter from "./pages/SEFCenter";
 import CompanyProfile from "./pages/CompanyProfile";
+import VerifyEmail from "./pages/VerifyEmail";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -88,6 +89,7 @@ function AppRoutes() {
         }
       />
       <Route path="/auth" element={user && !isRecoveryUrl ? <Navigate to="/dashboard" replace /> : <Auth />} />
+      <Route path="/verify" element={<VerifyEmail />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
       <Route path="/company/:id" element={<ProtectedRoute><CompanyProfile /></ProtectedRoute>} />
