@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Building2, Calculator } from 'lucide-react';
+import { Loader2, ArrowLeft, Building2, Calculator, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import { useTheme } from '@/lib/theme-context';
 import logoLight from '@/assets/pausal-box-logo-light.png';
@@ -49,6 +49,7 @@ export default function Auth() {
   }>({});
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [accountType, setAccountType] = useState<AccountType>('pausal');
+  const [showEmailVerificationMessage, setShowEmailVerificationMessage] = useState(false);
   
   // Get referral ID, partner code and plan from URL if present
   const referralId = searchParams.get('ref');
@@ -159,11 +160,15 @@ export default function Auth() {
     const { error } = await signIn(email, password);
 
     if (error) {
+      let errorMessage = error.message;
+      if (error.message === 'Invalid login credentials') {
+        errorMessage = 'Pogrešan email ili lozinka';
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = 'Molimo vas da prvo potvrdite vašu email adresu. Proverite inbox za link za potvrdu.';
+      }
       toast({
         title: 'Greška pri prijavi',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Pogrešan email ili lozinka' 
-          : error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
     } else {
@@ -218,22 +223,13 @@ export default function Auth() {
         variant: 'destructive',
       });
     } else {
-      const successMessage = accountType === 'bookkeeper' 
-        ? 'Dobrodošli! Vaš nalog za knjigovođu je kreiran. Korišćenje je besplatno!'
-        : 'Dobrodošli! Imate 7 dana besplatnog probnog perioda.';
+      // Email verification required - show message to user
       toast({
-        title: 'Registracija uspešna',
-        description: successMessage,
+        title: 'Potvrdite email adresu',
+        description: 'Poslali smo vam email sa linkom za potvrdu. Molimo vas da proverite inbox i potvrdite vašu email adresu pre prijave.',
+        duration: 10000,
       });
-      
-      // Check for pending plan from pricing page
-      const pendingPlan = localStorage.getItem('pendingPlan');
-      if (pendingPlan) {
-        localStorage.removeItem('pendingPlan');
-        navigate(`/profile?plan=${pendingPlan}&tab=subscription`);
-      } else {
-        navigate('/dashboard');
-      }
+      setShowEmailVerificationMessage(true);
     }
 
     setLoading(false);
@@ -489,6 +485,31 @@ export default function Auth() {
               </TabsContent>
 
               <TabsContent value="signup">
+                {showEmailVerificationMessage ? (
+                  <div className="py-8 text-center space-y-4">
+                    <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Mail className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">Proverite vaš email</h3>
+                      <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                        Poslali smo vam email sa linkom za potvrdu. Kliknite na link u emailu da biste aktivirali vaš nalog.
+                      </p>
+                    </div>
+                    <div className="pt-4 border-t space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Niste dobili email? Proverite spam folder ili se registrujte ponovo.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowEmailVerificationMessage(false)}
+                      >
+                        Registruj se ponovo
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                 <form onSubmit={handleSignUp} className="space-y-4">
                   {/* Account Type Selection */}
                   <div className="space-y-3">
@@ -623,6 +644,7 @@ export default function Auth() {
                     }
                   </p>
                 </form>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
