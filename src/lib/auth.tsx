@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { getProductionUrl } from '@/lib/domain';
 
 interface Profile {
   id: string;
@@ -156,7 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     invitedByUserId?: string,
     partnerCode?: string
   ) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Always use production domain for email verification links
+    const redirectUrl = `${getProductionUrl()}/`;
     
     const { error } = await supabase.auth.signUp({
       email,
