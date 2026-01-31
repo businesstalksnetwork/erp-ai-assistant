@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { S3Client, GetObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
-import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.712.0';
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,15 +10,20 @@ const corsHeaders = {
 function getS3Client() {
   const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
   const region = Deno.env.get('DO_SPACES_REGION')!;
+  const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+  
+  // s3-lite-client expects endpoint without protocol
+  const cleanEndpoint = endpoint.replace('https://', '').replace('http://', '');
   
   return new S3Client({
-    endpoint: endpoint.startsWith('https://') ? endpoint : `https://${endpoint}`,
+    endPoint: cleanEndpoint,
+    port: 443,
+    useSSL: true,
     region,
-    credentials: {
-      accessKeyId: Deno.env.get('DO_SPACES_KEY')!,
-      secretAccessKey: Deno.env.get('DO_SPACES_SECRET')!,
-    },
-    forcePathStyle: false,
+    bucket,
+    accessKey: Deno.env.get('DO_SPACES_KEY')!,
+    secretKey: Deno.env.get('DO_SPACES_SECRET')!,
+    pathStyle: false,
   });
 }
 
@@ -89,18 +93,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate presigned URL
+    // Generate presigned URL using s3-lite-client
     const s3Client = getS3Client();
-    const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
-
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: path,
-    });
 
     // Cap expiration at 7 days
     const safeExpiresIn = Math.min(expiresIn, 60 * 60 * 24 * 7);
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: safeExpiresIn });
+    
+    // s3-lite-client getPresignedUrl signature: (method, objectName, options)
+    const signedUrl = await s3Client.getPresignedUrl('GET', path, { 
+      expirySeconds: safeExpiresIn 
+    });
 
     console.log(`Generated signed URL for ${path}, expires in ${safeExpiresIn}s`);
 

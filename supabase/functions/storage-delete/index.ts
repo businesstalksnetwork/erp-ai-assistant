@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,15 +10,20 @@ const corsHeaders = {
 function getS3Client() {
   const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
   const region = Deno.env.get('DO_SPACES_REGION')!;
+  const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+  
+  // s3-lite-client expects endpoint without protocol
+  const cleanEndpoint = endpoint.replace('https://', '').replace('http://', '');
   
   return new S3Client({
-    endpoint: endpoint.startsWith('https://') ? endpoint : `https://${endpoint}`,
+    endPoint: cleanEndpoint,
+    port: 443,
+    useSSL: true,
     region,
-    credentials: {
-      accessKeyId: Deno.env.get('DO_SPACES_KEY')!,
-      secretAccessKey: Deno.env.get('DO_SPACES_SECRET')!,
-    },
-    forcePathStyle: false,
+    bucket,
+    accessKey: Deno.env.get('DO_SPACES_KEY')!,
+    secretKey: Deno.env.get('DO_SPACES_SECRET')!,
+    pathStyle: false,
   });
 }
 
@@ -88,35 +93,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Delete from DigitalOcean Spaces
+    // Delete from DigitalOcean Spaces using s3-lite-client
     const s3Client = getS3Client();
-    const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
 
-    if (paths.length === 1) {
-      // Single file delete
-      const command = new DeleteObjectCommand({
-        Bucket: bucket,
-        Key: paths[0],
-      });
-      await s3Client.send(command);
-    } else {
-      // Batch delete
-      const command = new DeleteObjectsCommand({
-        Bucket: bucket,
-        Delete: {
-          Objects: paths.map(key => ({ Key: key })),
-          Quiet: true,
-        },
-      });
-      await s3Client.send(command);
+    // Delete files one by one (s3-lite-client doesn't have batch delete)
+    const deleteResults: { path: string; success: boolean; error?: string }[] = [];
+    
+    for (const path of paths) {
+      try {
+        await s3Client.deleteObject(path);
+        deleteResults.push({ path, success: true });
+      } catch (err) {
+        const error = err as Error;
+        deleteResults.push({ path, success: false, error: error.message });
+      }
     }
 
-    console.log(`Deleted ${paths.length} file(s)`);
+    const successCount = deleteResults.filter(r => r.success).length;
+    const failCount = deleteResults.filter(r => !r.success).length;
+
+    console.log(`Deleted ${successCount} file(s), ${failCount} failed`);
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        deleted: paths,
+        success: failCount === 0, 
+        deleted: deleteResults.filter(r => r.success).map(r => r.path),
+        failed: deleteResults.filter(r => !r.success),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

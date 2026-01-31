@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,15 +10,20 @@ const corsHeaders = {
 function getS3Client() {
   const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
   const region = Deno.env.get('DO_SPACES_REGION')!;
+  const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+  
+  // s3-lite-client expects endpoint without protocol
+  const cleanEndpoint = endpoint.replace('https://', '').replace('http://', '');
   
   return new S3Client({
-    endpoint: endpoint.startsWith('https://') ? endpoint : `https://${endpoint}`,
+    endPoint: cleanEndpoint,
+    port: 443,
+    useSSL: true,
     region,
-    credentials: {
-      accessKeyId: Deno.env.get('DO_SPACES_KEY')!,
-      secretAccessKey: Deno.env.get('DO_SPACES_SECRET')!,
-    },
-    forcePathStyle: false,
+    bucket,
+    accessKey: Deno.env.get('DO_SPACES_KEY')!,
+    secretKey: Deno.env.get('DO_SPACES_SECRET')!,
+    pathStyle: false,
   });
 }
 
@@ -91,7 +96,6 @@ Deno.serve(async (req) => {
 
       try {
         // Download from Supabase Storage
-        const url = new URL(company.logo_url);
         const pathMatch = company.logo_url.match(/company-logos\/(.+)$/);
         if (!pathMatch) continue;
 
@@ -114,16 +118,11 @@ Deno.serve(async (req) => {
         const newPath = `users/${company.user_id}/logos/${company.id}/${Date.now()}_${oldPath.split('/').pop()}`;
 
         if (!dryRun) {
-          // Upload to DigitalOcean Spaces
+          // Upload to DigitalOcean Spaces using s3-lite-client
           const buffer = new Uint8Array(await fileData.arrayBuffer());
-          const command = new PutObjectCommand({
-            Bucket: bucket,
-            Key: newPath,
-            Body: buffer,
-            ContentType: fileData.type,
-            ACL: 'public-read',
+          await s3Client.putObject(newPath, buffer, {
+            metadata: { 'Content-Type': fileData.type || 'image/png' },
           });
-          await s3Client.send(command);
 
           // Update database
           const newUrl = `https://${bucket}.${region}.digitaloceanspaces.com/${newPath}`;
@@ -188,14 +187,9 @@ Deno.serve(async (req) => {
 
         if (!dryRun) {
           const buffer = new Uint8Array(await fileData.arrayBuffer());
-          const command = new PutObjectCommand({
-            Bucket: bucket,
-            Key: newPath,
-            Body: buffer,
-            ContentType: fileData.type || 'application/octet-stream',
-            ACL: 'private',
+          await s3Client.putObject(newPath, buffer, {
+            metadata: { 'Content-Type': fileData.type || 'application/octet-stream' },
           });
-          await s3Client.send(command);
 
           await supabase
             .from('documents')
@@ -258,14 +252,9 @@ Deno.serve(async (req) => {
 
         if (!dryRun) {
           const buffer = new Uint8Array(await fileData.arrayBuffer());
-          const command = new PutObjectCommand({
-            Bucket: bucket,
-            Key: newPath,
-            Body: buffer,
-            ContentType: fileData.type || 'application/octet-stream',
-            ACL: 'private',
+          await s3Client.putObject(newPath, buffer, {
+            metadata: { 'Content-Type': fileData.type || 'application/octet-stream' },
           });
-          await s3Client.send(command);
 
           await supabase
             .from('payment_reminders')
