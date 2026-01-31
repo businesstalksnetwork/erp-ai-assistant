@@ -1,82 +1,52 @@
 
+# Plan: Full Storage Migration to DigitalOcean Spaces
 
-# Plan: Single User Test Migration
+## Status Check
 
-## Test User Selected
-- **Email**: `nikolaglintic1994@gmail.com`
-- **User ID**: `fabec19c-425d-4d41-b6b1-f84c58cb3a95`
-- **Files to migrate**: 1 document
+**Companies.tsx upload already fixed!**
+- Line 9: `import { uploadFile } from '@/lib/storage';`
+- Lines 191-196: Uses `uploadFile({ type: 'logo', companyId, file })`
+- No changes needed - already routing to DigitalOcean Spaces
 
-### File Details:
-| Type | Current Path | New DO Spaces Path |
-|------|--------------|-------------------|
-| Document | `0fa69d4b.../general/1769290995384_Invoice-104768.pdf` | `users/fabec19c.../documents/0fa69d4b.../general/1769290995384_Invoice-104768.pdf` |
+## Migration Execution
 
-## Implementation
+Run full migration for all remaining files:
 
-### Modify `storage-migrate` Edge Function
-
-Add optional `userId` parameter to filter migration to a single user:
-
-```typescript
-// Parse request body
-const { dryRun = true, userId = null } = await req.json();
-
-// When fetching companies, filter by userId if provided
-const companiesQuery = supabase
-  .from('companies')
-  .select('id, user_id, logo_url')
-  .not('logo_url', 'is', null);
-
-if (userId) {
-  companiesQuery.eq('user_id', userId);
-}
-
-const { data: companies } = await companiesQuery;
-
-// Same pattern for documents and reminders queries
-```
-
-### Changes Summary
-
-1. **Parse `userId` from request body** (optional parameter)
-2. **Filter companies query** by `user_id` when provided
-3. **Filter documents query** - join with companies and filter by `user_id`
-4. **Filter reminders query** - join with companies and filter by `user_id`
-5. **Log which user is being migrated** for clarity
-
-### Usage
-
+### Step 1: Dry Run (preview what will be migrated)
 ```javascript
-// Test single user migration (dry run first)
 supabase.functions.invoke('storage-migrate', {
-  body: { 
-    dryRun: true, 
-    userId: 'fabec19c-425d-4d41-b6b1-f84c58cb3a95' 
-  }
-})
-
-// Execute single user migration
-supabase.functions.invoke('storage-migrate', {
-  body: { 
-    dryRun: false, 
-    userId: 'fabec19c-425d-4d41-b6b1-f84c58cb3a95' 
-  }
+  body: { dryRun: true }
 })
 ```
 
-### Expected Result
+### Step 2: Execute Full Migration
+```javascript
+supabase.functions.invoke('storage-migrate', {
+  body: { dryRun: false }
+})
+```
 
-After migration:
-- Document will be uploaded to DO Spaces at new path
-- Database `documents.file_path` will be updated
-- Original file in Supabase Storage remains (backup)
-- Frontend will load from DO Spaces via signed URL
+### Expected Files to Migrate
 
-### Verification Steps
+| Type | Remaining Files | Status |
+|------|----------------|--------|
+| Company Logos | ~5 | Pending |
+| Documents | ~13 | Pending |
+| Reminder Attachments | ~14 | Pending |
+| **Total** | ~32 | To migrate |
 
-1. Run dry run to confirm 1 file detected
-2. Execute migration
-3. Check DO Spaces for uploaded file
-4. Load documents page as that user - verify file downloads correctly
+### What Happens During Migration
 
+1. **Download** each file from Supabase Storage bucket
+2. **Upload** to DigitalOcean Spaces with new path structure:
+   - Logos: `users/{userId}/logos/{companyId}/{timestamp}_{filename}`
+   - Documents: `users/{userId}/documents/{companyId}/{folder}/{timestamp}_{filename}`
+   - Reminders: `users/{userId}/reminders/{companyId}/{timestamp}_{filename}`
+3. **Update database** record with new path/URL
+4. **Original files remain** in Supabase (backup)
+
+### Verification After Migration
+
+- Check DO Spaces console for uploaded files
+- Test download functionality via app
+- Confirm database records updated correctly
