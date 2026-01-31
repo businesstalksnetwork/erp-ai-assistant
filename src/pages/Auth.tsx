@@ -205,6 +205,48 @@ export default function Auth() {
       return;
     }
 
+    // Validate PIB via Checkpoint API before registration
+    const pibToValidate = accountType === 'pausal' ? pib : agencyPib;
+    if (pibToValidate && pibToValidate.trim()) {
+      try {
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-pib', {
+          body: { pib: pibToValidate.trim() }
+        });
+        
+        if (validationError) {
+          console.error('PIB validation error:', validationError);
+          toast({
+            title: 'Greška pri proveri PIB-a',
+            description: 'Nije moguće proveriti PIB. Pokušajte ponovo.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+        
+        if (!validationResult?.valid) {
+          toast({
+            title: 'Nevalidan PIB',
+            description: validationResult?.error || 'PIB nije pronađen u registru aktivnih firmi.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+        
+        console.log('PIB validated successfully:', validationResult.companyName);
+      } catch (err) {
+        console.error('PIB validation exception:', err);
+        toast({
+          title: 'Greška pri proveri PIB-a',
+          description: 'Nije moguće proveriti PIB. Pokušajte ponovo.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     const { error, data } = await supabase.auth.signUp({
       email,
       password,

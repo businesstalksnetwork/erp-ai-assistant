@@ -6,6 +6,9 @@ verify_jwt = true
 [functions.apr-lookup]
 verify_jwt = false
 
+[functions.validate-pib]
+verify_jwt = false
+
 [functions.sef-send-invoice]
 verify_jwt = true
 
