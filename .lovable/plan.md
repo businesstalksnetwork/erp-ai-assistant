@@ -1,73 +1,104 @@
 
 
-# Validacija PIB-a na registraciji
+# PIB Validacija preko Checkpoint API na Registraciji
 
-## Problem
+## Cilj
 
-Trenutna validacija PIB-a samo proverava minimalnu dužinu:
-```typescript
-if (fields.pib !== undefined && fields.pib.trim().length < 9) {
-  newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
-}
+Validirati PIB u pozadini tokom registracije koristeći Checkpoint API da se osigura da samo korisnici sa **stvarnim, aktivnim PIB-ovima** mogu da se registruju.
+
+## Arhitektura rešenja
+
+```text
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Auth.tsx      │────▶│  validate-pib    │────▶│  Checkpoint.rs  │
+│  (Registracija) │     │  (Edge Function) │     │      API        │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+         │                       │
+         │                       ▼
+         │              ┌──────────────────┐
+         │              │   NBS / APR      │
+         │              │   (Fallback)     │
+         │              └──────────────────┘
+         ▼
+   Ako PIB nije validan,
+   blokira se registracija
 ```
 
-Ovo dozvoljava unos slova i specijalnih karaktera, što nije validno.
+## Implementacija
 
-## Rešenje
+### 1. Nova Edge Funkcija: `validate-pib`
 
-Implementiraću strogu validaciju koja proverava:
-1. Da PIB sadrži **samo brojeve**
-2. Da ima **tačno 9 cifara**
+Kreiram novu javnu (bez JWT) edge funkciju koja:
+- Prima PIB kao parametar
+- Proverava preko Checkpoint.rs API-ja da li firma postoji
+- Koristi NBS i APR kao fallback
+- Vraća `{ valid: true/false, companyName?: string }`
 
-## Tehnički detalji
+**Fajl:** `supabase/functions/validate-pib/index.ts`
 
-### Izmena u `src/pages/Auth.tsx`
-
-Ažuriraću `validateForm` funkciju:
-
-**Trenutno (linije 124-131 i 133-140):**
 ```typescript
-if (fields.pib !== undefined && fields.pib.trim().length < 9) {
-  newErrors.pib = 'PIB mora imati najmanje 9 karaktera';
-}
+// Javna funkcija - ne zahteva autentikaciju
+// Koristi iste API izvore kao apr-lookup
+// Vraća samo valid/invalid status + naziv firme
 ```
 
-**Novo:**
+### 2. Ažuriranje `supabase/config.toml`
+
+```toml
+[functions.validate-pib]
+verify_jwt = false
+```
+
+### 3. Modifikacija `src/pages/Auth.tsx`
+
+U `handleSignUp` funkciji, pre poziva `supabase.auth.signUp`:
+
 ```typescript
-if (fields.pib !== undefined) {
-  const pibTrimmed = fields.pib.trim();
-  if (!/^\d{9}$/.test(pibTrimmed)) {
-    newErrors.pib = 'PIB mora imati tačno 9 cifara';
+// Validacija PIB-a preko backend-a
+const pibToValidate = accountType === 'pausal' ? pib : agencyPib;
+if (pibToValidate) {
+  const { data: validationResult } = await supabase.functions.invoke('validate-pib', {
+    body: { pib: pibToValidate }
+  });
+  
+  if (!validationResult?.valid) {
+    toast({
+      title: 'Nevalidan PIB',
+      description: 'PIB nije pronađen u registru aktivnih firmi.',
+      variant: 'destructive',
+    });
+    setLoading(false);
+    return;
   }
 }
 ```
 
-Ista promena za `agencyPib`:
-```typescript
-if (fields.agencyPib !== undefined) {
-  const agencyPibTrimmed = fields.agencyPib.trim();
-  if (!/^\d{9}$/.test(agencyPibTrimmed)) {
-    newErrors.agencyPib = 'PIB agencije mora imati tačno 9 cifara';
-  }
-}
-```
+## Korisničko iskustvo
 
-### Regex objašnjenje
+- Korisnik unosi PIB (9 cifara)
+- Frontend validacija proverava format
+- Na submit, backend proverava da li PIB postoji
+- Ako ne postoji: prikazuje se poruka greške, registracija se blokira
+- Ako postoji: registracija nastavlja normalno
+- **Korisnik ne vidi da se vrši provera** (osim loading indikatora)
 
-- `^\d{9}$` - proverava da string počinje i završava sa tačno 9 cifara (0-9)
-- `\d` - bilo koja cifra
-- `{9}` - tačno 9 puta
-- `^` i `$` - početak i kraj stringa (ne dozvoljava dodatne karaktere)
+## Bezbednost
+
+- Edge funkcija je javna ali ima rate limiting na nivou Supabase-a
+- Ne vraća osetljive podatke (samo valid/invalid + naziv)
+- CHECKPOINT_API_TOKEN ostaje zaštićen na serveru
 
 ## Fajlovi koji se menjaju
 
-| Fajl | Izmena |
+| Fajl | Akcija |
 |------|--------|
-| `src/pages/Auth.tsx` | Ažuriranje validacije PIB-a (linije ~124-140) |
+| `supabase/functions/validate-pib/index.ts` | NOVO - Edge funkcija za validaciju |
+| `supabase/config.toml` | Dodavanje konfiguracije za novu funkciju |
+| `src/pages/Auth.tsx` | Dodavanje poziva validate-pib pre registracije |
 
 ## Očekivani rezultat
 
-- PIB polje prihvata samo 9 cifara
-- Poruka greške: "PIB mora imati tačno 9 cifara"
-- Validacija se primenjuje na oba PIB polja (paušalac i knjigovođa)
+- Samo korisnici sa stvarnim PIB-ovima mogu da se registruju
+- Lažni/nepostojeći PIB-ovi se odbijaju sa jasnom porukom
+- Proces je transparentan za korisnika (samo vidi loading)
 
