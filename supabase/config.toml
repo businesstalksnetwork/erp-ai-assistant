@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.storage-cleanup]
 verify_jwt = true
+
+[functions.storage-fix-logos]
+verify_jwt = true

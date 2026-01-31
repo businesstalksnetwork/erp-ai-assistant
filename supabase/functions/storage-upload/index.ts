@@ -153,9 +153,11 @@ Deno.serve(async (req) => {
     const region = Deno.env.get('DO_SPACES_REGION')!;
 
     // s3-lite-client putObject signature: (objectName, stream, options)
+    // For logos, set public-read ACL so they can be accessed directly via URL
     await s3Client.putObject(path, buffer, {
       metadata: { 
         'Content-Type': contentType,
+        ...(type === 'logo' && { 'x-amz-acl': 'public-read' }),
       },
     });
 
