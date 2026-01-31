@@ -1,0 +1,192 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Initialize S3 client for DigitalOcean Spaces
+function getS3Client() {
+  const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
+  const region = Deno.env.get('DO_SPACES_REGION')!;
+  
+  return new S3Client({
+    endpoint: endpoint.startsWith('https://') ? endpoint : `https://${endpoint}`,
+    region,
+    credentials: {
+      accessKeyId: Deno.env.get('DO_SPACES_KEY')!,
+      secretAccessKey: Deno.env.get('DO_SPACES_SECRET')!,
+    },
+    forcePathStyle: false,
+  });
+}
+
+// Sanitize filename
+function sanitizeFilename(filename: string): string {
+  const lastDot = filename.lastIndexOf('.');
+  const name = lastDot > 0 ? filename.substring(0, lastDot) : filename;
+  const ext = lastDot > 0 ? filename.substring(lastDot) : '';
+  
+  const sanitized = name
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_.-]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  
+  return sanitized + ext.toLowerCase();
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    // Get auth token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Get user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Parse multipart form data
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    const type = formData.get('type') as string; // 'logo' | 'document' | 'reminder' | 'invoice'
+    const companyId = formData.get('companyId') as string;
+    const folderId = formData.get('folderId') as string | null;
+    const invoiceId = formData.get('invoiceId') as string | null;
+
+    if (!file || !type || !companyId) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: file, type, companyId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify user owns this company
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('user_id')
+      .eq('id', companyId)
+      .single();
+
+    if (companyError || !companyData) {
+      return new Response(JSON.stringify({ error: 'Company not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check ownership or bookkeeper access
+    const isOwner = companyData.user_id === user.id;
+    const { data: isBookkeeper } = await supabase.rpc('is_company_bookkeeper', { company_id: companyId });
+    
+    if (!isOwner && !isBookkeeper) {
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Build path based on type
+    const timestamp = Date.now();
+    const safeFilename = sanitizeFilename(file.name);
+    let path: string;
+    let contentType = file.type || 'application/octet-stream';
+    
+    switch (type) {
+      case 'logo':
+        path = `users/${companyData.user_id}/logos/${companyId}/${timestamp}_${safeFilename}`;
+        break;
+      case 'document':
+        const folder = folderId || 'general';
+        path = `users/${companyData.user_id}/documents/${companyId}/${folder}/${timestamp}_${safeFilename}`;
+        break;
+      case 'reminder':
+        path = `users/${companyData.user_id}/reminders/${companyId}/${timestamp}_${safeFilename}`;
+        break;
+      case 'invoice':
+        path = `users/${companyData.user_id}/invoices/${companyId}/${invoiceId || 'temp'}_${timestamp}.pdf`;
+        contentType = 'application/pdf';
+        break;
+      default:
+        return new Response(JSON.stringify({ error: 'Invalid type' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+
+    // Get file buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    // Upload to DigitalOcean Spaces
+    const s3Client = getS3Client();
+    const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+    const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
+    const region = Deno.env.get('DO_SPACES_REGION')!;
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: path,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: type === 'logo' ? 'public-read' : 'private',
+    });
+
+    await s3Client.send(command);
+
+    // Build public URL for logos, path for private files
+    let url: string;
+    if (type === 'logo') {
+      // For public files, return CDN URL
+      url = `https://${bucket}.${region}.digitaloceanspaces.com/${path}`;
+    } else {
+      // For private files, just return the path (use storage-download for signed URLs)
+      url = path;
+    }
+
+    console.log(`Uploaded ${type} to ${path}`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        path,
+        url,
+        type,
+        size: file.size,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (err) {
+    const error = err as Error;
+    console.error('Storage upload error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || 'Upload failed' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

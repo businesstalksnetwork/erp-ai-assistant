@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { uploadFile } from '@/lib/storage';
 
 export interface EmailLog {
   id: string;
@@ -39,29 +40,34 @@ export function useInvoiceEmail() {
     }: SendInvoiceEmailParams) => {
       console.log('Starting invoice email send process...');
       
-      // 1. Upload PDF to Supabase Storage
-      const pdfPath = `${companyId}/${invoiceId}-${Date.now()}.pdf`;
-      console.log('Uploading PDF to:', pdfPath);
+      // Convert Blob to File for upload
+      const pdfFile = new File([pdfBlob], `invoice-${invoiceId}.pdf`, { type: 'application/pdf' });
       
-      const { error: uploadError } = await supabase.storage
-        .from('invoice-pdfs')
-        .upload(pdfPath, pdfBlob, {
-          contentType: 'application/pdf',
-          upsert: true,
-        });
+      // 1. Upload PDF to DigitalOcean Spaces via edge function
+      console.log('Uploading PDF to DigitalOcean Spaces...');
+      
+      const uploadResult = await uploadFile({
+        type: 'invoice',
+        companyId,
+        file: pdfFile,
+        invoiceId,
+      });
 
-      if (uploadError) {
-        console.error('PDF upload error:', uploadError);
-        throw new Error('Greška pri uploadu PDF-a: ' + uploadError.message);
+      if (!uploadResult.success) {
+        console.error('PDF upload error:', uploadResult.error);
+        throw new Error('Greška pri uploadu PDF-a: ' + uploadResult.error);
       }
 
-      // 2. Get signed URL (valid for 7 days)
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('invoice-pdfs')
-        .createSignedUrl(pdfPath, 60 * 60 * 24 * 7); // 7 days
+      // 2. Get signed URL for the uploaded PDF (valid for 7 days)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.functions.invoke('storage-download', {
+        body: { 
+          path: uploadResult.path,
+          expiresIn: 60 * 60 * 24 * 7 // 7 days
+        },
+      });
 
-      if (urlError || !urlData?.signedUrl) {
-        console.error('Signed URL error:', urlError);
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        console.error('Signed URL error:', signedUrlError || signedUrlData?.error);
         throw new Error('Greška pri kreiranju linka za PDF');
       }
 
@@ -73,7 +79,7 @@ export function useInvoiceEmail() {
           invoiceId,
           recipientEmail,
           language,
-          pdfUrl: urlData.signedUrl,
+          pdfUrl: signedUrlData.signedUrl,
           ccToSender,
           senderEmail,
         },

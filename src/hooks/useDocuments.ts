@@ -3,24 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cyrillicToLatin } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
+import { uploadFile, getSignedUrl, deleteFiles, isDoSpacesPath } from '@/lib/storage';
 
-// Documents hook v2 - with move and preview support
-
-// Sanitize filename for storage - remove special chars, replace spaces
-function sanitizeFilename(filename: string): string {
-  const lastDot = filename.lastIndexOf('.');
-  const name = lastDot > 0 ? filename.substring(0, lastDot) : filename;
-  const ext = lastDot > 0 ? filename.substring(lastDot) : '';
-  
-  const sanitized = cyrillicToLatin(name)
-    .toLowerCase()
-    .replace(/\s+/g, '_')           // spaces -> underscore
-    .replace(/[^a-z0-9_.-]/g, '')   // remove all except letters, numbers, _, -, .
-    .replace(/_+/g, '_')            // multiple underscores -> one
-    .replace(/^_|_$/g, '');         // remove _ from start/end
-  
-  return sanitized + ext.toLowerCase();
-}
+// Documents hook v3 - with DigitalOcean Spaces support
 
 export interface DocumentFolder {
   id: string;
@@ -146,22 +131,24 @@ export function useDocuments(companyId: string | null) {
     },
   });
 
-  // Upload document
+  // Upload document - now uses DigitalOcean Spaces
   const uploadDocument = useMutation({
     mutationFn: async ({ file, folderId }: { file: File; folderId: string | null }) => {
       const nameNormalized = cyrillicToLatin(file.name).toLowerCase();
-      const folderPath = folderId || 'general';
-      const safeFilename = sanitizeFilename(file.name);
-      const path = `${companyId}/${folderPath}/${Date.now()}_${safeFilename}`;
 
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('company-documents')
-        .upload(path, file);
+      // Upload to DigitalOcean Spaces via edge function
+      const result = await uploadFile({
+        type: 'document',
+        companyId: companyId!,
+        file,
+        folderId,
+      });
 
-      if (uploadError) throw uploadError;
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
 
-      // Insert document record
+      // Insert document record with new path
       const { data, error } = await supabase
         .from('documents')
         .insert({
@@ -169,7 +156,7 @@ export function useDocuments(companyId: string | null) {
           folder_id: folderId,
           name: file.name,
           name_normalized: nameNormalized,
-          file_path: path,
+          file_path: result.path!,
           file_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
@@ -208,15 +195,27 @@ export function useDocuments(companyId: string | null) {
     },
   });
 
-  // Delete document
+  // Delete document - supports both old Supabase and new DO Spaces paths
   const deleteDocument = useMutation({
     mutationFn: async (doc: Document) => {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('company-documents')
-        .remove([doc.file_path]);
+      // Check if it's a DO Spaces path or old Supabase path
+      if (isDoSpacesPath(doc.file_path)) {
+        // Delete from DigitalOcean Spaces
+        const result = await deleteFiles(doc.file_path);
+        if (!result.success) {
+          console.error('Failed to delete from DO Spaces:', result.error);
+          // Continue to delete record even if storage delete fails
+        }
+      } else {
+        // Delete from old Supabase storage
+        const { error: storageError } = await supabase.storage
+          .from('company-documents')
+          .remove([doc.file_path]);
 
-      if (storageError) throw storageError;
+        if (storageError) {
+          console.error('Failed to delete from Supabase storage:', storageError);
+        }
+      }
 
       // Delete record
       const { error } = await supabase
@@ -235,17 +234,24 @@ export function useDocuments(companyId: string | null) {
     },
   });
 
-  // Get signed URL for download
+  // Get download URL - supports both old Supabase and new DO Spaces paths
   const getDownloadUrl = async (path: string): Promise<string | null> => {
-    const { data, error } = await supabase.storage
-      .from('company-documents')
-      .createSignedUrl(path, 3600);
+    if (isDoSpacesPath(path)) {
+      // Get signed URL from DigitalOcean Spaces
+      const result = await getSignedUrl(path, 3600);
+      return result.success ? result.signedUrl! : null;
+    } else {
+      // Get signed URL from old Supabase storage
+      const { data, error } = await supabase.storage
+        .from('company-documents')
+        .createSignedUrl(path, 3600);
 
-    if (error) {
-      console.error('Error getting signed URL:', error);
-      return null;
+      if (error) {
+        console.error('Error getting signed URL:', error);
+        return null;
+      }
+      return data.signedUrl;
     }
-    return data.signedUrl;
   };
 
   // Search documents (supports both Cyrillic and Latin)
