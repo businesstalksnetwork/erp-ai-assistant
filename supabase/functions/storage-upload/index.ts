@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,15 +10,20 @@ const corsHeaders = {
 function getS3Client() {
   const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
   const region = Deno.env.get('DO_SPACES_REGION')!;
+  const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+  
+  // s3-lite-client expects endpoint without protocol
+  const cleanEndpoint = endpoint.replace('https://', '').replace('http://', '');
   
   return new S3Client({
-    endpoint: endpoint.startsWith('https://') ? endpoint : `https://${endpoint}`,
+    endPoint: cleanEndpoint,
+    port: 443,
+    useSSL: true,
     region,
-    credentials: {
-      accessKeyId: Deno.env.get('DO_SPACES_KEY')!,
-      secretAccessKey: Deno.env.get('DO_SPACES_SECRET')!,
-    },
-    forcePathStyle: false,
+    bucket,
+    accessKey: Deno.env.get('DO_SPACES_KEY')!,
+    secretKey: Deno.env.get('DO_SPACES_SECRET')!,
+    pathStyle: false,
   });
 }
 
@@ -142,26 +147,23 @@ Deno.serve(async (req) => {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
-    // Upload to DigitalOcean Spaces
+    // Upload to DigitalOcean Spaces using s3-lite-client
     const s3Client = getS3Client();
     const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
-    const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
     const region = Deno.env.get('DO_SPACES_REGION')!;
 
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: path,
-      Body: buffer,
-      ContentType: contentType,
-      ACL: type === 'logo' ? 'public-read' : 'private',
+    // s3-lite-client putObject signature: (objectName, stream, options)
+    await s3Client.putObject(path, buffer, {
+      metadata: { 
+        'Content-Type': contentType,
+      },
     });
-
-    await s3Client.send(command);
 
     // Build public URL for logos, path for private files
     let url: string;
     if (type === 'logo') {
       // For public files, return CDN URL
+      // Note: ACL must be configured via bucket policy on DigitalOcean
       url = `https://${bucket}.${region}.digitaloceanspaces.com/${path}`;
     } else {
       // For private files, just return the path (use storage-download for signed URLs)
