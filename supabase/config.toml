@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.storage-migrate]
 verify_jwt = true
+
+[functions.storage-cleanup]
+verify_jwt = true
