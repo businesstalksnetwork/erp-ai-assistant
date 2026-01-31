@@ -1,52 +1,71 @@
 
-# Plan: Full Storage Migration to DigitalOcean Spaces
+# Plan: Čišćenje Supabase Storage i Test Slanja Fakture
 
-## Status Check
+## Pregled trenutnog stanja
 
-**Companies.tsx upload already fixed!**
-- Line 9: `import { uploadFile } from '@/lib/storage';`
-- Lines 191-196: Uses `uploadFile({ type: 'logo', companyId, file })`
-- No changes needed - already routing to DigitalOcean Spaces
+### Supabase Storage - Stari fajlovi za brisanje
 
-## Migration Execution
+| Bucket | Broj fajlova | Veličina |
+|--------|--------------|----------|
+| company-logos | 10 | ~3 MB |
+| company-documents | 15 | ~1.7 MB |
+| reminder-attachments | 29 | ~2.6 MB |
+| invoice-pdfs | 17 | ~187 MB |
+| **Ukupno** | **71 fajlova** | **~194 MB** |
 
-Run full migration for all remaining files:
+**Napomena**: Bucket `invoice-pdfs` sadrži istorijske fajlove koji više nisu linkani (signed URL-ovi su istekli), ali brisanje ovog bucket-a oslobodiće najviše prostora.
 
-### Step 1: Dry Run (preview what will be migrated)
-```javascript
-supabase.functions.invoke('storage-migrate', {
-  body: { dryRun: true }
-})
+## Koraci implementacije
+
+### Korak 1: Kreiranje Edge funkcije za brisanje starih fajlova
+
+Kreirati novu edge funkciju `storage-cleanup` koja će:
+- Obrisati sve fajlove iz bucket-a: `company-logos`, `company-documents`, `reminder-attachments`, `invoice-pdfs`
+- Zahtevati admin pristup za izvršavanje
+- Podržati dry-run opciju za pregled šta će biti obrisano
+
+### Korak 2: Pokretanje čišćenja
+
+1. **Dry run** - prvo prikazati listu fajlova koji će biti obrisani
+2. **Izvršenje** - obrisati sve fajlove iz navedenih bucket-a
+
+### Korak 3: Test slanja fakture emailom
+
+Poslati fakturu **5/2026** (MAXIMUS DETELINARA) na **bogdan.ciric023@gmail.com**:
+1. Generisati PDF u browseru
+2. Upload PDF-a na DigitalOcean Spaces
+3. Kreirati signed URL za download
+4. Poslati email sa linkom
+
+---
+
+## Tehnički detalji
+
+### Nova Edge funkcija: storage-cleanup
+
+```typescript
+// supabase/functions/storage-cleanup/index.ts
+- Prima: { dryRun: boolean, buckets?: string[] }
+- Vraća: { deleted: number, errors: string[] }
+- Koristi: supabase.storage.from(bucket).list() i remove()
 ```
 
-### Step 2: Execute Full Migration
-```javascript
-supabase.functions.invoke('storage-migrate', {
-  body: { dryRun: false }
-})
+### Flow slanja fakture
+
+```
+[Browser] → generatePdfBlob()
+    ↓
+[storage-upload] → DigitalOcean Spaces
+    ↓
+[storage-download] → Signed URL (7 dana)
+    ↓
+[send-invoice-email] → Resend API
+    ↓
+[Email] → bogdan.ciric023@gmail.com
 ```
 
-### Expected Files to Migrate
+### Očekivani rezultat
 
-| Type | Remaining Files | Status |
-|------|----------------|--------|
-| Company Logos | ~5 | Pending |
-| Documents | ~13 | Pending |
-| Reminder Attachments | ~14 | Pending |
-| **Total** | ~32 | To migrate |
-
-### What Happens During Migration
-
-1. **Download** each file from Supabase Storage bucket
-2. **Upload** to DigitalOcean Spaces with new path structure:
-   - Logos: `users/{userId}/logos/{companyId}/{timestamp}_{filename}`
-   - Documents: `users/{userId}/documents/{companyId}/{folder}/{timestamp}_{filename}`
-   - Reminders: `users/{userId}/reminders/{companyId}/{timestamp}_{filename}`
-3. **Update database** record with new path/URL
-4. **Original files remain** in Supabase (backup)
-
-### Verification After Migration
-
-- Check DO Spaces console for uploaded files
-- Test download functionality via app
-- Confirm database records updated correctly
+- Oslobođeno ~194 MB prostora na Lovable Cloud
+- Potvrda da email flow radi sa DO Spaces
+- Email stigao sa PDF prilogom na navedenu adresu
