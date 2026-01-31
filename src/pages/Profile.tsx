@@ -126,7 +126,7 @@ const paymentRecipient = {
 };
 
 export default function Profile() {
-  const { profile, isBookkeeper, isAdmin, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile } = useAuth();
+  const { profile, isBookkeeper, isAdmin, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -172,7 +172,6 @@ export default function Profile() {
 
   // Update local state when profile changes
   useEffect(() => {
-    console.log('Profile changed:', profile);
     if (profile) {
       setBookkeeperCompanyName(profile.bookkeeper_company_name || '');
       setBookkeeperPib(profile.bookkeeper_pib || '');
@@ -181,8 +180,8 @@ export default function Profile() {
     }
   }, [profile]);
 
-  // Show loading state while profile is being fetched
-  if (!profile) {
+  // Show loading state while auth/profile is being fetched
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-2">
@@ -193,7 +192,20 @@ export default function Profile() {
     );
   }
 
-  console.log('Profile loaded, rendering component');
+  // If no profile after loading, show error
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <User className="h-12 w-12 text-muted-foreground mx-auto" />
+          <div>
+            <p className="font-medium">Nije moguće učitati profil</p>
+            <p className="text-sm text-muted-foreground">Pokušajte da se odjavite i ponovo prijavite.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Partner discount from profile
   const userDiscount = profile?.partner_discount_percent || 0;
