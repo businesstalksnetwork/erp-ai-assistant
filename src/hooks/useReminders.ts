@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { uploadFile, getSignedUrl as getDoSignedUrl, isDoSpacesPath } from '@/lib/storage';
 
 export interface Reminder {
   id: string;
@@ -159,39 +160,46 @@ export function useReminders(companyId: string | null) {
     },
   });
 
+  // Upload attachment - now uses DigitalOcean Spaces
   const uploadAttachment = async (companyId: string, file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${companyId}/${Date.now()}.${fileExt}`;
+    const result = await uploadFile({
+      type: 'reminder',
+      companyId,
+      file,
+    });
 
-    const { error: uploadError } = await supabase.storage
-      .from('reminder-attachments')
-      .upload(fileName, file);
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+    }
 
-    if (uploadError) throw uploadError;
-
-    // Store the path, not the public URL - the bucket is now private
-    // Use getSignedUrl to access files when needed
-    return fileName;
+    return result.path!;
   };
 
+  // Get signed URL - supports both old Supabase and new DO Spaces paths
   const getSignedUrl = async (path: string): Promise<string | null> => {
-    // Extract the path from the full URL if needed
-    const pathOnly = path.includes('reminder-attachments/') 
-      ? path.split('reminder-attachments/')[1] 
-      : path;
-    
-    console.log('Getting signed URL for path:', pathOnly);
-    
-    const { data, error } = await supabase.storage
-      .from('reminder-attachments')
-      .createSignedUrl(pathOnly, 3600); // 1 hour
+    if (isDoSpacesPath(path)) {
+      // Get signed URL from DigitalOcean Spaces
+      const result = await getDoSignedUrl(path, 3600);
+      return result.success ? result.signedUrl! : null;
+    } else {
+      // Extract the path from the full URL if needed (old Supabase format)
+      const pathOnly = path.includes('reminder-attachments/') 
+        ? path.split('reminder-attachments/')[1] 
+        : path;
+      
+      console.log('Getting signed URL for path:', pathOnly);
+      
+      const { data, error } = await supabase.storage
+        .from('reminder-attachments')
+        .createSignedUrl(pathOnly, 3600); // 1 hour
 
-    if (error) {
-      console.error('Error getting signed URL:', error);
-      return null;
+      if (error) {
+        console.error('Error getting signed URL:', error);
+        return null;
+      }
+      console.log('Signed URL generated:', data.signedUrl);
+      return data.signedUrl;
     }
-    console.log('Signed URL generated:', data.signedUrl);
-    return data.signedUrl;
   };
 
   const upcomingReminders = reminders.filter(r => {

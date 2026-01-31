@@ -6,6 +6,7 @@ import { useCompanyBookkeeper } from '@/hooks/useCompanyBookkeeper';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/lib/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -187,21 +188,19 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
     
     setIsUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${company.id}-${Date.now()}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
+      // Upload to DigitalOcean Spaces via edge function
+      const result = await uploadFile({
+        type: 'logo',
+        companyId: company.id,
+        file,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('company-logos')
-        .upload(filePath, file, { upsert: true });
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
 
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-logos')
-        .getPublicUrl(filePath);
-
-      await updateCompany.mutateAsync({ id: company.id, logo_url: publicUrl });
+      // Update company with new logo URL
+      await updateCompany.mutateAsync({ id: company.id, logo_url: result.url });
       sonnerToast.success('Logo ažuriran');
     } catch (error) {
       sonnerToast.error('Greška pri uploadu loga');

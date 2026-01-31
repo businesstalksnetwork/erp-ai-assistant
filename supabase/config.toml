@@ -65,3 +65,15 @@ verify_jwt = false
 
 [functions.verify-email]
 verify_jwt = false
+
+[functions.storage-upload]
+verify_jwt = true
+
+[functions.storage-download]
+verify_jwt = true
+
+[functions.storage-delete]
+verify_jwt = true
+
+[functions.storage-migrate]
+verify_jwt = true

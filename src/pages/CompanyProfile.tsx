@@ -5,6 +5,7 @@ import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { useCompanyBookkeeper } from '@/hooks/useCompanyBookkeeper';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/lib/storage';
 import { ArrowLeft, Building2, CreditCard, FileStack, Eye, EyeOff, Plus, Pencil, Trash2, CheckCircle2, XCircle, Upload, X, Calculator, Settings, Users, Mail, Clock, UserCheck, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -156,21 +157,19 @@ export default function CompanyProfile() {
     
     setIsUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${company.id}-${Date.now()}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
+      // Upload to DigitalOcean Spaces via edge function
+      const result = await uploadFile({
+        type: 'logo',
+        companyId: company.id,
+        file,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('company-logos')
-        .upload(filePath, file, { upsert: true });
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
 
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-logos')
-        .getPublicUrl(filePath);
-
-      await updateCompany.mutateAsync({ id: company.id, logo_url: publicUrl });
+      // Update company with new logo URL
+      await updateCompany.mutateAsync({ id: company.id, logo_url: result.url });
       toast.success('Logo ažuriran');
     } catch (error) {
       toast.error('Greška pri uploadu loga');
