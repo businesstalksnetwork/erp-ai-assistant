@@ -166,20 +166,33 @@ export default function AdminPanel() {
 
       if (profilesError) throw profilesError;
 
-      // Get verified user IDs from verification_tokens (where used_at is not null)
-      const { data: verifiedTokens, error: tokensError } = await supabase
+      // Get all verification tokens to check verification status
+      const { data: allTokens, error: tokensError } = await supabase
         .from('verification_tokens')
-        .select('user_id')
-        .not('used_at', 'is', null);
+        .select('user_id, used_at');
 
       if (tokensError) throw tokensError;
 
-      // Create a set of verified user IDs for fast lookup
-      const verifiedUserIds = new Set((verifiedTokens || []).map(t => t.user_id));
+      // Create maps for quick lookup
+      const tokensByUserId = new Map<string, { hasToken: boolean; isVerified: boolean }>();
+      (allTokens || []).forEach(t => {
+        tokensByUserId.set(t.user_id, {
+          hasToken: true,
+          isVerified: t.used_at !== null
+        });
+      });
 
-      // Filter to only show verified users
+      // Filter users:
+      // - If user has a token -> only show if verified (used_at is not null)
+      // - If user has no token -> show them (legacy users before verification system)
       return (profiles || [])
-        .filter((u: any) => verifiedUserIds.has(u.id))
+        .filter((u: any) => {
+          const tokenInfo = tokensByUserId.get(u.id);
+          // No token = legacy user, show them
+          if (!tokenInfo) return true;
+          // Has token = only show if verified
+          return tokenInfo.isVerified;
+        })
         .map((u: any) => ({
           ...u,
           max_companies: u.max_companies ?? 1,
