@@ -77,19 +77,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { dryRun = true } = await req.json();
+    const { dryRun = true, userId = null } = await req.json();
     const results: MigrationResult[] = [];
     const s3Client = getS3Client();
     const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
     const region = Deno.env.get('DO_SPACES_REGION')!;
 
-    console.log(`Starting migration (dryRun: ${dryRun})`);
+    console.log(`Starting migration (dryRun: ${dryRun}, userId: ${userId || 'all users'})`);
 
     // 1. Migrate company logos
-    const { data: companies } = await supabase
+    let companiesQuery = supabase
       .from('companies')
       .select('id, user_id, logo_url')
       .not('logo_url', 'is', null);
+    
+    if (userId) {
+      companiesQuery = companiesQuery.eq('user_id', userId);
+    }
+    
+    const { data: companies } = await companiesQuery;
 
     for (const company of companies || []) {
       if (!company.logo_url || company.logo_url.includes('digitaloceanspaces.com')) continue;
@@ -150,10 +156,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Migrate documents
-    const { data: documents } = await supabase
+    // 2. Migrate documents - need to filter by user via companies
+    let documentsQuery = supabase
       .from('documents')
-      .select('id, company_id, file_path, name');
+      .select('id, company_id, file_path, name, companies!inner(user_id)');
+    
+    if (userId) {
+      documentsQuery = documentsQuery.eq('companies.user_id', userId);
+    }
+    
+    const { data: documents } = await documentsQuery;
 
     for (const doc of documents || []) {
       if (doc.file_path.startsWith('users/')) continue; // Already migrated
@@ -215,11 +227,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Migrate reminder attachments
-    const { data: reminders } = await supabase
+    // 3. Migrate reminder attachments - need to filter by user via companies
+    let remindersQuery = supabase
       .from('payment_reminders')
-      .select('id, company_id, attachment_url')
+      .select('id, company_id, attachment_url, companies!inner(user_id)')
       .not('attachment_url', 'is', null);
+    
+    if (userId) {
+      remindersQuery = remindersQuery.eq('companies.user_id', userId);
+    }
+    
+    const { data: reminders } = await remindersQuery;
 
     for (const reminder of reminders || []) {
       if (!reminder.attachment_url || reminder.attachment_url.startsWith('users/')) continue;
