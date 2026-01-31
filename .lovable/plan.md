@@ -1,162 +1,140 @@
 
+# Plan: Ispravka Edge Funkcija za DigitalOcean Spaces
 
-# Plan: Migracija na DigitalOcean Spaces (S3-kompatibilan storage)
+## Dijagnostikovan problem
 
-## Pregled trenutnog stanja
-
-Projekat trenutno koristi 4 Supabase Storage bucket-a:
-
-| Bucket | Sadržaj | Javni/Privatni | Broj fajlova |
-|--------|---------|----------------|--------------|
-| `company-logos` | Logoi kompanija | Javni | ~7 |
-| `company-documents` | Dokumenti kompanija | Privatni | ~15 |
-| `reminder-attachments` | Prilozi podsetnika | Privatni | ~16 |
-| `invoice-pdfs` | PDF fakture za email | Privatni | Dinamički |
-
-**Ukupno fajlova za migraciju**: ~38+ fajlova
-
----
-
-## Arhitektura rešenja
-
-### Nova struktura foldera na DigitalOcean Spaces
-
-```text
-bucket-name/
-├── users/
-│   └── {user_id}/
-│       ├── logos/
-│       │   └── {company_id}/{timestamp}_{filename}
-│       ├── documents/
-│       │   └── {company_id}/{folder_id}/{timestamp}_{filename}
-│       ├── reminders/
-│       │   └── {company_id}/{timestamp}_{filename}
-│       └── invoices/
-│           └── {company_id}/{invoice_id}_{timestamp}.pdf
+Greška u logovima:
+```
+Error: [unenv] fs.readFile is not implemented yet!
 ```
 
-Ovako je sve organizovano po korisniku (user_id), a zatim po tipu sadržaja.
+**Uzrok**: AWS S3 SDK (`@aws-sdk/client-s3`) importovan preko `esm.sh` koristi Node.js `fs` modul za čitanje konfiguracionih fajlova (npr. `~/.aws/config`). Ovaj modul nije dostupan u Deno/Edge runtime okruženju.
 
----
+## Rešenje
 
-## Faze implementacije
+Zamena AWS S3 SDK sa **s3-lite-client** - lightweight bibliotekom dizajniranom specifično za Deno i S3-kompatibilne storage servise (uključujući DigitalOcean Spaces).
 
-### Faza 1: Priprema i konfiguracija
+### Prednosti s3-lite-client:
+- Napravljen za Deno runtime
+- Nema zavisnosti od Node.js modula
+- Podržava presigned URLs
+- Kompatibilan sa DigitalOcean Spaces
 
-1. **Dodavanje DigitalOcean Spaces kredencijala**
-   - Potrebni secrets: `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_BUCKET`, `DO_SPACES_REGION`, `DO_SPACES_ENDPOINT`
+## Izmene po fajlovima
 
-2. **Kreiranje storage servisnog sloja**
-   - Nova edge funkcija: `storage-service` - centralizovana tačka za sve storage operacije
-   - Podržava: upload, download, delete, presigned URLs, list files
+### 1. `supabase/functions/storage-upload/index.ts`
 
-### Faza 2: Kreiranje edge funkcija
-
-1. **`storage-upload`** - Upload fajlova na DigitalOcean Spaces
-2. **`storage-download`** - Generisanje presigned URL-ova za preuzimanje
-3. **`storage-delete`** - Brisanje fajlova
-4. **`storage-migrate`** - Jednokratna migracija postojećih fajlova
-
-### Faza 3: Ažuriranje frontend hook-ova
-
-Potrebno je ažurirati sledeće hook-ove da koriste nove edge funkcije umesto direktnog Supabase Storage API-ja:
-
-| Hook | Fajl |
-|------|------|
-| `useDocuments` | `src/hooks/useDocuments.ts` |
-| `useReminders` | `src/hooks/useReminders.ts` |
-| `useInvoiceEmail` | `src/hooks/useInvoiceEmail.ts` |
-
-I komponente:
-- `src/pages/Companies.tsx` (logo upload)
-- `src/pages/CompanyProfile.tsx` (logo upload)
-
-### Faza 4: Migracija postojećih podataka
-
-1. Kreiranje admin edge funkcije koja:
-   - Lista sve fajlove iz svih Supabase bucket-a
-   - Preuzima svaki fajl
-   - Upload-uje na DigitalOcean Spaces sa novom strukturom
-   - Ažurira URL-ove u bazi podataka
-
-2. Ažuriranje baze:
-   - `companies.logo_url` - novi DO URL
-   - `documents.file_path` - novi DO path
-   - `payment_reminders.attachment_url` - novi DO path
-
----
-
-## Tehnički detalji
-
-### Edge funkcija: storage-upload
+**Izmene:**
+- Zamena importa: `@aws-sdk/client-s3` → `s3_lite_client`
+- Korišćenje `S3Client` iz Deno biblioteke
+- Metoda `putObject()` umesto `send(PutObjectCommand)`
 
 ```typescript
-// Primer strukture
-// PUT /storage-upload
-// Body: { type: 'logo'|'document'|'reminder'|'invoice', companyId, folderId?, file }
+// STARO:
+import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
 
-const SPACES_ENDPOINT = Deno.env.get('DO_SPACES_ENDPOINT');
-const SPACES_BUCKET = Deno.env.get('DO_SPACES_BUCKET');
-// ... S3 kompatibilni SDK
-```
+// NOVO:
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
-### Izmene u useDocuments.ts
+// STARO:
+const command = new PutObjectCommand({...});
+await s3Client.send(command);
 
-```typescript
-// Umesto direktnog Supabase storage poziva:
-const { error } = await supabase.storage.from('company-documents').upload(path, file);
-
-// Koristićemo edge funkciju:
-const formData = new FormData();
-formData.append('file', file);
-formData.append('type', 'document');
-formData.append('companyId', companyId);
-formData.append('folderId', folderId);
-
-const { data, error } = await supabase.functions.invoke('storage-upload', {
-  body: formData
+// NOVO:
+await s3Client.putObject(path, buffer, {
+  metadata: { 'Content-Type': contentType },
+  // ACL nije direktno podržan, public-read se postiže bucket policy-jem
 });
 ```
 
-### Presigned URLs za privatne fajlove
+### 2. `supabase/functions/storage-download/index.ts`
 
-Za preuzimanje privatnih fajlova (dokumenti, fakture), edge funkcija generiše presigned URL sa ograničenim trajanjem (1h za dokumente, 7 dana za fakture).
+**Izmene:**
+- Zamena importa za S3 klijent i presigner
+- Korišćenje `getPresignedUrl()` metode iz s3-lite-client
 
----
+```typescript
+// STARO:
+import { S3Client, GetObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
+import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.712.0';
 
-## Potrebni koraci od korisnika
+// NOVO:
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
-1. **Kreirati DigitalOcean Spaces bucket**
-   - Izabrati region (npr. `fra1` za Frankfurt)
-   - Podesiti kao privatni bucket
-   - Omogućiti CDN (opcionalno, za logoe)
+// STARO:
+const command = new GetObjectCommand({...});
+const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
 
-2. **Generisati API ključeve**
-   - Spaces Access Key
-   - Spaces Secret Key
+// NOVO:
+const signedUrl = await s3Client.getPresignedUrl('GET', path, { expiresIn });
+```
 
-3. **Dostaviti podatke za konfiguraciju**:
-   - Bucket name
-   - Region
-   - Endpoint URL
-   - Access Key
-   - Secret Key
+### 3. `supabase/functions/storage-delete/index.ts`
 
----
+**Izmene:**
+- Zamena importa
+- Korišćenje `deleteObject()` metode
 
-## Rizici i napomene
+```typescript
+// STARO:
+import { S3Client, DeleteObjectCommand, DeleteObjectsCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.712.0';
 
-1. **Vreme migracije** - Sa ~40 fajlova, migracija bi trajala nekoliko minuta
-2. **Downtime** - Potreban kratak period kada se menjaju URL-ovi u bazi
-3. **Stari linkovi** - Postojeći Supabase URL-ovi u emailovima neće raditi nakon migracije
-4. **Testiranje** - Potrebno temeljno testiranje svih funkcionalnosti pre produkcije
+// NOVO:
+import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 
----
+// STARO:
+const command = new DeleteObjectCommand({...});
+await s3Client.send(command);
 
-## Alternativno rešenje
+// NOVO:
+await s3Client.deleteObject(path);
+```
 
-Umesto potpune migracije, možemo implementirati **hibridni pristup**:
-- Novi fajlovi idu na DigitalOcean Spaces
-- Stari fajlovi ostaju na Supabase dok ne isteknu
-- Postepena migracija tokom vremena
+### 4. `supabase/functions/storage-migrate/index.ts`
 
+**Izmene:**
+- Iste izmene kao za upload
+- Korišćenje `putObject()` za upload migriranih fajlova
+
+## Konfiguracija S3 klijenta za s3-lite-client
+
+```typescript
+function getS3Client() {
+  const endpoint = Deno.env.get('DO_SPACES_ENDPOINT')!;
+  const region = Deno.env.get('DO_SPACES_REGION')!;
+  const bucket = Deno.env.get('DO_SPACES_BUCKET')!;
+  
+  return new S3Client({
+    endPoint: endpoint.replace('https://', '').replace('http://', ''),
+    port: 443,
+    useSSL: true,
+    region,
+    bucket,
+    accessKey: Deno.env.get('DO_SPACES_KEY')!,
+    secretKey: Deno.env.get('DO_SPACES_SECRET')!,
+    pathStyle: false,
+  });
+}
+```
+
+## Napomena o ACL (Access Control List)
+
+s3-lite-client ne podržava direktno `ACL` parametar u `putObject()`. Za javne logoe (public-read), postoje dve opcije:
+
+1. **Bucket Policy** - Podesiti bucket policy na DigitalOcean da dozvoli javni pristup za `users/*/logos/*` putanje
+2. **Separate bucket** - Koristiti poseban javni bucket samo za logoe
+
+Preporučujem opciju 1 jer je jednostavnija i ne zahteva promene u kodu.
+
+## Redosled implementacije
+
+1. Ažurirati `storage-upload/index.ts` sa s3-lite-client
+2. Ažurirati `storage-download/index.ts` sa s3-lite-client
+3. Ažurirati `storage-delete/index.ts` sa s3-lite-client
+4. Ažurirati `storage-migrate/index.ts` sa s3-lite-client
+5. Deploy-ovati funkcije
+6. Testirati upload dokumenta
+
+## Očekivani rezultat
+
+Nakon implementacije, upload dokumenata će raditi bez greške `fs.readFile is not implemented` jer s3-lite-client ne koristi Node.js specifične module.
