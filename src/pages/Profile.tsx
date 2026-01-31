@@ -161,7 +161,8 @@ export default function Profile() {
   const [bookkeeperAddress, setBookkeeperAddress] = useState(profile?.bookkeeper_address || '');
   
   const { 
-    referrals, 
+    referrals = [],
+    earnings = [],
     totalReferrals, 
     activeClients, 
     totalEarned, 
