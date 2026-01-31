@@ -158,16 +158,32 @@ export default function AdminPanel() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all profiles
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return (data || []).map((u: any) => ({
-        ...u,
-        max_companies: u.max_companies ?? 1,
-      })) as UserProfile[];
+      if (profilesError) throw profilesError;
+
+      // Get verified user IDs from verification_tokens (where used_at is not null)
+      const { data: verifiedTokens, error: tokensError } = await supabase
+        .from('verification_tokens')
+        .select('user_id')
+        .not('used_at', 'is', null);
+
+      if (tokensError) throw tokensError;
+
+      // Create a set of verified user IDs for fast lookup
+      const verifiedUserIds = new Set((verifiedTokens || []).map(t => t.user_id));
+
+      // Filter to only show verified users
+      return (profiles || [])
+        .filter((u: any) => verifiedUserIds.has(u.id))
+        .map((u: any) => ({
+          ...u,
+          max_companies: u.max_companies ?? 1,
+        })) as UserProfile[];
     },
   });
 
