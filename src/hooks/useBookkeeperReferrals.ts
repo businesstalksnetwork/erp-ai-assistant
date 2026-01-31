@@ -105,8 +105,8 @@ export function useBookkeeperReferrals() {
   };
 
   return {
-    referrals,
-    earnings,
+    referrals: referrals ?? [],
+    earnings: earnings ?? [],
     isLoadingReferrals,
     isLoadingEarnings,
     totalReferrals,
