@@ -15,7 +15,11 @@ import { useTheme } from '@/lib/theme-context';
 import logoLight from '@/assets/pausal-box-logo-light.png';
 import logoDark from '@/assets/pausal-box-logo-dark.png';
 const emailSchema = z.string().email('Unesite validnu email adresu');
-const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
+const passwordSchema = z.string()
+  .min(8, 'Lozinka mora imati najmanje 8 karaktera')
+  .regex(/[a-zA-Z]/, 'Lozinka mora sadržati najmanje jedno slovo')
+  .regex(/[0-9]/, 'Lozinka mora sadržati najmanje jedan broj')
+  .regex(/[^a-zA-Z0-9]/, 'Lozinka mora sadržati najmanje jedan specijalan karakter (!@#$%^&*...)');
 
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
 type AccountType = 'pausal' | 'bookkeeper';
@@ -70,6 +74,9 @@ export default function Auth() {
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [accountType, setAccountType] = useState<AccountType>('pausal');
   const [showEmailVerificationMessage, setShowEmailVerificationMessage] = useState(false);
+  const [registeredUserData, setRegisteredUserData] = useState<{ userId: string; email: string; fullName: string } | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [lastResendTime, setLastResendTime] = useState<number>(0);
   
   // Get referral ID, partner code and plan from URL if present
   const referralId = searchParams.get('ref');
@@ -349,7 +356,9 @@ export default function Auth() {
             description: 'Poslali smo vam email sa verification@pausalbox.rs. Proverite inbox i potvrdite email adresu pre prijave.',
             duration: 10000,
           });
+          setLastResendTime(Date.now());
         }
+        setRegisteredUserData({ userId: data.user.id, email, fullName });
         setShowEmailVerificationMessage(true);
       } catch (err) {
         console.error('Error invoking verification function:', err);
@@ -358,6 +367,7 @@ export default function Auth() {
           description: 'Nalog je kreiran, ali nije bilo moguće poslati verifikacioni email.',
           variant: 'destructive',
         });
+        setRegisteredUserData({ userId: data.user.id, email, fullName });
         setShowEmailVerificationMessage(true);
       }
     }
@@ -638,17 +648,68 @@ export default function Auth() {
                         🎉 Dobili ste 14 dana besplatnog korišćenja!
                       </div>
                     </div>
-                    <div className="pt-4 border-t space-y-2">
+                    <div className="pt-4 border-t space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        Niste dobili email? Proverite spam folder ili se registrujte ponovo.
+                        Niste dobili email? Proverite spam folder.
                       </p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setShowEmailVerificationMessage(false)}
-                      >
-                        Registruj se ponovo
-                      </Button>
+                      {registeredUserData && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          disabled={resendLoading || (Date.now() - lastResendTime < 60000)}
+                          onClick={async () => {
+                            setResendLoading(true);
+                            try {
+                              const { error } = await supabase.functions.invoke('send-verification-email', {
+                                body: {
+                                  user_id: registeredUserData.userId,
+                                  email: registeredUserData.email,
+                                  full_name: registeredUserData.fullName,
+                                },
+                              });
+                              if (error) {
+                                toast({
+                                  title: 'Greška',
+                                  description: 'Nije moguće poslati email. Pokušajte ponovo.',
+                                  variant: 'destructive',
+                                });
+                              } else {
+                                setLastResendTime(Date.now());
+                                toast({
+                                  title: 'Email poslat',
+                                  description: 'Novi verifikacioni email je poslat.',
+                                });
+                              }
+                            } catch {
+                              toast({
+                                title: 'Greška',
+                                description: 'Nije moguće poslati email.',
+                                variant: 'destructive',
+                              });
+                            }
+                            setResendLoading(false);
+                          }}
+                        >
+                          {resendLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          <Mail className="mr-2 h-4 w-4" />
+                          {Date.now() - lastResendTime < 60000 
+                            ? `Sačekajte ${Math.ceil((60000 - (Date.now() - lastResendTime)) / 1000)}s`
+                            : 'Pošalji ponovo'
+                          }
+                        </Button>
+                      )}
+                      <div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setShowEmailVerificationMessage(false);
+                            setRegisteredUserData(null);
+                          }}
+                        >
+                          Registruj se sa drugim emailom
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -790,6 +851,9 @@ export default function Auth() {
                         required
                       />
                       {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                      <p className="text-xs text-muted-foreground">
+                        Min. 8 karaktera, slova, brojevi i specijalni karakter
+                      </p>
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
