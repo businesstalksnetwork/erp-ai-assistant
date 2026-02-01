@@ -471,6 +471,42 @@ export default function Auth() {
     setLoading(false);
   };
 
+  const handleResendVerification = async () => {
+    if (!registeredUserData) return;
+    
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-verification-email', {
+        body: {
+          user_id: registeredUserData.userId,
+          email: registeredUserData.email,
+          full_name: registeredUserData.fullName,
+        },
+      });
+
+      if (error) {
+        toast({
+          title: 'Greška',
+          description: 'Nije moguće poslati email. Pokušajte ponovo.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Email poslat',
+          description: 'Ponovo smo poslali verifikacioni email.',
+        });
+        setLastResendTime(Date.now());
+      }
+    } catch (err) {
+      toast({
+        title: 'Greška',
+        description: 'Nije moguće poslati email.',
+        variant: 'destructive',
+      });
+    }
+    setResendLoading(false);
+  };
+
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -574,6 +610,75 @@ export default function Auth() {
 
     setLoading(false);
   };
+
+  // Email verification fullscreen message
+  if (showEmailVerificationMessage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md space-y-6 animate-fade-in">
+          <div className="text-center space-y-2">
+            <Link to="/" className="inline-block">
+              <img src={logo} alt="Paušal box" className="h-12" />
+            </Link>
+          </div>
+
+          <Card className="glass">
+            <CardHeader className="text-center pb-2">
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Mail className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-xl">Potvrdite email adresu</CardTitle>
+              <CardDescription className="text-base">
+                Poslali smo vam email sa <span className="font-medium">verification@pausalbox.rs</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-center">
+              <p className="text-muted-foreground">
+                Proverite vaš inbox i kliknite na link za potvrdu email adrese pre nego što se prijavite.
+              </p>
+              
+              {registeredUserData && (
+                <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                  <p className="text-muted-foreground">Email poslat na:</p>
+                  <p className="font-medium">{registeredUserData.email}</p>
+                </div>
+              )}
+
+              <div className="pt-2 space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading || (Date.now() - lastResendTime < 60000)}
+                >
+                  {resendLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {Date.now() - lastResendTime < 60000 
+                    ? `Ponovo pošalji za ${Math.ceil((60000 - (Date.now() - lastResendTime)) / 1000)}s`
+                    : 'Ponovo pošalji email'}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setShowEmailVerificationMessage(false);
+                    setRegisteredUserData(null);
+                  }}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Nazad na prijavu
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground pt-2">
+                Niste dobili email? Proverite spam folder ili pokušajte ponovo.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Reset password form
   if (mode === 'reset-password') {
