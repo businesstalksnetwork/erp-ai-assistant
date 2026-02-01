@@ -1,121 +1,201 @@
 
-# Plan: Improve Password Recovery UX with Rate Limit Handling
+# Plan: Sprečiti UX flash pri registraciji
 
-## Overview
+## Problem
 
-Add a 60-second countdown timer and clear error message to the password recovery form to handle Supabase's email rate limiting gracefully.
+Trenutno, kada se korisnik registruje:
+1. Supabase kreira nalog sa auto-confirm (potrebno za custom verifikaciju)
+2. Supabase automatski kreira sesiju (korisnik je tehnički "ulogovan")
+3. `useEffect` u Auth.tsx detektuje `user` i preusmeri na `/dashboard`
+4. Korisnik na kratko vidi dashboard pre nego što se prikaže poruka o verifikaciji
 
-## Changes to `src/pages/Auth.tsx`
+## Rešenje
 
-### 1. Add New State Variables
+Sprečiti bilo kakav "flash" ulogovanog stanja tako što ćemo:
+1. Dodati flag koji označava da je registracija u toku
+2. Sprečiti redirect na dashboard dok se registracija ne završi
+3. Odmah odjaviti korisnika nakon uspešne registracije (pre nego što React može da reaguje)
+4. Blokirati login za neverifikovane korisnike
 
-Add state for tracking password reset cooldown:
+## Promene u kodu
+
+### 1. `src/pages/Auth.tsx` - Dodaj `isRegistering` flag
+
+Dodati state koji označava da je registracija u toku:
 
 ```typescript
-const [lastResetTime, setLastResetTime] = useState<number>(0);
-const [resetCountdown, setResetCountdown] = useState<number>(0);
+const [isRegistering, setIsRegistering] = useState(false);
 ```
 
-### 2. Add Countdown Timer Effect
+### 2. `src/pages/Auth.tsx` - Blokiraj auto-redirect tokom registracije
 
-Add a `useEffect` that decrements the countdown every second when active:
+Izmeniti `useEffect` za redirect da ignoriše `user` tokom registracije:
 
 ```typescript
 useEffect(() => {
-  if (resetCountdown <= 0) return;
-  
-  const timer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - lastResetTime) / 1000);
-    const remaining = Math.max(0, 60 - elapsed);
-    setResetCountdown(remaining);
-  }, 1000);
-  
-  return () => clearInterval(timer);
-}, [resetCountdown, lastResetTime]);
-```
-
-### 3. Update `handleForgotPassword` Function
-
-Modify the function to:
-- Check if user is within cooldown period before making request
-- Detect "rate limit exceeded" error from Supabase
-- Start the 60-second countdown on both success and rate limit error
-- Show a clear Serbian message about waiting
-
-```typescript
-const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  // Check if already in cooldown
-  if (resetCountdown > 0) {
-    toast({
-      title: 'Molimo sačekajte',
-      description: `Možete zatražiti novi link za ${resetCountdown} sekundi.`,
-      variant: 'destructive',
-    });
+  // NE preusmeri ako je registracija u toku ili ako se prikazuje verifikaciona poruka
+  if (isRegistering || showEmailVerificationMessage) {
     return;
   }
+  if (user && mode !== 'reset-password' && !isRecovery) {
+    navigate('/dashboard', { replace: true });
+  }
+}, [user, mode, isRecovery, navigate, isRegistering, showEmailVerificationMessage]);
+```
+
+### 3. `src/pages/Auth.tsx` - handleSignUp: Odjavi korisnika ODMAH
+
+Izmeniti `handleSignUp` funkciju da postavi `isRegistering` flag i odjavi korisnika pre bilo kakvog UI update-a:
+
+```typescript
+const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setLoading(true);
+  setIsRegistering(true);  // NOVO: Spreči auto-redirect
+  setErrors({});
   
-  // ... existing validation ...
+  // ... postojeća validacija i signUp poziv ...
   
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {...});
-  
-  if (error) {
-    // Handle rate limit error specifically
-    if (error.message.toLowerCase().includes('rate limit')) {
-      setLastResetTime(Date.now());
-      setResetCountdown(60);
-      toast({
-        title: 'Previše zahteva',
-        description: 'Molimo sačekajte 60 sekundi pre nego što ponovo zatražite reset lozinke.',
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Greška',
-        description: error.message,
-        variant: 'destructive',
-      });
+  if (data.user) {
+    // NOVO: ODMAH odjavi korisnika pre bilo čega drugog
+    await supabase.auth.signOut();
+    
+    try {
+      // Sada pošalji verifikacioni email (korisnik više nije ulogovan)
+      const { error: verificationError } = await supabase.functions.invoke('send-verification-email', {...});
+      // ... postojeći kod za handling emaila ...
+    } catch (err) {
+      // ... postojeći error handling ...
     }
-  } else {
-    // Success - start cooldown
-    setLastResetTime(Date.now());
-    setResetCountdown(60);
-    toast({...});
-    setMode('default');
+    
+    setRegisteredUserData({ userId: data.user.id, email, fullName });
+    setShowEmailVerificationMessage(true);
   }
   
+  setIsRegistering(false);  // NOVO: Završena registracija
   setLoading(false);
 };
 ```
 
-### 4. Update Submit Button UI
+### 4. `src/pages/Auth.tsx` - handleSignIn: Blokiraj login za neverifikovane
 
-Modify the button in the forgot-password form to show countdown and disable during cooldown:
+Izmeniti `handleSignIn` da proveri `email_verified` i odjavi neverifikovane korisnike:
 
-```tsx
-<Button 
-  type="submit" 
-  className="w-full" 
-  disabled={loading || resetCountdown > 0}
->
-  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-  {resetCountdown > 0 
-    ? `Sačekajte ${resetCountdown}s` 
-    : 'Pošalji link'
+```typescript
+const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  // ... postojeća validacija ...
+  
+  const { error } = await signIn(email, password);
+  
+  if (error) {
+    // ... postojeći error handling ...
+    return;
   }
-</Button>
+  
+  // NOVO: Proveri email_verified iz profiles tabele
+  const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+  
+  if (loggedInUser) {
+    // Proveri da li je admin (admini mogu uvek)
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', loggedInUser.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+    
+    const isUserAdmin = !!roleData;
+    
+    if (!isUserAdmin) {
+      // Proveri email_verified
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('id', loggedInUser.id)
+        .single();
+      
+      if (!profileData?.email_verified) {
+        // Odjavi korisnika i prikaži poruku
+        await supabase.auth.signOut();
+        toast({
+          title: 'Potvrdite email adresu',
+          description: 'Morate potvrditi email adresu pre prijave. Proverite inbox za link.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+    }
+  }
+  
+  // Weak password check ostaje
+  if (isWeakPassword(password)) {
+    toast({...});
+  }
+  
+  navigate('/dashboard');
+  setLoading(false);
+};
 ```
 
-## User Experience After Changes
+### 5. `src/App.tsx` - ProtectedRoute backup zaštita
 
-1. User clicks "Pošalji link" - email sent successfully
-2. Button shows countdown: "Sačekajte 58s", "Sačekajte 57s", etc.
-3. If user somehow triggers rate limit, friendly Serbian message appears
-4. After 60 seconds, button becomes active again
+Dodati proveru `isEmailVerified` kao backup sloj zaštite:
 
-## Files to Modify
+```typescript
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { user, loading, isAdmin, isEmailVerified } = useAuth();
 
-| File | Changes |
-|------|---------|
-| `src/pages/Auth.tsx` | Add countdown state, timer effect, update handler, update button |
+  if (loading) {
+    return <div>Učitavanje...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // NOVO: Blokiraj neverifikovane (osim admina)
+  if (!isAdmin && !isEmailVerified) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return (
+    <CompanyProvider>
+      <AppLayout>{children}</AppLayout>
+    </CompanyProvider>
+  );
+}
+```
+
+## Tok korisničkog iskustva posle izmena
+
+```text
+REGISTRACIJA:
+1. Korisnik popuni formu i klikne "Registruj se"
+2. Sistem kreira nalog (auto-confirm)
+3. isRegistering = true sprečava bilo kakav redirect
+4. Sistem ODMAH poziva signOut() - korisnik više nije ulogovan
+5. Sistem šalje verifikacioni email
+6. Korisnik vidi poruku "Potvrdite email adresu" - NIKADA ne vidi dashboard
+
+LOGIN (neverifikovan korisnik):
+1. Korisnik unese kredencijale
+2. Supabase uspešno loguje korisnika
+3. Provera email_verified u profiles tabeli
+4. Ako nije verifikovan i nije admin -> signOut() + poruka o verifikaciji
+5. Korisnik NIKADA ne vidi dashboard
+
+LOGIN (verifikovan korisnik):
+1. Normalan login tok
+```
+
+## Fajlovi za izmenu
+
+| Fajl | Izmene |
+|------|--------|
+| `src/pages/Auth.tsx` | Dodaj `isRegistering` state, blokiraj redirect, signOut nakon signup, provera email_verified pri login |
+| `src/App.tsx` | ProtectedRoute proverava `isEmailVerified` kao backup |
