@@ -116,15 +116,8 @@ export default function Auth() {
     return () => clearInterval(timer);
   }, [resetCountdown, lastResetTime]);
 
-  useEffect(() => {
-    // NE preusmeri ako je registracija u toku ili ako se prikazuje verifikaciona poruka
-    if (isRegistering || showEmailVerificationMessage) {
-      return;
-    }
-    if (user && mode !== 'reset-password' && !isRecovery) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, mode, isRecovery, navigate, isRegistering, showEmailVerificationMessage]);
+  // Uklonjen useEffect za redirect - App.tsx sada pravilno hendluje rutiranje
+  // nakon što se profil učita, čime se sprečava race condition
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

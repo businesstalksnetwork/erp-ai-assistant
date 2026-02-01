@@ -37,9 +37,10 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isAdmin, isEmailVerified } = useAuth();
+  const { user, loading, profileLoading, isAdmin, isEmailVerified } = useAuth();
 
-  if (loading) {
+  // Sačekaj i auth i profile loading
+  if (loading || profileLoading) {
     return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
   }
 
@@ -64,7 +65,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 }
 
 function AppRoutes() {
-  const { user, loading, isAdmin, isEmailVerified } = useAuth();
+  const { user, loading, profileLoading, isAdmin, isEmailVerified } = useAuth();
   const location = useLocation();
 
   const isRecoveryUrl =
@@ -77,7 +78,8 @@ function AppRoutes() {
     return <Navigate to={`/auth${location.search}${location.hash}`} replace />;
   }
 
-  if (loading) {
+  // Sačekaj i auth i profile loading pre donošenja odluka o rutiranju
+  if (loading || profileLoading) {
     return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
   }
 
