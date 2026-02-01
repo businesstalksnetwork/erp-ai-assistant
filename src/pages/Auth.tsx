@@ -83,6 +83,7 @@ export default function Auth() {
   const [registeredUserData, setRegisteredUserData] = useState<{ userId: string; email: string; fullName: string } | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [lastResendTime, setLastResendTime] = useState<number>(0);
+  const [isRegistering, setIsRegistering] = useState(false);
   
   // Password reset cooldown state
   const [lastResetTime, setLastResetTime] = useState<number>(0);
@@ -116,10 +117,14 @@ export default function Auth() {
   }, [resetCountdown, lastResetTime]);
 
   useEffect(() => {
+    // NE preusmeri ako je registracija u toku ili ako se prikazuje verifikaciona poruka
+    if (isRegistering || showEmailVerificationMessage) {
+      return;
+    }
     if (user && mode !== 'reset-password' && !isRecovery) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, mode, isRecovery, navigate]);
+  }, [user, mode, isRecovery, navigate, isRegistering, showEmailVerificationMessage]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -249,6 +254,42 @@ export default function Auth() {
       return;
     }
     
+    // Proveri email_verified iz profiles tabele
+    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+    
+    if (loggedInUser) {
+      // Proveri da li je admin (admini mogu uvek)
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', loggedInUser.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      const isUserAdmin = !!roleData;
+      
+      if (!isUserAdmin) {
+        // Proveri email_verified
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('email_verified')
+          .eq('id', loggedInUser.id)
+          .single();
+        
+        if (!profileData?.email_verified) {
+          // Odjavi korisnika i prikaži poruku
+          await supabase.auth.signOut();
+          toast({
+            title: 'Potvrdite email adresu',
+            description: 'Morate potvrditi email adresu pre prijave. Proverite inbox za link.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+    }
+    
     // Check if user has a weak password and show notification
     if (isWeakPassword(password)) {
       toast({
@@ -265,6 +306,7 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setIsRegistering(true); // Spreči auto-redirect
     setErrors({});
 
     const formData = new FormData(e.currentTarget);
@@ -377,6 +419,9 @@ export default function Auth() {
 
     // If signup successful, send custom verification email via Resend
     if (data.user) {
+      // ODMAH odjavi korisnika pre bilo čega drugog - spreči UX flash
+      await supabase.auth.signOut();
+      
       try {
         const { error: verificationError } = await supabase.functions.invoke('send-verification-email', {
           body: {
@@ -415,6 +460,7 @@ export default function Auth() {
       }
     }
 
+    setIsRegistering(false); // Završena registracija
     setLoading(false);
   };
 

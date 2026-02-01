@@ -37,13 +37,18 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, isEmailVerified } = useAuth();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
   }
 
   if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Blokiraj neverifikovane korisnike (osim admina)
+  if (!isAdmin && !isEmailVerified) {
     return <Navigate to="/auth" replace />;
   }
 
