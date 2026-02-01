@@ -254,6 +254,12 @@ body[data-sef-sync-active="1"] .rdp * {
   }
 }
 
+/* Override font-mono za dokumente - Inter ima čistu nulu bez tačke */
+.print-invoice .font-mono {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
 /* PDF Export styles - forces pure white/black for maximum contrast */
 /* KRITIČNO: Ovi stilovi moraju garantovati čitljiv PDF na mobilnim uređajima */
 .pdf-export {
@@ -447,6 +453,12 @@ body[data-sef-sync-active="1"] .rdp * {
 .pdf-export .print-invoice * {
   -webkit-font-smoothing: antialiased !important;
   text-rendering: optimizeLegibility !important;
+}
+
+/* Override font-mono za PDF export - Inter ima čistu nulu */
+.pdf-export .print-invoice .font-mono {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 /* Print styles for invoices */
@@ -766,5 +778,11 @@ body[data-sef-sync-active="1"] .rdp * {
 
   .print-invoice .mb-2 {
     margin-bottom: 4px !important;
+  }
+
+  /* Override font-mono za štampu - Inter ima čistu nulu */
+  .print-invoice .font-mono {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-variant-numeric: tabular-nums !important;
   }
 }
