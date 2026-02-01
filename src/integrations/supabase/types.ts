@@ -1196,6 +1196,7 @@ export type Database = {
           email_reminder_day_before: boolean | null
           email_reminder_on_due_date: boolean | null
           email_subscription_warnings: boolean | null
+          email_verified: boolean | null
           full_name: string | null
           id: string
           invited_by_user_id: string | null
@@ -1226,6 +1227,7 @@ export type Database = {
           email_reminder_day_before?: boolean | null
           email_reminder_on_due_date?: boolean | null
           email_subscription_warnings?: boolean | null
+          email_verified?: boolean | null
           full_name?: string | null
           id: string
           invited_by_user_id?: string | null
@@ -1256,6 +1258,7 @@ export type Database = {
           email_reminder_day_before?: boolean | null
           email_reminder_on_due_date?: boolean | null
           email_subscription_warnings?: boolean | null
+          email_verified?: boolean | null
           full_name?: string | null
           id?: string
           invited_by_user_id?: string | null

@@ -31,6 +31,8 @@ interface Profile {
   bookkeeper_pib: string | null;
   bookkeeper_bank_account: string | null;
   bookkeeper_address: string | null;
+  // Email verification at application level
+  email_verified: boolean;
 }
 
 interface AuthContextType {
@@ -41,6 +43,7 @@ interface AuthContextType {
   isApproved: boolean;
   isBlocked: boolean;
   isBookkeeper: boolean;
+  isEmailVerified: boolean;
   subscriptionDaysLeft: number;
   isSubscriptionExpiring: boolean;
   isSubscriptionExpired: boolean;
@@ -96,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bookkeeper_pib: (profileData as any).bookkeeper_pib ?? null,
         bookkeeper_bank_account: (profileData as any).bookkeeper_bank_account ?? null,
         bookkeeper_address: (profileData as any).bookkeeper_address ?? null,
+        email_verified: (profileData as any).email_verified ?? false,
       } as Profile);
     }
 
@@ -202,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isApproved = profile?.status === 'approved' || isAdmin;
   const isBlocked = profile?.status === 'rejected';
   const isBookkeeper = profile?.account_type === 'bookkeeper';
+  const isEmailVerified = profile?.email_verified ?? false;
 
   // Calculate subscription days left - bookkeepers have unlimited access
   const subscriptionDaysLeft = isBookkeeper 
@@ -222,6 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isApproved,
         isBlocked,
         isBookkeeper,
+        isEmailVerified,
         subscriptionDaysLeft,
         isSubscriptionExpiring,
         isSubscriptionExpired,
