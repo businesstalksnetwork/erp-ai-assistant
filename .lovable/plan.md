@@ -1,63 +1,96 @@
 
-# Plan: Enforce Email Verification Before Login
+# Plan: Fix Duplicate Verification Emails and Hook Timeout Error
 
-## Problem Analysis
+## Problem Summary
 
-Currently, users can log in immediately after registration without confirming their email address. This happens because:
+The registration flow has two issues:
+1. **Duplicate verification emails** - Users receive two emails: one from Lovable's email-hook and one from our custom `send-verification-email` edge function
+2. **Hook timeout error** - Sometimes the Lovable email-hook takes longer than 5 seconds, causing the error "Failed to reach hook within maximum time of 5.000000 seconds"
 
-1. **Supabase Auth has "Auto-confirm" enabled** - users are automatically confirmed at signup
-2. **Evidence from database**: Most users have `email_confirmed_at` set within milliseconds of `created_at`
-3. The custom verification email is sent, but it's effectively optional since users can already login
+## Root Cause Analysis
+
+When `auto_confirm_email` is **disabled**, Supabase Auth fires a `user_confirmation_requested` event on signup. This event triggers:
+
+1. **Lovable's email-hook** (`https://api.lovable.dev/.../email-hook`) - sends the default verification email
+2. **Our frontend code** (line 338 in Auth.tsx) - calls `send-verification-email` edge function - sends our custom email
+
+The email-hook has a 5-second timeout limit. When it exceeds this, registration fails with the error shown in the screenshot.
 
 ## Solution
 
-### Step 1: Disable Auto-Confirm in Lovable Cloud Dashboard (Manual Action Required)
+**Re-enable auto-confirm** and use our custom verification flow exclusively:
 
-This is a **platform-level setting** that cannot be changed via code. You need to:
+1. **Enable auto-confirm email** - This prevents Supabase from triggering the email-hook for confirmation requests
+2. **Keep our custom verification flow** - The frontend already calls `send-verification-email` after successful signup
+3. **Block login until verified** - Our `verify-email` edge function sets `email_confirm: true` via Admin API
 
-1. Open the **Lovable Cloud Dashboard** (button provided below)
-2. Navigate to **Users & Authentication** settings
-3. Find the **"Confirm email"** or **"Auto-confirm email"** toggle
-4. **Disable auto-confirm** to require email verification
+This way:
+- Only ONE email is sent (our custom email via Resend)
+- No hook timeout errors (the email-hook won't be triggered for confirmations)
+- Users still must verify before logging in (controlled by our verification tokens)
 
-Once disabled, new users will have `email_confirmed_at = null` until they click the verification link.
+## Implementation Steps
 
-### Step 2: Verify Login Error Handling (Already Implemented)
+### Step 1: Enable Auto-Confirm Email
 
-The current `handleSignIn` function already handles the "Email not confirmed" error:
+Use the auth configuration tool to re-enable auto-confirm. This sounds counterintuitive, but it prevents Supabase from sending its own verification emails.
 
-```typescript
-// Lines 200-202 in Auth.tsx
-} else if (error.message.includes('Email not confirmed')) {
-  errorMessage = 'Molimo vas da prvo potvrdite vašu email adresu. Proverite inbox za link za potvrdu.';
-}
+### Step 2: Add Application-Level Email Verification Check
+
+Since Supabase will now auto-confirm emails at signup, we need to enforce verification at the application level. This requires:
+
+1. **Add a new column to profiles table**: `email_verified` (boolean, default false)
+2. **Update registration flow**: When user signs up, `email_verified` defaults to false
+3. **Update verify-email function**: When token is validated, set `email_verified = true` in profiles
+4. **Block access for unverified users**: Check `email_verified` in the frontend/auth context
+
+### Step 3: Update Auth Flow
+
+Modify the login logic to check if the user's email is verified in our application (profiles table), not just Supabase's email_confirmed_at.
+
+## Technical Details
+
+### Database Migration
+
+```sql
+-- Add email_verified column to profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email_verified boolean DEFAULT false;
+
+-- Set existing confirmed users as verified
+UPDATE profiles 
+SET email_verified = true 
+WHERE id IN (
+  SELECT id FROM auth.users WHERE email_confirmed_at IS NOT NULL
+);
 ```
 
-This will automatically work once auto-confirm is disabled.
+### Files to Modify
 
-### Step 3: Verification Flow (Already Implemented)
+1. **Database**: Add `email_verified` column to profiles
+2. **`supabase/functions/verify-email/index.ts`**: Update to set `email_verified = true` in profiles table
+3. **`src/lib/auth.tsx`**: Add `emailVerified` to profile type and auth context
+4. **`src/pages/Auth.tsx`**: Check `emailVerified` on login and show appropriate message
 
-The complete verification flow is already in place:
+### Verification Flow After Changes
 
-- **Registration** → Sends custom verification email via `send-verification-email` Edge Function
-- **Email Link** → Leads to `/verify?token=...` page
-- **Verification** → `verify-email` Edge Function confirms the user via Admin API
-- **Login** → User can now log in successfully
+```text
+1. User signs up
+2. Supabase auto-confirms (no email-hook triggered)
+3. Our code calls send-verification-email (single email sent)
+4. User clicks link → verify-email sets email_verified = true
+5. User can now log in
+```
 
-## What Changes
+## Benefits
 
-| Before | After |
-|--------|-------|
-| Users auto-confirmed at signup | Users must click verification link |
-| Login works immediately | Login blocked until email verified |
-| Verification email is optional | Verification email is required |
+- Single verification email (no duplicates)
+- No hook timeout errors
+- Complete control over verification flow
+- Existing functionality preserved
 
-## Technical Notes
+## Risks & Mitigations
 
-- The `verify-email` Edge Function correctly uses `supabaseAdmin.auth.admin.updateUserById` with `email_confirm: true`
-- Verification tokens have proper expiry (24 hours) and single-use protection
-- Error messages are already translated to Serbian
-
-## Action Required
-
-Open the Lovable Cloud Dashboard and disable the "Auto-confirm email" setting:
+| Risk | Mitigation |
+|------|------------|
+| Existing users affected | Migration sets `email_verified = true` for already confirmed users |
+| Auth context complexity | Simple boolean check, similar to existing `isApproved` pattern |
