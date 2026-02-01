@@ -105,6 +105,19 @@ serve(async (req) => {
 
     console.log(`[verify-email] User email confirmed: ${tokenData.email}`);
 
+    // Also set email_verified = true in profiles table (application-level verification)
+    const { error: profileUpdateError } = await supabaseAdmin
+      .from("profiles")
+      .update({ email_verified: true })
+      .eq("id", tokenData.user_id);
+
+    if (profileUpdateError) {
+      console.error("[verify-email] Error updating profile email_verified:", profileUpdateError);
+      // Don't throw - the auth confirmation succeeded, this is secondary
+    } else {
+      console.log(`[verify-email] Profile email_verified set to true`);
+    }
+
     // Mark token as used
     await supabaseAdmin
       .from("verification_tokens")

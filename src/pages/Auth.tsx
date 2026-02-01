@@ -21,6 +21,12 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, 'Lozinka mora sadržati najmanje jedan broj')
   .regex(/[^a-zA-Z0-9]/, 'Lozinka mora sadržati najmanje jedan specijalan karakter (!@#$%^&*...)');
 
+// Weak password check - for users with legacy weak passwords
+const isWeakPassword = (password: string): boolean => {
+  const strongPasswordResult = passwordSchema.safeParse(password);
+  return !strongPasswordResult.success;
+};
+
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
 type AccountType = 'pausal' | 'bookkeeper';
 
@@ -130,7 +136,8 @@ export default function Auth() {
     password: string, 
     fullName?: string, 
     accountType?: AccountType,
-    fields?: { pib?: string; companyName?: string; agencyName?: string; agencyPib?: string }
+    fields?: { pib?: string; companyName?: string; agencyName?: string; agencyPib?: string },
+    isLoginForm?: boolean
   ) => {
     const newErrors: typeof errors = {};
     
@@ -139,9 +146,17 @@ export default function Auth() {
       newErrors.email = emailResult.error.errors[0].message;
     }
     
-    const passwordResult = passwordSchema.safeParse(password);
-    if (!passwordResult.success) {
-      newErrors.password = passwordResult.error.errors[0].message;
+    // For login, only require minimum length (allow weak passwords for existing users)
+    // For signup, enforce full password strength
+    if (isLoginForm) {
+      if (password.length < 6) {
+        newErrors.password = 'Lozinka mora imati najmanje 6 karaktera';
+      }
+    } else {
+      const passwordResult = passwordSchema.safeParse(password);
+      if (!passwordResult.success) {
+        newErrors.password = passwordResult.error.errors[0].message;
+      }
     }
     
     if (fullName !== undefined && fullName.trim().length < 2) {
@@ -193,7 +208,8 @@ export default function Auth() {
       return;
     }
 
-    if (!validateForm(email, password)) {
+    // Use isLoginForm=true to allow weak passwords for existing users
+    if (!validateForm(email, password, undefined, undefined, undefined, true)) {
       setLoading(false);
       return;
     }
@@ -212,10 +228,20 @@ export default function Auth() {
         description: errorMessage,
         variant: 'destructive',
       });
-    } else {
-      navigate('/dashboard');
+      setLoading(false);
+      return;
     }
-
+    
+    // Check if user has a weak password and show notification
+    if (isWeakPassword(password)) {
+      toast({
+        title: 'Slaba lozinka',
+        description: 'Vaša lozinka je slaba. Preporučujemo da je promenite u Profil → Bezbednost za bolju zaštitu naloga.',
+        duration: 10000,
+      });
+    }
+    
+    navigate('/dashboard');
     setLoading(false);
   };
 
