@@ -84,6 +84,10 @@ export default function Auth() {
   const [resendLoading, setResendLoading] = useState(false);
   const [lastResendTime, setLastResendTime] = useState<number>(0);
   
+  // Password reset cooldown state
+  const [lastResetTime, setLastResetTime] = useState<number>(0);
+  const [resetCountdown, setResetCountdown] = useState<number>(0);
+  
   // Get referral ID, partner code and plan from URL if present
   const referralId = searchParams.get('ref');
   const partnerCode = searchParams.get('partner');
@@ -97,6 +101,19 @@ export default function Auth() {
       localStorage.setItem('pendingPlan', planParam);
     }
   }, [planParam]);
+
+  // Password reset countdown timer
+  useEffect(() => {
+    if (resetCountdown <= 0) return;
+    
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastResetTime) / 1000);
+      const remaining = Math.max(0, 60 - elapsed);
+      setResetCountdown(remaining);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [resetCountdown, lastResetTime]);
 
   useEffect(() => {
     if (user && mode !== 'reset-password' && !isRecovery) {
@@ -403,6 +420,17 @@ export default function Auth() {
 
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Check if already in cooldown
+    if (resetCountdown > 0) {
+      toast({
+        title: 'Molimo sačekajte',
+        description: `Možete zatražiti novi link za ${resetCountdown} sekundi.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLoading(true);
     setErrors({});
 
@@ -421,12 +449,26 @@ export default function Auth() {
     });
 
     if (error) {
-      toast({
-        title: 'Greška',
-        description: error.message,
-        variant: 'destructive',
-      });
+      // Handle rate limit error specifically
+      if (error.message.toLowerCase().includes('rate limit')) {
+        setLastResetTime(Date.now());
+        setResetCountdown(60);
+        toast({
+          title: 'Previše zahteva',
+          description: 'Molimo sačekajte 60 sekundi pre nego što ponovo zatražite reset lozinke.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Greška',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     } else {
+      // Success - start cooldown
+      setLastResetTime(Date.now());
+      setResetCountdown(60);
       toast({
         title: 'Email poslat',
         description: 'Poslali smo vam link za reset lozinke na email.',
@@ -565,9 +607,9 @@ export default function Auth() {
                   />
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || resetCountdown > 0}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Pošalji link
+                  {resetCountdown > 0 ? `Sačekajte ${resetCountdown}s` : 'Pošalji link'}
                 </Button>
                 <Button
                   type="button"
