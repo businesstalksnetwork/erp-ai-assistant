@@ -16,7 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import pausalBoxLogo from '@/assets/pausal-box-logo-light.png';
 import { generateInvoicePdf } from '@/hooks/usePdfGenerator';
 import { useIsMobile } from '@/hooks/use-mobile';
-
+import { formatNumberSr } from '@/lib/utils';
 // Helper funkcija za formatiranje broja računa za IPS (tačno 18 UZASTOPNIH cifara BEZ crtica - NBS standard)
 function formatAccountForIPS(account: string): string {
   const parts = account.replace(/\s/g, '').split('-');
@@ -119,20 +119,15 @@ interface InvoiceItem {
 }
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('sr-RS', {
-    style: 'currency',
-    currency: 'RSD',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return `${formatNumberSr(amount, 2)} RSD`;
 }
 
 function formatForeignCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const symbols: Record<string, string> = {
+    'USD': '$', 'EUR': '€', 'GBP': '£', 'CHF': 'CHF', 'CAD': 'C$', 'AUD': 'A$',
+  };
+  const symbol = symbols[currency] || currency;
+  return `${symbol}${formatNumberSr(amount, 2)}`;
 }
 
 // Helper za dobijanje prevoda - engleski za strane klijente

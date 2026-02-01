@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Format number in Serbian format (1.000,00)
+export function formatNumberSr(value: number, decimals: number = 2): string {
+  return new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
+// Format RSD currency in Serbian format
+export function formatRsdAmount(amount: number, showDecimals: boolean = true): string {
+  const formatted = formatNumberSr(amount, showDecimals ? 2 : 0);
+  return `${formatted} RSD`;
+}
+
 // Serbian Cyrillic to Latin transliteration
 export function cyrillicToLatin(text: string): string {
   const map: Record<string, string> = {
