@@ -319,6 +319,7 @@ export default function Auth() {
     if (honeypot) {
       // Bot filled the honeypot - silently reject
       setLoading(false);
+      setIsRegistering(false);
       return;
     }
     
@@ -330,6 +331,7 @@ export default function Auth() {
         variant: 'destructive',
       });
       setLoading(false);
+      setIsRegistering(false);
       return;
     }
     
@@ -341,6 +343,7 @@ export default function Auth() {
 
     if (!validateForm(email, password, fullName, accountType, { pib, companyName, agencyName, agencyPib })) {
       setLoading(false);
+      setIsRegistering(false);
       return;
     }
 
@@ -360,6 +363,7 @@ export default function Auth() {
             variant: 'destructive',
           });
           setLoading(false);
+          setIsRegistering(false);
           return;
         }
         
@@ -370,6 +374,7 @@ export default function Auth() {
             variant: 'destructive',
           });
           setLoading(false);
+          setIsRegistering(false);
           return;
         }
         
@@ -382,6 +387,7 @@ export default function Auth() {
           variant: 'destructive',
         });
         setLoading(false);
+        setIsRegistering(false);
         return;
       }
     }
@@ -414,6 +420,7 @@ export default function Auth() {
         variant: 'destructive',
       });
       setLoading(false);
+      setIsRegistering(false);
       return;
     }
 

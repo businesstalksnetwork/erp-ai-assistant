@@ -64,7 +64,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin, isEmailVerified } = useAuth();
   const location = useLocation();
 
   const isRecoveryUrl =
@@ -81,6 +81,9 @@ function AppRoutes() {
     return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
   }
 
+  // User can enter app only if they are admin OR have verified email
+  const canEnterApp = user && (isAdmin || isEmailVerified);
+
   return (
     <Routes>
       <Route
@@ -88,12 +91,12 @@ function AppRoutes() {
         element={
           isRecoveryUrl
             ? <Navigate to={`/auth${location.search}${location.hash}`} replace />
-            : user
+            : canEnterApp
               ? <Navigate to="/dashboard" replace />
               : <Index />
         }
       />
-      <Route path="/auth" element={user && !isRecoveryUrl ? <Navigate to="/dashboard" replace /> : <Auth />} />
+      <Route path="/auth" element={canEnterApp && !isRecoveryUrl ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/verify" element={<VerifyEmail />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
