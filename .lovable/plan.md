@@ -1,78 +1,104 @@
 
-Cilj: (1) korisnik posle registracije ne sme biti prebačen na /dashboard niti videti ulogovano stanje, (2) brisanje korisnika iz Admin panela mora ponovo da radi.
+## Problem
 
-## 1) Zašto se i dalje “automatski uloguje” posle registracije
-U `src/App.tsx` ruta `/auth` je definisana ovako:
+Postojeci korisnik (pbcconsulting021) ima `email_verified: true` u bazi, ali kada se prijavi:
+1. Login uspe i poziva se `navigate('/dashboard')`
+2. Ali `ProtectedRoute` u `App.tsx` blokira pristup jer `isEmailVerified` iz `useAuth()` jos uvek nije ucitan (profil se asinhrono ucitava)
+3. Korisnik se vraca na `/auth` i vidi beli ekran jer se ne prikazuje nista dok se ne ucita profil
 
-- Ako `user` postoji → automatski radi `<Navigate to="/dashboard" />`
+## Uzrok
 
-To se desi čim backend kreira sesiju zbog auto-confirm-a (pre nego što tvoj `handleSignUp` stigne da odradi `signOut()`), pa React Router odmah prebacuje na `/dashboard`. To je “flash / auto login”.
+Race condition: `profile` podaci se ucitavaju asinhrono u `AuthProvider`, a `isEmailVerified` je `false` dok se profil ne ucita. Tokom tog vremena, `canEnterApp = user && (isAdmin || isEmailVerified)` je `false` cak i za verifikovane korisnike.
 
-### Rešenje
-Promeniti logiku `/auth` rute tako da ne preusmerava na `/dashboard` samo zato što `user` postoji, već samo ako je:
-- admin, ili
-- `isEmailVerified === true`, i
-- nije recovery flow
+## Resenje
 
-Time `/auth` ostaje stabilna stranica koja uvek može da prikaže “Potvrdite email” stanje bez ikakvog prebacivanja.
+### 1. `src/lib/auth.tsx` - Blokirati navigaciju dok se profil ne ucita
 
-## 2) Konkretne izmene (frontend)
+Dodati `profileLoading` state koji ce biti `true` dok se profil ucitava. Kombinovati sa postojecim `loading` stateom tako da aplikacija ne donosi odluke o rutiranju dok profil nije ucitan.
 
-### 2.1 `src/App.tsx` – popravka `/auth` rute (kritično)
-Umesto:
-- `element={user && !isRecoveryUrl ? <Navigate .../> : <Auth />}`
+```typescript
+// Postojece stanje
+const [profile, setProfile] = useState<Profile | null>(null);
+const [loading, setLoading] = useState(true);
 
-Uraditi:
-- u `AppRoutes()` uzeti iz `useAuth()` i `isAdmin` i `isEmailVerified`
-- računati `canEnterApp = user && (isAdmin || isEmailVerified)`
-- `/auth` preusmeri na `/dashboard` samo ako `canEnterApp && !isRecoveryUrl`, inače uvek renderuje `<Auth />`
+// NOVO: profileLoading - odvojeno od auth loading
+const [profileLoading, setProfileLoading] = useState(false);
 
-Ovo direktno uklanja auto-redirect posle registracije, čak i ako sesija kratko nastane.
+const fetchProfile = async (userId: string) => {
+  setProfileLoading(true); // NOVO
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+  // ... postavi profile ...
+  setProfileLoading(false); // NOVO
+};
 
-### 2.2 `src/pages/Auth.tsx` – zadržati postojeći “anti-flash” kod
-Tvoj trenutni mehanizam (`isRegistering`, `showEmailVerificationMessage`, `await supabase.auth.signOut()` odmah posle signup-a) je dobar i treba da ostane, ali tek kada se ukloni gornji “router-level” redirect, stvarno će raditi.
+// Kombinovani loading za export
+const isFullyLoaded = !loading && !profileLoading;
+```
 
-Dodatno (mali hardening):
-- U `handleSignUp` u `honeypot` grani obavezno vratiti `setIsRegistering(false)` (da ne ostane zaključano stanje ako bot polje bude popunjeno).
-- U `handleSignUp` u svim early-return greškama (PIB validation fail, disposable email, validateForm fail) obavezno vratiti `setIsRegistering(false)` pre `return` (trenutno se setuje `true` na početku; u nekim granama se vraća bez resetovanja).
+### 2. `src/App.tsx` - Sacekati dok se profil ucita
 
-(To nije direktno razlog “auto login” buga, ali sprečava sporedne UI bugove.)
+Promeniti logiku tako da:
+- Dok je `loading` ili `profileLoading`, prikazati loading state
+- Tek nakon ucitavanja profila donositi odluku o `canEnterApp`
 
-## 3) Zašto “Delete user” sada puca
-U logovima backend funkcije `delete-user` vidi se:
-- `AuthSessionMissingError: Auth session missing!` u pozivu `supabaseAuth.auth.getClaims(token)`
+```typescript
+function ProtectedRoute({ children }) {
+  const { user, loading, isAdmin, isEmailVerified, profileLoading } = useAuth();
 
-U Deno edge runtime-u nema “session storage” kao u browseru, i `getClaims(token)` u praksi ume da pokuša da koristi internu sesiju i padne sa “session missing”, iako token postoji u headeru.
+  // Sacekaj oba: auth i profile loading
+  if (loading || profileLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Ucitavanje...</div>;
+  }
 
-### Rešenje (backend funkcija)
-U `supabase/functions/delete-user/index.ts` zameniti verifikaciju ovako:
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
-1) Pročitati `Authorization` header i izvući token (kao i sada).
-2) Kreirati “anon” client sa `global.headers.Authorization = authHeader` i sa isključenim session feature-ima:
-   - `auth: { persistSession: false, autoRefreshToken: false }`
-3) Umesto `getClaims(token)` koristiti:
-   - `const { data: userData, error } = await supabaseAuth.auth.getUser(token)`
-4) Ako je OK:
-   - `currentUserId = userData.user.id`
-5) Nastaviti postojeću proveru admin role preko service-role klijenta i brisanje preko Admin API.
+  // Sada mozemo pouzdano proveriti email_verified
+  if (!isAdmin && !isEmailVerified) {
+    return <Navigate to="/auth" replace />;
+  }
+  // ...
+}
 
-Ovo uklanja zavisnost od “session” i radi pouzdano u edge okruženju.
+function AppRoutes() {
+  const { user, loading, isAdmin, isEmailVerified, profileLoading } = useAuth();
+  
+  if (loading || profileLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Ucitavanje...</div>;
+  }
+  
+  const canEnterApp = user && (isAdmin || isEmailVerified);
+  // ...
+}
+```
 
-## 4) Provera posle izmena (acceptance)
-1) Registracija novog korisnika:
-   - Ostaje na `/auth`
-   - Prikazuje se “Potvrdite email adresu”
-   - Ne prebacuje na `/dashboard` ni na trenutak
-2) Pokušaj logina sa neverifikovanim korisnikom:
-   - Odmah ga odjavi + toast poruka (kao sada)
-3) Admin panel → “Obriši korisnika”:
-   - Ne dobija “Edge Function returned a non-2xx”
-   - Korisnik se briše i lista se refresuje
+### 3. `src/pages/Auth.tsx` - Ukloniti redundantnu navigaciju u useEffect
 
-## 5) Fajlovi koji će se menjati
-- `src/App.tsx` (kritično: promena uslova za `/auth` redirect)
-- `src/pages/Auth.tsx` (hardening: reset `isRegistering` u early-return granama)
-- `supabase/functions/delete-user/index.ts` (kritično: auth validacija preko `getUser(token)` umesto `getClaims(token)`)
+Posto `App.tsx` sada pravilno hendluje rutiranje, `useEffect` koji poziva `navigate('/dashboard')` kada postoji `user` nije vise potreban i moze izazvati race condition. Ukloniti taj useEffect ili ga uciniti bezopasnim.
 
-## 6) Napomena o adminu i trenutnom stanju (/admin)
-Pošto si trenutno na `/admin`, “Edge Function returned a non-2xx status code” toast koji vidiš je kompatibilan sa ovim uzrokom: `delete-user` funkcija sada puca na auth verifikaciji (session missing), pa vraća 401/500 i UI prikazuje grešku.
+```typescript
+// UKLONITI ovaj useEffect jer App.tsx sada hendluje rutiranje
+// useEffect(() => {
+//   if (isRegistering || showEmailVerificationMessage) return;
+//   if (user && mode !== 'reset-password' && !isRecovery) {
+//     navigate('/dashboard', { replace: true });
+//   }
+// }, [user, mode, isRecovery, navigate, isRegistering, showEmailVerificationMessage]);
+```
+
+## Fajlovi koji ce se menjati
+
+1. `src/lib/auth.tsx` - Dodati `profileLoading` state i exportovati ga
+2. `src/App.tsx` - Koristiti `profileLoading` u loading uslovima
+3. `src/pages/Auth.tsx` - Ukloniti problematican useEffect
+
+## Ocekivani rezultat
+
+1. Postojeci verifikovani korisnici (kao pbcconsulting021) ce se prijaviti i odmah videti dashboard bez belog ekrana
+2. Novi korisnici ce ostati na `/auth` stranici i videti poruku za verifikaciju
+3. Nema vise race condition izmedju ucitavanja profila i rutiranja
