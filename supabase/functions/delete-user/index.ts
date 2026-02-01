@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Authenticate the user using getClaims
+    // Authenticate the user using getUser (works in edge runtime without session storage)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -25,23 +25,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create client with disabled session features for edge runtime compatibility
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Validate the JWT using getClaims
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    // Validate the JWT using getUser instead of getClaims (avoids session missing error)
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
-      console.error('Auth claims error:', claimsError);
+    if (userError || !userData?.user) {
+      console.error('Auth user error:', userError);
       return new Response(
         JSON.stringify({ error: 'Nije autorizovano' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const currentUserId = claimsData.claims.sub as string;
+    const currentUserId = userData.user.id;
     console.log(`Delete user request from user: ${currentUserId}`);
 
     // Create admin client with service role key for role checking
