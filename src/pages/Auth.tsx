@@ -14,12 +14,32 @@ import { z } from 'zod';
 import { useTheme } from '@/lib/theme-context';
 import logoLight from '@/assets/pausal-box-logo-light.png';
 import logoDark from '@/assets/pausal-box-logo-dark.png';
-
 const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string().min(6, 'Lozinka mora imati najmanje 6 karaktera');
 
 type AuthMode = 'default' | 'forgot-password' | 'reset-password';
 type AccountType = 'pausal' | 'bookkeeper';
+
+// Anti-spam: Block disposable email domains
+const BLOCKED_EMAIL_DOMAINS = [
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 
+  '10minutemail.com', 'throwaway.email', 'fakeinbox.com',
+  'maildrop.cc', 'yopmail.com', 'temp-mail.org',
+  'disposablemail.com', 'trashmail.com', 'getnada.com',
+  'mohmal.com', 'tempail.com', 'emailondeck.com', 'sharklasers.com',
+  'guerrillamail.info', 'grr.la', 'guerrillamail.biz', 'guerrillamail.de',
+  'guerrillamail.net', 'guerrillamail.org', 'spam4.me', 'getairmail.com',
+  'mailnesia.com', 'tmpmail.org', 'tmpmail.net', 'discard.email',
+  'mailcatch.com', 'mintemail.com', 'mt2009.com', 'nospam.ze.tc',
+  'owlymail.com', 'rmqkr.net', 'jetable.org', 'spamgourmet.com',
+  'tempinbox.com', 'fakemailgenerator.com', 'emailfake.com', 'tempr.email',
+  'dropmail.me', 'mailnull.com', 'spambox.us', 'incognitomail.com'
+];
+
+const isDisposableEmail = (email: string): boolean => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain ? BLOCKED_EMAIL_DOMAINS.includes(domain) : false;
+};
 
 const isPasswordRecoveryUrl = () => {
   const hash = window.location.hash;
@@ -157,6 +177,14 @@ export default function Auth() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
+    
+    // Anti-bot honeypot check (hidden field)
+    const honeypot = formData.get('website') as string;
+    if (honeypot) {
+      // Bot filled the honeypot - silently reject
+      setLoading(false);
+      return;
+    }
 
     if (!validateForm(email, password)) {
       setLoading(false);
@@ -193,6 +221,25 @@ export default function Auth() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
+    
+    // Anti-bot honeypot check (hidden field)
+    const honeypot = formData.get('website') as string;
+    if (honeypot) {
+      // Bot filled the honeypot - silently reject
+      setLoading(false);
+      return;
+    }
+    
+    // Anti-spam: Block disposable email domains
+    if (isDisposableEmail(email)) {
+      toast({
+        title: 'Nevalidna email adresa',
+        description: 'Nije dozvoljeno korišćenje privremenih email servisa za registraciju.',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
     
     // Fields based on account type
     const pib = accountType === 'pausal' ? formData.get('pib') as string : undefined;
@@ -531,6 +578,15 @@ export default function Auth() {
 
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
+                  {/* Honeypot field - hidden from users, visible to bots */}
+                  <input 
+                    type="text" 
+                    name="website" 
+                    style={{ display: 'none' }} 
+                    tabIndex={-1} 
+                    autoComplete="off"
+                    aria-hidden="true"
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
                     <Input
@@ -604,6 +660,15 @@ export default function Auth() {
                     </p>
                   </div>
                   <form onSubmit={handleSignUp} className="space-y-4">
+                    {/* Honeypot field - hidden from users, visible to bots */}
+                    <input 
+                      type="text" 
+                      name="website" 
+                      style={{ display: 'none' }} 
+                      tabIndex={-1} 
+                      autoComplete="off"
+                      aria-hidden="true"
+                    />
                     {/* Account Type Selection */}
                     <div className="space-y-3">
                       <Label>Tip naloga *</Label>
