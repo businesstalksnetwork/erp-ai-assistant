@@ -1,93 +1,117 @@
 
-# Plan: Popravka pristupa logoima firmi na DigitalOcean Spaces
+# Plan: Zaštita od spam naloga sa disposable email adresama
 
-## Dijagnoza problema
+## Problem
 
-Logoi firmi se ne prikazuju jer su fajlovi postavljeni kao **privatni** na DigitalOcean Spaces. Kada browser pokušava da učita logo direktno iz `<img src="...">` taga, DigitalOcean vraća **`AccessDenied`** grešku.
+Pronađeni su nalozi registrovani sa disposable email servisima (mailinator.com) koji se koriste za kreiranje lažnih/test naloga:
 
-### Detalji greške
+| Email | Status | Verifikovan | Tip naloga |
+|-------|--------|-------------|------------|
+| knjigovodja@mailinator.com | approved | Ne | Knjigovođa |
+| marko@mailinator.com | approved | Ne | Paušalac |
 
-| Aspekt | Vrednost |
-|--------|----------|
-| URL | `https://pausalbox.fra1.digitaloceanspaces.com/users/.../logos/.../logo.jpg` |
-| Greška | `AccessDenied` (403) |
-| Browser greška | `net::ERR_BLOCKED_BY_ORB` |
-| Uzrok | Fajlovi uploadovani bez `public-read` ACL-a |
+Ovi nalozi nikada nisu verifikovali email (tokeni nisu iskorišćeni), ali su manuelno odobreni.
 
 ## Rešenje
 
-Potrebno je uraditi dve stvari:
+Implementacija višeslojne zaštite:
 
-### Korak 1: Ispraviti upload funkciju za nove logoe
+### 1. Blokada disposable email domena pri registraciji
 
-Izmeniti `storage-upload` Edge funkciju da postavlja `x-amz-acl: public-read` za logo fajlove.
+Dodaćemo listu blokiranih domena i proveru u Auth.tsx formi:
 
-**Lokacija**: `supabase/functions/storage-upload/index.ts`
+**Blokirani domeni:**
+- mailinator.com, guerrillamail.com, tempmail.com, 10minutemail.com
+- throwaway.email, fakeinbox.com, maildrop.cc, yopmail.com
+- temp-mail.org, disposablemail.com, trashmail.com
 
-**Izmena**:
-```typescript
-// Trenutni kod (linije 155-160):
-await s3Client.putObject(path, buffer, {
-  metadata: { 
-    'Content-Type': contentType,
-  },
-});
+**Lokacija izmene:** `src/pages/Auth.tsx`
 
-// Novi kod:
-await s3Client.putObject(path, buffer, {
-  metadata: { 
-    'Content-Type': contentType,
-    ...(type === 'logo' && { 'x-amz-acl': 'public-read' }),
-  },
-});
+Dodaje se validacija pre slanja forme:
+```
+const BLOCKED_EMAIL_DOMAINS = [
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 
+  '10minutemail.com', 'throwaway.email', 'fakeinbox.com',
+  'maildrop.cc', 'yopmail.com', 'temp-mail.org',
+  'disposablemail.com', 'trashmail.com', 'getnada.com',
+  'mohmal.com', 'tempail.com', 'emailondeck.com'
+];
+
+const isDisposableEmail = (email: string) => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return BLOCKED_EMAIL_DOMAINS.includes(domain);
+};
 ```
 
-### Korak 2: Popraviti postojeće logoe
+### 2. Server-side validacija u Edge funkciji
 
-Kreirati novu edge funkciju `storage-fix-logos` koja će:
-1. Pročitati sve logoe iz baze (companies.logo_url koji počinju sa `https://pausalbox...`)
-2. Za svaki logo:
-   - Preuzeti fajl sa DO Spaces
-   - Ponovo ga uploadovati sa `public-read` ACL-om
-3. Ne menjati URL u bazi (ostaje isti)
+Dodatna provera u `send-verification-email` funkciji kao backup:
 
-**Nova funkcija**: `supabase/functions/storage-fix-logos/index.ts`
+**Lokacija:** `supabase/functions/send-verification-email/index.ts`
+
+### 3. Admin Panel - oznaka neverifikovanih korisnika
+
+Dodati vizuelni indikator u tabeli korisnika koji pokazuje:
+- Da li je korisnik verifikovao email
+- Upozorenje za manuelno odobrene neverifikovane naloge
+
+**Lokacija:** `src/pages/AdminPanel.tsx`
+
+### 4. Brisanje postojećih spam naloga
+
+Admin može koristiti postojeću funkcionalnost za brisanje:
+- `knjigovodja@mailinator.com` 
+- `marko@mailinator.com`
 
 ## Tehnički detalji
 
-### s3-lite-client ACL podrška
+### Izmene u Auth.tsx
 
-Biblioteka `s3-lite-client` podržava postavljanje ACL-a kroz `metadata` opciju:
+1. Dodati konstantu `BLOCKED_EMAIL_DOMAINS` na vrh fajla
+2. Dodati helper funkciju `isDisposableEmail()`
+3. U `handleSignUp` pre poziva `supabase.auth.signUp`:
+   ```typescript
+   if (isDisposableEmail(email)) {
+     toast({
+       title: 'Nevalidna email adresa',
+       description: 'Nije dozvoljeno korišćenje privremenih email servisa.',
+       variant: 'destructive',
+     });
+     setLoading(false);
+     return;
+   }
+   ```
 
+### Izmene u send-verification-email
+
+Dodati istu proveru kao backup (defense in depth):
 ```typescript
-await s3client.putObject("key", data, {
-  metadata: {
-    "x-amz-acl": "public-read",
-  },
-});
+const BLOCKED_DOMAINS = ['mailinator.com', ...];
+const domain = email.split('@')[1]?.toLowerCase();
+if (BLOCKED_DOMAINS.includes(domain)) {
+  throw new Error('Disposable email addresses are not allowed');
+}
 ```
 
-### Zahvaćeni fajlovi
+### Izmene u AdminPanel.tsx
 
-Na osnovu prethodnog snimka baze, postoji **7 kompanija sa logoima** koje treba popraviti:
-- PBC CONSULTING
-- Studio Voho
-- Aleksandar Mastilovic PR
-- Milenko Čabrić PR Kera-ProMax
-- LawIT
-- Rajić Mont
-- DAVIDOV Production
-
-### Očekivani rezultat
-
-- Novi logoi će se automatski uploadovati kao javni
-- Postojeći logoi će postati javno dostupni nakon pokretanja fix funkcije
-- Logoi će se pravilno prikazivati u aplikaciji bez grešaka
+U tabeli korisnika dodati kolonu ili badge:
+- Ikona `CheckCircle` za verifikovane
+- Ikona `AlertTriangle` za neverifikovane sa tooltipom "Email nije verifikovan"
 
 ## Sažetak implementacije
 
 | Fajl | Akcija |
 |------|--------|
-| `supabase/functions/storage-upload/index.ts` | Izmena - dodavanje ACL za logoe |
-| `supabase/functions/storage-fix-logos/index.ts` | Novo - jednokratna popravka postojećih logoa |
-| `supabase/config.toml` | Izmena - registracija nove funkcije |
+| `src/pages/Auth.tsx` | Dodati blocklist proveru pri registraciji |
+| `supabase/functions/send-verification-email/index.ts` | Backup server-side provera |
+| `src/pages/AdminPanel.tsx` | Vizuelni indikator verifikacije |
+
+## Napomena za brisanje
+
+Za brisanje postojećih spam naloga:
+1. U Admin Panelu pronađi korisnika
+2. Klikni na tri tačke u koloni "Akcije"
+3. Izaberi "Obriši korisnika"
+
+Ovo će potpuno ukloniti nalog iz sistema (auth + profile + svi povezani podaci).
