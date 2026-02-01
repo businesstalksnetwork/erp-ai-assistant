@@ -25,18 +25,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    
     // Create client with disabled session features for edge runtime compatibility
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false, autoRefreshToken: false },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
 
-    // Validate the JWT using getUser instead of getClaims (avoids session missing error)
-    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+    // Validate the JWT using getUser() - uses Authorization header automatically
+    const { data: { user: authUser }, error: userError } = await supabaseAuth.auth.getUser();
     
-    if (userError || !userData?.user) {
+    if (userError || !authUser) {
       console.error('Auth user error:', userError);
       return new Response(
         JSON.stringify({ error: 'Nije autorizovano' }),
@@ -44,7 +42,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const currentUserId = userData.user.id;
+    const currentUserId = authUser.id;
     console.log(`Delete user request from user: ${currentUserId}`);
 
     // Create admin client with service role key for role checking
