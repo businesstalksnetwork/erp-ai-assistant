@@ -1,98 +1,63 @@
 
-# Plan: Sveobuhvatna Sigurnosna Zaštita Aplikacije
+# Plan: Enforce Email Verification Before Login
 
-## Status: ✅ IMPLEMENTIRANO
+## Problem Analysis
 
----
+Currently, users can log in immediately after registration without confirming their email address. This happens because:
 
-## Implementirane Sigurnosne Mere
+1. **Supabase Auth has "Auto-confirm" enabled** - users are automatically confirmed at signup
+2. **Evidence from database**: Most users have `email_confirmed_at` set within milliseconds of `created_at`
+3. The custom verification email is sent, but it's effectively optional since users can already login
 
-### 1. Frontend Blokada Disposable Email-ova ✅
+## Solution
 
-**Fajl:** `src/pages/Auth.tsx`
+### Step 1: Disable Auto-Confirm in Lovable Cloud Dashboard (Manual Action Required)
 
-- Dodata lista od 40+ blokiranih disposable email domena
-- Validacija se vrši pre registracije
-- Korisnik dobija jasnu poruku greške
+This is a **platform-level setting** that cannot be changed via code. You need to:
 
-### 2. RLS Politike za verification_tokens ✅
+1. Open the **Lovable Cloud Dashboard** (button provided below)
+2. Navigate to **Users & Authentication** settings
+3. Find the **"Confirm email"** or **"Auto-confirm email"** toggle
+4. **Disable auto-confirm** to require email verification
 
-**Status:** Već implementirano u bazi
+Once disabled, new users will have `email_confirmed_at = null` until they click the verification link.
 
-- RLS omogućen na tabeli
-- Politika "No public access to verification tokens" blokira sve klijentske pristupe
-- Edge funkcije (send-verification-email, verify-email) koriste service_role_key
+### Step 2: Verify Login Error Handling (Already Implemented)
 
-### 3. Honeypot Anti-Bot Zaštita ✅
+The current `handleSignIn` function already handles the "Email not confirmed" error:
 
-**Fajl:** `src/pages/Auth.tsx`
-
-- Dodato skriveno "website" polje u login i signup forme
-- Botovi koji popune ovo polje se tiho odbijaju
-- Polje je nevidljivo za korisnike (display: none, tabIndex: -1)
-
----
-
-## Već Implementirano ✅
-
-- Server-side blokada disposable email-ova u `send-verification-email` funkciji
-- PIB validacija kroz Checkpoint.rs API
-- Email verifikacija obavezna pre prijave
-- RLS politike na svim tabelama
-- is_approved() provera za pristup podacima
-- SEF API ključevi sakriveni od klijenta (companies_safe view)
-- Private storage bucket-i za osetljive fajlove
-- Advisory locks za redni broj fakture (sprečava race condition)
-
----
-
-## Preporuke za Dalje Unapređenje
-
-| Mera | Prioritet | Napomena |
-|------|-----------|----------|
-| Leaked password protection | VISOKO | Omogućiti u Lovable Cloud auth podešavanjima |
-| Brisanje spam naloga | SREDNJE | Ručno obrisati mailinator.com naloge kroz Admin Panel |
-
----
-
-## Sigurnosna Arhitektura
-
+```typescript
+// Lines 200-202 in Auth.tsx
+} else if (error.message.includes('Email not confirmed')) {
+  errorMessage = 'Molimo vas da prvo potvrdite vašu email adresu. Proverite inbox za link za potvrdu.';
+}
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (React)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  ✅ Disposable email blocklist (40+ domena)                    │
-│  ✅ Honeypot anti-bot polja                                     │
-│  ✅ Zod validacija za email/password                            │
-│  ✅ PIB format validacija (9 cifara)                            │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      EDGE FUNCTIONS (Deno)                      │
-├─────────────────────────────────────────────────────────────────┤
-│  ✅ validate-pib: Checkpoint.rs API provera                     │
-│  ✅ send-verification-email: Server-side email blocklist        │
-│  ✅ verify-email: Token validacija i expiry                     │
-│  ✅ Service role key za zaobilaženje RLS                        │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       DATABASE (PostgreSQL)                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ✅ RLS na svim tabelama                                        │
-│  ✅ verification_tokens: Potpuna blokada javnog pristupa        │
-│  ✅ companies_safe view: Skriva SEF API ključeve                │
-│  ✅ SECURITY DEFINER funkcije za osetljive operacije            │
-│  ✅ Advisory locks za konkurentne operacije                     │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                          STORAGE                                │
-├─────────────────────────────────────────────────────────────────┤
-│  ✅ Private bucket-i: reminder-attachments, invoice-pdfs        │
-│  ✅ RLS politike za pristup fajlovima                           │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+This will automatically work once auto-confirm is disabled.
+
+### Step 3: Verification Flow (Already Implemented)
+
+The complete verification flow is already in place:
+
+- **Registration** → Sends custom verification email via `send-verification-email` Edge Function
+- **Email Link** → Leads to `/verify?token=...` page
+- **Verification** → `verify-email` Edge Function confirms the user via Admin API
+- **Login** → User can now log in successfully
+
+## What Changes
+
+| Before | After |
+|--------|-------|
+| Users auto-confirmed at signup | Users must click verification link |
+| Login works immediately | Login blocked until email verified |
+| Verification email is optional | Verification email is required |
+
+## Technical Notes
+
+- The `verify-email` Edge Function correctly uses `supabaseAdmin.auth.admin.updateUserById` with `email_confirm: true`
+- Verification tokens have proper expiry (24 hours) and single-use protection
+- Error messages are already translated to Serbian
+
+## Action Required
+
+Open the Lovable Cloud Dashboard and disable the "Auto-confirm email" setting:
