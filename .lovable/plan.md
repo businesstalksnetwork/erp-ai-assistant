@@ -1,117 +1,159 @@
 
-# Plan: Zaštita od spam naloga sa disposable email adresama
+# Plan: Sveobuhvatna Sigurnosna Zaštita Aplikacije
 
-## Problem
+## Pronađeni Sigurnosni Problemi
 
-Pronađeni su nalozi registrovani sa disposable email servisima (mailinator.com) koji se koriste za kreiranje lažnih/test naloga:
+### KRITIČNI PROBLEMI (Hitno rešiti)
 
-| Email | Status | Verifikovan | Tip naloga |
-|-------|--------|-------------|------------|
-| knjigovodja@mailinator.com | approved | Ne | Knjigovođa |
-| marko@mailinator.com | approved | Ne | Paušalac |
+| Problem | Rizik | Status |
+|---------|-------|--------|
+| **Nedostaje frontend blokada disposable email-ova** | Spam nalozi mogu se kreirati zaobilaženjem server-side provere | ❌ Nije implementirano |
+| **verification_tokens tabela bez RLS politika** | Tokeni za verifikaciju/reset mogu biti ukradeni | ❌ KRITIČNO |
+| **Leaked password protection onemogućen** | Korisnici mogu koristiti kompromitovane lozinke | ⚠️ Potrebna konfiguracija |
 
-Ovi nalozi nikada nisu verifikovali email (tokeni nisu iskorišćeni), ali su manuelno odobreni.
+### VISOK PRIORITET
 
-## Rešenje
+| Problem | Rizik | Status |
+|---------|-------|--------|
+| **Nema rate limiting/captcha na login** | Brute force napadi mogući | ❌ Nedostaje |
+| **profiles tabela - mogući leak podataka** | Osetljivi korisnički podaci | ⚠️ RLS postoji, ali treba review |
 
-Implementacija višeslojne zaštite:
+---
 
-### 1. Blokada disposable email domena pri registraciji
+## Implementacija
 
-Dodaćemo listu blokiranih domena i proveru u Auth.tsx formi:
+### 1. Frontend Blokada Disposable Email-ova
 
-**Blokirani domeni:**
-- mailinator.com, guerrillamail.com, tempmail.com, 10minutemail.com
-- throwaway.email, fakeinbox.com, maildrop.cc, yopmail.com
-- temp-mail.org, disposablemail.com, trashmail.com
+**Fajl:** `src/pages/Auth.tsx`
 
-**Lokacija izmene:** `src/pages/Auth.tsx`
+**Akcija:** Dodati blocklist i validaciju pre registracije
 
-Dodaje se validacija pre slanja forme:
-```
+```typescript
+// Na vrhu fajla, posle importa
 const BLOCKED_EMAIL_DOMAINS = [
   'mailinator.com', 'guerrillamail.com', 'tempmail.com', 
   '10minutemail.com', 'throwaway.email', 'fakeinbox.com',
   'maildrop.cc', 'yopmail.com', 'temp-mail.org',
   'disposablemail.com', 'trashmail.com', 'getnada.com',
-  'mohmal.com', 'tempail.com', 'emailondeck.com'
+  'mohmal.com', 'tempail.com', 'emailondeck.com', 'sharklasers.com',
+  'guerrillamail.info', 'grr.la', 'guerrillamail.biz', 'guerrillamail.de',
+  'guerrillamail.net', 'guerrillamail.org', 'spam4.me', 'getairmail.com',
+  'mailnesia.com', 'tmpmail.org', 'tmpmail.net', 'discard.email',
+  'mailcatch.com', 'mintemail.com', 'mt2009.com', 'nospam.ze.tc',
+  'owlymail.com', 'rmqkr.net', 'jetable.org', 'spamgourmet.com'
 ];
 
-const isDisposableEmail = (email: string) => {
+const isDisposableEmail = (email: string): boolean => {
   const domain = email.split('@')[1]?.toLowerCase();
-  return BLOCKED_EMAIL_DOMAINS.includes(domain);
+  return domain ? BLOCKED_EMAIL_DOMAINS.includes(domain) : false;
 };
 ```
 
-### 2. Server-side validacija u Edge funkciji
-
-Dodatna provera u `send-verification-email` funkciji kao backup:
-
-**Lokacija:** `supabase/functions/send-verification-email/index.ts`
-
-### 3. Admin Panel - oznaka neverifikovanih korisnika
-
-Dodati vizuelni indikator u tabeli korisnika koji pokazuje:
-- Da li je korisnik verifikovao email
-- Upozorenje za manuelno odobrene neverifikovane naloge
-
-**Lokacija:** `src/pages/AdminPanel.tsx`
-
-### 4. Brisanje postojećih spam naloga
-
-Admin može koristiti postojeću funkcionalnost za brisanje:
-- `knjigovodja@mailinator.com` 
-- `marko@mailinator.com`
-
-## Tehnički detalji
-
-### Izmene u Auth.tsx
-
-1. Dodati konstantu `BLOCKED_EMAIL_DOMAINS` na vrh fajla
-2. Dodati helper funkciju `isDisposableEmail()`
-3. U `handleSignUp` pre poziva `supabase.auth.signUp`:
-   ```typescript
-   if (isDisposableEmail(email)) {
-     toast({
-       title: 'Nevalidna email adresa',
-       description: 'Nije dozvoljeno korišćenje privremenih email servisa.',
-       variant: 'destructive',
-     });
-     setLoading(false);
-     return;
-   }
-   ```
-
-### Izmene u send-verification-email
-
-Dodati istu proveru kao backup (defense in depth):
+**U handleSignUp funkciji (pre PIB validacije):**
 ```typescript
-const BLOCKED_DOMAINS = ['mailinator.com', ...];
-const domain = email.split('@')[1]?.toLowerCase();
-if (BLOCKED_DOMAINS.includes(domain)) {
-  throw new Error('Disposable email addresses are not allowed');
+// Blokada disposable email domena
+if (isDisposableEmail(email)) {
+  toast({
+    title: 'Nevalidna email adresa',
+    description: 'Nije dozvoljeno korišćenje privremenih email servisa za registraciju.',
+    variant: 'destructive',
+  });
+  setLoading(false);
+  return;
 }
 ```
 
-### Izmene u AdminPanel.tsx
+---
 
-U tabeli korisnika dodati kolonu ili badge:
-- Ikona `CheckCircle` za verifikovane
-- Ikona `AlertTriangle` za neverifikovane sa tooltipom "Email nije verifikovan"
+### 2. RLS Politike za verification_tokens
 
-## Sažetak implementacije
+**SQL Migracija:**
 
-| Fajl | Akcija |
-|------|--------|
-| `src/pages/Auth.tsx` | Dodati blocklist proveru pri registraciji |
-| `supabase/functions/send-verification-email/index.ts` | Backup server-side provera |
-| `src/pages/AdminPanel.tsx` | Vizuelni indikator verifikacije |
+```sql
+-- Omogući RLS
+ALTER TABLE public.verification_tokens ENABLE ROW LEVEL SECURITY;
 
-## Napomena za brisanje
+-- Blokiraj SVE korisničke pristupe - samo service role može pristupiti
+-- (Edge funkcije koriste service role)
+CREATE POLICY "No public access to tokens"
+  ON public.verification_tokens
+  FOR ALL
+  USING (false);
+```
 
-Za brisanje postojećih spam naloga:
-1. U Admin Panelu pronađi korisnika
-2. Klikni na tri tačke u koloni "Akcije"
-3. Izaberi "Obriši korisnika"
+Ovo osigurava da:
+- Niko ne može čitati tokene kroz klijentske upite
+- Edge funkcije (send-verification-email, verify-email) koriste service_role_key i zaobilaze RLS
+- Potpuna zaštita od krađe tokena
 
-Ovo će potpuno ukloniti nalog iz sistema (auth + profile + svi povezani podaci).
+---
+
+### 3. Leaked Password Protection
+
+Potrebno je omogućiti ovu opciju u Lovable Cloud auth podešavanjima. Ova funkcija proverava da li je lozinka koju korisnik unosi pronađena u poznatim curenjima podataka.
+
+---
+
+### 4. Rate Limiting za Login (Preporučeno)
+
+Supabase automatski ima ugrađeni rate limiting na auth endpoint-ovima, ali za dodatnu zaštitu može se dodati:
+
+**Opcija A:** Koristiti Supabase-ov ugrađeni rate limiting (već aktivan)
+**Opcija B:** Dodati honeypot polje u formu za detekciju botova
+
+```typescript
+// U login formi - honeypot polje (sakriveno od korisnika)
+<input 
+  type="text" 
+  name="website" 
+  style={{ display: 'none' }} 
+  tabIndex={-1} 
+  autoComplete="off"
+/>
+
+// U handleSignIn - provera honeypot-a
+const honeypot = formData.get('website') as string;
+if (honeypot) {
+  // Bot je popunio honeypot, tiho odbij
+  console.warn('Honeypot triggered');
+  setLoading(false);
+  return;
+}
+```
+
+---
+
+### 5. Pregled profiles RLS Politika
+
+Trenutne politike:
+- Korisnici mogu videti samo svoj profil
+- Admini mogu videti sve profile
+
+Ovo je korektno postavljeno. Anonimni korisnici NE mogu pristupiti podacima jer:
+- RLS zahteva `auth.uid()` proveru
+- Nema politike za `anon` role
+
+---
+
+## Sažetak Implementacije
+
+| Fajl/Akcija | Prioritet | Efekat |
+|-------------|-----------|--------|
+| `src/pages/Auth.tsx` - blocklist | KRITIČNO | Sprečava spam registracije na frontend-u |
+| SQL Migracija - verification_tokens RLS | KRITIČNO | Štiti tokene od krađe |
+| Lovable Cloud - enable leaked password | VISOKO | Sprečava korišćenje kompromitovanih lozinki |
+| Auth.tsx - honeypot | SREDNJE | Dodatna anti-bot zaštita |
+
+## Već Implementirano ✅
+
+- Server-side blokada disposable email-ova u `send-verification-email` funkciji
+- PIB validacija kroz Checkpoint.rs API
+- Email verifikacija obavezna pre prijave
+- RLS politike na svim ostalim tabelama
+- is_approved() provera za pristup podacima
+- SEF API ključevi sakriveni od klijenta
+- Private storage bucket-i za osetljive fajlove
+
+## Napomena
+
+Brisanje postojećih spam naloga (`knjigovodja@mailinator.com`, `marko@mailinator.com`) treba uraditi ručno kroz Admin Panel nakon implementacije ovih zaštita.
