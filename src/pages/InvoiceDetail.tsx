@@ -842,8 +842,23 @@ export default function InvoiceDetail() {
             </div>
           )}
 
+          {/* Potpisi - fakturisao / M.P. / primio */}
+          <div className="flex items-end justify-between pt-6 print:pt-4">
+            <div className="flex flex-col items-center w-32">
+              <div className="w-full border-t border-foreground" />
+              <span className="text-xs text-muted-foreground mt-1">(fakturisao)</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-sm font-bold">M.P.</span>
+            </div>
+            <div className="flex flex-col items-center w-32">
+              <div className="w-full border-t border-foreground" />
+              <span className="text-xs text-muted-foreground mt-1">(primio)</span>
+            </div>
+          </div>
+
           {/* Paušal box logo - na dnu */}
-          <div className="flex justify-center pt-6 print:pt-4">
+          <div className="flex justify-center pt-4 print:pt-2">
             <img
               src={pausalBoxLogo}
               alt="Paušal box"
