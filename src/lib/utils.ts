@@ -5,11 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Format number in Serbian format (1.000,00)
+// Format number in Serbian format (1.000,00) - hides ,00 if whole number
 export function formatNumberSr(value: number, decimals: number = 2): string {
+  // Check if it's a whole number
+  const isWholeNumber = Number.isInteger(value);
+  const actualDecimals = isWholeNumber ? 0 : decimals;
+  
   return new Intl.NumberFormat('de-DE', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: actualDecimals,
+    maximumFractionDigits: actualDecimals,
   }).format(value);
 }
 
