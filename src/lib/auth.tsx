@@ -44,6 +44,7 @@ interface AuthContextType {
   isBlocked: boolean;
   isBookkeeper: boolean;
   isEmailVerified: boolean;
+  profileLoading: boolean;
   subscriptionDaysLeft: number;
   isSubscriptionExpiring: boolean;
   isSubscriptionExpired: boolean;
@@ -73,44 +74,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    setProfileLoading(true);
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (profileData) {
-      setProfile({
-        ...profileData,
-        max_companies: (profileData as any).max_companies ?? 1,
-        account_type: (profileData as any).account_type ?? 'pausal',
-        agency_name: (profileData as any).agency_name ?? null,
-        agency_pib: (profileData as any).agency_pib ?? null,
-        invited_by_user_id: (profileData as any).invited_by_user_id ?? null,
-        email_reminder_7_days_before: (profileData as any).email_reminder_7_days_before ?? true,
-        email_reminder_day_before: (profileData as any).email_reminder_day_before ?? true,
-        email_reminder_on_due_date: (profileData as any).email_reminder_on_due_date ?? false,
-        email_limit_6m_warning: (profileData as any).email_limit_6m_warning ?? true,
-        email_limit_8m_warning: (profileData as any).email_limit_8m_warning ?? true,
-        email_subscription_warnings: (profileData as any).email_subscription_warnings ?? true,
-        bookkeeper_company_name: (profileData as any).bookkeeper_company_name ?? null,
-        bookkeeper_pib: (profileData as any).bookkeeper_pib ?? null,
-        bookkeeper_bank_account: (profileData as any).bookkeeper_bank_account ?? null,
-        bookkeeper_address: (profileData as any).bookkeeper_address ?? null,
-        email_verified: (profileData as any).email_verified ?? false,
-      } as Profile);
+      if (profileData) {
+        setProfile({
+          ...profileData,
+          max_companies: (profileData as any).max_companies ?? 1,
+          account_type: (profileData as any).account_type ?? 'pausal',
+          agency_name: (profileData as any).agency_name ?? null,
+          agency_pib: (profileData as any).agency_pib ?? null,
+          invited_by_user_id: (profileData as any).invited_by_user_id ?? null,
+          email_reminder_7_days_before: (profileData as any).email_reminder_7_days_before ?? true,
+          email_reminder_day_before: (profileData as any).email_reminder_day_before ?? true,
+          email_reminder_on_due_date: (profileData as any).email_reminder_on_due_date ?? false,
+          email_limit_6m_warning: (profileData as any).email_limit_6m_warning ?? true,
+          email_limit_8m_warning: (profileData as any).email_limit_8m_warning ?? true,
+          email_subscription_warnings: (profileData as any).email_subscription_warnings ?? true,
+          bookkeeper_company_name: (profileData as any).bookkeeper_company_name ?? null,
+          bookkeeper_pib: (profileData as any).bookkeeper_pib ?? null,
+          bookkeeper_bank_account: (profileData as any).bookkeeper_bank_account ?? null,
+          bookkeeper_address: (profileData as any).bookkeeper_address ?? null,
+          email_verified: (profileData as any).email_verified ?? false,
+        } as Profile);
+      }
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    } finally {
+      setProfileLoading(false);
     }
-
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-
-    setIsAdmin(!!roleData);
   };
 
   const refreshProfile = async () => {
@@ -228,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isBlocked,
         isBookkeeper,
         isEmailVerified,
+        profileLoading,
         subscriptionDaysLeft,
         isSubscriptionExpiring,
         isSubscriptionExpired,
