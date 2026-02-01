@@ -843,7 +843,7 @@ export default function InvoiceDetail() {
           )}
 
           {/* Potpisi - fakturisao / M.P. / primio */}
-          <div className="flex items-end justify-between pt-6 print:pt-4">
+          <div className="flex items-end justify-between pt-10 print:pt-6">
             <div className="flex flex-col items-center w-32">
               <div className="w-full border-t border-foreground" />
               <span className="text-xs text-muted-foreground mt-1">(fakturisao)</span>
