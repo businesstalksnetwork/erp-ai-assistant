@@ -11,6 +11,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Lista blokiranih disposable email domena - backup server-side provera
+const BLOCKED_EMAIL_DOMAINS = [
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 
+  '10minutemail.com', 'throwaway.email', 'fakeinbox.com',
+  'maildrop.cc', 'yopmail.com', 'temp-mail.org',
+  'disposablemail.com', 'trashmail.com', 'getnada.com',
+  'mohmal.com', 'tempail.com', 'emailondeck.com', 'sharklasers.com',
+  'guerrillamail.info', 'grr.la', 'guerrillamail.biz', 'guerrillamail.de',
+  'guerrillamail.net', 'guerrillamail.org', 'spam4.me', 'getairmail.com',
+  'mailnesia.com', 'tmpmail.org', 'tmpmail.net', 'discard.email',
+  'mailcatch.com', 'mintemail.com', 'mt2009.com', 'nospam.ze.tc',
+  'owlymail.com', 'rmqkr.net', 'jetable.org', 'spamgourmet.com'
+];
+
+const isDisposableEmail = (email: string): boolean => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain ? BLOCKED_EMAIL_DOMAINS.includes(domain) : false;
+};
+
 interface VerificationEmailRequest {
   user_id: string;
   email: string;
@@ -30,6 +49,12 @@ serve(async (req) => {
 
     if (!user_id || !email) {
       throw new Error("Missing required fields: user_id and email");
+    }
+
+    // Server-side backup: Block disposable email domains
+    if (isDisposableEmail(email)) {
+      console.log(`[send-verification-email] Blocked disposable email: ${email}`);
+      throw new Error("Disposable email addresses are not allowed");
     }
 
     // Initialize Supabase client with service role
