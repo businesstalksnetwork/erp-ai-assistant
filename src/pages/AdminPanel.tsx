@@ -582,8 +582,18 @@ export default function AdminPanel() {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
+      // Ensure we have a fresh, valid access token (prevents session_not_found / stale JWT)
+      await supabase.auth.refreshSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('Niste ulogovani');
+      }
+
       const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId }
+        body: { userId },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error) throw error;
