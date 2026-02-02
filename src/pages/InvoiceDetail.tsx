@@ -540,19 +540,19 @@ export default function InvoiceDetail() {
       )}
 
       <Card className="print:shadow-none print:border-0 print:h-auto print:min-h-0 print:overflow-visible">
-        <CardHeader className="text-center border-b">
+        <CardHeader className="text-center border-b print:flex print:flex-row print:items-center print:justify-between print:text-left print:py-2">
           {/* Logo firme izdavaoca - gore */}
           {(selectedCompany as any).logo_url && (
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-4 print:mb-0 print:justify-start">
               <img
                 src={(selectedCompany as any).logo_url}
                 alt={`${selectedCompany.name} logo`}
-                className="h-14 max-w-[180px] object-contain"
+                className="h-14 max-w-[180px] object-contain print:h-8 print:max-w-[120px]"
               />
             </div>
           )}
           {/* Naslov fakture */}
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight print:text-sm print:m-0">
             {getDocumentTitle()}{' '}
             <span className="font-mono">{invoice.invoice_number}</span>
           </h1>
