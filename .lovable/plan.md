@@ -1,98 +1,109 @@
 
-# Plan: Smanjenje QR sekcije za domaće fakture
+# Plan: Optimizacija fakture za štampu na jednoj strani
 
 ## Problem
-Faktura je prevelika i ne staje na jednu stranu kada se štampa. QR sekcija (linije 785-811) trenutno prikazuje:
-- QR kod veličine 160px
-- Sve platne instrukcije pored QR koda (Primalac, Račun, Iznos, Svrha, Model, Poziv na broj)
 
-Ove instrukcije su redundantne jer se svi podaci već vide u gornjem delu fakture.
+Faktura sa jednom stavkom ne staje na jednu A4 stranu prilikom štampanja. Na prvoj strani se prikazuje samo logo i naslov, dok je ostatak sadržaja na drugoj strani. Ovo je neprihvatljivo za jednostavne fakture.
+
+## Analiza prostora
+
+Trenutni problemi:
+1. **Logo**: `h-14` (56px) + `mb-4` (16px) = 72px - previše za štampu
+2. **Naslov**: `text-2xl` + margine
+3. **CardHeader**: ima border-bottom i padding
+4. **CardContent**: `pt-6` (24px) i `gap-4` između sekcija
+5. **Print CSS**: smanjuje fontove ali ne i logo
 
 ## Rešenje
 
-### 1. Smanjenje QR koda
-- Trenutna veličina: `size={160}`
-- Nova veličina: `size={100}` (dovoljno za skeniranje, značajno manje)
+### 1. Smanjenje loga u print režimu (src/index.css)
+- Maksimalna visina loga: 32px (umesto 56px)
+- Uklanjanje margine ispod loga
+- Kompaktniji header
 
-### 2. Zamena teksta
-**Umesto:**
+### 2. Kompaktniji header (src/index.css)
+- Manji padding u CardHeader za štampu
+- Manja margina ispod border-a
+
+### 3. Inline layout za logo i naslov (opciono)
+- Logo i naslov u istoj liniji štede vertikalni prostor
+
+## Konkretne izmene
+
+### src/index.css - Print stilovi
+
+Dodati pravila unutar `@media print` bloka:
+
+```css
+/* Kompaktan logo za štampu */
+.print-invoice img[alt*="logo"] {
+  max-height: 32px !important;
+  height: auto !important;
+}
+
+.print-invoice [class*="CardHeader"] {
+  padding: 6px 8px !important;
+}
+
+.print-invoice [class*="CardHeader"] .mb-4 {
+  margin-bottom: 4px !important;
+}
+
+.print-invoice [class*="CardHeader"] .mb-3 {
+  margin-bottom: 3px !important;
+}
+
+/* Manji naslov fakture */
+.print-invoice h1.text-2xl {
+  font-size: 13px !important;
+  margin: 0 !important;
+}
+
+/* Kompaktniji razmak između sekcija */
+.print-invoice .gap-4 {
+  gap: 4px !important;
+}
+
+.print-invoice .gap-6 {
+  gap: 6px !important;
+}
 ```
-PODACI ZA UPLATU
-Primalac: ...
-Račun: ...
-Iznos: ...
-Svrha: ...
-Model: 00
-Poziv na broj: ...
-```
 
-**Samo:**
-```
-Plati pomoću QR koda.
-```
+### src/pages/InvoiceDetail.tsx - Inline logo i naslov
 
-### 3. Kompaktniji layout
-- QR kod i tekst u jednoj liniji, centrirano
-- Uklanjanje debug sekcije za štampu (već je print:hidden)
-- Manji padding
-
-## Fajl za izmenu
-
-### src/pages/InvoiceDetail.tsx (linije 785-811)
-
-Zamena cele QR sekcije sa kompaktnijom verzijom:
+Alternativno, layout logo+naslov može biti horizontalan za štampu:
 
 ```tsx
-<div className="border rounded-lg p-3 print:break-inside-avoid">
-  <div className="flex items-center justify-center gap-4">
-    <QRCodeSVG
-      value={ipsString}
-      size={100}
-      level="L"
-      includeMargin={false}
-    />
-    <p className="text-sm text-muted-foreground">Plati pomoću QR koda.</p>
-  </div>
-  {/* Debug: prikaži IPS string - samo za development */}
-  <details className="mt-2 print:hidden">
-    <summary className="text-xs text-muted-foreground cursor-pointer">Debug QR</summary>
-    <pre className="mt-1 text-xs bg-muted p-2 rounded whitespace-pre-wrap break-all">{ipsString}</pre>
-  </details>
-</div>
+<CardHeader className="text-center border-b print:flex print:flex-row print:items-center print:justify-between print:text-left print:py-2">
+  {/* Logo */}
+  {logo_url && (
+    <div className="flex justify-center mb-4 print:mb-0 print:justify-start">
+      <img 
+        src={logo_url}
+        alt="logo"
+        className="h-14 max-w-[180px] object-contain print:h-8 print:max-w-[120px]"
+      />
+    </div>
+  )}
+  {/* Naslov */}
+  <h1 className="text-2xl font-bold print:text-sm print:m-0">
+    {getDocumentTitle()} <span className="font-mono">{invoice.invoice_number}</span>
+  </h1>
+</CardHeader>
 ```
 
-## Vizuelni rezultat
+## Rezultat
 
-**Før (trenutno):**
-```
-┌─────────────────────────────────────────────┐
-│         PODACI ZA UPLATU                    │
-│ ┌────────┐  Primalac: Firma doo             │
-│ │  QR    │  Račun: 123-456789-00            │
-│ │ (160)  │  Iznos: 60.000,00 RSD            │
-│ │        │  Svrha: Faktura 001/25           │
-│ └────────┘  Model: 00                       │
-│             Poziv na broj: 00125            │
-└─────────────────────────────────────────────┘
-```
+- Logo: 56px → 32px (ušteda 24px)
+- Margina ispod loga: 16px → 4px (ušteda 12px)
+- CardHeader padding: smanjen (ušteda ~16px)
+- Gap između sekcija: 16px → 4px (ušteda ~36px na 3 sekcije)
+- **Ukupna ušteda: ~90-100px vertikalnog prostora**
 
-**После (novo):**
-```
-┌─────────────────────────────────────────────┐
-│    ┌────┐                                   │
-│    │ QR │  Plati pomoću QR koda.            │
-│    │(100)│                                  │
-│    └────┘                                   │
-└─────────────────────────────────────────────┘
-```
+Ovo je dovoljno da jednostavna faktura sa jednom stavkom stane na jednu A4 stranu.
 
-## Ušteda prostora
-- QR kod: 160px → 100px (37.5% manje)
-- Tekst: 6 linija → 1 linija
-- Padding: p-4 → p-3
-- Ukupna ušteda: ~50-60% manje vertikalnog prostora
+## Tehničke napomene
 
-## Tehnički detalji
-- `includeMargin={false}` - uklanja unutrašnju marginu QR koda za još kompaktniji prikaz
-- `size={100}` - optimalna veličina za skeniranje mobilnim uređajima (minimum preporučen za IPS)
-- Sve platne informacije ostaju dostupne u IPS stringu unutar QR koda
+- Izmene utiču SAMO na štampu, ekranski prikaz ostaje nepromenjen
+- Print selektori su specifični za `.print-invoice` kontejner
+- Logo se automatski skalira proporcionalno
