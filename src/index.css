@@ -720,6 +720,30 @@ body[data-sef-sync-active="1"] .rdp * {
     color: white !important;
   }
 
+  /* Kompaktan logo za štampu */
+  .print-invoice img[alt*="logo"] {
+    max-height: 32px !important;
+    height: auto !important;
+  }
+
+  .print-invoice [class*="CardHeader"] {
+    padding: 6px 8px !important;
+  }
+
+  .print-invoice [class*="CardHeader"] .mb-4 {
+    margin-bottom: 4px !important;
+  }
+
+  .print-invoice [class*="CardHeader"] .mb-3 {
+    margin-bottom: 3px !important;
+  }
+
+  /* Manji naslov fakture */
+  .print-invoice h1.text-2xl {
+    font-size: 13px !important;
+    margin: 0 !important;
+  }
+
   .print-invoice table {
     font-size: 10px !important;
   }
