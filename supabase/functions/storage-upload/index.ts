@@ -104,11 +104,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check ownership or bookkeeper access
+    // Check ownership, bookkeeper access, or admin role
     const isOwner = companyData.user_id === user.id;
     const { data: isBookkeeper } = await supabase.rpc('is_company_bookkeeper', { company_id: companyId });
+    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
     
-    if (!isOwner && !isBookkeeper) {
+    if (!isOwner && !isBookkeeper && !isAdmin) {
+      console.log('Access denied for user:', user.id, 'Owner:', companyData.user_id, 'isBookkeeper:', isBookkeeper, 'isAdmin:', isAdmin);
       return new Response(JSON.stringify({ error: 'Access denied' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
