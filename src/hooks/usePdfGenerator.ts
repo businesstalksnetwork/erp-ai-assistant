@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PdfGeneratorOptions {
   invoiceNumber: string;
@@ -179,59 +180,57 @@ export async function generateInvoicePdf(
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
 
-  // KRITIČNO: Konvertuj sve slike u base64 da izbegnemo CORS probleme
-  // Ovo je neophodno za logo koji dolazi sa DigitalOcean Spaces
-  const images = Array.from(wrapper.querySelectorAll('img'));
-  await Promise.all(images.map(async (img) => {
+  // KRITIČNO: Konvertuj eksterne slike u base64 pomoću edge funkcije
+  // Ovo potpuno zaobilazi CORS probleme jer edge funkcija ima direktan pristup DO Spaces
+  const convertImageToBase64ViaEdgeFunction = async (imgUrl: string): Promise<string | null> => {
     try {
-      // Ako je slika već data URL, preskoči
-      if (img.src.startsWith('data:')) return;
-      
-      // Ako je lokalna slika (isti origin), preskoči
-      const imgUrl = new URL(img.src, window.location.origin);
-      if (imgUrl.origin === window.location.origin) {
-        // Sačekaj da se učita
-        if (!img.complete) {
-          await new Promise(resolve => {
-            img.onload = () => resolve(null);
-            img.onerror = () => resolve(null);
-          });
-        }
-        return;
-      }
-      
-      // Za eksterne slike (logo sa DO Spaces), preuzmi i konvertuj u base64
-      const response = await fetch(img.src, { mode: 'cors' });
-      if (!response.ok) {
-        console.warn('Failed to fetch image:', img.src);
-        return;
-      }
-      
-      const blob = await response.blob();
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(blob);
+      const { data, error } = await supabase.functions.invoke('storage-get-base64', {
+        body: { url: imgUrl },
       });
       
+      if (error || !data?.success) {
+        console.warn('Edge function conversion failed:', error || data?.error);
+        return null;
+      }
+      
+      return data.dataUrl;
+    } catch (e) {
+      console.warn('Edge function call failed:', e);
+      return null;
+    }
+  };
+
+  const images = Array.from(wrapper.querySelectorAll('img'));
+  await Promise.all(images.map(async (img) => {
+    // Ako je slika već data URL, preskoči
+    if (img.src.startsWith('data:')) return;
+    
+    // Proveri da li je slika sa DO Spaces
+    const isDoSpaces = img.src.includes('digitaloceanspaces.com');
+    
+    if (isDoSpaces) {
+      // Za DO Spaces slike, koristi edge funkciju za konverziju
+      const base64 = await convertImageToBase64ViaEdgeFunction(img.src);
       if (base64) {
         img.src = base64;
         // Sačekaj da se nova slika učita
         await new Promise(resolve => {
-          img.onload = () => resolve(null);
-          img.onerror = () => resolve(null);
-          // Fallback timeout
-          setTimeout(() => resolve(null), 1000);
+          if (img.complete && img.naturalHeight > 0) {
+            resolve(null);
+          } else {
+            img.onload = () => resolve(null);
+            img.onerror = () => resolve(null);
+            setTimeout(() => resolve(null), 1000);
+          }
         });
       }
-    } catch (error) {
-      console.warn('Error converting image to base64:', error);
-      // Ako ne možemo da konvertujemo, pokušaj da sačekamo učitavanje
+    } else {
+      // Za ostale slike, samo sačekaj učitavanje
       if (!img.complete) {
         await new Promise(resolve => {
           img.onload = () => resolve(null);
           img.onerror = () => resolve(null);
+          setTimeout(() => resolve(null), 2000);
         });
       }
     }
