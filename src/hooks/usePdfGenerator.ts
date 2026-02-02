@@ -179,14 +179,62 @@ export async function generateInvoicePdf(
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
 
-  // Sačekaj da se sve slike učitaju pre renderovanja
+  // KRITIČNO: Konvertuj sve slike u base64 da izbegnemo CORS probleme
+  // Ovo je neophodno za logo koji dolazi sa DigitalOcean Spaces
   const images = Array.from(wrapper.querySelectorAll('img'));
-  await Promise.all(images.map(img => {
-    if (img.complete) return Promise.resolve();
-    return new Promise(resolve => {
-      img.onload = () => resolve(null);
-      img.onerror = () => resolve(null);
-    });
+  await Promise.all(images.map(async (img) => {
+    try {
+      // Ako je slika već data URL, preskoči
+      if (img.src.startsWith('data:')) return;
+      
+      // Ako je lokalna slika (isti origin), preskoči
+      const imgUrl = new URL(img.src, window.location.origin);
+      if (imgUrl.origin === window.location.origin) {
+        // Sačekaj da se učita
+        if (!img.complete) {
+          await new Promise(resolve => {
+            img.onload = () => resolve(null);
+            img.onerror = () => resolve(null);
+          });
+        }
+        return;
+      }
+      
+      // Za eksterne slike (logo sa DO Spaces), preuzmi i konvertuj u base64
+      const response = await fetch(img.src, { mode: 'cors' });
+      if (!response.ok) {
+        console.warn('Failed to fetch image:', img.src);
+        return;
+      }
+      
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(blob);
+      });
+      
+      if (base64) {
+        img.src = base64;
+        // Sačekaj da se nova slika učita
+        await new Promise(resolve => {
+          img.onload = () => resolve(null);
+          img.onerror = () => resolve(null);
+          // Fallback timeout
+          setTimeout(() => resolve(null), 1000);
+        });
+      }
+    } catch (error) {
+      console.warn('Error converting image to base64:', error);
+      // Ako ne možemo da konvertujemo, pokušaj da sačekamo učitavanje
+      if (!img.complete) {
+        await new Promise(resolve => {
+          img.onload = () => resolve(null);
+          img.onerror = () => resolve(null);
+        });
+      }
+    }
   }));
 
   try {
