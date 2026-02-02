@@ -36,8 +36,38 @@
   <meta name="twitter:description" content="Aplikacija za preduzetnike paušalce">
 </head>
 
-  <body>
+  <body style="background-color: #0f172a; margin: 0;">
     <div id="root"></div>
+    <!-- Fallback loading za mobile refresh - prikazuje se pre učitavanja React-a -->
+    <style>
+      #root:empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      #root:empty::after {
+        content: '';
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(234, 179, 8, 0.3);
+        border-top-color: #eab308;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      /* Light mode fallback */
+      @media (prefers-color-scheme: light) {
+        body { background-color: #faf8f5 !important; }
+        #root:empty::after {
+          border-color: rgba(234, 179, 8, 0.2);
+          border-top-color: #ca8a04;
+        }
+      }
+    </style>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -41,7 +41,11 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
   // Sačekaj i auth i profile loading
   if (loading || profileLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
+    return (
+      <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
+        <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!user) {
@@ -80,7 +84,11 @@ function AppRoutes() {
 
   // Sačekaj i auth i profile loading pre donošenja odluka o rutiranju
   if (loading || profileLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Učitavanje...</div>;
+    return (
+      <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
+        <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
   // User can enter app only if they are admin OR have verified email
