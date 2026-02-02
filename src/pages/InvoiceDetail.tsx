@@ -683,7 +683,42 @@ export default function InvoiceDetail() {
           )}
 
           {/* Total with Advance */}
-          <div className="flex justify-end">
+          <div className="flex justify-between items-end gap-4">
+            {/* IPS QR kod - now includes proforma invoices */}
+            {shouldShowQR && (() => {
+              const cleanReference = invoice.invoice_number.replace(/\D/g, '');
+              const ipsString = generateIPSQRCode({
+                receiverName: selectedCompany.name,
+                receiverAccount: selectedCompany.bank_account,
+                amount: amountForPayment,
+                paymentPurpose: `${invoice.invoice_type === 'advance' ? 'Avansna faktura' : invoice.is_proforma ? 'Predračun' : 'Faktura'} ${invoice.invoice_number}`,
+                paymentCode: '221',
+                paymentModel: '00',
+                paymentReference: invoice.invoice_number,
+                payerName: invoice.client_name,
+                payerAddress: invoice.client_address || '',
+              });
+              
+              return (
+                <div className="border rounded-lg p-3 print:break-inside-avoid flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <QRCodeSVG
+                      value={ipsString}
+                      size={80}
+                      level="L"
+                      includeMargin={false}
+                    />
+                    <p className="text-sm text-muted-foreground">Plati pomoću<br />QR koda.</p>
+                  </div>
+                  {/* Debug: prikaži IPS string - samo za development */}
+                  <details className="mt-2 print:hidden">
+                    <summary className="text-xs text-muted-foreground cursor-pointer">Debug QR</summary>
+                    <pre className="mt-1 text-xs bg-muted p-2 rounded whitespace-pre-wrap break-all">{ipsString}</pre>
+                  </details>
+                </div>
+              );
+            })()}
+            
             <div className="min-w-[280px] space-y-2">
               {linkedAdvance ? (
                 <>
@@ -766,40 +801,6 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/* IPS QR kod - now includes proforma invoices */}
-          {shouldShowQR && (() => {
-            const cleanReference = invoice.invoice_number.replace(/\D/g, '');
-            const ipsString = generateIPSQRCode({
-              receiverName: selectedCompany.name,
-              receiverAccount: selectedCompany.bank_account,
-              amount: amountForPayment,
-              paymentPurpose: `${invoice.invoice_type === 'advance' ? 'Avansna faktura' : invoice.is_proforma ? 'Predračun' : 'Faktura'} ${invoice.invoice_number}`,
-              paymentCode: '221',
-              paymentModel: '00',
-              paymentReference: invoice.invoice_number,
-              payerName: invoice.client_name,
-              payerAddress: invoice.client_address || '',
-            });
-            
-            return (
-              <div className="border rounded-lg p-3 print:break-inside-avoid">
-                <div className="flex items-center justify-center gap-4">
-                  <QRCodeSVG
-                    value={ipsString}
-                    size={100}
-                    level="L"
-                    includeMargin={false}
-                  />
-                  <p className="text-sm text-muted-foreground">Plati pomoću QR koda.</p>
-                </div>
-                {/* Debug: prikaži IPS string - samo za development */}
-                <details className="mt-2 print:hidden">
-                  <summary className="text-xs text-muted-foreground cursor-pointer">Debug QR</summary>
-                  <pre className="mt-1 text-xs bg-muted p-2 rounded whitespace-pre-wrap break-all">{ipsString}</pre>
-                </details>
-              </div>
-            );
-          })()}
 
           <Separator />
 
