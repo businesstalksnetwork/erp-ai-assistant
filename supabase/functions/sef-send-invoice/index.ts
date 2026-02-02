@@ -412,13 +412,46 @@ serve(async (req) => {
     const sefResult = await sefResponse.json();
 
     console.log('SEF Response:', JSON.stringify(sefResult));
+    console.log('SEF Response Status:', sefResponse.status, sefResponse.statusText);
 
     if (sefResponse.ok && sefResult.InvoiceId) {
+      const newSefId = sefResult.InvoiceId;
+      
+      // Validate SEF ID is logical (should be higher than previous IDs)
+      const { data: lastInvoice } = await supabase
+        .from('invoices')
+        .select('sef_invoice_id, invoice_number')
+        .eq('company_id', companyId)
+        .not('sef_invoice_id', 'is', null)
+        .order('sef_sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastInvoice?.sef_invoice_id) {
+        const lastId = parseInt(lastInvoice.sef_invoice_id);
+        const newId = parseInt(newSefId);
+        if (newId < lastId) {
+          console.error(`SUSPICIOUS SEF ID: New ID ${newId} is LOWER than last ID ${lastId} (invoice ${lastInvoice.invoice_number})`);
+          console.error('This may indicate a stale/cached API response. Full response:', JSON.stringify(sefResult));
+          
+          // Mark as error instead of success
+          await supabase
+            .from('invoices')
+            .update({
+              sef_status: 'error',
+              sef_error: `Sumnjiv SEF odgovor: Dobijen ID ${newId} je manji od prethodnog ID ${lastId}. Moguć problem sa SEF API-jem.`,
+            })
+            .eq('id', invoiceId);
+          
+          throw new Error(`Sumnjiv SEF ID: ${newId} < ${lastId}. SEF API možda vraća keširani odgovor.`);
+        }
+      }
+
       // Success - update invoice with SEF ID
       await supabase
         .from('invoices')
         .update({
-          sef_invoice_id: sefResult.InvoiceId,
+          sef_invoice_id: newSefId,
           sef_status: 'sent',
           sef_sent_at: new Date().toISOString(),
           sef_error: null,
