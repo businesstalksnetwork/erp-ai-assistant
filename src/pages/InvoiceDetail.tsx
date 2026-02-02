@@ -782,28 +782,18 @@ export default function InvoiceDetail() {
             });
             
             return (
-              <div className="border rounded-lg p-4 print:break-inside-avoid">
-                <p className="text-sm text-muted-foreground mb-3 text-center font-medium">PODACI ZA UPLATU</p>
-                <div className="flex items-start gap-6">
-                  <div className="flex-shrink-0">
-                    <QRCodeSVG
-                      value={ipsString}
-                      size={160}
-                      level="L"
-                      includeMargin
-                    />
-                  </div>
-                  <div className="text-sm space-y-1 flex-1">
-                    <p><span className="text-muted-foreground">Primalac:</span> {selectedCompany.name}</p>
-                    <p><span className="text-muted-foreground">Račun:</span> {selectedCompany.bank_account}</p>
-                    <p><span className="text-muted-foreground">Iznos:</span> {formatCurrency(amountForPayment)}</p>
-                    <p><span className="text-muted-foreground">Svrha:</span> {invoice.invoice_type === 'advance' ? 'Avansna faktura' : invoice.is_proforma ? 'Predračun' : 'Faktura'} {invoice.invoice_number}</p>
-                    <p><span className="text-muted-foreground">Model:</span> 00</p>
-                    <p><span className="text-muted-foreground">Poziv na broj:</span> {cleanReference}</p>
-                  </div>
+              <div className="border rounded-lg p-3 print:break-inside-avoid">
+                <div className="flex items-center justify-center gap-4">
+                  <QRCodeSVG
+                    value={ipsString}
+                    size={100}
+                    level="L"
+                    includeMargin={false}
+                  />
+                  <p className="text-sm text-muted-foreground">Plati pomoću QR koda.</p>
                 </div>
-                {/* Debug: prikaži IPS string */}
-                <details className="mt-3 print:hidden">
+                {/* Debug: prikaži IPS string - samo za development */}
+                <details className="mt-2 print:hidden">
                   <summary className="text-xs text-muted-foreground cursor-pointer">Debug QR</summary>
                   <pre className="mt-1 text-xs bg-muted p-2 rounded whitespace-pre-wrap break-all">{ipsString}</pre>
                 </details>
