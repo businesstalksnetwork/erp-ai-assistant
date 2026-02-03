@@ -722,7 +722,7 @@ body[data-sef-sync-active="1"] .rdp * {
 
   /* Kompaktan logo za štampu */
   .print-invoice img[alt*="logo"] {
-    max-height: 32px !important;
+    max-height: 48px !important;
     height: auto !important;
   }
 

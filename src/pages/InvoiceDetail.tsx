@@ -547,7 +547,7 @@ export default function InvoiceDetail() {
               <img
                 src={(selectedCompany as any).logo_url}
                 alt={`${selectedCompany.name} logo`}
-                className="h-14 max-w-[180px] object-contain print:h-8 print:max-w-[120px]"
+                className="h-14 max-w-[180px] object-contain print:h-12 print:max-w-[150px]"
               />
             </div>
           )}
