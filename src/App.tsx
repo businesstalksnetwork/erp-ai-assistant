@@ -36,8 +36,16 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, profileLoading, isAdmin, isEmailVerified } = useAuth();
+function ProtectedRoute({ 
+  children, 
+  adminOnly = false,
+  allowExpired = false 
+}: { 
+  children: React.ReactNode; 
+  adminOnly?: boolean;
+  allowExpired?: boolean;
+}) {
+  const { user, loading, profileLoading, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
 
   // Sačekaj i auth i profile loading
   if (loading || profileLoading) {
@@ -55,6 +63,11 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // Blokiraj neverifikovane korisnike (osim admina)
   if (!isAdmin && !isEmailVerified) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Blokiraj korisnike sa isteklom pretplatom (osim admina, knjigovođa i dozvoljenih ruta)
+  if (isSubscriptionExpired && !isAdmin && !isBookkeeper && !allowExpired) {
+    return <Navigate to="/profile" replace />;
   }
 
   if (adminOnly && !isAdmin) {
@@ -127,7 +140,7 @@ function AppRoutes() {
       <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
       
       <Route path="/bookkeeper" element={<ProtectedRoute><BookkeeperSettings /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute allowExpired><Profile /></ProtectedRoute>} />
       <Route path="/payouts" element={<ProtectedRoute adminOnly><Payouts /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
