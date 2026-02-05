@@ -85,15 +85,15 @@ export function ClientDetailPanel({
         {/* Client Header Card */}
         <Card>
           <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="space-y-1 min-w-0">
-                <CardTitle className="text-base sm:text-xl truncate">{client.name}</CardTitle>
+            <div className="flex items-start justify-between gap-2 min-w-0">
+              <div className="space-y-1 min-w-0 overflow-hidden flex-1">
+                <CardTitle className="text-base sm:text-xl truncate" title={client.name}>{client.name}</CardTitle>
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
+                  <Badge variant={client.client_type === 'domestic' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs flex-shrink-0">
                     {client.client_type === 'domestic' ? 'Domaći' : 'Strani'}
                   </Badge>
                   {isSefConfigured && client.sef_registered && (
-                    <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] sm:text-xs">
+                    <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] sm:text-xs flex-shrink-0">
                       <Send className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                       SEF
                     </Badge>
