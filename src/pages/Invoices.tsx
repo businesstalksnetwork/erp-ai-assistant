@@ -57,7 +57,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from '@/components/ui/pagination';
-import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote, Pencil } from 'lucide-react';
+import { FileText, Plus, Trash2, Loader2, Building2, Search, ArrowRightLeft, Eye, RotateCcw, Banknote, Pencil, Send } from 'lucide-react';
 import { PaymentStatusDialog } from '@/components/PaymentStatusDialog';
 import { TemplatesDropdown } from '@/components/TemplatesDropdown';
 
@@ -74,7 +74,8 @@ type FilterType = 'all' | 'invoices' | 'proforma' | 'advance';
 export default function Invoices() {
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading, deleteInvoice, convertProformaToInvoice, stornoInvoice, updatePaymentStatus } = useInvoices(selectedCompany?.id || null);
-  const { sendToSEF, sendStornoToSEF } = useSEF();
+  const { sendToSEF, sendStornoToSEF, isSending } = useSEF();
+  const isSefConfigured = selectedCompany?.sef_enabled && selectedCompany?.has_sef_api_key;
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [convertId, setConvertId] = useState<string | null>(null);
   const [stornoId, setStornoId] = useState<string | null>(null);
@@ -429,6 +430,27 @@ export default function Invoices() {
                                 </TooltipProvider>
                               );
                             })()}
+                            {/* SEF Send Button - for domestic invoices not yet sent */}
+                            {isSefConfigured && 
+                             invoice.client_type === 'domestic' && 
+                             (invoice.invoice_type === 'regular' || invoice.invoice_type === 'advance') && 
+                             !invoice.sef_invoice_id && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      onClick={() => sendToSEF(invoice.id, selectedCompany!.id)}
+                                      disabled={isSending}
+                                    >
+                                      <Send className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Pošalji na SEF</p></TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                             {invoice.invoice_type === 'regular' && !invoice.is_proforma && (
                               <TooltipProvider>
                                 <Tooltip>
