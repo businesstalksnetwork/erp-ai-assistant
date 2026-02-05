@@ -287,6 +287,11 @@ export default function NewInvoice() {
           foreign_amount: item.foreign_amount || 0,
         })));
 
+        // Reset currency ref so that foreign payment instructions will be applied after template load
+        if (template.client_type === 'foreign' && template.foreign_currency) {
+          lastAppliedCurrencyRef.current = null;
+        }
+
         templateAppliedRef.current = true;
       }
     }
