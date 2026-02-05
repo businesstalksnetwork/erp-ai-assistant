@@ -480,7 +480,9 @@ export default function Clients() {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-medium truncate">{client.name}</p>
+          <p className="font-medium leading-tight break-words line-clamp-2" title={client.name}>
+            {client.name}
+          </p>
           <p className="text-xs text-muted-foreground truncate">
             {client.address || 'Bez adrese'}
           </p>
@@ -604,7 +606,12 @@ export default function Clients() {
               <CardHeader className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-sm sm:text-base truncate">{client.name}</CardTitle>
+                    <CardTitle
+                      className="text-sm sm:text-base leading-tight break-words line-clamp-2"
+                      title={client.name}
+                    >
+                      {client.name}
+                    </CardTitle>
                     <CardDescription className="truncate text-xs">{client.address || 'Bez adrese'}</CardDescription>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
