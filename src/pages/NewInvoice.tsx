@@ -187,7 +187,12 @@ export default function NewInvoice() {
           },
         });
 
-        if (!error && data?.rate) {
+        if (error) {
+          console.error('Error fetching exchange rate:', error);
+          toast.error(`Greška pri preuzimanju kursa za ${formData.foreign_currency}`, {
+            description: 'Unesite kurs ručno ili pokušajte ponovo.',
+          });
+        } else if (data?.rate) {
           setFormData((prev) => ({
             ...prev,
             exchange_rate: data.rate,
@@ -195,9 +200,16 @@ export default function NewInvoice() {
           if (data.note) {
             setRateNote(data.note);
           }
+        } else {
+          toast.error(`Kurs za ${formData.foreign_currency} nije pronađen`, {
+            description: 'Unesite kurs ručno.',
+          });
         }
       } catch (error) {
         console.error('Error fetching exchange rate:', error);
+        toast.error('Greška pri povezivanju sa NBS servisom', {
+          description: 'Proverite internet konekciju ili unesite kurs ručno.',
+        });
       } finally {
         setFetchingRate(false);
       }
