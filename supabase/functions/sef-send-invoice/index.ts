@@ -417,7 +417,40 @@ serve(async (req) => {
     if (sefResponse.ok && sefResult.InvoiceId) {
       const newSefId = sefResult.InvoiceId;
       
-      // Validate SEF ID is logical (should be higher than previous IDs)
+      // Defensive validation: SEF IDs are not guaranteed to be strictly monotonic.
+      // What we *can* reliably block is if SEF returns an ID that is already linked to another local invoice.
+      const { data: existingInvoiceWithSameSefId, error: existingInvoiceError } = await supabase
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('company_id', companyId)
+        .eq('sef_invoice_id', newSefId)
+        .neq('id', invoiceId)
+        .maybeSingle();
+
+      if (existingInvoiceError) {
+        console.warn('Failed to check for duplicate SEF ID:', existingInvoiceError);
+      }
+
+      if (existingInvoiceWithSameSefId) {
+        console.error(
+          `DUPLICATE SEF ID: SEF returned ID ${newSefId} but it is already linked to invoice ${existingInvoiceWithSameSefId.invoice_number} (${existingInvoiceWithSameSefId.id})`,
+        );
+        console.error('Full SEF response:', JSON.stringify(sefResult));
+
+        await supabase
+          .from('invoices')
+          .update({
+            sef_status: 'error',
+            sef_error: `SEF je vratio ID ${newSefId} koji je već vezan za drugu fakturu (${existingInvoiceWithSameSefId.invoice_number}). Pokušajte ponovo kasnije.`,
+          })
+          .eq('id', invoiceId);
+
+        throw new Error(
+          `Sumnjiv SEF odgovor: ID ${newSefId} je već vezan za drugu fakturu. Pokušajte ponovo kasnije.`,
+        );
+      }
+
+      // Keep the old monotonic check only as a warning for debugging.
       const { data: lastInvoice } = await supabase
         .from('invoices')
         .select('sef_invoice_id, invoice_number')
@@ -427,24 +460,17 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      if (lastInvoice?.sef_invoice_id) {
-        const lastId = parseInt(lastInvoice.sef_invoice_id);
-        const newId = parseInt(newSefId);
-        if (newId < lastId) {
-          console.error(`SUSPICIOUS SEF ID: New ID ${newId} is LOWER than last ID ${lastId} (invoice ${lastInvoice.invoice_number})`);
-          console.error('This may indicate a stale/cached API response. Full response:', JSON.stringify(sefResult));
-          
-          // Mark as error instead of success
-          await supabase
-            .from('invoices')
-            .update({
-              sef_status: 'error',
-              sef_error: `Sumnjiv SEF odgovor: Dobijen ID ${newId} je manji od prethodnog ID ${lastId}. Moguć problem sa SEF API-jem.`,
-            })
-            .eq('id', invoiceId);
-          
-          throw new Error(`Sumnjiv SEF ID: ${newId} < ${lastId}. SEF API možda vraća keširani odgovor.`);
-        }
+      const lastId = lastInvoice?.sef_invoice_id ? Number(lastInvoice.sef_invoice_id) : null;
+      const newIdNum = Number(newSefId);
+      if (
+        lastId !== null &&
+        Number.isFinite(lastId) &&
+        Number.isFinite(newIdNum) &&
+        newIdNum < lastId
+      ) {
+        console.warn(
+          `SEF returned a lower ID than the most recently saved one: new ${newIdNum} < last ${lastId} (last invoice ${lastInvoice?.invoice_number}). Accepting the response but logging for diagnostics.`,
+        );
       }
 
       // Success - update invoice with SEF ID
