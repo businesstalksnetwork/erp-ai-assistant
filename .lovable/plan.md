@@ -1,95 +1,45 @@
 
+# Plan: Fix NBS Exchange Rate Not Fetching
 
-# Plan: Zabrana pristupa aplikaciji nakon isteka pretplate
+## Problem Summary
 
-## Opis rešenja
+Exchange rate for foreign currencies (EUR, USD, etc.) is **not being automatically fetched** when creating invoices (predračun or račun) for foreign clients. The `nbs-exchange-rate` backend function exists in the code but is NOT deployed.
 
-Korisnici kojima je istekla pretplata (trial ili plaćena) će moći da pristupe **samo stranici Profila** (`/profile`) gde vide uputstva za plaćanje i QR kod. Sve ostale rute će ih automatski preusmeriti na Profil.
+## Root Cause
 
-**Izuzeci od zabrane:**
-- Admini - uvek imaju pun pristup
-- Knjigovođe - imaju besplatan pristup (već implementirano)
+The `nbs-exchange-rate` function returns a **404 Not Found** error - it exists in the codebase but hasn't been deployed to the live environment.
 
----
+## Solution
 
-## Tehnički detalji
+### Step 1: Deploy the Backend Function
+Deploy the `nbs-exchange-rate` function so it can be called by the frontend.
 
-### 1. Proširenje `ProtectedRoute` komponente
-
-**Fajl:** `src/App.tsx`
-
-Dodajem novu prop `allowExpired` i logiku za proveru isteka pretplate:
-
-```typescript
-function ProtectedRoute({ 
-  children, 
-  adminOnly = false,
-  allowExpired = false  // Nova prop
-}: { 
-  children: React.ReactNode; 
-  adminOnly?: boolean;
-  allowExpired?: boolean;
-}) {
-  const { 
-    user, loading, profileLoading, isAdmin, 
-    isEmailVerified, isSubscriptionExpired, isBookkeeper 
-  } = useAuth();
-
-  // ... postojeći loading i auth checkovi ...
-
-  // NOVO: Ako pretplata istekla i ruta ne dozvoljava expired, redirect na /profile
-  if (isSubscriptionExpired && !isAdmin && !isBookkeeper && !allowExpired) {
-    return <Navigate to="/profile" replace />;
-  }
-
-  // ... ostatak komponente ...
-}
-```
-
-### 2. Markiranje `/profile` rute kao dozvoljene
-
-Samo Profil ruta dobija `allowExpired={true}`:
-
-```typescript
-<Route 
-  path="/profile" 
-  element={
-    <ProtectedRoute allowExpired>
-      <Profile />
-    </ProtectedRoute>
-  } 
-/>
-```
-
-### 3. Prikaz obaveštenja na Profilu
-
-Već postoji upozorenje za istekle pretplate na stranici Profila (linije 411-420). Može se dodatno istaći sa jasnijom porukom:
-
-```text
-"Vaša pretplata je istekla. Pristup aplikaciji je ograničen.
-Produžite pretplatu da biste nastavili sa korišćenjem svih funkcija."
-```
+### Step 2: Improve Error Handling
+Add user feedback when the exchange rate fetch fails, so users know when something goes wrong instead of silently failing.
 
 ---
 
-## Tok korisnika nakon isteka
+## Technical Details
 
-```text
-1. Korisnik se loguje
-2. Sistem proverava subscription_end datum
-3. Ako je istekao:
-   - Bilo koja ruta → Redirect na /profile
-   - Korisnik vidi poruku o isteku + QR kod za plaćanje
-4. Kada admin aktivira pretplatu → Korisnik dobija pun pristup
-```
+### Backend Function Deployment
+- File: `supabase/functions/nbs-exchange-rate/index.ts`
+- Status: Code exists, needs deployment
+- API used: `kurs.resenje.org` (public NBS rates API)
+
+### Frontend Logic (already correct)
+The fetch logic in `src/pages/NewInvoice.tsx` (lines 172-207) is correct:
+- Triggers when `client_type === 'foreign'` OR `useForeignCalculation` is true
+- Requires both `foreign_currency` and `issue_date` to be set
+- Calls the backend function with currency and date
+
+### Error Handling Improvement
+Currently, errors are only logged to console. Will add a toast notification when the rate fetch fails so users are aware and can retry.
 
 ---
 
-## Prednosti ovog pristupa
-
-- Jednostavna implementacija - samo jedna tačka kontrole
-- Korisnik i dalje može da se odjavi (logout je deo navigacije)
-- Jasna poruka i uputstva za plaćanje odmah vidljivi
-- Admini mogu i dalje pristupiti admin panelu
-- Knjigovođe nisu pogođene (besplatan pristup)
-
+## Expected Behavior After Fix
+1. Select a foreign client or enable "Cena dogovorena u devizama"
+2. Choose a currency (EUR, USD, etc.)
+3. System automatically fetches the NBS middle rate for the issue date
+4. Exchange rate field populates automatically
+5. RSD prices calculate from foreign amounts × exchange rate
