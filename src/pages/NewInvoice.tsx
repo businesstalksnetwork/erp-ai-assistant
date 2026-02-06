@@ -685,6 +685,9 @@ export default function NewInvoice() {
         });
       }
       
+      // Obriši draft nakon uspešnog čuvanja
+      clearDraft();
+      
       // Proveri da li treba automatski otvoriti dijalog za slanje emailom
       if (
         selectedCompany.auto_send_invoice_email && 
