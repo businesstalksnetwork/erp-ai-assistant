@@ -976,7 +976,7 @@ export default function EditInvoice() {
 
         {/* Actions */}
         <div className="flex gap-4 justify-end">
-          <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
+          <Button type="button" variant="outline" onClick={() => { clearDraft(); navigate('/invoices'); }}>
             Otkaži
           </Button>
           <Button type="submit" disabled={loading}>
