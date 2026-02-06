@@ -1429,7 +1429,7 @@ export default function NewInvoice() {
 
         {/* Submit */}
         <div className="flex gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
+          <Button type="button" variant="outline" onClick={() => { clearDraft(); navigate('/invoices'); }}>
             Otkaži
           </Button>
           <Button type="submit" disabled={loading}>
