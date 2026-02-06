@@ -1,42 +1,50 @@
 
-# Plan: Popravka preuzimanja podataka o firmama (Checkpoint/APR lookup)
+# Plan: Očuvanje unosa klijenta pri promeni taba
 
 ## Problem
 
-Kada unesete PIB i kliknete na lupu za automatsko povlačenje podataka, pojavljuje se greška "Neuspešno pretraživanje APR registra". Razlog je isti kao i sa kursom -- backend funkcija `apr-lookup` postoji u kodu, ali **nije postavljena na server** (vraća grešku 404).
+Kada unosite podatke o klijentu i promenite tab (browser tab), podaci nestanu. Ovo se dešava jer:
+
+1. Kada se vratite na tab, backend osvežava sesiju korisnika
+2. Tokom osvežavanja, prikazuje se spinner (loading ekran)
+3. Cela stranica Klijenti se ukloni i ponovo učita
+4. Sav uneti tekst u formi se gubi
+
+## Zašto draft sistem ne pomaže
+
+Draft (auto-save) je trenutno aktivan **samo dok je dijalog otvoren** (`enabled: isOpen && !editId`). Kada se stranica ponovo učita:
+- `isOpen` se resetuje na `false`
+- Pošto je `enabled = false`, draft se ne može ni sačuvati ni vratiti
+- Podaci su izgubljeni
 
 ## Rešenje
 
-### Korak 1: Postaviti (deploy) backend funkciju
-Funkcija `apr-lookup` ce biti postavljena na server kako bi bila dostupna za pozive iz aplikacije.
+Promena u jednom fajlu: `src/pages/Clients.tsx`
 
-### Korak 2: Popraviti autentifikaciju u funkciji
-Funkcija trenutno koristi metod `getClaims()` za proveru korisnika, koji nije standardan i može izazvati greške. Biće zamenjen sa `getUser()` koji koriste sve ostale funkcije u aplikaciji i pouzdano radi.
+### Izmena 1: Ukloniti uslov `isOpen` iz draft sistema
 
-## Očekivano ponašanje posle popravke
-1. Unesete PIB u formu za novog klijenta
-2. Kliknete na lupu (ikonu za pretragu)
-3. Sistem pozove Checkpoint.rs API (primarni izvor)
-4. Ako Checkpoint ne vrati podatke, koristi NBS registar kao rezervu
-5. Ako ni NBS ne vrati, pokušava APR registar
-6. Naziv firme, adresa, grad i matični broj se automatski popune
+Umesto `enabled: isOpen && !editId`, draft ce uvek biti aktivan (`enabled: !editId`). Ovo znači:
+- Draft se čuva čim korisnik unese bilo koji podatak
+- Kada se stranica ponovo učita (posle promene taba), draft se automatski vraća i dijalog se ponovo otvara
 
----
+### Izmena 2: Dodati proveru da se prazan formular ne čuva
 
-## Tehnički detalji
-
-### Izmena autentifikacije u `supabase/functions/apr-lookup/index.ts`
-Zamena nestandardnog `getClaims()` poziva sa proverenim `getUser()` pristupom:
+Kako ne bi čuvali prazan formular kao draft, dodaćemo pomoćnu funkciju koja proverava da li formular sadrži ikakve podatke:
 
 ```text
-// Trenutno (ne radi pouzdano):
-const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-
-// Novo (standardan pristup):
-const { data: { user }, error: userError } = await supabase.auth.getUser();
+// Proveri da li forma ima unete podatke (nije prazna)
+const hasFormData = formData.name || formData.pib || formData.address || 
+                    formData.city || formData.email || formData.maticni_broj || 
+                    formData.vat_number;
 ```
 
-### Deploy
-- Funkcija: `supabase/functions/apr-lookup/index.ts`
-- Status: Kod postoji, potreban deploy + popravka auth metode
-- Tajne: `CHECKPOINT_API_TOKEN` je vec konfigurisan
+Finalni uslov biće: `enabled: !editId && (isOpen || !!hasFormData)` -- draft se čuva kad je dijalog otvoren ILI kad postoje sačuvani podaci (za restore scenario).
+
+## Očekivano ponašanje posle popravke
+
+1. Otvorite formu za novog klijenta
+2. Unesete PIB, ime, adresu...
+3. Promenite tab da kopirate podatke
+4. Vratite se nazad
+5. Dijalog se automatski ponovo otvori sa svim prethodno unetim podacima
+6. Nastavite sa unosom kao da se ništa nije desilo
