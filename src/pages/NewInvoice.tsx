@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
@@ -7,6 +7,7 @@ import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { useSEF } from '@/hooks/useSEF';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
