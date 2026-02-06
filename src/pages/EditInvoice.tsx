@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
 import { useClients } from '@/hooks/useClients';
 import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,33 @@ export default function EditInvoice() {
     invoice_type: 'regular' as InvoiceType,
     linked_advance_id: '',
   });
+
+  // Auto-save draft for edit form
+  const draftData = useMemo(() => ({ formData, items }), [formData, items]);
+  const { clearDraft } = useFormDraft(
+    `edit-invoice-${id}`,
+    draftData,
+    (restored) => {
+      setFormData(restored.formData);
+      setItems(restored.items);
+    },
+    {
+      companyId: selectedCompany?.id,
+      enabled: !loadingData, // Don't restore until initial data is loaded
+      onRestore: () => {
+        toast.info('Vraćene nesačuvane izmene', {
+          description: 'Prethodno uneti podaci su automatski učitani.',
+          action: {
+            label: 'Obriši nacrt',
+            onClick: () => {
+              clearDraft();
+              window.location.reload();
+            },
+          },
+        });
+      },
+    }
+  );
 
   // Find the invoice to edit
   const invoice = invoices.find(i => i.id === id);
@@ -476,6 +504,7 @@ export default function EditInvoice() {
         }
       }
 
+      clearDraft();
       toast.success('Dokument uspešno ažuriran');
       navigate('/invoices');
     } catch (error) {
@@ -947,7 +976,7 @@ export default function EditInvoice() {
 
         {/* Actions */}
         <div className="flex gap-4 justify-end">
-          <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
+          <Button type="button" variant="outline" onClick={() => { clearDraft(); navigate('/invoices'); }}>
             Otkaži
           </Button>
           <Button type="submit" disabled={loading}>

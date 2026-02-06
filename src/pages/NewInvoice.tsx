@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices, InvoiceType } from '@/hooks/useInvoices';
@@ -7,6 +7,7 @@ import { useServiceCatalog } from '@/hooks/useServiceCatalog';
 import { useInvoiceTemplates, InvoiceTemplate } from '@/hooks/useInvoiceTemplates';
 import { useForeignPaymentInstructions } from '@/hooks/useForeignPaymentInstructions';
 import { useSEF } from '@/hooks/useSEF';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,34 @@ export default function NewInvoice() {
     invoice_type: 'regular' as InvoiceType,
     linked_advance_id: '',
   });
+
+  // Auto-save draft (disabled when loading from template)
+  const draftData = useMemo(() => ({ formData, items, useForeignCalculation }), [formData, items, useForeignCalculation]);
+  const { clearDraft } = useFormDraft(
+    'new-invoice',
+    draftData,
+    (restored) => {
+      setFormData(restored.formData);
+      setItems(restored.items);
+      setUseForeignCalculation(restored.useForeignCalculation || false);
+    },
+    {
+      companyId: selectedCompany?.id,
+      enabled: !templateIdFromUrl, // Don't restore draft if loading from template
+      onRestore: () => {
+        toast.info('Vraćen sačuvan nacrt fakture', {
+          description: 'Prethodno uneti podaci su automatski učitani.',
+          action: {
+            label: 'Obriši nacrt',
+            onClick: () => {
+              clearDraft();
+              window.location.reload();
+            },
+          },
+        });
+      },
+    }
+  );
 
   // Get open advances for current client
   const openAdvances = getOpenAdvances(formData.client_id || null);
@@ -655,6 +684,9 @@ export default function NewInvoice() {
           }
         });
       }
+      
+      // Obriši draft nakon uspešnog čuvanja
+      clearDraft();
       
       // Proveri da li treba automatski otvoriti dijalog za slanje emailom
       if (
@@ -1397,7 +1429,7 @@ export default function NewInvoice() {
 
         {/* Submit */}
         <div className="flex gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/invoices')}>
+          <Button type="button" variant="outline" onClick={() => { clearDraft(); navigate('/invoices'); }}>
             Otkaži
           </Button>
           <Button type="submit" disabled={loading}>
