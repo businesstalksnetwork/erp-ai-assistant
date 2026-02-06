@@ -1,50 +1,65 @@
 
-# Plan: Očuvanje unosa klijenta pri promeni taba
+
+# Plan: Sprečiti zatvaranje ekrana pri promeni taba
 
 ## Problem
 
-Kada unosite podatke o klijentu i promenite tab (browser tab), podaci nestanu. Ovo se dešava jer:
+Kada promenite tab i vratite se, cela stranica trepne i dijalog se zatvori. Razlog:
 
-1. Kada se vratite na tab, backend osvežava sesiju korisnika
-2. Tokom osvežavanja, prikazuje se spinner (loading ekran)
-3. Cela stranica Klijenti se ukloni i ponovo učita
-4. Sav uneti tekst u formi se gubi
-
-## Zašto draft sistem ne pomaže
-
-Draft (auto-save) je trenutno aktivan **samo dok je dijalog otvoren** (`enabled: isOpen && !editId`). Kada se stranica ponovo učita:
-- `isOpen` se resetuje na `false`
-- Pošto je `enabled = false`, draft se ne može ni sačuvati ni vratiti
-- Podaci su izgubljeni
+1. Vraćanje na tab osvežava sesiju korisnika (TOKEN_REFRESHED)
+2. Tokom osvežavanja, sistem ponovo učitava profil korisnika
+3. Dok se profil učitava, prikazuje se **spinner koji uklanja celu stranicu**
+4. Kada se profil učita, stranica se ponovo montira -- ali dijalog je već zatvoren
 
 ## Rešenje
 
-Promena u jednom fajlu: `src/pages/Clients.tsx`
+Promena u jednom fajlu: `src/App.tsx` (komponenta `ProtectedRoute`)
 
-### Izmena 1: Ukloniti uslov `isOpen` iz draft sistema
-
-Umesto `enabled: isOpen && !editId`, draft ce uvek biti aktivan (`enabled: !editId`). Ovo znači:
-- Draft se čuva čim korisnik unese bilo koji podatak
-- Kada se stranica ponovo učita (posle promene taba), draft se automatski vraća i dijalog se ponovo otvara
-
-### Izmena 2: Dodati proveru da se prazan formular ne čuva
-
-Kako ne bi čuvali prazan formular kao draft, dodaćemo pomoćnu funkciju koja proverava da li formular sadrži ikakve podatke:
-
+### Trenutni kod (problematičan):
 ```text
-// Proveri da li forma ima unete podatke (nije prazna)
-const hasFormData = formData.name || formData.pib || formData.address || 
-                    formData.city || formData.email || formData.maticni_broj || 
-                    formData.vat_number;
+if (loading || profileLoading) {
+  return <spinner />;  // Uklanja celu stranicu!
+}
 ```
 
-Finalni uslov biće: `enabled: !editId && (isOpen || !!hasFormData)` -- draft se čuva kad je dijalog otvoren ILI kad postoje sačuvani podaci (za restore scenario).
+### Novi kod (popravljen):
+```text
+if (loading || (profileLoading && !profile)) {
+  return <spinner />;  // Spinner samo pri PRVOM učitavanju profila
+}
+```
+
+Razlika: Spinner se prikazuje samo kada profil **još nije učitan** (prvo otvaranje aplikacije). Kada se profil osvežava u pozadini (npr. posle promene taba), stranica ostaje vidljiva sa starim podacima dok se novi ne učitaju.
+
+## Šta se menja
+
+- Fajl: `src/App.tsx`, komponenta `ProtectedRoute`
+- Dodajemo `profile` u destrukturiranje iz `useAuth()`
+- Menjamo uslov za prikaz spinnera: umesto `profileLoading`, koristimo `profileLoading && !profile`
 
 ## Očekivano ponašanje posle popravke
 
-1. Otvorite formu za novog klijenta
-2. Unesete PIB, ime, adresu...
-3. Promenite tab da kopirate podatke
-4. Vratite se nazad
-5. Dijalog se automatski ponovo otvori sa svim prethodno unetim podacima
-6. Nastavite sa unosom kao da se ništa nije desilo
+1. Otvorite formu za novog klijenta i unesete podatke
+2. Promenite tab (npr. da kopirate nešto)
+3. Vratite se nazad
+4. Dijalog ostaje otvoren sa svim podacima -- nema treperenja, nema spinnera
+5. Profil se tiho osvežava u pozadini bez prekidanja rada
+
+## Tehnički detalji
+
+Izmena u `ProtectedRoute` komponenti:
+
+```text
+// Dodajemo profile u destrukturiranje
+const { user, loading, profileLoading, profile, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
+
+// Spinner samo pri prvom učitavanju (kada profil još ne postoji)
+if (loading || (profileLoading && !profile)) {
+  return <spinner />;
+}
+```
+
+Ovo je bezbedna promena jer:
+- Pri prvom otvaranju aplikacije, `profile` je `null` dok se ne učita -- spinner se i dalje prikazuje
+- Pri osvežavanju sesije (promena taba), `profile` već ima vrednost -- stranica ostaje vidljiva
+
