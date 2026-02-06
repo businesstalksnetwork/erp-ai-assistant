@@ -105,6 +105,34 @@ export default function NewInvoice() {
     linked_advance_id: '',
   });
 
+  // Auto-save draft (disabled when loading from template)
+  const draftData = useMemo(() => ({ formData, items, useForeignCalculation }), [formData, items, useForeignCalculation]);
+  const { clearDraft } = useFormDraft(
+    'new-invoice',
+    draftData,
+    (restored) => {
+      setFormData(restored.formData);
+      setItems(restored.items);
+      setUseForeignCalculation(restored.useForeignCalculation || false);
+    },
+    {
+      companyId: selectedCompany?.id,
+      enabled: !templateIdFromUrl, // Don't restore draft if loading from template
+      onRestore: () => {
+        toast.info('Vraćen sačuvan nacrt fakture', {
+          description: 'Prethodno uneti podaci su automatski učitani.',
+          action: {
+            label: 'Obriši nacrt',
+            onClick: () => {
+              clearDraft();
+              window.location.reload();
+            },
+          },
+        });
+      },
+    }
+  );
+
   // Get open advances for current client
   const openAdvances = getOpenAdvances(formData.client_id || null);
   const linkedAdvance = formData.linked_advance_id 
