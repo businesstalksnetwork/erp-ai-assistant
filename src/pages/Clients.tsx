@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { useClients, Client } from '@/hooks/useClients';
 import { useSEFRegistry, SEFRegistryResult } from '@/hooks/useSEFRegistry';
 import { supabase } from '@/integrations/supabase/client';
@@ -81,6 +82,27 @@ export default function Clients() {
     sef_registered: false,
   });
 
+  // Auto-save draft for client form (only when dialog is open and not editing)
+  const { clearDraft: clearClientDraft } = useFormDraft(
+    'new-client',
+    formData,
+    (restored) => {
+      setFormData(restored);
+      // Auto-open dialog when draft is restored
+      if (!isOpen) {
+        setIsOpen(true);
+        toast({
+          title: 'Vraćen sačuvan nacrt klijenta',
+          description: 'Prethodno uneti podaci su restaurirani.',
+        });
+      }
+    },
+    {
+      companyId: selectedCompany?.id,
+      enabled: isOpen && !editId, // Only save when adding new client
+    }
+  );
+
   // SEF je dostupan samo ako kompanija ima konfigurisan API ključ
   const isSefConfigured = selectedCompany?.sef_enabled && selectedCompany?.has_sef_api_key;
 
@@ -112,7 +134,10 @@ export default function Clients() {
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (!open) resetForm();
+    if (!open) {
+      clearClientDraft();
+      resetForm();
+    }
   };
 
   // Check SEF registry when PIB changes - SAMO ako je SEF konfigurisan
