@@ -89,6 +89,33 @@ export default function EditInvoice() {
     linked_advance_id: '',
   });
 
+  // Auto-save draft for edit form
+  const draftData = useMemo(() => ({ formData, items }), [formData, items]);
+  const { clearDraft } = useFormDraft(
+    `edit-invoice-${id}`,
+    draftData,
+    (restored) => {
+      setFormData(restored.formData);
+      setItems(restored.items);
+    },
+    {
+      companyId: selectedCompany?.id,
+      enabled: !loadingData, // Don't restore until initial data is loaded
+      onRestore: () => {
+        toast.info('Vraćene nesačuvane izmene', {
+          description: 'Prethodno uneti podaci su automatski učitani.',
+          action: {
+            label: 'Obriši nacrt',
+            onClick: () => {
+              clearDraft();
+              window.location.reload();
+            },
+          },
+        });
+      },
+    }
+  );
+
   // Find the invoice to edit
   const invoice = invoices.find(i => i.id === id);
 
