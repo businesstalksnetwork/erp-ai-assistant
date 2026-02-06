@@ -82,7 +82,11 @@ export default function Clients() {
     sef_registered: false,
   });
 
-  // Auto-save draft for client form (only when dialog is open and not editing)
+  // Check if form has any data (to avoid saving empty forms as drafts)
+  const hasFormData = !!(formData.name || formData.pib || formData.address || 
+    formData.city || formData.email || formData.maticni_broj || formData.vat_number);
+
+  // Auto-save draft for client form - active when dialog is open OR when data exists (for restore after tab switch)
   const { clearDraft: clearClientDraft } = useFormDraft(
     'new-client',
     formData,
@@ -99,7 +103,7 @@ export default function Clients() {
     },
     {
       companyId: selectedCompany?.id,
-      enabled: isOpen && !editId, // Only save when adding new client
+      enabled: !editId && (isOpen || hasFormData),
     }
   );
 
