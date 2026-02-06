@@ -504,6 +504,7 @@ export default function EditInvoice() {
         }
       }
 
+      clearDraft();
       toast.success('Dokument uspešno ažuriran');
       navigate('/invoices');
     } catch (error) {
