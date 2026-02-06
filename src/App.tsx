@@ -45,10 +45,10 @@ function ProtectedRoute({
   adminOnly?: boolean;
   allowExpired?: boolean;
 }) {
-  const { user, loading, profileLoading, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
+  const { user, loading, profileLoading, profile, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
 
-  // Sačekaj i auth i profile loading
-  if (loading || profileLoading) {
+  // Spinner samo pri prvom učitavanju (kada profil još ne postoji)
+  if (loading || (profileLoading && !profile)) {
     return (
       <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -82,7 +82,7 @@ function ProtectedRoute({
 }
 
 function AppRoutes() {
-  const { user, loading, profileLoading, isAdmin, isEmailVerified } = useAuth();
+  const { user, loading, profileLoading, profile, isAdmin, isEmailVerified } = useAuth();
   const location = useLocation();
 
   const isRecoveryUrl =
@@ -95,8 +95,8 @@ function AppRoutes() {
     return <Navigate to={`/auth${location.search}${location.hash}`} replace />;
   }
 
-  // Sačekaj i auth i profile loading pre donošenja odluka o rutiranju
-  if (loading || profileLoading) {
+  // Spinner samo pri prvom učitavanju (kada profil još ne postoji)
+  if (loading || (profileLoading && !profile)) {
     return (
       <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
