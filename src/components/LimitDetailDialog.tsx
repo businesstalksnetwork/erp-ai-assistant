@@ -192,6 +192,18 @@ export default function LimitDetailDialog({
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
                 </linearGradient>
+                <linearGradient id="invoicesGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="fiscalGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="kpoGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0.05} />
+                </linearGradient>
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -242,39 +254,69 @@ export default function LimitDetailDialog({
                 }}
               />
 
-              {/* Cumulative area */}
+              {/* Stacked areas by category */}
+              {limitType === '8m' && (
+                <Area
+                  type="monotone"
+                  dataKey="kpo"
+                  stackId="monthly"
+                  stroke="hsl(var(--warning))"
+                  strokeWidth={1.5}
+                  fill="url(#kpoGradient)"
+                  animationDuration={1200}
+                />
+              )}
               <Area
                 type="monotone"
-                dataKey="cumulative"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2.5}
-                fill="url(#cumulativeGradient)"
-                dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                dataKey="fiscal"
+                stackId="monthly"
+                stroke="hsl(var(--success))"
+                strokeWidth={1.5}
+                fill="url(#fiscalGradient)"
                 animationDuration={1200}
               />
-              {/* Monthly bar-like line */}
+              <Area
+                type="monotone"
+                dataKey="invoices"
+                stackId="monthly"
+                stroke="hsl(var(--primary))"
+                strokeWidth={1.5}
+                fill="url(#invoicesGradient)"
+                animationDuration={1200}
+              />
+
+              {/* Cumulative line overlay */}
               <Line
                 type="monotone"
-                dataKey="total"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-                dot={false}
+                dataKey="cumulative"
+                stroke="hsl(var(--foreground))"
+                strokeWidth={2}
+                dot={{ r: 2.5, fill: 'hsl(var(--foreground))', strokeWidth: 0 }}
+                activeDot={{ r: 4, fill: 'hsl(var(--foreground))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
                 animationDuration={1500}
               />
             </AreaChart>
           </ResponsiveContainer>
 
           {/* Legend */}
-          <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-primary" />
-              <span>Kumulativno</span>
+              <div className="h-2.5 w-2.5 rounded-sm bg-primary" />
+              <span>Fakture</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-0.5 w-4 border-t-2 border-dashed border-muted-foreground" />
-              <span>Mesečno</span>
+              <div className="h-2.5 w-2.5 rounded-sm bg-success" />
+              <span>Fiskalna kasa</span>
+            </div>
+            {limitType === '8m' && (
+              <div className="flex items-center gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-sm bg-warning" />
+                <span>KPO</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <div className="h-0.5 w-4 bg-foreground rounded" />
+              <span>Kumulativno</span>
             </div>
           </div>
         </div>
