@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useLimits } from '@/hooks/useLimits';
 import { useReminders } from '@/hooks/useReminders';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useFiscalEntries } from '@/hooks/useFiscalEntries';
+import { useKPO } from '@/hooks/useKPO';
 import { cn } from '@/lib/utils';
+import LimitDetailDialog from '@/components/LimitDetailDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +49,10 @@ export default function Dashboard() {
   // Get fiscal data for current year
   const currentYear = new Date().getFullYear();
   const { dailySummaries } = useFiscalEntries(selectedCompany?.id || null, currentYear);
+  const { entries: kpoEntries } = useKPO(selectedCompany?.id || null);
+
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [selectedLimit, setSelectedLimit] = useState<'6m' | '8m'>('6m');
 
   const handleToggleReminder = async (id: string) => {
     try {
@@ -133,11 +140,14 @@ export default function Dashboard() {
       {/* Limits Cards */}
       <div className="grid gap-3 sm:gap-4 md:grid-cols-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         {/* 6M Limit Card */}
-        <Card className={cn(
-          "card-hover",
-          limits.limit6MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
-          limits.limit6MPercent >= 75 ? 'border-warning bg-warning/5' : ''
-        )}>
+        <Card 
+          className={cn(
+            "card-hover cursor-pointer transition-transform hover:scale-[1.01]",
+            limits.limit6MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
+            limits.limit6MPercent >= 75 ? 'border-warning bg-warning/5' : ''
+          )}
+          onClick={() => { setSelectedLimit('6m'); setLimitDialogOpen(true); }}
+        >
           <CardHeader className="pb-2 p-4 sm:p-6">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
@@ -180,11 +190,14 @@ export default function Dashboard() {
         </Card>
 
         {/* 8M Limit Card */}
-        <Card className={cn(
-          "card-hover",
-          limits.limit8MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
-          limits.limit8MPercent >= 75 ? 'border-warning bg-warning/5' : ''
-        )}>
+        <Card 
+          className={cn(
+            "card-hover cursor-pointer transition-transform hover:scale-[1.01]",
+            limits.limit8MPercent >= 90 ? 'border-destructive bg-destructive/5' : 
+            limits.limit8MPercent >= 75 ? 'border-warning bg-warning/5' : ''
+          )}
+          onClick={() => { setSelectedLimit('8m'); setLimitDialogOpen(true); }}
+        >
           <CardHeader className="pb-2 p-4 sm:p-6">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
@@ -415,6 +428,18 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      <LimitDetailDialog
+        open={limitDialogOpen}
+        onOpenChange={setLimitDialogOpen}
+        limitType={selectedLimit}
+        limits={limits}
+        limit6M={LIMIT_6M}
+        limit8M={LIMIT_8M}
+        invoices={invoices}
+        dailySummaries={dailySummaries}
+        kpoEntries={kpoEntries}
+      />
     </div>
   );
 }
