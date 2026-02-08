@@ -101,6 +101,8 @@ export default function AdminPanel() {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [extendUser, setExtendUser] = useState<UserProfile | null>(null);
   const [blockUser, setBlockUser] = useState<UserProfile | null>(null);
+  const [isSendingBulkEmail, setIsSendingBulkEmail] = useState(false);
+  const [bulkEmailConfirmOpen, setBulkEmailConfirmOpen] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [bookkeeperSearch, setBookkeeperSearch] = useState('');
@@ -718,9 +720,9 @@ export default function AdminPanel() {
       case 'active':
         return user.status === 'approved' && subInfo.daysLeft >= 0 && !user.is_trial;
       case 'trial':
-        return user.is_trial && user.status !== 'rejected' && subInfo.daysLeft >= 0;
+        return user.is_trial && user.status !== 'rejected' && subInfo.daysLeft > 0;
       case 'expired_trial':
-        return user.is_trial && subInfo.daysLeft < 0 && user.status !== 'rejected';
+        return user.is_trial && subInfo.daysLeft <= 0 && user.status !== 'rejected';
       case 'expired':
         return !user.is_trial && subInfo.daysLeft < 0 && user.status !== 'rejected';
       case 'promo':
@@ -795,8 +797,8 @@ export default function AdminPanel() {
 
   // Stats - only count pausal users (excluding bookkeepers)
   const activeCount = pausalUsers.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
-  const trialCount = pausalUsers.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
-  const expiredTrialCount = pausalUsers.filter(u => u.is_trial && getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
+  const trialCount = pausalUsers.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft > 0).length;
+  const expiredTrialCount = pausalUsers.filter(u => u.is_trial && getSubscriptionInfo(u).daysLeft <= 0 && u.status !== 'rejected').length;
   const promoCount = pausalUsers.filter(u => u.partner_id !== null).length;
   const expiredCount = pausalUsers.filter(u => !u.is_trial && getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
 
@@ -905,7 +907,21 @@ export default function AdminPanel() {
                     {filteredUsers.length} od {users.length} korisnika
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
+                  {filter === 'expired_trial' && filteredUsers.length > 0 && (
+                    <Button 
+                      onClick={() => setBulkEmailConfirmOpen(true)} 
+                      size="sm"
+                      disabled={isSendingBulkEmail}
+                    >
+                      {isSendingBulkEmail ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Mail className="h-4 w-4 mr-2" />
+                      )}
+                      Pošalji mail svima ({filteredUsers.length})
+                    </Button>
+                  )}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -1703,6 +1719,70 @@ export default function AdminPanel() {
         }}
         isLoading={createPartner.isPending || updatePartner.isPending}
       />
+
+      {/* Bulk Email Confirm Dialog */}
+      <AlertDialog open={bulkEmailConfirmOpen} onOpenChange={setBulkEmailConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pošalji email</AlertDialogTitle>
+            <AlertDialogDescription>
+              Da li ste sigurni da želite da pošaljete email na {filteredUsers.length} korisnika kojima je istekao trial period?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Otkaži</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSendingBulkEmail}
+              onClick={async (e) => {
+                e.preventDefault();
+                setIsSendingBulkEmail(true);
+                try {
+                  await supabase.auth.refreshSession();
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const accessToken = sessionData.session?.access_token;
+
+                  const recipients = filteredUsers.map(u => ({
+                    email: u.email,
+                    full_name: u.full_name,
+                  }));
+
+                  const { data, error } = await supabase.functions.invoke('send-admin-bulk-email', {
+                    body: { recipients, templateKey: 'trial_expired_admin' },
+                    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+                  });
+
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+
+                  toast({
+                    title: 'Emailovi poslati',
+                    description: `Uspešno poslato: ${data.sent}. Greške: ${data.errors}.`,
+                  });
+                } catch (err: any) {
+                  console.error('Bulk email error:', err);
+                  toast({
+                    title: 'Greška pri slanju',
+                    description: err.message || 'Nepoznata greška',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setIsSendingBulkEmail(false);
+                  setBulkEmailConfirmOpen(false);
+                }
+              }}
+            >
+              {isSendingBulkEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Šalje se...
+                </>
+              ) : (
+                'Pošalji'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </TooltipProvider>
   );

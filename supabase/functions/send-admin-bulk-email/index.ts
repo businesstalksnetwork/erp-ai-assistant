@@ -1,0 +1,163 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function renderTemplate(template: string, data: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(data)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value?.toString() || '');
+  }
+  return result;
+}
+
+interface Recipient {
+  email: string;
+  full_name: string | null;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Verify admin role
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: callingUser }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !callingUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check admin role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callingUser.id)
+      .eq("role", "admin")
+      .single();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { recipients, templateKey } = await req.json() as {
+      recipients: Recipient[];
+      templateKey: string;
+    };
+
+    if (!recipients || recipients.length === 0) {
+      return new Response(JSON.stringify({ error: "No recipients" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Sending bulk email to ${recipients.length} recipients, template: ${templateKey}`);
+
+    // Load template from database
+    const { data: template } = await supabase
+      .from("email_templates")
+      .select("subject, html_content")
+      .eq("template_key", templateKey)
+      .single();
+
+    // Default fallback
+    const defaultSubject = "Vaš probni period na PausalBox-u je istekao";
+    const defaultHtml = `<p>Zdravo {{full_name}},</p><p>Vaš besplatni probni period na PausalBox-u je istekao. Aktivirajte pretplatu da biste nastavili sa korišćenjem.</p><p>Posetite <a href="https://pausalbox.lovable.app">PausalBox</a> za više informacija.</p>`;
+
+    let sent = 0;
+    let errors = 0;
+    const errorDetails: string[] = [];
+
+    for (const recipient of recipients) {
+      try {
+        const data = {
+          full_name: recipient.full_name || recipient.email,
+        };
+
+        const subject = template
+          ? renderTemplate(template.subject, data)
+          : defaultSubject;
+        const html = template
+          ? renderTemplate(template.html_content, data)
+          : renderTemplate(defaultHtml, data);
+
+        const emailRes = await resend.emails.send({
+          from: "PausalBox <obavestenja@pausalbox.rs>",
+          to: [recipient.email],
+          subject,
+          html,
+        });
+
+        if (emailRes.error) {
+          console.error(`Failed to send to ${recipient.email}:`, emailRes.error);
+          errors++;
+          errorDetails.push(`${recipient.email}: ${emailRes.error.message}`);
+          continue;
+        }
+
+        // Log the notification - use a dummy company_id since this is admin-triggered
+        await supabase.from("email_notification_log").insert({
+          company_id: "00000000-0000-0000-0000-000000000000",
+          user_id: callingUser.id,
+          notification_type: "admin_bulk_" + templateKey,
+          email_to: recipient.email,
+          subject,
+        });
+
+        sent++;
+        console.log(`Sent to ${recipient.email}`);
+      } catch (err) {
+        console.error(`Error sending to ${recipient.email}:`, err);
+        errors++;
+        errorDetails.push(`${recipient.email}: ${err.message}`);
+      }
+    }
+
+    console.log(`Bulk email complete: ${sent} sent, ${errors} errors`);
+
+    return new Response(
+      JSON.stringify({ success: true, sent, errors, errorDetails }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error: any) {
+    console.error("Error in send-admin-bulk-email:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+};
+
+serve(handler);
