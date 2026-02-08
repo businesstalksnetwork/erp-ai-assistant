@@ -34,7 +34,7 @@ const TEMPLATE_CATEGORIES = {
   trial: {
     label: "Trial",
     icon: Clock,
-    keys: ["trial_expiring_7_days", "trial_expiring_3_days", "trial_expiring_1_day"],
+    keys: ["trial_expiring_7_days", "trial_expiring_3_days", "trial_expiring_1_day", "trial_expired_admin"],
   },
   subscription: {
     label: "Pretplata",
