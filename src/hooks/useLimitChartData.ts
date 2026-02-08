@@ -57,15 +57,19 @@ export function useLimitChartData(
         });
       }
     } else {
-      // Rolling 12 months ending this month
+      // Rolling 12 months ending today, first month clipped to exact 365 days
+      const rollingStart = subDays(todayDateOnly, 364);
       for (let i = 11; i >= 0; i--) {
-        const start = startOfMonth(subMonths(todayDateOnly, i));
-        const end = i === 0 ? todayDateOnly : endOfMonth(start);
+        const monthDate = subMonths(todayDateOnly, i);
+        const calStart = startOfMonth(monthDate);
+        // First month: clip to rolling start (exact 365 days)
+        const start = i === 11 ? rollingStart : calStart;
+        const end = i === 0 ? todayDateOnly : endOfMonth(calStart);
         months.push({
           start,
           end,
-          label: format(start, 'MMM yy', { locale: sr }),
-          key: format(start, 'yyyy-MM'),
+          label: format(calStart, 'MMM yy', { locale: sr }),
+          key: format(calStart, 'yyyy-MM'),
         });
       }
     }
