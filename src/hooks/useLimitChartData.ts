@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { sr } from 'date-fns/locale';
 
 interface Invoice {
@@ -57,20 +57,24 @@ export function useLimitChartData(
         });
       }
     } else {
-      // Rolling 12 months ending today, first month clipped to exact 365 days
+      // Rolling 365 days: generate months from rollingStart's month to today's month
       const rollingStart = subDays(todayDateOnly, 364);
-      for (let i = 11; i >= 0; i--) {
-        const monthDate = subMonths(todayDateOnly, i);
-        const calStart = startOfMonth(monthDate);
-        // First month: clip to rolling start (exact 365 days)
-        const start = i === 11 ? rollingStart : calStart;
-        const end = i === 0 ? todayDateOnly : endOfMonth(calStart);
+      const firstMonthStart = startOfMonth(rollingStart);
+      const lastMonthStart = startOfMonth(todayDateOnly);
+      let current = new Date(firstMonthStart);
+
+      while (current <= lastMonthStart) {
+        const isFirst = current.getTime() === firstMonthStart.getTime();
+        const isLast = current.getTime() === lastMonthStart.getTime();
+        const start = isFirst ? rollingStart : new Date(current);
+        const end = isLast ? todayDateOnly : endOfMonth(current);
         months.push({
           start,
           end,
-          label: format(calStart, 'MMM yy', { locale: sr }),
-          key: format(calStart, 'yyyy-MM'),
+          label: format(current, 'MMM yy', { locale: sr }),
+          key: format(current, 'yyyy-MM'),
         });
+        current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
       }
     }
 
@@ -79,8 +83,6 @@ export function useLimitChartData(
       (inv) => !inv.is_proforma && inv.invoice_type !== 'advance',
     );
 
-    // For 8M, also get rolling start for KPO filtering
-    const rollingStart = subDays(todayDateOnly, 364);
 
     // Build fiscal KPO id set for deduplication
     const fiscalKpoIds = new Set(
