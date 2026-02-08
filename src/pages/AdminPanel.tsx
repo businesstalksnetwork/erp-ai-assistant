@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail, Handshake, Link, Plus, Percent, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Trash2, Shield, Users, Clock, Calendar, Ban, CheckCircle, Search, Upload, Database, Loader2, BookUser, MoreHorizontal, Pencil, ChevronLeft, ChevronRight, ChevronDown, Mail, Handshake, Link, Plus, Percent, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react';
 import { EmailTemplateEditor } from '@/components/EmailTemplateEditor';
 import {
   Pagination,
@@ -92,7 +92,7 @@ interface BookkeeperInfo {
   is_invited_only?: boolean; // true ako je samo pozvan, nije registrovan kao bookkeeper
 }
 
-type FilterType = 'all' | 'active' | 'trial' | 'promo' | 'expired';
+type FilterType = 'all' | 'active' | 'trial' | 'expired_trial' | 'promo' | 'expired';
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -719,8 +719,10 @@ export default function AdminPanel() {
         return user.status === 'approved' && subInfo.daysLeft >= 0 && !user.is_trial;
       case 'trial':
         return user.is_trial && user.status !== 'rejected' && subInfo.daysLeft >= 0;
+      case 'expired_trial':
+        return user.is_trial && subInfo.daysLeft < 0 && user.status !== 'rejected';
       case 'expired':
-        return subInfo.daysLeft < 0 && user.status !== 'rejected';
+        return !user.is_trial && subInfo.daysLeft < 0 && user.status !== 'rejected';
       case 'promo':
         return user.partner_id !== null;
       default:
@@ -794,8 +796,9 @@ export default function AdminPanel() {
   // Stats - only count pausal users (excluding bookkeepers)
   const activeCount = pausalUsers.filter(u => u.status === 'approved' && getSubscriptionInfo(u).daysLeft >= 0 && !u.is_trial).length;
   const trialCount = pausalUsers.filter(u => u.is_trial && u.status !== 'rejected' && getSubscriptionInfo(u).daysLeft >= 0).length;
+  const expiredTrialCount = pausalUsers.filter(u => u.is_trial && getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
   const promoCount = pausalUsers.filter(u => u.partner_id !== null).length;
-  const expiredCount = pausalUsers.filter(u => getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
+  const expiredCount = pausalUsers.filter(u => !u.is_trial && getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected').length;
 
   return (
     <TooltipProvider>
@@ -811,8 +814,8 @@ export default function AdminPanel() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card className="cursor-pointer hover:border-success transition-colors" onClick={() => setFilter('active')}>
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <Card className="cursor-pointer hover:border-success transition-colors" onClick={() => handleFilterChange('active')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Aktivni</CardTitle>
             <CheckCircle className="h-4 w-4 text-success" />
@@ -822,7 +825,7 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:border-warning transition-colors" onClick={() => setFilter('trial')}>
+        <Card className="cursor-pointer hover:border-warning transition-colors" onClick={() => handleFilterChange('trial')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Trial</CardTitle>
             <Clock className="h-4 w-4 text-warning" />
@@ -832,7 +835,17 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:border-purple-500 transition-colors" onClick={() => setFilter('promo')}>
+        <Card className="cursor-pointer hover:border-orange-500 transition-colors" onClick={() => handleFilterChange('expired_trial')}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Istekao Trial</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{expiredTrialCount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:border-purple-500 transition-colors" onClick={() => handleFilterChange('promo')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Promo</CardTitle>
             <Handshake className="h-4 w-4 text-purple-500" />
@@ -842,7 +855,7 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:border-destructive transition-colors" onClick={() => setFilter('expired')}>
+        <Card className="cursor-pointer hover:border-destructive transition-colors" onClick={() => handleFilterChange('expired')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Istekli</CardTitle>
             <Calendar className="h-4 w-4 text-destructive" />
@@ -910,8 +923,9 @@ export default function AdminPanel() {
                       <SelectItem value="all">Svi korisnici</SelectItem>
                       <SelectItem value="active">Aktivni</SelectItem>
                       <SelectItem value="trial">Trial</SelectItem>
+                      <SelectItem value="expired_trial">Istekao Trial</SelectItem>
+                      <SelectItem value="promo">Promo</SelectItem>
                       <SelectItem value="expired">Istekla pretplata</SelectItem>
-                      <SelectItem value="blocked">Blokirani</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
