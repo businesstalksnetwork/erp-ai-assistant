@@ -1,65 +1,54 @@
 
 
-# Plan: Sprečiti zatvaranje ekrana pri promeni taba
+# Plan: Dodavanje "Istekao Trial" kartice u Admin Panel
 
-## Problem
+## Trenutno stanje
 
-Kada promenite tab i vratite se, cela stranica trepne i dijalog se zatvori. Razlog:
+Admin Panel prikazuje 4 statisticke kartice u grid-u 2x2 (mobilni) / 4 kolone (desktop):
+1. **Aktivni** -- placeni korisnici sa aktivnom pretplatom
+2. **Trial** -- korisnici na aktivnom trial periodu
+3. **Promo** -- korisnici registrovani preko partnera
+4. **Istekli** -- svi korisnici kojima je pretplata istekla (i trial i placeni zajedno)
 
-1. Vraćanje na tab osvežava sesiju korisnika (TOKEN_REFRESHED)
-2. Tokom osvežavanja, sistem ponovo učitava profil korisnika
-3. Dok se profil učitava, prikazuje se **spinner koji uklanja celu stranicu**
-4. Kada se profil učita, stranica se ponovo montira -- ali dijalog je već zatvoren
+## Izmena
 
-## Rešenje
+Dodaje se nova kartica **"Istekao Trial"** koja prikazuje korisnike kojima je trial period istekao (a nisu presli na placenu pretplatu). Postojeca kartica "Istekli" ce prikazivati samo istekle PLACENE korisnike.
 
-Promena u jednom fajlu: `src/App.tsx` (komponenta `ProtectedRoute`)
+### Rezultat: 5 kartica
 
-### Trenutni kod (problematičan):
+| Aktivni | Trial | Istekao Trial | Promo | Istekli |
+|---------|-------|---------------|-------|---------|
+| Placeni aktivni | Aktivni trial | Istekao trial | Preko partnera | Istekli placeni |
+
+## Tehnicki detalji
+
+Fajl: `src/pages/AdminPanel.tsx`
+
+### 1. Dodati novi filter tip
 ```text
-if (loading || profileLoading) {
-  return <spinner />;  // Uklanja celu stranicu!
-}
+type FilterType = 'all' | 'active' | 'trial' | 'expired_trial' | 'promo' | 'expired';
 ```
 
-### Novi kod (popravljen):
+### 2. Izracunati novu statistiku
 ```text
-if (loading || (profileLoading && !profile)) {
-  return <spinner />;  // Spinner samo pri PRVOM učitavanju profila
-}
+const expiredTrialCount = pausalUsers.filter(u => 
+  u.is_trial && getSubscriptionInfo(u).daysLeft < 0 && u.status !== 'rejected'
+).length;
 ```
 
-Razlika: Spinner se prikazuje samo kada profil **još nije učitan** (prvo otvaranje aplikacije). Kada se profil osvežava u pozadini (npr. posle promene taba), stranica ostaje vidljiva sa starim podacima dok se novi ne učitaju.
-
-## Šta se menja
-
-- Fajl: `src/App.tsx`, komponenta `ProtectedRoute`
-- Dodajemo `profile` u destrukturiranje iz `useAuth()`
-- Menjamo uslov za prikaz spinnera: umesto `profileLoading`, koristimo `profileLoading && !profile`
-
-## Očekivano ponašanje posle popravke
-
-1. Otvorite formu za novog klijenta i unesete podatke
-2. Promenite tab (npr. da kopirate nešto)
-3. Vratite se nazad
-4. Dijalog ostaje otvoren sa svim podacima -- nema treperenja, nema spinnera
-5. Profil se tiho osvežava u pozadini bez prekidanja rada
-
-## Tehnički detalji
-
-Izmena u `ProtectedRoute` komponenti:
-
+### 3. Azurirati filter logiku za expired_trial i suziti existing expired
 ```text
-// Dodajemo profile u destrukturiranje
-const { user, loading, profileLoading, profile, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
-
-// Spinner samo pri prvom učitavanju (kada profil još ne postoji)
-if (loading || (profileLoading && !profile)) {
-  return <spinner />;
-}
+case 'expired_trial':
+  return u.is_trial && subInfo.daysLeft < 0 && u.status !== 'rejected';
+case 'expired':
+  return !u.is_trial && subInfo.daysLeft < 0 && u.status !== 'rejected';
 ```
 
-Ovo je bezbedna promena jer:
-- Pri prvom otvaranju aplikacije, `profile` je `null` dok se ne učita -- spinner se i dalje prikazuje
-- Pri osvežavanju sesije (promena taba), `profile` već ima vrednost -- stranica ostaje vidljiva
+### 4. Dodati novu karticu u grid
+Nova kartica "Istekao Trial" sa `AlertTriangle` ili `Clock` ikonom u narandzastoj boji, pozicionirana izmedju Trial i Promo kartica.
+
+### 5. Prilagoditi grid raspored za 5 kartica
+```text
+grid-cols-2 md:grid-cols-3 lg:grid-cols-5
+```
 
