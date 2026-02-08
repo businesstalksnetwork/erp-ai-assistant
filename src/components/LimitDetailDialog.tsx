@@ -309,6 +309,69 @@ export default function LimitDetailDialog({
           )}
         </div>
 
+        {/* Monthly breakdown table */}
+        <div className="mt-4">
+          <p className="text-sm font-medium mb-2">Pregled po mesecima</p>
+          <div className="rounded-lg border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left p-2 font-medium text-muted-foreground">Mesec</th>
+                    <th className="text-right p-2 font-medium text-muted-foreground">Fakture</th>
+                    <th className="text-right p-2 font-medium text-muted-foreground">Fiskalna</th>
+                    {limitType === '8m' && (
+                      <th className="text-right p-2 font-medium text-muted-foreground">KPO</th>
+                    )}
+                    <th className="text-right p-2 font-medium text-muted-foreground">Ukupno</th>
+                    <th className="text-right p-2 font-medium text-muted-foreground">Kumulativ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.filter(d => d.total > 0 || d.cumulative > 0).length === 0 ? (
+                    <tr>
+                      <td colSpan={limitType === '8m' ? 6 : 5} className="text-center p-4 text-muted-foreground">
+                        Nema podataka za prikaz
+                      </td>
+                    </tr>
+                  ) : (
+                    chartData.map((d, i) => (
+                      <tr
+                        key={d.month}
+                        className={cn(
+                          'border-t border-border/50 transition-colors',
+                          d.total > 0 ? 'hover:bg-muted/30' : 'text-muted-foreground/50',
+                        )}
+                      >
+                        <td className="p-2 font-medium capitalize">{d.monthLabel}</td>
+                        <td className="text-right p-2 tabular-nums">
+                          {d.invoices > 0 ? formatCurrencyFull(d.invoices) : '—'}
+                        </td>
+                        <td className="text-right p-2 tabular-nums">
+                          {d.fiscal > 0 ? formatCurrencyFull(d.fiscal) : '—'}
+                        </td>
+                        {limitType === '8m' && (
+                          <td className="text-right p-2 tabular-nums">
+                            {d.kpo > 0 ? formatCurrencyFull(d.kpo) : '—'}
+                          </td>
+                        )}
+                        <td className="text-right p-2 tabular-nums font-medium">
+                          {d.total > 0 ? formatCurrencyFull(d.total) : '—'}
+                        </td>
+                        <td className={cn(
+                          'text-right p-2 tabular-nums font-semibold',
+                          d.cumulative > 0 ? 'text-primary' : '',
+                        )}>
+                          {d.cumulative > 0 ? formatCurrencyFull(d.cumulative) : '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
         {/* Footer info */}
         <div className="mt-4 p-3 rounded-lg bg-muted/50 border space-y-1">
           <div className="flex items-center justify-between text-sm">
