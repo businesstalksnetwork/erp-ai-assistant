@@ -1,98 +1,51 @@
 
-# Plan: Klikabilni limiti sa linijskim dijagramom pregleda prometa
 
-## Ideja
+# Plan: Tacnih 365 dana za 8M klizni limit u grafikonu
 
-Kartice limita (6M i 8M) na dashboard-u postaju klikabilne. Klikom na bilo koju karticu otvara se Dialog sa detaljnim pregledom:
+## Problem
 
-- Linijski dijagram mesecnog prometa sa linijom limita
-- Razlaganje prometa po kategorijama (fakture, fiskalna kasa, KPO)
-- Kumulativna linija koja vizuelno prikazuje kako se priblizavate limitu
+Trenutno `useLimitChartData` za 8M limit zaokruzuje na cele mesece -- prvi mesec pocinje od 1. tog meseca (npr. 1. feb 2025), a ne od tacnog datuma pre 365 dana (npr. 8. feb 2025). To znaci da grafikon moze prikazivati podatke van prozora od 365 dana ili propustiti neke.
 
-## Kako ce izgledati
+## Resenje
 
-### Za Godisnji limit (6M):
-- Dijagram prikazuje mesecni promet (Jan-Dec) tekuce godine
-- Dve linije: kumulativni ukupni promet + mesecni promet
-- Horizontalna referentna linija na 6M (crvena isprekidana)
-- Dodatna horizontalna linija na 80% (4.8M) kao upozorenje (zuta)
-- Razlaganje: koliko dolazi iz faktura, koliko iz fiskalne kase
+Klipovati prvi mesec tako da pocinje tacno od `rollingStart` (danas - 364 dana), a ne od pocetka kalendarskog meseca. Ostali meseci ostaju puni kalendarski meseci, a poslednji mesec zavrsava danas.
 
-### Za Klizni limit (8M):
-- Dijagram prikazuje mesecni domaci promet (poslednjih 12 meseci)
-- Kumulativna linija + mesecni promet
-- Horizontalna referentna linija na 8M + upozorenje na 80%
-- Razlaganje: fakture, fiskalna kasa, KPO unosi
-
-### Vizuelni elementi u dijalogu:
-- Naslov sa ikonom i trenutnim procentom
-- Linijski grafik sa animiranim prikazom
-- Mini tabela sa razlaganjem prometa ispod grafika
-- Boje uskladjene sa temom (primary/warning/destructive zavisno od nivoa)
+### Primer:
+- Danas: 08.02.2026
+- Rolling start: 09.02.2025 (364 dana unazad = 365 dana ukljucujuci danas)
+- Prvi mesec na grafiku: **09.02.2025 - 28.02.2025** (ne od 01.02.)
+- Ostali meseci: puni kalendarski (mar 2025, apr 2025, ...)
+- Poslednji mesec: 01.02.2026 - 08.02.2026
 
 ## Tehnicki detalji
 
-### Fajl: `src/pages/Dashboard.tsx`
+### Fajl: `src/hooks/useLimitChartData.ts`
 
-**Dodati state za dialog:**
+Izmena u `else` grani (linija 59-71) za 8M rolling limit:
+
+1. Izracunati `rollingStart = subDays(todayDateOnly, 364)` pre formiranja meseci
+2. Za prvi mesec (i === 11, najstariji): `start = rollingStart` umesto `startOfMonth(subMonths(...))`
+3. Sve ostalo ostaje isto -- srednji meseci koriste pune kalendarske granice, poslednji mesec (i === 0) zavrsava na `todayDateOnly`
+
+Izmenjeni kod:
 ```text
-const [limitDialogOpen, setLimitDialogOpen] = useState(false);
-const [selectedLimit, setSelectedLimit] = useState<'6m' | '8m'>('6m');
+} else {
+  const rollingStart = subDays(todayDateOnly, 364);
+  for (let i = 11; i >= 0; i--) {
+    const monthDate = subMonths(todayDateOnly, i);
+    const calStart = startOfMonth(monthDate);
+    // First month: clip to rolling start (exact 365 days)
+    const start = i === 11 ? rollingStart : calStart;
+    const end = i === 0 ? todayDateOnly : endOfMonth(calStart);
+    months.push({
+      start,
+      end,
+      label: format(calStart, 'MMM yy', { locale: sr }),
+      key: format(calStart, 'yyyy-MM'),
+    });
+  }
+}
 ```
 
-**Uciniti kartice klikabilnim:**
-- Dodati `cursor-pointer` i `onClick` handler na obe limit kartice
-- Klik otvara Dialog sa odgovarajucim limitom
+Ovo osigurava da grafikon uvek prikazuje tacno 365 dana podataka, svaki dan, bez viska ili manjka.
 
-**Kreirati novi komponent `LimitDetailDialog`:**
-- Prima: limitType ('6m' | '8m'), limits data, invoices, dailySummaries, open/onClose
-- Prikazuje Dialog sa linijskim dijagramom i razlaganjem
-
-### Novi fajl: `src/components/LimitDetailDialog.tsx`
-
-Komponenta sadrzi:
-
-1. **Priprema podataka:**
-   - Grupisanje faktura i fiskalnih podataka po mesecima
-   - Racunanje kumulativnog prometa (running total)
-   - Za 6M: svi prihodi po mesecima tekuce godine
-   - Za 8M: domaci prihodi po mesecima poslednjih 12 meseci
-
-2. **Linijski dijagram (recharts):**
-   - X osa: meseci (Jan-Dec ili poslednjih 12)
-   - Primarna linija: kumulativni promet (area chart sa gradijentom)
-   - Sekundarna linija: mesecni promet (tanja linija)
-   - Referentna linija: limit (6M ili 8M) - crvena isprekidana
-   - Referentna linija: 80% upozorenje - zuta isprekidana
-   - Custom tooltip sa formatiranim iznosima
-
-3. **Razlaganje prometa ispod grafika:**
-   - Kartice za svaku kategoriju (Fakture, Fiskalna kasa, KPO)
-   - Sa procentualnim udelom u ukupnom prometu
-   - Vizuelno oznacene odgovarajucim bojama
-
-4. **Footer sa korisnim informacijama:**
-   - "Preostalo do limita: X RSD"
-   - Projekcija: "Pri trenutnom tempu, limit ce biti dostignut u mesecu Y" (opciono)
-
-### Koristeni recharts elementi:
-- `AreaChart` sa gradijentom za kumulativni prikaz
-- `Line` za mesecni promet
-- `ReferenceLine` za limit i upozorenje
-- `CartesianGrid`, `XAxis`, `YAxis` za mrezu
-- `ChartTooltip` sa custom formaterom
-
-### Stil kartica (clickable):
-```text
-<Card 
-  className={cn("card-hover cursor-pointer", ...)}
-  onClick={() => { setSelectedLimit('6m'); setLimitDialogOpen(true); }}
->
-```
-
-Dodata animacija: lagani scale efekat na hover (`hover:scale-[1.01]`) da naznaci da je klikabilno.
-
-### Responsive dizajn:
-- Na mobilnim uredjajima dijagram zauzima punu sirinu
-- Razlaganje prometa ide u jednu kolonu umesto grid-a
-- Dialog je full-width na mobilnim (`max-w-2xl` na desktopu)
