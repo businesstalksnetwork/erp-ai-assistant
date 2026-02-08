@@ -83,3 +83,9 @@ verify_jwt = true
 
 [functions.storage-fix-logos]
 verify_jwt = true
+
+[functions.send-admin-bulk-email]
+verify_jwt = false
+
+[functions.storage-get-base64]
+verify_jwt = true
