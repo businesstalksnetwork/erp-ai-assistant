@@ -1,51 +1,67 @@
 
+# Plan: Provera i ispravka SEF logike slanja
 
-# Plan: Tacnih 365 dana za 8M klizni limit u grafikonu
+## Identifikovani problemi
 
-## Problem
+### 1. Auto-slanje bez jasne povratne informacije
+Kada se kreira faktura za domaćeg klijenta koji je SEF-registrovan, toggle "Pošalji na SEF" se automatski uključuje. Slanje se vrši asinhrono u pozadini — korisnik može da navigira pre nego što vidi rezultat. Ovo može dovesti do situacije gde korisnik misli da faktura NIJE poslata, a zapravo jeste.
 
-Trenutno `useLimitChartData` za 8M limit zaokruzuje na cele mesece -- prvi mesec pocinje od 1. tog meseca (npr. 1. feb 2025), a ne od tacnog datuma pre 365 dana (npr. 8. feb 2025). To znaci da grafikon moze prikazivati podatke van prozora od 365 dana ili propustiti neke.
+### 2. `sef-send-invoice` NE upisuje u `sef_invoices` tabelu
+Edge funkcija `sef-send-invoice` ažurira samo `invoices` tabelu (`sef_status`, `sef_invoice_id`), ali NE kreira zapis u `sef_invoices` tabeli. Ovo znači da:
+- Faktura se pojavi u SEF Centru tek kada pozadinska sinhronizacija preuzme podatke sa SEF API-ja
+- Do tada postoji nekonzistentnost između stanja u `invoices` (poslato) i `sef_invoices` (ne postoji)
 
-## Resenje
+### 3. Nedostaje provera SEF odgovora za `sef_raw_response`
+Puni SEF API odgovor se ne čuva nigde u edge funkciji (memorija kaže da se čuva u `sef_raw_response`, ali kolona ne postoji u kodu).
 
-Klipovati prvi mesec tako da pocinje tacno od `rollingStart` (danas - 364 dana), a ne od pocetka kalendarskog meseca. Ostali meseci ostaju puni kalendarski meseci, a poslednji mesec zavrsava danas.
+## Predložene ispravke
 
-### Primer:
-- Danas: 08.02.2026
-- Rolling start: 09.02.2025 (364 dana unazad = 365 dana ukljucujuci danas)
-- Prvi mesec na grafiku: **09.02.2025 - 28.02.2025** (ne od 01.02.)
-- Ostali meseci: puni kalendarski (mar 2025, apr 2025, ...)
-- Poslednji mesec: 01.02.2026 - 08.02.2026
+### Ispravka 1: `sef-send-invoice` — upsert u `sef_invoices` nakon uspešnog slanja
+Nakon što SEF API vrati uspešan odgovor sa `InvoiceId`, edge funkcija treba da kreira/ažurira zapis u `sef_invoices` tabeli. Ovo osigurava instant vidljivost u SEF Centru.
 
-## Tehnicki detalji
-
-### Fajl: `src/hooks/useLimitChartData.ts`
-
-Izmena u `else` grani (linija 59-71) za 8M rolling limit:
-
-1. Izracunati `rollingStart = subDays(todayDateOnly, 364)` pre formiranja meseci
-2. Za prvi mesec (i === 11, najstariji): `start = rollingStart` umesto `startOfMonth(subMonths(...))`
-3. Sve ostalo ostaje isto -- srednji meseci koriste pune kalendarske granice, poslednji mesec (i === 0) zavrsava na `todayDateOnly`
-
-Izmenjeni kod:
+**Fajl:** `supabase/functions/sef-send-invoice/index.ts`
+- Posle uspešnog `update` u `invoices` tabelu (linije 477-485), dodati `upsert` u `sef_invoices`:
 ```text
-} else {
-  const rollingStart = subDays(todayDateOnly, 364);
-  for (let i = 11; i >= 0; i--) {
-    const monthDate = subMonths(todayDateOnly, i);
-    const calStart = startOfMonth(monthDate);
-    // First month: clip to rolling start (exact 365 days)
-    const start = i === 11 ? rollingStart : calStart;
-    const end = i === 0 ? todayDateOnly : endOfMonth(calStart);
-    months.push({
-      start,
-      end,
-      label: format(calStart, 'MMM yy', { locale: sr }),
-      key: format(calStart, 'yyyy-MM'),
-    });
-  }
-}
+await supabase.from('sef_invoices').upsert({
+  company_id: companyId,
+  sef_invoice_id: newSefId,
+  invoice_type: 'sales',
+  invoice_number: invoice.invoice_number,
+  issue_date: invoice.issue_date,
+  counterparty_name: invoice.client_name,
+  counterparty_pib: invoice.client_pib,
+  total_amount: invoice.total_amount,
+  currency: 'RSD',
+  sef_status: 'Sent',
+  local_status: 'imported',
+  linked_invoice_id: invoiceId,
+}, { onConflict: 'company_id,sef_invoice_id,invoice_type' });
 ```
+- Isto uraditi i za storno slanje (posle linije 333)
 
-Ovo osigurava da grafikon uvek prikazuje tacno 365 dana podataka, svaki dan, bez viska ili manjka.
+### Ispravka 2: Jasnija UX za auto-slanje na SEF
+**Fajl:** `src/pages/NewInvoice.tsx`
+- Umesto da se `sendToSEF` poziva asinhrono bez čekanja rezultata, sačekati rezultat pre navigacije
+- Prikazati jasnu poruku korisniku da je faktura poslata na SEF (ili grešku ako nije)
+- Promeniti logiku sa `.then()` na `await` unutar try bloka, pre `navigate()`
 
+### Ispravka 3: SEF toggle jasniji u UI
+**Fajl:** `src/pages/NewInvoice.tsx`
+- Dodati vizualniji indikator (npr. žutu boju za toggle label) kada je SEF slanje uključeno
+- Dodati kratko objašnjenje ispod toggle-a: "Faktura će biti automatski poslata na SEF nakon kreiranja"
+
+## Tehnicki detalji izmena
+
+### `supabase/functions/sef-send-invoice/index.ts`
+1. Nakon linije 485 (uspešan send), dodati upsert u `sef_invoices`
+2. Nakon linije 333 (uspešan storno send), dodati upsert u `sef_invoices`
+3. Čuvati `sef_raw_response` ako kolona postoji
+
+### `src/pages/NewInvoice.tsx`
+1. Promeniti asinhrono slanje (linije 680-685) da koristi `await` umesto `.then()`
+2. Prikazati rezultat SEF slanja pre navigacije
+3. Dodati vizualni indikator za SEF toggle status
+
+### `src/pages/Invoices.tsx`
+1. Ista izmena za konverziju predračuna (linije 182-188) — `await` umesto `.then()`
+2. Ista izmena za storno (linije 212-216)
