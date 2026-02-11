@@ -332,6 +332,32 @@ serve(async (req) => {
             })
             .eq('id', invoiceId);
 
+          // Upsert into sef_invoices for instant SEF Center visibility (storno)
+          const { error: stornoUpsertError } = await supabase
+            .from('sef_invoices')
+            .upsert({
+              company_id: companyId,
+              sef_invoice_id: String(sefResult.InvoiceId),
+              invoice_type: 'sales',
+              invoice_number: invoice.invoice_number,
+              issue_date: invoice.issue_date,
+              delivery_date: invoice.service_date || invoice.issue_date,
+              counterparty_name: invoice.client_name,
+              counterparty_pib: invoice.client_pib,
+              counterparty_address: invoice.client_address,
+              counterparty_maticni_broj: invoice.client_maticni_broj,
+              total_amount: Math.abs(invoice.total_amount),
+              currency: 'RSD',
+              sef_status: 'Sent',
+              local_status: 'imported',
+              linked_invoice_id: invoiceId,
+              fetched_at: new Date().toISOString(),
+            }, { onConflict: 'company_id,sef_invoice_id,invoice_type' });
+
+          if (stornoUpsertError) {
+            console.warn('Failed to upsert sef_invoices (storno):', stornoUpsertError);
+          }
+
           return new Response(JSON.stringify({
             success: true,
             sefInvoiceId: sefResult.InvoiceId,
@@ -483,6 +509,33 @@ serve(async (req) => {
           sef_error: null,
         })
         .eq('id', invoiceId);
+
+      // Upsert into sef_invoices for instant SEF Center visibility
+      const { error: upsertError } = await supabase
+        .from('sef_invoices')
+        .upsert({
+          company_id: companyId,
+          sef_invoice_id: String(newSefId),
+          invoice_type: 'sales',
+          invoice_number: invoice.invoice_number,
+          issue_date: invoice.issue_date,
+          delivery_date: invoice.service_date || invoice.issue_date,
+          due_date: invoice.payment_deadline,
+          counterparty_name: invoice.client_name,
+          counterparty_pib: invoice.client_pib,
+          counterparty_address: invoice.client_address,
+          counterparty_maticni_broj: invoice.client_maticni_broj,
+          total_amount: invoice.total_amount,
+          currency: 'RSD',
+          sef_status: 'Sent',
+          local_status: 'imported',
+          linked_invoice_id: invoiceId,
+          fetched_at: new Date().toISOString(),
+        }, { onConflict: 'company_id,sef_invoice_id,invoice_type' });
+
+      if (upsertError) {
+        console.warn('Failed to upsert sef_invoices:', upsertError);
+      }
 
       return new Response(JSON.stringify({
         success: true,
