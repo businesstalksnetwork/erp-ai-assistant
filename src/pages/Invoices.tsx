@@ -181,11 +181,10 @@ export default function Invoices() {
         proforma?.client_type === 'domestic' &&
         result?.id
       ) {
-        sendToSEF(result.id, selectedCompany.id, { silent: false }).then(sefResult => {
-          if (!sefResult.success) {
-            console.error('SEF auto-send failed:', sefResult.error);
-          }
-        });
+        const sefResult = await sendToSEF(result.id, selectedCompany.id, { silent: false });
+        if (!sefResult.success) {
+          console.error('SEF auto-send failed:', sefResult.error);
+        }
       }
       
       setConvertId(null);
@@ -209,11 +208,10 @@ export default function Invoices() {
       invoice.client_type === 'domestic' &&
       result?.stornoInvoice?.id
     ) {
-      sendStornoToSEF(result.stornoInvoice.id, selectedCompany.id, invoice.sef_invoice_id, { silent: false }).then(sefResult => {
-        if (!sefResult.success) {
-          console.error('SEF storno auto-send failed:', sefResult.error);
-        }
-      });
+      const sefResult = await sendStornoToSEF(result.stornoInvoice.id, selectedCompany.id, invoice.sef_invoice_id, { silent: false });
+      if (!sefResult.success) {
+        console.error('SEF storno auto-send failed:', sefResult.error);
+      }
     }
     
     setStornoId(null);

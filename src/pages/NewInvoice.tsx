@@ -677,12 +677,11 @@ export default function NewInvoice() {
         formData.invoice_type !== 'proforma' &&
         formData.client_type === 'domestic'
       ) {
-        // Pošalji na SEF u pozadini (ne čekamo rezultat)
-        sendToSEF(invoice.id, selectedCompany.id, { silent: false }).then(result => {
-          if (!result.success) {
-            console.error('SEF auto-send failed:', result.error);
-          }
-        });
+        // Sačekaj rezultat SEF slanja pre navigacije
+        const sefResult = await sendToSEF(invoice.id, selectedCompany.id, { silent: false });
+        if (!sefResult.success) {
+          console.error('SEF auto-send failed:', sefResult.error);
+        }
       }
       
       // Obriši draft nakon uspešnog čuvanja
@@ -782,9 +781,11 @@ export default function NewInvoice() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="sef-toggle" className="cursor-pointer">Pošalji na SEF</Label>
+                <Label htmlFor="sef-toggle" className={`cursor-pointer ${sendToSefEnabled ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>Pošalji na SEF</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatski registruj fakturu u Sistemu elektronskih faktura
+                    {sendToSefEnabled 
+                      ? 'Faktura će biti automatski poslata na SEF nakon kreiranja' 
+                      : 'Automatski registruj fakturu u Sistemu elektronskih faktura'}
                   </p>
                 </div>
                 <Switch 
