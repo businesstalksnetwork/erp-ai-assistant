@@ -53,6 +53,12 @@ import {
   ClipboardCheck,
   FileInput,
   RotateCcw,
+  Landmark,
+  PieChart,
+  Timer,
+  Coins,
+  CheckSquare,
+  DollarSign,
 } from "lucide-react";
 
 const mainNav = [
@@ -71,6 +77,9 @@ const accountingNav = [
   { key: "invoices" as const, url: "/accounting/invoices", icon: Receipt },
   { key: "fiscalPeriods" as const, url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "generalLedger" as const, url: "/accounting/ledger", icon: BookText },
+  { key: "fixedAssets" as const, url: "/accounting/fixed-assets", icon: Landmark },
+  { key: "deferrals" as const, url: "/accounting/deferrals", icon: Timer },
+  { key: "loans" as const, url: "/accounting/loans", icon: Coins },
   { key: "reports" as const, url: "/accounting/reports", icon: BarChart3 },
 ];
 
@@ -119,6 +128,8 @@ const settingsNav = [
   { key: "companySettings" as const, url: "/settings", icon: Settings },
   { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
   { key: "users" as const, url: "/settings/users", icon: Users },
+  { key: "approvalWorkflows" as const, url: "/settings/approvals", icon: CheckSquare },
+  { key: "currencies" as const, url: "/settings/currencies", icon: DollarSign },
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor" as const, url: "/settings/events", icon: Activity },
 ];

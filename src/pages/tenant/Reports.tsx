@@ -1,12 +1,13 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { FileText, Scale, TrendingUp } from "lucide-react";
+import { FileText, Scale, TrendingUp, PieChart } from "lucide-react";
 
 const reports = [
   { key: "trialBalance" as const, url: "/accounting/reports/trial-balance", icon: FileText },
   { key: "incomeStatement" as const, url: "/accounting/reports/income-statement", icon: TrendingUp },
   { key: "balanceSheet" as const, url: "/accounting/reports/balance-sheet", icon: Scale },
+  { key: "agingReports" as const, url: "/accounting/reports/aging", icon: PieChart },
 ];
 
 export default function Reports() {
