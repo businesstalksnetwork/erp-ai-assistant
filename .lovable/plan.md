@@ -1,152 +1,141 @@
 
 
-# Phase: Complete DMS (Document Management System) Overhaul
+# Phase: Complete UX/UI Redesign + Cross-Module Logic Integration
 
 ## Overview
 
-Transform the current basic file-upload `documents` table into a full Serbian-compliant Document Registry (Delovodnik) with protocol numbers, versioning, archive book, archiving workflows, projects, document browser, reports, confidentiality-based access control, and activity logging.
-
-## Current State
-
-- **documents table**: Simple file storage with name, file_path, entity_type, tags, notes. No protocol numbers, no categories, no versioning, no access control.
-- **Storage bucket**: `tenant-documents` (private) exists and works.
-- **No tables for**: document_categories, document_versions, archive_book, archiving_requests, projects, project_members, document_projects, confidentiality_levels, role_confidentiality_access, custom_role_access, document_access, dms_activity_log, dms_notifications.
-- **Existing `documents` route**: `/documents` with basic upload/download/delete.
-
-## What We Already Have (DO NOT recreate)
-
-- Auth system with roles (useAuth, AuthProvider, user_roles table)
-- Tenant isolation (useTenant, tenant_id scoping, RLS)
-- Storage bucket `tenant-documents`
-- React Query patterns, toast notifications, i18n system
-- Sidebar navigation (TenantLayout with collapsible groups)
-- UI components (Table, Dialog, Badge, Select, Tabs, etc.)
-- Notification system (useNotifications, notification bell)
+Redesign the entire application UX/UI for a modern, polished ERP experience. Move Settings to the bottom of the sidebar, add charts and AI-powered analytics across all module dashboards, and wire up cross-module dependencies (CRM -> Invoices, Inventory -> POS, HR -> Payroll, etc.) so data flows coherently through the system.
 
 ---
 
-## Implementation Plan
+## Part 1: Sidebar & Layout Redesign
 
-### Sub-Phase A: Database Schema (Migration)
+### 1.1 Move Settings to Bottom of Sidebar
+- Move the Settings collapsible group out of the scrollable nav area
+- Place it as a fixed-bottom section in the sidebar (above user profile area)
+- Add a visual separator between main modules and settings
 
-**New Tables:**
+### 1.2 Sidebar Visual Polish
+- Add module-specific color accents (small colored dot or left-border for each group)
+- Add item count badges on key nav items (e.g., Leads badge showing "new" count, Opportunities showing pipeline count)
+- Add a compact search/command palette trigger (Ctrl+K) at the top of the sidebar
+- Better spacing between groups, smaller font for section labels
+- Smooth transitions when collapsing/expanding groups
 
-| Table | Purpose |
-|-------|---------|
-| `document_categories` | 57 categories in 11 groups (Serbian archive law), with group_name, code, name, name_sr |
-| `confidentiality_levels` | Configurable levels (Public, Internal, Confidential, Secret) with colors and ordering |
-| `role_confidentiality_access` | Maps tenant_role x confidentiality_level to can_read, can_edit |
-| `document_access` | Individual user access grants per document |
-| `document_versions` | Version history snapshots of document edits |
-| `archive_book` | Arhivska knjiga entries with retention periods |
-| `archiving_requests` | Izlucivanje request workflow (pending/approved/rejected/completed) |
-| `archiving_request_items` | Links archive_book entries to archiving requests |
-| `projects` | Project CRUD (name, code, description, status) |
-| `project_members` | Project membership with roles (owner, manager, member, viewer) |
-| `document_projects` | Many-to-many: documents to projects |
-| `dms_activity_log` | DMS-specific audit trail |
+### 1.3 Header Redesign
+- Add breadcrumbs showing current location (e.g., CRM > Contacts > Detail)
+- Move language toggle into user dropdown menu to declutter header
+- Add a global search input in the header (searches across all modules)
+- Add a "recent pages" dropdown for quick navigation
 
-**Alter existing `documents` table** to add:
-- `protocol_number` (text, unique per tenant) - format: XXX-YY/GGGG
-- `subject` (text) - document subject/title
-- `sender` (text) - who sent the document
-- `recipient` (text) - who received it
-- `category_id` (FK to document_categories)
-- `confidentiality_level_id` (FK to confidentiality_levels)
-- `date_received` (date)
-- `valid_until` (date, nullable)
-- `status` (aktivan/arhiviran/za_izlucivanje)
-- `current_version` (int, default 1)
-- `created_by` (uuid FK to auth.users)
+### 1.4 Main Content Area
+- Add subtle page transition animations (fade-in)
+- Consistent page header pattern: title + description + action buttons row
+- Standardize card spacing and grid layouts across all pages
 
-**Seed data:**
-- 57 document categories in 11 groups (Serbian standard)
-- Default confidentiality levels (Public, Internal, Confidential, Secret)
-- RLS policies on all new tables (tenant isolation)
+---
 
-### Sub-Phase B: UI Pages
+## Part 2: Dashboard Overhaul (Main + Module Dashboards)
 
-**Pages to create:**
+### 2.1 Main Dashboard Enhancements
+- Add a "welcome back" greeting with user name and today's date
+- Add a weekly/monthly trend indicator (arrow up/down + percentage) on each KPI card
+- Add new charts:
+  - Cash flow trend (line chart, 6 months)
+  - Accounts receivable aging (stacked bar chart)
+  - Top 5 customers by revenue (horizontal bar)
+- Add role-based quick action buttons (accountant sees different actions than sales)
+- Add a "Module Health" summary showing key metrics from each accessible module
+- Make the AI Insights widget more prominent with a gradient card background
 
-1. **Document Registry (Delovodnik)** - Rewrite `src/pages/tenant/Documents.tsx`
-   - Protocol number auto-generation (XXX-YY/GGGG)
-   - Full-text search with AND logic
-   - Advanced filters: date range, sender, recipient, category, status, confidentiality
-   - File upload with standardized path: `{tenant}/{year}/{categoryCode}/{protocolNumber}_{timestamp}.{ext}`
-   - Inline PDF/image preview via signed URLs
-   - Status badges, protocol number display
-   - Excel export of filtered results
+### 2.2 CRM Dashboard Charts
+- Lead funnel visualization (funnel chart or stacked bar by status)
+- Opportunity pipeline value by stage (horizontal stacked bar)
+- Lead conversion trend over time (line chart, last 6 months)
+- Win/loss ratio pie chart
+- Top contacts by opportunity value
+- Recent activity timeline
 
-2. **Document Detail** - `src/pages/tenant/DocumentDetail.tsx`
-   - View/edit document metadata
-   - Version history tab (side-by-side comparison)
-   - Access control tab (who can see/edit)
-   - Linked projects tab
-   - Activity log tab
+### 2.3 Module-Specific Mini-Dashboards
+Each list page gets a stats bar at the top:
+- **Contacts**: Total, by type distribution (small pie), recently added count
+- **Companies**: Total, by category distribution, active vs archived
+- **Leads**: Funnel mini-chart, conversion rate, new this week
+- **Opportunities**: Pipeline value summary, win rate, avg deal size
+- **Meetings**: Today's agenda cards, weekly view, channel distribution
+- **Inventory**: Stock value total, low stock alerts, movement trends
+- **HR**: Headcount, department distribution, upcoming leave
 
-3. **Archive Book** - `src/pages/tenant/ArchiveBook.tsx`
-   - Entry management with auto-generated entry numbers
-   - Retention periods: Permanent, 10y, 5y, 3y, 2y
-   - Stats: total entries, permanent, by retention distribution
-   - Excel and PDF export
-   - State Archive Transfer tracking (Article 23 - documents >30 years)
+---
 
-4. **Archiving Module** - `src/pages/tenant/Archiving.tsx`
-   - Candidates tab: expired/expiring documents with color-coded badges
-   - Requests tab: create archiving request (IZL-YYYY/N format)
-   - Workflow: Pending -> Approved/Rejected -> Completed
-   - Multi-select batch operations
-   - PDF destruction record generation
+## Part 3: AI Integration Across Modules
 
-5. **Projects** - `src/pages/tenant/Projects.tsx`
-   - CRUD for projects
-   - Member management (owner, manager, member, viewer)
-   - Link documents to projects
+### 3.1 AI Insights Per Module
+Extend the existing `ai-insights` edge function to accept a `module` parameter and return module-specific insights:
+- **CRM**: "3 leads haven't been contacted in 7+ days", "Opportunity X expected close date is past due"
+- **Accounting**: "Revenue declined 12% vs last month", "5 invoices overdue > 30 days"
+- **Inventory**: "Product X stock will run out in ~5 days based on movement trend"
+- **HR**: "3 employee contracts expiring in 30 days"
 
-6. **Project Detail** - `src/pages/tenant/ProjectDetail.tsx`
-   - Members tab with role management
-   - Linked documents tab
+### 3.2 AI-Powered Suggestions on Detail Pages
+- **Opportunity Detail**: AI suggests next action based on stage and history
+- **Contact Detail**: AI summarizes interaction history
+- **Dashboard**: AI generates a daily briefing summary
 
-7. **Document Browser** - `src/pages/tenant/DocumentBrowser.tsx`
-   - Tree view: Year -> Category -> Files
-   - Grid view: Card layout grouped by year/category
-   - Search, inline preview, direct download
+### 3.3 AI Assistant Context Awareness
+- Update the AI assistant panel to be context-aware (knows which page user is on)
+- Pre-populate suggested questions based on current module
+- Show relevant data previews in responses
 
-8. **DMS Reports** - `src/pages/tenant/DmsReports.tsx`
-   - Date range picker with presets
-   - Summary cards (total docs, period docs, archive entries, etc.)
-   - Charts: trend, category distribution, status distribution, retention, top senders/recipients
-   - Excel export, Annual Archive Report (Article 19)
+---
 
-9. **DMS Settings** - `src/pages/tenant/DmsSettings.tsx`
-   - Categories tab (view 57 categories in 11 accordion groups)
-   - Retention periods reference
-   - Confidentiality levels manager
-   - Access matrix (role x confidentiality)
+## Part 4: Cross-Module Logic Connections
 
-### Sub-Phase C: Routing + Navigation
+### 4.1 CRM -> Accounting
+- When creating an Invoice, allow selecting a CRM Company/Contact as the customer
+- "Create Invoice" button on Opportunity Detail (when stage = closed_won)
+- Link company_id on invoices to CRM companies table
+- Show linked invoices on Company Detail page (new Invoices tab)
 
-**New routes under `/documents/`:**
-- `/documents` - Document Registry (Delovodnik)
-- `/documents/:id` - Document Detail
-- `/documents/archive-book` - Archive Book
-- `/documents/archiving` - Archiving Module
-- `/documents/projects` - Projects
-- `/documents/projects/:id` - Project Detail
-- `/documents/browser` - Document Browser
-- `/documents/reports` - DMS Reports
-- `/documents/settings` - DMS Settings
+### 4.2 CRM -> Inventory
+- When creating a Quote/Sales Order from an Opportunity, allow picking products from inventory
+- Show stock availability inline when selecting products
+- Auto-create inventory movements when Sales Order is fulfilled
 
-**Sidebar update** - Expand documents nav group:
-- Delovodnik (registry)
-- Archive Book
-- Archiving
-- Projects
-- Document Browser
-- Reports
-- Settings (admin only)
+### 4.3 Inventory -> Purchasing
+- "Reorder" button on low-stock items that pre-fills a Purchase Order
+- Link purchase orders to inventory products
+- When Goods Receipt is confirmed, auto-update inventory stock
 
-**i18n** - Add ~100 new translation keys for DMS in both EN and SR.
+### 4.4 HR -> Accounting
+- Link payroll runs to journal entries (auto-generate salary expense entries)
+- Department cost allocation from HR departments to cost centers
+
+### 4.5 DMS -> All Modules
+- Allow attaching documents to any entity (invoice, PO, employee, company, contact)
+- "Attach Document" button pattern reusable across modules
+- Show attached documents count badge on entity rows
+
+### 4.6 Activity Log Cross-Module
+- Extend the activities table to log actions across all modules
+- Show a unified activity timeline on the main dashboard
+- Filter activities by module, user, date range
+
+---
+
+## Part 5: Role-Based UI Refinements
+
+### 5.1 Dashboard Per Role
+- **Admin**: Full dashboard with all modules, system health, user activity
+- **Accountant**: Accounting-focused dashboard (revenue, expenses, AR/AP, bank balance)
+- **Sales**: CRM-focused dashboard (pipeline, leads, meetings today, quotes pending)
+- **HR**: HR-focused dashboard (headcount, leave requests, expiring contracts)
+- **User**: Simplified dashboard (assigned tasks, documents, POS shortcut)
+
+### 5.2 Granular Permission Checks
+- Add `canCreate`, `canEdit`, `canDelete` helpers to usePermissions (not just canAccess)
+- Hide action buttons (Add, Edit, Delete) based on granular permissions
+- Show read-only views when user has view-only access
 
 ---
 
@@ -154,91 +143,139 @@ Transform the current basic file-upload `documents` table into a full Serbian-co
 
 | File | Purpose |
 |------|---------|
-| Migration SQL | Schema: alter documents, create 12 new tables, seed 57 categories + 4 confidentiality levels, RLS |
-| `src/pages/tenant/DocumentDetail.tsx` | Document detail with tabs (versions, access, projects, activity) |
-| `src/pages/tenant/ArchiveBook.tsx` | Arhivska knjiga with retention tracking |
-| `src/pages/tenant/Archiving.tsx` | Archiving workflow (candidates + requests) |
-| `src/pages/tenant/Projects.tsx` | Project CRUD |
-| `src/pages/tenant/ProjectDetail.tsx` | Project detail with members + linked docs |
-| `src/pages/tenant/DocumentBrowser.tsx` | File explorer (tree + grid views) |
-| `src/pages/tenant/DmsReports.tsx` | Analytics dashboard for DMS |
-| `src/pages/tenant/DmsSettings.tsx` | DMS configuration (categories, access matrix) |
+| `src/components/layout/Breadcrumbs.tsx` | Dynamic breadcrumb component using route location |
+| `src/components/layout/GlobalSearch.tsx` | Command palette (Ctrl+K) searching across all modules |
+| `src/components/dashboard/CashFlowChart.tsx` | Cash flow trend line chart |
+| `src/components/dashboard/TopCustomersChart.tsx` | Top 5 customers horizontal bar |
+| `src/components/dashboard/ModuleHealthSummary.tsx` | Cross-module health indicators |
+| `src/components/dashboard/WelcomeHeader.tsx` | Greeting + date + role-specific summary |
+| `src/components/crm/LeadFunnelChart.tsx` | Lead funnel/conversion visualization |
+| `src/components/crm/OpportunityPipelineChart.tsx` | Pipeline value by stage chart |
+| `src/components/crm/ConversionTrendChart.tsx` | Conversion rate over time line chart |
+| `src/components/crm/WinLossChart.tsx` | Won vs lost pie chart |
+| `src/components/crm/RecentActivityTimeline.tsx` | Activity timeline for CRM dashboard |
+| `src/components/shared/StatsBar.tsx` | Reusable stats bar pattern for list pages |
+| `src/components/shared/AiModuleInsights.tsx` | Module-specific AI insights widget |
+| `src/components/shared/PageHeader.tsx` | Standardized page header (title, description, actions) |
+| `src/components/shared/EntityDocuments.tsx` | Reusable document attachment component |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/Documents.tsx` | Complete rewrite: protocol numbers, advanced filters, categories, confidentiality |
-| `src/App.tsx` | Add 9 new DMS routes |
-| `src/layouts/TenantLayout.tsx` | Expand documents nav group with 7 sub-items |
-| `src/i18n/translations.ts` | Add ~100 DMS translation keys (EN + SR) |
+| `src/layouts/TenantLayout.tsx` | Major redesign: settings at bottom, breadcrumbs, search, header polish, nav badges, language toggle moved |
+| `src/pages/tenant/Dashboard.tsx` | Add welcome header, new charts, module health, role-based quick actions, trend indicators |
+| `src/pages/tenant/CrmDashboard.tsx` | Add 5 new charts, activity timeline, enhanced stats cards |
+| `src/pages/tenant/Contacts.tsx` | Add stats bar, type distribution mini-chart, improved filters UI |
+| `src/pages/tenant/Companies.tsx` | Add stats bar, category distribution, invoices tab link |
+| `src/pages/tenant/Leads.tsx` | Add conversion funnel mini-chart, stats bar, AI insights |
+| `src/pages/tenant/Opportunities.tsx` | Add pipeline chart header, win rate stats, enhanced Kanban cards |
+| `src/pages/tenant/Meetings.tsx` | Add channel distribution chart, today's agenda cards, weekly calendar |
+| `src/pages/tenant/OpportunityDetail.tsx` | Add "Create Invoice" action for closed_won, AI next-action suggestion |
+| `src/pages/tenant/CompanyDetail.tsx` | Add Invoices tab, linked accounting data |
+| `src/pages/tenant/Settings.tsx` | Visual refresh with grouped sections |
+| `src/index.css` | Add subtle animation utilities, improved card hover effects, gradient utilities |
+| `src/config/rolePermissions.ts` | Add granular CRUD permissions per module |
+| `src/hooks/usePermissions.ts` | Add canCreate, canEdit, canDelete helpers |
+| `src/i18n/translations.ts` | Add ~50 new keys for UI labels, breadcrumbs, chart titles |
+| `supabase/functions/ai-insights/index.ts` | Accept module parameter, return module-specific insights |
 
 ---
 
 ## Technical Details
 
-### Protocol Number Generation
+### Sidebar Settings at Bottom
 
 ```text
-Format: XXX-YY/GGGG
-  XXX = sequential number within current year (zero-padded to 3+)
-  YY  = category code (from document_categories.code)
-  GGGG = current year
+Current layout:
+  [Logo]
+  [Dashboard]
+  [CRM group]
+  [Purchasing group]
+  ...
+  [Settings group]  <-- mixed in with other modules
 
-Generated server-side via:
-  SELECT COALESCE(MAX(seq_number), 0) + 1
-  FROM documents
-  WHERE tenant_id = $1 AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM now())
+New layout:
+  [Logo]
+  [Search trigger]
+  [Dashboard]
+  [CRM group]
+  [Purchasing group]
+  [Returns group]
+  [HR group]
+  [Inventory group]
+  [Accounting group]
+  [Production group]
+  [Documents group]
+  [POS group]
+  ---- flex spacer ----
+  [Settings group]   <-- fixed at bottom
+  [User profile]     <-- fixed at bottom
 ```
 
-### Document Categories (57 in 11 groups - Serbian standard)
+### Role-Based Dashboard Content
 
 ```text
-Groups: Normativna akta, Opsta dokumentacija, Kadrovi, Finansije, Racunovodstvo,
-        Komercijala, Tehnicka dokumentacija, Pravna dokumentacija, Marketing,
-        IT dokumentacija, Ostalo
-Each with 4-7 specific category codes.
+Role "admin"      -> Full dashboard (all charts + all modules)
+Role "accountant" -> Accounting KPIs + AR aging + invoice status + bank
+Role "sales"      -> CRM pipeline + lead funnel + today's meetings + quotes
+Role "hr"         -> Headcount + leave requests + contracts expiring
+Role "user"       -> Simple: tasks + documents + POS shortcut
 ```
 
-### Confidentiality-Based Access Control
+### Cross-Module Invoice Link
 
 ```text
-Priority order in can_access_document():
-1. Creator always has full access
-2. Admin role always has full access  
-3. role_confidentiality_access: maps role x level -> can_read/can_edit
-4. document_access: individual grants per document
-5. project_members: access through linked projects
+CompanyDetail -> new tab "Invoices"
+  Query: invoices where partner.pib = company.pib OR invoices.company_id = company.id
+  Show: invoice_number, date, total, status
+
+OpportunityDetail (stage = closed_won):
+  Button: "Create Invoice" ->
+    Navigate to /accounting/invoices/new?opportunity_id={id}&contact_id={contact_id}
+    InvoiceForm reads query params, pre-fills customer and amount
 ```
 
-### Archive Book Entry Number
+### AI Insights Module Parameter
 
 ```text
-Format: Auto-incremented per tenant per year
-Retention options: trajno (permanent), 10, 5, 3, 2 years
-State Archive Transfer: permanent entries older than 30 years
+Edge function accepts: { tenant_id, language, module? }
+  module = "crm"        -> analyze leads, opportunities, contacts
+  module = "accounting"  -> analyze invoices, journal entries, cash flow
+  module = "inventory"   -> analyze stock levels, movement trends
+  module = "hr"          -> analyze contracts, leave, attendance
+  module = undefined     -> return top insights across all modules (current behavior)
 ```
 
-### Archiving Request Workflow
+### Granular Permissions Extension
 
 ```text
-Request number: IZL-YYYY/N (N = sequential)
-States: pending -> approved/rejected -> completed
-Completing marks linked docs as 'za_izlucivanje'
+Current: canAccess(module) -> boolean
+New: canAccess(module) + canCreate(module) + canEdit(module) + canDelete(module)
+
+rolePermissions extended:
+  admin:      { crm: { view: true, create: true, edit: true, delete: true } }
+  sales:      { crm: { view: true, create: true, edit: true, delete: false } }
+  user:       { crm: { view: false } }
 ```
 
-### File Path Convention
+### Stats Bar Pattern (Reusable)
 
 ```text
-{tenantId}/{year}/{categoryCode}/{protocolNumber}_{timestamp}.{extension}
-Example: abc123/2026/01-02/001-01-02_2026_1707753600.pdf
+StatsBar component receives:
+  stats: Array<{ label: string, value: string|number, icon: LucideIcon, trend?: number }>
+Renders a compact horizontal bar of mini stat cards above the main content
+Used on: Contacts, Companies, Leads, Opportunities, Meetings, Products, Employees
 ```
 
-### Version Comparison
+### Global Search (Command Palette)
 
 ```text
-document_versions stores full snapshot of all fields + file_path per version.
-Side-by-side diff highlights changed fields between any two versions.
-Revert creates a new version (preserving audit trail).
+Ctrl+K opens a cmdk-based command palette
+Searches across:
+  - Navigation items (jump to page)
+  - Recent entities (contacts, companies, invoices by name/number)
+  - Actions (create invoice, add lead, etc.)
+Uses existing cmdk dependency (already installed)
 ```
 
