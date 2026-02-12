@@ -115,6 +115,8 @@ import HrReports from "@/pages/tenant/HrReports";
 import Salespeople from "@/pages/tenant/Salespeople";
 import SalesPerformance from "@/pages/tenant/SalesPerformance";
 import RetailPrices from "@/pages/tenant/RetailPrices";
+import WebSettings from "@/pages/tenant/WebSettings";
+import WebPrices from "@/pages/tenant/WebPrices";
 import FiscalDevices from "@/pages/tenant/FiscalDevices";
 import PosDailyReport from "@/pages/tenant/PosDailyReport";
 
@@ -231,6 +233,8 @@ const App = () => (
                 <Route path="sales/salespeople" element={<ProtectedRoute requiredModule="sales"><Salespeople /></ProtectedRoute>} />
                 <Route path="sales/sales-performance" element={<ProtectedRoute requiredModule="sales"><SalesPerformance /></ProtectedRoute>} />
                 <Route path="sales/retail-prices" element={<ProtectedRoute requiredModule="sales"><RetailPrices /></ProtectedRoute>} />
+                <Route path="web/settings" element={<ProtectedRoute requiredModule="web"><WebSettings /></ProtectedRoute>} />
+                <Route path="web/prices" element={<ProtectedRoute requiredModule="web"><WebPrices /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
                 <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
                 <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule="accounting"><FixedAssets /></ProtectedRoute>} />

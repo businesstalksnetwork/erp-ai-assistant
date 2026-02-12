@@ -101,6 +101,11 @@ const salesNav: NavItem[] = [
   { key: "retailPrices", url: "/sales/retail-prices", icon: Receipt },
 ];
 
+const webNav: NavItem[] = [
+  { key: "webSettings", url: "/web/settings", icon: Globe },
+  { key: "webPrices", url: "/web/prices", icon: Receipt },
+];
+
 const purchasingNav: NavItem[] = [
   { key: "purchaseOrders", url: "/purchasing/orders", icon: Truck },
   { key: "goodsReceipts", url: "/purchasing/goods-receipts", icon: ClipboardCheck },
@@ -285,6 +290,9 @@ export default function TenantLayout() {
             )}
             {canAccess("sales") && (
               <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
+            )}
+            {canAccess("web") && (
+              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-400" />
             )}
             {canAccess("purchasing") && (
               <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
