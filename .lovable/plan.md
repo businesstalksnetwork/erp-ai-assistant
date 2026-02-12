@@ -1,79 +1,90 @@
 
 
-# Phase 8: Returns Module (RET)
+# Phase 9: Advanced Accounting & Compliance Tables (PRD Supplement)
 
-Add a complete returns and refunds workflow covering both customer returns (sales side) and supplier returns (purchasing side). This module integrates with existing Sales Orders, Purchase Orders, Inventory, Accounting, and the Event Bus.
+Add the remaining edge-case tables and features needed for production-grade Serbian regulatory compliance and advanced financial operations. This phase fills the gaps between the current module set and a fully compliant ERP.
 
 ---
 
 ## What Gets Built
 
-### 1. Return Cases
-A central return case record that tracks a return from initiation through inspection to resolution. Supports both customer returns (linked to sales orders/invoices) and supplier returns (linked to purchase orders).
-
-### 2. Return Lines
-Individual items being returned with quantities, reason codes, and inspection results (accepted, rejected, partial).
-
-### 3. Credit Notes
-Financial documents issued for approved customer returns, creating accounting storno entries. Links back to the original invoice for proper AR adjustment.
-
-### 4. Supplier Return Shipments
-Outbound returns to suppliers for defective/incorrect goods, linked to the original purchase order and triggering inventory deductions.
-
----
-
-## Database (1 migration, 4 new tables)
+### Group A: Fixed Assets & Depreciation
+Track company assets with automated depreciation schedules per Serbian accounting standards.
 
 | Table | Purpose |
 |-------|---------|
-| `return_cases` | Header: tenant_id, return_type (customer/supplier), source_type (sales_order/purchase_order/invoice), source_id, partner_id, status (draft, inspecting, approved, resolved, cancelled), opened_at, resolved_at, notes |
-| `return_lines` | Line items: return_case_id, product_id, quantity_returned, quantity_accepted, reason (defective, wrong_item, damaged, not_needed, other), inspection_status (pending, accepted, rejected), notes |
-| `credit_notes` | Customer credit notes: return_case_id, invoice_id (original), credit_number, amount, status (draft, issued, applied), issued_at |
-| `supplier_return_shipments` | Supplier returns: return_case_id, purchase_order_id, warehouse_id, shipped_at, tracking_number, status (pending, shipped, acknowledged, credited) |
+| `fixed_assets` | Asset register: name, acquisition_date, acquisition_cost, useful_life_months, depreciation_method (straight_line/declining), salvage_value, status (active/disposed/fully_depreciated), tenant_id |
+| `fixed_asset_depreciation` | Monthly depreciation entries: asset_id, period, amount, accumulated_total, journal_entry_id (auto-posted) |
 
-All tables include tenant_id with RLS policies, updated_at triggers, and audit triggers.
+### Group B: Accounts Receivable & Payable Aging
+Structured aging snapshots for AR/AP analysis and bad debt provisioning.
 
-### Event Bus Integration
-- `return_case.approved` -- triggers inventory adjustment (stock-in for customer returns to warehouse)
-- `credit_note.issued` -- triggers accounting storno (reversal journal entry against original invoice)
-- `supplier_return.shipped` -- triggers inventory deduction (stock-out from warehouse)
+| Table | Purpose |
+|-------|---------|
+| `ar_aging_snapshots` | Periodic AR aging: snapshot_date, partner_id, current/30/60/90/over90 buckets, total_outstanding |
+| `ap_aging_snapshots` | Periodic AP aging: same structure for supplier payables |
+| `bad_debt_provisions` | Bad debt reserves: partner_id, provision_date, amount, reason, journal_entry_id, status |
+
+### Group C: Deferrals & Accruals
+Prepaid expenses and deferred revenue with automated monthly recognition.
+
+| Table | Purpose |
+|-------|---------|
+| `deferrals` | Deferred revenue/expense: type (revenue/expense), total_amount, recognized_amount, start_date, end_date, frequency (monthly), source_invoice_id, account_id |
+| `deferral_schedules` | Individual recognition entries: deferral_id, period_date, amount, journal_entry_id, status (pending/posted) |
+
+### Group D: Loan & Installment Tracking
+Track company loans (given/received) with amortization schedules.
+
+| Table | Purpose |
+|-------|---------|
+| `loans` | Loan header: partner_id, type (receivable/payable), principal, interest_rate, start_date, term_months, status |
+| `loan_schedules` | Amortization lines: loan_id, due_date, principal_payment, interest_payment, balance, status (pending/paid), journal_entry_id |
+
+### Group E: Separation of Duties (SOD) & Approval Workflows
+Enforce multi-step approval and duty segregation for financial transactions.
+
+| Table | Purpose |
+|-------|---------|
+| `approval_workflows` | Workflow definitions: entity_type (invoice/journal_entry/purchase_order), min_approvers, required_roles, threshold_amount |
+| `approval_requests` | Individual approval instances: workflow_id, entity_type, entity_id, status (pending/approved/rejected), requested_by |
+| `approval_steps` | Approval actions: request_id, approver_user_id, action (approve/reject), comment, acted_at |
+
+### Group F: Currency & Exchange Rates
+Multi-currency support with NBS exchange rate tracking.
+
+| Table | Purpose |
+|-------|---------|
+| `currencies` | Currency master: code (RSD, EUR, USD), name, symbol, is_base |
+| `exchange_rates` | Daily rates: from_currency, to_currency, rate, rate_date, source (manual/NBS) |
 
 ---
 
-## Frontend (1 new page, unified)
+## Frontend Updates
+
+### New Pages
 
 | Page | Route | Description |
 |------|-------|-------------|
-| `Returns.tsx` | `/returns` | Unified returns management with tabs for Customer Returns / Supplier Returns / Credit Notes. Create return cases, log inspection results, issue credit notes, track supplier return shipments. |
+| `FixedAssets.tsx` | `/accounting/fixed-assets` | Asset register with depreciation schedules |
+| `AgingReports.tsx` | `/accounting/reports/aging` | AR/AP aging analysis with bucket visualization |
+| `Deferrals.tsx` | `/accounting/deferrals` | Manage deferred revenue/expenses and recognition schedules |
+| `Loans.tsx` | `/accounting/loans` | Loan tracking with amortization tables |
+| `ApprovalWorkflows.tsx` | `/settings/approvals` | Configure and manage approval rules |
+| `Currencies.tsx` | `/settings/currencies` | Currency master and exchange rate management |
 
-A single page with tab-based navigation keeps the workflow cohesive rather than splitting across multiple pages.
-
----
-
-## Navigation and Routing
-
-- New **Returns** sidebar group between Purchasing and HR with icon `RotateCcw`
-- One menu item: Returns
-- One new route in `App.tsx`
-
----
-
-## i18n
-
-Add EN/SR translation keys for:
-- Module labels (returns, returnCases, creditNotes, supplierReturns)
-- Statuses (inspecting, approved, resolved, issued, applied, shipped, acknowledged, credited)
-- Reason codes (defective, wrongItem, damaged, notNeeded)
-- Form fields (returnType, sourceDocument, quantityReturned, quantityAccepted, inspectionStatus, creditAmount)
+### Navigation Changes
+- Add Fixed Assets, Deferrals, Loans under Accounting sidebar group
+- Add Aging Reports under Reports sub-navigation
+- Add Approval Workflows and Currencies under Settings
 
 ---
 
-## Edge Function Updates
-
-Add handlers in `process-module-event` for:
-- `return_case.approved` with `handler_module = 'inventory'` -- call `adjust_inventory_stock` with `movement_type = 'in'` for accepted return lines
-- `credit_note.issued` with `handler_module = 'accounting'` -- placeholder for storno journal entry creation
-- `supplier_return.shipped` with `handler_module = 'inventory'` -- call `adjust_inventory_stock` with `movement_type = 'out'` for returned-to-supplier lines
+## Event Bus Integration
+- `fixed_asset.depreciated` -- auto-post depreciation journal entries monthly
+- `deferral.recognized` -- auto-post recognition journal entries
+- `loan_payment.due` -- notification/reminder for upcoming installments
+- `approval.completed` -- update entity status when all approvals are met
 
 ---
 
@@ -81,26 +92,34 @@ Add handlers in `process-module-event` for:
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/..._returns_module.sql` | 4 tables, RLS, triggers, event bus seed subscriptions |
-| `src/pages/tenant/Returns.tsx` | Unified returns management with tabs |
+| `supabase/migrations/..._advanced_accounting.sql` | ~14 tables, RLS, triggers, event subscriptions |
+| `src/pages/tenant/FixedAssets.tsx` | Asset register and depreciation |
+| `src/pages/tenant/AgingReports.tsx` | AR/AP aging visualization |
+| `src/pages/tenant/Deferrals.tsx` | Deferred revenue/expense management |
+| `src/pages/tenant/Loans.tsx` | Loan amortization tracking |
+| `src/pages/tenant/ApprovalWorkflows.tsx` | SOD and approval configuration |
+| `src/pages/tenant/Currencies.tsx` | Multi-currency and exchange rates |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add 1 returns route |
-| `src/layouts/TenantLayout.tsx` | Add Returns sidebar group |
-| `src/i18n/translations.ts` | Add EN/SR keys |
-| `supabase/functions/process-module-event/index.ts` | Add return event handlers |
+| `src/App.tsx` | Add 6 new routes |
+| `src/layouts/TenantLayout.tsx` | Add new sidebar items under Accounting and Settings |
+| `src/i18n/translations.ts` | Add EN/SR keys for all new entities |
+| `src/pages/tenant/Reports.tsx` | Add Aging Reports card |
+| `supabase/functions/process-module-event/index.ts` | Add handlers for depreciation, deferral recognition, approval completion |
 
 ---
 
 ## Technical Notes
 
-- Return cases use polymorphic `source_type` + `source_id` to link to sales orders, purchase orders, or invoices
-- Partners table is reused (customer or supplier depending on return_type)
-- Credit notes reference the original invoice for accounting reconciliation
-- Serbian accounting requires "storno" (reversal) entries rather than negative invoices -- the credit note event handler will create reversing journal entries
-- Inspection workflow: draft -> inspecting -> approved/cancelled -> resolved (after credit note or supplier return completed)
-- Inventory adjustments only happen after inspection approval, not at return initiation
+- Fixed asset depreciation uses Serbian straight-line method by default; declining balance as option
+- AR/AP aging snapshots are point-in-time records, not live views -- a scheduled job or manual action creates them
+- Deferrals auto-generate recognition schedules on creation (monthly entries between start and end date)
+- Loan amortization schedules are pre-calculated on loan creation using standard annuity formula
+- Approval workflows use a threshold-based system: transactions above a certain amount require additional approvers
+- Exchange rates table supports both manual entry and future NBS API integration
+- All tables include tenant_id with RLS policies for multi-tenant isolation
+- Base currency defaults to RSD per Serbian market focus
 
