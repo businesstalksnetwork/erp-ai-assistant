@@ -479,6 +479,19 @@ export const translations = {
     posTransactionComplete: "Transaction completed successfully.",
     cash: "Cash",
     card: "Card",
+
+    // Event Bus
+    eventMonitor: "Event Monitor",
+    eventType: "Event Type",
+    sourceModule: "Source Module",
+    retries: "Retries",
+    eventDetails: "Event Details",
+    eventRetried: "Event retry triggered successfully.",
+    payload: "Payload",
+    processingLogs: "Processing Logs",
+    handler: "Handler",
+    refresh: "Refresh",
+    failed: "Failed",
   },
   sr: {
     // Auth
@@ -960,6 +973,19 @@ export const translations = {
     posTransactionComplete: "Transakcija uspešno završena.",
     cash: "Gotovina",
     card: "Kartica",
+
+    // Event Bus
+    eventMonitor: "Monitor događaja",
+    eventType: "Tip događaja",
+    sourceModule: "Izvorni modul",
+    retries: "Pokušaji",
+    eventDetails: "Detalji događaja",
+    eventRetried: "Ponovni pokušaj događaja uspešno pokrenut.",
+    payload: "Podaci",
+    processingLogs: "Logovi obrade",
+    handler: "Obrađivač",
+    refresh: "Osveži",
+    failed: "Neuspelo",
   },
 } as const;
 

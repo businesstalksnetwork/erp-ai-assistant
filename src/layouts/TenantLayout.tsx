@@ -48,6 +48,7 @@ import {
   FolderOpen,
   Monitor,
   CreditCard,
+  Activity,
 } from "lucide-react";
 
 const mainNav = [
@@ -105,6 +106,7 @@ const settingsNav = [
   { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
   { key: "users" as const, url: "/settings/users", icon: Users },
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
+  { key: "eventMonitor" as const, url: "/settings/events", icon: Activity },
 ];
 
 export default function TenantLayout() {
@@ -282,28 +284,6 @@ export default function TenantLayout() {
                       <SidebarMenuButton asChild>
                         <NavLink
                           to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("settings")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {settingsNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          end={item.url === "/settings"}
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
