@@ -156,7 +156,7 @@ const App = () => (
                 <Route path="settings/legal-entities" element={<LegalEntities />} />
                 <Route path="settings/locations" element={<Locations />} />
                 <Route path="settings/warehouses" element={<Warehouses />} />
-                <Route path="settings/sales-channels" element={<SalesChannels />} />
+                
                 <Route path="settings/cost-centers" element={<CostCenters />} />
                 <Route path="settings/bank-accounts" element={<BankAccounts />} />
                 <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><TenantIntegrations /></ProtectedRoute>} />
@@ -183,8 +183,9 @@ const App = () => (
                 <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><Opportunities /></ProtectedRoute>} />
                 <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><OpportunityDetail /></ProtectedRoute>} />
                 <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><Meetings /></ProtectedRoute>} />
-                <Route path="crm/quotes" element={<ProtectedRoute requiredModule="crm"><Quotes /></ProtectedRoute>} />
-                <Route path="crm/sales-orders" element={<ProtectedRoute requiredModule="crm"><SalesOrders /></ProtectedRoute>} />
+                <Route path="sales/quotes" element={<ProtectedRoute requiredModule="sales"><Quotes /></ProtectedRoute>} />
+                <Route path="sales/sales-orders" element={<ProtectedRoute requiredModule="sales"><SalesOrders /></ProtectedRoute>} />
+                <Route path="sales/sales-channels" element={<ProtectedRoute requiredModule="sales"><SalesChannels /></ProtectedRoute>} />
                 <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
                 <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><GoodsReceipts /></ProtectedRoute>} />
                 <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoices /></ProtectedRoute>} />
@@ -227,9 +228,9 @@ const App = () => (
                 <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
                 <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><FiscalDevices /></ProtectedRoute>} />
                 <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><PosDailyReport /></ProtectedRoute>} />
-                <Route path="crm/salespeople" element={<ProtectedRoute requiredModule="crm"><Salespeople /></ProtectedRoute>} />
-                <Route path="crm/sales-performance" element={<ProtectedRoute requiredModule="crm"><SalesPerformance /></ProtectedRoute>} />
-                <Route path="crm/retail-prices" element={<ProtectedRoute requiredModule="crm"><RetailPrices /></ProtectedRoute>} />
+                <Route path="sales/salespeople" element={<ProtectedRoute requiredModule="sales"><Salespeople /></ProtectedRoute>} />
+                <Route path="sales/sales-performance" element={<ProtectedRoute requiredModule="sales"><SalesPerformance /></ProtectedRoute>} />
+                <Route path="sales/retail-prices" element={<ProtectedRoute requiredModule="sales"><RetailPrices /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
                 <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
                 <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule="accounting"><FixedAssets /></ProtectedRoute>} />

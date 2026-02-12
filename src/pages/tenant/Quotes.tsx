@@ -123,7 +123,7 @@ export default function Quotes() {
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["sales-orders"] });
       toast.success(t("conversionSuccess"));
-      navigate("/crm/sales-orders");
+      navigate("/sales/sales-orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });

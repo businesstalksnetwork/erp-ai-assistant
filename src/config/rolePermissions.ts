@@ -3,6 +3,7 @@ export type TenantRole = "admin" | "manager" | "accountant" | "sales" | "hr" | "
 export type ModuleGroup =
   | "dashboard"
   | "crm"
+  | "sales"
   | "purchasing"
   | "inventory"
   | "accounting"
@@ -23,7 +24,7 @@ export type ModuleGroup =
   | "settings-integrations";
 
 const ALL_MODULES: ModuleGroup[] = [
-  "dashboard", "crm", "purchasing", "inventory", "accounting", "hr",
+  "dashboard", "crm", "sales", "purchasing", "inventory", "accounting", "hr",
   "production", "documents", "pos", "returns", "settings",
   "settings-users", "settings-approvals", "settings-business-rules",
   "settings-tax-rates", "settings-currencies", "settings-audit-log",
@@ -33,14 +34,14 @@ const ALL_MODULES: ModuleGroup[] = [
 export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   admin: ALL_MODULES,
   manager: [
-    "dashboard", "crm", "purchasing", "inventory", "returns",
+    "dashboard", "crm", "sales", "purchasing", "inventory", "returns",
     "production", "documents", "pos", "settings",
   ],
   accountant: [
     "dashboard", "accounting", "settings",
     "settings-tax-rates", "settings-currencies",
   ],
-  sales: ["dashboard", "crm", "inventory", "documents"],
+  sales: ["dashboard", "crm", "sales", "inventory", "documents"],
   hr: ["dashboard", "hr", "documents"],
   user: ["dashboard", "documents", "pos"],
 };
@@ -49,6 +50,7 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
 export const routeToModule: Record<string, ModuleGroup> = {
   "/dashboard": "dashboard",
   "/crm/": "crm",
+  "/sales/": "sales",
   "/purchasing/": "purchasing",
   "/inventory/": "inventory",
   "/accounting/": "accounting",

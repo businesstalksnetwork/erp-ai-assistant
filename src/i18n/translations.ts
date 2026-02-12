@@ -266,6 +266,7 @@ export const translations = {
 
     // CRM
     crm: "CRM",
+    salesModule: "Sales",
 
     // Inventory
     inventory: "Inventory",
@@ -1467,6 +1468,7 @@ export const translations = {
 
     // CRM
     crm: "CRM",
+    salesModule: "Prodaja",
 
     // Inventory
     inventory: "Inventar",
