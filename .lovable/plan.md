@@ -1,237 +1,434 @@
 
-# Phase 24: Advanced Accounting Engine
+
+# Phase 25B: Comprehensive HR Module Overhaul
 
 ## Overview
 
-Add four advanced accounting capabilities: FX revaluation with journal posting, Kompenzacija (mutual debt offsetting) workflow, enhanced fixed asset disposal with gain/loss handling and sale proceeds, and inventory costing methods (FIFO and weighted average cost layers).
+Transform the basic HR module into a full Serbian labor-law-compliant system. This covers 14 functional areas: enhanced employees (first/last name, termination logic, archiving), organizational structure (position templates, department-positions junction), work logs with bulk entry and calendar view, overtime tracking, night work tracking, annual leave balances with carry-over rules, holidays management, deductions (credit/alimony), allowances, external workers, salary history, insurance records, and comprehensive HR reports.
+
+---
+
+## Current State
+
+The existing HR module has:
+- **employees**: `full_name` (single field), basic fields, simple status enum
+- **departments**: code + name only, no company link
+- **employee_contracts**: salary info per contract
+- **attendance_records**: daily check-in/out (will be superseded by work_logs)
+- **leave_requests**: basic vacation/sick with approval
+- **payroll_runs/payroll_items**: Serbian payroll calculation RPC
+
+**Missing entirely**: work_logs, overtime, night work, annual leave balances, holidays, deductions, allowances, external workers, salary history, insurance, position templates, reports, bulk entry, calendar view.
 
 ---
 
 ## Part 1: Database Migration
 
-A single migration creates all new tables and alters existing ones.
+### 1.1 ALTER `employees` -- Split name + add fields
 
-### 1.1 `fx_revaluations` -- FX revaluation run log
+```text
+- Rename full_name -> keep for backward compat (computed or kept)
+- Add: first_name TEXT, last_name TEXT
+- Add: hire_date DATE (alias for start_date)
+- Add: termination_date DATE
+- Add: early_termination_date DATE (takes priority)
+- Add: annual_leave_days INTEGER DEFAULT 20
+- Add: slava_date DATE (Serbian patron saint day)
+- Add: daily_work_hours NUMERIC DEFAULT 8
+- Add: position_template_id UUID FK position_templates
+- Add: is_archived BOOLEAN DEFAULT false
+- Add: company_id UUID FK legal_entities (nullable)
+```
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| legal_entity_id | uuid FK legal_entities | nullable |
-| revaluation_date | date | |
-| base_currency | text | default 'RSD' |
-| total_gain | numeric | default 0 |
-| total_loss | numeric | default 0 |
-| journal_entry_id | uuid FK journal_entries | nullable |
-| created_by | uuid | nullable |
-| created_at | timestamptz | default now() |
+Status logic becomes computed:
+- Active: no effective termination date OR date hasn't passed
+- early_termination_date takes priority over termination_date
 
-### 1.2 `fx_revaluation_lines` -- Per-open-item revaluation detail
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| revaluation_id | uuid FK fx_revaluations | |
-| open_item_id | uuid FK open_items | |
-| currency | text | |
-| original_rate | numeric | |
-| new_rate | numeric | |
-| original_amount_rsd | numeric | |
-| revalued_amount_rsd | numeric | |
-| difference | numeric | gain if positive, loss if negative |
-
-### 1.3 `kompenzacija` -- Offsetting agreements
+### 1.2 `position_templates` -- Reusable position definitions
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
 | tenant_id | uuid FK tenants | |
-| legal_entity_id | uuid FK legal_entities | nullable |
-| document_number | text | auto-generated |
-| document_date | date | |
-| partner_id | uuid FK partners | |
-| total_amount | numeric | |
-| status | text | 'draft', 'confirmed', 'cancelled' |
-| journal_entry_id | uuid FK journal_entries | nullable |
-| notes | text | nullable |
+| name | text | e.g. "Software Developer" |
+| code | text | |
+| description | text | nullable |
+| is_active | boolean | default true |
+| created_at | timestamptz | |
+
+### 1.3 `department_positions` -- M:N junction
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| department_id | uuid FK departments | |
+| position_template_id | uuid FK position_templates | |
+| headcount | int | default 1 |
+| UNIQUE | (department_id, position_template_id) | |
+
+### 1.4 ALTER `departments` -- Add company link
+
+```text
+- Add: company_id UUID FK legal_entities (nullable)
+```
+
+### 1.5 `work_logs` -- Daily work log entries
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| date | date | |
+| type | text | work_log_type enum values |
+| hours | numeric | default 8 |
+| note | text | nullable |
+| vacation_year | int | nullable, for GO attribution |
 | created_by | uuid | nullable |
+| created_at | timestamptz | |
+| UNIQUE | (employee_id, date) | |
+
+work_log_type values: `workday`, `weekend`, `holiday`, `vacation`, `sick_leave`, `paid_leave`, `unpaid_leave`, `maternity_leave`, `holiday_work`, `slava`
+
+### 1.6 `overtime_hours` -- Monthly summary
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| year | int | |
+| month | int | |
+| hours | numeric | supports 0.5 increments |
+| tracking_type | text | 'monthly' or 'daily' |
+| created_at | timestamptz | |
+| UNIQUE | (employee_id, year, month) | |
+
+### 1.7 `overtime_daily_entries` -- Daily detail
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| date | date | |
+| hours | numeric | |
+| created_at | timestamptz | |
+
+### 1.8 `night_work_hours` + `night_work_daily_entries`
+
+Same structure as overtime tables. Night hours are **subtracted** from regular hours in reports.
+
+### 1.9 `annual_leave_balances`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| year | int | |
+| entitled_days | numeric | |
+| used_days | numeric | default 0 |
+| carried_over_days | numeric | default 0 (expire June 30) |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
+| UNIQUE | (employee_id, year) | |
 
-### 1.4 `kompenzacija_items` -- Items being offset
+### 1.10 `holidays`
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
-| kompenzacija_id | uuid FK kompenzacija | |
-| open_item_id | uuid FK open_items | |
-| amount | numeric | amount being offset |
-| direction | text | 'receivable' or 'payable' |
+| tenant_id | uuid FK tenants | nullable (null = national) |
+| company_id | uuid FK legal_entities | nullable |
+| name | text | |
+| date | date | |
+| is_recurring | boolean | default false |
+| created_at | timestamptz | |
 
-### 1.5 `inventory_cost_layers` -- FIFO/weighted avg cost tracking
+### 1.11 `deductions` + `deduction_payments`
+
+**deductions:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| type | text | 'credit', 'alimony', 'other' |
+| description | text | |
+| total_amount | numeric | |
+| paid_amount | numeric | default 0 |
+| start_date | date | |
+| end_date | date | nullable |
+| is_active | boolean | default true |
+| created_at | timestamptz | |
+
+**deduction_payments:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| deduction_id | uuid FK deductions | |
+| amount | numeric | |
+| payment_date | date | |
+| month | int | |
+| year | int | |
+| created_at | timestamptz | |
+
+### 1.12 `allowance_types` + `allowances`
+
+**allowance_types:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | nullable (null = system) |
+| name | text | |
+| code | text | |
+| is_active | boolean | default true |
+
+**allowances:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| employee_id | uuid FK employees | |
+| allowance_type_id | uuid FK allowance_types | |
+| amount | numeric | |
+| month | int | |
+| year | int | |
+| created_at | timestamptz | |
+| UNIQUE | (employee_id, allowance_type_id, month, year) | |
+
+### 1.13 `external_work_types` + `engaged_persons` + `external_work_payments`
+
+**external_work_types:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | nullable |
+| name | text | |
+| code | text | |
+
+**engaged_persons:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| first_name | text | |
+| last_name | text | |
+| jmbg | text | |
+| contract_expiry | date | nullable |
+| is_active | boolean | default true |
+| created_at | timestamptz | |
+
+**external_work_payments:**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| person_id | uuid FK engaged_persons | |
+| work_type_id | uuid FK external_work_types | |
+| amount | numeric | |
+| month | int | |
+| year | int | |
+| created_at | timestamptz | |
+
+### 1.14 `employee_salaries` -- Salary history
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
 | tenant_id | uuid FK tenants | |
-| product_id | uuid FK products | |
-| warehouse_id | uuid FK warehouses | |
-| layer_date | date | receipt date |
-| quantity_remaining | numeric | starts at received qty |
-| unit_cost | numeric | cost per unit in this layer |
-| reference | text | nullable (PO/GR reference) |
+| employee_id | uuid FK employees | |
+| amount | numeric | |
+| salary_type | text | 'hourly' or 'monthly' |
+| amount_type | text | 'net' or 'gross' |
+| meal_allowance | numeric | default 0 |
+| regres | numeric | default 0 |
+| start_date | date | |
 | created_at | timestamptz | |
 
-### 1.6 ALTER `fixed_assets`
+### 1.15 `insurance_records`
 
-Add columns:
-- `sale_price` numeric default 0 -- proceeds from sale
-- `disposal_type` text -- 'scrapped', 'sold', 'transferred'
-- `legal_entity_id` uuid FK legal_entities nullable
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| first_name | text | |
+| last_name | text | |
+| middle_name | text | nullable |
+| jmbg | text | unique per tenant |
+| lbo | text | nullable |
+| insurance_start | date | |
+| insurance_end | date | nullable |
+| registration_date | date | |
+| employee_id | uuid FK employees | nullable |
+| created_at | timestamptz | |
+| UNIQUE | (tenant_id, jmbg) | |
 
-### 1.7 ALTER `products`
+### 1.16 ALTER `payroll_items`
 
-Add column:
-- `costing_method` text default 'weighted_average' -- 'fifo' or 'weighted_average'
+Add: `leave_days_deducted`, `leave_deduction_amount`, `working_days`, `actual_working_days`, `dlp_amount` (from Phase 25 plan), plus `overtime_hours`, `night_work_hours`.
 
-### 1.8 ALTER `inventory_movements`
+### 1.17 ALTER `leave_requests`
 
-Add column:
-- `unit_cost` numeric default 0 -- cost per unit at time of movement
+Add: `vacation_year` int nullable -- for annual leave balance attribution.
 
-RLS policies on all new tables scoped by tenant_id. Updated_at triggers on kompenzacija.
-
----
-
-## Part 2: FX Revaluation Page
-
-### New file: `src/pages/tenant/FxRevaluation.tsx`
-
-**Workflow:**
-1. User selects a revaluation date
-2. System fetches all open items in foreign currencies (remaining_amount > 0, currency != 'RSD')
-3. For each, looks up the exchange rate on the revaluation date from `exchange_rates`
-4. Calculates: original RSD amount (original_amount * original_rate) vs revalued (remaining * new_rate)
-5. Shows a preview table with per-item gains/losses
-6. User clicks "Post Revaluation" which:
-   - Creates `fx_revaluations` + `fx_revaluation_lines` records
-   - Posts a journal entry: net gain credits 6700 (FX Gain), net loss debits 5700 (FX Loss), offset against the receivable/payable account (2020 for AR, 4320 for AP)
-   - Uses `createCodeBasedJournalEntry`
-
-**UI elements:**
-- Date picker for revaluation date
-- Legal entity filter (optional)
-- Preview table: Partner | Document | Currency | Original Rate | New Rate | Original RSD | Revalued RSD | Difference
-- Summary cards: Total Gain, Total Loss, Net Effect
-- "Post Revaluation" button
-- History tab showing past revaluations
+All new tables get RLS policies scoped by tenant_id with admin/hr write access.
 
 ---
 
-## Part 3: Kompenzacija (Offsetting) Page
+## Part 2: New Pages (13 new pages)
 
-### New file: `src/pages/tenant/Kompenzacija.tsx`
+### 2.1 `src/pages/tenant/WorkLogs.tsx` -- Work Log List
+- Table: Employee | Date | Type | Hours | Note
+- Filters: employee, date range, type
+- Add/Edit dialog
+- Link to bulk entry and calendar
 
-**Workflow:**
-1. User selects a partner who has both receivable and payable open items
-2. System shows receivable items on the left, payable items on the right
-3. User selects items to offset and enters amounts (up to remaining_amount)
-4. Total receivable offset must equal total payable offset
-5. On confirm:
-   - Creates `kompenzacija` + `kompenzacija_items` records
-   - Posts journal entry: Debit AP account (4320), Credit AR account (2020) for the offset amount
-   - Updates `open_items` -- reduces `remaining_amount`, sets status to 'partial' or 'closed' + status 'offset'
-   - Status goes from 'draft' to 'confirmed'
+### 2.2 `src/pages/tenant/WorkLogsBulkEntry.tsx` -- Bulk Entry
+- Select multiple employees + date range
+- Grid with rows = employees, columns = dates
+- Select work_log_type per cell
+- Save all at once (batch upsert)
 
-**UI elements:**
-- Partner selector
-- Two-column layout: Receivables | Payables
-- Checkboxes + amount inputs per item
-- Running total showing balance
-- Confirm button (disabled if totals don't match)
-- List view of past kompenzacija documents with status badges
-- Cancel action (creates reversal journal entry)
+### 2.3 `src/pages/tenant/WorkLogsCalendar.tsx` -- Calendar View
+- Monthly calendar grid per employee
+- Color-coded cells by work_log_type
+- Click to edit individual entries
 
----
+### 2.4 `src/pages/tenant/OvertimeHours.tsx` -- Overtime Tracking
+- Monthly view or daily detail toggle
+- 0.5h increment support
+- Filters: employee, year, month
 
-## Part 4: Enhanced Fixed Asset Disposal
+### 2.5 `src/pages/tenant/NightWork.tsx` -- Night Work Tracking
+- Same structure as overtime
+- Note: night hours subtract from regular in reports
 
-### Modify: `src/pages/tenant/FixedAssets.tsx`
+### 2.6 `src/pages/tenant/AnnualLeaveBalances.tsx` -- GO Management
+- Per-employee balances by year
+- Shows: Entitled, Carried Over, Used, Remaining
+- Expired indicator after June 30
+- Recalculate button (counts work_logs with type=vacation)
 
-Current disposal logic only handles loss on disposal (book value > 0). Enhance to support:
+### 2.7 `src/pages/tenant/Holidays.tsx` -- Holiday Management
+- National holidays (pre-seeded 2025-2027)
+- Company-specific holidays
+- isHoliday check utility
 
-1. **Disposal type selector** in the edit dialog when status changes to "disposed": scrapped, sold, transferred
-2. **Sale price field** -- if sold, user enters the sale price
-3. **Gain/Loss calculation**:
-   - Book value = cost - accumulated depreciation
-   - If sold: gain = sale_price - book_value (can be positive = gain, negative = loss)
-   - Journal lines:
-     - Debit 1290 (Accum Dep) for accumulated amount
-     - Debit Bank/Cash 2410 for sale_price (if sold)
-     - Credit 1200 (Asset) for cost
-     - If gain > 0: Credit 8210 (Gain on Disposal)
-     - If loss > 0: Debit 8200 (Loss on Disposal)
-   - If scrapped: same as current but uses disposal_type field
-4. **Legal entity selector** on the asset form (new `legal_entity_id` column)
-5. Save `disposal_type` and `sale_price` to the fixed_assets record
+### 2.8 `src/pages/tenant/Deductions.tsx` -- Employee Deductions
+- CRUD for credit/alimony/other deductions
+- Payment tracking per month
+- Running balance (total - paid)
 
----
+### 2.9 `src/pages/tenant/Allowances.tsx` -- Monthly Allowances
+- Allowance types management
+- Per-employee monthly amounts
+- Copy from previous month function
 
-## Part 5: Inventory Costing Methods
+### 2.10 `src/pages/tenant/ExternalWorkers.tsx` -- Engaged Persons
+- CRUD for non-employee workers
+- Work types management
+- Monthly payment tracking
 
-### Modify: `src/pages/tenant/Products.tsx`
+### 2.11 `src/pages/tenant/EmployeeSalaries.tsx` -- Salary History
+- Per-employee salary records by start_date
+- Auto-carry meal_allowance and regres from previous record
+- Filter by "as of" date
 
-- Add `costing_method` field to the product form (Select: FIFO / Weighted Average)
-- Display costing method in the products table
+### 2.12 `src/pages/tenant/InsuranceRecords.tsx` -- Insurance
+- CRUD with bulk import support
+- Upsert by JMBG
+- Link to employees
 
-### New file: `src/pages/tenant/InventoryCostLayers.tsx`
+### 2.13 `src/pages/tenant/PositionTemplates.tsx` -- Position Templates
+- Reusable position definitions
+- Link to departments via department_positions
 
-- Read-only view of cost layers per product
-- Shows: Product | Warehouse | Layer Date | Qty Remaining | Unit Cost | Reference
-- Filters: product, warehouse
-- Summary: total value per product
-
-### Modify: `src/pages/tenant/InventoryStock.tsx`
-
-- Show "Avg Cost" column from cost layers (computed as weighted average of remaining layers)
-- Show "Total Value" column (qty * avg cost)
-
-### Modify: `src/pages/tenant/GoodsReceipts.tsx`
-
-- When a goods receipt is confirmed, create a cost layer in `inventory_cost_layers`
-- Unit cost comes from the purchase order line or manual entry
-
----
-
-## Part 6: Routes and Navigation
-
-### Modify: `src/App.tsx`
-
-Add routes:
-- `accounting/fx-revaluation` -> FxRevaluation (accounting module)
-- `accounting/kompenzacija` -> Kompenzacija (accounting module)
-- `inventory/cost-layers` -> InventoryCostLayers (inventory module)
-
-### Modify: `src/layouts/TenantLayout.tsx`
-
-Add to `accountingNav`:
-- `{ key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign }`
-- `{ key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight }`
-
-Add to `inventoryNav`:
-- `{ key: "costLayers", url: "/inventory/cost-layers", icon: Layers }` (or Coins)
+### 2.14 `src/pages/tenant/HrReports.tsx` -- Comprehensive Reports
+- 5 tabs: Monthly, Annual, Annual Leave, Salaries, Analytics
+- Filters: Year, Month, Department, Position, Employee
+- Monthly: work days, weekends, holidays, vacation, sick, paid/unpaid leave, maternity, holiday work, slava -- all in hours
+- Overtime and night work columns
+- Total = regular + overtime (night subtracted from regular)
+- Excel/CSV export
+- Annual: 12-month summary
+- GO tab: carried over, entitled, used, remaining
+- Salaries: filtered by date
+- Analytics: absence KPIs + headcount/turnover charts
 
 ---
 
-## Part 7: Translations
+## Part 3: Modify Existing Pages
 
-### Modify: `src/i18n/translations.ts`
+### 3.1 `Employees.tsx` -- Major overhaul
+- Split full_name into first_name + last_name (keep full_name computed)
+- Add fields: hire_date, termination_date, early_termination_date, annual_leave_days, slava_date, daily_work_hours, position_template_id, is_archived, company_id
+- Status computed from termination dates
+- "Include archived" toggle
+- Link to salary history, work logs, leave balances
 
-Add ~40 keys for EN and SR:
-- FX revaluation: `fxRevaluation`, `revaluationDate`, `originalRate`, `newRate`, `revaluedAmount`, `fxGain`, `fxLoss`, `netEffect`, `postRevaluation`, `revaluationHistory`, `noForeignCurrencyItems`
-- Kompenzacija: `kompenzacija`, `offsetting`, `selectPartnerForOffset`, `receivables`, `payables`, `offsetAmount`, `totalToOffset`, `amountsMustMatch`, `confirmKompenzacija`, `kompenzacijaConfirmed`, `kompenzacijaCancelled`
-- Fixed assets: `disposalType`, `scrapped`, `sold`, `transferred`, `salePrice`, `gainOnDisposal`, `lossOnDisposal`
-- Inventory costing: `costingMethod`, `fifo`, `weightedAverage`, `costLayers`, `layerDate`, `qtyRemaining`, `unitCost`, `avgCost`, `totalValue`
+### 3.2 `Departments.tsx` -- Add company link
+- Add company_id (legal entity) selector
+- Show position templates linked via department_positions
+
+### 3.3 `LeaveRequests.tsx` -- Add vacation_year
+- Add vacation_year field for GO attribution
+- Show payroll impact indicator
+
+### 3.4 `Payroll.tsx` -- Integrate work logs + overtime + deductions
+- Calculate based on work_logs (actual working days)
+- Include overtime and night work in calculation
+- Show leave deductions
+- Deduction amounts from active deductions
+
+---
+
+## Part 4: Update `calculate_payroll_for_run` RPC
+
+Enhanced to:
+1. Count actual working days from work_logs
+2. Factor in overtime hours (add to gross pro-rata)
+3. Subtract night work from regular (to avoid double-counting)
+4. Apply leave deductions (unpaid = full deduction, sick first 30d = 65%)
+5. Subtract active deduction installments
+6. Add allowances to compensation
+
+---
+
+## Part 5: Routes and Navigation
+
+### `App.tsx` -- Add 14 new routes under `/hr/`
+
+```text
+hr/work-logs, hr/work-logs/bulk, hr/work-logs/calendar,
+hr/overtime, hr/night-work, hr/annual-leave,
+hr/holidays, hr/deductions, hr/allowances,
+hr/external-workers, hr/salaries, hr/insurance,
+hr/position-templates, hr/reports
+```
+
+### `TenantLayout.tsx` -- Expand hrNav
+
+Add all new pages to the HR sidebar group.
+
+---
+
+## Part 6: Translations
+
+Add ~80 translation keys covering:
+- Work logs: workLog, workday, weekend, holidayWork, slava, bulkEntry, workLogsCalendar
+- Overtime/Night: overtimeHours, nightWork, trackingType, dailyTracking, monthlyTracking
+- Annual leave: annualLeaveBalance, entitledDays, usedDays, carriedOverDays, expiredAfterJune
+- Holidays: nationalHoliday, companyHoliday, isRecurring
+- Deductions: deduction, credit, alimonyType, paidAmount, remainingAmount
+- Allowances: allowance, allowanceType, copyFromPrevious
+- External: engagedPerson, externalWorkType, contractExpiry
+- Salaries: salaryHistory, salaryType, hourlyRate, monthlyRate, mealAllowance, regres
+- Insurance: insuranceRecord, lbo, insuranceStart, insuranceEnd, registrationDate, bulkImport
+- Position templates: positionTemplate
+- Reports: monthlyReport, annualReport, annualLeaveReport, salaryReport, hrAnalytics, headcount, turnover
+- Employee fields: firstName, lastName, hireDate, terminationDate, earlyTerminationDate, annualLeaveDays, slavaDate, dailyWorkHours, isArchived
 
 ---
 
@@ -239,79 +436,105 @@ Add ~40 keys for EN and SR:
 
 | File | Purpose |
 |------|---------|
-| `src/pages/tenant/FxRevaluation.tsx` | FX revaluation preview + posting page |
-| `src/pages/tenant/Kompenzacija.tsx` | Mutual debt offsetting workflow |
-| `src/pages/tenant/InventoryCostLayers.tsx` | Cost layer viewer |
+| `src/pages/tenant/WorkLogs.tsx` | Work log list + CRUD |
+| `src/pages/tenant/WorkLogsBulkEntry.tsx` | Bulk entry grid |
+| `src/pages/tenant/WorkLogsCalendar.tsx` | Calendar view |
+| `src/pages/tenant/OvertimeHours.tsx` | Overtime tracking |
+| `src/pages/tenant/NightWork.tsx` | Night work tracking |
+| `src/pages/tenant/AnnualLeaveBalances.tsx` | GO balances |
+| `src/pages/tenant/Holidays.tsx` | Holiday management |
+| `src/pages/tenant/Deductions.tsx` | Employee deductions |
+| `src/pages/tenant/Allowances.tsx` | Monthly allowances |
+| `src/pages/tenant/ExternalWorkers.tsx` | Engaged persons |
+| `src/pages/tenant/EmployeeSalaries.tsx` | Salary history |
+| `src/pages/tenant/InsuranceRecords.tsx` | Insurance management |
+| `src/pages/tenant/PositionTemplates.tsx` | Position templates |
+| `src/pages/tenant/HrReports.tsx` | 5-tab HR reports |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/FixedAssets.tsx` | Disposal type, sale price, gain/loss logic, legal entity |
-| `src/pages/tenant/Products.tsx` | Add costing_method field |
-| `src/pages/tenant/InventoryStock.tsx` | Avg cost + total value columns |
-| `src/pages/tenant/GoodsReceipts.tsx` | Create cost layers on receipt confirmation |
-| `src/layouts/TenantLayout.tsx` | Add nav items for FX reval, kompenzacija, cost layers |
-| `src/App.tsx` | Add 3 new routes |
-| `src/i18n/translations.ts` | ~40 new translation keys |
+| `src/pages/tenant/Employees.tsx` | Split names, add all new fields, archive toggle |
+| `src/pages/tenant/Departments.tsx` | Add company_id, position templates link |
+| `src/pages/tenant/LeaveRequests.tsx` | Add vacation_year field |
+| `src/pages/tenant/Payroll.tsx` | Integrate work logs, overtime, deductions |
+| `src/layouts/TenantLayout.tsx` | Expand hrNav with ~12 new items |
+| `src/App.tsx` | Add ~14 new routes |
+| `src/i18n/translations.ts` | ~80 new translation keys |
+| `src/integrations/supabase/types.ts` | Regenerated types |
 
 ---
 
-## Technical Details
+## Technical Notes
 
-### FX Revaluation Journal Entry Pattern
-
+### Employee Status Logic
 ```text
-For receivables (customer owes us in EUR):
-  If EUR appreciated (gain):
-    Debit  2020 (AR)        difference
-    Credit 6700 (FX Gain)   difference
-  If EUR depreciated (loss):
-    Debit  5700 (FX Loss)   difference
-    Credit 2020 (AR)        difference
+function getEffectiveTerminationDate(emp):
+  if emp.early_termination_date: return early_termination_date
+  if emp.termination_date: return termination_date
+  return null
 
-For payables (we owe supplier in EUR):
-  If EUR appreciated (loss - we owe more):
-    Debit  5700 (FX Loss)   difference
-    Credit 4320 (AP)        difference
-  If EUR depreciated (gain - we owe less):
-    Debit  4320 (AP)        difference
-    Credit 6700 (FX Gain)   difference
+function isActive(emp):
+  effDate = getEffectiveTerminationDate(emp)
+  return effDate is null OR effDate > today
+
+function wasActiveInPeriod(emp, periodStart, periodEnd):
+  hireDate = emp.hire_date
+  effDate = getEffectiveTerminationDate(emp) || Infinity
+  return hireDate <= periodEnd AND effDate >= periodStart
 ```
 
-### Kompenzacija Journal Entry
-
+### Work Log Report Calculation
 ```text
-Debit  4320 (AP - reduces payable)     offset_amount
-Credit 2020 (AR - reduces receivable)  offset_amount
+For employee in period (month):
+  workdays = count(work_logs where type='workday')
+  weekends = count(type='weekend')
+  holidays = count(type='holiday')
+  vacation = count(type='vacation')
+  sick = count(type='sick_leave')
+  ... etc for each type
+
+  regular_hours = sum(hours for non-weekend/holiday types)
+  overtime = overtime_hours for month
+  night = night_work_hours for month
+
+  total = regular_hours - night + overtime
+  (night subtracted because those hours are already in regular but tracked separately)
 ```
 
-### Enhanced Disposal Journal (Sale Example)
-
+### Annual Leave Rules
 ```text
-Asset cost: 100,000  Accumulated dep: 60,000  Book value: 40,000  Sale price: 55,000  Gain: 15,000
-
-Debit  1290 (Accum Dep)         60,000
-Debit  2410 (Bank/Cash)         55,000
-Credit 1200 (Fixed Asset)      100,000
-Credit 8210 (Gain on Disposal)  15,000
+First year: entitled = (months_worked / 12) * annual_leave_days
+Carried over from previous year: expire June 30
+Strict rules (per company setting):
+  - First 10 days must be consecutive
+  - If entitled < 10 days, all must be consecutive
+  - Maternity leave exempts from this rule
+  - Failure to comply = forfeit carried over days
 ```
 
-### Inventory Cost Layer - FIFO Consumption
-
+### Holidays Seed Data
 ```text
-When goods go out (sale/production):
-1. Query cost_layers for product+warehouse ordered by layer_date ASC
-2. Consume from oldest layer first
-3. Reduce quantity_remaining
-4. Calculate COGS = sum of (consumed_qty * layer.unit_cost)
-5. Post journal: Debit 7000 (COGS), Credit 1300 (Inventory)
+Serbian national holidays (non-working):
+  Jan 1-2: Nova Godina
+  Jan 7: Bozic (Orthodox Christmas)
+  Feb 15-16: Sretenje (Statehood Day)
+  May 1-2: Praznik Rada
+  Nov 11: Dan Primirja
+  Easter (moveable): Veliki Petak, Velika Subota, Uskrs, Uskrsnji Ponedeljak
 ```
 
-### Weighted Average Recalculation
-
+### Payroll Integration
 ```text
-On each new receipt:
-  new_avg = (existing_qty * old_avg + new_qty * new_cost) / (existing_qty + new_qty)
-  All remaining layers consolidated into one effective cost
+Enhanced calculate_payroll_for_run:
+1. Get work_logs for period -> actual_working_days
+2. Get overtime_hours for period -> overtime
+3. Get night_work_hours for period -> night_work
+4. daily_rate = gross / working_days_in_month
+5. adjusted_gross = daily_rate * actual_working_days + overtime_premium
+6. Get active deductions -> monthly_deduction
+7. Get allowances for period -> add to compensation
+8. Net = adjusted_gross - taxes - contributions - deductions + allowances
 ```
+
