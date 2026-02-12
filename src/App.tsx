@@ -58,6 +58,11 @@ import Departments from "@/pages/tenant/Departments";
 import Attendance from "@/pages/tenant/Attendance";
 import LeaveRequests from "@/pages/tenant/LeaveRequests";
 import Payroll from "@/pages/tenant/Payroll";
+import BomTemplates from "@/pages/tenant/BomTemplates";
+import ProductionOrders from "@/pages/tenant/ProductionOrders";
+import Documents from "@/pages/tenant/Documents";
+import PosTerminal from "@/pages/tenant/PosTerminal";
+import PosSessions from "@/pages/tenant/PosSessions";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +132,11 @@ const App = () => (
                 <Route path="hr/attendance" element={<Attendance />} />
                 <Route path="hr/leave-requests" element={<LeaveRequests />} />
                 <Route path="hr/payroll" element={<Payroll />} />
+                <Route path="production/bom" element={<BomTemplates />} />
+                <Route path="production/orders" element={<ProductionOrders />} />
+                <Route path="documents" element={<Documents />} />
+                <Route path="pos/terminal" element={<PosTerminal />} />
+                <Route path="pos/sessions" element={<PosSessions />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

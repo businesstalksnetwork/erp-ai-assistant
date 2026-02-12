@@ -160,6 +160,99 @@ export type Database = {
           },
         ]
       }
+      bom_lines: {
+        Row: {
+          bom_template_id: string
+          created_at: string
+          id: string
+          material_product_id: string
+          quantity: number
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          bom_template_id: string
+          created_at?: string
+          id?: string
+          material_product_id: string
+          quantity?: number
+          sort_order?: number
+          unit?: string
+        }
+        Update: {
+          bom_template_id?: string
+          created_at?: string
+          id?: string
+          material_product_id?: string
+          quantity?: number
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_lines_bom_template_id_fkey"
+            columns: ["bom_template_id"]
+            isOneToOne: false
+            referencedRelation: "bom_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_lines_material_product_id_fkey"
+            columns: ["material_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          product_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          product_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          product_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_templates_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_type: string
@@ -299,6 +392,62 @@ export type Database = {
           },
           {
             foreignKeyName: "departments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          name: string
+          notes: string | null
+          tags: string[] | null
+          tenant_id: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          tags?: string[] | null
+          tenant_id: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          tags?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1374,6 +1523,235 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sessions: {
+        Row: {
+          closed_at: string | null
+          closing_balance: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          opening_balance: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_balance?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_balance?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_transactions: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          id: string
+          items: Json
+          payment_method: string
+          session_id: string
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total: number
+          transaction_number: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          items?: Json
+          payment_method?: string
+          session_id: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total?: number
+          transaction_number: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          items?: Json
+          payment_method?: string
+          session_id?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total?: number
+          transaction_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_consumption: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          production_order_id: string
+          quantity_consumed: number
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          production_order_id: string
+          quantity_consumed?: number
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          production_order_id?: string
+          quantity_consumed?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_consumption_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_consumption_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_consumption_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_orders: {
+        Row: {
+          actual_end: string | null
+          actual_start: string | null
+          bom_template_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          planned_end: string | null
+          planned_start: string | null
+          product_id: string | null
+          quantity: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_end?: string | null
+          actual_start?: string | null
+          bom_template_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          planned_end?: string | null
+          planned_start?: string | null
+          product_id?: string | null
+          quantity?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_end?: string | null
+          actual_start?: string | null
+          bom_template_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          planned_end?: string | null
+          planned_start?: string | null
+          product_id?: string | null
+          quantity?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_orders_bom_template_id_fkey"
+            columns: ["bom_template_id"]
+            isOneToOne: false
+            referencedRelation: "bom_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

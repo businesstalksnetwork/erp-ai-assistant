@@ -43,6 +43,11 @@ import {
   TrendingUp,
   FileCheck,
   ShoppingCart,
+  Layers,
+  Factory,
+  FolderOpen,
+  Monitor,
+  CreditCard,
 } from "lucide-react";
 
 const mainNav = [
@@ -79,6 +84,20 @@ const hrNav = [
   { key: "attendance" as const, url: "/hr/attendance", icon: Clock },
   { key: "leaveRequests" as const, url: "/hr/leave-requests", icon: CalendarOff },
   { key: "payroll" as const, url: "/hr/payroll", icon: Banknote },
+];
+
+const productionNav = [
+  { key: "bomTemplates" as const, url: "/production/bom", icon: Layers },
+  { key: "productionOrders" as const, url: "/production/orders", icon: Factory },
+];
+
+const documentsNav = [
+  { key: "documents" as const, url: "/documents", icon: FolderOpen },
+];
+
+const posNav = [
+  { key: "posTerminal" as const, url: "/pos/terminal", icon: Monitor },
+  { key: "posSessions" as const, url: "/pos/sessions", icon: CreditCard },
 ];
 
 const settingsNav = [
@@ -200,6 +219,91 @@ export default function TenantLayout() {
                       <SidebarMenuButton asChild>
                         <NavLink
                           to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("production")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {productionNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("documents")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {documentsNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("pos")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {posNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("settings")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {settingsNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          end={item.url === "/settings"}
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
