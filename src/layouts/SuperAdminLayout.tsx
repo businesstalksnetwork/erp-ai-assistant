@@ -88,6 +88,9 @@ export default function SuperAdminLayout() {
           <header className="h-14 border-b flex items-center justify-between px-4 bg-card">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+                {t("dashboard")} ERP
+              </Button>
               <LanguageToggle />
             </div>
           </header>
