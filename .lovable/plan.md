@@ -1,245 +1,265 @@
 
 
-# Accounting Core Gap Analysis: Deep Research Report vs Current Implementation
+# Phase 23: Complete CRM Module Overhaul
 
-## Executive Summary
+## Overview
 
-Cross-referencing the Deep Research Report (BizniSoft vs Minimax mapped to Serbia-first AI ERP PRD) against the current codebase reveals **12 specific gaps** across accounting core, state integrations, and HR. Several are CRITICAL for Serbian legal compliance in 2026.
-
----
-
-## Current State Assessment
-
-### What's Already Built (Phases 1-21)
-
-| Area | Status |
-|------|--------|
-| Double-entry GL with journal lines | Done |
-| Storno/reversal mechanism | Done (Phase 20) |
-| Bank statement import + basic matching | Done (Phase 20) |
-| Open items ledger + IOS | Done (Phase 20) |
-| PDV periods + POPDV form | Done (Phase 21) |
-| Advance invoices (avansne fakture) | Done (Phase 21) |
-| Fiscal period locking (open/closed/locked) | Done |
-| Chart of accounts (Serbian kontni okvir seed) | Done |
-| Fixed assets with depreciation + GL posting | Done |
-| Legal entities with PIB/MB | Done |
-| Approval workflows | Done (Phase 19) |
-| Payroll with Serbian tax/contributions | Done |
+Replace the current basic CRM (partners + simple leads/opportunities) with a full-featured CRM system including Companies with PIB lookup, Contacts with many-to-many company links, enhanced Leads with contact linking, Kanban Opportunities, Meetings with calendar, Activities timeline, and a CRM Dashboard.
 
 ---
 
-## CRITICAL GAPS (Must Fix)
+## Current State
 
-### Gap 1: Immutable Posting Kernel -- Incomplete
-
-**Report says**: "Immutable journals, reversal primitives, posted journals never mutated; only reversals + audit trail." Minimax blocks edits for automatic journals.
-
-**Current state**: Storno exists but the system still allows **editing posted journal entries** -- there's no DB constraint blocking UPDATE on posted rows. Draft entries can be deleted (correct), but posted entries should be UPDATE-blocked at the DB level, not just the UI level.
-
-**Fix needed**:
-- Add a DB trigger or check constraint that prevents UPDATE on `journal_entries` where `status = 'posted'` (except for `storno_by_id` and `status` changing to `reversed`)
-- Block DELETE on posted entries at the DB level
-- Ensure auto-generated journals (from invoices, depreciation, deferrals) are marked as `source = 'auto'` and are never editable
-
-### Gap 2: Multi-Layer Period Locking
-
-**Report says**: "Implement multi-layer close: VAT period close, month close, year close; block retro edits."
-
-**Current state**: Fiscal periods have open/closed/locked but there's only one layer. No connection between PDV period closing and fiscal period closing. No year-end closing procedure.
-
-**Fix needed**:
-- Link `pdv_periods` closing to block journal posting for that VAT period
-- `check_fiscal_period_open` RPC should also check PDV period status
-- Year-end closing workflow (Class 4/5 to retained earnings via account 3000)
-
-### Gap 3: SEF (eFaktura) Integration -- Not Started
-
-**Report says**: "SEF connector per PIB with queueing and reconciliation. API key mgmt, mailbox sync, send/cancel/storno, contract tests vs DEMO."
-
-**Current state**: No SEF integration exists. No `sef_connections` table, no inbox/outbox, no status governance.
-
-**Fix needed** (architecture only -- actual API integration requires SEF API credentials):
-- `sef_connections` table (per `legal_entity_id`, API key reference, status)
-- `sef_outbox` / `sef_inbox` tables for queue management
-- Status governance: block invoice posting if SEF status is missing (Minimax pattern)
-- Edge function for SEF API communication
-
-### Gap 4: eOtpremnica Integration -- Not Started
-
-**Report says**: "Legal obligations start 1 Jan 2026. Full lifecycle: send/receive, statuses, actions, QR/PDF, inventory coupling."
-
-**Current state**: No electronic delivery note support. This is a **2026 legal requirement**.
-
-**Fix needed**:
-- `eot_connections`, `eot_documents`, `eot_status_history` tables
-- Link to inventory movements (goods receipts/dispatches)
-- Status actions: physical receipt, storno, driver pickup
-- Edge function for eOtpremnica API
-
-### Gap 5: eBolovanje Employer Integration -- Not Started
-
-**Report says**: "From 1 Jan 2026, unified employer eBolovanje system on eUprava. Electronic receipt of sick leave certificates, refund requests."
-
-**Current state**: Leave requests exist but no eBolovanje portal integration.
-
-**Fix needed**:
-- `ebolovanje_sync_log` table
-- Sick leave cases linked to employees with OZ-7/OZ-10 form data
-- Edge function for eUprava API communication
-- Link to payroll calculation (sick leave rate: 65% first 30 days, RFZO after)
+- **Partners table**: Simple CRUD with name/PIB/type (customer/supplier/both) -- no categories, no contacts
+- **Leads table**: Basic with `name`, `email`, `company` (free text), `source`, `status` -- tenant-scoped, no contact FK
+- **Opportunities table**: Basic with `title`, `value`, `stage`, `partner_id`, `lead_id` -- no Kanban, no `closed_at`
+- **Quotes/Sales Orders**: Exist and work, linked to partners/opportunities
+- **No tables for**: `companies`, `company_categories`, `contacts`, `contact_company_assignments`, `meetings`, `meeting_types`, `meeting_participants`, `activities`
 
 ---
 
-## HIGH PRIORITY GAPS
+## Implementation Plan
 
-### Gap 6: Bank Statement Format Support -- Incomplete
+Due to the massive scope, this will be split into **3 sub-phases** implemented sequentially in one go:
 
-**Report says**: "Must support Halcom (txt), Asseco (xml), Raiffeisen/OTP (rol xml), Excel import."
+### Sub-Phase A: Database Schema + Companies + Contacts
 
-**Current state**: Only generic CSV import exists. No support for Serbian bank-specific formats.
+**Migration SQL** -- Create all new tables:
 
-**Fix needed**:
-- Halcom TXT parser
-- Asseco XML parser
-- Generic Excel (XLSX) import option
-- "Poziv na broj" matching is partially done but needs "payment code" (`sifra placanja`) support
+| Table | Key Fields |
+|-------|-----------|
+| `companies` | tenant_id, legal_name, display_name, pib, maticni_broj, is_internal, status, email, phone, website, address, city, postal_code, country |
+| `company_categories` | tenant_id, name, name_sr, code (unique per tenant), color, parent_id, is_system, sort_order |
+| `company_category_assignments` | company_id, category_id |
+| `contacts` | tenant_id, first_name, last_name, email, phone, type (customer/supplier/prospect), seniority_level, function_area, company_name (legacy), address, city, postal_code, country, website, notes |
+| `contact_company_assignments` | contact_id, company_id, job_title, department, is_primary |
+| `meetings` | tenant_id, title, description, scheduled_at, duration_minutes, location, communication_channel, status, meeting_type_id, notes |
+| `meeting_types` | tenant_id, name, name_sr, color |
+| `meeting_participants` | meeting_id, contact_id, employee_id, company_id, is_organizer, is_internal |
+| `activities` | tenant_id, type, description, company_id, contact_id, lead_id, opportunity_id, meeting_id |
 
-### Gap 7: NBS Exchange Rate Auto-Import
+- All tables get RLS policies scoped to tenant_id
+- Seed system company_categories: supplier, customer, partner, investor, contractor, subcontractor
+- Update `leads` table: add `first_name`, `last_name`, `job_title`, `contact_id` FK
+- Update `opportunities` table: add `contact_id` FK, `closed_at`, `description`
+- Migrate existing `partners` data: create a view or keep partners table as-is and link companies to it via a migration that copies partner data into companies
 
-**Report says**: "NBS provides web services for exchange rate lists. Rates must be automated and auditable."
+**Decision**: Keep the existing `partners` table for backward compatibility with invoices/POs/supplier invoices. The new `companies` table is the CRM entity. A `partner_id` FK on `companies` links them when needed for accounting documents.
 
-**Current state**: Currencies and exchange rates are manual CRUD only.
+### Sub-Phase B: UI Pages
 
-**Fix needed**:
-- Edge function to fetch NBS exchange rates via their web service
-- Daily auto-import or on-demand "Fetch today's rates" button
-- Audit trail for rate source (NBS vs manual)
+**New pages to create:**
 
-### Gap 8: FX Revaluation Engine
+1. **CRM Dashboard** (`src/pages/tenant/CrmDashboard.tsx`)
+   - Stats cards: total leads, leads by status, open opportunity pipeline value, total contacts, conversion rate
+   - Quick links to Leads, Opportunities, Contacts, Companies
 
-**Report says**: "Period-end FX revaluation, auto-post realized/unrealized FX gains/losses."
+2. **Companies List** (`src/pages/tenant/Companies.tsx`)
+   - Table with search, category filter (hierarchical)
+   - Stats: contacts count, meetings count per company
+   - Add/Edit dialog with PIB auto-lookup
+   - Category assignment via checkboxes
 
-**Current state**: No FX calculation engine. Currencies page is display-only.
+3. **Company Detail** (`src/pages/tenant/CompanyDetail.tsx`)
+   - Tabs: Overview (editable), Contacts, Meetings, Activities
+   - Contact tab shows linked contacts from `contact_company_assignments`
+   - Activities tab shows recent activity log entries
 
-**Fix needed**:
-- FX revaluation page: recalculate all foreign currency open items at closing rate
-- Auto-post journal entries for FX differences (positive/negative kursne razlike)
-- Serbian accounts: positive differences to revenue (e.g., 6630), negative to expense (e.g., 5630)
+4. **Contacts List** (`src/pages/tenant/Contacts.tsx`)
+   - Table with multi-select filters (type, seniority, function area)
+   - Shows linked companies as clickable badges
+   - Add/Edit with company combobox
 
-### Gap 9: Fixed Asset Lifecycle Gaps
+5. **Contact Detail** (`src/pages/tenant/ContactDetail.tsx`)
+   - Editable info, linked companies (add/remove), related leads, related opportunities
 
-**Report says**: "Unify asset lifecycle with purchasing/inventory conversion, amortization, impairment, disposal. Tax vs financial amortization groups."
+6. **Enhanced Leads** (`src/pages/tenant/Leads.tsx`) -- Rewrite
+   - Add first_name/last_name split, job_title, contact_id link
+   - Inline status change from table row
+   - Convert to Opportunity creates contact if needed
 
-**Current state**: Basic depreciation (straight-line, declining balance) with GL posting exists. Missing:
-- Tax amortization groups (separate from financial)
-- Asset disposal with gain/loss journal (account 4200 Gain / 8200 Loss)
-- Asset impairment workflow
-- Link from Purchase Order to asset creation
+7. **Kanban Opportunities** (`src/pages/tenant/Opportunities.tsx`) -- Rewrite
+   - 5-column Kanban board (qualification, proposal, negotiation, closed_won, closed_lost)
+   - Each column shows count + total RSD value
+   - Cards are clickable
+   - Auto-set `closed_at` on stage change to closed_won/closed_lost
 
-### Gap 10: Inventory Costing Methods
+8. **Opportunity Detail** (`src/pages/tenant/OpportunityDetail.tsx`)
+   - Quick stage-change buttons
+   - Create Quote action
+   - Related contact, lead info
 
-**Report says**: "PRD requires costing methods per product group (FIFO/weighted/standard/specific ID). Minimax only does average; BizniSoft does FIFO."
+9. **Meetings** (`src/pages/tenant/Meetings.tsx`)
+   - Table + upcoming cards + stats (today, this week, upcoming, completed)
+   - Filters: search, status, communication channel
+   - Add/Edit dialog with participant selection
 
-**Current state**: No costing method engine. Inventory tracks quantity only, no cost layers.
+### Sub-Phase C: Edge Function + Integrations
 
-**Fix needed**:
-- `stock_valuation_layers` table for FIFO/weighted average cost tracking
-- Costing method configuration per product group
-- COGS calculation on sales based on selected method
-- Revaluation journals when purchase price corrections occur
+1. **company-lookup Edge Function** (`supabase/functions/company-lookup/index.ts`)
+   - Input: `{ pib: string }`
+   - Validates 9-digit format
+   - Calls Checkpoint.rs API: `https://api.checkpoint.rs/api/VratiSubjekt?PIB={pib}&token={CHECKPOINT_API_TOKEN}`
+   - Returns: `{ found, legal_name, pib, maticni_broj, address, city, postal_code, country }`
 
----
+2. **Routing updates** (`src/App.tsx`)
+   - Add routes: `/crm` (dashboard), `/crm/companies`, `/crm/companies/new`, `/crm/companies/:id`, `/crm/contacts`, `/crm/contacts/new`, `/crm/contacts/:id`, `/crm/leads` (rewrite), `/crm/leads/:id`, `/crm/opportunities` (rewrite), `/crm/opportunities/:id`, `/crm/meetings`
 
-## MEDIUM PRIORITY GAPS
+3. **Sidebar updates** (`src/layouts/TenantLayout.tsx`)
+   - Replace current CRM nav with: Dashboard, Companies, Contacts, Leads, Opportunities, Meetings, Quotes, Sales Orders
 
-### Gap 11: Kompenzacija (Offsetting/Netting)
-
-**Report says**: "Multiple closure methods: partial payments, offsets, advances, compensations, and bank matching."
-
-**Current state**: Open items exist but no kompenzacija workflow.
-
-**Fix needed**:
-- Kompenzacija document type: select AR and AP items to offset against each other
-- Auto-generate journal entries (Debit AP / Credit AR)
-- PDF document generation for legal compliance
-
-### Gap 12: Legal Entity Scoping for Accounting
-
-**Report says**: "Model Tenant -> Legal Entity (PIB) -> Location explicitly. SEF/eOtpremnica credentials tied to legal entity."
-
-**Current state**: `legal_entities` table exists but is not linked to any accounting tables. All accounting is tenant-scoped, not legal-entity-scoped. A tenant with multiple PIBs cannot separate their accounting.
-
-**Fix needed**:
-- Add `legal_entity_id` to `journal_entries`, `invoices`, `chart_of_accounts` (optional FK)
-- SEF/eOtpremnica connections scoped to legal entity
-- PDV filing per legal entity (each PIB files separately)
-
----
-
-## Recommended Implementation Phases
-
-### Phase 22: Accounting Kernel Hardening (CRITICAL)
-- Immutable posting constraints (DB triggers)
-- Multi-layer period locking (fiscal + PDV interlock)
-- Year-end closing procedure
-- Legal entity scoping for accounting tables
-
-### Phase 23: State Integration Foundation (CRITICAL for 2026)
-- SEF connector architecture (tables + edge function scaffold + status governance)
-- eOtpremnica document model + status lifecycle
-- NBS exchange rate auto-import edge function
-
-### Phase 24: Advanced Accounting Engine
-- FX revaluation engine with journal posting
-- Kompenzacija workflow
-- Fixed asset disposal with gain/loss + tax amortization groups
-- Inventory costing methods (FIFO/weighted average layers)
-
-### Phase 25: HR Compliance (already planned as Phase 22 in prior roadmap)
-- PPP-PD XML generation
-- Leave-to-payroll integration
-- eBolovanje connector scaffold
-- DLP (other personal income) calculations
+4. **i18n translations** for all new CRM labels in both EN and SR
 
 ---
 
-## Technical Notes
+## Files to Create
 
-### DB Immutability Trigger (Phase 22)
+| File | Purpose |
+|------|---------|
+| `supabase/migrations/phase23_crm.sql` | Full schema: 9 new tables, lead/opportunity alterations, RLS, seed data |
+| `src/pages/tenant/CrmDashboard.tsx` | CRM overview dashboard |
+| `src/pages/tenant/Companies.tsx` | Companies list with filters + PIB lookup |
+| `src/pages/tenant/CompanyDetail.tsx` | Company detail with tabs |
+| `src/pages/tenant/Contacts.tsx` | Contacts list with multi-select filters |
+| `src/pages/tenant/ContactDetail.tsx` | Contact detail with company links |
+| `src/pages/tenant/Meetings.tsx` | Meetings list + calendar cards |
+| `src/pages/tenant/OpportunityDetail.tsx` | Opportunity detail with stage buttons |
+| `supabase/functions/company-lookup/index.ts` | PIB lookup via Checkpoint.rs API |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/pages/tenant/Leads.tsx` | Rewrite: first_name/last_name, contact_id, inline status change |
+| `src/pages/tenant/Opportunities.tsx` | Rewrite: Kanban board, closed_at auto-set |
+| `src/App.tsx` | Add all new CRM routes |
+| `src/layouts/TenantLayout.tsx` | Update CRM sidebar nav items |
+| `src/i18n/translations.ts` | Add ~80 new CRM translation keys |
+| `src/config/rolePermissions.ts` | No change needed (crm module already exists) |
+
+---
+
+## Technical Details
+
+### Database Schema (Key Tables)
 
 ```text
-CREATE TRIGGER block_posted_journal_edit
-BEFORE UPDATE OR DELETE ON journal_entries
-FOR EACH ROW
-WHEN (OLD.status = 'posted')
--- Allow only: status change to 'reversed' + setting storno_by_id
--- Block all other mutations
+companies (
+  id uuid PK DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  legal_name text NOT NULL,
+  display_name text,
+  pib varchar(9),
+  maticni_broj varchar(8),
+  is_internal boolean DEFAULT false,
+  status text DEFAULT 'active' CHECK (status IN ('active','inactive','archived')),
+  email text, phone text, website text,
+  address text, city text, postal_code text, country text DEFAULT 'Srbija',
+  partner_id uuid REFERENCES partners(id),  -- link to legacy partners for accounting
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+)
+
+contacts (
+  id uuid PK DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  first_name text NOT NULL,
+  last_name text,
+  email text, phone text,
+  type text DEFAULT 'prospect' CHECK (type IN ('customer','supplier','prospect')),
+  seniority_level text CHECK (seniority_level IN ('c_level','executive','senior_manager','manager','senior','mid','junior','intern')),
+  function_area text CHECK (function_area IN ('management','sales','marketing','finance','hr','it','operations','legal','procurement','production','other')),
+  address text, city text, postal_code text, country text,
+  website text, notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+)
+
+contact_company_assignments (
+  id uuid PK, contact_id uuid FK, company_id uuid FK,
+  job_title text, department text, is_primary boolean DEFAULT false,
+  tenant_id uuid FK, assigned_at timestamptz DEFAULT now()
+)
+
+meetings (
+  id uuid PK, tenant_id uuid FK,
+  title text NOT NULL, description text,
+  scheduled_at timestamptz NOT NULL, duration_minutes int DEFAULT 60,
+  location text,
+  communication_channel text CHECK (... IN ('in_person','video_call','phone_call','email','hybrid')),
+  status text DEFAULT 'scheduled' CHECK (... IN ('scheduled','in_progress','completed','cancelled')),
+  meeting_type_id uuid FK -> meeting_types,
+  notes text, created_at, updated_at
+)
+
+activities (
+  id uuid PK, tenant_id uuid FK,
+  type text NOT NULL, description text,
+  company_id uuid FK, contact_id uuid FK,
+  lead_id uuid FK, opportunity_id uuid FK,
+  meeting_id uuid FK,
+  created_at timestamptz DEFAULT now()
+)
 ```
 
-### Legal Entity Scoping Pattern
+### Leads Table Alterations
 
 ```text
--- Optional FK on core accounting tables:
-ALTER TABLE journal_entries ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id);
-ALTER TABLE invoices ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id);
--- Default: if tenant has only 1 legal entity, auto-set
+ALTER TABLE leads ADD COLUMN first_name text;
+ALTER TABLE leads ADD COLUMN last_name text;
+ALTER TABLE leads ADD COLUMN job_title text;
+ALTER TABLE leads ADD COLUMN contact_id uuid REFERENCES contacts(id);
+-- Migrate existing data: SET first_name = name WHERE first_name IS NULL
+UPDATE leads SET first_name = name WHERE first_name IS NULL;
 ```
 
-### SEF Connection Model
+### Opportunities Table Alterations
 
 ```text
-sef_connections: legal_entity_id, api_key_encrypted, sef_status (active/inactive), demo_mode
-sef_outbox: invoice_id, sef_document_id, status (queued/sent/accepted/rejected/cancelled), sent_at
-sef_inbox: sef_document_id, document_type, sender_pib, status, received_at, linked_supplier_invoice_id
+ALTER TABLE opportunities ADD COLUMN contact_id uuid REFERENCES contacts(id);
+ALTER TABLE opportunities ADD COLUMN closed_at timestamptz;
+ALTER TABLE opportunities ADD COLUMN description text;
 ```
 
-### NBS Rate Import
+### Kanban Board Pattern
 
 ```text
-Edge function: fetch-nbs-rates
-GET https://webservices.nbs.rs/CommunicationOffice/ExchangeRate.asmx
-Parse XML response -> insert into exchange_rates table
-Track source = 'NBS' vs 'manual'
+5 columns: qualification | proposal | negotiation | closed_won | closed_lost
+Each column:
+  - Header: stage name + count badge + total RSD value
+  - Cards: title, partner/contact name, value, probability, expected close date
+  - Click -> navigate to /crm/opportunities/:id
+```
+
+### Company PIB Lookup Flow
+
+```text
+1. User types 9-digit PIB in Companies form
+2. Frontend calls edge function: POST /company-lookup { pib }
+3. Edge function checks Checkpoint.rs API
+4. Returns company data -> auto-fills form fields
+5. User confirms and saves
+```
+
+### Contact Type Auto-Inference
+
+```text
+When a contact is linked to a company:
+  - Fetch company's category codes
+  - If codes include 'supplier'/'contractor'/'subcontractor' -> type = 'supplier'
+  - If codes include 'customer' -> type = 'customer'
+  - Otherwise -> type = 'prospect'
+  - Type field becomes read-only when company is selected
+```
+
+### CRM Dashboard Queries
+
+```text
+- Leads count (total) + by status breakdown
+- Open opportunities: filter out closed_won/closed_lost, sum value
+- Contacts count
+- Conversion rate: (converted leads / total leads) * 100
+- Quick action links to each CRM sub-module
 ```
 
