@@ -440,6 +440,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          journal_entry_id: string | null
           notes: string | null
           partner_address: string | null
           partner_id: string | null
@@ -461,6 +462,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number: string
+          journal_entry_id?: string | null
           notes?: string | null
           partner_address?: string | null
           partner_id?: string | null
@@ -482,6 +484,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          journal_entry_id?: string | null
           notes?: string | null
           partner_address?: string | null
           partner_id?: string | null
@@ -496,6 +499,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_partner_id_fkey"
             columns: ["partner_id"]
@@ -1163,6 +1173,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_inventory_stock: {
+        Args: {
+          p_created_by?: string
+          p_movement_type?: string
+          p_notes?: string
+          p_product_id: string
+          p_quantity: number
+          p_reference?: string
+          p_tenant_id: string
+          p_warehouse_id: string
+        }
+        Returns: string
+      }
+      create_journal_from_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: string
+      }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
@@ -1172,6 +1199,14 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      process_invoice_post: {
+        Args: { p_default_warehouse_id?: string; p_invoice_id: string }
+        Returns: string
+      }
+      seed_tenant_chart_of_accounts: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
       seed_tenant_tax_rates: {
         Args: { _tenant_id: string }
         Returns: undefined

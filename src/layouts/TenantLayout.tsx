@@ -35,13 +35,8 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 
-const tenantNav = [
+const mainNav = [
   { key: "dashboard" as const, url: "/dashboard", icon: LayoutDashboard },
-  { key: "settings" as const, url: "/settings", icon: Settings },
-  { key: "users" as const, url: "/settings/users", icon: Users },
-  { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
-  { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
-  { key: "partners" as const, url: "/settings/partners", icon: Handshake },
 ];
 
 const inventoryNav = [
@@ -57,6 +52,14 @@ const accountingNav = [
   { key: "fiscalPeriods" as const, url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "generalLedger" as const, url: "/accounting/ledger", icon: BookText },
   { key: "reports" as const, url: "/accounting/reports", icon: BarChart3 },
+];
+
+const settingsNav = [
+  { key: "companySettings" as const, url: "/settings", icon: Settings },
+  { key: "partners" as const, url: "/settings/partners", icon: Handshake },
+  { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
+  { key: "users" as const, url: "/settings/users", icon: Users },
+  { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
 ];
 
 export default function TenantLayout() {
@@ -78,15 +81,15 @@ export default function TenantLayout() {
           </div>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+              <SidebarGroupLabel>{t("dashboard")}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {tenantNav.map((item) => (
+                  {mainNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
                         <NavLink
                           to={item.url}
-                          end={item.url === "/dashboard"}
+                          end
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
@@ -129,6 +132,28 @@ export default function TenantLayout() {
                       <SidebarMenuButton asChild>
                         <NavLink
                           to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("settings")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {settingsNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          end={item.url === "/settings"}
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >

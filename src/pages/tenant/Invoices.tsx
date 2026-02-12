@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Send } from "lucide-react";
+import { Plus, Search, Send, BookOpen, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -51,15 +53,77 @@ export default function Invoices() {
     enabled: !!tenantId,
   });
 
+  const [markPaidDialog, setMarkPaidDialog] = useState<string | null>(null);
+
+  // Fetch warehouses for posting dialog
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ["warehouses", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  const [postDialog, setPostDialog] = useState<string | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+
+  // Post invoice: update status to sent + create journal entry + inventory movements
+  const postMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      // Update status to sent
+      const { error: updateError } = await supabase
+        .from("invoices")
+        .update({ status: "sent" })
+        .eq("id", invoiceId);
+      if (updateError) throw updateError;
+
+      // Create journal entry + inventory movements via RPC
+      const { error: rpcError } = await supabase.rpc("process_invoice_post", {
+        p_invoice_id: invoiceId,
+        p_default_warehouse_id: selectedWarehouse || null,
+      });
+      if (rpcError) throw rpcError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: t("success"), description: t("invoicePostedWithJournal") });
+      setPostDialog(null);
+      setSelectedWarehouse("");
+    },
+    onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
+  });
+
+  // Mark as paid: update status + create payment journal entry
+  const markPaidMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      const { error: updateError } = await supabase
+        .from("invoices")
+        .update({ status: "paid" })
+        .eq("id", invoiceId);
+      if (updateError) throw updateError;
+
+      const { error: rpcError } = await supabase.rpc("create_journal_from_invoice", {
+        p_invoice_id: invoiceId,
+      });
+      if (rpcError) throw rpcError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: t("success"), description: t("invoiceMarkedPaid") });
+      setMarkPaidDialog(null);
+    },
+    onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
+  });
+
   const sefMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      // Mock: set to submitted
       const { error } = await supabase
         .from("invoices")
         .update({ sef_status: "submitted" })
         .eq("id", invoiceId);
       if (error) throw error;
-      // Simulate acceptance after 2s
       setTimeout(async () => {
         await supabase
           .from("invoices")
@@ -151,18 +215,75 @@ export default function Invoices() {
                   <Badge variant="outline" className={sefColors[inv.sef_status] || ""}>{inv.sef_status.replace("_", " ")}</Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {inv.status === "sent" && inv.sef_status === "not_submitted" && (
-                    <Button size="sm" variant="outline" onClick={() => sefMutation.mutate(inv.id)}>
-                      <Send className="h-3 w-3 mr-1" />
-                      SEF
-                    </Button>
-                  )}
+                  <div className="flex gap-1">
+                    {inv.status === "draft" && (
+                      <Button size="sm" variant="outline" onClick={() => setPostDialog(inv.id)}>
+                        <BookOpen className="h-3 w-3 mr-1" />
+                        {t("postInvoice")}
+                      </Button>
+                    )}
+                    {inv.status === "sent" && (
+                      <Button size="sm" variant="outline" onClick={() => setMarkPaidDialog(inv.id)}>
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        {t("paid")}
+                      </Button>
+                    )}
+                    {inv.status === "sent" && inv.sef_status === "not_submitted" && (
+                      <Button size="sm" variant="outline" onClick={() => sefMutation.mutate(inv.id)}>
+                        <Send className="h-3 w-3 mr-1" />
+                        SEF
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      {/* Post Invoice Dialog */}
+      <Dialog open={!!postDialog} onOpenChange={() => setPostDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("postInvoice")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("postInvoiceDescription")}</p>
+          <div>
+            <Label>{t("warehouse")} ({t("optional")})</Label>
+            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+              <SelectTrigger><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">{t("noWarehouse")}</SelectItem>
+                {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">{t("warehouseHint")}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPostDialog(null)}>{t("cancel")}</Button>
+            <Button onClick={() => postDialog && postMutation.mutate(postDialog)} disabled={postMutation.isPending}>
+              {t("postInvoice")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Paid Dialog */}
+      <Dialog open={!!markPaidDialog} onOpenChange={() => setMarkPaidDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("markAsPaid")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("markAsPaidDescription")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarkPaidDialog(null)}>{t("cancel")}</Button>
+            <Button onClick={() => markPaidDialog && markPaidMutation.mutate(markPaidDialog)} disabled={markPaidMutation.isPending}>
+              {t("confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
