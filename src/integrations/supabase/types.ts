@@ -316,6 +316,7 @@ export type Database = {
           invoice_number: string
           notes: string | null
           partner_address: string | null
+          partner_id: string | null
           partner_name: string
           partner_pib: string | null
           sef_status: string
@@ -336,6 +337,7 @@ export type Database = {
           invoice_number: string
           notes?: string | null
           partner_address?: string | null
+          partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
           sef_status?: string
@@ -356,6 +358,7 @@ export type Database = {
           invoice_number?: string
           notes?: string | null
           partner_address?: string | null
+          partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
           sef_status?: string
@@ -367,6 +370,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -617,6 +627,62 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      partners: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string
+          created_at: string
+          id: string
+          is_active: boolean
+          maticni_broj: string | null
+          name: string
+          pib: string | null
+          postal_code: string | null
+          tenant_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          maticni_broj?: string | null
+          name: string
+          pib?: string | null
+          postal_code?: string | null
+          tenant_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          maticni_broj?: string | null
+          name?: string
+          pib?: string | null
+          postal_code?: string | null
+          tenant_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

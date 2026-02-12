@@ -210,6 +210,20 @@ export const translations = {
     // Tax Rates
     taxRates: "Tax Rates",
 
+    // Partners
+    partners: "Partners",
+    addPartner: "Add Partner",
+    editPartner: "Edit Partner",
+    customer: "Customer",
+    supplier: "Supplier",
+    both: "Both",
+    allTypes: "All Types",
+    selectPartner: "Select Partner",
+    noPartner: "No partner (manual entry)",
+    draftJournalEntries: "Draft Journal Entries",
+    overdueInvoices: "Overdue Invoices",
+    newJournalEntry: "New Journal Entry",
+
     // Reports
     reports: "Reports",
     trialBalance: "Trial Balance",
@@ -430,6 +444,20 @@ export const translations = {
 
     // Tax Rates
     taxRates: "Poreske stope",
+
+    // Partners
+    partners: "Partneri",
+    addPartner: "Dodaj partnera",
+    editPartner: "Izmeni partnera",
+    customer: "Kupac",
+    supplier: "Dobavljač",
+    both: "Oba",
+    allTypes: "Svi tipovi",
+    selectPartner: "Izaberite partnera",
+    noPartner: "Bez partnera (ručni unos)",
+    draftJournalEntries: "Nalozi u nacrtu",
+    overdueInvoices: "Dospele fakture",
+    newJournalEntry: "Novi nalog",
 
     // Reports
     reports: "Izveštaji",

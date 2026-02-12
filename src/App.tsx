@@ -44,6 +44,7 @@ import Reports from "@/pages/tenant/Reports";
 import TrialBalance from "@/pages/tenant/TrialBalance";
 import IncomeStatement from "@/pages/tenant/IncomeStatement";
 import BalanceSheet from "@/pages/tenant/BalanceSheet";
+import Partners from "@/pages/tenant/Partners";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ const App = () => (
                 <Route path="accounting/reports/income-statement" element={<IncomeStatement />} />
                 <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
                 <Route path="settings/tax-rates" element={<TaxRates />} />
+                <Route path="settings/partners" element={<Partners />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

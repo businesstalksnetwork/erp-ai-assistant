@@ -29,6 +29,7 @@ import {
   BookText,
   BarChart3,
   Percent,
+  Handshake,
 } from "lucide-react";
 
 const tenantNav = [
@@ -37,6 +38,7 @@ const tenantNav = [
   { key: "users" as const, url: "/settings/users", icon: Users },
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
   { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
+  { key: "partners" as const, url: "/settings/partners", icon: Handshake },
 ];
 
 const accountingNav = [
