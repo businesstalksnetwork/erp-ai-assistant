@@ -1,187 +1,114 @@
 
+# Divide Salespeople: In-Store (Prodavac) vs. Komercijalista (Wholesale Agent)
 
-# Add Web Sales Module with E-Commerce Connections (Shopify, WooCommerce, Custom)
+## Problem
 
-## Overview
+Currently all salespeople are treated the same. In reality there are two distinct roles:
 
-Add a new **"Web" (Web Prodaja)** module that is separate from Retail. Web Sales is an enable/disable module managed by Super Admin (like all other modules). When enabled, it appears in tenant Settings with connection configuration for Shopify, WooCommerce, or a Custom API endpoint.
+1. **Prodavac (In-Store Salesperson)** -- works in a retail shop, sells to walk-in customers via POS, tracked per-store
+2. **Komercijalista (Commercial Agent)** -- works on wholesale deals, connected to CRM opportunities/leads/quotes, not tied to a single store
 
-## What Changes
+Analytics should reflect this split: in-store leaderboards per shop, and komercijalista performance by deals/pipeline value.
 
-### 1. Database Migration
+## Part 1: Database Migration
 
-**New table: `web_connections`** -- stores e-commerce platform credentials per tenant
+**ALTER `salespeople`** -- add role type and default location:
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| platform | text | 'shopify' / 'woocommerce' / 'custom' |
-| store_url | text | e.g. mystore.myshopify.com |
-| api_key | text | encrypted key / consumer key |
-| api_secret | text | nullable, for WooCommerce consumer secret |
-| access_token | text | nullable, for Shopify access token |
-| webhook_secret | text | nullable |
-| is_active | boolean | default false |
-| last_sync_at | timestamptz | nullable |
-| last_error | text | nullable |
-| config | jsonb | default '{}', platform-specific settings |
-| created_at | timestamptz | |
+```text
+ADD COLUMN role_type text NOT NULL DEFAULT 'in_store'
+  -- values: 'in_store' (prodavac) or 'wholesale' (komercijalista)
+ADD COLUMN default_location_id uuid REFERENCES locations(id)
+  -- the shop this in-store person primarily works at (nullable for wholesale agents)
+```
 
-RLS: scoped by tenant_id.
+## Part 2: Salespeople.tsx -- Role Type in CRUD
 
-**New table: `web_price_lists`** -- web-specific price lists (separate from retail)
+- Add `role_type` selector in add/edit dialog: "Prodavac (In-Store)" or "Komercijalista (Wholesale)"
+- When role_type = 'in_store', show a **default location** dropdown (pick from shop/branch locations)
+- When role_type = 'wholesale', hide location field
+- Show role type as a badge in the table (different colors)
+- Add filter tabs or dropdown: All / In-Store / Wholesale
+- Update stats cards to show count per type
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| web_connection_id | uuid FK web_connections | nullable (null = all web channels) |
-| name | text | |
-| is_default | boolean | default false |
-| is_active | boolean | default true |
-| created_at | timestamptz | |
+## Part 3: SalesPerformance.tsx -- Split Analytics
 
-**New table: `web_prices`** -- product prices for web channels
+Restructure into **two tabs**: "In-Store (Maloprodaja)" and "Wholesale (Veleprodaja)"
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| price_list_id | uuid FK web_price_lists | |
-| product_id | uuid FK products | |
-| web_price | numeric | |
-| compare_at_price | numeric | nullable (for "was X, now Y" display) |
-| valid_from | date | |
-| valid_until | date | nullable |
-| created_at | timestamptz | |
-| UNIQUE (price_list_id, product_id, valid_from) | |
+### Tab 1: In-Store Performance
+- Filter by store (location)
+- KPI cards: Retail Revenue, POS Transactions, Avg Transaction, Active Sellers
+- **Per-Store Leaderboard**: table showing best in-store salespeople per selected shop -- ranked by POS transaction revenue
+- Bar chart: revenue by in-store salesperson (filtered by store)
+- Pie chart: revenue by store (across all in-store people)
+- Data source: `pos_transactions` where `salesperson.role_type = 'in_store'`
 
-**Insert into `module_definitions`**: Add a row with key='web', name='Web Sales', so Super Admin can enable/disable it per tenant.
+### Tab 2: Wholesale Performance
+- KPI cards: Wholesale Revenue (invoices), Pipeline Value (opportunities), Avg Deal Size, Win Rate
+- Leaderboard: komercijalista ranked by invoice revenue + pipeline value
+- Bar chart: revenue by komercijalista
+- Pie chart: won deals by komercijalista
+- Data sources: `invoices`, `opportunities`, `quotes` where `salesperson.role_type = 'wholesale'`
 
-### 2. New Page: `src/pages/tenant/WebSettings.tsx`
+## Part 4: CrmDashboard.tsx -- Komercijalista Widget
 
-Web module settings page accessible from tenant Settings. Contains:
+Add a "Top Komercijalisti" card showing the top 5 wholesale agents by opportunity pipeline value this month. This makes sense in CRM because komercijalisti are the ones working CRM deals.
 
-- **Connection cards** -- list configured web connections (Shopify, WooCommerce, Custom)
-- **Add Connection** button opens a dialog:
-  - Platform selector (Shopify / WooCommerce / Custom)
-  - Platform-specific fields:
-    - **Shopify**: Store URL, API Key, Access Token
-    - **WooCommerce**: Store URL, Consumer Key, Consumer Secret
-    - **Custom**: API URL, API Key, Webhook Secret
-  - Test Connection button
-  - Active/Inactive toggle
-- **Connection status** -- shows active/inactive badge, last sync time, errors
-- Edit / Delete existing connections
+- Query opportunities joined with salespeople where `role_type = 'wholesale'`
+- Small bar chart or ranked list with pipeline value per person
 
-### 3. New Page: `src/pages/tenant/WebPrices.tsx`
+## Part 5: Translations (~15 new keys)
 
-Mirrors RetailPrices.tsx but for web pricing:
-- Web price list CRUD (can be tied to a specific web connection or all)
-- Product price editor with web_price + compare_at_price (strike-through pricing)
-- Bulk pricing tools
-
-### 4. Navigation and Routing
-
-**New nav group in sidebar: "Web" (Web Prodaja)** -- only visible when `canAccess("web")`
-- Web Settings (connection management)
-- Web Prices
-
-**`App.tsx`** -- 2 new routes:
-- `/web/settings` -> WebSettings
-- `/web/prices` -> WebPrices
-
-**`TenantLayout.tsx`**:
-- New `webNav` array with globe icon accent color (e.g. `bg-indigo-400`)
-- Guarded by `canAccess("web")`
-
-### 5. Settings Page Update
-
-**`src/pages/tenant/Settings.tsx`**: Add a "Web Sales" card linking to `/web/settings` (only shown when web module is enabled)
-
-### 6. RBAC Update
-
-**`src/config/rolePermissions.ts`**:
-- Add `"web"` to `ModuleGroup` type
-- Add to `ALL_MODULES`
-- Grant to `admin`, `manager`, `sales` roles
-- Add route mapping `"/web/": "web"`
-
-### 7. Translations
-
-Add ~20 keys for EN/SR:
-- webSales / Web prodaja
-- webConnection / Web konekcija
-- shopify / Shopify
-- woocommerce / WooCommerce
-- customApi / Prilagodjen API
-- storeUrl / URL prodavnice
-- accessToken / Pristupni token
-- consumerKey / Potrošački ključ
-- consumerSecret / Potrošačka tajna
-- webhookSecret / Webhook tajna
-- compareAtPrice / Uporedna cena
-- webPrice / Web cena
-- webPriceList / Web cenovnik
-- testConnection / Testiraj konekciju
-- syncProducts / Sinhronizuj proizvode
-- platform / Platforma
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/pages/tenant/WebSettings.tsx` | Web connection management (Shopify/WooCommerce/Custom) |
-| `src/pages/tenant/WebPrices.tsx` | Web-specific price lists and pricing |
+| Key | EN | SR |
+|-----|----|----|
+| roleType | Role Type | Tip uloge |
+| inStore | In-Store | Prodavac |
+| wholesale | Wholesale | Komercijalista |
+| inStorePerformance | In-Store Performance | Performanse prodavaca |
+| wholesalePerformance | Wholesale Performance | Performanse komercijalista |
+| defaultLocation | Default Location | Podrazumevana lokacija |
+| topKomercijalisti | Top Commercial Agents | Najbolji komercijalisti |
+| retailRevenue | Retail Revenue | Maloprodajni prihod |
+| wholesaleRevenue | Wholesale Revenue | Veleprodajni prihod |
+| posTransactions | POS Transactions | POS transakcije |
+| activeSellers | Active Sellers | Aktivni prodavci |
+| pipelineValueKom | Pipeline Value | Vrednost pipeline-a |
+| wonDeals | Won Deals | Dobijeni poslovi |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| Migration SQL | Create `web_connections`, `web_price_lists`, `web_prices` tables + insert module_definitions row |
-| `src/integrations/supabase/types.ts` | Add types for new tables |
-| `src/layouts/TenantLayout.tsx` | Add `webNav` group with globe icon |
-| `src/App.tsx` | Add 2 new routes under `/web/` |
-| `src/config/rolePermissions.ts` | Add `"web"` module group |
-| `src/pages/tenant/Settings.tsx` | Add Web Sales card (conditional on module access) |
-| `src/i18n/translations.ts` | Add ~20 translation keys |
+| New migration SQL | ALTER salespeople: add `role_type`, `default_location_id` |
+| `src/integrations/supabase/types.ts` | Add new columns to Salespeople type |
+| `src/pages/tenant/Salespeople.tsx` | Role type selector, location dropdown, filter tabs, type badges |
+| `src/pages/tenant/SalesPerformance.tsx` | Two-tab layout (In-Store vs Wholesale), per-store leaderboard, separate data sources |
+| `src/pages/tenant/CrmDashboard.tsx` | Top Komercijalisti widget card |
+| `src/i18n/translations.ts` | ~15 new keys |
 
 ## Technical Notes
 
-### Price Hierarchy (complete picture)
+### Analytics Data Flow
 
 ```text
-Retail (Maloprodaja):
-  retail_price_lists -> retail_prices (PDV-inclusive, per-shop)
+In-Store (Prodavac):
+  pos_transactions.salesperson_id -> salespeople WHERE role_type = 'in_store'
+  Grouped by: location_id (which shop), salesperson_id
+  Metrics: transaction count, total revenue, avg transaction value
 
-Web (Web Prodaja):
-  web_price_lists -> web_prices (per web channel, with compare_at_price)
-
-Wholesale (Veleprodaja):
-  products.default_sale_price (base wholesale)
-
-All three are independent pricing tiers.
+Wholesale (Komercijalista):
+  invoices.salesperson_id -> salespeople WHERE role_type = 'wholesale'
+  opportunities.salesperson_id -> salespeople WHERE role_type = 'wholesale'
+  quotes.salesperson_id -> salespeople WHERE role_type = 'wholesale'
+  Metrics: invoice revenue, pipeline value, deal count, win rate, avg deal size
 ```
 
-### Connection Platform Config
+### Per-Store In-Store Leaderboard Logic
 
 ```text
-Shopify:
-  - store_url: "mystore.myshopify.com"
-  - api_key: Shopify API key
-  - access_token: Shopify Admin API access token
-  - config: { api_version: "2024-01" }
-
-WooCommerce:
-  - store_url: "https://mystore.com"
-  - api_key: WooCommerce consumer key (ck_xxx)
-  - api_secret: WooCommerce consumer secret (cs_xxx)
-  - config: { version: "wc/v3" }
-
-Custom:
-  - store_url: "https://api.mystore.com"
-  - api_key: Bearer token or API key
-  - webhook_secret: for incoming webhooks
-  - config: { headers: {}, auth_type: "bearer" }
+When store A1 is selected:
+  1. Get all pos_transactions WHERE location_id = A1
+  2. Group by salesperson_id
+  3. For each in-store salesperson: sum revenue, count transactions
+  4. Rank by revenue descending
+  5. Show: #, Name, Revenue, Transactions, Avg Transaction, Commission
 ```
-
