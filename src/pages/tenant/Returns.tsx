@@ -1,5 +1,6 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 const RETURN_STATUSES = ["draft", "inspecting", "approved", "resolved", "cancelled"] as const;
 const REASONS = ["defective", "wrong_item", "damaged", "not_needed", "other"] as const;
@@ -82,6 +84,7 @@ const emptyShipmentForm: ShipmentForm = {
 export default function Returns() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   // Return Cases state
@@ -139,7 +142,7 @@ export default function Returns() {
   const { data: products = [] } = useQuery({
     queryKey: ["products-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      const { data } = await supabase.from("products").select("id, name, default_purchase_price, default_sale_price").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -154,6 +157,88 @@ export default function Returns() {
     enabled: !!tenantId,
   });
 
+  // Post accounting entries when a return case is resolved
+  const postReturnAccounting = async (caseId: string, returnType: string, lines: ReturnLine[]) => {
+    if (!tenantId) return;
+    const entryDate = new Date().toISOString().split("T")[0];
+    const acceptedLines = lines.filter(l => l.quantity_accepted > 0 && l.product_id);
+
+    if (acceptedLines.length === 0) return;
+
+    // Get first warehouse for restock
+    const defaultWarehouse = warehouses[0];
+
+    if (returnType === "customer") {
+      // Customer return: restock inventory + COGS reversal + credit note journal
+      for (const line of acceptedLines) {
+        const product = products.find((p: any) => p.id === line.product_id);
+        const unitCost = product?.default_purchase_price || 0;
+        const unitPrice = product?.default_sale_price || 0;
+        const costValue = line.quantity_accepted * unitCost;
+        const revenueValue = line.quantity_accepted * unitPrice;
+
+        // Restock inventory
+        if (defaultWarehouse) {
+          await supabase.rpc("adjust_inventory_stock", {
+            p_tenant_id: tenantId,
+            p_product_id: line.product_id!,
+            p_warehouse_id: defaultWarehouse.id,
+            p_quantity: line.quantity_accepted,
+            p_movement_type: "in",
+            p_notes: `Return restock - ${caseId}`,
+            p_created_by: user?.id || null,
+            p_reference: `RET-${caseId}`,
+          });
+        }
+
+        // COGS reversal: Debit 1200 (Inventory) / Credit 7000 (COGS)
+        if (costValue > 0) {
+          await createCodeBasedJournalEntry({
+            tenantId, userId: user?.id || null, entryDate,
+            description: `Return Restock - ${product?.name || line.product_id}`,
+            reference: `RET-RESTOCK-${caseId}`,
+            lines: [
+              { accountCode: "1200", debit: costValue, credit: 0, description: `Restock inventory`, sortOrder: 0 },
+              { accountCode: "7000", debit: 0, credit: costValue, description: `Reverse COGS`, sortOrder: 1 },
+            ],
+          });
+        }
+
+        // Credit note journal: Debit 4000 (Revenue) / Credit 1200 (AR)
+        if (revenueValue > 0) {
+          await createCodeBasedJournalEntry({
+            tenantId, userId: user?.id || null, entryDate,
+            description: `Credit Note - ${product?.name || line.product_id}`,
+            reference: `RET-CN-${caseId}`,
+            lines: [
+              { accountCode: "4000", debit: revenueValue, credit: 0, description: `Reverse revenue`, sortOrder: 0 },
+              { accountCode: "1200", debit: 0, credit: revenueValue, description: `Credit AR`, sortOrder: 1 },
+            ],
+          });
+        }
+      }
+    } else {
+      // Supplier return: Debit 2100 (AP) / Credit 1200 (Inventory)
+      let totalValue = 0;
+      for (const line of acceptedLines) {
+        const product = products.find((p: any) => p.id === line.product_id);
+        totalValue += line.quantity_accepted * (product?.default_purchase_price || 0);
+      }
+
+      if (totalValue > 0) {
+        await createCodeBasedJournalEntry({
+          tenantId, userId: user?.id || null, entryDate,
+          description: `Supplier Return - ${caseId}`,
+          reference: `RET-SUPP-${caseId}`,
+          lines: [
+            { accountCode: "2100", debit: totalValue, credit: 0, description: `Clear AP for return`, sortOrder: 0 },
+            { accountCode: "1200", debit: 0, credit: totalValue, description: `Remove returned inventory`, sortOrder: 1 },
+          ],
+        });
+      }
+    }
+  };
+
   // Return case mutation
   const rcMutation = useMutation({
     mutationFn: async (f: ReturnForm) => {
@@ -163,6 +248,8 @@ export default function Returns() {
         partner_id: f.partner_id || null, status: f.status, notes: f.notes || null,
       };
       let caseId = rcEditId;
+      const previousStatus = rcEditId ? returnCases.find((rc: any) => rc.id === rcEditId)?.status : null;
+
       if (rcEditId) {
         const { error } = await supabase.from("return_cases").update(payload).eq("id", rcEditId);
         if (error) throw error;
@@ -182,8 +269,18 @@ export default function Returns() {
         const { error } = await supabase.from("return_lines").insert(lines);
         if (error) throw error;
       }
+
+      // Post accounting entries when status changes to "resolved"
+      if (f.status === "resolved" && previousStatus !== "resolved" && caseId) {
+        await postReturnAccounting(caseId, f.return_type, f.lines);
+      }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["return-cases"] }); setRcOpen(false); toast.success(t("success")); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["return-cases"] });
+      const wasResolved = rcForm.status === "resolved";
+      toast.success(wasResolved ? (t("returnPosted" as any) || t("success")) : t("success"));
+      setRcOpen(false);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
