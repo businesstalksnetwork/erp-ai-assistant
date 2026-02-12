@@ -1,104 +1,145 @@
 
+# ERP-AI — Remaining Implementation Phases
 
-# Phase 2: Tenant Admin Settings — CRUD Sub-Pages
-
-Build out the settings pages that Tenant Admins use to configure their organization. The Settings page already links to these routes, but the pages don't exist yet.
-
----
-
-## What gets built
-
-### 1. Legal Entities Management (`/settings/legal-entities`)
-- Table listing all legal entities for the tenant
-- Add/Edit dialog: name, PIB, maticni broj, address, city, postal code, country
-- Delete with confirmation
-- Data from `legal_entities` table (RLS already configured)
-
-### 2. Locations Management (`/settings/locations`)
-- Table of offices, shops, etc.
-- Add/Edit dialog: name, type (office/shop/branch), address, city
-- Active/Inactive toggle
-- Data from `locations` table
-
-### 3. Warehouses Management (`/settings/warehouses`)
-- Table of warehouses with optional location link
-- Add/Edit dialog: name, code, linked location (dropdown), active toggle
-- Data from `warehouses` table
-
-### 4. Sales Channels (`/settings/sales-channels`)
-- Table: name, type (retail/wholesale/web/marketplace)
-- Add/Edit dialog
-- Data from `sales_channels` table
-
-### 5. Cost Centers (`/settings/cost-centers`)
-- Table: code, name, active status
-- Add/Edit dialog
-- Data from `cost_centers` table
-
-### 6. Bank Accounts (`/settings/bank-accounts`)
-- Table: bank name, account number, currency, primary flag
-- Add/Edit dialog with legal entity selector
-- Data from `bank_accounts` table
-
-### 7. Placeholder pages for API Configuration and Business Rules
-- `/settings/integrations` — placeholder with "Coming soon" card
-- `/settings/business-rules` — placeholder with "Coming soon" card
+Below is the full roadmap from where we are now through completion. Phases 1, 1.5, and 2 are done (Foundation, Super Admin Panel, Tenant Settings CRUD).
 
 ---
 
-## Shared pattern
+## Phase 3: Accounting and Finance Module
 
-All CRUD pages follow the same pattern:
-- A reusable data table with search
-- Add button opens a Dialog form
-- Edit/Delete actions per row
-- Toast notifications on success/error
-- Uses `useQuery` and `useMutation` from TanStack Query
-- Tenant scoping handled automatically by RLS
+The core of the ERP — Serbian-compliant bookkeeping and invoicing.
 
----
+**What gets built:**
+- Chart of Accounts management (kontni plan) with Serbian standard account structure
+- General Ledger (glavna knjiga) with double-entry bookkeeping
+- Journal entries — manual and automated posting
+- Invoicing (fakture) — create, send, track sales invoices
+- SEF eFaktura integration (mock API initially) for government e-invoice submission
+- PDV (VAT) calculation and reporting per Serbian tax rules
+- Accounts Payable — vendor bills, payment scheduling
+- Accounts Receivable — customer balances, aging reports
+- Bank statement import and reconciliation
+- Financial reports: Balance Sheet (bilans stanja), Income Statement (bilans uspeha), Trial Balance
+- Fiscal year management and period closing
+- Multi-currency support with NBS exchange rates (mock)
 
-## Routing
+**New database tables:** chart_of_accounts, journal_entries, journal_lines, invoices, invoice_lines, payments, bank_statements, tax_rates, fiscal_periods
 
-Add all new routes under the existing TenantLayout in `App.tsx`:
-```
-/settings/legal-entities
-/settings/locations
-/settings/warehouses
-/settings/sales-channels
-/settings/cost-centers
-/settings/bank-accounts
-/settings/integrations
-/settings/business-rules
-```
+**New routes:** `/accounting/chart-of-accounts`, `/accounting/journal`, `/accounting/invoices`, `/accounting/payables`, `/accounting/receivables`, `/accounting/reports`, `/accounting/bank-reconciliation`
 
 ---
 
-## i18n
+## Phase 4: Sales and CRM Module
 
-Add translation keys for all new page titles, form labels, and messages in both English and Serbian.
+Customer management and the sales pipeline.
+
+**What gets built:**
+- Customer/Partner registry (kupci/dobavljaci) with PIB lookup
+- Sales orders and quotes (ponude/narudzbenice)
+- Sales pipeline / CRM board (Kanban view)
+- Price lists and discount rules
+- Delivery notes (otpremnice)
+- Sales reports and analytics (by channel, rep, period)
+- Customer communication log
+- AI-powered sales forecasting and customer scoring
+
+**New database tables:** partners, sales_orders, sales_order_lines, price_lists, price_list_items, delivery_notes, crm_opportunities, crm_activities
+
+**New routes:** `/sales/partners`, `/sales/orders`, `/sales/quotes`, `/sales/pipeline`, `/sales/price-lists`, `/sales/reports`
 
 ---
 
-## Files
+## Phase 5: Inventory and Warehouse Module
 
-| Action | File |
-|--------|------|
-| Create | `src/pages/tenant/LegalEntities.tsx` |
-| Create | `src/pages/tenant/Locations.tsx` |
-| Create | `src/pages/tenant/Warehouses.tsx` |
-| Create | `src/pages/tenant/SalesChannels.tsx` |
-| Create | `src/pages/tenant/CostCenters.tsx` |
-| Create | `src/pages/tenant/BankAccounts.tsx` |
-| Create | `src/pages/tenant/Integrations.tsx` |
-| Create | `src/pages/tenant/BusinessRules.tsx` |
-| Modify | `src/App.tsx` — add routes |
-| Modify | `src/i18n/translations.ts` — add keys |
+Stock tracking across warehouses and locations.
 
-## Technical notes
+**What gets built:**
+- Product/Item catalog with categories, SKUs, barcodes
+- Stock levels per warehouse with real-time tracking
+- Goods receipt (prijem robe) and goods issue (izdavanje)
+- Stock transfers between warehouses
+- Inventory count / stocktaking
+- Minimum stock alerts and reorder points
+- Serial number and batch tracking
+- Inventory valuation (FIFO, weighted average)
+- Inventory reports: stock status, movement history, valuation
 
-- Each page needs the user's tenant ID. We'll get it from `tenant_members` via `useAuth` user ID, or add a `useTenant` hook that fetches the active tenant membership.
-- All queries use `supabase.from("table").select("*").eq("tenant_id", tenantId)`.
-- Mutations use `.insert()`, `.update()`, `.delete()` with appropriate tenant scoping.
-- A new `src/hooks/useTenant.ts` hook will be created to fetch and cache the current user's tenant ID.
+**New database tables:** products, product_categories, stock_levels, stock_movements, inventory_counts, inventory_count_lines
 
+**New routes:** `/inventory/products`, `/inventory/stock`, `/inventory/receipts`, `/inventory/issues`, `/inventory/transfers`, `/inventory/counts`, `/inventory/reports`
+
+---
+
+## Phase 6: HR and Payroll Module
+
+Employee management and Serbian payroll compliance.
+
+**What gets built:**
+- Employee registry with personal data, contracts, documents
+- Organizational structure (departments, positions)
+- Attendance tracking and leave management (godisnji odmor, bolovanje)
+- Payroll calculation per Serbian labor law (gross-to-net, contributions)
+- Payslip generation (obracunski listic)
+- Tax and contribution reports for government submission
+- Employee self-service portal (view payslips, request leave)
+- AI-powered workforce analytics
+
+**New database tables:** employees, departments, positions, contracts, attendance, leave_requests, payroll_runs, payroll_lines, payslips
+
+**New routes:** `/hr/employees`, `/hr/departments`, `/hr/attendance`, `/hr/leave`, `/hr/payroll`, `/hr/reports`
+
+---
+
+## Phase 7: Advanced Modules
+
+Three specialized modules that build on the foundation.
+
+### 7a. Production / Manufacturing
+- Bill of Materials (BOM) and recipes
+- Production orders and work orders
+- Material requirements planning (MRP)
+- Production cost tracking
+- Quality control checkpoints
+
+### 7b. Document Management System (DMS)
+- Document upload, categorization, and storage (Supabase Storage)
+- Document linking to entities (invoices, orders, employees)
+- Version control and audit trail
+- OCR integration for scanned documents (AI-powered)
+- Document templates and generation
+
+### 7c. Point of Sale (POS)
+- POS terminal interface (touch-optimized)
+- Fiscal printer integration (Serbian fiscal law compliance)
+- Cash register management
+- Daily Z-report (dnevni izvestaj)
+- Integration with inventory for real-time stock deduction
+
+---
+
+## Phase 8: Platform Polish and Go-Live
+
+Final hardening before production use.
+
+**What gets built:**
+- Notification system (in-app + email)
+- Advanced role-based permissions (granular per-module access)
+- Data export (CSV, PDF reports)
+- Onboarding wizard for new tenants (guided setup)
+- Performance optimization and caching
+- Mobile-responsive refinements
+- Comprehensive error handling and user feedback
+- End-to-end testing suite
+- Documentation and help system
+
+---
+
+## Recommended next step
+
+**Phase 3 (Accounting and Finance)** is the logical next step — it's the heart of any ERP and the most critical module for Serbian businesses. I recommend breaking it into sub-phases:
+- 3a: Chart of Accounts + Journal Entries
+- 3b: Invoicing + SEF integration
+- 3c: AP/AR + Bank Reconciliation
+- 3d: Financial Reports + Period Closing
+
+Would you like to start with Phase 3a?
