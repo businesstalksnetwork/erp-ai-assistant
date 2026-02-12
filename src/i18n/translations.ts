@@ -960,6 +960,25 @@ export const translations = {
     dmsCategoriesEmpty: "No categories configured. Seed data required.",
     sender: "Sender",
     recipient: "Recipient",
+
+    // UX Redesign
+    cashFlow: "Cash Flow",
+    topCustomers: "Top Customers",
+    moduleHealth: "Module Health",
+    leadFunnel: "Lead Funnel",
+    pipeline: "Pipeline",
+    winLoss: "Win / Loss",
+    welcomeBack: "Welcome back",
+    navigation: "Navigation",
+    recentlyAdded: "Recently Added",
+    conversionRate: "Conversion Rate",
+    pipelineValue: "Pipeline Value",
+    winRate: "Win Rate",
+    avgDealSize: "Avg Deal Size",
+    totalContacts: "Total Contacts",
+    totalCompanies: "Total Companies",
+    totalLeads: "Total Leads",
+    openOpportunities: "Open Opportunities",
   },
   sr: {
     // Auth
@@ -1922,6 +1941,25 @@ export const translations = {
     dmsCategoriesEmpty: "Nema konfigurisanih kategorija. Potrebni početni podaci.",
     sender: "Pošiljalac",
     recipient: "Primalac",
+
+    // UX Redesign
+    cashFlow: "Novčani tok",
+    topCustomers: "Top kupci",
+    moduleHealth: "Zdravlje modula",
+    leadFunnel: "Tok lidova",
+    pipeline: "Pipeline",
+    winLoss: "Dobijeno / Izgubljeno",
+    welcomeBack: "Dobrodošli nazad",
+    navigation: "Navigacija",
+    recentlyAdded: "Nedavno dodato",
+    conversionRate: "Stopa konverzije",
+    pipelineValue: "Vrednost pipeline-a",
+    winRate: "Stopa uspeha",
+    avgDealSize: "Prosečna veličina posla",
+    totalContacts: "Ukupno kontakata",
+    totalCompanies: "Ukupno firmi",
+    totalLeads: "Ukupno lidova",
+    openOpportunities: "Otvorene prilike",
   },
 } as const;
 

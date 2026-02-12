@@ -4,9 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Target, TrendingUp, Users, Building2, Loader2, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { StatsBar } from "@/components/shared/StatsBar";
+import { LeadFunnelChart } from "@/components/crm/LeadFunnelChart";
+import { OpportunityPipelineChart } from "@/components/crm/OpportunityPipelineChart";
+import { WinLossChart } from "@/components/crm/WinLossChart";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function CrmDashboard() {
   const { t } = useLanguage();
@@ -55,14 +60,11 @@ export default function CrmDashboard() {
 
   const openOpps = opps.filter((o: any) => o.stage !== "closed_won" && o.stage !== "closed_lost");
   const pipelineValue = openOpps.reduce((sum: number, o: any) => sum + (o.value || 0), 0);
-  const wonValue = opps.filter((o: any) => o.stage === "closed_won").reduce((sum: number, o: any) => sum + (o.value || 0), 0);
+  const wonOpps = opps.filter((o: any) => o.stage === "closed_won");
+  const lostOpps = opps.filter((o: any) => o.stage === "closed_lost");
+  const winRate = wonOpps.length + lostOpps.length > 0 ? Math.round((wonOpps.length / (wonOpps.length + lostOpps.length)) * 100) : 0;
 
   const fmt = (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: "RSD", maximumFractionDigits: 0 }).format(n);
-
-  const leadsByStatus = ["new", "contacted", "qualified", "converted", "lost"].map(s => ({
-    status: s,
-    count: leads.filter((l: any) => l.status === s).length,
-  }));
 
   const isLoading = leadsLoading || oppsLoading;
 
@@ -72,71 +74,32 @@ export default function CrmDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{t("crm")} — {t("dashboard")}</h1>
+      <PageHeader title={`${t("crm")} — ${t("dashboard")}`} icon={Target} />
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/crm/leads")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("leads")}</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalLeads}</div>
-            <p className="text-xs text-muted-foreground">{t("converted")}: {convertedLeads} ({conversionRate}%)</p>
-          </CardContent>
-        </Card>
+      {/* Stats Bar */}
+      <StatsBar
+        stats={[
+          { label: t("totalContacts"), value: contactsCount, icon: Users, color: "text-primary" },
+          { label: t("totalLeads"), value: totalLeads, icon: Target, color: "text-accent" },
+          { label: t("pipelineValue"), value: fmt(pipelineValue), icon: TrendingUp, color: "text-primary" },
+          { label: t("winRate"), value: `${winRate}%`, icon: Building2, color: "text-accent" },
+        ]}
+      />
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/crm/opportunities")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("opportunities")}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{fmt(pipelineValue)}</div>
-            <p className="text-xs text-muted-foreground">{openOpps.length} {t("open").toLowerCase()} · {t("closed_won")}: {fmt(wonValue)}</p>
-          </CardContent>
-        </Card>
+      {/* AI Insights for CRM */}
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="crm" />}
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/crm/contacts")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("contacts")}</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{contactsCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/crm/companies")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("companies")}</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{companiesCount}</div>
-          </CardContent>
-        </Card>
+      {/* Charts Row 1 */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <LeadFunnelChart leads={leads as any} />
+        <OpportunityPipelineChart opportunities={opps as any} />
       </div>
 
-      {/* Lead Funnel */}
+      {/* Charts Row 2 */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("leads")} — {t("status")}</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {leadsByStatus.map(ls => (
-                <div key={ls.status} className="flex items-center justify-between">
-                  <Badge variant={ls.status === "converted" ? "default" : ls.status === "lost" ? "destructive" : "secondary"}>
-                    {t(ls.status as any) || ls.status}
-                  </Badge>
-                  <span className="text-sm font-medium">{ls.count}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <WinLossChart opportunities={opps as any} />
 
+        {/* Quick Actions */}
         <Card>
           <CardHeader><CardTitle className="text-base">{t("quickActions")}</CardTitle></CardHeader>
           <CardContent className="space-y-2">

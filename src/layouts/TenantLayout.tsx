@@ -7,6 +7,8 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -30,58 +32,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard,
-  Settings,
-  Users,
-  FileText,
-  BookOpen,
-  Calculator,
-  CalendarDays,
-  Receipt,
-  BookText,
-  BarChart3,
-  Percent,
-  Handshake,
-  Package,
-  Warehouse,
-  ArrowLeftRight,
-  UserCheck,
-  Building,
-  Clock,
-  CalendarOff,
-  Banknote,
-  FileSignature,
-  Target,
-  TrendingUp,
-  FileCheck,
-  ShoppingCart,
-  Layers,
-  Factory,
-  FolderOpen,
-  Monitor,
-  CreditCard,
-  Activity,
-  Truck,
-  ClipboardCheck,
-  FileInput,
-  RotateCcw,
-  Landmark,
-  Timer,
-  Coins,
-  CheckSquare,
-  DollarSign,
-  ChevronDown,
-  User,
-  LogOut,
-  FileSpreadsheet,
-  ListChecks,
-  ReceiptText,
-  Lock,
-  Search,
+  LayoutDashboard, Settings, Users, FileText, BookOpen, Calculator, CalendarDays, Receipt,
+  BookText, BarChart3, Percent, Handshake, Package, Warehouse, ArrowLeftRight, UserCheck,
+  Building, Clock, CalendarOff, Banknote, FileSignature, Target, TrendingUp, FileCheck,
+  ShoppingCart, Layers, Factory, FolderOpen, Monitor, CreditCard, Activity, Truck,
+  ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
+  ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
+  Globe, Command,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface NavItem {
   key: string;
@@ -181,20 +144,25 @@ function CollapsibleNavGroup({
   items,
   currentPath,
   t,
+  accentColor,
 }: {
   label: string;
   items: NavItem[];
   currentPath: string;
   t: (key: any) => string;
+  accentColor?: string;
 }) {
   const isActive = items.some((item) => currentPath.startsWith(item.url));
 
   return (
     <SidebarGroup className="py-0">
       <Collapsible defaultOpen={isActive}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group">
-          <span>{label}</span>
-          <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-semibold text-sidebar-foreground/60 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+          <span className="flex items-center gap-2">
+            {accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
+            {label}
+          </span>
+          <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarGroupContent>
@@ -204,11 +172,11 @@ function CollapsibleNavGroup({
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{t(item.key as any)}</span>
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{t(item.key as any)}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -222,7 +190,7 @@ function CollapsibleNavGroup({
 }
 
 export default function TenantLayout() {
-  const { t } = useLanguage();
+  const { t, locale, setLocale } = useLanguage();
   const { signOut, user, isSuperAdmin } = useAuth();
   const { canAccess } = usePermissions();
   const navigate = useNavigate();
@@ -237,12 +205,7 @@ export default function TenantLayout() {
   const userInitials = (() => {
     const name = user?.user_metadata?.full_name || user?.email || "";
     if (user?.user_metadata?.full_name) {
-      return name
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+      return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
     }
     return (user?.email?.[0] || "U").toUpperCase();
   })();
@@ -253,13 +216,24 @@ export default function TenantLayout() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Sidebar className="border-r border-sidebar-border">
-          <div className="p-4 border-b border-sidebar-border">
-            <h2 className="text-lg font-bold text-sidebar-foreground">ERP-AI</h2>
+          {/* Logo + Search trigger */}
+          <div className="p-4 border-b border-sidebar-border space-y-3">
+            <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+            <button
+              onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+              className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1.5 text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent transition-colors"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="flex-1 text-left">{t("search")}</span>
+              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-sidebar-border bg-sidebar-background px-1.5 text-[10px] font-medium text-sidebar-foreground/50">
+                <Command className="h-2.5 w-2.5" />K
+              </kbd>
+            </button>
           </div>
-          <SidebarContent>
-            {/* Dashboard - always visible, not collapsible */}
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("dashboard")}</SidebarGroupLabel>
+
+          <SidebarContent className="flex-1 overflow-y-auto">
+            {/* Dashboard */}
+            <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
                   {mainNav.map((item) => (
@@ -268,10 +242,10 @@ export default function TenantLayout() {
                         <NavLink
                           to={item.url}
                           end
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
-                          <item.icon className="h-4 w-4" />
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
                           <span>{t(item.key as any)}</span>
                         </NavLink>
                       </SidebarMenuButton>
@@ -282,32 +256,36 @@ export default function TenantLayout() {
             </SidebarGroup>
 
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-400" />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
             )}
             {canAccess("returns") && (
-              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-red-400" />
             )}
             {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-violet-400" />
             )}
             {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-amber-400" />
             )}
             {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-400" />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-400" />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-400" />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-400" />
             )}
+          </SidebarContent>
+
+          {/* Settings pinned to bottom */}
+          <SidebarFooter className="border-t border-sidebar-border p-0">
             {canAccess("settings") && (
               <CollapsibleNavGroup
                 label={t("settings")}
@@ -325,38 +303,39 @@ export default function TenantLayout() {
                 })}
                 currentPath={currentPath}
                 t={t}
+                accentColor="bg-gray-400"
               />
             )}
-          </SidebarContent>
-        </Sidebar>
 
-        <div className="flex-1 flex flex-col min-h-screen">
-          <header className="h-14 border-b flex items-center justify-between px-4 bg-card">
-            <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              {isSuperAdmin && (
-                <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/dashboard")}>
-                  {t("superAdmin")}
-                </Button>
-              )}
-              <NotificationBell />
-              <LanguageToggle />
-
-              {/* User dropdown */}
+            {/* User profile card */}
+            <div className="p-3 border-t border-sidebar-border">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
+                  <button className="flex w-full items-center gap-2.5 rounded-md p-2 hover:bg-sidebar-accent transition-colors text-left">
+                    <div className="h-8 w-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
                       {userInitials}
                     </div>
-                    <span className="hidden md:inline text-sm max-w-[120px] truncate">{userName}</span>
-                  </Button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
+                      <p className="text-[11px] text-sidebar-foreground/50 truncate">{user?.email}</p>
+                    </div>
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent side="top" align="start" className="w-56">
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     {t("myAccount")}
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocale(locale === "en" ? "sr" : "en")}>
+                    <Globe className="mr-2 h-4 w-4" />
+                    {locale === "en" ? "Srpski" : "English"}
+                  </DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/super-admin/dashboard")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      {t("superAdmin")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -365,11 +344,25 @@ export default function TenantLayout() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          </SidebarFooter>
+        </Sidebar>
+
+        <div className="flex-1 flex flex-col min-h-screen">
+          <header className="h-12 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <Separator orientation="vertical" className="h-5" />
+              <Breadcrumbs />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <NotificationBell />
+            </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-6 overflow-auto animate-in fade-in duration-300">
             <Outlet />
           </main>
         </div>
+        <GlobalSearch />
         <AiAssistantPanel />
       </div>
     </SidebarProvider>
