@@ -1,6 +1,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
+import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users } from "lucide-react";
 
 export default function TenantSettings() {
@@ -34,6 +35,7 @@ export default function TenantSettings() {
           </NavLink>
         ))}
       </div>
+      <NotificationPreferences />
     </div>
   );
 }

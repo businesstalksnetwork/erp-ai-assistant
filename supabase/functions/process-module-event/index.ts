@@ -199,6 +199,73 @@ async function handleEvent(
 
   // --- Notification handlers ---
   if (handlerModule === "notifications") {
+    if (eventType === "invoice.overdue") {
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: "all_tenant_members",
+        type: "warning",
+        category: "invoice",
+        title: `Invoice ${payload.invoice_number || entityId} is overdue`,
+        message: `Invoice is overdue by ${payload.days_overdue || "?"} days`,
+        entity_type: "invoice",
+        entity_id: entityId,
+      });
+    }
+    if (eventType === "approval.requested") {
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: "all_tenant_members",
+        type: "action",
+        category: "approval",
+        title: `Approval requested`,
+        message: `Approval requested for ${payload.entity_type || "entity"} ${payload.entity_name || entityId}`,
+        entity_type: "approval",
+        entity_id: entityId,
+      });
+    }
+    if (eventType === "approval.completed") {
+      const targetUsers = payload.requested_by ? [payload.requested_by as string] : "all_tenant_members";
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: targetUsers,
+        type: "info",
+        category: "approval",
+        title: `Approval ${payload.decision || "completed"}`,
+        message: `Your ${payload.entity_type || "entity"} has been ${payload.decision || "processed"}`,
+        entity_type: "approval",
+        entity_id: entityId,
+      });
+    }
+    if (eventType === "inventory.low_stock") {
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: "all_tenant_members",
+        type: "warning",
+        category: "inventory",
+        title: `Low stock: ${payload.product_name || "Product"}`,
+        message: `${payload.product_name || "A product"} is below minimum stock level`,
+        entity_type: "product",
+        entity_id: entityId,
+      });
+    }
+    if (eventType === "return_case.approved") {
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: "all_tenant_members",
+        type: "info",
+        category: "invoice",
+        title: `Return case approved`,
+        message: `Return case ${payload.case_number || entityId} has been approved`,
+        entity_type: "return_case",
+        entity_id: entityId,
+      });
+    }
+    if (eventType === "leave_request.submitted") {
+      return await emitNotification(supabase, tenantId, {
+        target_user_ids: "all_tenant_members",
+        type: "action",
+        category: "hr",
+        title: `Leave request submitted`,
+        message: `New leave request from ${payload.employee_name || "an employee"}`,
+        entity_type: "leave_request",
+        entity_id: entityId,
+      });
+    }
     if (eventType === "loan_payment.due") {
       return { action: "notify_loan_payment", message: "Loan payment notification placeholder", entity_id: entityId };
     }
@@ -306,6 +373,7 @@ async function handleSupplierReturnShipped(
   shipmentId: string,
   payload: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  // ... keep existing code
   const warehouseId = payload.warehouse_id as string | undefined;
   const returnCaseId = payload.return_case_id as string | undefined;
   if (!warehouseId || !returnCaseId) {
@@ -338,4 +406,36 @@ async function handleSupplierReturnShipped(
   }
 
   return { action: "deduct_supplier_return_stock", adjusted_products: adjustments };
+}
+
+async function emitNotification(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string,
+  params: {
+    target_user_ids: string | string[];
+    type: string;
+    category: string;
+    title: string;
+    message: string;
+    entity_type?: string;
+    entity_id?: string;
+  }
+): Promise<Record<string, unknown>> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/create-notification`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceKey}`,
+    },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      ...params,
+    }),
+  });
+
+  const result = await res.json();
+  return { action: "notification_sent", ...result };
 }

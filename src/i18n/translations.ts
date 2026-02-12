@@ -588,6 +588,16 @@ export const translations = {
     analyzingData: "Analyzing data...",
     noInsightsAvailable: "No insights available.",
     askMeAnything: "Ask me anything about your data",
+
+    // Phase 11: Notifications
+    notificationPreferences: "Notification Preferences",
+    markAllRead: "Mark all read",
+    noNotifications: "No notifications",
+    invoiceNotifications: "Invoice Notifications",
+    inventoryNotifications: "Inventory Notifications",
+    approvalNotifications: "Approval Notifications",
+    hrNotifications: "HR Notifications",
+    accountingNotifications: "Accounting Notifications",
   },
   sr: {
     // Auth
@@ -1178,6 +1188,16 @@ export const translations = {
     analyzingData: "Analiziranje podataka...",
     noInsightsAvailable: "Nema dostupnih uvida.",
     askMeAnything: "Pitajte me bilo šta o vašim podacima",
+
+    // Phase 11: Notifications
+    notificationPreferences: "Podešavanja obaveštenja",
+    markAllRead: "Označi sve kao pročitano",
+    noNotifications: "Nema obaveštenja",
+    invoiceNotifications: "Obaveštenja o fakturama",
+    inventoryNotifications: "Obaveštenja o zalihama",
+    approvalNotifications: "Obaveštenja o odobrenjima",
+    hrNotifications: "HR obaveštenja",
+    accountingNotifications: "Računovodstvena obaveštenja",
   },
 } as const;
 

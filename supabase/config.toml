@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.ai-insights]
 verify_jwt = false
+
+[functions.create-notification]
+verify_jwt = false
