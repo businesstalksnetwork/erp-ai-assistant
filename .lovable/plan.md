@@ -1,86 +1,66 @@
 
 
-# Phase 6: Audit Log + User Management
+# Sidebar Restructure: Move Partners to CRM + Comprehensive Settings
 
-These are the last two placeholder pages in the system. Both are essential for a production-grade multi-tenant ERP -- you need to know who did what (audit trail), and you need to manage team members and their permissions.
+## Problem
 
----
+Partners (customers/suppliers) are currently under Settings, but they belong in a CRM/Sales module. Settings should focus purely on organization configuration. Tax Rates also belongs in Settings as it's configuration, not a business entity.
 
-## Part 1: Audit Log
+## New Sidebar Structure
 
-### Database
+```text
+--- Main ---
+  Dashboard
 
-Create an `audit_logs` table to capture all important actions:
-- id, tenant_id, user_id, action (e.g., "create", "update", "delete"), entity_type (e.g., "invoice", "journal_entry", "partner"), entity_id
-- changes (JSONB -- stores old/new values for updates)
-- ip_address (nullable), created_at
-- RLS: members can view their tenant's logs, nobody can delete/update
+--- CRM ---
+  Partners (moved from /settings/partners to /crm/partners)
 
-Create a database trigger function `log_audit_event()` that automatically logs INSERT, UPDATE, DELETE on key tables:
-- invoices, journal_entries, partners, products, inventory_movements, chart_of_accounts, fiscal_periods
+--- Inventory ---
+  Products
+  Stock Overview
+  Movement History
 
-### Frontend (`/settings/audit-log`)
+--- Accounting ---
+  Chart of Accounts
+  Journal Entries
+  Invoices
+  Fiscal Periods
+  General Ledger
+  Reports
 
-- Chronological table of all audit events
-- Filters: entity type, action type, user, date range
-- Expandable row to show change details (old vs new values as JSON diff)
-- Pagination (load more / infinite scroll)
+--- Settings ---
+  Company Settings (hub: legal entities, locations, warehouses, sales channels, cost centers, bank accounts, integrations, business rules)
+  Tax Rates
+  Users
+  Audit Log
+```
 
----
+## Changes
 
-## Part 2: User Management
+### 1. Route update (`App.tsx`)
+- Change `/settings/partners` to `/crm/partners`
 
-### Database
+### 2. Sidebar restructure (`TenantLayout.tsx`)
+- Remove Partners from `settingsNav`
+- Add new `crmNav` group with Partners
+- Keep Tax Rates in Settings (it's configuration)
 
-Create a `tenant_invitations` table:
-- id, tenant_id, email, role (admin / accountant / member), invited_by, status (pending / accepted / expired), created_at, expires_at
+### 3. Settings hub page (`Settings.tsx`)
+- Add Tax Rates and Users cards to the settings hub so all org config is accessible from one page
+- Keep existing cards (legal entities, locations, warehouses, etc.)
 
-### Frontend (`/settings/users`)
+### 4. Translations (`translations.ts`)
+- Add "crm" key for the new sidebar group label (EN: "CRM", SR: "CRM")
 
-- List current tenant members (query `tenant_members` joined with auth.users for email/name)
-- Show each user's role from `user_roles`
-- "Invite User" dialog: email + role selection
-- Change role (admin can promote/demote)
-- Remove user from tenant (with confirmation)
-- Pending invitations list with resend/cancel options
+### 5. Partners page (`Partners.tsx`)
+- Update any internal navigation references from `/settings/partners` to `/crm/partners`
 
-### Invite Flow
+## Technical Details
 
-Since Supabase auth handles user creation, the invite flow works as:
-1. Admin enters email + role
-2. System creates a `tenant_invitations` record
-3. When user signs up/logs in with that email, a database trigger checks for pending invitations and auto-adds them to the tenant with the specified role
-4. If user already exists in the system, they are immediately added
-
----
-
-## Routes
-
-No new routes needed -- both pages already have routes registered:
-- `/settings/audit-log` -> AuditLog
-- `/settings/users` -> TenantUsers
-
----
-
-## Files
-
-| Action | File | What |
-|--------|------|------|
-| Migration | New SQL migration | `audit_logs` table + RLS + trigger function on key tables; `tenant_invitations` table + RLS + auto-accept trigger |
-| Rewrite | `src/pages/tenant/AuditLog.tsx` | Full audit log viewer with filters, expandable rows |
-| Rewrite | `src/pages/tenant/Users.tsx` | Member list, invite dialog, role management |
-| Modify | `src/i18n/translations.ts` | Add audit log and user management keys (EN + SR) |
-| Modify | `src/integrations/supabase/types.ts` | Add new table types |
-
----
-
-## Technical notes
-
-- The audit trigger uses `TG_OP` to determine action type and `row_to_json(OLD)` / `row_to_json(NEW)` to capture changes
-- The trigger runs as `SECURITY DEFINER` and uses `auth.uid()` to capture the acting user
-- Audit logs are append-only -- RLS only allows SELECT, no UPDATE/DELETE
-- `tenant_invitations` uses a check trigger: on auth user login/signup, if a pending invitation exists for their email, auto-insert into `tenant_members` and `user_roles`
-- Role changes require the acting user to have an "admin" role in that tenant
-- The audit log table will grow large over time; we index on `(tenant_id, created_at DESC)` and `(tenant_id, entity_type)` for query performance
-- User list queries `tenant_members` joined with a profiles/users view -- since we cannot directly query `auth.users` from the client, we will use the existing user metadata or create a `profiles` table if one doesn't exist
+| File | Change |
+|------|--------|
+| `src/layouts/TenantLayout.tsx` | Add `crmNav` array, move Partners there, add CRM sidebar group |
+| `src/App.tsx` | Change route from `settings/partners` to `crm/partners` |
+| `src/pages/tenant/Settings.tsx` | Add Tax Rates + Users cards to the hub |
+| `src/i18n/translations.ts` | Add "crm" translation key |
 
