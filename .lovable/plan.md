@@ -1,186 +1,245 @@
 
 
-# Gap Analysis: Accounting & HR — PRD + Serbian Competitors
+# Accounting Core Gap Analysis: Deep Research Report vs Current Implementation
 
-After cross-referencing your PRD ("LedgerOS RS"), three major Serbian competitors (BizniSoft, Minimax, Datalab PANTHEON), and the current codebase, here are the **critical missing features and logic gaps** in Accounting and HR.
+## Executive Summary
 
----
-
-## ACCOUNTING GAPS
-
-### 1. Bank Statement Import & Auto-Reconciliation (HIGH PRIORITY)
-
-**PRD**: Section 7.3 "Banke/Blagajna" — import bank statements, auto-close open items via safe-match logic, cash position.
-**Competitors**: BizniSoft has full electronic statement import/processing; Minimax has bank statement module with auto-matching; PANTHEON has bank reconciliation.
-
-**Current state**: `BankAccounts.tsx` is CRUD-only — no statement import, no transaction matching, no reconciliation. This is a core gap for any Serbian accounting software.
-
-**What to build**:
-- Bank statement import (CSV/XML formats common in Serbia)
-- Transaction matching engine: match bank lines to open AR/AP items by "poziv na broj" (payment reference), amount, and partner
-- Manual matching UI for unmatched transactions
-- Auto-posting of matched payments (Debit Bank / Credit AR, or Debit AP / Credit Bank)
-- Cash position dashboard (current balances across all bank accounts)
+Cross-referencing the Deep Research Report (BizniSoft vs Minimax mapped to Serbia-first AI ERP PRD) against the current codebase reveals **12 specific gaps** across accounting core, state integrations, and HR. Several are CRITICAL for Serbian legal compliance in 2026.
 
 ---
 
-### 2. PDV (VAT) Calculation & POPDV Report (HIGH PRIORITY)
+## Current State Assessment
 
-**PRD**: Section 7.3 "PDV i porezi" — VAT calculation per period, POPDV form generation, control checks.
-**Competitors**: Minimax has full POPDV generation and VAT period processing; BizniSoft has "PDV Evidencija" with reconciliation.
+### What's Already Built (Phases 1-21)
 
-**Current state**: `TaxRates.tsx` only manages tax rate CRUD. There is no VAT period calculation, no POPDV (Pregled Obrasca PDV) report, no VAT control checks, and no VAT reconciliation vs GL.
-
-**What to build**:
-- VAT period calculation page: auto-aggregate output/input VAT from posted journals
-- POPDV form generation (Section 3-11 of the Serbian POPDV form)
-- VAT control report: compare VAT evidence vs GL balances
-- Export-ready data (XML/CSV for ePorezi portal)
-
----
-
-### 3. Open Items (Otvorene Stavke) & IOS Statements (HIGH PRIORITY)
-
-**PRD**: Section 7.3 AR/AP — "Otvorene stavke po dokumentu, valuti i dospeću; kompenzacije i prebijanja."
-**Competitors**: Minimax has open items closing through bank statements, manual closing, and IOS (Izvod Otvorenih Stavki) mass mailing; BizniSoft has "Finansijska operativa" with kompenzacije.
-
-**Current state**: No open items tracking exists. Invoices and supplier invoices have status fields but there's no sub-ledger for tracking individual open items, partial payments, or offsetting/compensation.
-
-**What to build**:
-- Open items ledger: track each invoice/supplier invoice as an open item with remaining balance
-- Partial payment support: when bank payment is less than invoice total
-- IOS (Statement of Open Items) report generation — mandatory in Serbian business practice
-- Kompenzacija (offsetting/netting) workflow with documentation
+| Area | Status |
+|------|--------|
+| Double-entry GL with journal lines | Done |
+| Storno/reversal mechanism | Done (Phase 20) |
+| Bank statement import + basic matching | Done (Phase 20) |
+| Open items ledger + IOS | Done (Phase 20) |
+| PDV periods + POPDV form | Done (Phase 21) |
+| Advance invoices (avansne fakture) | Done (Phase 21) |
+| Fiscal period locking (open/closed/locked) | Done |
+| Chart of accounts (Serbian kontni okvir seed) | Done |
+| Fixed assets with depreciation + GL posting | Done |
+| Legal entities with PIB/MB | Done |
+| Approval workflows | Done (Phase 19) |
+| Payroll with Serbian tax/contributions | Done |
 
 ---
 
-### 4. Exchange Rate Differences (Kursne Razlike) (MEDIUM)
+## CRITICAL GAPS (Must Fix)
 
-**PRD**: Section FX-001 to FX-008 — automatic FX difference calculation and posting.
-**Competitors**: BizniSoft has "Obračun kursnih razlika"; Minimax has "Kursne razlike na godišnjim obradama."
+### Gap 1: Immutable Posting Kernel -- Incomplete
 
-**Current state**: `Currencies.tsx` shows currencies and rates but there is no calculation engine for exchange rate differences, no revaluation at period-end, and no automated FX posting.
+**Report says**: "Immutable journals, reversal primitives, posted journals never mutated; only reversals + audit trail." Minimax blocks edits for automatic journals.
 
-**What to build**:
-- Period-end FX revaluation: recalculate all foreign currency balances at closing rate
-- Auto-post realized/unrealized FX gains/losses
-- FX difference journal entries (account codes 5630/6630 per Serbian kontni okvir)
+**Current state**: Storno exists but the system still allows **editing posted journal entries** -- there's no DB constraint blocking UPDATE on posted rows. Draft entries can be deleted (correct), but posted entries should be UPDATE-blocked at the DB level, not just the UI level.
 
----
+**Fix needed**:
+- Add a DB trigger or check constraint that prevents UPDATE on `journal_entries` where `status = 'posted'` (except for `storno_by_id` and `status` changing to `reversed`)
+- Block DELETE on posted entries at the DB level
+- Ensure auto-generated journals (from invoices, depreciation, deferrals) are marked as `source = 'auto'` and are never editable
 
-### 5. Year-End Closing & Financial Statements (Godisnje Obrade) (MEDIUM)
+### Gap 2: Multi-Layer Period Locking
 
-**PRD**: Section 12 roadmap — "APR priprema" in Phase B.
-**Competitors**: Minimax has full "Godisnje obrade" module with Bilans Stanja, Bilans Uspeha, Statisticki Aneks, and APR submission preparation; BizniSoft has "Formiranje finansijskih izvestaja."
+**Report says**: "Implement multi-layer close: VAT period close, month close, year close; block retro edits."
 
-**Current state**: Balance Sheet and Income Statement exist but are basic GL aggregations. There is no year-end closing workflow (Class 5/6 closing entries), no APR-format report generation, no opening balance carry-forward.
+**Current state**: Fiscal periods have open/closed/locked but there's only one layer. No connection between PDV period closing and fiscal period closing. No year-end closing procedure.
 
-**What to build**:
-- Year-end closing procedure: auto-generate closing entries for P&L classes (class 5 revenue, class 6 expenses) to retained earnings
-- Opening balance entry generation for new fiscal year
-- APR-format Balance Sheet (Bilans Stanja) and Income Statement (Bilans Uspeha)
-- Statistical annex data preparation
+**Fix needed**:
+- Link `pdv_periods` closing to block journal posting for that VAT period
+- `check_fiscal_period_open` RPC should also check PDV period status
+- Year-end closing workflow (Class 4/5 to retained earnings via account 3000)
 
----
+### Gap 3: SEF (eFaktura) Integration -- Not Started
 
-### 6. Storno (Reversal) Journal Entries (MEDIUM)
+**Report says**: "SEF connector per PIB with queueing and reconciliation. API key mgmt, mailbox sync, send/cancel/storno, contract tests vs DEMO."
 
-**PRD**: GL-007 BLOCK — "Storno must reference original entry and reproduce amounts with opposite sign."
-**Competitors**: All three competitors support formal storno/reversal workflows.
+**Current state**: No SEF integration exists. No `sef_connections` table, no inbox/outbox, no status governance.
 
-**Current state**: Journal entries can be posted but there's no formal storno mechanism — no way to reverse an entry with a linked reference. The current system allows deletion which violates audit requirements.
+**Fix needed** (architecture only -- actual API integration requires SEF API credentials):
+- `sef_connections` table (per `legal_entity_id`, API key reference, status)
+- `sef_outbox` / `sef_inbox` tables for queue management
+- Status governance: block invoice posting if SEF status is missing (Minimax pattern)
+- Edge function for SEF API communication
 
-**What to build**:
-- "Storno" button on posted journal entries
-- Auto-generate reversal entry with opposite signs, linked to original
-- Block editing/deleting posted entries (immutability)
-- Storno chain visibility in journal entry detail
+### Gap 4: eOtpremnica Integration -- Not Started
 
----
+**Report says**: "Legal obligations start 1 Jan 2026. Full lifecycle: send/receive, statuses, actions, QR/PDF, inventory coupling."
 
-### 7. Advance Invoices (Avansne Fakture) (MEDIUM)
+**Current state**: No electronic delivery note support. This is a **2026 legal requirement**.
 
-**PRD**: SEF section — "avansi, odobrenja, povezivanje sa knjiženjem."
-**Competitors**: Both BizniSoft and Minimax have extensive advance invoice handling (issuing, receiving, connecting to final invoices).
+**Fix needed**:
+- `eot_connections`, `eot_documents`, `eot_status_history` tables
+- Link to inventory movements (goods receipts/dispatches)
+- Status actions: physical receipt, storno, driver pickup
+- Edge function for eOtpremnica API
 
-**Current state**: No advance invoice concept. This is critical for Serbian compliance — advance payments require specific VAT treatment and must be linked to final invoices.
+### Gap 5: eBolovanje Employer Integration -- Not Started
 
-**What to build**:
-- Advance invoice type in Invoices (type: "advance")
-- Link advance to final invoice with automatic deduction
-- Separate VAT treatment for advances per Serbian law
-- Advance credit note generation
+**Report says**: "From 1 Jan 2026, unified employer eBolovanje system on eUprava. Electronic receipt of sick leave certificates, refund requests."
 
----
+**Current state**: Leave requests exist but no eBolovanje portal integration.
 
-## HR & PAYROLL GAPS
-
-### 8. PPP-PD Tax Return Generation (HIGH PRIORITY)
-
-**PRD**: PAY-004 BLOCK — "Export of tax returns must pass format validation before submission."
-**Competitors**: Minimax has full PPP-PD generation and OD-O forms; BizniSoft has PPP-PO printing.
-
-**Current state**: Payroll calculates taxes/contributions but generates no PPP-PD (Pojedinacna Poreska Prijava o obracunatim porezima i doprinosima) report. This is mandatory for every salary payment in Serbia.
-
-**What to build**:
-- PPP-PD XML generation per payroll run
-- Validation against ePorezi XSD schema
-- Preview/download of PPP-PD before submission
-- PPP-PO annual summary report
+**Fix needed**:
+- `ebolovanje_sync_log` table
+- Sick leave cases linked to employees with OZ-7/OZ-10 form data
+- Edge function for eUprava API communication
+- Link to payroll calculation (sick leave rate: 65% first 30 days, RFZO after)
 
 ---
 
-### 9. DLP (Druga Licna Primanja) — Other Personal Income (MEDIUM)
+## HIGH PRIORITY GAPS
 
-**Competitors**: Minimax has full DLP module for: ugovor o delu, autorski honorari, zakup, board member fees, etc.
+### Gap 6: Bank Statement Format Support -- Incomplete
 
-**Current state**: Payroll only handles regular employee salaries. No support for non-employment income types common in Serbia (service contracts, author fees, rental, temporary work).
+**Report says**: "Must support Halcom (txt), Asseco (xml), Raiffeisen/OTP (rol xml), Excel import."
 
-**What to build**:
-- DLP calculation types: service agreement, author contract, rental, board fees
-- Different tax/contribution formulas per DLP type
-- PPP-PD generation for DLP payments
-- Integration with GL (different expense accounts per DLP type)
+**Current state**: Only generic CSV import exists. No support for Serbian bank-specific formats.
+
+**Fix needed**:
+- Halcom TXT parser
+- Asseco XML parser
+- Generic Excel (XLSX) import option
+- "Poziv na broj" matching is partially done but needs "payment code" (`sifra placanja`) support
+
+### Gap 7: NBS Exchange Rate Auto-Import
+
+**Report says**: "NBS provides web services for exchange rate lists. Rates must be automated and auditable."
+
+**Current state**: Currencies and exchange rates are manual CRUD only.
+
+**Fix needed**:
+- Edge function to fetch NBS exchange rates via their web service
+- Daily auto-import or on-demand "Fetch today's rates" button
+- Audit trail for rate source (NBS vs manual)
+
+### Gap 8: FX Revaluation Engine
+
+**Report says**: "Period-end FX revaluation, auto-post realized/unrealized FX gains/losses."
+
+**Current state**: No FX calculation engine. Currencies page is display-only.
+
+**Fix needed**:
+- FX revaluation page: recalculate all foreign currency open items at closing rate
+- Auto-post journal entries for FX differences (positive/negative kursne razlike)
+- Serbian accounts: positive differences to revenue (e.g., 6630), negative to expense (e.g., 5630)
+
+### Gap 9: Fixed Asset Lifecycle Gaps
+
+**Report says**: "Unify asset lifecycle with purchasing/inventory conversion, amortization, impairment, disposal. Tax vs financial amortization groups."
+
+**Current state**: Basic depreciation (straight-line, declining balance) with GL posting exists. Missing:
+- Tax amortization groups (separate from financial)
+- Asset disposal with gain/loss journal (account 4200 Gain / 8200 Loss)
+- Asset impairment workflow
+- Link from Purchase Order to asset creation
+
+### Gap 10: Inventory Costing Methods
+
+**Report says**: "PRD requires costing methods per product group (FIFO/weighted/standard/specific ID). Minimax only does average; BizniSoft does FIFO."
+
+**Current state**: No costing method engine. Inventory tracks quantity only, no cost layers.
+
+**Fix needed**:
+- `stock_valuation_layers` table for FIFO/weighted average cost tracking
+- Costing method configuration per product group
+- COGS calculation on sales based on selected method
+- Revaluation journals when purchase price corrections occur
 
 ---
 
-### 10. Leave-to-Payroll Integration (MEDIUM)
+## MEDIUM PRIORITY GAPS
 
-**PRD**: PAY-007 BLOCK — "Block payroll calculation without absence records where applicable."
-**Competitors**: Minimax explicitly links work time records to payroll; BizniSoft handles sick leave and vacation in payroll.
+### Gap 11: Kompenzacija (Offsetting/Netting)
 
-**Current state**: Leave requests exist but are not consumed by payroll calculation. The `calculate_payroll_for_run` RPC does not factor in approved leave days (vacation at average pay, sick leave at reduced rate, etc.).
+**Report says**: "Multiple closure methods: partial payments, offsets, advances, compensations, and bank matching."
 
-**What to build**:
-- Feed approved leave_requests into payroll calculation
-- Different pay rates per leave type: vacation (100% of average), sick leave first 30 days (65%), sick leave 30+ days (RFZO rate)
-- Working days calculation based on actual attendance minus leave days
+**Current state**: Open items exist but no kompenzacija workflow.
 
----
+**Fix needed**:
+- Kompenzacija document type: select AR and AP items to offset against each other
+- Auto-generate journal entries (Debit AP / Credit AR)
+- PDF document generation for legal compliance
 
-## Summary Priority Matrix
+### Gap 12: Legal Entity Scoping for Accounting
 
-| Gap | Priority | Effort | Serbian Compliance |
-|-----|----------|--------|-------------------|
-| Bank Statement Import & Reconciliation | HIGH | Large | Required |
-| PDV/POPDV Calculation | HIGH | Large | Mandatory |
-| Open Items & IOS | HIGH | Medium | Mandatory |
-| PPP-PD Tax Returns | HIGH | Medium | Mandatory |
-| Year-End Closing | MEDIUM | Medium | Required for APR |
-| Storno Journals | MEDIUM | Small | Required |
-| Advance Invoices | MEDIUM | Medium | Required for SEF |
-| FX Differences | MEDIUM | Medium | Required |
-| DLP Other Income | MEDIUM | Medium | Common need |
-| Leave-Payroll Integration | MEDIUM | Small | Required |
+**Report says**: "Model Tenant -> Legal Entity (PIB) -> Location explicitly. SEF/eOtpremnica credentials tied to legal entity."
+
+**Current state**: `legal_entities` table exists but is not linked to any accounting tables. All accounting is tenant-scoped, not legal-entity-scoped. A tenant with multiple PIBs cannot separate their accounting.
+
+**Fix needed**:
+- Add `legal_entity_id` to `journal_entries`, `invoices`, `chart_of_accounts` (optional FK)
+- SEF/eOtpremnica connections scoped to legal entity
+- PDV filing per legal entity (each PIB files separately)
 
 ---
 
-## Recommended Implementation Order
+## Recommended Implementation Phases
 
-**Phase 20**: Bank Statements + Open Items + Storno Journals (accounting foundation)
-**Phase 21**: PDV/POPDV Calculation + Advance Invoices (tax compliance)
-**Phase 22**: PPP-PD Generation + Leave-Payroll Integration + DLP (HR compliance)
-**Phase 23**: Year-End Closing + FX Revaluation + APR Reports (period-end)
+### Phase 22: Accounting Kernel Hardening (CRITICAL)
+- Immutable posting constraints (DB triggers)
+- Multi-layer period locking (fiscal + PDV interlock)
+- Year-end closing procedure
+- Legal entity scoping for accounting tables
 
-Each phase addresses a cluster of related gaps that build on each other. The bank and open items foundation is needed before PDV reconciliation, and PPP-PD requires the payroll calculation to be complete (with leave integration) before it can generate correct returns.
+### Phase 23: State Integration Foundation (CRITICAL for 2026)
+- SEF connector architecture (tables + edge function scaffold + status governance)
+- eOtpremnica document model + status lifecycle
+- NBS exchange rate auto-import edge function
+
+### Phase 24: Advanced Accounting Engine
+- FX revaluation engine with journal posting
+- Kompenzacija workflow
+- Fixed asset disposal with gain/loss + tax amortization groups
+- Inventory costing methods (FIFO/weighted average layers)
+
+### Phase 25: HR Compliance (already planned as Phase 22 in prior roadmap)
+- PPP-PD XML generation
+- Leave-to-payroll integration
+- eBolovanje connector scaffold
+- DLP (other personal income) calculations
+
+---
+
+## Technical Notes
+
+### DB Immutability Trigger (Phase 22)
+
+```text
+CREATE TRIGGER block_posted_journal_edit
+BEFORE UPDATE OR DELETE ON journal_entries
+FOR EACH ROW
+WHEN (OLD.status = 'posted')
+-- Allow only: status change to 'reversed' + setting storno_by_id
+-- Block all other mutations
+```
+
+### Legal Entity Scoping Pattern
+
+```text
+-- Optional FK on core accounting tables:
+ALTER TABLE journal_entries ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id);
+ALTER TABLE invoices ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id);
+-- Default: if tenant has only 1 legal entity, auto-set
+```
+
+### SEF Connection Model
+
+```text
+sef_connections: legal_entity_id, api_key_encrypted, sef_status (active/inactive), demo_mode
+sef_outbox: invoice_id, sef_document_id, status (queued/sent/accepted/rejected/cancelled), sent_at
+sef_inbox: sef_document_id, document_type, sender_pib, status, received_at, linked_supplier_invoice_id
+```
+
+### NBS Rate Import
+
+```text
+Edge function: fetch-nbs-rates
+GET https://webservices.nbs.rs/CommunicationOffice/ExchangeRate.asmx
+Parse XML response -> insert into exchange_rates table
+Track source = 'NBS' vs 'manual'
+```
 
