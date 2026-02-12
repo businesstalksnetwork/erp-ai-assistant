@@ -170,6 +170,7 @@ export default function JournalEntries() {
           created_by: user?.id,
           storno_of_id: id,
           is_storno: true,
+          source: "auto_storno",
         })
         .select("id")
         .single();

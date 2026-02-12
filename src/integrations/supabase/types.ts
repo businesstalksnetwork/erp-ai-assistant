@@ -1886,6 +1886,7 @@ export type Database = {
           invoice_number: string
           invoice_type: string
           journal_entry_id: string | null
+          legal_entity_id: string | null
           notes: string | null
           partner_address: string | null
           partner_id: string | null
@@ -1911,6 +1912,7 @@ export type Database = {
           invoice_number: string
           invoice_type?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           partner_address?: string | null
           partner_id?: string | null
@@ -1936,6 +1938,7 @@ export type Database = {
           invoice_number?: string
           invoice_type?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           partner_address?: string | null
           partner_id?: string | null
@@ -1965,6 +1968,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
@@ -1990,9 +2000,11 @@ export type Database = {
           fiscal_period_id: string | null
           id: string
           is_storno: boolean
+          legal_entity_id: string | null
           posted_at: string | null
           posted_by: string | null
           reference: string | null
+          source: string
           status: string
           storno_by_id: string | null
           storno_of_id: string | null
@@ -2008,9 +2020,11 @@ export type Database = {
           fiscal_period_id?: string | null
           id?: string
           is_storno?: boolean
+          legal_entity_id?: string | null
           posted_at?: string | null
           posted_by?: string | null
           reference?: string | null
+          source?: string
           status?: string
           storno_by_id?: string | null
           storno_of_id?: string | null
@@ -2026,9 +2040,11 @@ export type Database = {
           fiscal_period_id?: string | null
           id?: string
           is_storno?: boolean
+          legal_entity_id?: string | null
           posted_at?: string | null
           posted_by?: string | null
           reference?: string | null
+          source?: string
           status?: string
           storno_by_id?: string | null
           storno_of_id?: string | null
@@ -2041,6 +2057,13 @@ export type Database = {
             columns: ["fiscal_period_id"]
             isOneToOne: false
             referencedRelation: "fiscal_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -3259,6 +3282,7 @@ export type Database = {
           end_date: string
           id: string
           input_vat: number
+          legal_entity_id: string | null
           notes: string | null
           output_vat: number
           period_name: string
@@ -3275,6 +3299,7 @@ export type Database = {
           end_date: string
           id?: string
           input_vat?: number
+          legal_entity_id?: string | null
           notes?: string | null
           output_vat?: number
           period_name: string
@@ -3291,6 +3316,7 @@ export type Database = {
           end_date?: string
           id?: string
           input_vat?: number
+          legal_entity_id?: string | null
           notes?: string | null
           output_vat?: number
           period_name?: string
@@ -3303,6 +3329,13 @@ export type Database = {
           vat_liability?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "pdv_periods_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pdv_periods_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4232,6 +4265,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          legal_entity_id: string | null
           notes: string | null
           purchase_order_id: string | null
           status: string
@@ -4250,6 +4284,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number: string
+          legal_entity_id?: string | null
           notes?: string | null
           purchase_order_id?: string | null
           status?: string
@@ -4268,6 +4303,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          legal_entity_id?: string | null
           notes?: string | null
           purchase_order_id?: string | null
           status?: string
@@ -4279,6 +4315,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_invoices_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_invoices_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
@@ -4723,6 +4766,14 @@ export type Database = {
       is_tenant_admin: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      perform_year_end_closing: {
+        Args: {
+          p_fiscal_period_id: string
+          p_tenant_id: string
+          p_user_id: string
+        }
+        Returns: string
       }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
