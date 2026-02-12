@@ -1,140 +1,136 @@
 
 
-# ERP-AI — Phase 1: Foundation Implementation Plan
-## Authentication, Multi-Tenant Architecture, Super Admin & Tenant Admin Panels
+# Phase 1.5: Super Admin Panel — Functional Implementation
+
+## What we're building
+Making the Super Admin panel fully operational so you can onboard tenants, manage their modules, and view platform-wide users.
 
 ---
 
-## 1. Authentication & Login System
-- Single login page at `/login` with email/password
-- After login, the system detects the user's role:
-  - **Super Admin** → redirected to `/super-admin/dashboard`
-  - **Tenant Admin / Regular User** → redirected to `/dashboard` (tenant context)
-- Registration page for new tenant signup (self-service or Super Admin–created)
-- Language toggle on login page (English / Serbian Latin)
-- Password reset flow
+## 1. Create Tenant Onboarding Wizard
+
+A multi-step dialog/wizard triggered by the "Create Tenant" button on the Tenant Management page.
+
+**Step 1 — Company Info**
+- Tenant name, slug (auto-generated from name)
+- Plan selection (basic, professional, enterprise)
+- Status (default: trial)
+
+**Step 2 — Legal Entity**
+- Company name, PIB (tax ID), maticni broj (registration number)
+- Address, city, country
+- Auto-linked to the new tenant
+
+**Step 3 — Initial Admin User**
+- Email, full name, password
+- Creates a Supabase auth user + profile + user_roles (admin) + tenant_members entry
+- This will be done via an Edge Function (since creating auth users requires the service role key)
+
+**Step 4 — Confirmation**
+- Summary of everything, then create all records
+
+### Technical details
+- New component: `src/components/super-admin/CreateTenantWizard.tsx`
+- New edge function: `supabase/functions/create-tenant/index.ts` — handles user creation (requires service_role key) and seeds initial data
+- The wizard uses a multi-step form with state management via useState
 
 ---
 
-## 2. Database Foundation
-### Core Tables
-- **tenants** — organization record with plan, status (active/suspended/trial), settings (JSONB)
-- **legal_entities** — PIB, matični broj, address, linked to tenant
-- **locations** — offices, shops, warehouses per tenant
-- **warehouses** — with optional zones, linked to locations
-- **sales_channels** — Retail, Wholesale, Web, Marketplace
-- **cost_centers** — for accounting allocation
-- **bank_accounts** — per legal entity
-- **profiles** — user profiles linked to auth.users
-- **user_roles** — separate role table (super_admin, admin, manager, accountant, sales, hr, user)
-- **tenant_members** — links users to tenants with membership status
+## 2. Module Management — Per-Tenant Toggle
 
-### Module Access Control
-- **tenant_modules** — which modules are enabled per tenant (controlled by Super Admin)
-- **module_definitions** — master list of all available ERP modules
+Upgrade the existing Module Management page to:
+- Add a tenant selector dropdown at the top
+- Show all module_definitions with toggle switches per selected tenant
+- Toggling writes to/deletes from `tenant_modules` table
+- Show plan-based presets (Basic/Professional/Enterprise) as quick-apply buttons
 
-### Security
-- RLS policies on all tables enforcing tenant isolation
-- `has_role()` security definer function to prevent RLS recursion
-- Super Admin bypasses tenant isolation (can see all tenants)
+### Technical details
+- Edit: `src/pages/super-admin/ModuleManagement.tsx`
+- Fetch tenants for dropdown, fetch tenant_modules for selected tenant
+- Toggle calls upsert/delete on tenant_modules
 
 ---
 
-## 3. Super Admin Panel (`/super-admin/...`)
-The platform owner's control center — this is the **SaaS sales & operations side**.
+## 3. User Management — Platform-Wide Table
 
-### 3.1 Dashboard
-- Total tenants, active users, revenue metrics
-- System health indicators
-- Recent activity feed across all tenants
-- Alert panel (expiring trials, integration errors)
+Upgrade the User Management page to show:
+- All users from `profiles` table with their roles and tenant memberships
+- Search/filter by name, email, tenant
+- Show which tenant(s) each user belongs to
+- Role badges
 
-### 3.2 Tenant Management
-- **Tenant list** — searchable/filterable table of all organizations
-- **Create new tenant** — onboarding wizard: company info → legal entity → plan selection → initial admin user → seed data (chart of accounts, etc.)
-- **Edit tenant** — update plan, status, settings
-- **Suspend/Activate tenant**
-- **View tenant details** — users, usage stats, enabled modules
-
-### 3.3 Module Management (Sales/Enablement)
-- Toggle which modules each tenant can access (Accounting, Sales, HR, Inventory, CRM, POS, DMS, Production)
-- Set module-level configurations per tenant
-- Bulk enable/disable for plan-based presets (e.g., "Basic" = Accounting + Sales, "Enterprise" = all modules)
-
-### 3.4 Integration Support
-- View and help configure tenant API connections (SEF credentials, bank integrations)
-- Manage global integration endpoints (mock government APIs)
-- API key management for platform-level services
-
-### 3.5 Platform Monitoring
-- Active sessions, user counts per tenant
-- Error logs and system events
-- Usage statistics (API calls, storage, documents)
-
-### 3.6 User Management (Platform-wide)
-- View all users across tenants
-- Impersonate/assist tenant users (for support)
-- Manage Super Admin team members
+### Technical details
+- Edit: `src/pages/super-admin/UserManagement.tsx`
+- Join profiles + user_roles + tenant_members + tenants
 
 ---
 
-## 4. Tenant Admin Panel (`/settings/...`)
-Available to tenant admins within their organization's context.
+## 4. Tenant Management — View/Edit/Suspend
 
-### 4.1 Company Settings
-- Edit legal entity details (name, PIB, matični broj, address)
-- Manage locations and warehouses
-- Configure sales channels
-- Set up cost centers
-- Manage bank accounts
+Add functionality to existing Tenant Management page:
+- **View** button opens a detail panel showing: legal entities, users, enabled modules, usage stats
+- **Edit** button opens edit dialog for plan, status, settings
+- **Suspend/Activate** toggle with confirmation dialog
 
-### 4.2 User & Role Management
-- Invite users to the tenant (email invitation)
-- Assign roles (Admin, Manager, Accountant, Sales, HR, User)
-- Set permissions per role
-- Deactivate/remove users
-
-### 4.3 API & Integration Configuration
-- Configure tenant-specific API keys (within modules enabled by Super Admin)
-- SEF credential setup (with help available from Super Admin)
-- Bank integration settings
-- Webhook/notification configuration
-
-### 4.4 Business Rules & Policies
-- Accounting policy settings (fiscal year, default accounts)
-- Invoice numbering rules
-- Payment terms defaults
-- Notification preferences
-
-### 4.5 Audit Log
-- View actions within the tenant (who did what, when)
-- Filter by user, action type, date range
+### Technical details
+- New components: `TenantDetailDialog.tsx`, `EditTenantDialog.tsx`
+- Status change updates tenants table
 
 ---
 
-## 5. Main App Layout & Navigation
-- **Sidebar navigation** showing only modules enabled for the tenant
-- **Top bar** with: tenant name, language switcher (EN/SR), user menu, notifications bell
-- **AI Insights widget** on the dashboard — NLP query box + anomaly alerts
-- **Breadcrumb navigation** for deep pages
-- **Responsive design** — works on desktop and tablet
+## 5. Super Admin Dashboard — Live Metrics
+
+Wire up the dashboard cards with real data:
+- Total tenants count from `tenants` table
+- Active users count from `profiles` table
+- Recent activity from `audit_log` table
+- System health as static "Healthy" for now
+
+### Technical details
+- Edit: `src/pages/super-admin/Dashboard.tsx`
+- Use Supabase queries with `.count()` and recent audit log entries
 
 ---
 
-## 6. Dashboard (Tenant Users)
-- KPI cards: Revenue, Expenses, Profit, Cash Balance (placeholder data initially)
-- Revenue trend chart
-- Cash flow summary
-- AI Insights panel with smart alerts
-- NLP query box ("Koliko smo fakturisali u januaru?")
-- Pending actions/approvals list
-- Quick action buttons for common tasks
+## 6. Edge Function: create-tenant
+
+```
+POST /create-tenant
+Body: { tenant_name, plan, legal_entity: {...}, admin_user: { email, password, full_name } }
+```
+
+This function:
+1. Creates the tenant record
+2. Creates the legal entity linked to tenant
+3. Creates auth user via `supabase.auth.admin.createUser()`
+4. Creates profile, user_roles (admin), and tenant_members records
+5. Seeds default module_definitions into tenant_modules based on plan
+
+Requires: `SUPABASE_SERVICE_ROLE_KEY` secret
 
 ---
 
-## 7. Bilingual Support (English + Serbian Latin)
-- i18n system with language context provider
-- All UI labels, buttons, messages, and navigation in both languages
-- Language toggle persisted per user preference
-- Date/number formatting per locale (Serbian uses comma for decimals)
+## Files to create/modify
+
+| Action | File |
+|--------|------|
+| Create | `src/components/super-admin/CreateTenantWizard.tsx` |
+| Create | `src/components/super-admin/TenantDetailDialog.tsx` |
+| Create | `src/components/super-admin/EditTenantDialog.tsx` |
+| Create | `supabase/functions/create-tenant/index.ts` |
+| Modify | `src/pages/super-admin/TenantManagement.tsx` |
+| Modify | `src/pages/super-admin/ModuleManagement.tsx` |
+| Modify | `src/pages/super-admin/UserManagement.tsx` |
+| Modify | `src/pages/super-admin/Dashboard.tsx` |
+| Modify | `src/i18n/translations.ts` (new keys for wizard, dialogs) |
+
+---
+
+## Order of implementation
+1. Edge function (create-tenant) — backend first
+2. Create Tenant Wizard — uses the edge function
+3. Module Management per-tenant toggles
+4. User Management table
+5. Tenant detail/edit dialogs
+6. Dashboard live metrics
 
