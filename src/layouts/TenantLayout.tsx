@@ -171,9 +171,9 @@ function CollapsibleNavGroup({
   const isActive = items.some((item) => currentPath.startsWith(item.url));
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className="py-0">
       <Collapsible defaultOpen={isActive}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group">
           <span>{label}</span>
           <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
