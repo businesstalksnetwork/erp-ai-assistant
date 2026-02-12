@@ -1,434 +1,238 @@
 
 
-# Phase 25B: Comprehensive HR Module Overhaul
+# Phase 26: Multi-Store Retail/Wholesale Engine, POS eFiskalizacija, and Salesperson Tracking
 
 ## Overview
 
-Transform the basic HR module into a full Serbian labor-law-compliant system. This covers 14 functional areas: enhanced employees (first/last name, termination logic, archiving), organizational structure (position templates, department-positions junction), work logs with bulk entry and calendar view, overtime tracking, night work tracking, annual leave balances with carry-over rules, holidays management, deductions (credit/alimony), allowances, external workers, salary history, insurance records, and comprehensive HR reports.
+Build a complete multi-store retail and wholesale sales system where each shop location (e.g., Shop A1, Shop A2, Shop A3, Shop A4) operates independently with its own fiscal devices, POS sessions, inventory (warehouse), price lists, and daily reports -- while multiple salespeople can work simultaneously in each shop.
 
----
+## Multi-Store Architecture
 
-## Current State
+```text
+Tenant (Company)
+  |
+  +-- Shop A1 (Location type=shop)
+  |     +-- Warehouse A1 (linked via default_warehouse_id)
+  |     +-- Fiscal Device A1-PFR1
+  |     +-- Fiscal Device A1-PFR2 (backup/second register)
+  |     +-- Retail Price List A1 (optional store-specific)
+  |     +-- POS Session (Salesperson: Marko) --> Transactions --> Fiscal Receipts
+  |     +-- POS Session (Salesperson: Ana)   --> Transactions --> Fiscal Receipts
+  |     +-- Daily Z-Report (aggregates all sessions for the day)
+  |
+  +-- Shop A2 (Location type=shop)
+  |     +-- Warehouse A2
+  |     +-- Fiscal Device A2-PFR1
+  |     +-- POS Sessions (multiple salespeople)
+  |     +-- Daily Z-Report
+  |
+  +-- Shop A3, A4... (same pattern)
+  |
+  +-- Office HQ (Location type=office) -- no POS, wholesale invoicing only
+```
 
-The existing HR module has:
-- **employees**: `full_name` (single field), basic fields, simple status enum
-- **departments**: code + name only, no company link
-- **employee_contracts**: salary info per contract
-- **attendance_records**: daily check-in/out (will be superseded by work_logs)
-- **leave_requests**: basic vacation/sick with approval
-- **payroll_runs/payroll_items**: Serbian payroll calculation RPC
-
-**Missing entirely**: work_logs, overtime, night work, annual leave balances, holidays, deductions, allowances, external workers, salary history, insurance, position templates, reports, bulk entry, calendar view.
+Key principles:
+- Each shop = one Location record (type "shop" or "branch")
+- Each shop has its own warehouse for stock deduction
+- Each shop has one or more fiscal devices (ESIR/PFR)
+- Multiple salespeople can have open POS sessions in the same shop simultaneously
+- Each salesperson opens their own session, picks their shop
+- Daily Z-reports aggregate per shop per day (across all sessions)
+- Retail price lists can be global or per-shop (store-specific pricing)
 
 ---
 
 ## Part 1: Database Migration
 
-### 1.1 ALTER `employees` -- Split name + add fields
+### New Tables
 
-```text
-- Rename full_name -> keep for backward compat (computed or kept)
-- Add: first_name TEXT, last_name TEXT
-- Add: hire_date DATE (alias for start_date)
-- Add: termination_date DATE
-- Add: early_termination_date DATE (takes priority)
-- Add: annual_leave_days INTEGER DEFAULT 20
-- Add: slava_date DATE (Serbian patron saint day)
-- Add: daily_work_hours NUMERIC DEFAULT 8
-- Add: position_template_id UUID FK position_templates
-- Add: is_archived BOOLEAN DEFAULT false
-- Add: company_id UUID FK legal_entities (nullable)
-```
+**1.1 `salespeople`** -- Salesperson registry
+- id, tenant_id, employee_id (nullable FK employees), first_name, last_name, code (unique per tenant), email, phone, commission_rate (default 0), is_active, created_at
 
-Status logic becomes computed:
-- Active: no effective termination date OR date hasn't passed
-- early_termination_date takes priority over termination_date
+**1.2 `sales_targets`** -- Monthly/quarterly revenue targets
+- id, tenant_id, salesperson_id, year, month (nullable), quarter (nullable), target_amount, target_type ('revenue'/'margin'/'units'), created_at
 
-### 1.2 `position_templates` -- Reusable position definitions
+**1.3 `fiscal_devices`** -- ESIR/PFR devices per shop
+- id, tenant_id, legal_entity_id (nullable), **location_id** (FK locations -- which shop), device_name, device_type ('esir'/'pfr'), ib_number, jid, api_url, pac, location_name, location_address, is_active, created_at
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| name | text | e.g. "Software Developer" |
-| code | text | |
-| description | text | nullable |
-| is_active | boolean | default true |
-| created_at | timestamptz | |
+**1.4 `fiscal_receipts`** -- Complete PFR transaction log
+- id, tenant_id, fiscal_device_id, pos_transaction_id (nullable), invoice_id (nullable), receipt_type ('normal'/'proforma'/'copy'/'training'), transaction_type ('sale'/'refund'), receipt_number, total_amount, tax_items (jsonb), payment_method, buyer_id (nullable), pfr_request (jsonb), pfr_response (jsonb), qr_code_url, signed_at, created_at
 
-### 1.3 `department_positions` -- M:N junction
+**1.5 `pos_daily_reports`** -- Z-reports per shop per day
+- id, tenant_id, **location_id** (FK locations), session_id (nullable), fiscal_device_id (nullable), report_date, total_sales, total_refunds, net_sales, cash_total, card_total, other_total, transaction_count, refund_count, tax_breakdown (jsonb), created_at
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| department_id | uuid FK departments | |
-| position_template_id | uuid FK position_templates | |
-| headcount | int | default 1 |
-| UNIQUE | (department_id, position_template_id) | |
+**1.6 `retail_price_lists`** -- Price lists (global or per-shop)
+- id, tenant_id, **location_id** (nullable -- null = all shops, set = store-specific), name, is_default, is_active, created_at
 
-### 1.4 ALTER `departments` -- Add company link
+**1.7 `retail_prices`** -- Product prices in a list
+- id, price_list_id, product_id, retail_price (PDV-inclusive), markup_percent, valid_from, valid_until, created_at
+- UNIQUE (price_list_id, product_id, valid_from)
 
-```text
-- Add: company_id UUID FK legal_entities (nullable)
-```
+### Altered Tables
 
-### 1.5 `work_logs` -- Daily work log entries
+**1.8 ALTER `pos_sessions`** -- Make store-aware + salesperson-aware
+- Add: `location_id` uuid FK locations -- **which shop**
+- Add: `warehouse_id` uuid FK warehouses -- **which warehouse for stock**
+- Add: `fiscal_device_id` uuid FK fiscal_devices -- **which register**
+- Add: `salesperson_id` uuid FK salespeople -- **who is working this session**
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| date | date | |
-| type | text | work_log_type enum values |
-| hours | numeric | default 8 |
-| note | text | nullable |
-| vacation_year | int | nullable, for GO attribution |
-| created_by | uuid | nullable |
-| created_at | timestamptz | |
-| UNIQUE | (employee_id, date) | |
+**1.9 ALTER `pos_transactions`** -- Store + salesperson + fiscal data
+- Add: `location_id` uuid FK locations (denormalized for fast queries)
+- Add: `warehouse_id` uuid FK warehouses
+- Add: `salesperson_id` uuid FK salespeople
+- Add: `fiscal_receipt_number` text nullable
+- Add: `fiscal_device_id` uuid FK fiscal_devices
+- Add: `is_fiscal` boolean default true
+- Add: `receipt_type` text default 'sale' ('sale'/'refund')
+- Add: `original_transaction_id` uuid FK pos_transactions (for refunds)
+- Add: `buyer_id` text nullable (PIB/JMBG for fiscal)
+- Add: `invoice_id` uuid FK invoices nullable
 
-work_log_type values: `workday`, `weekend`, `holiday`, `vacation`, `sick_leave`, `paid_leave`, `unpaid_leave`, `maternity_leave`, `holiday_work`, `slava`
+**1.10 ALTER `invoices`** -- Wholesale/retail + salesperson
+- Add: `salesperson_id`, `sales_channel_id`, `sale_type` text default 'wholesale'
 
-### 1.6 `overtime_hours` -- Monthly summary
+**1.11 ALTER `sales_orders`** -- Add salesperson + channel
+- Add: `salesperson_id`, `sales_channel_id`
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| year | int | |
-| month | int | |
-| hours | numeric | supports 0.5 increments |
-| tracking_type | text | 'monthly' or 'daily' |
-| created_at | timestamptz | |
-| UNIQUE | (employee_id, year, month) | |
+**1.12 ALTER `quotes`** -- Add salesperson
+- Add: `salesperson_id`
 
-### 1.7 `overtime_daily_entries` -- Daily detail
+**1.13 ALTER `opportunities`** -- Add salesperson
+- Add: `salesperson_id`
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| date | date | |
-| hours | numeric | |
-| created_at | timestamptz | |
+**1.14 ALTER `products`** -- Default retail price
+- Add: `default_retail_price` numeric default 0
 
-### 1.8 `night_work_hours` + `night_work_daily_entries`
+**1.15 ALTER `locations`** -- Retail defaults per shop
+- Add: `default_warehouse_id` uuid FK warehouses nullable
+- Add: `default_price_list_id` uuid FK retail_price_lists nullable
 
-Same structure as overtime tables. Night hours are **subtracted** from regular hours in reports.
-
-### 1.9 `annual_leave_balances`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| year | int | |
-| entitled_days | numeric | |
-| used_days | numeric | default 0 |
-| carried_over_days | numeric | default 0 (expire June 30) |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-| UNIQUE | (employee_id, year) | |
-
-### 1.10 `holidays`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | nullable (null = national) |
-| company_id | uuid FK legal_entities | nullable |
-| name | text | |
-| date | date | |
-| is_recurring | boolean | default false |
-| created_at | timestamptz | |
-
-### 1.11 `deductions` + `deduction_payments`
-
-**deductions:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| type | text | 'credit', 'alimony', 'other' |
-| description | text | |
-| total_amount | numeric | |
-| paid_amount | numeric | default 0 |
-| start_date | date | |
-| end_date | date | nullable |
-| is_active | boolean | default true |
-| created_at | timestamptz | |
-
-**deduction_payments:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| deduction_id | uuid FK deductions | |
-| amount | numeric | |
-| payment_date | date | |
-| month | int | |
-| year | int | |
-| created_at | timestamptz | |
-
-### 1.12 `allowance_types` + `allowances`
-
-**allowance_types:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | nullable (null = system) |
-| name | text | |
-| code | text | |
-| is_active | boolean | default true |
-
-**allowances:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| allowance_type_id | uuid FK allowance_types | |
-| amount | numeric | |
-| month | int | |
-| year | int | |
-| created_at | timestamptz | |
-| UNIQUE | (employee_id, allowance_type_id, month, year) | |
-
-### 1.13 `external_work_types` + `engaged_persons` + `external_work_payments`
-
-**external_work_types:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | nullable |
-| name | text | |
-| code | text | |
-
-**engaged_persons:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| first_name | text | |
-| last_name | text | |
-| jmbg | text | |
-| contract_expiry | date | nullable |
-| is_active | boolean | default true |
-| created_at | timestamptz | |
-
-**external_work_payments:**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| person_id | uuid FK engaged_persons | |
-| work_type_id | uuid FK external_work_types | |
-| amount | numeric | |
-| month | int | |
-| year | int | |
-| created_at | timestamptz | |
-
-### 1.14 `employee_salaries` -- Salary history
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| employee_id | uuid FK employees | |
-| amount | numeric | |
-| salary_type | text | 'hourly' or 'monthly' |
-| amount_type | text | 'net' or 'gross' |
-| meal_allowance | numeric | default 0 |
-| regres | numeric | default 0 |
-| start_date | date | |
-| created_at | timestamptz | |
-
-### 1.15 `insurance_records`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| first_name | text | |
-| last_name | text | |
-| middle_name | text | nullable |
-| jmbg | text | unique per tenant |
-| lbo | text | nullable |
-| insurance_start | date | |
-| insurance_end | date | nullable |
-| registration_date | date | |
-| employee_id | uuid FK employees | nullable |
-| created_at | timestamptz | |
-| UNIQUE | (tenant_id, jmbg) | |
-
-### 1.16 ALTER `payroll_items`
-
-Add: `leave_days_deducted`, `leave_deduction_amount`, `working_days`, `actual_working_days`, `dlp_amount` (from Phase 25 plan), plus `overtime_hours`, `night_work_hours`.
-
-### 1.17 ALTER `leave_requests`
-
-Add: `vacation_year` int nullable -- for annual leave balance attribution.
-
-All new tables get RLS policies scoped by tenant_id with admin/hr write access.
+All new tables get RLS policies scoped by tenant_id.
 
 ---
 
-## Part 2: New Pages (13 new pages)
+## Part 2: eFiskalizacija Edge Function
 
-### 2.1 `src/pages/tenant/WorkLogs.tsx` -- Work Log List
-- Table: Employee | Date | Type | Hours | Note
-- Filters: employee, date range, type
-- Add/Edit dialog
-- Link to bulk entry and calendar
+### New: `supabase/functions/fiscalize-receipt/index.ts`
 
-### 2.2 `src/pages/tenant/WorkLogsBulkEntry.tsx` -- Bulk Entry
-- Select multiple employees + date range
-- Grid with rows = employees, columns = dates
-- Select work_log_type per cell
-- Save all at once (batch upsert)
+PFR (Procesor Fiskalnih Racuna) communication:
 
-### 2.3 `src/pages/tenant/WorkLogsCalendar.tsx` -- Calendar View
-- Monthly calendar grid per employee
-- Color-coded cells by work_log_type
-- Click to edit individual entries
-
-### 2.4 `src/pages/tenant/OvertimeHours.tsx` -- Overtime Tracking
-- Monthly view or daily detail toggle
-- 0.5h increment support
-- Filters: employee, year, month
-
-### 2.5 `src/pages/tenant/NightWork.tsx` -- Night Work Tracking
-- Same structure as overtime
-- Note: night hours subtract from regular in reports
-
-### 2.6 `src/pages/tenant/AnnualLeaveBalances.tsx` -- GO Management
-- Per-employee balances by year
-- Shows: Entitled, Carried Over, Used, Remaining
-- Expired indicator after June 30
-- Recalculate button (counts work_logs with type=vacation)
-
-### 2.7 `src/pages/tenant/Holidays.tsx` -- Holiday Management
-- National holidays (pre-seeded 2025-2027)
-- Company-specific holidays
-- isHoliday check utility
-
-### 2.8 `src/pages/tenant/Deductions.tsx` -- Employee Deductions
-- CRUD for credit/alimony/other deductions
-- Payment tracking per month
-- Running balance (total - paid)
-
-### 2.9 `src/pages/tenant/Allowances.tsx` -- Monthly Allowances
-- Allowance types management
-- Per-employee monthly amounts
-- Copy from previous month function
-
-### 2.10 `src/pages/tenant/ExternalWorkers.tsx` -- Engaged Persons
-- CRUD for non-employee workers
-- Work types management
-- Monthly payment tracking
-
-### 2.11 `src/pages/tenant/EmployeeSalaries.tsx` -- Salary History
-- Per-employee salary records by start_date
-- Auto-carry meal_allowance and regres from previous record
-- Filter by "as of" date
-
-### 2.12 `src/pages/tenant/InsuranceRecords.tsx` -- Insurance
-- CRUD with bulk import support
-- Upsert by JMBG
-- Link to employees
-
-### 2.13 `src/pages/tenant/PositionTemplates.tsx` -- Position Templates
-- Reusable position definitions
-- Link to departments via department_positions
-
-### 2.14 `src/pages/tenant/HrReports.tsx` -- Comprehensive Reports
-- 5 tabs: Monthly, Annual, Annual Leave, Salaries, Analytics
-- Filters: Year, Month, Department, Position, Employee
-- Monthly: work days, weekends, holidays, vacation, sick, paid/unpaid leave, maternity, holiday work, slava -- all in hours
-- Overtime and night work columns
-- Total = regular + overtime (night subtracted from regular)
-- Excel/CSV export
-- Annual: 12-month summary
-- GO tab: carried over, entitled, used, remaining
-- Salaries: filtered by date
-- Analytics: absence KPIs + headcount/turnover charts
+1. Accept `{ transaction_id, tenant_id, device_id, items, payments, buyer_id, receipt_type, transaction_type }`
+2. Load fiscal device config (api_url, PAC, IB)
+3. Build PFR InvoiceRequest JSON:
+   - Tax labels: A=20%, G=10%, E=0%
+   - Payment types: 0=Other, 1=Cash, 2=Card, 3=Check, 4=Wire, 5=Voucher, 6=Mobile
+4. POST to PFR API endpoint (configured per device)
+5. Store full request/response in `fiscal_receipts`
+6. Update `pos_transactions.fiscal_receipt_number`
+7. Return receipt number + QR code URL
+8. For refunds: reference original receipt number + datetime
 
 ---
 
-## Part 3: Modify Existing Pages
+## Part 3: New Pages (5)
 
-### 3.1 `Employees.tsx` -- Major overhaul
-- Split full_name into first_name + last_name (keep full_name computed)
-- Add fields: hire_date, termination_date, early_termination_date, annual_leave_days, slava_date, daily_work_hours, position_template_id, is_archived, company_id
-- Status computed from termination dates
-- "Include archived" toggle
-- Link to salary history, work logs, leave balances
+### 3.1 `Salespeople.tsx` -- Salesperson Management
+- CRUD: code, name, email, phone, commission rate, employee link
+- Performance summary cards (total revenue, commissions earned)
+- Active/inactive filter
 
-### 3.2 `Departments.tsx` -- Add company link
-- Add company_id (legal entity) selector
-- Show position templates linked via department_positions
+### 3.2 `SalesPerformance.tsx` -- Analytics Dashboard
+- Filters: date range, salesperson, sales channel, sale type, **location/shop**
+- KPI cards: Total Revenue, Margin, Avg Deal Size, Conversion Rate
+- Charts: revenue by salesperson (bar), trend over time (line), by channel (pie), wholesale vs retail split
+- **Per-store breakdown**: revenue/transactions by shop (A1, A2, A3, A4)
+- Leaderboard: Salesperson | Revenue | Orders | Avg Order | Commission | Target %
 
-### 3.3 `LeaveRequests.tsx` -- Add vacation_year
-- Add vacation_year field for GO attribution
-- Show payroll impact indicator
+### 3.3 `RetailPrices.tsx` -- Retail Price Management
+- Price list CRUD (assign to specific shop or all shops)
+- Product price editor grid
+- Bulk markup calculator (apply X% to category)
+- Compare wholesale vs retail prices side by side
 
-### 3.4 `Payroll.tsx` -- Integrate work logs + overtime + deductions
-- Calculate based on work_logs (actual working days)
-- Include overtime and night work in calculation
-- Show leave deductions
-- Deduction amounts from active deductions
+### 3.4 `FiscalDevices.tsx` -- Fiscal Device Management
+- CRUD with **shop/location selector** (which store this device is in)
+- Legal entity link (for PIB on receipts)
+- Test connection button (ping PFR API)
+- Device status indicator
+- Multiple devices per shop supported
+
+### 3.5 `PosDailyReport.tsx` -- Z-Report / Daily Report
+- **Shop/location filter** (select which store)
+- Date selector
+- Auto-calculate from pos_transactions for date + location
+- Summary: total sales, refunds, net, by payment method
+- Tax breakdown by rate (A/G/E)
+- Print-friendly format
+- History of past daily reports
 
 ---
 
-## Part 4: Update `calculate_payroll_for_run` RPC
+## Part 4: Modify Existing Pages
 
-Enhanced to:
-1. Count actual working days from work_logs
-2. Factor in overtime hours (add to gross pro-rata)
-3. Subtract night work from regular (to avoid double-counting)
-4. Apply leave deductions (unpaid = full deduction, sick first 30d = 65%)
-5. Subtract active deduction installments
-6. Add allowances to compensation
+### 4.1 `PosTerminal.tsx` -- Major Enhancement
+- **Shop selector** at entry (pick location from shop-type locations)
+- System auto-loads: store's warehouse, fiscal devices, retail price list
+- **Salesperson indicator** (from active session)
+- Fiscal flow: "Fiscalize" button after sale completion -> calls edge function -> displays receipt number + QR code
+- Refund flow: search original transaction, create refund receipt with reference
+- Buyer ID field (PIB/JMBG -- required for amounts above threshold)
+- Retail prices from the store's price list
+- Expanded payment methods: cash, card, check, wire, voucher, mobile
+- Stock deduction from session's warehouse on completed sale
+
+### 4.2 `PosSessions.tsx` -- Store-Aware Sessions
+- **Shop/location filter** to view sessions per store
+- When opening session: select shop + salesperson -> auto-fill warehouse + fiscal device
+- Multiple simultaneous open sessions per shop (one per salesperson)
+- Session summary: transaction count, total revenue by payment method
+- Link to generate daily report for the session's shop
+
+### 4.3 `Invoices.tsx` -- Add Sales Fields
+- Salesperson selector in create/edit
+- Sales channel selector
+- Sale type toggle (wholesale/retail)
+- Filter by salesperson, channel, sale type
+
+### 4.4 `SalesOrders.tsx` -- Add salesperson + channel selectors
+### 4.5 `Quotes.tsx` -- Add salesperson selector
+### 4.6 `Opportunities.tsx` -- Add salesperson selector
+
+### 4.7 `CrmDashboard.tsx` -- Sales Performance Widget
+- Top 5 salespeople by revenue (current month)
+- Wholesale vs Retail revenue split chart
+
+### 4.8 `Locations.tsx` -- Retail Defaults
+- Add default_warehouse_id selector (from warehouses linked to this location)
+- Add default_price_list_id selector
+- Show linked fiscal devices count
 
 ---
 
 ## Part 5: Routes and Navigation
 
-### `App.tsx` -- Add 14 new routes under `/hr/`
+### `App.tsx` -- 5 new routes
+- `crm/salespeople` -> Salespeople
+- `crm/sales-performance` -> SalesPerformance
+- `crm/retail-prices` -> RetailPrices
+- `pos/fiscal-devices` -> FiscalDevices
+- `pos/daily-report` -> PosDailyReport
 
-```text
-hr/work-logs, hr/work-logs/bulk, hr/work-logs/calendar,
-hr/overtime, hr/night-work, hr/annual-leave,
-hr/holidays, hr/deductions, hr/allowances,
-hr/external-workers, hr/salaries, hr/insurance,
-hr/position-templates, hr/reports
-```
-
-### `TenantLayout.tsx` -- Expand hrNav
-
-Add all new pages to the HR sidebar group.
+### `TenantLayout.tsx` -- Navigation updates
+Add to crmNav: Salespeople, Sales Performance, Retail Prices
+Add to posNav: Fiscal Devices, Daily Report
 
 ---
 
-## Part 6: Translations
+## Part 6: Translations (~60 keys EN/SR)
 
-Add ~80 translation keys covering:
-- Work logs: workLog, workday, weekend, holidayWork, slava, bulkEntry, workLogsCalendar
-- Overtime/Night: overtimeHours, nightWork, trackingType, dailyTracking, monthlyTracking
-- Annual leave: annualLeaveBalance, entitledDays, usedDays, carriedOverDays, expiredAfterJune
-- Holidays: nationalHoliday, companyHoliday, isRecurring
-- Deductions: deduction, credit, alimonyType, paidAmount, remainingAmount
-- Allowances: allowance, allowanceType, copyFromPrevious
-- External: engagedPerson, externalWorkType, contractExpiry
-- Salaries: salaryHistory, salaryType, hourlyRate, monthlyRate, mealAllowance, regres
-- Insurance: insuranceRecord, lbo, insuranceStart, insuranceEnd, registrationDate, bulkImport
-- Position templates: positionTemplate
-- Reports: monthlyReport, annualReport, annualLeaveReport, salaryReport, hrAnalytics, headcount, turnover
-- Employee fields: firstName, lastName, hireDate, terminationDate, earlyTerminationDate, annualLeaveDays, slavaDate, dailyWorkHours, isArchived
+Salespeople, wholesale/retail, fiscal, POS enhanced, store-related, daily report terms.
+
+---
+
+## Part 7: Edge Function Config
+
+Add `fiscalize-receipt` to `supabase/config.toml`.
 
 ---
 
@@ -436,105 +240,105 @@ Add ~80 translation keys covering:
 
 | File | Purpose |
 |------|---------|
-| `src/pages/tenant/WorkLogs.tsx` | Work log list + CRUD |
-| `src/pages/tenant/WorkLogsBulkEntry.tsx` | Bulk entry grid |
-| `src/pages/tenant/WorkLogsCalendar.tsx` | Calendar view |
-| `src/pages/tenant/OvertimeHours.tsx` | Overtime tracking |
-| `src/pages/tenant/NightWork.tsx` | Night work tracking |
-| `src/pages/tenant/AnnualLeaveBalances.tsx` | GO balances |
-| `src/pages/tenant/Holidays.tsx` | Holiday management |
-| `src/pages/tenant/Deductions.tsx` | Employee deductions |
-| `src/pages/tenant/Allowances.tsx` | Monthly allowances |
-| `src/pages/tenant/ExternalWorkers.tsx` | Engaged persons |
-| `src/pages/tenant/EmployeeSalaries.tsx` | Salary history |
-| `src/pages/tenant/InsuranceRecords.tsx` | Insurance management |
-| `src/pages/tenant/PositionTemplates.tsx` | Position templates |
-| `src/pages/tenant/HrReports.tsx` | 5-tab HR reports |
+| `src/pages/tenant/Salespeople.tsx` | Salesperson CRUD + summary |
+| `src/pages/tenant/SalesPerformance.tsx` | Sales analytics with per-store breakdown |
+| `src/pages/tenant/RetailPrices.tsx` | Retail price list management |
+| `src/pages/tenant/FiscalDevices.tsx` | Fiscal device management per shop |
+| `src/pages/tenant/PosDailyReport.tsx` | Z-report per shop per day |
+| `supabase/functions/fiscalize-receipt/index.ts` | PFR fiscalization connector |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/Employees.tsx` | Split names, add all new fields, archive toggle |
-| `src/pages/tenant/Departments.tsx` | Add company_id, position templates link |
-| `src/pages/tenant/LeaveRequests.tsx` | Add vacation_year field |
-| `src/pages/tenant/Payroll.tsx` | Integrate work logs, overtime, deductions |
-| `src/layouts/TenantLayout.tsx` | Expand hrNav with ~12 new items |
-| `src/App.tsx` | Add ~14 new routes |
-| `src/i18n/translations.ts` | ~80 new translation keys |
-| `src/integrations/supabase/types.ts` | Regenerated types |
+| `src/pages/tenant/PosTerminal.tsx` | Shop selector, fiscal flow, refunds, salesperson, retail prices, stock deduction |
+| `src/pages/tenant/PosSessions.tsx` | Shop filter, salesperson + shop selection on open, multi-session support |
+| `src/pages/tenant/Invoices.tsx` | Salesperson, channel, sale type fields |
+| `src/pages/tenant/SalesOrders.tsx` | Salesperson + channel |
+| `src/pages/tenant/Quotes.tsx` | Salesperson |
+| `src/pages/tenant/Opportunities.tsx` | Salesperson |
+| `src/pages/tenant/CrmDashboard.tsx` | Sales performance widget |
+| `src/pages/tenant/Locations.tsx` | Default warehouse + price list selectors |
+| `src/layouts/TenantLayout.tsx` | New nav items in CRM and POS groups |
+| `src/App.tsx` | 5 new routes |
+| `src/i18n/translations.ts` | ~60 new translation keys |
+| `supabase/config.toml` | fiscalize-receipt function config |
 
 ---
 
-## Technical Notes
+## Technical Details
 
-### Employee Status Logic
+### Multi-Salesperson per Shop Flow
+
 ```text
-function getEffectiveTerminationDate(emp):
-  if emp.early_termination_date: return early_termination_date
-  if emp.termination_date: return termination_date
-  return null
+Shop A1 has 3 salespeople working today: Marko, Ana, Petar
 
-function isActive(emp):
-  effDate = getEffectiveTerminationDate(emp)
-  return effDate is null OR effDate > today
+1. Marko opens POS -> selects Shop A1 -> opens session (session.salesperson_id = Marko)
+2. Ana opens POS -> selects Shop A1 -> opens session (session.salesperson_id = Ana)
+3. Petar opens POS -> selects Shop A1 -> opens session (session.salesperson_id = Petar)
 
-function wasActiveInPeriod(emp, periodStart, periodEnd):
-  hireDate = emp.hire_date
-  effDate = getEffectiveTerminationDate(emp) || Infinity
-  return hireDate <= periodEnd AND effDate >= periodStart
+Each has their own active session in the same shop.
+All 3 deduct from the same warehouse (Warehouse A1).
+All 3 fiscalize through the same fiscal device (or different registers if multiple).
+Daily Z-report aggregates ALL transactions from Shop A1 for the day.
+
+POS Terminal query for active session:
+  WHERE tenant_id = X AND opened_by = current_user AND status = 'open'
+  (each user sees only their own session)
 ```
 
-### Work Log Report Calculation
+### Retail Price Resolution per Shop
+
 ```text
-For employee in period (month):
-  workdays = count(work_logs where type='workday')
-  weekends = count(type='weekend')
-  holidays = count(type='holiday')
-  vacation = count(type='vacation')
-  sick = count(type='sick_leave')
-  ... etc for each type
-
-  regular_hours = sum(hours for non-weekend/holiday types)
-  overtime = overtime_hours for month
-  night = night_work_hours for month
-
-  total = regular_hours - night + overtime
-  (night subtracted because those hours are already in regular but tracked separately)
+When selling product X at Shop A2:
+1. Check retail_prices in Shop A2's specific price list (location_id = A2)
+2. Fall back to tenant-wide default price list (location_id IS NULL, is_default = true)
+3. Fall back to product.default_retail_price
+4. Fall back to product.default_sale_price (wholesale price)
 ```
 
-### Annual Leave Rules
+### Salesperson Performance Calculation
+
 ```text
-First year: entitled = (months_worked / 12) * annual_leave_days
-Carried over from previous year: expire June 30
-Strict rules (per company setting):
-  - First 10 days must be consecutive
-  - If entitled < 10 days, all must be consecutive
-  - Maternity leave exempts from this rule
-  - Failure to comply = forfeit carried over days
+For salesperson in period (filterable by shop):
+  invoice_revenue = SUM(invoices.total WHERE salesperson_id AND status IN ('sent','paid'))
+  pos_revenue = SUM(pos_transactions.total WHERE salesperson_id)
+  total_revenue = invoice_revenue + pos_revenue
+  commission = total_revenue * commission_rate / 100
+  target_pct = total_revenue / target_amount * 100
+  conversion = accepted_quotes / total_quotes * 100
 ```
 
-### Holidays Seed Data
+### eFiskalizacija PFR Tax Labels + Payment Types
+
 ```text
-Serbian national holidays (non-working):
-  Jan 1-2: Nova Godina
-  Jan 7: Bozic (Orthodox Christmas)
-  Feb 15-16: Sretenje (Statehood Day)
-  May 1-2: Praznik Rada
-  Nov 11: Dan Primirja
-  Easter (moveable): Veliki Petak, Velika Subota, Uskrs, Uskrsnji Ponedeljak
+Tax labels:
+  A = 20% opsta stopa (general rate)
+  G = 10% posebna stopa (reduced rate)
+  E = 0% oslobodjeno (exempt)
+
+Payment types:
+  0 = Drugo (Other)
+  1 = Gotovina (Cash)
+  2 = Kartica (Card)
+  3 = Cek (Check)
+  4 = Virman (Wire Transfer)
+  5 = Vaucer (Voucher)
+  6 = Mobilni novac (Mobile Money)
 ```
 
-### Payroll Integration
+### Daily Z-Report per Shop
+
 ```text
-Enhanced calculate_payroll_for_run:
-1. Get work_logs for period -> actual_working_days
-2. Get overtime_hours for period -> overtime
-3. Get night_work_hours for period -> night_work
-4. daily_rate = gross / working_days_in_month
-5. adjusted_gross = daily_rate * actual_working_days + overtime_premium
-6. Get active deductions -> monthly_deduction
-7. Get allowances for period -> add to compensation
-8. Net = adjusted_gross - taxes - contributions - deductions + allowances
+For Shop A1, Date 2026-02-12:
+  Query all pos_transactions WHERE location_id = A1 AND date = 2026-02-12
+  Aggregate:
+    - Total sales (receipt_type = 'sale')
+    - Total refunds (receipt_type = 'refund')
+    - Net = sales - refunds
+    - Breakdown by payment method (cash, card, etc.)
+    - Tax breakdown by label (A: base + tax, G: base + tax, E: base)
+    - Transaction count, refund count
+  Store in pos_daily_reports with location_id = A1
 ```
 
