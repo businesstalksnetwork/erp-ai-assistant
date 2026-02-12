@@ -25,6 +25,14 @@ import TenantDashboard from "@/pages/tenant/Dashboard";
 import TenantSettings from "@/pages/tenant/Settings";
 import TenantUsers from "@/pages/tenant/Users";
 import AuditLog from "@/pages/tenant/AuditLog";
+import LegalEntities from "@/pages/tenant/LegalEntities";
+import Locations from "@/pages/tenant/Locations";
+import Warehouses from "@/pages/tenant/Warehouses";
+import SalesChannels from "@/pages/tenant/SalesChannels";
+import CostCenters from "@/pages/tenant/CostCenters";
+import BankAccounts from "@/pages/tenant/BankAccounts";
+import TenantIntegrations from "@/pages/tenant/Integrations";
+import BusinessRules from "@/pages/tenant/BusinessRules";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +68,14 @@ const App = () => (
                 <Route path="settings" element={<TenantSettings />} />
                 <Route path="settings/users" element={<TenantUsers />} />
                 <Route path="settings/audit-log" element={<AuditLog />} />
+                <Route path="settings/legal-entities" element={<LegalEntities />} />
+                <Route path="settings/locations" element={<Locations />} />
+                <Route path="settings/warehouses" element={<Warehouses />} />
+                <Route path="settings/sales-channels" element={<SalesChannels />} />
+                <Route path="settings/cost-centers" element={<CostCenters />} />
+                <Route path="settings/bank-accounts" element={<BankAccounts />} />
+                <Route path="settings/integrations" element={<TenantIntegrations />} />
+                <Route path="settings/business-rules" element={<BusinessRules />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
