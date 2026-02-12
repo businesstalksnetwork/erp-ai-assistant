@@ -1,145 +1,90 @@
 
-# ERP-AI — Remaining Implementation Phases
 
-Below is the full roadmap from where we are now through completion. Phases 1, 1.5, and 2 are done (Foundation, Super Admin Panel, Tenant Settings CRUD).
+# Phase 3b: Invoicing + SEF eFaktura Integration
 
----
-
-## Phase 3: Accounting and Finance Module
-
-The core of the ERP — Serbian-compliant bookkeeping and invoicing.
-
-**What gets built:**
-- Chart of Accounts management (kontni plan) with Serbian standard account structure
-- General Ledger (glavna knjiga) with double-entry bookkeeping
-- Journal entries — manual and automated posting
-- Invoicing (fakture) — create, send, track sales invoices
-- SEF eFaktura integration (mock API initially) for government e-invoice submission
-- PDV (VAT) calculation and reporting per Serbian tax rules
-- Accounts Payable — vendor bills, payment scheduling
-- Accounts Receivable — customer balances, aging reports
-- Bank statement import and reconciliation
-- Financial reports: Balance Sheet (bilans stanja), Income Statement (bilans uspeha), Trial Balance
-- Fiscal year management and period closing
-- Multi-currency support with NBS exchange rates (mock)
-
-**New database tables:** chart_of_accounts, journal_entries, journal_lines, invoices, invoice_lines, payments, bank_statements, tax_rates, fiscal_periods
-
-**New routes:** `/accounting/chart-of-accounts`, `/accounting/journal`, `/accounting/invoices`, `/accounting/payables`, `/accounting/receivables`, `/accounting/reports`, `/accounting/bank-reconciliation`
+All data is strictly per-tenant (per organization). Every table uses `tenant_id` with RLS policies so tenants only ever see their own invoices, tax rates, and line items.
 
 ---
 
-## Phase 4: Sales and CRM Module
+## What gets built
 
-Customer management and the sales pipeline.
+### 1. Database tables (all tenant-scoped)
 
-**What gets built:**
-- Customer/Partner registry (kupci/dobavljaci) with PIB lookup
-- Sales orders and quotes (ponude/narudzbenice)
-- Sales pipeline / CRM board (Kanban view)
-- Price lists and discount rules
-- Delivery notes (otpremnice)
-- Sales reports and analytics (by channel, rep, period)
-- Customer communication log
-- AI-powered sales forecasting and customer scoring
+**tax_rates** — per-tenant tax rate configuration
+- id, tenant_id, name, rate (%), is_default, is_active
+- Seeded with Serbian defaults: 20% (opsta stopa), 10% (posebna), 0% (oslobodjeno)
 
-**New database tables:** partners, sales_orders, sales_order_lines, price_lists, price_list_items, delivery_notes, crm_opportunities, crm_activities
+**invoices** — per-tenant invoice headers
+- id, tenant_id, invoice_number (auto: INV-YYYY-NNNNN), invoice_date, due_date
+- partner_name, partner_pib, partner_address (inline, partner registry comes Phase 4)
+- subtotal, tax_amount, total, currency (RSD default)
+- status: draft / sent / paid / cancelled / overdue
+- sef_status: not_submitted / submitted / accepted / rejected
+- notes, created_by, created_at, updated_at
 
-**New routes:** `/sales/partners`, `/sales/orders`, `/sales/quotes`, `/sales/pipeline`, `/sales/price-lists`, `/sales/reports`
+**invoice_lines** — line items per invoice
+- id, invoice_id, description, quantity, unit_price, tax_rate_id
+- line_total, tax_amount, total_with_tax, sort_order
+- RLS joins through invoices to verify tenant_id
 
----
+### 2. Invoice List Page (`/accounting/invoices`)
+- Table with search/filter by number, partner, status
+- Status badges (draft=gray, sent=blue, paid=green, overdue=red)
+- SEF status indicator
+- "New Invoice" button
 
-## Phase 5: Inventory and Warehouse Module
+### 3. Invoice Create/Edit Form (`/accounting/invoices/new`, `/accounting/invoices/:id`)
+- Full-page form (not dialog — too complex)
+- Header: auto-generated number, dates, currency
+- Partner: name, PIB, address (free text for now)
+- Dynamic line items: description, qty, unit price, tax rate dropdown, computed totals
+- Summary: subtotal, tax breakdown by rate, grand total
+- Actions: Save Draft, Post, Cancel
 
-Stock tracking across warehouses and locations.
+### 4. PDV (VAT) Calculation
+- Each line selects a tax rate from the tenant's `tax_rates`
+- Line tax = qty x unit_price x (rate / 100)
+- Summary groups tax totals by rate
 
-**What gets built:**
-- Product/Item catalog with categories, SKUs, barcodes
-- Stock levels per warehouse with real-time tracking
-- Goods receipt (prijem robe) and goods issue (izdavanje)
-- Stock transfers between warehouses
-- Inventory count / stocktaking
-- Minimum stock alerts and reorder points
-- Serial number and batch tracking
-- Inventory valuation (FIFO, weighted average)
-- Inventory reports: stock status, movement history, valuation
+### 5. Mock SEF eFaktura
+- "Submit to SEF" button on posted invoices
+- Simulates submission (updates sef_status to submitted, then accepted after delay)
+- Prepares UI for real API integration later
 
-**New database tables:** products, product_categories, stock_levels, stock_movements, inventory_counts, inventory_count_lines
-
-**New routes:** `/inventory/products`, `/inventory/stock`, `/inventory/receipts`, `/inventory/issues`, `/inventory/transfers`, `/inventory/counts`, `/inventory/reports`
-
----
-
-## Phase 6: HR and Payroll Module
-
-Employee management and Serbian payroll compliance.
-
-**What gets built:**
-- Employee registry with personal data, contracts, documents
-- Organizational structure (departments, positions)
-- Attendance tracking and leave management (godisnji odmor, bolovanje)
-- Payroll calculation per Serbian labor law (gross-to-net, contributions)
-- Payslip generation (obracunski listic)
-- Tax and contribution reports for government submission
-- Employee self-service portal (view payslips, request leave)
-- AI-powered workforce analytics
-
-**New database tables:** employees, departments, positions, contracts, attendance, leave_requests, payroll_runs, payroll_lines, payslips
-
-**New routes:** `/hr/employees`, `/hr/departments`, `/hr/attendance`, `/hr/leave`, `/hr/payroll`, `/hr/reports`
+### 6. Auto Invoice Numbers
+- Format: `INV-YYYY-NNNNN`
+- Generated from count of tenant's invoices in current year
 
 ---
 
-## Phase 7: Advanced Modules
+## Routes
 
-Three specialized modules that build on the foundation.
-
-### 7a. Production / Manufacturing
-- Bill of Materials (BOM) and recipes
-- Production orders and work orders
-- Material requirements planning (MRP)
-- Production cost tracking
-- Quality control checkpoints
-
-### 7b. Document Management System (DMS)
-- Document upload, categorization, and storage (Supabase Storage)
-- Document linking to entities (invoices, orders, employees)
-- Version control and audit trail
-- OCR integration for scanned documents (AI-powered)
-- Document templates and generation
-
-### 7c. Point of Sale (POS)
-- POS terminal interface (touch-optimized)
-- Fiscal printer integration (Serbian fiscal law compliance)
-- Cash register management
-- Daily Z-report (dnevni izvestaj)
-- Integration with inventory for real-time stock deduction
+| Route | Page |
+|-------|------|
+| `/accounting/invoices` | Invoice list |
+| `/accounting/invoices/new` | Create invoice |
+| `/accounting/invoices/:id` | View/edit invoice |
 
 ---
 
-## Phase 8: Platform Polish and Go-Live
+## Files
 
-Final hardening before production use.
-
-**What gets built:**
-- Notification system (in-app + email)
-- Advanced role-based permissions (granular per-module access)
-- Data export (CSV, PDF reports)
-- Onboarding wizard for new tenants (guided setup)
-- Performance optimization and caching
-- Mobile-responsive refinements
-- Comprehensive error handling and user feedback
-- End-to-end testing suite
-- Documentation and help system
+| Action | File |
+|--------|------|
+| Migration | `tax_rates`, `invoices`, `invoice_lines` tables + RLS |
+| Create | `src/pages/tenant/Invoices.tsx` |
+| Create | `src/pages/tenant/InvoiceForm.tsx` |
+| Modify | `src/App.tsx` — add 3 invoice routes |
+| Modify | `src/layouts/TenantLayout.tsx` — add Invoices nav item |
+| Modify | `src/i18n/translations.ts` — invoice keys (EN + SR) |
 
 ---
 
-## Recommended next step
+## Technical notes
 
-**Phase 3 (Accounting and Finance)** is the logical next step — it's the heart of any ERP and the most critical module for Serbian businesses. I recommend breaking it into sub-phases:
-- 3a: Chart of Accounts + Journal Entries
-- 3b: Invoicing + SEF integration
-- 3c: AP/AR + Bank Reconciliation
-- 3d: Financial Reports + Period Closing
+- All queries filter by tenant_id via RLS — no cross-tenant data leakage
+- Invoice line totals calculated client-side, stored as source of truth on save
+- RLS on `invoice_lines` uses a subquery: `invoice_id IN (SELECT id FROM invoices WHERE tenant_id IN (SELECT get_user_tenant_ids(auth.uid())))`
+- SEF mock is client-side only for now; real integration will use an edge function
+- Tax rates are per-tenant so organizations can add custom rates beyond the Serbian defaults
 
-Would you like to start with Phase 3a?
