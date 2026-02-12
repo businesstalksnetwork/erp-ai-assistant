@@ -19,7 +19,7 @@ export default function Departments() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", code: "", is_active: true });
+  const [form, setForm] = useState({ name: "", code: "", is_active: true, company_id: null as string | null });
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments", tenantId],
@@ -44,8 +44,8 @@ export default function Departments() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openAdd = () => { setEditId(null); setForm({ name: "", code: "", is_active: true }); setOpen(true); };
-  const openEdit = (d: any) => { setEditId(d.id); setForm({ name: d.name, code: d.code, is_active: d.is_active }); setOpen(true); };
+  const openAdd = () => { setEditId(null); setForm({ name: "", code: "", is_active: true, company_id: null }); setOpen(true); };
+  const openEdit = (d: any) => { setEditId(d.id); setForm({ name: d.name, code: d.code, is_active: d.is_active, company_id: d.company_id || null }); setOpen(true); };
 
   return (
     <div className="space-y-6">

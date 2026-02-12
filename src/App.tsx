@@ -98,6 +98,20 @@ import Eotpremnica from "@/pages/tenant/Eotpremnica";
 import FxRevaluation from "@/pages/tenant/FxRevaluation";
 import Kompenzacija from "@/pages/tenant/Kompenzacija";
 import InventoryCostLayers from "@/pages/tenant/InventoryCostLayers";
+import WorkLogs from "@/pages/tenant/WorkLogs";
+import WorkLogsBulkEntry from "@/pages/tenant/WorkLogsBulkEntry";
+import WorkLogsCalendar from "@/pages/tenant/WorkLogsCalendar";
+import OvertimeHours from "@/pages/tenant/OvertimeHours";
+import NightWork from "@/pages/tenant/NightWork";
+import AnnualLeaveBalances from "@/pages/tenant/AnnualLeaveBalances";
+import HolidaysPage from "@/pages/tenant/Holidays";
+import Deductions from "@/pages/tenant/Deductions";
+import Allowances from "@/pages/tenant/Allowances";
+import ExternalWorkers from "@/pages/tenant/ExternalWorkers";
+import EmployeeSalaries from "@/pages/tenant/EmployeeSalaries";
+import InsuranceRecords from "@/pages/tenant/InsuranceRecords";
+import PositionTemplates from "@/pages/tenant/PositionTemplates";
+import HrReports from "@/pages/tenant/HrReports";
 
 const queryClient = new QueryClient();
 
@@ -179,6 +193,20 @@ const App = () => (
                 <Route path="hr/attendance" element={<ProtectedRoute requiredModule="hr"><Attendance /></ProtectedRoute>} />
                 <Route path="hr/leave-requests" element={<ProtectedRoute requiredModule="hr"><LeaveRequests /></ProtectedRoute>} />
                 <Route path="hr/payroll" element={<ProtectedRoute requiredModule="hr"><Payroll /></ProtectedRoute>} />
+                <Route path="hr/work-logs" element={<ProtectedRoute requiredModule="hr"><WorkLogs /></ProtectedRoute>} />
+                <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule="hr"><WorkLogsBulkEntry /></ProtectedRoute>} />
+                <Route path="hr/work-logs/calendar" element={<ProtectedRoute requiredModule="hr"><WorkLogsCalendar /></ProtectedRoute>} />
+                <Route path="hr/overtime" element={<ProtectedRoute requiredModule="hr"><OvertimeHours /></ProtectedRoute>} />
+                <Route path="hr/night-work" element={<ProtectedRoute requiredModule="hr"><NightWork /></ProtectedRoute>} />
+                <Route path="hr/annual-leave" element={<ProtectedRoute requiredModule="hr"><AnnualLeaveBalances /></ProtectedRoute>} />
+                <Route path="hr/holidays" element={<ProtectedRoute requiredModule="hr"><HolidaysPage /></ProtectedRoute>} />
+                <Route path="hr/deductions" element={<ProtectedRoute requiredModule="hr"><Deductions /></ProtectedRoute>} />
+                <Route path="hr/allowances" element={<ProtectedRoute requiredModule="hr"><Allowances /></ProtectedRoute>} />
+                <Route path="hr/external-workers" element={<ProtectedRoute requiredModule="hr"><ExternalWorkers /></ProtectedRoute>} />
+                <Route path="hr/salaries" element={<ProtectedRoute requiredModule="hr"><EmployeeSalaries /></ProtectedRoute>} />
+                <Route path="hr/insurance" element={<ProtectedRoute requiredModule="hr"><InsuranceRecords /></ProtectedRoute>} />
+                <Route path="hr/position-templates" element={<ProtectedRoute requiredModule="hr"><PositionTemplates /></ProtectedRoute>} />
+                <Route path="hr/reports" element={<ProtectedRoute requiredModule="hr"><HrReports /></ProtectedRoute>} />
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />

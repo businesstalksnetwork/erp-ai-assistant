@@ -24,7 +24,7 @@ export default function LeaveRequests() {
   const [open, setOpen] = useState(false);
   type LeaveType = "vacation" | "sick" | "personal" | "maternity" | "paternity" | "unpaid";
   type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
-  const [form, setForm] = useState<{ employee_id: string; leave_type: LeaveType; start_date: string; end_date: string; reason: string }>({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "" });
+  const [form, setForm] = useState<{ employee_id: string; leave_type: LeaveType; start_date: string; end_date: string; reason: string; vacation_year: string }>({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "", vacation_year: "" });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-active", tenantId],
@@ -51,7 +51,7 @@ export default function LeaveRequests() {
   const createMutation = useMutation({
     mutationFn: async (f: typeof form) => {
       const days = differenceInCalendarDays(new Date(f.end_date), new Date(f.start_date)) + 1;
-      const { error } = await supabase.from("leave_requests").insert([{ ...f, tenant_id: tenantId!, days_count: days }]);
+      const { error } = await supabase.from("leave_requests").insert([{ ...f, tenant_id: tenantId!, days_count: days, vacation_year: f.vacation_year ? Number(f.vacation_year) : null }]);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leave-requests"] }); setOpen(false); toast.success(t("success")); },
@@ -76,7 +76,7 @@ export default function LeaveRequests() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("leaveRequests")}</h1>
-        <Button onClick={() => { setForm({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <Button onClick={() => { setForm({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
       <Card>
@@ -151,6 +151,7 @@ export default function LeaveRequests() {
               <div className="grid gap-2"><Label>{t("endDate")} *</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
             </div>
             <div className="grid gap-2"><Label>{t("reason")}</Label><Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>{t("vacationYear")}</Label><Input type="number" placeholder="e.g. 2026" value={form.vacation_year} onChange={(e) => setForm({ ...form, vacation_year: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
