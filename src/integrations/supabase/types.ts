@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          messages: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          messages?: Json
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          messages?: Json
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_insights_cache: {
+        Row: {
+          data: Json | null
+          description: string
+          expires_at: string
+          generated_at: string
+          id: string
+          insight_type: string
+          severity: string
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          data?: Json | null
+          description: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insight_type: string
+          severity?: string
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          data?: Json | null
+          description?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insight_type?: string
+          severity?: string
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ap_aging_snapshots: {
         Row: {
           bucket_30: number

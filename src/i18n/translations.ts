@@ -582,6 +582,12 @@ export const translations = {
     rate: "Rate",
     source: "Source",
     symbol: "Symbol",
+
+    // Phase 10: AI
+    aiAssistant: "AI Assistant",
+    analyzingData: "Analyzing data...",
+    noInsightsAvailable: "No insights available.",
+    askMeAnything: "Ask me anything about your data",
   },
   sr: {
     // Auth
@@ -1166,6 +1172,12 @@ export const translations = {
     rate: "Kurs",
     source: "Izvor",
     symbol: "Simbol",
+
+    // Phase 10: AI
+    aiAssistant: "AI Asistent",
+    analyzingData: "Analiziranje podataka...",
+    noInsightsAvailable: "Nema dostupnih uvida.",
+    askMeAnything: "Pitajte me bilo šta o vašim podacima",
   },
 } as const;
 

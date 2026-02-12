@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.process-module-event]
 verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false
+
+[functions.ai-insights]
+verify_jwt = false

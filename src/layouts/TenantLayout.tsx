@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -405,6 +406,7 @@ export default function TenantLayout() {
             <Outlet />
           </main>
         </div>
+        <AiAssistantPanel />
       </div>
     </SidebarProvider>
   );
