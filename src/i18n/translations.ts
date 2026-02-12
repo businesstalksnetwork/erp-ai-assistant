@@ -234,6 +234,9 @@ export const translations = {
     loss: "Loss",
     asOfDate: "As of Date",
 
+    // CRM
+    crm: "CRM",
+
     // Inventory
     inventory: "Inventory",
     products: "Products",
@@ -518,6 +521,9 @@ export const translations = {
     netIncome: "Neto prihod",
     loss: "Gubitak",
     asOfDate: "Na dan",
+
+    // CRM
+    crm: "CRM",
 
     // Inventory
     inventory: "Inventar",

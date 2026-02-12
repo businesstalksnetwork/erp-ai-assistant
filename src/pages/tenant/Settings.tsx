@@ -1,7 +1,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users } from "lucide-react";
 
 export default function TenantSettings() {
   const { t } = useLanguage();
@@ -13,6 +13,8 @@ export default function TenantSettings() {
     { label: t("salesChannels"), icon: ShoppingBag, to: "/settings/sales-channels" },
     { label: t("costCenters"), icon: CircleDollarSign, to: "/settings/cost-centers" },
     { label: t("bankAccounts"), icon: Landmark, to: "/settings/bank-accounts" },
+    { label: t("taxRates"), icon: Percent, to: "/settings/tax-rates" },
+    { label: t("users"), icon: Users, to: "/settings/users" },
     { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
     { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
   ];
