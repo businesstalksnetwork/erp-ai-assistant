@@ -90,11 +90,15 @@ const crmNav: NavItem[] = [
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
   { key: "meetings", url: "/crm/meetings", icon: CalendarDays },
   { key: "partners", url: "/crm/partners", icon: Handshake },
-  { key: "quotes", url: "/crm/quotes", icon: FileCheck },
-  { key: "salesOrders", url: "/crm/sales-orders", icon: ShoppingCart },
-  { key: "salespeople", url: "/crm/salespeople", icon: UserCheck },
-  { key: "salesPerformance", url: "/crm/sales-performance", icon: BarChart3 },
-  { key: "retailPrices", url: "/crm/retail-prices", icon: Receipt },
+];
+
+const salesNav: NavItem[] = [
+  { key: "quotes", url: "/sales/quotes", icon: FileCheck },
+  { key: "salesOrders", url: "/sales/sales-orders", icon: ShoppingCart },
+  { key: "salesChannels", url: "/sales/sales-channels", icon: Grid3X3 },
+  { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
+  { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
+  { key: "retailPrices", url: "/sales/retail-prices", icon: Receipt },
 ];
 
 const purchasingNav: NavItem[] = [
@@ -278,6 +282,9 @@ export default function TenantLayout() {
 
             {canAccess("crm") && (
               <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-400" />
+            )}
+            {canAccess("sales") && (
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
             )}
             {canAccess("purchasing") && (
               <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
