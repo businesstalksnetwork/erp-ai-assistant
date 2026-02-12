@@ -261,6 +261,15 @@ export const translations = {
     transfer: "Transfer",
     selectProduct: "Select Product",
     manual: "Manual entry",
+    invoicePostedWithJournal: "Invoice posted and journal entry created.",
+    invoiceMarkedPaid: "Invoice marked as paid and payment journal entry created.",
+    postInvoiceDescription: "This will post the invoice, create accounting journal entries, and optionally deduct inventory for product lines.",
+    markAsPaid: "Mark as Paid",
+    markAsPaidDescription: "This will mark the invoice as paid and create a payment journal entry (Debit Cash, Credit Receivable).",
+    optional: "optional",
+    selectWarehouse: "Select warehouse for inventory",
+    noWarehouse: "No inventory deduction",
+    warehouseHint: "Select a warehouse to automatically deduct product quantities from inventory.",
   },
   sr: {
     // Auth
@@ -524,6 +533,15 @@ export const translations = {
     transfer: "Transfer",
     selectProduct: "Izaberite proizvod",
     manual: "Ručni unos",
+    invoicePostedWithJournal: "Faktura proknjižena i nalog za knjiženje kreiran.",
+    invoiceMarkedPaid: "Faktura označena kao plaćena i nalog za uplatu kreiran.",
+    postInvoiceDescription: "Ovo će proknjižiti fakturu, kreirati nalog za knjiženje i opcionalno oduzeti zalihe za stavke sa proizvodima.",
+    markAsPaid: "Označi kao plaćeno",
+    markAsPaidDescription: "Ovo će označiti fakturu kao plaćenu i kreirati nalog za uplatu (Duguje Gotovina, Potražuje Potraživanja).",
+    optional: "opciono",
+    selectWarehouse: "Izaberite magacin za inventar",
+    noWarehouse: "Bez oduzimanja zaliha",
+    warehouseHint: "Izaberite magacin za automatsko oduzimanje količina proizvoda iz inventara.",
   },
 } as const;
 

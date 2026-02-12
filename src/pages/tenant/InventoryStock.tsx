@@ -56,20 +56,17 @@ export default function InventoryStock() {
   const adjustMutation = useMutation({
     mutationFn: async () => {
       if (!adjustDialog || adjustQty === 0) return;
-      // Insert movement
-      await supabase.from("inventory_movements").insert({
-        tenant_id: tenantId!,
-        product_id: adjustDialog.productId,
-        warehouse_id: adjustDialog.warehouseId,
-        movement_type: "adjustment",
-        quantity: adjustQty,
-        notes: adjustNotes || null,
-        created_by: user?.id || null,
+      const { error } = await supabase.rpc("adjust_inventory_stock", {
+        p_tenant_id: tenantId!,
+        p_product_id: adjustDialog.productId,
+        p_warehouse_id: adjustDialog.warehouseId,
+        p_quantity: adjustQty,
+        p_movement_type: "adjustment",
+        p_notes: adjustNotes || null,
+        p_created_by: user?.id || null,
+        p_reference: null,
       });
-      // Update stock
-      const currentItem = stock.find((s) => s.id === adjustDialog.stockId);
-      const newQty = Number(currentItem?.quantity_on_hand || 0) + adjustQty;
-      await supabase.from("inventory_stock").update({ quantity_on_hand: newQty }).eq("id", adjustDialog.stockId);
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory-stock"] });
