@@ -39,6 +39,10 @@ import {
   CalendarOff,
   Banknote,
   FileSignature,
+  Target,
+  TrendingUp,
+  FileCheck,
+  ShoppingCart,
 } from "lucide-react";
 
 const mainNav = [
@@ -62,6 +66,10 @@ const accountingNav = [
 
 const crmNav = [
   { key: "partners" as const, url: "/crm/partners", icon: Handshake },
+  { key: "leads" as const, url: "/crm/leads", icon: Target },
+  { key: "opportunities" as const, url: "/crm/opportunities", icon: TrendingUp },
+  { key: "quotes" as const, url: "/crm/quotes", icon: FileCheck },
+  { key: "salesOrders" as const, url: "/crm/sales-orders", icon: ShoppingCart },
 ];
 
 const hrNav = [
