@@ -443,6 +443,42 @@ export const translations = {
     confirmed: "Confirmed",
     shipped: "Shipped",
     delivered: "Delivered",
+
+    // Production
+    production: "Production",
+    bomTemplates: "BOM Templates",
+    bomTemplate: "BOM Template",
+    productionOrders: "Production Orders",
+    materials: "Materials",
+    plannedStart: "Planned Start",
+    plannedEnd: "Planned End",
+    planned: "Planned",
+    in_progress: "In Progress",
+    completed: "Completed",
+
+    // Documents
+    documents: "Documents",
+    upload: "Upload",
+    file: "File",
+    fileSize: "File Size",
+    customerName: "Customer Name",
+
+    // POS
+    pos: "POS",
+    posTerminal: "POS Terminal",
+    posSessions: "Sessions",
+    openSession: "Open Session",
+    closeSession: "Close Session",
+    openingBalance: "Opening Balance",
+    closingBalance: "Closing Balance",
+    openedAt: "Opened At",
+    closedAt: "Closed At",
+    noActiveSession: "No active session. Please open a session first.",
+    cart: "Cart",
+    completeSale: "Complete Sale",
+    posTransactionComplete: "Transaction completed successfully.",
+    cash: "Cash",
+    card: "Card",
   },
   sr: {
     // Auth
@@ -888,6 +924,42 @@ export const translations = {
     confirmed: "Potvrđeno",
     shipped: "Otpremljeno",
     delivered: "Isporučeno",
+
+    // Production
+    production: "Proizvodnja",
+    bomTemplates: "BOM šabloni",
+    bomTemplate: "BOM šablon",
+    productionOrders: "Proizvodni nalozi",
+    materials: "Materijali",
+    plannedStart: "Planirani početak",
+    plannedEnd: "Planirani završetak",
+    planned: "Planirano",
+    in_progress: "U toku",
+    completed: "Završeno",
+
+    // Documents
+    documents: "Dokumenti",
+    upload: "Otpremi",
+    file: "Fajl",
+    fileSize: "Veličina fajla",
+    customerName: "Ime kupca",
+
+    // POS
+    pos: "POS",
+    posTerminal: "POS Terminal",
+    posSessions: "Sesije",
+    openSession: "Otvori sesiju",
+    closeSession: "Zatvori sesiju",
+    openingBalance: "Početno stanje",
+    closingBalance: "Završno stanje",
+    openedAt: "Otvoreno",
+    closedAt: "Zatvoreno",
+    noActiveSession: "Nema aktivne sesije. Molimo otvorite sesiju.",
+    cart: "Korpa",
+    completeSale: "Završi prodaju",
+    posTransactionComplete: "Transakcija uspešno završena.",
+    cash: "Gotovina",
+    card: "Kartica",
   },
 } as const;
 
