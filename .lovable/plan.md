@@ -1,63 +1,64 @@
 
 
-# Phase 16: Deep Accounting Integrity & PRD Alignment
+# Phase 17: 3-Way Matching, Returns Accounting & Fixed Asset Journals
 
 ## Overview
 
-The PRD mandates deterministic, code-based journal postings, period close enforcement, 3-way matching, payroll auto-posting, production WIP accounting, and enhanced partner data. This phase upgrades the current generic implementations to comply with the Posting Rule Catalog (PRC) and Accounting Integrity Invariants from the PRD.
+This phase addresses the three most critical remaining PRD gaps: procurement 3-way matching (a hard requirement before supplier invoice approval), returns/credit note accounting entries, and fixed asset depreciation journal entries.
 
 ---
 
 ## What Gets Built
 
-### 1. Code-Based Journal Entry Creation (Posting Rule Catalog)
+### 1. 3-Way Matching (PO / GR / Supplier Invoice)
 
-**Current problem**: Supplier Invoice posting uses generic `account_type` lookups (e.g., find any "expense" account). The PRD requires deterministic account code mapping (e.g., code `7000` for COGS, `2100` for AP, `1000` for Cash/Bank).
+**PRD Reference**: Section 14.3 -- "3-way match PO/GR/Inv pre 'approve'"
 
-**Fix**: Refactor `SupplierInvoices.tsx` journal entry creation to use account **codes** instead of types:
-- Approve: Debit `7000` (COGS/Expense) + Debit `4700` (Input VAT for tax amount) / Credit `2100` (AP)
-- Pay: Debit `2100` (AP) / Credit `1000` (Cash/Bank)
+**Current problem**: Supplier Invoices can be approved without verifying that quantities and amounts match the Purchase Order and Goods Receipt.
 
-This matches PRC section 14.3 from the PRD.
+**Implementation**:
+- When a Supplier Invoice has a linked `purchase_order_id`, the "Approve" action will:
+  1. Fetch the PO lines and GR lines for that PO
+  2. Compare: PO ordered qty vs GR received qty vs Invoice qty
+  3. Compare: PO unit price vs Invoice unit price (tolerance configurable, default 0)
+  4. If mismatches exist, show a warning dialog listing discrepancies and require explicit user confirmation
+  5. If no PO is linked, approval proceeds without matching (service/expense invoices)
+- Add a visual match status badge on the Supplier Invoice table: "matched", "partial", "unmatched", "n/a"
 
-### 2. Payroll Auto-Posting to General Ledger
+### 2. Returns & Credit Notes Accounting (PRC 14.4)
 
-**Current problem**: Payroll runs calculate salaries but never create journal entries. PRD PRC section 14.6 requires:
-- On "approved": Debit `8000` (General Expenses/Salary cost) / Credit liability accounts for net, taxes, contributions
-- On "paid": Debit liability / Credit `1000` (Bank)
+**PRD Reference**: Section 14.4 -- Return.Receipt RESTOCK: Debit Inventory / Credit COGS; CreditNote: Debit Revenue / Credit AR
 
-**Implementation**: Add journal entry creation when payroll status changes to "approved" and "paid".
+**Current problem**: Returns page has full CRUD with inspection workflow but generates no journal entries or inventory movements when a return is resolved.
 
-### 3. Production WIP Journal Entries
+**Implementation**:
+- When a customer return is marked "resolved" with accepted items:
+  - **Inventory**: Call `adjust_inventory_stock` to add accepted quantities back (restock)
+  - **Journal Entry** (RESTOCK): Debit `1200` (Inventory) / Credit `7000` (COGS) for cost value
+  - **Credit Note Journal**: Debit `4000` (Revenue) + Debit `4700` (Output VAT reversal) / Credit `1200` (AR) for invoice value
+- When a supplier return (RMA) is resolved:
+  - **Journal Entry**: Debit `2100` (AP) / Credit `1200` (Inventory) for returned goods value
 
-**Current problem**: Production completion only adjusts inventory stock but creates no accounting entries. PRD PRC section 14.5 requires:
-- Material issue: Debit WIP / Credit Inventory (Zalihe)
-- Completion: Debit Finished Goods Inventory / Credit WIP
+### 3. Fixed Asset Depreciation Journal Entries
 
-**Implementation**: Add a new account code `5000` (WIP) to the seeded chart of accounts. Create journal entries during production order completion alongside inventory movements.
+**PRD Reference**: Section 6.6 -- "amortizacioni planovi, rashodovanja/prodaje"
 
-### 4. Fiscal Period Close Enforcement
+**Current problem**: The "Run Depreciation" button creates depreciation records in `asset_depreciations` but never posts journal entries.
 
-**Current problem**: Fiscal periods can be opened/closed but nothing prevents posting journal entries to a closed period.
+**Implementation**:
+- After each depreciation run, create a journal entry:
+  - Debit `8100` (Depreciation Expense) / Credit `1290` (Accumulated Depreciation)
+- On asset disposal (status changed to "disposed"):
+  - Debit `1290` (Accumulated Depreciation) + Debit loss account / Credit `1200` (Asset at cost)
+  - Calculate gain/loss = (acquisition_cost - accumulated_depreciation - disposal_proceeds)
 
-**Implementation**: Before creating any journal entry, check if the entry date falls within a closed fiscal period. Block posting with an error message if it does. This applies to all posting flows (invoice, supplier invoice, payroll, production).
+### 4. Seed Missing Standard Accounts
 
-### 5. Enhanced Partner Model
-
-**Current problem**: Partners only have basic fields (name, PIB, address, type). PRD section 4.2 requires credit limits, payment terms, and default currency.
-
-**Implementation**: 
-- Add DB columns: `credit_limit`, `payment_terms_days`, `default_currency`, `email`, `phone`, `contact_person`
-- Update Partners.tsx form to include these fields
-- Display credit limit warnings on invoice/SO creation (future phase)
-
-### 6. Seed Additional Chart of Accounts
-
-Add missing standard accounts needed by the PRC:
-- `5000` - Work in Progress (WIP) - asset type
-- `5100` - Finished Goods Inventory - asset type
-
-These are needed for production WIP accounting.
+Add accounts needed by the new posting rules:
+- `1290` - Accumulated Depreciation / Ispravka vrednosti - contra-asset
+- `8100` - Depreciation Expense / Amortizacija - expense
+- `4000` - Revenue / Prihodi od prodaje - revenue (verify exists)
+- `1200` - Inventory / Zalihe - asset (verify exists)
 
 ---
 
@@ -65,84 +66,77 @@ These are needed for production WIP accounting.
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/SupplierInvoices.tsx` | Refactor journal creation to use account codes (7000, 4700, 2100, 1000) instead of generic types |
-| `src/pages/tenant/Payroll.tsx` | Add journal entry creation on approve/paid status changes |
-| `src/pages/tenant/ProductionOrders.tsx` | Add WIP journal entries alongside inventory movements |
-| `src/pages/tenant/Partners.tsx` | Add credit_limit, payment_terms_days, default_currency, email, phone, contact_person fields |
-| `src/i18n/translations.ts` | Add keys for new partner fields, period close errors, payroll posting messages |
-| Database migration | Add partner columns, seed WIP/FG accounts, add period close check function |
+| `src/pages/tenant/SupplierInvoices.tsx` | Add 3-way matching check before approve; add match status badge |
+| `src/pages/tenant/Returns.tsx` | Add journal entry + inventory movement creation on "resolved" |
+| `src/pages/tenant/FixedAssets.tsx` | Add journal entries for depreciation runs and disposals |
+| `src/lib/journalUtils.ts` | No changes needed -- reuse `createCodeBasedJournalEntry` |
+| `src/i18n/translations.ts` | Add keys for matching, returns accounting, depreciation posting |
+| Database migration | Seed `1290` and `8100` accounts; verify `1200` and `4000` exist |
 
 ---
 
 ## Technical Details
 
-### Account Code Lookup Pattern
+### 3-Way Matching Logic
 
-Replace the current generic type-based lookup:
+When user clicks "Approve" on a Supplier Invoice that has a `purchase_order_id`:
+
+1. Fetch PO lines: `purchase_order_lines` where `purchase_order_id = X`
+2. Fetch GR lines: `goods_receipt_lines` via `goods_receipts` where `purchase_order_id = X` and `status = 'completed'`
+3. Group GR lines by `product_id` and sum `quantity_received`
+4. For each PO line, compare:
+   - `po.quantity` vs `sum(gr.quantity_received)` vs invoice amount (if line-level) or total
+   - If qty mismatch > 0, flag as discrepancy
+5. Show a confirmation dialog with discrepancy table if any mismatches found
+6. User can "Approve Anyway" (with audit note) or "Cancel"
+
+### Returns Accounting Pattern
+
+On customer return "resolved":
 ```text
-// BEFORE (wrong - finds any expense account)
-accounts.find(a => a.account_type === "expense")
+// For each accepted return line:
+// 1. Restock inventory
+adjust_inventory_stock(product_id, warehouse_id, +quantity_accepted)
 
-// AFTER (correct - finds specific account by code)
-accounts.find(a => a.code === "7000")  // COGS
-accounts.find(a => a.code === "2100")  // AP
-accounts.find(a => a.code === "1000")  // Cash/Bank
-accounts.find(a => a.code === "4700")  // Tax (Input VAT)
+// 2. COGS reversal journal (at cost)
+Debit 1200 (Inventory) / Credit 7000 (COGS)  -- quantity * unit_cost
+
+// 3. Credit note journal (at invoice price)
+Debit 4000 (Revenue) / Credit 1200 (AR)  -- quantity * unit_price
+Debit 4700 (Output VAT reversal) / Credit 1200 (AR)  -- tax portion
 ```
 
-### Supplier Invoice PRC (section 14.3)
+### Fixed Asset Depreciation Journal
 
-On **approve**:
-- Debit `7000` (Expense/COGS): `amount` (net of tax)
-- Debit `4700` (Input VAT): `tax_amount`
-- Credit `2100` (AP): `total`
-
-On **mark paid**:
-- Debit `2100` (AP): `total`
-- Credit `1000` (Cash/Bank): `total`
-
-### Payroll PRC (section 14.6)
-
-On **approve** (per payroll run totals):
-- Debit `8000` (Salary Expense): `total_gross`
-- Credit `2100` (Payable - Net): `total_net`
-- Credit `4700` (Tax/Contributions Payable): `total_taxes + total_contributions`
-
-On **paid**:
-- Debit `2100` (Payable): `total_net`
-- Credit `1000` (Bank): `total_net`
-
-### Production PRC (section 14.5)
-
-On **complete**:
-- Journal line 1: Debit `5100` (Finished Goods) / Credit `5000` (WIP) for production output value
-- For now, value = quantity * a placeholder unit cost (full costing engine is a future phase)
-
-### Fiscal Period Check
-
-A reusable helper function checks before any journal entry insert:
-1. Find fiscal period where `start_date <= entry_date <= end_date`
-2. If found and status = "closed" or "locked", throw error "Cannot post to closed period"
-3. If found and status = "open", auto-link `fiscal_period_id` on the journal entry
-
-### Partner Schema Changes (Migration)
-
+On depreciation run for asset:
 ```text
-ALTER TABLE partners ADD COLUMN credit_limit numeric DEFAULT 0;
-ALTER TABLE partners ADD COLUMN payment_terms_days integer DEFAULT 30;
-ALTER TABLE partners ADD COLUMN default_currency text DEFAULT 'RSD';
-ALTER TABLE partners ADD COLUMN email text;
-ALTER TABLE partners ADD COLUMN phone text;
-ALTER TABLE partners ADD COLUMN contact_person text;
+monthly_depreciation = (acquisition_cost - salvage_value) / useful_life_months
+
+Debit 8100 (Depreciation Expense): monthly_depreciation
+Credit 1290 (Accumulated Depreciation): monthly_depreciation
+Reference: "DEP-{asset_name}-{period}"
 ```
 
-### Additional Seeded Accounts (Migration)
+On disposal:
+```text
+book_value = acquisition_cost - accumulated_depreciation
+loss_or_gain = book_value - disposal_proceeds (future field)
 
-Add to `seed_tenant_chart_of_accounts`:
-- `5000` - Work in Progress (WIP) / Proizvodnja u toku - asset
-- `5100` - Finished Goods / Gotovi proizvodi - asset
+Debit 1290 (Accumulated Depreciation): accumulated_depreciation
+Debit 8200 (Loss on Disposal): loss (if any)
+Credit 1200 (Fixed Asset at Cost): acquisition_cost
+Credit 4200 (Gain on Disposal): gain (if any)
+```
+
+### Seeded Accounts (Migration)
+
+Add to `seed_tenant_chart_of_accounts` for all existing tenants:
+- `1290` - Ispravka vrednosti / Accumulated Depreciation - asset (contra)
+- `8100` - Amortizacija / Depreciation Expense - expense
+- `8200` - Gubici od rashodovanja / Loss on Disposal - expense
+- `4200` - Dobici od prodaje sredstava / Gain on Disposal - revenue
 
 ### i18n Keys to Add
 
-creditLimit, paymentTermsDays, defaultCurrency, email, phone, contactPerson, periodClosed, cannotPostToClosedPeriod, payrollPosted, payrollPaymentPosted, wipJournalCreated, inputVat
+threeWayMatch, matchStatus, matched, partialMatch, unmatched, discrepancyFound, approveAnyway, poQuantity, grQuantity, invoiceQuantity, returnPosted, creditNoteCreated, restockCompleted, depreciationPosted, disposalPosted, accumulatedDepreciation, depreciationExpense
 
