@@ -700,6 +700,21 @@ export const translations = {
     depreciationPosted: "Depreciation journal entry posted.",
     disposalPosted: "Asset disposal journal entry posted.",
     depreciationExpense: "Depreciation Expense",
+
+    // Phase 18: Deep Integrations
+    recordPayment: "Record Payment",
+    paymentRecorded: "Payment recorded and journal entry created.",
+    deferralJournalCreated: "Deferral recognized and journal entry created.",
+    generateSnapshot: "Generate Snapshot",
+    snapshotGenerated: "Aging snapshot generated successfully.",
+    pendingApprovals: "Pending Approvals",
+    upcomingPayments: "Upcoming Loan Payments",
+    prepaidExpenses: "Prepaid Expenses",
+    deferredRevenue: "Deferred Revenue",
+    loansPayable: "Loans Payable",
+    loansReceivable: "Loans Receivable",
+    interestIncome: "Interest Income",
+    interestExpense: "Interest Expense",
   },
   sr: {
     // Auth
@@ -1402,6 +1417,21 @@ export const translations = {
     depreciationPosted: "Nalog za amortizaciju proknjižen.",
     disposalPosted: "Nalog za rashodovanje proknjižen.",
     depreciationExpense: "Trošak amortizacije",
+
+    // Phase 18: Deep Integrations
+    recordPayment: "Evidentiraj uplatu",
+    paymentRecorded: "Uplata evidentirana i nalog za knjiženje kreiran.",
+    deferralJournalCreated: "Razgraničenje priznato i nalog za knjiženje kreiran.",
+    generateSnapshot: "Generiši snimak",
+    snapshotGenerated: "Snimak starosti uspešno generisan.",
+    pendingApprovals: "Odobrenja na čekanju",
+    upcomingPayments: "Predstojeće rate kredita",
+    prepaidExpenses: "Unapred plaćeni troškovi",
+    deferredRevenue: "Razgraničeni prihodi",
+    loansPayable: "Obaveze po kreditima",
+    loansReceivable: "Potraživanja po kreditima",
+    interestIncome: "Prihodi od kamata",
+    interestExpense: "Rashodi kamata",
   },
 } as const;
 

@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Play } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { differenceInMonths, format } from "date-fns";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 interface DeferralForm {
   type: string;
@@ -39,6 +41,7 @@ const emptyForm: DeferralForm = {
 export default function Deferrals() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -95,14 +98,38 @@ export default function Deferrals() {
       const perPeriod = Number(d.total_amount) / totalPeriods;
       const newRecognized = Math.min(Number(d.recognized_amount) + perPeriod, Number(d.total_amount));
       const newStatus = newRecognized >= Number(d.total_amount) ? "completed" : d.status;
+      const periodDate = format(new Date(), "yyyy-MM-dd");
+      const periodNum = Math.round(Number(d.recognized_amount) / perPeriod) + 1;
 
-      // Insert schedule entry
+      // Create journal entry for recognition
+      const isRevenue = d.type === "revenue";
+      const journalEntryId = await createCodeBasedJournalEntry({
+        tenantId,
+        userId: user?.id || null,
+        entryDate: periodDate,
+        description: `Deferral recognition: ${d.description || d.type}`,
+        reference: isRevenue
+          ? `DEF-REV-${d.id.substring(0, 8)}-P${periodNum}`
+          : `DEF-EXP-${d.id.substring(0, 8)}-P${periodNum}`,
+        lines: isRevenue
+          ? [
+              { accountCode: "2500", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
+              { accountCode: "4000", debit: 0, credit: perPeriod, description: "Revenue recognized", sortOrder: 1 },
+            ]
+          : [
+              { accountCode: "8000", debit: perPeriod, credit: 0, description: "Expense recognized", sortOrder: 0 },
+              { accountCode: "1800", debit: 0, credit: perPeriod, description: "Prepaid Expense recognition", sortOrder: 1 },
+            ],
+      });
+
+      // Insert schedule entry with journal link
       const { error: schedError } = await supabase.from("deferral_schedules").insert({
         tenant_id: tenantId,
         deferral_id: d.id,
-        period_date: format(new Date(), "yyyy-MM-dd"),
+        period_date: periodDate,
         amount: perPeriod,
         status: "recognized",
+        journal_entry_id: journalEntryId,
       });
       if (schedError) throw schedError;
 
@@ -112,7 +139,7 @@ export default function Deferrals() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["deferrals", tenantId] });
-      toast({ title: t("periodRecognized") });
+      toast({ title: t("deferralJournalCreated") });
     },
   });
 
@@ -163,7 +190,7 @@ export default function Deferrals() {
                     <TableCell>
                       <div className="flex gap-1">
                         {d.status === "active" && Number(d.recognized_amount) < Number(d.total_amount) && (
-                          <Button variant="ghost" size="icon" onClick={() => recognizeMutation.mutate(d)} title={t("recognizePeriod")}>
+                          <Button variant="ghost" size="icon" onClick={() => recognizeMutation.mutate(d)} title={t("recognizePeriod")} disabled={recognizeMutation.isPending}>
                             <Play className="h-4 w-4" />
                           </Button>
                         )}
