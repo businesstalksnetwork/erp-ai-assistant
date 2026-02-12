@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { rolePermissions, type ModuleGroup, type TenantRole } from "@/config/rolePermissions";
 
 export function usePermissions() {
   const { tenantId, role, isLoading } = useTenant();
+  const { isSuperAdmin } = useAuth();
 
-  const effectiveRole: TenantRole = (role as TenantRole) || "user";
+  const effectiveRole: TenantRole = isSuperAdmin ? "admin" : ((role as TenantRole) || "user");
 
   const allowedModules = useMemo(
     () => new Set(rolePermissions[effectiveRole] ?? rolePermissions.user),

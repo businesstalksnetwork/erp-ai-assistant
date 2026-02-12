@@ -139,7 +139,7 @@ const settingsNav = [
 
 export default function TenantLayout() {
   const { t } = useLanguage();
-  const { signOut, user } = useAuth();
+  const { signOut, user, isSuperAdmin } = useAuth();
   const { canAccess } = usePermissions();
   const navigate = useNavigate();
 
@@ -382,6 +382,11 @@ export default function TenantLayout() {
           <header className="h-14 border-b flex items-center justify-between px-4 bg-card">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
+              {isSuperAdmin && (
+                <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/dashboard")}>
+                  {t("superAdmin")}
+                </Button>
+              )}
               <NotificationBell />
               <LanguageToggle />
             </div>
