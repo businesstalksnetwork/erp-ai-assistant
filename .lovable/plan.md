@@ -1,115 +1,186 @@
 
 
-# Phase 19: Approval Enforcement, Sales Order Accounting & GRN Journals
+# Gap Analysis: Accounting & HR — PRD + Serbian Competitors
 
-## Overview
-
-This phase completes the deferred approval workflow enforcement and adds missing accounting integrations for Sales Orders and Goods Receipts, ensuring every state-changing transaction flows through to the General Ledger.
+After cross-referencing your PRD ("LedgerOS RS"), three major Serbian competitors (BizniSoft, Minimax, Datalab PANTHEON), and the current codebase, here are the **critical missing features and logic gaps** in Accounting and HR.
 
 ---
 
-## What Gets Built
+## ACCOUNTING GAPS
 
-### 1. Approval Workflow Enforcement (Deferred from Phase 18)
+### 1. Bank Statement Import & Auto-Reconciliation (HIGH PRIORITY)
 
-The `approval_workflows` and `approval_requests` tables exist but are never checked before critical actions.
+**PRD**: Section 7.3 "Banke/Blagajna" — import bank statements, auto-close open items via safe-match logic, cash position.
+**Competitors**: BizniSoft has full electronic statement import/processing; Minimax has bank statement module with auto-matching; PANTHEON has bank reconciliation.
 
-**Implementation**: Create a reusable `useApprovalCheck` hook that:
-1. Looks up active approval workflows for the given `entity_type` and tenant
-2. If `threshold_amount` is set and the transaction amount exceeds it, blocks the action
-3. Checks if an existing approved `approval_requests` record exists for this entity -- if so, proceeds
-4. Otherwise, inserts a new `approval_requests` row with status `pending` and shows an "Approval Required" dialog
-5. Fires a `approval.requested` module event via `process-module-event` edge function
+**Current state**: `BankAccounts.tsx` is CRUD-only — no statement import, no transaction matching, no reconciliation. This is a core gap for any Serbian accounting software.
 
-**Integrate into**:
-- `Invoices.tsx` -- before posting (status change to `sent`)
-- `SupplierInvoices.tsx` -- before approving
-- `PurchaseOrders.tsx` -- before confirming (status change to `confirmed`)
-
-### 2. Goods Receipt Inventory Journal Entries
-
-**Current gap**: GRN completion calls `adjust_inventory_stock` RPC but creates no journal entry.
-
-**Fix**: When a Goods Receipt is marked `completed`, post:
-- Debit `1200` (Inventory) / Credit `2100` (AP/Goods Received Not Invoiced)
-- Value = quantity_received x product purchase price
-
-### 3. Sales Order to Invoice Conversion Enhancement
-
-**Current gap**: Sales Orders have statuses but no "Convert to Invoice" action and no accounting integration.
-
-**Fix**: Add a "Create Invoice" button on confirmed/shipped Sales Orders that:
-- Pre-fills an invoice from SO data (partner, lines, amounts)
-- Navigates to the invoice form with pre-populated state
-
-### 4. Quote to Sales Order Flow Validation
-
-**Current gap**: Quotes can be converted to Sales Orders but there's no status validation.
-
-**Fix**: Only allow conversion of quotes with status `accepted`. Show a toast error for other statuses.
+**What to build**:
+- Bank statement import (CSV/XML formats common in Serbia)
+- Transaction matching engine: match bank lines to open AR/AP items by "poziv na broj" (payment reference), amount, and partner
+- Manual matching UI for unmatched transactions
+- Auto-posting of matched payments (Debit Bank / Credit AR, or Debit AP / Credit Bank)
+- Cash position dashboard (current balances across all bank accounts)
 
 ---
 
-## Files to Create/Modify
+### 2. PDV (VAT) Calculation & POPDV Report (HIGH PRIORITY)
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useApprovalCheck.ts` | New hook -- checks workflows, manages approval_requests, returns gating logic |
-| `src/pages/tenant/Invoices.tsx` | Integrate approval check before posting |
-| `src/pages/tenant/SupplierInvoices.tsx` | Integrate approval check before approving |
-| `src/pages/tenant/PurchaseOrders.tsx` | Integrate approval check before confirming |
-| `src/pages/tenant/GoodsReceipts.tsx` | Add journal entry on completion (Debit 1200 / Credit 2100) |
-| `src/pages/tenant/SalesOrders.tsx` | Add "Create Invoice" button on confirmed orders |
-| `src/pages/tenant/Quotes.tsx` | Validate status before SO conversion |
-| `src/i18n/translations.ts` | Add keys for approval dialogs, GRN posting, SO conversion |
+**PRD**: Section 7.3 "PDV i porezi" — VAT calculation per period, POPDV form generation, control checks.
+**Competitors**: Minimax has full POPDV generation and VAT period processing; BizniSoft has "PDV Evidencija" with reconciliation.
 
-No database migration needed -- `approval_requests` table and all required accounts already exist.
+**Current state**: `TaxRates.tsx` only manages tax rate CRUD. There is no VAT period calculation, no POPDV (Pregled Obrasca PDV) report, no VAT control checks, and no VAT reconciliation vs GL.
+
+**What to build**:
+- VAT period calculation page: auto-aggregate output/input VAT from posted journals
+- POPDV form generation (Section 3-11 of the Serbian POPDV form)
+- VAT control report: compare VAT evidence vs GL balances
+- Export-ready data (XML/CSV for ePorezi portal)
 
 ---
 
-## Technical Details
+### 3. Open Items (Otvorene Stavke) & IOS Statements (HIGH PRIORITY)
 
-### useApprovalCheck Hook
+**PRD**: Section 7.3 AR/AP — "Otvorene stavke po dokumentu, valuti i dospeću; kompenzacije i prebijanja."
+**Competitors**: Minimax has open items closing through bank statements, manual closing, and IOS (Izvod Otvorenih Stavki) mass mailing; BizniSoft has "Finansijska operativa" with kompenzacije.
 
-```text
-function useApprovalCheck(tenantId, entityType)
-  returns {
-    checkApproval(entityId, amount, onApproved): void
-  }
+**Current state**: No open items tracking exists. Invoices and supplier invoices have status fields but there's no sub-ledger for tracking individual open items, partial payments, or offsetting/compensation.
 
-Logic:
-1. Fetch active workflow: approval_workflows WHERE entity_type = X AND is_active = true
-2. If no workflow found OR amount < threshold_amount -> call onApproved() immediately
-3. Check approval_requests WHERE entity_type = X AND entity_id = Y AND status = 'approved'
-   -> If found, call onApproved()
-4. Otherwise, insert approval_requests (status: 'pending'), show toast "Approval required", block action
-```
+**What to build**:
+- Open items ledger: track each invoice/supplier invoice as an open item with remaining balance
+- Partial payment support: when bank payment is less than invoice total
+- IOS (Statement of Open Items) report generation — mandatory in Serbian business practice
+- Kompenzacija (offsetting/netting) workflow with documentation
 
-### GRN Completion Journal (PRC)
+---
 
-```text
-On GoodsReceipt status -> "completed":
-For each line with quantity_received > 0:
-  value = quantity_received * product.default_purchase_price
+### 4. Exchange Rate Differences (Kursne Razlike) (MEDIUM)
 
-Total value = sum of all line values
+**PRD**: Section FX-001 to FX-008 — automatic FX difference calculation and posting.
+**Competitors**: BizniSoft has "Obračun kursnih razlika"; Minimax has "Kursne razlike na godišnjim obradama."
 
-Debit 1200 (Inventory): total_value
-Credit 2100 (AP / Goods Received): total_value
-Reference: "GRN-{receipt_number}"
-```
+**Current state**: `Currencies.tsx` shows currencies and rates but there is no calculation engine for exchange rate differences, no revaluation at period-end, and no automated FX posting.
 
-### Sales Order -> Invoice Conversion
+**What to build**:
+- Period-end FX revaluation: recalculate all foreign currency balances at closing rate
+- Auto-post realized/unrealized FX gains/losses
+- FX difference journal entries (account codes 5630/6630 per Serbian kontni okvir)
 
-```text
-On "Create Invoice" click (confirmed/shipped SO):
-1. Fetch SO lines from sales_order_lines
-2. Navigate to /invoices/new with state: {
-     fromSO: { partner_id, partner_name, lines, currency, sales_order_id }
-   }
-3. InvoiceForm pre-fills from this state (same pattern as PO -> Supplier Invoice)
-```
+---
 
-### i18n Keys to Add
+### 5. Year-End Closing & Financial Statements (Godisnje Obrade) (MEDIUM)
 
-approvalRequired, approvalPending, approvalSubmitted, awaitingApproval, approvalGranted, createInvoiceFromSO, grnJournalCreated, quoteNotAccepted, convertToInvoice
+**PRD**: Section 12 roadmap — "APR priprema" in Phase B.
+**Competitors**: Minimax has full "Godisnje obrade" module with Bilans Stanja, Bilans Uspeha, Statisticki Aneks, and APR submission preparation; BizniSoft has "Formiranje finansijskih izvestaja."
+
+**Current state**: Balance Sheet and Income Statement exist but are basic GL aggregations. There is no year-end closing workflow (Class 5/6 closing entries), no APR-format report generation, no opening balance carry-forward.
+
+**What to build**:
+- Year-end closing procedure: auto-generate closing entries for P&L classes (class 5 revenue, class 6 expenses) to retained earnings
+- Opening balance entry generation for new fiscal year
+- APR-format Balance Sheet (Bilans Stanja) and Income Statement (Bilans Uspeha)
+- Statistical annex data preparation
+
+---
+
+### 6. Storno (Reversal) Journal Entries (MEDIUM)
+
+**PRD**: GL-007 BLOCK — "Storno must reference original entry and reproduce amounts with opposite sign."
+**Competitors**: All three competitors support formal storno/reversal workflows.
+
+**Current state**: Journal entries can be posted but there's no formal storno mechanism — no way to reverse an entry with a linked reference. The current system allows deletion which violates audit requirements.
+
+**What to build**:
+- "Storno" button on posted journal entries
+- Auto-generate reversal entry with opposite signs, linked to original
+- Block editing/deleting posted entries (immutability)
+- Storno chain visibility in journal entry detail
+
+---
+
+### 7. Advance Invoices (Avansne Fakture) (MEDIUM)
+
+**PRD**: SEF section — "avansi, odobrenja, povezivanje sa knjiženjem."
+**Competitors**: Both BizniSoft and Minimax have extensive advance invoice handling (issuing, receiving, connecting to final invoices).
+
+**Current state**: No advance invoice concept. This is critical for Serbian compliance — advance payments require specific VAT treatment and must be linked to final invoices.
+
+**What to build**:
+- Advance invoice type in Invoices (type: "advance")
+- Link advance to final invoice with automatic deduction
+- Separate VAT treatment for advances per Serbian law
+- Advance credit note generation
+
+---
+
+## HR & PAYROLL GAPS
+
+### 8. PPP-PD Tax Return Generation (HIGH PRIORITY)
+
+**PRD**: PAY-004 BLOCK — "Export of tax returns must pass format validation before submission."
+**Competitors**: Minimax has full PPP-PD generation and OD-O forms; BizniSoft has PPP-PO printing.
+
+**Current state**: Payroll calculates taxes/contributions but generates no PPP-PD (Pojedinacna Poreska Prijava o obracunatim porezima i doprinosima) report. This is mandatory for every salary payment in Serbia.
+
+**What to build**:
+- PPP-PD XML generation per payroll run
+- Validation against ePorezi XSD schema
+- Preview/download of PPP-PD before submission
+- PPP-PO annual summary report
+
+---
+
+### 9. DLP (Druga Licna Primanja) — Other Personal Income (MEDIUM)
+
+**Competitors**: Minimax has full DLP module for: ugovor o delu, autorski honorari, zakup, board member fees, etc.
+
+**Current state**: Payroll only handles regular employee salaries. No support for non-employment income types common in Serbia (service contracts, author fees, rental, temporary work).
+
+**What to build**:
+- DLP calculation types: service agreement, author contract, rental, board fees
+- Different tax/contribution formulas per DLP type
+- PPP-PD generation for DLP payments
+- Integration with GL (different expense accounts per DLP type)
+
+---
+
+### 10. Leave-to-Payroll Integration (MEDIUM)
+
+**PRD**: PAY-007 BLOCK — "Block payroll calculation without absence records where applicable."
+**Competitors**: Minimax explicitly links work time records to payroll; BizniSoft handles sick leave and vacation in payroll.
+
+**Current state**: Leave requests exist but are not consumed by payroll calculation. The `calculate_payroll_for_run` RPC does not factor in approved leave days (vacation at average pay, sick leave at reduced rate, etc.).
+
+**What to build**:
+- Feed approved leave_requests into payroll calculation
+- Different pay rates per leave type: vacation (100% of average), sick leave first 30 days (65%), sick leave 30+ days (RFZO rate)
+- Working days calculation based on actual attendance minus leave days
+
+---
+
+## Summary Priority Matrix
+
+| Gap | Priority | Effort | Serbian Compliance |
+|-----|----------|--------|-------------------|
+| Bank Statement Import & Reconciliation | HIGH | Large | Required |
+| PDV/POPDV Calculation | HIGH | Large | Mandatory |
+| Open Items & IOS | HIGH | Medium | Mandatory |
+| PPP-PD Tax Returns | HIGH | Medium | Mandatory |
+| Year-End Closing | MEDIUM | Medium | Required for APR |
+| Storno Journals | MEDIUM | Small | Required |
+| Advance Invoices | MEDIUM | Medium | Required for SEF |
+| FX Differences | MEDIUM | Medium | Required |
+| DLP Other Income | MEDIUM | Medium | Common need |
+| Leave-Payroll Integration | MEDIUM | Small | Required |
+
+---
+
+## Recommended Implementation Order
+
+**Phase 20**: Bank Statements + Open Items + Storno Journals (accounting foundation)
+**Phase 21**: PDV/POPDV Calculation + Advance Invoices (tax compliance)
+**Phase 22**: PPP-PD Generation + Leave-Payroll Integration + DLP (HR compliance)
+**Phase 23**: Year-End Closing + FX Revaluation + APR Reports (period-end)
+
+Each phase addresses a cluster of related gaps that build on each other. The bank and open items foundation is needed before PDV reconciliation, and PPP-PD requires the payroll calculation to be complete (with leave integration) before it can generate correct returns.
+
