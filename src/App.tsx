@@ -2,25 +2,72 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LanguageProvider } from "@/i18n/LanguageContext";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import ResetPassword from "@/pages/ResetPassword";
+import NotFound from "@/pages/NotFound";
+
+import SuperAdminLayout from "@/layouts/SuperAdminLayout";
+import SuperAdminDashboard from "@/pages/super-admin/Dashboard";
+import TenantManagement from "@/pages/super-admin/TenantManagement";
+import ModuleManagement from "@/pages/super-admin/ModuleManagement";
+import UserManagement from "@/pages/super-admin/UserManagement";
+import PlatformMonitoring from "@/pages/super-admin/PlatformMonitoring";
+import IntegrationSupport from "@/pages/super-admin/IntegrationSupport";
+
+import TenantLayout from "@/layouts/TenantLayout";
+import TenantDashboard from "@/pages/tenant/Dashboard";
+import TenantSettings from "@/pages/tenant/Settings";
+import TenantUsers from "@/pages/tenant/Users";
+import AuditLog from "@/pages/tenant/AuditLog";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+
+              {/* Super Admin routes */}
+              <Route path="/super-admin" element={<ProtectedRoute requireSuperAdmin><SuperAdminLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SuperAdminDashboard />} />
+                <Route path="tenants" element={<TenantManagement />} />
+                <Route path="modules" element={<ModuleManagement />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="monitoring" element={<PlatformMonitoring />} />
+                <Route path="integrations" element={<IntegrationSupport />} />
+              </Route>
+
+              {/* Tenant routes */}
+              <Route path="/" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
+                <Route path="dashboard" element={<TenantDashboard />} />
+                <Route path="settings" element={<TenantSettings />} />
+                <Route path="settings/users" element={<TenantUsers />} />
+                <Route path="settings/audit-log" element={<AuditLog />} />
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 
