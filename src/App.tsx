@@ -48,6 +48,11 @@ import Partners from "@/pages/tenant/Partners";
 import Products from "@/pages/tenant/Products";
 import InventoryStock from "@/pages/tenant/InventoryStock";
 import InventoryMovements from "@/pages/tenant/InventoryMovements";
+import Employees from "@/pages/tenant/Employees";
+import Departments from "@/pages/tenant/Departments";
+import Attendance from "@/pages/tenant/Attendance";
+import LeaveRequests from "@/pages/tenant/LeaveRequests";
+import Payroll from "@/pages/tenant/Payroll";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +112,11 @@ const App = () => (
                 <Route path="inventory/products" element={<Products />} />
                 <Route path="inventory/stock" element={<InventoryStock />} />
                 <Route path="inventory/movements" element={<InventoryMovements />} />
+                <Route path="hr/employees" element={<Employees />} />
+                <Route path="hr/departments" element={<Departments />} />
+                <Route path="hr/attendance" element={<Attendance />} />
+                <Route path="hr/leave-requests" element={<LeaveRequests />} />
+                <Route path="hr/payroll" element={<Payroll />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
