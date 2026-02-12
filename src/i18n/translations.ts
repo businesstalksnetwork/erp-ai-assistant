@@ -206,6 +206,19 @@ export const translations = {
     overdue: "Overdue",
     cancelled: "Cancelled",
     notes: "Notes",
+
+    // Tax Rates
+    taxRates: "Tax Rates",
+
+    // Reports
+    reports: "Reports",
+    trialBalance: "Trial Balance",
+    incomeStatement: "Income Statement",
+    balanceSheet: "Balance Sheet",
+    balance: "Balance",
+    netIncome: "Net Income",
+    loss: "Loss",
+    asOfDate: "As of Date",
   },
   sr: {
     // Auth
@@ -414,6 +427,19 @@ export const translations = {
     overdue: "Dospela",
     cancelled: "Otkazana",
     notes: "Napomene",
+
+    // Tax Rates
+    taxRates: "Poreske stope",
+
+    // Reports
+    reports: "Izveštaji",
+    trialBalance: "Bruto bilans",
+    incomeStatement: "Bilans uspeha",
+    balanceSheet: "Bilans stanja",
+    balance: "Saldo",
+    netIncome: "Neto prihod",
+    loss: "Gubitak",
+    asOfDate: "Na dan",
   },
 } as const;
 

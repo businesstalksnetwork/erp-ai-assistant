@@ -38,6 +38,12 @@ import JournalEntries from "@/pages/tenant/JournalEntries";
 import FiscalPeriods from "@/pages/tenant/FiscalPeriods";
 import Invoices from "@/pages/tenant/Invoices";
 import InvoiceForm from "@/pages/tenant/InvoiceForm";
+import TaxRates from "@/pages/tenant/TaxRates";
+import GeneralLedger from "@/pages/tenant/GeneralLedger";
+import Reports from "@/pages/tenant/Reports";
+import TrialBalance from "@/pages/tenant/TrialBalance";
+import IncomeStatement from "@/pages/tenant/IncomeStatement";
+import BalanceSheet from "@/pages/tenant/BalanceSheet";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +93,12 @@ const App = () => (
                 <Route path="accounting/invoices/new" element={<InvoiceForm />} />
                 <Route path="accounting/invoices/:id" element={<InvoiceForm />} />
                 <Route path="accounting/fiscal-periods" element={<FiscalPeriods />} />
+                <Route path="accounting/ledger" element={<GeneralLedger />} />
+                <Route path="accounting/reports" element={<Reports />} />
+                <Route path="accounting/reports/trial-balance" element={<TrialBalance />} />
+                <Route path="accounting/reports/income-statement" element={<IncomeStatement />} />
+                <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
+                <Route path="settings/tax-rates" element={<TaxRates />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
