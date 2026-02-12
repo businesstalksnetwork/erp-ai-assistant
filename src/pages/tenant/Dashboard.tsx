@@ -5,10 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Sparkles, FileText, Calculator, AlertCircle, Package } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package } from "lucide-react";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
+import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
 
 export default function TenantDashboard() {
   const { t } = useLanguage();
@@ -174,18 +174,7 @@ export default function TenantDashboard() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            {t("aiInsights")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input placeholder={t("askAI")} className="w-full" />
-          <p className="text-sm text-muted-foreground">AI insights and anomaly alerts will appear here.</p>
-        </CardContent>
-      </Card>
+      {tenantId && <AiInsightsWidget tenantId={tenantId} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
