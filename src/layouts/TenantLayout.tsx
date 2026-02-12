@@ -92,6 +92,9 @@ const crmNav: NavItem[] = [
   { key: "partners", url: "/crm/partners", icon: Handshake },
   { key: "quotes", url: "/crm/quotes", icon: FileCheck },
   { key: "salesOrders", url: "/crm/sales-orders", icon: ShoppingCart },
+  { key: "salespeople", url: "/crm/salespeople", icon: UserCheck },
+  { key: "salesPerformance", url: "/crm/sales-performance", icon: BarChart3 },
+  { key: "retailPrices", url: "/crm/retail-prices", icon: Receipt },
 ];
 
 const purchasingNav: NavItem[] = [
@@ -142,6 +145,8 @@ const documentsNav: NavItem[] = [
 const posNav: NavItem[] = [
   { key: "posTerminal", url: "/pos/terminal", icon: Monitor },
   { key: "posSessions", url: "/pos/sessions", icon: CreditCard },
+  { key: "fiscalDevices", url: "/pos/fiscal-devices", icon: Receipt },
+  { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
 ];
 
 const settingsNav: NavItem[] = [

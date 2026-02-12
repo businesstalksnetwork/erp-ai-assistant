@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt } from "lucide-react";
 
 interface CartItem {
   product_id: string;
@@ -28,13 +28,15 @@ export default function PosTerminal() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [buyerId, setBuyerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [lastReceipt, setLastReceipt] = useState<{ number: string; qr?: string } | null>(null);
 
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
     queryFn: async () => {
       if (!tenantId) return null;
-      const { data } = await supabase.from("pos_sessions").select("*").eq("tenant_id", tenantId).eq("status", "open").order("opened_at", { ascending: false }).limit(1).maybeSingle();
+      const { data } = await supabase.from("pos_sessions").select("*, locations(name), salespeople(first_name, last_name)").eq("tenant_id", tenantId).eq("status", "open").eq("opened_by", user?.id).order("opened_at", { ascending: false }).limit(1).maybeSingle();
       return data;
     },
     enabled: !!tenantId,
@@ -44,10 +46,20 @@ export default function PosTerminal() {
     queryKey: ["products", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("products").select("id, name, default_sale_price, barcode, sku").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, default_sale_price, default_retail_price, barcode, sku").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
+  });
+
+  const { data: fiscalDevices = [] } = useQuery({
+    queryKey: ["fiscal_devices_location", tenantId, activeSession?.location_id],
+    queryFn: async () => {
+      if (!activeSession?.location_id) return [];
+      const { data } = await supabase.from("fiscal_devices").select("*").eq("tenant_id", tenantId!).eq("location_id", activeSession.location_id).eq("is_active", true);
+      return data || [];
+    },
+    enabled: !!tenantId && !!activeSession?.location_id,
   });
 
   const filteredProducts = products.filter((p: any) =>
@@ -55,10 +67,11 @@ export default function PosTerminal() {
   );
 
   const addToCart = (p: any) => {
+    const price = Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price);
     setCart(prev => {
       const existing = prev.find(c => c.product_id === p.id);
       if (existing) return prev.map(c => c.product_id === p.id ? { ...c, quantity: c.quantity + 1 } : c);
-      return [...prev, { product_id: p.id, name: p.name, unit_price: Number(p.default_sale_price), quantity: 1, tax_rate: 20 }];
+      return [...prev, { product_id: p.id, name: p.name, unit_price: price, quantity: 1, tax_rate: 20 }];
     });
   };
 
@@ -76,7 +89,7 @@ export default function PosTerminal() {
     mutationFn: async () => {
       if (!tenantId || !activeSession) throw new Error("No active session");
       const txNum = `POS-${Date.now()}`;
-      await supabase.from("pos_transactions").insert({
+      const { data: tx } = await supabase.from("pos_transactions").insert({
         session_id: activeSession.id,
         tenant_id: tenantId,
         transaction_number: txNum,
@@ -86,11 +99,42 @@ export default function PosTerminal() {
         total,
         payment_method: paymentMethod,
         customer_name: customerName || null,
-      });
+        location_id: activeSession.location_id || null,
+        warehouse_id: activeSession.warehouse_id || null,
+        salesperson_id: activeSession.salesperson_id || null,
+        buyer_id: buyerId || null,
+        receipt_type: "sale",
+      }).select().single();
+
+      // Auto-fiscalize if fiscal device available
+      if (fiscalDevices.length > 0 && tx) {
+        try {
+          const { data: result } = await supabase.functions.invoke("fiscalize-receipt", {
+            body: {
+              transaction_id: tx.id,
+              tenant_id: tenantId,
+              device_id: fiscalDevices[0].id,
+              items: cart.map(c => ({ name: c.name, quantity: c.quantity, unit_price: c.unit_price, tax_rate: c.tax_rate, total_amount: c.unit_price * c.quantity * (1 + c.tax_rate / 100) })),
+              payments: [{ amount: total, method: paymentMethod }],
+              buyer_id: buyerId || null,
+              receipt_type: "normal",
+              transaction_type: "sale",
+            },
+          });
+          if (result?.receipt_number) {
+            setLastReceipt({ number: result.receipt_number, qr: result.qr_code_url });
+          }
+        } catch (e) {
+          console.error("Fiscalization failed:", e);
+        }
+      }
+
+      return tx;
     },
     onSuccess: () => {
       setCart([]);
       setCustomerName("");
+      setBuyerId("");
       queryClient.invalidateQueries({ queryKey: ["pos_transactions"] });
       toast({ title: t("posTransactionComplete") });
     },
@@ -115,6 +159,15 @@ export default function PosTerminal() {
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
       {/* Product Grid */}
       <div className="flex-1 flex flex-col space-y-4">
+        {/* Session info bar */}
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <Badge variant="outline">{(activeSession as any).locations?.name || t("location")}</Badge>
+          {(activeSession as any).salespeople && (
+            <Badge variant="outline">{(activeSession as any).salespeople.first_name} {(activeSession as any).salespeople.last_name}</Badge>
+          )}
+          {fiscalDevices.length > 0 && <Badge variant="default" className="text-xs">{t("fiscalDevice")}: {fiscalDevices[0].device_name}</Badge>}
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
@@ -124,7 +177,9 @@ export default function PosTerminal() {
             <Card key={p.id} className="cursor-pointer hover:bg-accent transition-colors" onClick={() => addToCart(p)}>
               <CardContent className="p-4">
                 <p className="font-medium text-sm truncate">{p.name}</p>
-                <p className="text-lg font-bold text-primary">{Number(p.default_sale_price).toFixed(2)}</p>
+                <p className="text-lg font-bold text-primary">
+                  {(Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price)).toFixed(2)}
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -156,8 +211,9 @@ export default function PosTerminal() {
 
           <div className="border-t pt-4 mt-4 space-y-2">
             <Input placeholder={t("customerName")} value={customerName} onChange={e => setCustomerName(e.target.value)} />
-            <div className="flex gap-2">
-              {["cash", "card", "transfer"].map(m => (
+            <Input placeholder={t("buyerId")} value={buyerId} onChange={e => setBuyerId(e.target.value)} />
+            <div className="flex gap-2 flex-wrap">
+              {["cash", "card", "wire_transfer", "voucher", "mobile"].map(m => (
                 <Button key={m} size="sm" variant={paymentMethod === m ? "default" : "outline"} onClick={() => setPaymentMethod(m)}>{t(m as any)}</Button>
               ))}
             </div>
@@ -166,7 +222,17 @@ export default function PosTerminal() {
               <div className="flex justify-between"><span>{t("taxAmount")}</span><span>{taxAmount.toFixed(2)}</span></div>
               <div className="flex justify-between font-bold text-lg"><span>{t("total")}</span><span>{total.toFixed(2)}</span></div>
             </div>
-            <Button className="w-full" size="lg" disabled={cart.length === 0} onClick={() => completeSale.mutate()}>{t("completeSale")}</Button>
+            <Button className="w-full" size="lg" disabled={cart.length === 0} onClick={() => completeSale.mutate()}>
+              <Receipt className="h-4 w-4 mr-2" />{t("completeSale")}
+            </Button>
+
+            {/* Last receipt info */}
+            {lastReceipt && (
+              <div className="p-3 rounded-md bg-accent text-sm space-y-1">
+                <p className="font-medium">{t("fiscalReceiptNumber")}: {lastReceipt.number}</p>
+                {lastReceipt.qr && <a href={lastReceipt.qr} target="_blank" rel="noopener noreferrer" className="text-primary underline text-xs">{t("qrCode")}</a>}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

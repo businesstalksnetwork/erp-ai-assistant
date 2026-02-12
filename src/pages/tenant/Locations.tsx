@@ -17,7 +17,7 @@ import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Location = Tables<"locations">;
-const emptyForm = { name: "", type: "office", address: "", city: "", is_active: true };
+const emptyForm = { name: "", type: "office", address: "", city: "", is_active: true, default_warehouse_id: "", default_price_list_id: "" };
 const locationTypes = ["office", "shop", "branch"];
 
 export default function Locations() {
@@ -37,6 +37,24 @@ export default function Locations() {
       const { data, error } = await supabase.from("locations").select("*").eq("tenant_id", tenantId!);
       if (error) throw error;
       return data as Location[];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ["warehouses_all", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId!);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: priceLists = [] } = useQuery({
+    queryKey: ["retail_price_lists", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("retail_price_lists").select("id, name").eq("tenant_id", tenantId!);
+      return data || [];
     },
     enabled: !!tenantId,
   });
@@ -63,7 +81,7 @@ export default function Locations() {
 
   const openEdit = (loc: Location) => {
     setEditing(loc);
-    setForm({ name: loc.name, type: loc.type, address: loc.address || "", city: loc.city || "", is_active: loc.is_active });
+    setForm({ name: loc.name, type: loc.type, address: loc.address || "", city: loc.city || "", is_active: loc.is_active, default_warehouse_id: (loc as any).default_warehouse_id || "", default_price_list_id: (loc as any).default_price_list_id || "" });
     setDialogOpen(true);
   };
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
@@ -129,6 +147,22 @@ export default function Locations() {
             </div>
             <div><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
             <div><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
+            {(form.type === "shop" || form.type === "branch") && (
+              <>
+                <div><Label>{t("warehouse")}</Label>
+                  <Select value={form.default_warehouse_id} onValueChange={v => setForm(f => ({ ...f, default_warehouse_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+                    <SelectContent>{warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>{t("retailPriceList")}</Label>
+                  <Select value={form.default_price_list_id} onValueChange={v => setForm(f => ({ ...f, default_price_list_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder={t("retailPriceList")} /></SelectTrigger>
+                    <SelectContent>{priceLists.map((pl: any) => <SelectItem key={pl.id} value={pl.id}>{pl.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
               <Label>{t("active")}</Label>

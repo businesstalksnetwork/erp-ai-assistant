@@ -3099,6 +3099,79 @@ export type Database = {
           },
         ]
       }
+      fiscal_devices: {
+        Row: {
+          api_url: string | null
+          created_at: string
+          device_name: string
+          device_type: string
+          ib_number: string
+          id: string
+          is_active: boolean
+          jid: string | null
+          legal_entity_id: string | null
+          location_address: string
+          location_id: string | null
+          location_name: string
+          pac: string | null
+          tenant_id: string
+        }
+        Insert: {
+          api_url?: string | null
+          created_at?: string
+          device_name: string
+          device_type?: string
+          ib_number?: string
+          id?: string
+          is_active?: boolean
+          jid?: string | null
+          legal_entity_id?: string | null
+          location_address?: string
+          location_id?: string | null
+          location_name?: string
+          pac?: string | null
+          tenant_id: string
+        }
+        Update: {
+          api_url?: string | null
+          created_at?: string
+          device_name?: string
+          device_type?: string
+          ib_number?: string
+          id?: string
+          is_active?: boolean
+          jid?: string | null
+          legal_entity_id?: string | null
+          location_address?: string
+          location_id?: string | null
+          location_name?: string
+          pac?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_devices_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_devices_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_devices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_periods: {
         Row: {
           created_at: string
@@ -3133,6 +3206,95 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fiscal_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_receipts: {
+        Row: {
+          buyer_id: string | null
+          created_at: string
+          fiscal_device_id: string
+          id: string
+          invoice_id: string | null
+          payment_method: string
+          pfr_request: Json | null
+          pfr_response: Json | null
+          pos_transaction_id: string | null
+          qr_code_url: string | null
+          receipt_number: string
+          receipt_type: string
+          signed_at: string | null
+          tax_items: Json
+          tenant_id: string
+          total_amount: number
+          transaction_type: string
+        }
+        Insert: {
+          buyer_id?: string | null
+          created_at?: string
+          fiscal_device_id: string
+          id?: string
+          invoice_id?: string | null
+          payment_method?: string
+          pfr_request?: Json | null
+          pfr_response?: Json | null
+          pos_transaction_id?: string | null
+          qr_code_url?: string | null
+          receipt_number?: string
+          receipt_type?: string
+          signed_at?: string | null
+          tax_items?: Json
+          tenant_id: string
+          total_amount?: number
+          transaction_type?: string
+        }
+        Update: {
+          buyer_id?: string | null
+          created_at?: string
+          fiscal_device_id?: string
+          id?: string
+          invoice_id?: string | null
+          payment_method?: string
+          pfr_request?: Json | null
+          pfr_response?: Json | null
+          pos_transaction_id?: string | null
+          qr_code_url?: string | null
+          receipt_number?: string
+          receipt_type?: string
+          signed_at?: string | null
+          tax_items?: Json
+          tenant_id?: string
+          total_amount?: number
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_receipts_fiscal_device_id_fkey"
+            columns: ["fiscal_device_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_receipts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_receipts_pos_transaction_id_fkey"
+            columns: ["pos_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_receipts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3869,6 +4031,9 @@ export type Database = {
           partner_id: string | null
           partner_name: string
           partner_pib: string | null
+          sale_type: string
+          sales_channel_id: string | null
+          salesperson_id: string | null
           sef_status: string
           status: string
           subtotal: number
@@ -3895,6 +4060,9 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          sale_type?: string
+          sales_channel_id?: string | null
+          salesperson_id?: string | null
           sef_status?: string
           status?: string
           subtotal?: number
@@ -3921,6 +4089,9 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          sale_type?: string
+          sales_channel_id?: string | null
+          salesperson_id?: string | null
           sef_status?: string
           status?: string
           subtotal?: number
@@ -3956,6 +4127,20 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sales_channel_id_fkey"
+            columns: ["sales_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sales_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
             referencedColumns: ["id"]
           },
           {
@@ -4631,6 +4816,8 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          default_price_list_id: string | null
+          default_warehouse_id: string | null
           id: string
           is_active: boolean
           name: string
@@ -4641,6 +4828,8 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          default_price_list_id?: string | null
+          default_warehouse_id?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -4651,6 +4840,8 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          default_price_list_id?: string | null
+          default_warehouse_id?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -4658,6 +4849,20 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "locations_default_price_list_id_fkey"
+            columns: ["default_price_list_id"]
+            isOneToOne: false
+            referencedRelation: "retail_price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locations_default_warehouse_id_fkey"
+            columns: ["default_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "locations_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5324,6 +5529,7 @@ export type Database = {
           notes: string | null
           partner_id: string | null
           probability: number
+          salesperson_id: string | null
           stage: string
           tenant_id: string
           title: string
@@ -5343,6 +5549,7 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           probability?: number
+          salesperson_id?: string | null
           stage?: string
           tenant_id: string
           title: string
@@ -5362,6 +5569,7 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           probability?: number
+          salesperson_id?: string | null
           stage?: string
           tenant_id?: string
           title?: string
@@ -5388,6 +5596,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
             referencedColumns: ["id"]
           },
           {
@@ -5844,49 +6059,85 @@ export type Database = {
           },
         ]
       }
-      pos_sessions: {
+      pos_daily_reports: {
         Row: {
-          closed_at: string | null
-          closing_balance: number | null
+          card_total: number
+          cash_total: number
           created_at: string
+          fiscal_device_id: string | null
           id: string
-          notes: string | null
-          opened_at: string
-          opened_by: string | null
-          opening_balance: number
-          status: string
+          location_id: string | null
+          net_sales: number
+          other_total: number
+          refund_count: number
+          report_date: string
+          session_id: string | null
+          tax_breakdown: Json
           tenant_id: string
-          updated_at: string
+          total_refunds: number
+          total_sales: number
+          transaction_count: number
         }
         Insert: {
-          closed_at?: string | null
-          closing_balance?: number | null
+          card_total?: number
+          cash_total?: number
           created_at?: string
+          fiscal_device_id?: string | null
           id?: string
-          notes?: string | null
-          opened_at?: string
-          opened_by?: string | null
-          opening_balance?: number
-          status?: string
+          location_id?: string | null
+          net_sales?: number
+          other_total?: number
+          refund_count?: number
+          report_date: string
+          session_id?: string | null
+          tax_breakdown?: Json
           tenant_id: string
-          updated_at?: string
+          total_refunds?: number
+          total_sales?: number
+          transaction_count?: number
         }
         Update: {
-          closed_at?: string | null
-          closing_balance?: number | null
+          card_total?: number
+          cash_total?: number
           created_at?: string
+          fiscal_device_id?: string | null
           id?: string
-          notes?: string | null
-          opened_at?: string
-          opened_by?: string | null
-          opening_balance?: number
-          status?: string
+          location_id?: string | null
+          net_sales?: number
+          other_total?: number
+          refund_count?: number
+          report_date?: string
+          session_id?: string | null
+          tax_breakdown?: Json
           tenant_id?: string
-          updated_at?: string
+          total_refunds?: number
+          total_sales?: number
+          transaction_count?: number
         }
         Relationships: [
           {
-            foreignKeyName: "pos_sessions_tenant_id_fkey"
+            foreignKeyName: "pos_daily_reports_fiscal_device_id_fkey"
+            columns: ["fiscal_device_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_daily_reports_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_daily_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_daily_reports_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5894,47 +6145,202 @@ export type Database = {
           },
         ]
       }
+      pos_sessions: {
+        Row: {
+          closed_at: string | null
+          closing_balance: number | null
+          created_at: string
+          fiscal_device_id: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          opening_balance: number
+          salesperson_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          fiscal_device_id?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_balance?: number
+          salesperson_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          fiscal_device_id?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          opening_balance?: number
+          salesperson_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sessions_fiscal_device_id_fkey"
+            columns: ["fiscal_device_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sessions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sessions_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sessions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_transactions: {
         Row: {
+          buyer_id: string | null
           created_at: string
           customer_name: string | null
+          fiscal_device_id: string | null
+          fiscal_receipt_number: string | null
           id: string
+          invoice_id: string | null
+          is_fiscal: boolean
           items: Json
+          location_id: string | null
+          original_transaction_id: string | null
           payment_method: string
+          receipt_type: string
+          salesperson_id: string | null
           session_id: string
           subtotal: number
           tax_amount: number
           tenant_id: string
           total: number
           transaction_number: string
+          warehouse_id: string | null
         }
         Insert: {
+          buyer_id?: string | null
           created_at?: string
           customer_name?: string | null
+          fiscal_device_id?: string | null
+          fiscal_receipt_number?: string | null
           id?: string
+          invoice_id?: string | null
+          is_fiscal?: boolean
           items?: Json
+          location_id?: string | null
+          original_transaction_id?: string | null
           payment_method?: string
+          receipt_type?: string
+          salesperson_id?: string | null
           session_id: string
           subtotal?: number
           tax_amount?: number
           tenant_id: string
           total?: number
           transaction_number: string
+          warehouse_id?: string | null
         }
         Update: {
+          buyer_id?: string | null
           created_at?: string
           customer_name?: string | null
+          fiscal_device_id?: string | null
+          fiscal_receipt_number?: string | null
           id?: string
+          invoice_id?: string | null
+          is_fiscal?: boolean
           items?: Json
+          location_id?: string | null
+          original_transaction_id?: string | null
           payment_method?: string
+          receipt_type?: string
+          salesperson_id?: string | null
           session_id?: string
           subtotal?: number
           tax_amount?: number
           tenant_id?: string
           total?: number
           transaction_number?: string
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pos_transactions_fiscal_device_id_fkey"
+            columns: ["fiscal_device_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_original_transaction_id_fkey"
+            columns: ["original_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pos_transactions_session_id_fkey"
             columns: ["session_id"]
@@ -5947,6 +6353,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -6117,6 +6530,7 @@ export type Database = {
           costing_method: string | null
           created_at: string
           default_purchase_price: number
+          default_retail_price: number
           default_sale_price: number
           description: string | null
           id: string
@@ -6134,6 +6548,7 @@ export type Database = {
           costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
+          default_retail_price?: number
           default_sale_price?: number
           description?: string | null
           id?: string
@@ -6151,6 +6566,7 @@ export type Database = {
           costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
+          default_retail_price?: number
           default_sale_price?: number
           description?: string | null
           id?: string
@@ -6412,6 +6828,7 @@ export type Database = {
           partner_name: string
           quote_date: string
           quote_number: string
+          salesperson_id: string | null
           status: string
           subtotal: number
           tax_amount: number
@@ -6431,6 +6848,7 @@ export type Database = {
           partner_name?: string
           quote_date?: string
           quote_number: string
+          salesperson_id?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -6450,6 +6868,7 @@ export type Database = {
           partner_name?: string
           quote_date?: string
           quote_number?: string
+          salesperson_id?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -6474,10 +6893,110 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotes_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotes_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retail_price_lists: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          location_id: string | null
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          location_id?: string | null
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          location_id?: string | null
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retail_price_lists_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retail_price_lists_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retail_prices: {
+        Row: {
+          created_at: string
+          id: string
+          markup_percent: number | null
+          price_list_id: string
+          product_id: string
+          retail_price: number
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          markup_percent?: number | null
+          price_list_id: string
+          product_id: string
+          retail_price?: number
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          markup_percent?: number | null
+          price_list_id?: string
+          product_id?: string
+          retail_price?: number
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retail_prices_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "retail_price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retail_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -6765,6 +7284,8 @@ export type Database = {
           partner_id: string | null
           partner_name: string
           quote_id: string | null
+          sales_channel_id: string | null
+          salesperson_id: string | null
           status: string
           subtotal: number
           tax_amount: number
@@ -6784,6 +7305,8 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           quote_id?: string | null
+          sales_channel_id?: string | null
+          salesperson_id?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -6803,6 +7326,8 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           quote_id?: string | null
+          sales_channel_id?: string | null
+          salesperson_id?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -6833,7 +7358,129 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_orders_sales_channel_id_fkey"
+            columns: ["sales_channel_id"]
+            isOneToOne: false
+            referencedRelation: "sales_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_targets: {
+        Row: {
+          created_at: string
+          id: string
+          month: number | null
+          quarter: number | null
+          salesperson_id: string
+          target_amount: number
+          target_type: string
+          tenant_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month?: number | null
+          quarter?: number | null
+          salesperson_id: string
+          target_amount?: number
+          target_type?: string
+          tenant_id: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: number | null
+          quarter?: number | null
+          salesperson_id?: string
+          target_amount?: number
+          target_type?: string
+          tenant_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_targets_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_targets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salespeople: {
+        Row: {
+          code: string
+          commission_rate: number
+          created_at: string
+          email: string | null
+          employee_id: string | null
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          phone: string | null
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          commission_rate?: number
+          created_at?: string
+          email?: string | null
+          employee_id?: string | null
+          first_name: string
+          id?: string
+          is_active?: boolean
+          last_name: string
+          phone?: string | null
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          commission_rate?: number
+          created_at?: string
+          email?: string | null
+          employee_id?: string | null
+          first_name?: string
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          phone?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salespeople_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salespeople_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
