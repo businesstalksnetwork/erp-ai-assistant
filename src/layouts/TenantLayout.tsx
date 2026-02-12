@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -7,6 +7,18 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarProvider,
   Sidebar,
@@ -24,7 +36,6 @@ import {
   Settings,
   Users,
   FileText,
-  LogOut,
   BookOpen,
   Calculator,
   CalendarDays,
@@ -57,96 +68,167 @@ import {
   FileInput,
   RotateCcw,
   Landmark,
-  PieChart,
   Timer,
   Coins,
   CheckSquare,
   DollarSign,
+  ChevronDown,
+  User,
+  LogOut,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const mainNav = [
-  { key: "dashboard" as const, url: "/dashboard", icon: LayoutDashboard },
+interface NavItem {
+  key: string;
+  url: string;
+  icon: LucideIcon;
+}
+
+const mainNav: NavItem[] = [
+  { key: "dashboard", url: "/dashboard", icon: LayoutDashboard },
 ];
 
-const inventoryNav = [
-  { key: "products" as const, url: "/inventory/products", icon: Package },
-  { key: "stockOverview" as const, url: "/inventory/stock", icon: Warehouse },
-  { key: "movementHistory" as const, url: "/inventory/movements", icon: ArrowLeftRight },
+const inventoryNav: NavItem[] = [
+  { key: "products", url: "/inventory/products", icon: Package },
+  { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
+  { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
 ];
 
-const accountingNav = [
-  { key: "chartOfAccounts" as const, url: "/accounting/chart-of-accounts", icon: BookOpen },
-  { key: "journalEntries" as const, url: "/accounting/journal", icon: Calculator },
-  { key: "invoices" as const, url: "/accounting/invoices", icon: Receipt },
-  { key: "fiscalPeriods" as const, url: "/accounting/fiscal-periods", icon: CalendarDays },
-  { key: "generalLedger" as const, url: "/accounting/ledger", icon: BookText },
-  { key: "fixedAssets" as const, url: "/accounting/fixed-assets", icon: Landmark },
-  { key: "deferrals" as const, url: "/accounting/deferrals", icon: Timer },
-  { key: "loans" as const, url: "/accounting/loans", icon: Coins },
-  { key: "reports" as const, url: "/accounting/reports", icon: BarChart3 },
+const accountingNav: NavItem[] = [
+  { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen },
+  { key: "journalEntries", url: "/accounting/journal", icon: Calculator },
+  { key: "invoices", url: "/accounting/invoices", icon: Receipt },
+  { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
+  { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
+  { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },
+  { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
+  { key: "loans", url: "/accounting/loans", icon: Coins },
+  { key: "reports", url: "/accounting/reports", icon: BarChart3 },
 ];
 
-const crmNav = [
-  { key: "partners" as const, url: "/crm/partners", icon: Handshake },
-  { key: "leads" as const, url: "/crm/leads", icon: Target },
-  { key: "opportunities" as const, url: "/crm/opportunities", icon: TrendingUp },
-  { key: "quotes" as const, url: "/crm/quotes", icon: FileCheck },
-  { key: "salesOrders" as const, url: "/crm/sales-orders", icon: ShoppingCart },
+const crmNav: NavItem[] = [
+  { key: "partners", url: "/crm/partners", icon: Handshake },
+  { key: "leads", url: "/crm/leads", icon: Target },
+  { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
+  { key: "quotes", url: "/crm/quotes", icon: FileCheck },
+  { key: "salesOrders", url: "/crm/sales-orders", icon: ShoppingCart },
 ];
 
-const purchasingNav = [
-  { key: "purchaseOrders" as const, url: "/purchasing/orders", icon: Truck },
-  { key: "goodsReceipts" as const, url: "/purchasing/goods-receipts", icon: ClipboardCheck },
-  { key: "supplierInvoices" as const, url: "/purchasing/supplier-invoices", icon: FileInput },
+const purchasingNav: NavItem[] = [
+  { key: "purchaseOrders", url: "/purchasing/orders", icon: Truck },
+  { key: "goodsReceipts", url: "/purchasing/goods-receipts", icon: ClipboardCheck },
+  { key: "supplierInvoices", url: "/purchasing/supplier-invoices", icon: FileInput },
 ];
 
-const returnsNav = [
-  { key: "returns" as const, url: "/returns", icon: RotateCcw },
+const returnsNav: NavItem[] = [
+  { key: "returns", url: "/returns", icon: RotateCcw },
 ];
 
-const hrNav = [
-  { key: "employees" as const, url: "/hr/employees", icon: UserCheck },
-  { key: "contracts" as const, url: "/hr/contracts", icon: FileSignature },
-  { key: "departments" as const, url: "/hr/departments", icon: Building },
-  { key: "attendance" as const, url: "/hr/attendance", icon: Clock },
-  { key: "leaveRequests" as const, url: "/hr/leave-requests", icon: CalendarOff },
-  { key: "payroll" as const, url: "/hr/payroll", icon: Banknote },
+const hrNav: NavItem[] = [
+  { key: "employees", url: "/hr/employees", icon: UserCheck },
+  { key: "contracts", url: "/hr/contracts", icon: FileSignature },
+  { key: "departments", url: "/hr/departments", icon: Building },
+  { key: "attendance", url: "/hr/attendance", icon: Clock },
+  { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
+  { key: "payroll", url: "/hr/payroll", icon: Banknote },
 ];
 
-const productionNav = [
-  { key: "bomTemplates" as const, url: "/production/bom", icon: Layers },
-  { key: "productionOrders" as const, url: "/production/orders", icon: Factory },
+const productionNav: NavItem[] = [
+  { key: "bomTemplates", url: "/production/bom", icon: Layers },
+  { key: "productionOrders", url: "/production/orders", icon: Factory },
 ];
 
-const documentsNav = [
-  { key: "documents" as const, url: "/documents", icon: FolderOpen },
+const documentsNav: NavItem[] = [
+  { key: "documents", url: "/documents", icon: FolderOpen },
 ];
 
-const posNav = [
-  { key: "posTerminal" as const, url: "/pos/terminal", icon: Monitor },
-  { key: "posSessions" as const, url: "/pos/sessions", icon: CreditCard },
+const posNav: NavItem[] = [
+  { key: "posTerminal", url: "/pos/terminal", icon: Monitor },
+  { key: "posSessions", url: "/pos/sessions", icon: CreditCard },
 ];
 
-const settingsNav = [
-  { key: "companySettings" as const, url: "/settings", icon: Settings },
-  { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
-  { key: "users" as const, url: "/settings/users", icon: Users },
-  { key: "approvalWorkflows" as const, url: "/settings/approvals", icon: CheckSquare },
-  { key: "currencies" as const, url: "/settings/currencies", icon: DollarSign },
-  { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
-  { key: "eventMonitor" as const, url: "/settings/events", icon: Activity },
+const settingsNav: NavItem[] = [
+  { key: "companySettings", url: "/settings", icon: Settings },
+  { key: "taxRates", url: "/settings/tax-rates", icon: Percent },
+  { key: "users", url: "/settings/users", icon: Users },
+  { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
+  { key: "currencies", url: "/settings/currencies", icon: DollarSign },
+  { key: "auditLog", url: "/settings/audit-log", icon: FileText },
+  { key: "eventMonitor", url: "/settings/events", icon: Activity },
 ];
+
+function CollapsibleNavGroup({
+  label,
+  items,
+  currentPath,
+  t,
+}: {
+  label: string;
+  items: NavItem[];
+  currentPath: string;
+  t: (key: any) => string;
+}) {
+  const isActive = items.some((item) => currentPath.startsWith(item.url));
+
+  return (
+    <SidebarGroup>
+      <Collapsible defaultOpen={isActive}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 uppercase tracking-wider hover:text-sidebar-foreground transition-colors group">
+          <span>{label}</span>
+          <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.url}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{t(item.key as any)}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarGroup>
+  );
+}
 
 export default function TenantLayout() {
   const { t } = useLanguage();
   const { signOut, user, isSuperAdmin } = useAuth();
   const { canAccess } = usePermissions();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
   };
+
+  const userInitials = (() => {
+    const name = user?.user_metadata?.full_name || user?.email || "";
+    if (user?.user_metadata?.full_name) {
+      return name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return (user?.email?.[0] || "U").toUpperCase();
+  })();
+
+  const userName = user?.user_metadata?.full_name || user?.email || "";
 
   return (
     <SidebarProvider>
@@ -156,6 +238,7 @@ export default function TenantLayout() {
             <h2 className="text-lg font-bold text-sidebar-foreground">ERP-AI</h2>
           </div>
           <SidebarContent>
+            {/* Dashboard - always visible, not collapsible */}
             <SidebarGroup>
               <SidebarGroupLabel>{t("dashboard")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -170,7 +253,7 @@ export default function TenantLayout() {
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >
                           <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                          <span>{t(item.key as any)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -178,204 +261,54 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
             {canAccess("crm") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("crm")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {crmNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("purchasing") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("purchasing")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {purchasingNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("returns") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("returns")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {returnsNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("hr") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("hr")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {hrNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("inventory") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("inventory")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {inventoryNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("accounting") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("accounting")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {accountingNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("production") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("production")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {productionNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("documents") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("documents")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {documentsNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("pos") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("pos")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {posNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} />
             )}
             {canAccess("settings") && (
-            <SidebarGroup>
-              <SidebarGroupLabel>{t("settings")}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {settingsNav.filter((item) => {
-                    if (item.url === "/settings") return true;
-                    if (item.url === "/settings/users") return canAccess("settings-users");
-                    if (item.url === "/settings/approvals") return canAccess("settings-approvals");
-                    if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
-                    if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
-                    if (item.url === "/settings/currencies") return canAccess("settings-currencies");
-                    if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
-                    if (item.url === "/settings/events") return canAccess("settings-events");
-                    if (item.url === "/settings/integrations") return canAccess("settings-integrations");
-                    return true;
-                  }).map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end={item.url === "/settings"} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              <CollapsibleNavGroup
+                label={t("settings")}
+                items={settingsNav.filter((item) => {
+                  if (item.url === "/settings") return true;
+                  if (item.url === "/settings/users") return canAccess("settings-users");
+                  if (item.url === "/settings/approvals") return canAccess("settings-approvals");
+                  if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
+                  if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
+                  if (item.url === "/settings/currencies") return canAccess("settings-currencies");
+                  if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
+                  if (item.url === "/settings/events") return canAccess("settings-events");
+                  if (item.url === "/settings/integrations") return canAccess("settings-integrations");
+                  return true;
+                })}
+                currentPath={currentPath}
+                t={t}
+              />
             )}
           </SidebarContent>
-          <div className="mt-auto p-4 border-t border-sidebar-border">
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-sidebar-foreground">
-              <LogOut className="h-4 w-4" />
-              {t("logout")}
-            </Button>
-          </div>
         </Sidebar>
 
         <div className="flex-1 flex flex-col min-h-screen">
@@ -389,6 +322,29 @@ export default function TenantLayout() {
               )}
               <NotificationBell />
               <LanguageToggle />
+
+              {/* User dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
+                      {userInitials}
+                    </div>
+                    <span className="hidden md:inline text-sm max-w-[120px] truncate">{userName}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="mr-2 h-4 w-4" />
+                    {t("myAccount")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t("logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           <main className="flex-1 p-6 overflow-auto">
