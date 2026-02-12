@@ -186,7 +186,7 @@ export default function Quotes() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => openEdit(q)}>{t("edit")}</Button>
-                      {(q.status === "accepted" || q.status === "sent") && (
+                      {q.status === "accepted" && (
                         <Button size="sm" variant="outline" onClick={() => convertToSOmutation.mutate(q)} disabled={convertToSOmutation.isPending}>
                           <ArrowRight className="h-3 w-3 mr-1" />{t("convertToSalesOrder")}
                         </Button>

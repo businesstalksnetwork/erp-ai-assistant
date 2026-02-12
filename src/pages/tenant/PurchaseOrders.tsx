@@ -15,6 +15,7 @@ import { Plus, Loader2, Trash2, Package, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 
 const STATUSES = ["draft", "sent", "confirmed", "received", "cancelled"] as const;
 
@@ -54,6 +55,7 @@ export default function PurchaseOrders() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<POForm>(emptyForm);
+  const { checkApproval } = useApprovalCheck(tenantId, "purchase_order");
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["purchase-orders", tenantId],
@@ -248,6 +250,18 @@ export default function PurchaseOrders() {
                             <FileText className="h-3 w-3 mr-1" />{t("createSupplierInvoice")}
                           </Button>
                         </>
+                      )}
+                      {o.status === "draft" && (
+                        <Button size="sm" variant="outline" onClick={() => {
+                          checkApproval(o.id, Number(o.total || 0), async () => {
+                            const { error } = await supabase.from("purchase_orders").update({ status: "confirmed" }).eq("id", o.id);
+                            if (error) { toast.error(error.message); return; }
+                            qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+                            toast.success(t("confirmed"));
+                          });
+                        }}>
+                          {t("confirm")}
+                        </Button>
                       )}
                     </div>
                   </TableCell>

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 
 const STATUSES = ["draft", "received", "approved", "paid", "cancelled"] as const;
 
@@ -63,6 +64,7 @@ export default function SupplierInvoices() {
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
   const [matchDiscrepancies, setMatchDiscrepancies] = useState<Discrepancy[]>([]);
   const [pendingApproveInv, setPendingApproveInv] = useState<any>(null);
+  const { checkApproval } = useApprovalCheck(tenantId, "supplier_invoice");
 
   // Handle pre-fill from PurchaseOrders navigation
   useEffect(() => {
@@ -180,14 +182,16 @@ export default function SupplierInvoices() {
   // Initiate approve with 3-way match
   const initiateApprove = async (inv: any) => {
     try {
-      const discrepancies = await performThreeWayMatch(inv);
-      if (discrepancies.length > 0) {
-        setMatchDiscrepancies(discrepancies);
-        setPendingApproveInv(inv);
-        setMatchDialogOpen(true);
-      } else {
-        approveMutation.mutate(inv);
-      }
+      await checkApproval(inv.id, Number(inv.total || 0), async () => {
+        const discrepancies = await performThreeWayMatch(inv);
+        if (discrepancies.length > 0) {
+          setMatchDiscrepancies(discrepancies);
+          setPendingApproveInv(inv);
+          setMatchDialogOpen(true);
+        } else {
+          approveMutation.mutate(inv);
+        }
+      });
     } catch (e: any) {
       toast.error(e.message);
     }
