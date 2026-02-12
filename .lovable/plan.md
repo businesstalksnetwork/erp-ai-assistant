@@ -1,69 +1,79 @@
 
 
-# Phase 7: Purchasing Module (PURCH)
+# Phase 8: Returns Module (RET)
 
-Add a complete procurement workflow -- from purchase orders to goods receipt and supplier invoices -- mirroring the sales pipeline on the buy side. This module integrates with existing Partners (supplier type), Inventory, and the Event Bus.
+Add a complete returns and refunds workflow covering both customer returns (sales side) and supplier returns (purchasing side). This module integrates with existing Sales Orders, Purchase Orders, Inventory, Accounting, and the Event Bus.
 
 ---
 
 ## What Gets Built
 
-### 1. Purchase Orders
-Create and manage purchase orders to suppliers with line items, approval workflow, and status tracking (draft, sent, confirmed, received, cancelled).
+### 1. Return Cases
+A central return case record that tracks a return from initiation through inspection to resolution. Supports both customer returns (linked to sales orders/invoices) and supplier returns (linked to purchase orders).
 
-### 2. Goods Receipt Notes (GRN)
-Record incoming goods against purchase orders, automatically adjusting warehouse inventory via `adjust_inventory_stock`.
+### 2. Return Lines
+Individual items being returned with quantities, reason codes, and inspection results (accepted, rejected, partial).
 
-### 3. Supplier Invoices
-Track supplier invoices linked to purchase orders/GRNs for accounts payable, with status tracking (draft, received, approved, paid).
+### 3. Credit Notes
+Financial documents issued for approved customer returns, creating accounting storno entries. Links back to the original invoice for proper AR adjustment.
+
+### 4. Supplier Return Shipments
+Outbound returns to suppliers for defective/incorrect goods, linked to the original purchase order and triggering inventory deductions.
 
 ---
 
-## Database (1 migration, 5 new tables)
+## Database (1 migration, 4 new tables)
 
 | Table | Purpose |
 |-------|---------|
-| `purchase_orders` | PO header: supplier (FK to partners), status, order_date, expected_date, notes, total |
-| `purchase_order_lines` | PO line items: product_id, quantity, unit_price, total |
-| `goods_receipts` | GRN header: linked to purchase_order, warehouse_id, received_by, received_at, notes |
-| `goods_receipt_lines` | GRN lines: product_id, quantity_ordered, quantity_received |
-| `supplier_invoices` | AP invoices: linked to purchase_order, supplier (partner), invoice_number, amount, due_date, status |
+| `return_cases` | Header: tenant_id, return_type (customer/supplier), source_type (sales_order/purchase_order/invoice), source_id, partner_id, status (draft, inspecting, approved, resolved, cancelled), opened_at, resolved_at, notes |
+| `return_lines` | Line items: return_case_id, product_id, quantity_returned, quantity_accepted, reason (defective, wrong_item, damaged, not_needed, other), inspection_status (pending, accepted, rejected), notes |
+| `credit_notes` | Customer credit notes: return_case_id, invoice_id (original), credit_number, amount, status (draft, issued, applied), issued_at |
+| `supplier_return_shipments` | Supplier returns: return_case_id, purchase_order_id, warehouse_id, shipped_at, tracking_number, status (pending, shipped, acknowledged, credited) |
 
-All tables include tenant_id with RLS policies using `get_user_tenant_ids()`, `updated_at` triggers, and audit triggers on key tables.
+All tables include tenant_id with RLS policies, updated_at triggers, and audit triggers.
 
 ### Event Bus Integration
-- Emit `purchase_order.confirmed` when PO status changes to confirmed
-- Emit `goods_receipt.completed` when a GRN is finalized (triggers inventory stock adjustment)
-- Emit `supplier_invoice.approved` for future AP/accounting integration
+- `return_case.approved` -- triggers inventory adjustment (stock-in for customer returns to warehouse)
+- `credit_note.issued` -- triggers accounting storno (reversal journal entry against original invoice)
+- `supplier_return.shipped` -- triggers inventory deduction (stock-out from warehouse)
 
 ---
 
-## Frontend (3 new pages)
+## Frontend (1 new page, unified)
 
 | Page | Route | Description |
 |------|-------|-------------|
-| `PurchaseOrders.tsx` | `/purchasing/orders` | CRUD for purchase orders with line items, supplier selection from Partners, status workflow |
-| `GoodsReceipts.tsx` | `/purchasing/goods-receipts` | Record received goods against POs, select warehouse, auto-update inventory |
-| `SupplierInvoices.tsx` | `/purchasing/supplier-invoices` | Track supplier invoices, link to PO, manage payment status |
+| `Returns.tsx` | `/returns` | Unified returns management with tabs for Customer Returns / Supplier Returns / Credit Notes. Create return cases, log inspection results, issue credit notes, track supplier return shipments. |
 
-All pages follow existing CRUD dialog patterns (consistent with Sales Orders, Quotes, etc.).
+A single page with tab-based navigation keeps the workflow cohesive rather than splitting across multiple pages.
 
 ---
 
-## Navigation & Routing
+## Navigation and Routing
 
-- New **Purchasing** sidebar group between CRM and HR with icon `Truck`
-- Three menu items: Purchase Orders, Goods Receipts, Supplier Invoices
-- Three new routes in `App.tsx`
+- New **Returns** sidebar group between Purchasing and HR with icon `RotateCcw`
+- One menu item: Returns
+- One new route in `App.tsx`
 
 ---
 
 ## i18n
 
 Add EN/SR translation keys for:
-- Module labels (purchasing, purchaseOrders, goodsReceipts, supplierInvoices)
-- Statuses (draft, sent, confirmed, received, approved, paid, cancelled)
-- Form fields (supplier, expectedDate, quantityReceived, invoiceAmount, dueDate)
+- Module labels (returns, returnCases, creditNotes, supplierReturns)
+- Statuses (inspecting, approved, resolved, issued, applied, shipped, acknowledged, credited)
+- Reason codes (defective, wrongItem, damaged, notNeeded)
+- Form fields (returnType, sourceDocument, quantityReturned, quantityAccepted, inspectionStatus, creditAmount)
+
+---
+
+## Edge Function Updates
+
+Add handlers in `process-module-event` for:
+- `return_case.approved` with `handler_module = 'inventory'` -- call `adjust_inventory_stock` with `movement_type = 'in'` for accepted return lines
+- `credit_note.issued` with `handler_module = 'accounting'` -- placeholder for storno journal entry creation
+- `supplier_return.shipped` with `handler_module = 'inventory'` -- call `adjust_inventory_stock` with `movement_type = 'out'` for returned-to-supplier lines
 
 ---
 
@@ -71,26 +81,26 @@ Add EN/SR translation keys for:
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/..._purchasing_module.sql` | 5 tables, RLS, triggers, event bus seed subscriptions |
-| `src/pages/tenant/PurchaseOrders.tsx` | PO management with line items |
-| `src/pages/tenant/GoodsReceipts.tsx` | Goods receipt against POs |
-| `src/pages/tenant/SupplierInvoices.tsx` | Supplier invoice tracking |
+| `supabase/migrations/..._returns_module.sql` | 4 tables, RLS, triggers, event bus seed subscriptions |
+| `src/pages/tenant/Returns.tsx` | Unified returns management with tabs |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add 3 purchasing routes |
-| `src/layouts/TenantLayout.tsx` | Add Purchasing sidebar group |
+| `src/App.tsx` | Add 1 returns route |
+| `src/layouts/TenantLayout.tsx` | Add Returns sidebar group |
 | `src/i18n/translations.ts` | Add EN/SR keys |
-| `src/integrations/supabase/types.ts` | Will auto-update with new table types |
+| `supabase/functions/process-module-event/index.ts` | Add return event handlers |
 
 ---
 
 ## Technical Notes
 
-- Suppliers are existing `partners` with `type = 'supplier'` or `'both'` -- no new supplier table needed
-- Goods receipt triggers `adjust_inventory_stock` with `movement_type = 'in'` for the selected warehouse
-- Purchase order line items reference `products` table for consistency with sales side
-- Event bus subscriptions seeded: `goods_receipt.completed` -> inventory handler for automatic stock-in
+- Return cases use polymorphic `source_type` + `source_id` to link to sales orders, purchase orders, or invoices
+- Partners table is reused (customer or supplier depending on return_type)
+- Credit notes reference the original invoice for accounting reconciliation
+- Serbian accounting requires "storno" (reversal) entries rather than negative invoices -- the credit note event handler will create reversing journal entries
+- Inspection workflow: draft -> inspecting -> approved/cancelled -> resolved (after credit note or supplier return completed)
+- Inventory adjustments only happen after inspection approval, not at return initiation
 
