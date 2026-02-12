@@ -69,7 +69,30 @@ export const translations = {
     inviteUser: "Invite User",
     apiConfiguration: "API Configuration",
     businessRules: "Business Rules",
-    
+
+    // Business Rules Settings
+    numbering: "Numbering",
+    invoicePrefix: "Invoice Prefix",
+    invoiceNextSeq: "Invoice Next Sequence",
+    journalPrefix: "Journal Entry Prefix",
+    journalNextSeq: "Journal Next Sequence",
+    defaultAccounts: "Default Accounts",
+    defaultReceivableAccount: "Default Receivable Account",
+    defaultRevenueAccount: "Default Revenue Account",
+    defaultTaxAccount: "Default Tax Payable Account",
+    defaultCashAccount: "Default Cash/Bank Account",
+    defaultCogsAccount: "Default COGS Account",
+    generalSettings: "General Settings",
+    defaultCurrency: "Default Currency",
+    fiscalYearStartMonth: "Fiscal Year Start Month",
+    journalApprovalThreshold: "Journal Approval Threshold",
+    autoPostInvoices: "Auto-post Invoices",
+    autoPostInvoicesHint: "Skip draft stage when creating invoices",
+    approvalThresholdHint: "Require approval for journal entries above this amount (leave empty to disable)",
+    settingsSaved: "Settings saved successfully.",
+    noAccountSelected: "No account selected",
+    saving: "Saving...",
+
     // Dashboard
     revenue: "Revenue",
     expenses: "Expenses",
@@ -79,6 +102,10 @@ export const translations = {
     askAI: "Ask AI anything...",
     pendingActions: "Pending Actions",
     quickActions: "Quick Actions",
+    revenueVsExpenses: "Revenue vs Expenses",
+    invoiceStatusDistribution: "Invoice Status",
+    month: "Month",
+    amount: "Amount",
 
     // Common
     name: "Name",
@@ -358,6 +385,29 @@ export const translations = {
     apiConfiguration: "API konfiguracija",
     businessRules: "Poslovna pravila",
 
+    // Business Rules Settings
+    numbering: "Numeracija",
+    invoicePrefix: "Prefiks fakture",
+    invoiceNextSeq: "Sledeći broj fakture",
+    journalPrefix: "Prefiks naloga",
+    journalNextSeq: "Sledeći broj naloga",
+    defaultAccounts: "Podrazumevani konti",
+    defaultReceivableAccount: "Podrazumevani konto potraživanja",
+    defaultRevenueAccount: "Podrazumevani konto prihoda",
+    defaultTaxAccount: "Podrazumevani konto poreza",
+    defaultCashAccount: "Podrazumevani konto gotovine/banke",
+    defaultCogsAccount: "Podrazumevani konto troškova prodaje",
+    generalSettings: "Opšta podešavanja",
+    defaultCurrency: "Podrazumevana valuta",
+    fiscalYearStartMonth: "Početni mesec fiskalne godine",
+    journalApprovalThreshold: "Prag za odobravanje naloga",
+    autoPostInvoices: "Automatsko knjiženje faktura",
+    autoPostInvoicesHint: "Preskoči fazu nacrta pri kreiranju faktura",
+    approvalThresholdHint: "Zahtevaj odobrenje za naloge iznad ovog iznosa (ostavite prazno da onemogućite)",
+    settingsSaved: "Podešavanja uspešno sačuvana.",
+    noAccountSelected: "Nije izabran konto",
+    saving: "Čuvanje...",
+
     // Dashboard
     revenue: "Prihodi",
     expenses: "Rashodi",
@@ -367,6 +417,10 @@ export const translations = {
     askAI: "Pitajte AI bilo šta...",
     pendingActions: "Akcije na čekanju",
     quickActions: "Brze akcije",
+    revenueVsExpenses: "Prihodi i rashodi",
+    invoiceStatusDistribution: "Status faktura",
+    month: "Mesec",
+    amount: "Iznos",
 
     // Common
     name: "Naziv",
