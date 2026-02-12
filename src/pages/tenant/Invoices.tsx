@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ export default function Invoices() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { checkApproval } = useApprovalCheck(tenantId, "invoice");
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["invoices", tenantId],
@@ -234,7 +236,10 @@ export default function Invoices() {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-1">
                     {inv.status === "draft" && (
-                      <Button size="sm" variant="outline" onClick={() => setPostDialog(inv.id)}>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const inv2 = invoices.find(i => i.id === inv.id);
+                        checkApproval(inv.id, Number(inv2?.total || 0), () => setPostDialog(inv.id));
+                      }}>
                         <BookOpen className="h-3 w-3 mr-1" />
                         {t("postInvoice")}
                       </Button>

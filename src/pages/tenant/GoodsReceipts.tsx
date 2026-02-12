@@ -1,5 +1,6 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 const STATUSES = ["draft", "completed"] as const;
 
@@ -41,6 +43,7 @@ const emptyForm: GRForm = {
 export default function GoodsReceipts() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export default function GoodsReceipts() {
   const { data: products = [] } = useQuery({
     queryKey: ["products-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      const { data } = await supabase.from("products").select("id, name, default_purchase_price").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -120,8 +123,9 @@ export default function GoodsReceipts() {
         );
         if (error) throw error;
       }
-      // If completed, adjust inventory
+      // If completed, adjust inventory and create journal entry
       if (f.status === "completed" && f.warehouse_id) {
+        let totalValue = 0;
         for (const line of validLines) {
           if (line.quantity_received > 0) {
             await supabase.rpc("adjust_inventory_stock", {
@@ -129,7 +133,28 @@ export default function GoodsReceipts() {
               p_warehouse_id: f.warehouse_id, p_quantity: line.quantity_received,
               p_movement_type: "in", p_reference: `GRN-${f.receipt_number}`, p_notes: "Goods receipt",
             });
+            // Calculate value from product purchase price
+            const prod = products.find((p: any) => p.id === line.product_id);
+            const price = prod?.default_purchase_price || 0;
+            totalValue += line.quantity_received * price;
           }
+        }
+
+        // Post GRN journal: Debit 1200 (Inventory) / Credit 2100 (AP)
+        if (totalValue > 0) {
+          const entryDate = new Date().toISOString().split("T")[0];
+          await createCodeBasedJournalEntry({
+            tenantId: tenantId!,
+            userId: user?.id || null,
+            entryDate,
+            description: `Goods Receipt ${f.receipt_number}`,
+            reference: `GRN-${f.receipt_number}`,
+            lines: [
+              { accountCode: "1200", debit: totalValue, credit: 0, description: `Inventory - GRN ${f.receipt_number}`, sortOrder: 0 },
+              { accountCode: "2100", debit: 0, credit: totalValue, description: `AP/GRNI - GRN ${f.receipt_number}`, sortOrder: 1 },
+            ],
+          });
+          toast.success(t("grnJournalCreated"));
         }
       }
     },

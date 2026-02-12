@@ -715,6 +715,17 @@ export const translations = {
     loansReceivable: "Loans Receivable",
     interestIncome: "Interest Income",
     interestExpense: "Interest Expense",
+
+    // Phase 19: Approvals, GRN Journals, SO Conversion
+    approvalRequired: "Approval Required",
+    approvalPending: "Approval is already pending for this item.",
+    approvalSubmitted: "Approval request submitted. Action requires approval before proceeding.",
+    awaitingApproval: "Awaiting Approval",
+    approvalGranted: "Approval granted.",
+    createInvoiceFromSO: "Create Invoice",
+    grnJournalCreated: "Goods receipt journal entry created.",
+    quoteNotAccepted: "Only accepted quotes can be converted to sales orders.",
+    convertToInvoice: "Create Invoice",
   },
   sr: {
     // Auth
@@ -1432,6 +1443,17 @@ export const translations = {
     loansReceivable: "Potraživanja po kreditima",
     interestIncome: "Prihodi od kamata",
     interestExpense: "Rashodi kamata",
+
+    // Phase 19
+    approvalRequired: "Potrebno odobrenje",
+    approvalPending: "Zahtev za odobrenje je već u toku.",
+    approvalSubmitted: "Zahtev za odobrenje poslat. Akcija zahteva odobrenje pre nastavka.",
+    awaitingApproval: "Čeka odobrenje",
+    approvalGranted: "Odobrenje dobijeno.",
+    createInvoiceFromSO: "Kreiraj fakturu",
+    grnJournalCreated: "Nalog za knjiženje prijemnice kreiran.",
+    quoteNotAccepted: "Samo prihvaćene ponude mogu biti pretvorene u naloge.",
+    convertToInvoice: "Kreiraj fakturu",
   },
 } as const;
 
