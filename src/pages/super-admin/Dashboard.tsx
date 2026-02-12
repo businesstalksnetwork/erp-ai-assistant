@@ -1,14 +1,31 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Users, Activity, AlertTriangle } from "lucide-react";
 
 export default function SuperAdminDashboard() {
   const { t } = useLanguage();
+  const [tenantCount, setTenantCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("tenants").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(5),
+    ]).then(([t, u, a]) => {
+      setTenantCount(t.count || 0);
+      setUserCount(u.count || 0);
+      setRecentActivity(a.data || []);
+    });
+  }, []);
 
   const stats = [
-    { label: t("totalTenants"), value: "0", icon: Building2, color: "text-primary" },
-    { label: t("activeUsers"), value: "0", icon: Users, color: "text-accent" },
-    { label: t("systemHealth"), value: "100%", icon: Activity, color: "text-accent" },
+    { label: t("totalTenants"), value: String(tenantCount), icon: Building2, color: "text-primary" },
+    { label: t("activeUsers"), value: String(userCount), icon: Users, color: "text-accent" },
+    { label: t("systemHealth"), value: "Healthy", icon: Activity, color: "text-accent" },
   ];
 
   return (
@@ -35,7 +52,18 @@ export default function SuperAdminDashboard() {
             <CardTitle className="text-lg">{t("recentActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-sm">No recent activity</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No recent activity</p>
+            ) : (
+              <div className="space-y-2">
+                {recentActivity.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between text-sm border-b pb-2 last:border-0">
+                    <span className="font-medium">{a.action}</span>
+                    <span className="text-muted-foreground text-xs">{new Date(a.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>

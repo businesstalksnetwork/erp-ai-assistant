@@ -7,17 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search } from "lucide-react";
+import CreateTenantWizard from "@/components/super-admin/CreateTenantWizard";
+import TenantDetailDialog from "@/components/super-admin/TenantDetailDialog";
+import EditTenantDialog from "@/components/super-admin/EditTenantDialog";
 
 export default function TenantManagement() {
   const { t } = useLanguage();
   const [tenants, setTenants] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchTenants = () => {
     supabase.from("tenants").select("*").order("created_at", { ascending: false }).then(({ data }) => {
       if (data) setTenants(data);
     });
-  }, []);
+  };
+
+  useEffect(() => { fetchTenants(); }, []);
 
   const filtered = tenants.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -36,7 +44,7 @@ export default function TenantManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("tenantManagement")}</h1>
-        <Button className="gap-2"><Plus className="h-4 w-4" />{t("createTenant")}</Button>
+        <Button className="gap-2" onClick={() => setWizardOpen(true)}><Plus className="h-4 w-4" />{t("createTenant")}</Button>
       </div>
 
       <Card>
@@ -67,9 +75,9 @@ export default function TenantManagement() {
                     <TableCell><Badge variant="outline">{tenant.plan}</Badge></TableCell>
                     <TableCell><Badge variant={statusColor(tenant.status)}>{t(tenant.status as any)}</Badge></TableCell>
                     <TableCell>{new Date(tenant.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">{t("view")}</Button>
-                      <Button variant="ghost" size="sm">{t("edit")}</Button>
+                    <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => setDetailId(tenant.id)}>{t("view")}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setEditId(tenant.id)}>{t("edit")}</Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -78,6 +86,10 @@ export default function TenantManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      <CreateTenantWizard open={wizardOpen} onOpenChange={setWizardOpen} onCreated={fetchTenants} />
+      <TenantDetailDialog tenantId={detailId} open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)} />
+      <EditTenantDialog tenantId={editId} open={!!editId} onOpenChange={(o) => !o && setEditId(null)} onUpdated={fetchTenants} />
     </div>
   );
 }
