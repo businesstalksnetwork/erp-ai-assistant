@@ -680,6 +680,26 @@ export const translations = {
     paymentTermsDays: "Payment Terms (Days)",
     contactPerson: "Contact Person",
     inputVat: "Input VAT",
+
+    // Phase 17: 3-Way Matching, Returns Accounting, Asset Journals
+    threeWayMatch: "3-Way Match",
+    matchStatus: "Match",
+    matchStatusNa: "N/A",
+    matched: "Matched",
+    partialMatch: "Partial",
+    unmatched: "Unmatched",
+    discrepancyFound: "Discrepancies Found",
+    threeWayMatchWarning: "Mismatches found between PO, Goods Receipt, and Invoice. Approve anyway?",
+    approveAnyway: "Approve Anyway",
+    poQuantity: "PO Qty",
+    grQuantity: "GR Qty",
+    invoiceQuantity: "Invoice Qty",
+    returnPosted: "Return accounting entries posted.",
+    creditNoteCreated: "Credit note journal created.",
+    restockCompleted: "Inventory restocked.",
+    depreciationPosted: "Depreciation journal entry posted.",
+    disposalPosted: "Asset disposal journal entry posted.",
+    depreciationExpense: "Depreciation Expense",
   },
   sr: {
     // Auth
@@ -1362,6 +1382,26 @@ export const translations = {
     paymentTermsDays: "Rok plaćanja (dana)",
     contactPerson: "Kontakt osoba",
     inputVat: "Ulazni PDV",
+
+    // Phase 17
+    threeWayMatch: "3-struko podudaranje",
+    matchStatus: "Podudaranje",
+    matchStatusNa: "N/P",
+    matched: "Podudareno",
+    partialMatch: "Delimično",
+    unmatched: "Nepodudareno",
+    discrepancyFound: "Pronađena odstupanja",
+    threeWayMatchWarning: "Pronađena su odstupanja između narudžbine, prijemnice i fakture. Odobriti svejedno?",
+    approveAnyway: "Odobri svejedno",
+    poQuantity: "Naručena kol.",
+    grQuantity: "Primljena kol.",
+    invoiceQuantity: "Fakturisana kol.",
+    returnPosted: "Računovodstveni nalozi za povrat proknjiženi.",
+    creditNoteCreated: "Nalog za knjižno odobrenje kreiran.",
+    restockCompleted: "Zalihe dopunjene.",
+    depreciationPosted: "Nalog za amortizaciju proknjižen.",
+    disposalPosted: "Nalog za rashodovanje proknjižen.",
+    depreciationExpense: "Trošak amortizacije",
   },
 } as const;
 

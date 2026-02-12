@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Play } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 interface AssetForm {
   name: string;
@@ -41,6 +43,7 @@ const emptyForm: AssetForm = {
 export default function FixedAssets() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -72,10 +75,48 @@ export default function FixedAssets() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!tenantId) return;
+      const previousStatus = editId ? assets.find((a: any) => a.id === editId)?.status : null;
       const payload = { ...form, tenant_id: tenantId };
+
       if (editId) {
         const { error } = await supabase.from("fixed_assets").update(payload).eq("id", editId);
         if (error) throw error;
+
+        // Disposal journal entry when status changes to "disposed"
+        if (previousStatus !== "disposed" && form.status === "disposed") {
+          const accum = getAccumulated(editId);
+          const cost = form.acquisition_cost;
+          const bookValue = cost - accum;
+          const entryDate = new Date().toISOString().split("T")[0];
+
+          const lines: any[] = [];
+          let sortOrder = 0;
+
+          // Debit Accumulated Depreciation (clear it)
+          if (accum > 0) {
+            lines.push({ accountCode: "1290", debit: accum, credit: 0, description: `Clear accum. dep. - ${form.name}`, sortOrder: sortOrder++ });
+          }
+
+          // If book value > 0, it's a loss on disposal
+          if (bookValue > 0) {
+            lines.push({ accountCode: "8200", debit: bookValue, credit: 0, description: `Loss on disposal - ${form.name}`, sortOrder: sortOrder++ });
+          }
+
+          // Credit the asset at cost
+          lines.push({ accountCode: "1200", debit: 0, credit: cost, description: `Remove asset - ${form.name}`, sortOrder: sortOrder++ });
+
+          if (lines.length > 0) {
+            await createCodeBasedJournalEntry({
+              tenantId, userId: user?.id || null, entryDate,
+              description: `Asset Disposal - ${form.name}`,
+              reference: `DISP-${form.name}`,
+              lines,
+            });
+          }
+
+          // Update disposed_at
+          await supabase.from("fixed_assets").update({ disposed_at: entryDate }).eq("id", editId);
+        }
       } else {
         const { error } = await supabase.from("fixed_assets").insert(payload);
         if (error) throw error;
@@ -121,18 +162,33 @@ export default function FixedAssets() {
       if (amount <= 0) return;
 
       const period = format(new Date(), "yyyy-MM");
+      const entryDate = new Date().toISOString().split("T")[0];
+
+      // Create journal entry: Debit 8100 (Depreciation Expense) / Credit 1290 (Accumulated Depreciation)
+      const journalId = await createCodeBasedJournalEntry({
+        tenantId, userId: user?.id || null, entryDate,
+        description: `Depreciation - ${asset.name} - ${period}`,
+        reference: `DEP-${asset.name}-${period}`,
+        lines: [
+          { accountCode: "8100", debit: amount, credit: 0, description: `Depreciation expense - ${asset.name}`, sortOrder: 0 },
+          { accountCode: "1290", debit: 0, credit: amount, description: `Accum. depreciation - ${asset.name}`, sortOrder: 1 },
+        ],
+      });
+
+      // Create depreciation record with journal link
       const { error } = await supabase.from("fixed_asset_depreciation").insert({
         tenant_id: tenantId,
         asset_id: asset.id,
         period,
         amount,
         accumulated_total: accumulated + amount,
+        journal_entry_id: journalId,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["fixed_asset_depreciation", tenantId] });
-      toast({ title: t("depreciationRun") });
+      toast({ title: t("depreciationPosted" as any) || t("depreciationRun") });
     },
   });
 
