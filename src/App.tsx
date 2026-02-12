@@ -75,6 +75,8 @@ import Loans from "@/pages/tenant/Loans";
 import ApprovalWorkflows from "@/pages/tenant/ApprovalWorkflows";
 import Currencies from "@/pages/tenant/Currencies";
 import Profile from "@/pages/tenant/Profile";
+import BankStatements from "@/pages/tenant/BankStatements";
+import OpenItems from "@/pages/tenant/OpenItems";
 
 const queryClient = new QueryClient();
 
@@ -161,6 +163,8 @@ const App = () => (
                 <Route path="accounting/loans" element={<ProtectedRoute requiredModule="accounting"><Loans /></ProtectedRoute>} />
                 <Route path="settings/approvals" element={<ProtectedRoute requiredModule="settings-approvals"><ApprovalWorkflows /></ProtectedRoute>} />
                 <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><Currencies /></ProtectedRoute>} />
+                <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule="accounting"><BankStatements /></ProtectedRoute>} />
+                <Route path="accounting/open-items" element={<ProtectedRoute requiredModule="accounting"><OpenItems /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

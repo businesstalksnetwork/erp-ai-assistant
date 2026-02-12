@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, CheckCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, CheckCircle, Trash2, RotateCcw } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 
 interface JournalLine {
@@ -126,12 +126,74 @@ export default function JournalEntries() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Check if entry is posted — block deletion
+      const entry = entries.find(e => e.id === id);
+      if (entry?.status === "posted") throw new Error(t("cannotDeletePosted"));
       const { error } = await supabase.from("journal_entries").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal-entries"] });
       toast({ title: t("success") });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const stornoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Fetch original entry and lines
+      const original = entries.find(e => e.id === id);
+      if (!original || original.status !== "posted") throw new Error("Only posted entries can be reversed");
+
+      const { data: originalLines } = await supabase
+        .from("journal_lines")
+        .select("*")
+        .eq("journal_entry_id", id)
+        .order("sort_order");
+
+      if (!originalLines?.length) throw new Error("No lines found");
+
+      const stornoNumber = `STORNO-${original.entry_number}`;
+
+      // Create storno entry
+      const { data: stornoEntry, error: seError } = await supabase
+        .from("journal_entries")
+        .insert({
+          tenant_id: tenantId!,
+          entry_number: stornoNumber,
+          entry_date: new Date().toISOString().split("T")[0],
+          description: `${t("stornoOf")}: ${original.entry_number} — ${original.description || ""}`,
+          reference: original.reference,
+          status: "posted",
+          posted_at: new Date().toISOString(),
+          posted_by: user?.id,
+          created_by: user?.id,
+          storno_of_id: id,
+          is_storno: true,
+        })
+        .select("id")
+        .single();
+      if (seError) throw seError;
+
+      // Create reversed lines (swap debit/credit)
+      const stornoLines = originalLines.map((l, i) => ({
+        journal_entry_id: stornoEntry.id,
+        account_id: l.account_id,
+        description: `${t("storno")}: ${l.description || ""}`,
+        debit: Number(l.credit),
+        credit: Number(l.debit),
+        sort_order: i,
+      }));
+
+      const { error: linesError } = await supabase.from("journal_lines").insert(stornoLines);
+      if (linesError) throw linesError;
+
+      // Update original entry with storno_by_id
+      await supabase.from("journal_entries").update({ storno_by_id: stornoEntry.id, status: "reversed" }).eq("id", id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal-entries"] });
+      toast({ title: t("stornoCreated") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -221,6 +283,15 @@ export default function JournalEntries() {
                 <TableCell>{statusBadge(e.status)}</TableCell>
                 <TableCell className="text-right space-x-1">
                   <Button variant="ghost" size="icon" onClick={() => viewEntryDetails(e)}><Eye className="h-4 w-4" /></Button>
+                  {e.status === "posted" && !(e as any).is_storno && !(e as any).storno_by_id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" title={t("storno")}><RotateCcw className="h-4 w-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>{t("stornoEntry")}</AlertDialogTitle><AlertDialogDescription>{t("stornoConfirm")}</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>{t("cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => stornoMutation.mutate(e.id)}>{t("storno")}</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                   {e.status === "draft" && (
                     <>
                       <Button variant="ghost" size="icon" onClick={() => postMutation.mutate(e.id)} title={t("postEntry")}><CheckCircle className="h-4 w-4" /></Button>

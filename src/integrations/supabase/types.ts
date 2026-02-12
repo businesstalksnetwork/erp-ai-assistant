@@ -547,6 +547,165 @@ export type Database = {
           },
         ]
       }
+      bank_statement_lines: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          journal_entry_id: string | null
+          line_date: string
+          match_status: string
+          matched_invoice_id: string | null
+          matched_supplier_invoice_id: string | null
+          partner_account: string | null
+          partner_name: string | null
+          payment_purpose: string | null
+          payment_reference: string | null
+          statement_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          journal_entry_id?: string | null
+          line_date: string
+          match_status?: string
+          matched_invoice_id?: string | null
+          matched_supplier_invoice_id?: string | null
+          partner_account?: string | null
+          partner_name?: string | null
+          payment_purpose?: string | null
+          payment_reference?: string | null
+          statement_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          journal_entry_id?: string | null
+          line_date?: string
+          match_status?: string
+          matched_invoice_id?: string | null
+          matched_supplier_invoice_id?: string | null
+          partner_account?: string | null
+          partner_name?: string | null
+          payment_purpose?: string | null
+          payment_reference?: string | null
+          statement_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_supplier_invoice_id_fkey"
+            columns: ["matched_supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          bank_account_id: string
+          closing_balance: number
+          created_at: string
+          currency: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          notes: string | null
+          opening_balance: number
+          statement_date: string
+          statement_number: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          closing_balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          notes?: string | null
+          opening_balance?: number
+          statement_date: string
+          statement_number?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          closing_balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          notes?: string | null
+          opening_balance?: number
+          statement_date?: string
+          statement_number?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bom_lines: {
         Row: {
           bom_template_id: string
@@ -1814,10 +1973,13 @@ export type Database = {
           entry_number: string
           fiscal_period_id: string | null
           id: string
+          is_storno: boolean
           posted_at: string | null
           posted_by: string | null
           reference: string | null
           status: string
+          storno_by_id: string | null
+          storno_of_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -1829,10 +1991,13 @@ export type Database = {
           entry_number: string
           fiscal_period_id?: string | null
           id?: string
+          is_storno?: boolean
           posted_at?: string | null
           posted_by?: string | null
           reference?: string | null
           status?: string
+          storno_by_id?: string | null
+          storno_of_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -1844,10 +2009,13 @@ export type Database = {
           entry_number?: string
           fiscal_period_id?: string | null
           id?: string
+          is_storno?: boolean
           posted_at?: string | null
           posted_by?: string | null
           reference?: string | null
           status?: string
+          storno_by_id?: string | null
+          storno_of_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -1857,6 +2025,20 @@ export type Database = {
             columns: ["fiscal_period_id"]
             isOneToOne: false
             referencedRelation: "fiscal_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_storno_by_id_fkey"
+            columns: ["storno_by_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_storno_of_id_fkey"
+            columns: ["storno_of_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
           {
@@ -2564,6 +2746,152 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      open_item_payments: {
+        Row: {
+          amount: number
+          bank_statement_line_id: string | null
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          open_item_id: string
+          payment_date: string
+          payment_type: string
+          reference: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          bank_statement_line_id?: string | null
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          open_item_id: string
+          payment_date: string
+          payment_type?: string
+          reference?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          bank_statement_line_id?: string | null
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          open_item_id?: string
+          payment_date?: string
+          payment_type?: string
+          reference?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_item_payments_bank_statement_line_id_fkey"
+            columns: ["bank_statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_item_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_item_payments_open_item_id_fkey"
+            columns: ["open_item_id"]
+            isOneToOne: false
+            referencedRelation: "open_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_item_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      open_items: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          currency: string
+          direction: string
+          document_date: string
+          document_id: string | null
+          document_number: string
+          document_type: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          original_amount: number
+          paid_amount: number
+          partner_id: string | null
+          remaining_amount: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          currency?: string
+          direction?: string
+          document_date: string
+          document_id?: string | null
+          document_number: string
+          document_type: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          paid_amount?: number
+          partner_id?: string | null
+          remaining_amount?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          currency?: string
+          direction?: string
+          document_date?: string
+          document_id?: string | null
+          document_number?: string
+          document_type?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          paid_amount?: number
+          partner_id?: string | null
+          remaining_amount?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_items_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "open_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
