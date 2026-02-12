@@ -1,43 +1,74 @@
 
-# Phase 4: Partner Registry + Dashboard KPIs
 
-This phase adds a partner/contact registry for linking to invoices, and brings the tenant dashboard to life with real financial KPIs pulled from posted journal entries and invoices.
+# Phase 5: Inventory Management
+
+This phase adds product/item catalog and inventory tracking to the ERP, building on top of the existing warehouses infrastructure.
 
 ---
 
 ## What gets built
 
-### 1. Partners Table (Database)
+### 1. Products Table (Database)
 
-**partners** -- per-tenant partner/contact registry
-- id, tenant_id, name, pib (tax ID), maticni_broj, address, city, postal_code, country
-- type: customer / supplier / both
+**products** -- per-tenant product/item catalog
+- id, tenant_id, name, name_sr, sku, barcode
+- description, unit_of_measure (pcs, kg, l, m, etc.)
+- default_purchase_price, default_sale_price
+- tax_rate_id (FK to tax_rates, for default tax on this product)
 - is_active, created_at, updated_at
-- RLS: members can view, admins can manage, super admins full access
+- RLS: members can view, admins/accountants can manage, super admins full access
 
-### 2. Partners Management Page (`/settings/partners`)
+### 2. Inventory Stock Table (Database)
 
-- Table listing all partners with search and type filter (Customer / Supplier / Both)
-- Add/Edit dialog with full partner details
+**inventory_stock** -- current stock levels per product per warehouse
+- id, tenant_id, product_id (FK), warehouse_id (FK)
+- quantity_on_hand, quantity_reserved, quantity_available (computed or trigger-maintained)
+- min_stock_level (for low-stock alerts)
+- updated_at
+- Unique constraint on (product_id, warehouse_id)
+- RLS: members can view, admins/accountants can manage
+
+### 3. Inventory Movements Table (Database)
+
+**inventory_movements** -- immutable log of all stock changes
+- id, tenant_id, product_id, warehouse_id
+- movement_type: "in" / "out" / "adjustment" / "transfer"
+- quantity, reference (e.g., invoice number)
+- notes, created_by, created_at
+- RLS: members can view, admins/accountants can insert
+
+### 4. Products Management Page (`/inventory/products`)
+
+- Table listing all products with search, SKU, price columns
+- Add/Edit dialog with full product details
+- Default tax rate selector
 - Toggle active/inactive
 - Delete with confirmation
 
-### 3. Link Partners to Invoices
+### 5. Inventory Stock Page (`/inventory/stock`)
 
-- Add `partner_id` (nullable FK) to `invoices` table
-- Update InvoiceForm to show a partner dropdown (searchable select)
-- When a partner is selected, auto-fill partner_name, partner_pib, partner_address
-- Manual override still allowed (for one-off partners)
+- Table showing current stock levels across all warehouses
+- Filter by warehouse, product, low-stock only
+- Inline stock adjustment (add/remove with reason)
+- Low-stock badge when below min_stock_level
 
-### 4. Live Dashboard KPIs
+### 6. Inventory Movements Page (`/inventory/movements`)
 
-Replace the hardcoded "0 RSD" values on the tenant dashboard with real data:
-- **Revenue**: Sum of credits on revenue-type accounts from posted journal entries
-- **Expenses**: Sum of debits on expense-type accounts from posted journal entries
-- **Profit**: Revenue minus Expenses
-- **Cash Balance**: Sum of posted invoices marked as "paid"
-- **Pending Actions**: Count of draft journal entries + overdue invoices
-- **Quick Actions**: Links to create new invoice, new journal entry
+- Chronological log of all stock changes
+- Filter by product, warehouse, movement type, date range
+- Manual adjustment entry dialog
+
+### 7. Link Products to Invoice Lines
+
+- Add optional `product_id` to `invoice_lines` table
+- When adding an invoice line, user can pick a product from a dropdown
+- Auto-fills description, unit_price, tax_rate from product defaults
+- Manual override still allowed
+
+### 8. Dashboard Low-Stock Alert
+
+- Add a low-stock warning to the pending actions section on the dashboard
+- Count of products below their min_stock_level
 
 ---
 
@@ -45,7 +76,9 @@ Replace the hardcoded "0 RSD" values on the tenant dashboard with real data:
 
 | Route | Page |
 |-------|------|
-| `/settings/partners` | Partners CRUD |
+| `/inventory/products` | Products CRUD |
+| `/inventory/stock` | Stock levels overview |
+| `/inventory/movements` | Movement history log |
 
 ---
 
@@ -53,20 +86,26 @@ Replace the hardcoded "0 RSD" values on the tenant dashboard with real data:
 
 | Action | File |
 |--------|------|
-| Migration | `partners` table + RLS; add `partner_id` column to `invoices` |
-| Create | `src/pages/tenant/Partners.tsx` |
-| Modify | `src/pages/tenant/InvoiceForm.tsx` -- add partner dropdown |
-| Modify | `src/pages/tenant/Dashboard.tsx` -- live KPIs from DB |
-| Modify | `src/App.tsx` -- add partners route |
-| Modify | `src/layouts/TenantLayout.tsx` -- add Partners nav item |
-| Modify | `src/i18n/translations.ts` -- add partner keys (EN + SR) |
+| Migration | `products`, `inventory_stock`, `inventory_movements` tables + RLS; add `product_id` to `invoice_lines` |
+| Create | `src/pages/tenant/Products.tsx` |
+| Create | `src/pages/tenant/InventoryStock.tsx` |
+| Create | `src/pages/tenant/InventoryMovements.tsx` |
+| Modify | `src/pages/tenant/InvoiceForm.tsx` -- add product dropdown to line items |
+| Modify | `src/pages/tenant/Dashboard.tsx` -- add low-stock alert |
+| Modify | `src/App.tsx` -- add 3 inventory routes |
+| Modify | `src/layouts/TenantLayout.tsx` -- add Inventory nav group with 3 items |
+| Modify | `src/i18n/translations.ts` -- add inventory/product keys (EN + SR) |
 
 ---
 
 ## Technical notes
 
-- Partners table uses standard tenant RLS pattern (get_user_tenant_ids + admin role check)
-- Dashboard KPIs query `journal_lines` joined with `journal_entries` (status = 'posted') and `chart_of_accounts` (account_type) for revenue/expense totals
-- Partner dropdown in InvoiceForm uses a combobox/select that queries `partners` filtered by tenant
-- `partner_id` on invoices is nullable to preserve backward compatibility with existing invoices that have inline partner data
+- Products table follows the same RLS pattern as chart_of_accounts (admin + accountant roles)
+- `inventory_stock` uses a unique constraint on (product_id, warehouse_id) to prevent duplicates
+- Stock adjustments insert into `inventory_movements` and update `inventory_stock.quantity_on_hand` in the same transaction
+- `quantity_available` = `quantity_on_hand` - `quantity_reserved`
+- The product dropdown in InvoiceForm is optional -- users can still type descriptions manually
+- Low-stock threshold is per-product via `min_stock_level` (default 0 = no alert)
 - All queries are tenant-scoped via RLS
+- Navigation gets a new "Inventory" group in the sidebar alongside existing "Menu" and "Accounting" groups
+
