@@ -77,6 +77,7 @@ import {
   LogOut,
   FileSpreadsheet,
   ListChecks,
+  ReceiptText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -102,6 +103,7 @@ const accountingNav: NavItem[] = [
   { key: "invoices", url: "/accounting/invoices", icon: Receipt },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
+  { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },

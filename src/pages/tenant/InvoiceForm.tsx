@@ -73,6 +73,9 @@ export default function InvoiceForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
+  const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
+  const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
 
   // Fetch partners
   const { data: partners = [] } = useQuery({
@@ -88,6 +91,21 @@ export default function InvoiceForm() {
       return data;
     },
     enabled: !!tenantId,
+  });
+
+  // Fetch advance invoices for linking
+  const { data: advanceInvoices = [] } = useQuery({
+    queryKey: ["advance_invoices", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("invoices")
+        .select("id, invoice_number, total, partner_name, status")
+        .eq("tenant_id", tenantId!)
+        .eq("invoice_type", "advance")
+        .in("status", ["sent", "paid"]);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId && invoiceType === "advance_final",
   });
 
   // Fetch products
@@ -267,7 +285,7 @@ export default function InvoiceForm() {
 
   const saveMutation = useMutation({
     mutationFn: async (newStatus: string) => {
-      const invoiceData = {
+      const invoiceData: any = {
         tenant_id: tenantId!,
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
@@ -282,7 +300,12 @@ export default function InvoiceForm() {
         status: newStatus,
         notes: notes || null,
         created_by: user?.id || null,
+        invoice_type: invoiceType,
+        advance_invoice_id: advanceInvoiceId || null,
+        advance_amount_applied: advanceAmountApplied,
       };
+
+
 
       let invoiceId = id;
 
@@ -343,7 +366,7 @@ export default function InvoiceForm() {
       {/* Header */}
       <Card>
         <CardHeader><CardTitle>{t("invoiceDetails")}</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>{t("invoiceNumber")}</Label>
             <Input value={invoiceNumber} readOnly className="bg-muted" />
@@ -356,6 +379,35 @@ export default function InvoiceForm() {
             <Label>{t("dueDate")}</Label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isReadOnly} />
           </div>
+          <div>
+            <Label>{t("invoiceType" as any)}</Label>
+            <Select value={invoiceType} onValueChange={(v) => setInvoiceType(v as any)} disabled={isReadOnly}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="regular">{t("invoiceTypeRegular")}</SelectItem>
+                <SelectItem value="advance">{t("invoiceTypeAdvance")}</SelectItem>
+                <SelectItem value="advance_final">{t("invoiceTypeAdvanceFinal")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {invoiceType === "advance_final" && (
+            <div className="md:col-span-2">
+              <Label>{t("selectAdvanceInvoice")}</Label>
+              <Select value={advanceInvoiceId} onValueChange={(v) => {
+                setAdvanceInvoiceId(v);
+                const adv = advanceInvoices.find(a => a.id === v);
+                if (adv) setAdvanceAmountApplied(Number(adv.total));
+              }} disabled={isReadOnly}>
+                <SelectTrigger><SelectValue placeholder={t("selectAdvanceInvoice")} /></SelectTrigger>
+                <SelectContent>
+                  {advanceInvoices.map(ai => (
+                    <SelectItem key={ai.id} value={ai.id}>{ai.invoice_number} — {ai.partner_name} — {Number(ai.total).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {advanceAmountApplied.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>}
+            </div>
+          )}
         </CardContent>
       </Card>
 
