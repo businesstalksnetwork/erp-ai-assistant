@@ -914,6 +914,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      seed_tenant_tax_rates: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:

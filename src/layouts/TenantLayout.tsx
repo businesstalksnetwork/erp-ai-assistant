@@ -26,6 +26,9 @@ import {
   Calculator,
   CalendarDays,
   Receipt,
+  BookText,
+  BarChart3,
+  Percent,
 } from "lucide-react";
 
 const tenantNav = [
@@ -33,6 +36,7 @@ const tenantNav = [
   { key: "settings" as const, url: "/settings", icon: Settings },
   { key: "users" as const, url: "/settings/users", icon: Users },
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
+  { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
 ];
 
 const accountingNav = [
@@ -40,6 +44,8 @@ const accountingNav = [
   { key: "journalEntries" as const, url: "/accounting/journal", icon: Calculator },
   { key: "invoices" as const, url: "/accounting/invoices", icon: Receipt },
   { key: "fiscalPeriods" as const, url: "/accounting/fiscal-periods", icon: CalendarDays },
+  { key: "generalLedger" as const, url: "/accounting/ledger", icon: BookText },
+  { key: "reports" as const, url: "/accounting/reports", icon: BarChart3 },
 ];
 
 export default function TenantLayout() {
