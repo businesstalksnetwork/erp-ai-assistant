@@ -47,6 +47,7 @@ import BalanceSheet from "@/pages/tenant/BalanceSheet";
 import Partners from "@/pages/tenant/Partners";
 import Leads from "@/pages/tenant/Leads";
 import Opportunities from "@/pages/tenant/Opportunities";
+import OpportunityDetail from "@/pages/tenant/OpportunityDetail";
 import Quotes from "@/pages/tenant/Quotes";
 import SalesOrders from "@/pages/tenant/SalesOrders";
 import PurchaseOrders from "@/pages/tenant/PurchaseOrders";
@@ -79,6 +80,13 @@ import BankStatements from "@/pages/tenant/BankStatements";
 import OpenItems from "@/pages/tenant/OpenItems";
 import PdvPeriods from "@/pages/tenant/PdvPeriods";
 import YearEndClosing from "@/pages/tenant/YearEndClosing";
+import CrmDashboard from "@/pages/tenant/CrmDashboard";
+import Companies from "@/pages/tenant/Companies";
+import CompanyDetail from "@/pages/tenant/CompanyDetail";
+import Contacts from "@/pages/tenant/Contacts";
+import ContactDetail from "@/pages/tenant/ContactDetail";
+import Meetings from "@/pages/tenant/Meetings";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -134,9 +142,16 @@ const App = () => (
                 <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule="accounting"><IncomeStatement /></ProtectedRoute>} />
                 <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule="accounting"><BalanceSheet /></ProtectedRoute>} />
                 <Route path="settings/tax-rates" element={<ProtectedRoute requiredModule="settings-tax-rates"><TaxRates /></ProtectedRoute>} />
+                <Route path="crm" element={<ProtectedRoute requiredModule="crm"><CrmDashboard /></ProtectedRoute>} />
                 <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><Partners /></ProtectedRoute>} />
+                <Route path="crm/companies" element={<ProtectedRoute requiredModule="crm"><Companies /></ProtectedRoute>} />
+                <Route path="crm/companies/:id" element={<ProtectedRoute requiredModule="crm"><CompanyDetail /></ProtectedRoute>} />
+                <Route path="crm/contacts" element={<ProtectedRoute requiredModule="crm"><Contacts /></ProtectedRoute>} />
+                <Route path="crm/contacts/:id" element={<ProtectedRoute requiredModule="crm"><ContactDetail /></ProtectedRoute>} />
                 <Route path="crm/leads" element={<ProtectedRoute requiredModule="crm"><Leads /></ProtectedRoute>} />
                 <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><Opportunities /></ProtectedRoute>} />
+                <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><OpportunityDetail /></ProtectedRoute>} />
+                <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><Meetings /></ProtectedRoute>} />
                 <Route path="crm/quotes" element={<ProtectedRoute requiredModule="crm"><Quotes /></ProtectedRoute>} />
                 <Route path="crm/sales-orders" element={<ProtectedRoute requiredModule="crm"><SalesOrders /></ProtectedRoute>} />
                 <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
