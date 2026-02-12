@@ -77,6 +77,7 @@ import Currencies from "@/pages/tenant/Currencies";
 import Profile from "@/pages/tenant/Profile";
 import BankStatements from "@/pages/tenant/BankStatements";
 import OpenItems from "@/pages/tenant/OpenItems";
+import PdvPeriods from "@/pages/tenant/PdvPeriods";
 
 const queryClient = new QueryClient();
 
@@ -165,6 +166,7 @@ const App = () => (
                 <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><Currencies /></ProtectedRoute>} />
                 <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule="accounting"><BankStatements /></ProtectedRoute>} />
                 <Route path="accounting/open-items" element={<ProtectedRoute requiredModule="accounting"><OpenItems /></ProtectedRoute>} />
+                <Route path="accounting/pdv" element={<ProtectedRoute requiredModule="accounting"><PdvPeriods /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

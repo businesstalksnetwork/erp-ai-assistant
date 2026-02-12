@@ -1875,6 +1875,8 @@ export type Database = {
       }
       invoices: {
         Row: {
+          advance_amount_applied: number
+          advance_invoice_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -1882,6 +1884,7 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          invoice_type: string
           journal_entry_id: string | null
           notes: string | null
           partner_address: string | null
@@ -1897,6 +1900,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          advance_amount_applied?: number
+          advance_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1904,6 +1909,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number: string
+          invoice_type?: string
           journal_entry_id?: string | null
           notes?: string | null
           partner_address?: string | null
@@ -1919,6 +1925,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          advance_amount_applied?: number
+          advance_invoice_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1926,6 +1934,7 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          invoice_type?: string
           journal_entry_id?: string | null
           notes?: string | null
           partner_address?: string | null
@@ -1941,6 +1950,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_advance_invoice_id_fkey"
+            columns: ["advance_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_journal_entry_id_fkey"
             columns: ["journal_entry_id"]
@@ -3161,6 +3177,134 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdv_entries: {
+        Row: {
+          base_amount: number
+          created_at: string
+          direction: string
+          document_date: string
+          document_id: string | null
+          document_number: string
+          document_type: string
+          id: string
+          partner_name: string | null
+          partner_pib: string | null
+          pdv_period_id: string
+          popdv_section: string
+          tenant_id: string
+          vat_amount: number
+          vat_rate: number
+        }
+        Insert: {
+          base_amount?: number
+          created_at?: string
+          direction?: string
+          document_date: string
+          document_id?: string | null
+          document_number: string
+          document_type: string
+          id?: string
+          partner_name?: string | null
+          partner_pib?: string | null
+          pdv_period_id: string
+          popdv_section: string
+          tenant_id: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Update: {
+          base_amount?: number
+          created_at?: string
+          direction?: string
+          document_date?: string
+          document_id?: string | null
+          document_number?: string
+          document_type?: string
+          id?: string
+          partner_name?: string | null
+          partner_pib?: string | null
+          pdv_period_id?: string
+          popdv_section?: string
+          tenant_id?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdv_entries_pdv_period_id_fkey"
+            columns: ["pdv_period_id"]
+            isOneToOne: false
+            referencedRelation: "pdv_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdv_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdv_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          input_vat: number
+          notes: string | null
+          output_vat: number
+          period_name: string
+          start_date: string
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          tenant_id: string
+          updated_at: string
+          vat_liability: number
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          input_vat?: number
+          notes?: string | null
+          output_vat?: number
+          period_name: string
+          start_date: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id: string
+          updated_at?: string
+          vat_liability?: number
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          input_vat?: number
+          notes?: string | null
+          output_vat?: number
+          period_name?: string
+          start_date?: string
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id?: string
+          updated_at?: string
+          vat_liability?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdv_periods_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
