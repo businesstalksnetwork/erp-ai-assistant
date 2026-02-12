@@ -1,93 +1,75 @@
 
 
-# Phase 14: Complete CRUD for Remaining Read-Only Modules
+# Fix: Infinite Recursion in `tenant_members` RLS Policy
 
-## Current State
+## Problem
 
-After reviewing all ~40+ tenant pages, the vast majority already have full Supabase CRUD (create, read, update, delete). However, **4 modules** only display data with disabled "Add" buttons and no create/edit functionality:
+Every module page fails to load because the `useTenant()` hook queries `tenant_members`, which returns a **500 error**:
 
-1. **Loans** -- read-only list, no add/edit
-2. **Fixed Assets** -- read-only list, no add/edit, no depreciation run trigger
-3. **Deferrals** -- read-only list, no add/edit, no recognition trigger
-4. **Approval Workflows** -- read-only list, no add/edit, no step management
+```
+infinite recursion detected in policy for relation "tenant_members"
+```
 
-This phase activates all 4 modules with full CRUD dialogs following the same proven patterns used across the rest of the app.
+## Root Cause
 
----
+The RLS policy **"Tenant admins can manage their members"** on `tenant_members` contains a sub-query that reads from `tenant_members` itself:
 
-## What Gets Built
+```sql
+EXISTS (
+  SELECT 1 FROM tenant_members tm
+  WHERE tm.tenant_id = tenant_members.tenant_id
+    AND tm.user_id = auth.uid()
+    AND tm.role = 'admin'
+    AND tm.status = 'active'
+)
+```
 
-### 1. Loans -- Full CRUD
-- **Add/Edit dialog** with fields: type (receivable/payable), partner, description, principal, interest rate, term months, start date, currency, status
-- **Payment schedule view**: when expanding a loan, show calculated monthly payments (principal + interest amortization)
-- **Delete** with confirmation
+When Postgres evaluates this sub-query, it applies RLS policies to the inner `tenant_members` reference too, which triggers the same policy again -- creating infinite recursion.
 
-### 2. Fixed Assets -- Full CRUD + Depreciation
-- **Add/Edit dialog** with fields: name, category, acquisition date, acquisition cost, depreciation method (straight line / declining balance), useful life months, salvage value, status
-- **Run Depreciation** button: calculates and inserts a depreciation record for the current period into `fixed_asset_depreciation`
-- **Delete** with confirmation
+## Solution
 
-### 3. Deferrals -- Full CRUD + Recognition
-- **Add/Edit dialog** with fields: type (revenue/expense), description, total amount, start date, end date, periods count, account ID, currency, status
-- **Recognize Period** button: increments `recognized_amount` by the per-period amount and inserts a deferral schedule entry
-- **Delete** with confirmation
+Create a `SECURITY DEFINER` helper function (like the existing `get_user_tenant_ids` and `is_super_admin` functions) that checks admin membership **without** going through RLS. Then update the policy to use this function.
 
-### 4. Approval Workflows -- Full CRUD + Steps
-- **Add/Edit dialog** with fields: name, entity type, min approvers, threshold amount, is active
-- **Workflow Steps management**: inline table to add/remove approval steps (step order, role required, is mandatory)
-- **Delete** with confirmation
+### Database Migration
 
----
+**Step 1**: Create a helper function `is_tenant_admin(user_id, tenant_id)`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_tenant_admin(_user_id uuid, _tenant_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.tenant_members
+    WHERE user_id = _user_id
+      AND tenant_id = _tenant_id
+      AND role = 'admin'
+      AND status = 'active'
+  )
+$$;
+```
+
+**Step 2**: Replace the recursive policy:
+
+```sql
+DROP POLICY "Tenant admins can manage their members" ON public.tenant_members;
+
+CREATE POLICY "Tenant admins can manage their members"
+  ON public.tenant_members
+  FOR ALL
+  USING (public.is_tenant_admin(auth.uid(), tenant_id));
+```
+
+### No Frontend Changes Required
+
+The fix is entirely in the database. Once the RLS policy is fixed, `useTenant()` will return data successfully and all module pages will load.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/Loans.tsx` | Full rewrite: add/edit dialog, delete, payment schedule expansion |
-| `src/pages/tenant/FixedAssets.tsx` | Full rewrite: add/edit dialog, delete, depreciation action |
-| `src/pages/tenant/Deferrals.tsx` | Full rewrite: add/edit dialog, delete, recognition action |
-| `src/pages/tenant/ApprovalWorkflows.tsx` | Full rewrite: add/edit dialog with steps, delete |
-| `src/i18n/translations.ts` | Add missing keys for loan/asset/deferral/workflow form fields |
+| Database migration (SQL) | Create `is_tenant_admin()` function; drop and recreate the recursive policy |
 
-## No New Files Required
-
-All changes are modifications to existing page components, following established patterns.
-
----
-
-## Technical Details
-
-### Loans Payment Schedule
-- Client-side calculation using standard amortization formula
-- Displayed in an expandable accordion per loan (same pattern as Payroll runs)
-- Fields per row: period number, payment date, principal portion, interest portion, total payment, remaining balance
-
-### Fixed Assets Depreciation
-- **Straight line**: monthly amount = (acquisition_cost - salvage_value) / useful_life_months
-- **Declining balance**: monthly amount = (book_value * annual_rate) / 12
-- Inserts into `fixed_asset_depreciation` table with period, amount, and cumulative values
-- Updates `accumulated_depreciation` and `book_value` on the asset record
-
-### Deferrals Recognition
-- Per-period amount = total_amount / number of periods (months between start and end date)
-- Each recognition inserts a schedule entry and increments `recognized_amount`
-- When fully recognized, status auto-updates to "completed"
-
-### Approval Workflows Steps
-- Uses `approval_workflow_steps` table (already exists)
-- Inline editable table within the workflow dialog
-- Each step: order number, role, is_mandatory flag
-- Steps are deleted and re-inserted on save (same pattern as PO lines)
-
----
-
-## i18n Keys to Add
-
-**Loans**: loanType, receivable, payable, principal, interestRate, termMonths, monthlyPayment, paymentSchedule, remainingBalance, addLoan, editLoan
-
-**Fixed Assets**: acquisitionDate, acquisitionCost, depreciationMethod, straightLine, decliningBalance, usefulLife, salvageValue, bookValue, accumulatedDepreciation, runDepreciation, addAsset, editAsset
-
-**Deferrals**: revenueType, expenseType, totalAmount, recognizedAmount, periodsCount, recognizePeriod, addDeferral, editDeferral
-
-**Approval Workflows**: entityType, minApprovers, thresholdAmount, stepOrder, roleRequired, isMandatory, addWorkflow, editWorkflow, addStep
-
+No application code changes needed.
