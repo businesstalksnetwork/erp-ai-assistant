@@ -30,6 +30,9 @@ import {
   BarChart3,
   Percent,
   Handshake,
+  Package,
+  Warehouse,
+  ArrowLeftRight,
 } from "lucide-react";
 
 const tenantNav = [
@@ -39,6 +42,12 @@ const tenantNav = [
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
   { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
   { key: "partners" as const, url: "/settings/partners", icon: Handshake },
+];
+
+const inventoryNav = [
+  { key: "products" as const, url: "/inventory/products", icon: Package },
+  { key: "stockOverview" as const, url: "/inventory/stock", icon: Warehouse },
+  { key: "movementHistory" as const, url: "/inventory/movements", icon: ArrowLeftRight },
 ];
 
 const accountingNav = [
@@ -78,6 +87,27 @@ export default function TenantLayout() {
                         <NavLink
                           to={item.url}
                           end={item.url === "/dashboard"}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("inventory")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {inventoryNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >

@@ -245,6 +245,122 @@ export type Database = {
           },
         ]
       }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_type: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          reference: string | null
+          tenant_id: string
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          product_id: string
+          quantity?: number
+          reference?: string | null
+          tenant_id: string
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          reference?: string | null
+          tenant_id?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_stock: {
+        Row: {
+          id: string
+          min_stock_level: number
+          product_id: string
+          quantity_on_hand: number
+          quantity_reserved: number
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          id?: string
+          min_stock_level?: number
+          product_id: string
+          quantity_on_hand?: number
+          quantity_reserved?: number
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          id?: string
+          min_stock_level?: number
+          product_id?: string
+          quantity_on_hand?: number
+          quantity_reserved?: number
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_lines: {
         Row: {
           created_at: string
@@ -252,6 +368,7 @@ export type Database = {
           id: string
           invoice_id: string
           line_total: number
+          product_id: string | null
           quantity: number
           sort_order: number
           tax_amount: number
@@ -266,6 +383,7 @@ export type Database = {
           id?: string
           invoice_id: string
           line_total?: number
+          product_id?: string | null
           quantity?: number
           sort_order?: number
           tax_amount?: number
@@ -280,6 +398,7 @@ export type Database = {
           id?: string
           invoice_id?: string
           line_total?: number
+          product_id?: string | null
           quantity?: number
           sort_order?: number
           tax_amount?: number
@@ -294,6 +413,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -677,6 +803,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          barcode: string | null
+          created_at: string
+          default_purchase_price: number
+          default_sale_price: number
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          name_sr: string | null
+          sku: string | null
+          tax_rate_id: string | null
+          tenant_id: string
+          unit_of_measure: string
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          created_at?: string
+          default_purchase_price?: number
+          default_sale_price?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          name_sr?: string | null
+          sku?: string | null
+          tax_rate_id?: string | null
+          tenant_id: string
+          unit_of_measure?: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          created_at?: string
+          default_purchase_price?: number
+          default_sale_price?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_sr?: string | null
+          sku?: string | null
+          tax_rate_id?: string | null
+          tenant_id?: string
+          unit_of_measure?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
