@@ -1,106 +1,98 @@
 
 
-# Phase 7: Business Rules Engine + Dashboard Charts
+# Phase 6: Advanced Modules — Production, DMS, and POS
 
-## Overview
-
-Two remaining gaps: the Business Rules page is a placeholder, and the Dashboard has KPI cards but no visual charts despite `recharts` being installed. This phase builds both.
+The final phase of the ERP-AI roadmap, adding three specialized modules.
 
 ---
 
-## Part 1: Business Rules
+## Module 1: Production / Manufacturing
 
-Business Rules are tenant-level configuration settings that control system behavior. Instead of a generic rules engine, we implement concrete, useful settings.
+Track bills of materials (BOMs), production orders, and material consumption.
 
-### What gets configured
+**New Tables:**
+- `bom_templates` — Bill of Materials templates (product_id, name, notes)
+- `bom_lines` — BOM components (bom_template_id, material_product_id, quantity, unit)
+- `production_orders` — Manufacturing orders (product_id, bom_template_id, quantity, status, planned_start/end, actual_start/end)
+- `production_consumption` — Material usage log (production_order_id, product_id, warehouse_id, quantity_consumed)
 
-**Auto-numbering sequences:**
-- Invoice number format and next sequence (e.g., `INV-2026-{seq}`, next: 42)
-- Journal entry number format and next sequence (e.g., `JE-{seq}`)
+**Statuses:** draft, planned, in_progress, completed, cancelled
 
-**Default account mappings:**
-- Default Receivable Account (used when posting invoices)
-- Default Revenue Account
-- Default Tax Payable Account
-- Default Cash/Bank Account (used when marking invoices paid)
-- Default COGS Account (for inventory cost tracking)
+**Sidebar:** New "Production" group with BOM Templates, Production Orders
 
-**General settings:**
-- Default currency (RSD, EUR, USD)
-- Fiscal year start month (January, April, July, October)
-- Require approval for journal entries over a threshold amount
-- Auto-post invoices (skip draft stage)
-
-### Database
-
-Create a `tenant_settings` table:
-- `id`, `tenant_id` (unique), `settings` (JSONB)
-- One row per tenant, JSONB stores all configuration
-- RLS: tenant members can read, admins can update
-- Seed default settings when a tenant is created (extend the existing seed trigger)
-
-### Frontend (`/settings/business-rules`)
-
-- Card-based layout with sections: Numbering, Default Accounts, General
-- Each section has inline-editable fields
-- Account dropdowns pull from `chart_of_accounts`
-- Save button persists the entire settings object
-- Validation: account codes must exist, sequence numbers must be positive
+**Pages:**
+- `/production/bom` — Manage BOM templates with line items
+- `/production/orders` — Create/track production orders, log material consumption
 
 ---
 
-## Part 2: Dashboard Charts
+## Module 2: Document Management System (DMS)
 
-Add two charts to the Dashboard using `recharts` (already installed):
+Centralized document storage linked to any entity.
 
-**Revenue vs Expenses (last 6 months):**
-- Bar chart with monthly revenue and expense totals
-- Data comes from existing journal_lines queries, grouped by month
-- Uses `BarChart` from recharts
+**New Tables:**
+- `documents` — Metadata (tenant_id, name, file_path, file_type, file_size, entity_type, entity_id, uploaded_by, tags, notes)
 
-**Invoice Status Distribution:**
-- Pie/donut chart showing count of invoices by status (draft, sent, paid, cancelled)
-- Simple query on `invoices` table grouped by status
-- Uses `PieChart` from recharts
+**Infrastructure:**
+- Create a Supabase Storage bucket `tenant-documents` with RLS
+- Upload/download via Supabase Storage SDK
 
-### Layout
+**Sidebar:** New "Documents" entry under a Documents group
 
-Charts go in a new row between the KPI cards and the AI Insights card on the Dashboard.
+**Pages:**
+- `/documents` — Upload, browse, search, filter by entity type, download documents
 
 ---
 
-## Files
+## Module 3: Point of Sale (POS)
 
-| Action | File | What |
-|--------|------|------|
-| Migration | New SQL migration | `tenant_settings` table + RLS + default seed in tenant creation trigger |
-| Rewrite | `src/pages/tenant/BusinessRules.tsx` | Full settings UI with numbering, default accounts, general config |
-| Modify | `src/pages/tenant/Dashboard.tsx` | Add Revenue/Expenses bar chart and Invoice Status pie chart |
-| Modify | `src/i18n/translations.ts` | Add keys for business rules labels and chart labels (EN + SR) |
+Simple POS interface for retail transactions.
+
+**New Tables:**
+- `pos_sessions` — Cashier sessions (tenant_id, opened_by, opened_at, closed_at, opening_balance, closing_balance, status)
+- `pos_transactions` — Sales records (session_id, tenant_id, transaction_number, items jsonb, subtotal, tax_amount, total, payment_method, customer_name)
+
+**Sidebar:** New "POS" group with POS Terminal, Sessions
+
+**Pages:**
+- `/pos/terminal` — Full-screen POS interface with product search, cart, payment processing
+- `/pos/sessions` — Open/close sessions, view transaction history
 
 ---
 
 ## Technical Details
 
-- `tenant_settings` uses a single JSONB column to avoid schema changes when adding new settings. Default structure:
-```json
-{
-  "invoice_prefix": "INV",
-  "invoice_next_seq": 1,
-  "journal_prefix": "JE",
-  "journal_next_seq": 1,
-  "default_receivable_account_id": null,
-  "default_revenue_account_id": null,
-  "default_tax_account_id": null,
-  "default_cash_account_id": null,
-  "default_cogs_account_id": null,
-  "default_currency": "RSD",
-  "fiscal_year_start_month": 1,
-  "journal_approval_threshold": null,
-  "auto_post_invoices": false
-}
-```
-- The monthly revenue/expense chart query groups `journal_lines` by `entry_date` month for the last 6 months, filtering by account type (revenue vs expense)
-- Chart colors follow the existing theme: `text-accent` for revenue, `text-destructive` for expenses
-- The tenant creation seed trigger is extended to also insert a default `tenant_settings` row
+### Database Migration
+Single migration creating all 7 tables with:
+- RLS policies (tenant isolation via `get_user_tenant_ids`)
+- `updated_at` triggers
+- Audit triggers on key tables (production_orders, pos_transactions, documents)
+- Storage bucket creation for DMS
+
+### New Files to Create
+| File | Purpose |
+|------|---------|
+| `src/pages/tenant/BomTemplates.tsx` | BOM template CRUD with line items |
+| `src/pages/tenant/ProductionOrders.tsx` | Production order management |
+| `src/pages/tenant/Documents.tsx` | Document upload/browse/download |
+| `src/pages/tenant/PosTerminal.tsx` | POS selling interface |
+| `src/pages/tenant/PosSessions.tsx` | POS session management |
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `src/layouts/TenantLayout.tsx` | Add Production, Documents, POS sidebar groups |
+| `src/App.tsx` | Add routes for all 5 new pages |
+| `src/i18n/translations.ts` | Add EN/SR keys for all new entities, statuses, and labels |
+
+### Sidebar Navigation Additions
+- **Production**: BOM Templates (icon: Layers), Production Orders (icon: Factory)
+- **Documents**: Documents (icon: FolderOpen)
+- **POS**: POS Terminal (icon: Monitor), Sessions (icon: CreditCard)
+
+### Key Patterns
+- All pages follow existing CRUD dialog pattern (same as Opportunities, Quotes, etc.)
+- POS Terminal uses a unique split layout: product grid on left, cart on right
+- DMS integrates with Supabase Storage for file upload/download
+- Production consumption auto-adjusts inventory via `adjust_inventory_stock` function
 
