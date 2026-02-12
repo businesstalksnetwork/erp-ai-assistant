@@ -1,54 +1,47 @@
 
 
-# Phase 10: AI Assistant & Smart Insights
+# Phase 11: Notifications & In-App Alerts System
 
-Integrate AI-powered features across the ERP, delivering on the "AI from the start" product strategy. This phase adds a conversational AI assistant for natural-language queries and anomaly/insight detection surfaced directly in the dashboard.
+Add a real-time notification system that surfaces important events to users as they happen -- overdue invoices, pending approvals, low stock warnings, and completed actions. This is a critical step toward production readiness, giving users timely awareness without requiring them to check each module individually.
 
 ---
 
 ## What Gets Built
 
-### 1. AI Chat Assistant
-A slide-out panel accessible from every page that lets users ask questions in natural language (EN/SR). Examples:
-- "What are my top 5 overdue invoices?"
-- "Show me revenue trend for the last 6 months"
-- "Which products are below reorder level?"
+### 1. Notifications Infrastructure
+A centralized notification system that captures events from across all modules and delivers them to the right users within a tenant.
 
-The assistant translates questions into Supabase queries scoped to the user's tenant, returning formatted answers.
+### 2. Notification Bell & Dropdown
+A bell icon in the top header bar showing unread count badge and a dropdown panel listing recent notifications, with mark-as-read and link-to-source functionality.
 
-### 2. Anomaly Detection & Smart Alerts
-Background analysis that surfaces unusual patterns on the tenant dashboard:
-- Unusually large invoices (> 3x average)
-- Revenue spikes or drops (> 20% month-over-month)
-- Inventory items at zero or negative stock
-- Overdue receivables concentration on a single partner
-- Payroll cost anomalies
-
-### 3. Dashboard AI Insights Widget
-A new card on the tenant dashboard showing the top 3-5 AI-generated insights, refreshed on page load.
+### 3. Automatic Notification Triggers
+Event-driven notifications generated from existing module events:
+- **Invoices**: Invoice overdue, invoice paid, new invoice received
+- **Approvals**: Approval requested, approval granted/rejected
+- **Inventory**: Stock below minimum level, stock-out detected
+- **Returns**: Return case created, return approved
+- **HR**: Leave request submitted, leave approved/rejected
+- **Accounting**: Journal entry posted, fiscal period closing reminder
 
 ---
 
-## Architecture
-
-### Edge Function: `ai-assistant`
-- Receives natural language query + tenant_id
-- Uses an LLM (OpenAI or similar) to classify intent and generate a safe, read-only SQL query
-- Executes the query against the tenant's data (with RLS via service role scoped to tenant)
-- Returns a formatted natural-language answer with optional data table
-
-### Edge Function: `ai-insights`
-- Called on dashboard load (or scheduled)
-- Runs a set of predefined analytical queries against tenant data
-- Applies threshold-based anomaly detection rules
-- Returns a list of insights with severity, description, and suggested action
-
-### Database
+## Database (1 migration, 2 tables)
 
 | Table | Purpose |
 |-------|---------|
-| `ai_conversations` | Chat history: tenant_id, user_id, messages (JSONB array), created_at |
-| `ai_insights_cache` | Cached insights: tenant_id, insight_type, severity (info/warning/critical), title, description, data (JSONB), generated_at, expires_at |
+| `notifications` | tenant_id, user_id (recipient), type (info/warning/action), category (invoice/inventory/approval/hr/accounting), title, message, entity_type, entity_id (link to source record), is_read (default false), created_at |
+| `notification_preferences` | tenant_id, user_id, category, enabled (boolean), created_at -- allows users to mute specific notification categories |
+
+Both tables with RLS scoped to tenant_id and user_id for the recipient's own notifications.
+
+---
+
+## Edge Function: `create-notification`
+
+A lightweight utility function called from `process-module-event` handlers to insert notification records:
+- Receives: tenant_id, target_user_ids (or "all_tenant_members"), type, category, title, message, entity_type, entity_id
+- Inserts one notification row per recipient
+- Returns count of notifications created
 
 ---
 
@@ -58,15 +51,40 @@ A new card on the tenant dashboard showing the top 3-5 AI-generated insights, re
 
 | Component | Description |
 |-----------|-------------|
-| `AiAssistantPanel.tsx` | Slide-out drawer with chat interface, accessible via floating button on all tenant pages |
-| `AiInsightsWidget.tsx` | Dashboard card showing latest AI-generated insights with severity badges |
+| `NotificationBell.tsx` | Bell icon with unread count badge in the header; opens dropdown on click |
+| `NotificationDropdown.tsx` | Scrollable list of recent notifications with severity icons, timestamps, mark-as-read, and click-to-navigate |
+| `NotificationPreferences.tsx` | Settings page section for toggling notification categories on/off |
 
-### Modified Pages
+### Modified Pages/Layouts
 
 | File | Changes |
 |------|---------|
-| `src/layouts/TenantLayout.tsx` | Add floating AI assistant button + drawer |
-| `src/pages/tenant/Dashboard.tsx` | Add AI Insights widget card |
+| `src/layouts/TenantLayout.tsx` | Add NotificationBell to header bar next to LanguageToggle |
+| `src/pages/tenant/Settings.tsx` | Add notification preferences card |
+
+---
+
+## Event Bus Integration
+
+Update `process-module-event` to emit notifications for key events:
+
+| Event | Notification |
+|-------|-------------|
+| `invoice.overdue` (new trigger) | Warning: "Invoice #X is overdue by Y days" to invoice owner |
+| `approval.requested` | Action: "Approval requested for [entity]" to designated approvers |
+| `approval.completed` | Info: "Your [entity] has been approved/rejected" to requester |
+| `inventory.low_stock` (new trigger) | Warning: "Product X is below minimum stock level" to all tenant members |
+| `return_case.approved` | Info: "Return case #X has been approved" to case creator |
+| `leave_request.submitted` | Action: "New leave request from [employee]" to HR managers |
+
+---
+
+## Realtime Subscriptions
+
+Use Supabase Realtime to subscribe to the `notifications` table filtered by user_id, so new notifications appear instantly without page refresh. The NotificationBell component will:
+- Subscribe on mount
+- Increment the unread badge counter on new inserts
+- Show a subtle toast for high-priority (warning/action) notifications
 
 ---
 
@@ -74,39 +92,39 @@ A new card on the tenant dashboard showing the top 3-5 AI-generated insights, re
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/..._ai_tables.sql` | 2 tables with RLS |
-| `supabase/functions/ai-assistant/index.ts` | NL query processing edge function |
-| `supabase/functions/ai-insights/index.ts` | Anomaly detection edge function |
-| `src/components/ai/AiAssistantPanel.tsx` | Chat drawer component |
-| `src/components/ai/AiInsightsWidget.tsx` | Dashboard insights card |
+| `supabase/migrations/..._notifications.sql` | 2 tables, RLS, indexes |
+| `supabase/functions/create-notification/index.ts` | Notification creation utility |
+| `src/components/notifications/NotificationBell.tsx` | Header bell with badge |
+| `src/components/notifications/NotificationDropdown.tsx` | Notification list dropdown |
+| `src/components/notifications/NotificationPreferences.tsx` | Category toggle settings |
+| `src/hooks/useNotifications.ts` | Hook for fetching, subscribing, and managing notifications |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/layouts/TenantLayout.tsx` | Add AI assistant floating button and panel |
-| `src/pages/tenant/Dashboard.tsx` | Add insights widget |
-| `src/i18n/translations.ts` | Add EN/SR keys for AI features |
-| `supabase/config.toml` | Register new edge functions |
+| `src/layouts/TenantLayout.tsx` | Add NotificationBell to header |
+| `src/pages/tenant/Settings.tsx` | Add notification preferences card |
+| `src/i18n/translations.ts` | Add EN/SR keys for notifications |
+| `supabase/functions/process-module-event/index.ts` | Add notification emission for key events |
+| `supabase/config.toml` | Register create-notification function |
 
 ---
 
-## Security Considerations
+## i18n Keys
 
-- The AI assistant generates **read-only SELECT queries only** -- no mutations allowed
-- All queries are executed with tenant_id filtering enforced at the query level (defense in depth on top of RLS)
-- Query results are capped (LIMIT 100) to prevent data exfiltration
-- Chat history is stored per-tenant with RLS isolation
-- The LLM API key is stored as a Supabase secret, never exposed to the frontend
+- Module labels: notifications, notificationPreferences, markAllRead, noNotifications
+- Categories: invoiceNotifications, inventoryNotifications, approvalNotifications, hrNotifications, accountingNotifications
+- Messages: invoiceOverdue, approvalRequested, stockBelowMinimum, returnApproved, leaveRequestSubmitted
 
 ---
 
 ## Technical Notes
 
-- The assistant needs an LLM API key (OpenAI) configured as a project secret
-- Intent classification maps user questions to predefined query templates for safety, rather than generating arbitrary SQL
-- Insights use simple statistical thresholds initially (no ML models needed) -- e.g., compare current month vs. 3-month rolling average
-- Serbian language support: the LLM handles both EN and SR input natively; insight text is generated in the user's selected language
-- Conversation context is maintained per session for follow-up questions
-- Insights are cached for 1 hour to avoid redundant computation on dashboard refreshes
+- Notifications are stored permanently but the dropdown shows only the last 50; a "View All" link could lead to a full notification page in a future phase
+- Realtime subscription uses Supabase's `postgres_changes` channel filtered by `user_id = auth.uid()`
+- Notification preferences default to all-enabled; users opt out per category
+- The `create-notification` edge function is called internally by `process-module-event`, not directly from the frontend
+- High-priority notifications (type = "warning" or "action") trigger a sonner toast in addition to the bell badge
+- Entity links (entity_type + entity_id) allow click-to-navigate directly to the relevant record
 
