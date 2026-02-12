@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Sparkles, FileText, Calculator, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Sparkles, FileText, Calculator, AlertCircle, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function TenantDashboard() {
@@ -122,6 +122,22 @@ export default function TenantDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
+  // Low stock count
+  const { data: lowStockCount = 0 } = useQuery({
+    queryKey: ["dashboard-low-stock", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("inventory_stock")
+        .select("id, quantity_on_hand, min_stock_level")
+        .eq("tenant_id", tenantId!)
+        .gt("min_stock_level", 0);
+      if (!data) return 0;
+      return data.filter((s) => Number(s.quantity_on_hand) < Number(s.min_stock_level)).length;
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 2,
+  });
+
   const profit = revenue - expenses;
 
   const kpis = [
@@ -188,7 +204,18 @@ export default function TenantDashboard() {
                 </Button>
               </div>
             )}
-            {draftCount === 0 && overdueCount === 0 && (
+            {lowStockCount > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Package className="h-4 w-4 text-accent" />
+                  <span>{lowStockCount} {t("lowStockAlert")}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/inventory/stock")}>
+                  {t("view")}
+                </Button>
+              </div>
+            )}
+            {draftCount === 0 && overdueCount === 0 && lowStockCount === 0 && (
               <p className="text-muted-foreground text-sm">No pending actions</p>
             )}
           </CardContent>

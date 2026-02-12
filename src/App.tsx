@@ -45,6 +45,9 @@ import TrialBalance from "@/pages/tenant/TrialBalance";
 import IncomeStatement from "@/pages/tenant/IncomeStatement";
 import BalanceSheet from "@/pages/tenant/BalanceSheet";
 import Partners from "@/pages/tenant/Partners";
+import Products from "@/pages/tenant/Products";
+import InventoryStock from "@/pages/tenant/InventoryStock";
+import InventoryMovements from "@/pages/tenant/InventoryMovements";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +104,9 @@ const App = () => (
                 <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
                 <Route path="settings/tax-rates" element={<TaxRates />} />
                 <Route path="settings/partners" element={<Partners />} />
+                <Route path="inventory/products" element={<Products />} />
+                <Route path="inventory/stock" element={<InventoryStock />} />
+                <Route path="inventory/movements" element={<InventoryMovements />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

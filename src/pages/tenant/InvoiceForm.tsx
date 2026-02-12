@@ -19,6 +19,7 @@ import { format } from "date-fns";
 
 interface InvoiceLine {
   id?: string;
+  product_id?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -79,6 +80,22 @@ export default function InvoiceForm() {
       const { data, error } = await supabase
         .from("partners")
         .select("*")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  // Fetch products
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, tax_rates(id, rate)")
         .eq("tenant_id", tenantId!)
         .eq("is_active", true)
         .order("name");
@@ -267,6 +284,7 @@ export default function InvoiceForm() {
       // Insert lines
       const lineInserts = lines.map((l, i) => ({
         invoice_id: invoiceId!,
+        product_id: l.product_id || null,
         description: l.description,
         quantity: l.quantity,
         unit_price: l.unit_price,
@@ -388,19 +406,56 @@ export default function InvoiceForm() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[30%]">{t("description")}</TableHead>
-                <TableHead className="w-[10%]">{t("quantity")}</TableHead>
-                <TableHead className="w-[12%]">{t("unitPrice")}</TableHead>
-                <TableHead className="w-[15%]">{t("taxRate")}</TableHead>
-                <TableHead className="text-right w-[12%]">{t("lineTotal")}</TableHead>
-                <TableHead className="text-right w-[12%]">{t("taxAmount")}</TableHead>
-                <TableHead className="text-right w-[12%]">{t("totalWithTax")}</TableHead>
+                <TableHead className="w-[18%]">{t("product")}</TableHead>
+                <TableHead className="w-[22%]">{t("description")}</TableHead>
+                <TableHead className="w-[8%]">{t("quantity")}</TableHead>
+                <TableHead className="w-[10%]">{t("unitPrice")}</TableHead>
+                <TableHead className="w-[12%]">{t("taxRate")}</TableHead>
+                <TableHead className="text-right w-[10%]">{t("lineTotal")}</TableHead>
+                <TableHead className="text-right w-[10%]">{t("taxAmount")}</TableHead>
+                <TableHead className="text-right w-[10%]">{t("totalWithTax")}</TableHead>
                 {!isReadOnly && <TableHead className="w-[5%]" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.map((line, i) => (
                 <TableRow key={i}>
+                  <TableCell>
+                    <Select
+                      value={line.product_id || "__none__"}
+                      onValueChange={(v) => {
+                        if (v === "__none__") {
+                          updateLine(i, "product_id", undefined);
+                          return;
+                        }
+                        const prod = products.find((p) => p.id === v);
+                        if (prod) {
+                          setLines((prev) => {
+                            const updated = [...prev];
+                            const l = {
+                              ...updated[i],
+                              product_id: prod.id,
+                              description: prod.name,
+                              unit_price: Number(prod.default_sale_price),
+                              tax_rate_id: prod.tax_rate_id || updated[i].tax_rate_id,
+                              tax_rate_value: prod.tax_rate_id && (prod as any).tax_rates ? Number((prod as any).tax_rates.rate) : updated[i].tax_rate_value,
+                            };
+                            updated[i] = calcLine(l);
+                            return updated;
+                          });
+                        }
+                      }}
+                      disabled={isReadOnly}
+                    >
+                      <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— {t("manual")}</SelectItem>
+                        {products.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <Input
                       value={line.description}
