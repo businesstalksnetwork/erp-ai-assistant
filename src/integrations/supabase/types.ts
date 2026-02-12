@@ -4165,6 +4165,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_tenant_admin: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
         Returns: string
