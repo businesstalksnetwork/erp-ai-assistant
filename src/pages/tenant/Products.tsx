@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
 
 const UOM_OPTIONS = ["pcs", "kg", "g", "l", "ml", "m", "cm", "m2", "m3", "h"];
 
@@ -135,7 +136,20 @@ export default function Products() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("products")}</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+        <div className="flex gap-2">
+          <ExportButton
+            data={filtered}
+            columns={[
+              { key: "name", label: t("name") },
+              { key: "sku", label: "SKU" },
+              { key: "unit_of_measure", label: t("unitOfMeasure") },
+              { key: "default_purchase_price", label: t("purchasePrice"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "default_sale_price", label: t("salePrice"), formatter: (v) => Number(v).toFixed(2) },
+            ]}
+            filename="products"
+          />
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+        </div>
       </div>
 
       <Card>

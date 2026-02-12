@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
+import { PrintButton } from "@/components/PrintButton";
 
 export default function TrialBalance() {
   const { t } = useLanguage();
@@ -62,7 +64,28 @@ export default function TrialBalance() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("trialBalance")}</h1>
-        <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Print</Button>
+        <div className="flex gap-2 print:hidden">
+          <ExportButton
+            data={rows.map(r => ({
+              code: r.account.code,
+              name: r.account.name,
+              type: r.account.account_type,
+              debit: r.debit,
+              credit: r.credit,
+              balance: r.debit - r.credit,
+            }))}
+            columns={[
+              { key: "code", label: t("accountCode") },
+              { key: "name", label: t("accountName") },
+              { key: "type", label: t("accountType") },
+              { key: "debit", label: t("debit"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "credit", label: t("credit"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "balance", label: t("balance"), formatter: (v) => Number(v).toFixed(2) },
+            ]}
+            filename="trial_balance"
+          />
+          <PrintButton />
+        </div>
       </div>
 
       <div className="flex gap-4 print:hidden">

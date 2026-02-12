@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Search, AlertTriangle, Plus, Minus } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
 
 export default function InventoryStock() {
   const { t } = useLanguage();
@@ -92,7 +93,30 @@ export default function InventoryStock() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{t("stockOverview")}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">{t("stockOverview")}</h1>
+        <ExportButton
+          data={filtered.map((s) => ({
+            product: (s.products as any)?.name || "",
+            sku: (s.products as any)?.sku || "",
+            warehouse: (s.warehouses as any)?.name || "",
+            on_hand: Number(s.quantity_on_hand),
+            reserved: Number(s.quantity_reserved),
+            available: Number(s.quantity_on_hand) - Number(s.quantity_reserved),
+            min_level: Number(s.min_stock_level),
+          }))}
+          columns={[
+            { key: "product", label: t("product") },
+            { key: "sku", label: "SKU" },
+            { key: "warehouse", label: t("warehouse") },
+            { key: "on_hand", label: t("onHand") },
+            { key: "reserved", label: t("reserved") },
+            { key: "available", label: t("available") },
+            { key: "min_level", label: t("minLevel") },
+          ]}
+          filename="inventory_stock"
+        />
+      </div>
 
       <Card>
         <CardHeader>

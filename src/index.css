@@ -107,3 +107,51 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12px;
+  }
+
+  /* Hide navigation, sidebar, buttons, and interactive elements */
+  nav,
+  aside,
+  header,
+  .print\\:hidden,
+  [data-sidebar],
+  button:not(.print-visible),
+  .no-print {
+    display: none !important;
+  }
+
+  /* Optimize tables */
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  /* Ensure cards don't have shadows */
+  .card, [class*="card"] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Make main content full width */
+  main, [role="main"] {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

@@ -600,6 +600,14 @@ export const translations = {
     accountingNotifications: "Accounting Notifications",
     accessDenied: "Access Denied",
     accessDeniedMessage: "You don't have permission to view this page.",
+
+    // Phase 13: Export & Reports
+    exportCsv: "Export CSV",
+    downloadPdf: "Download PDF",
+    printReport: "Print",
+    exportSuccess: "Export completed successfully.",
+    noDataToExport: "No data to export.",
+    generatingPdf: "Generating PDF...",
   },
   sr: {
     // Auth
@@ -1202,6 +1210,14 @@ export const translations = {
     accountingNotifications: "Računovodstvena obaveštenja",
     accessDenied: "Pristup odbijen",
     accessDeniedMessage: "Nemate dozvolu za pregled ove stranice.",
+
+    // Phase 13: Export & Reports
+    exportCsv: "Izvezi CSV",
+    downloadPdf: "Preuzmi PDF",
+    printReport: "Štampaj",
+    exportSuccess: "Izvoz uspešno završen.",
+    noDataToExport: "Nema podataka za izvoz.",
+    generatingPdf: "Generisanje PDF-a...",
   },
 } as const;
 

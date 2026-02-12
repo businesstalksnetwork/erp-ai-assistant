@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { UserCheck, Plus, Loader2 } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -101,7 +102,22 @@ export default function Employees() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("employees")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
+        <div className="flex gap-2">
+          <ExportButton
+            data={employees}
+            columns={[
+              { key: "full_name", label: t("fullName") },
+              { key: "email", label: t("email") },
+              { key: "phone", label: t("phone") },
+              { key: "position", label: t("position") },
+              { key: "employment_type", label: t("employmentType") },
+              { key: "status", label: t("status") },
+              { key: "start_date", label: t("startDate") },
+            ]}
+            filename="employees"
+          />
+          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
+        </div>
       </div>
 
       <Card>
