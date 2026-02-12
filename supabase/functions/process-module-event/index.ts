@@ -182,6 +182,26 @@ async function handleEvent(
     if (eventType === "credit_note.issued") {
       return { action: "create_storno_journal", message: "Credit note storno journal placeholder", entity_id: entityId };
     }
+    if (eventType === "fixed_asset.depreciated") {
+      return { action: "post_depreciation_entry", message: "Fixed asset depreciation journal placeholder", entity_id: entityId };
+    }
+    if (eventType === "deferral.recognized") {
+      return { action: "post_deferral_recognition", message: "Deferral recognition journal placeholder", entity_id: entityId };
+    }
+  }
+
+  // --- Workflow handlers ---
+  if (handlerModule === "workflow") {
+    if (eventType === "approval.completed") {
+      return { action: "update_entity_approval_status", message: "Approval status update placeholder", entity_id: entityId };
+    }
+  }
+
+  // --- Notification handlers ---
+  if (handlerModule === "notifications") {
+    if (eventType === "loan_payment.due") {
+      return { action: "notify_loan_payment", message: "Loan payment notification placeholder", entity_id: entityId };
+    }
   }
 
   return { action: "noop", message: `No handler implemented for ${eventType} -> ${handlerModule}` };

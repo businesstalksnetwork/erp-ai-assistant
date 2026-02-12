@@ -68,6 +68,12 @@ import PosTerminal from "@/pages/tenant/PosTerminal";
 import PosSessions from "@/pages/tenant/PosSessions";
 import EventMonitor from "@/pages/tenant/EventMonitor";
 import Returns from "@/pages/tenant/Returns";
+import FixedAssets from "@/pages/tenant/FixedAssets";
+import AgingReports from "@/pages/tenant/AgingReports";
+import Deferrals from "@/pages/tenant/Deferrals";
+import Loans from "@/pages/tenant/Loans";
+import ApprovalWorkflows from "@/pages/tenant/ApprovalWorkflows";
+import Currencies from "@/pages/tenant/Currencies";
 
 const queryClient = new QueryClient();
 
@@ -147,6 +153,12 @@ const App = () => (
                 <Route path="pos/sessions" element={<PosSessions />} />
                 <Route path="settings/events" element={<EventMonitor />} />
                 <Route path="returns" element={<Returns />} />
+                <Route path="accounting/fixed-assets" element={<FixedAssets />} />
+                <Route path="accounting/reports/aging" element={<AgingReports />} />
+                <Route path="accounting/deferrals" element={<Deferrals />} />
+                <Route path="accounting/loans" element={<Loans />} />
+                <Route path="settings/approvals" element={<ApprovalWorkflows />} />
+                <Route path="settings/currencies" element={<Currencies />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
