@@ -63,6 +63,7 @@ export default function InvoiceForm() {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [dueDate, setDueDate] = useState("");
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>("");
   const [partnerName, setPartnerName] = useState("");
   const [partnerPib, setPartnerPib] = useState("");
   const [partnerAddress, setPartnerAddress] = useState("");
@@ -70,6 +71,22 @@ export default function InvoiceForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+
+  // Fetch partners
+  const { data: partners = [] } = useQuery({
+    queryKey: ["partners", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("partners")
+        .select("*")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
 
   // Fetch tax rates
   const { data: taxRates = [] } = useQuery({
@@ -311,18 +328,46 @@ export default function InvoiceForm() {
       {/* Partner */}
       <Card>
         <CardHeader><CardTitle>{t("partner")}</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="space-y-4">
           <div>
-            <Label>{t("partnerName")}</Label>
-            <Input value={partnerName} onChange={(e) => setPartnerName(e.target.value)} disabled={isReadOnly} />
+            <Label>{t("selectPartner")}</Label>
+            <Select
+              value={selectedPartnerId}
+              onValueChange={(v) => {
+                setSelectedPartnerId(v);
+                if (v && v !== "__manual__") {
+                  const p = partners.find((p) => p.id === v);
+                  if (p) {
+                    setPartnerName(p.name);
+                    setPartnerPib(p.pib || "");
+                    setPartnerAddress([p.address, p.city].filter(Boolean).join(", "));
+                  }
+                }
+              }}
+              disabled={isReadOnly}
+            >
+              <SelectTrigger><SelectValue placeholder={t("selectPartner")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__manual__">{t("noPartner")}</SelectItem>
+                {partners.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}{p.pib ? ` (${p.pib})` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <Label>{t("pib")}</Label>
-            <Input value={partnerPib} onChange={(e) => setPartnerPib(e.target.value)} disabled={isReadOnly} />
-          </div>
-          <div>
-            <Label>{t("address")}</Label>
-            <Input value={partnerAddress} onChange={(e) => setPartnerAddress(e.target.value)} disabled={isReadOnly} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>{t("partnerName")}</Label>
+              <Input value={partnerName} onChange={(e) => setPartnerName(e.target.value)} disabled={isReadOnly} />
+            </div>
+            <div>
+              <Label>{t("pib")}</Label>
+              <Input value={partnerPib} onChange={(e) => setPartnerPib(e.target.value)} disabled={isReadOnly} />
+            </div>
+            <div>
+              <Label>{t("address")}</Label>
+              <Input value={partnerAddress} onChange={(e) => setPartnerAddress(e.target.value)} disabled={isReadOnly} />
+            </div>
           </div>
         </CardContent>
       </Card>
