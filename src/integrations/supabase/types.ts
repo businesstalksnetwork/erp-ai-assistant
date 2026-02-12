@@ -1279,6 +1279,134 @@ export type Database = {
         }
         Relationships: []
       }
+      module_event_logs: {
+        Row: {
+          error_message: string | null
+          event_id: string
+          executed_at: string
+          id: string
+          response: Json | null
+          status: string
+          subscription_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          event_id: string
+          executed_at?: string
+          id?: string
+          response?: Json | null
+          status: string
+          subscription_id: string
+        }
+        Update: {
+          error_message?: string | null
+          event_id?: string
+          executed_at?: string
+          id?: string
+          response?: Json | null
+          status?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_event_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "module_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "module_event_logs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "module_event_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      module_event_subscriptions: {
+        Row: {
+          created_at: string
+          event_type: string
+          handler_function: string
+          handler_module: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          handler_function: string
+          handler_module: string
+          id?: string
+          is_active?: boolean
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          handler_function?: string
+          handler_module?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+      module_events: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          event_type: string
+          id: string
+          max_retries: number
+          payload: Json
+          processed_at: string | null
+          retry_count: number
+          source_module: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          max_retries?: number
+          payload?: Json
+          processed_at?: string | null
+          retry_count?: number
+          source_module: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          max_retries?: number
+          payload?: Json
+          processed_at?: string | null
+          retry_count?: number
+          source_module?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunities: {
         Row: {
           assigned_to: string | null
@@ -2515,6 +2643,18 @@ export type Database = {
       }
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }
+        Returns: string
+      }
+      emit_module_event: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_event_type: string
+          p_max_retries?: number
+          p_payload?: Json
+          p_source_module: string
+          p_tenant_id: string
+        }
         Returns: string
       }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }

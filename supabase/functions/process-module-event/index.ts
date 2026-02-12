@@ -1,0 +1,219 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { event_id } = await req.json();
+    if (!event_id) {
+      return new Response(JSON.stringify({ error: "event_id is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // 1. Fetch the event
+    const { data: event, error: eventError } = await supabase
+      .from("module_events")
+      .select("*")
+      .eq("id", event_id)
+      .single();
+
+    if (eventError || !event) {
+      return new Response(
+        JSON.stringify({ error: "Event not found", details: eventError?.message }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Skip if already completed
+    if (event.status === "completed") {
+      return new Response(JSON.stringify({ message: "Event already processed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 2. Mark as processing
+    await supabase
+      .from("module_events")
+      .update({ status: "processing" })
+      .eq("id", event_id);
+
+    // 3. Find matching subscriptions (exact match or wildcard)
+    const eventParts = event.event_type.split(".");
+    const wildcardPattern = eventParts[0] + ".*";
+
+    const { data: subscriptions } = await supabase
+      .from("module_event_subscriptions")
+      .select("*")
+      .eq("is_active", true)
+      .or(`event_type.eq.${event.event_type},event_type.eq.${wildcardPattern}`);
+
+    if (!subscriptions || subscriptions.length === 0) {
+      await supabase
+        .from("module_events")
+        .update({ status: "completed", processed_at: new Date().toISOString() })
+        .eq("id", event_id);
+
+      return new Response(
+        JSON.stringify({ message: "No subscriptions matched", event_type: event.event_type }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 4. Process each subscription handler
+    let allSuccess = true;
+    const results: Array<{ subscription_id: string; status: string; error?: string }> = [];
+
+    for (const sub of subscriptions) {
+      try {
+        const handlerResult = await handleEvent(supabase, event, sub);
+
+        // Log success
+        await supabase.from("module_event_logs").insert({
+          event_id: event_id,
+          subscription_id: sub.id,
+          status: "success",
+          response: handlerResult,
+        });
+
+        results.push({ subscription_id: sub.id, status: "success" });
+      } catch (handlerError: unknown) {
+        allSuccess = false;
+        const errorMsg = handlerError instanceof Error ? handlerError.message : String(handlerError);
+
+        await supabase.from("module_event_logs").insert({
+          event_id: event_id,
+          subscription_id: sub.id,
+          status: "failed",
+          error_message: errorMsg,
+        });
+
+        results.push({ subscription_id: sub.id, status: "failed", error: errorMsg });
+      }
+    }
+
+    // 5. Update event status
+    const newRetryCount = event.retry_count + (allSuccess ? 0 : 1);
+    const finalStatus = allSuccess
+      ? "completed"
+      : newRetryCount >= event.max_retries
+        ? "failed"
+        : "pending"; // will be retried
+
+    await supabase
+      .from("module_events")
+      .update({
+        status: finalStatus,
+        retry_count: newRetryCount,
+        processed_at: allSuccess ? new Date().toISOString() : null,
+        error_message: allSuccess ? null : `${results.filter((r) => r.status === "failed").length} handler(s) failed`,
+      })
+      .eq("id", event_id);
+
+    return new Response(
+      JSON.stringify({ event_id, status: finalStatus, results }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+/**
+ * Route event to the correct handler based on event_type + handler_module.
+ * All logic lives here — no external function calls needed.
+ */
+async function handleEvent(
+  supabase: ReturnType<typeof createClient>,
+  event: Record<string, unknown>,
+  subscription: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const eventType = event.event_type as string;
+  const handlerModule = subscription.handler_module as string;
+  const payload = event.payload as Record<string, unknown>;
+  const tenantId = event.tenant_id as string;
+  const entityId = event.entity_id as string;
+
+  // --- Inventory handlers ---
+  if (handlerModule === "inventory") {
+    if (eventType === "invoice.posted") {
+      // Deduct stock for invoice lines with products
+      return await handleInvoicePostedInventory(supabase, tenantId, entityId, payload);
+    }
+    if (eventType === "sales_order.confirmed") {
+      return { action: "reserve_stock", message: "Stock reservation placeholder", entity_id: entityId };
+    }
+    if (eventType === "production.completed") {
+      return { action: "add_finished_goods", message: "Production output placeholder", entity_id: entityId };
+    }
+    if (eventType === "pos.transaction_completed") {
+      return { action: "deduct_pos_stock", message: "POS stock deduction placeholder", entity_id: entityId };
+    }
+  }
+
+  // --- Accounting handlers ---
+  if (handlerModule === "accounting") {
+    if (eventType === "pos.transaction_completed") {
+      return { action: "create_pos_journal", message: "POS journal entry placeholder", entity_id: entityId };
+    }
+  }
+
+  return { action: "noop", message: `No handler implemented for ${eventType} -> ${handlerModule}` };
+}
+
+async function handleInvoicePostedInventory(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string,
+  invoiceId: string,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const warehouseId = payload.warehouse_id as string | undefined;
+  if (!warehouseId) {
+    return { action: "skip", message: "No warehouse specified, skipping inventory deduction" };
+  }
+
+  // Get invoice lines with products
+  const { data: lines } = await supabase
+    .from("invoice_lines")
+    .select("product_id, quantity")
+    .eq("invoice_id", invoiceId)
+    .not("product_id", "is", null);
+
+  if (!lines || lines.length === 0) {
+    return { action: "skip", message: "No product lines on invoice" };
+  }
+
+  const adjustments: string[] = [];
+  for (const line of lines) {
+    const { error } = await supabase.rpc("adjust_inventory_stock", {
+      p_tenant_id: tenantId,
+      p_product_id: line.product_id,
+      p_warehouse_id: warehouseId,
+      p_quantity: -line.quantity,
+      p_movement_type: "out",
+      p_notes: `Event bus: invoice ${payload.invoice_number || invoiceId}`,
+      p_reference: String(payload.invoice_number || invoiceId),
+    });
+    if (error) throw new Error(`Stock adjustment failed for product ${line.product_id}: ${error.message}`);
+    adjustments.push(line.product_id);
+  }
+
+  return { action: "deduct_stock", adjusted_products: adjustments };
+}

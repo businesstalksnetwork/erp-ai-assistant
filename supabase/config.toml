@@ -2,3 +2,6 @@ project_id = "hfvoehsrsimvgyyxirwj"
 
 [functions.create-tenant]
 verify_jwt = false
+
+[functions.process-module-event]
+verify_jwt = false
