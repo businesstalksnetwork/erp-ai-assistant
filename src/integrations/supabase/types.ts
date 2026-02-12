@@ -422,6 +422,165 @@ export type Database = {
           },
         ]
       }
+      archive_book: {
+        Row: {
+          category_id: string | null
+          content_description: string
+          created_at: string
+          entry_number: number
+          id: string
+          notes: string | null
+          quantity: number
+          retention_period: string
+          retention_years: number | null
+          tenant_id: string
+          transfer_date: string | null
+          transferred_to_archive: boolean
+          updated_at: string
+          year_of_creation: number
+        }
+        Insert: {
+          category_id?: string | null
+          content_description: string
+          created_at?: string
+          entry_number: number
+          id?: string
+          notes?: string | null
+          quantity?: number
+          retention_period?: string
+          retention_years?: number | null
+          tenant_id: string
+          transfer_date?: string | null
+          transferred_to_archive?: boolean
+          updated_at?: string
+          year_of_creation: number
+        }
+        Update: {
+          category_id?: string | null
+          content_description?: string
+          created_at?: string
+          entry_number?: number
+          id?: string
+          notes?: string | null
+          quantity?: number
+          retention_period?: string
+          retention_years?: number | null
+          tenant_id?: string
+          transfer_date?: string | null
+          transferred_to_archive?: boolean
+          updated_at?: string
+          year_of_creation?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archive_book_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "document_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archive_book_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      archiving_request_items: {
+        Row: {
+          archive_book_id: string
+          created_at: string
+          id: string
+          request_id: string
+          tenant_id: string
+        }
+        Insert: {
+          archive_book_id: string
+          created_at?: string
+          id?: string
+          request_id: string
+          tenant_id: string
+        }
+        Update: {
+          archive_book_id?: string
+          created_at?: string
+          id?: string
+          request_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archiving_request_items_archive_book_id_fkey"
+            columns: ["archive_book_id"]
+            isOneToOne: false
+            referencedRelation: "archive_book"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archiving_request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "archiving_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archiving_request_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      archiving_requests: {
+        Row: {
+          approval_comment: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          request_number: string
+          requested_by: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          approval_comment?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          request_number: string
+          requested_by?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          approval_comment?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          request_number?: string
+          requested_by?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archiving_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           check_in: string | null
@@ -1132,6 +1291,47 @@ export type Database = {
           },
         ]
       }
+      confidentiality_levels: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          name_sr: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_sr: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_sr?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confidentiality_levels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_company_assignments: {
         Row: {
           assigned_at: string
@@ -1577,9 +1777,380 @@ export type Database = {
           },
         ]
       }
-      documents: {
+      dms_activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dms_activity_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dms_project_members: {
         Row: {
           created_at: string
+          id: string
+          project_id: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          role?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          role?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dms_project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "dms_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dms_project_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dms_projects: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dms_projects_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_access: {
+        Row: {
+          can_edit: boolean
+          can_read: boolean
+          created_at: string
+          document_id: string
+          granted_by: string | null
+          id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_read?: boolean
+          created_at?: string
+          document_id: string
+          granted_by?: string | null
+          id?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_read?: boolean
+          created_at?: string
+          document_id?: string
+          granted_by?: string | null
+          id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_access_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_categories: {
+        Row: {
+          code: string
+          created_at: string
+          group_name: string
+          group_name_sr: string
+          id: string
+          is_active: boolean
+          name: string
+          name_sr: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          group_name: string
+          group_name_sr: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_sr: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          group_name?: string
+          group_name_sr?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_sr?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_projects: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          project_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          project_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          project_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_projects_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "dms_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_projects_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          category_id: string | null
+          change_summary: string | null
+          confidentiality_level_id: string | null
+          created_at: string
+          created_by: string | null
+          date_received: string | null
+          document_id: string
+          file_path: string | null
+          file_size: number | null
+          file_type: string | null
+          id: string
+          notes: string | null
+          recipient: string | null
+          sender: string | null
+          status: string | null
+          subject: string | null
+          tags: string[] | null
+          tenant_id: string
+          valid_until: string | null
+          version_number: number
+        }
+        Insert: {
+          category_id?: string | null
+          change_summary?: string | null
+          confidentiality_level_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_received?: string | null
+          document_id: string
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          recipient?: string | null
+          sender?: string | null
+          status?: string | null
+          subject?: string | null
+          tags?: string[] | null
+          tenant_id: string
+          valid_until?: string | null
+          version_number: number
+        }
+        Update: {
+          category_id?: string | null
+          change_summary?: string | null
+          confidentiality_level_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_received?: string | null
+          document_id?: string
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          recipient?: string | null
+          sender?: string | null
+          status?: string | null
+          subject?: string | null
+          tags?: string[] | null
+          tenant_id?: string
+          valid_until?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "document_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_confidentiality_level_id_fkey"
+            columns: ["confidentiality_level_id"]
+            isOneToOne: false
+            referencedRelation: "confidentiality_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          category_id: string | null
+          confidentiality_level_id: string | null
+          created_at: string
+          created_by: string | null
+          current_version: number
+          date_received: string | null
           entity_id: string | null
           entity_type: string | null
           file_path: string
@@ -1588,13 +2159,25 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          protocol_number: string | null
+          recipient: string | null
+          sender: string | null
+          seq_number: number | null
+          status: string
+          subject: string | null
           tags: string[] | null
           tenant_id: string
           updated_at: string
           uploaded_by: string | null
+          valid_until: string | null
         }
         Insert: {
+          category_id?: string | null
+          confidentiality_level_id?: string | null
           created_at?: string
+          created_by?: string | null
+          current_version?: number
+          date_received?: string | null
           entity_id?: string | null
           entity_type?: string | null
           file_path: string
@@ -1603,13 +2186,25 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          protocol_number?: string | null
+          recipient?: string | null
+          sender?: string | null
+          seq_number?: number | null
+          status?: string
+          subject?: string | null
           tags?: string[] | null
           tenant_id: string
           updated_at?: string
           uploaded_by?: string | null
+          valid_until?: string | null
         }
         Update: {
+          category_id?: string | null
+          confidentiality_level_id?: string | null
           created_at?: string
+          created_by?: string | null
+          current_version?: number
+          date_received?: string | null
           entity_id?: string | null
           entity_type?: string | null
           file_path?: string
@@ -1618,12 +2213,33 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          protocol_number?: string | null
+          recipient?: string | null
+          sender?: string | null
+          seq_number?: number | null
+          status?: string
+          subject?: string | null
           tags?: string[] | null
           tenant_id?: string
           updated_at?: string
           uploaded_by?: string | null
+          valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "document_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_confidentiality_level_id_fkey"
+            columns: ["confidentiality_level_id"]
+            isOneToOne: false
+            referencedRelation: "confidentiality_levels"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4660,6 +5276,51 @@ export type Database = {
           },
         ]
       }
+      role_confidentiality_access: {
+        Row: {
+          can_edit: boolean
+          can_read: boolean
+          confidentiality_level_id: string
+          created_at: string
+          id: string
+          role: string
+          tenant_id: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_read?: boolean
+          confidentiality_level_id: string
+          created_at?: string
+          id?: string
+          role: string
+          tenant_id: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_read?: boolean
+          confidentiality_level_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_confidentiality_access_confidentiality_level_id_fkey"
+            columns: ["confidentiality_level_id"]
+            isOneToOne: false
+            referencedRelation: "confidentiality_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_confidentiality_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_channels: {
         Row: {
           created_at: string
@@ -5350,6 +6011,10 @@ export type Database = {
           p_source_module: string
           p_tenant_id: string
         }
+        Returns: string
+      }
+      generate_protocol_number: {
+        Args: { p_category_code: string; p_tenant_id: string }
         Returns: string
       }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }

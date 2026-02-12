@@ -65,6 +65,14 @@ import Payroll from "@/pages/tenant/Payroll";
 import BomTemplates from "@/pages/tenant/BomTemplates";
 import ProductionOrders from "@/pages/tenant/ProductionOrders";
 import Documents from "@/pages/tenant/Documents";
+import DocumentDetail from "@/pages/tenant/DocumentDetail";
+import ArchiveBook from "@/pages/tenant/ArchiveBook";
+import Archiving from "@/pages/tenant/Archiving";
+import DmsProjects from "@/pages/tenant/DmsProjects";
+import DmsProjectDetail from "@/pages/tenant/DmsProjectDetail";
+import DocumentBrowser from "@/pages/tenant/DocumentBrowser";
+import DmsReports from "@/pages/tenant/DmsReports";
+import DmsSettings from "@/pages/tenant/DmsSettings";
 import PosTerminal from "@/pages/tenant/PosTerminal";
 import PosSessions from "@/pages/tenant/PosSessions";
 import EventMonitor from "@/pages/tenant/EventMonitor";
@@ -169,6 +177,14 @@ const App = () => (
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
+                <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><DocumentDetail /></ProtectedRoute>} />
+                <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><ArchiveBook /></ProtectedRoute>} />
+                <Route path="documents/archiving" element={<ProtectedRoute requiredModule="documents"><Archiving /></ProtectedRoute>} />
+                <Route path="documents/projects" element={<ProtectedRoute requiredModule="documents"><DmsProjects /></ProtectedRoute>} />
+                <Route path="documents/projects/:id" element={<ProtectedRoute requiredModule="documents"><DmsProjectDetail /></ProtectedRoute>} />
+                <Route path="documents/browser" element={<ProtectedRoute requiredModule="documents"><DocumentBrowser /></ProtectedRoute>} />
+                <Route path="documents/reports" element={<ProtectedRoute requiredModule="documents"><DmsReports /></ProtectedRoute>} />
+                <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><DmsSettings /></ProtectedRoute>} />
                 <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><PosTerminal /></ProtectedRoute>} />
                 <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
