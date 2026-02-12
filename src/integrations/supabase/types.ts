@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          lead_id: string | null
+          meeting_id: string | null
+          opportunity_id: string | null
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lead_id?: string | null
+          meeting_id?: string | null
+          opportunity_id?: string | null
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lead_id?: string | null
+          meeting_id?: string | null
+          opportunity_id?: string | null
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
@@ -855,6 +937,320 @@ export type Database = {
           },
           {
             foreignKeyName: "chart_of_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          is_internal: boolean | null
+          legal_entity_id: string | null
+          legal_name: string
+          maticni_broj: string | null
+          notes: string | null
+          partner_id: string | null
+          phone: string | null
+          pib: string | null
+          postal_code: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_internal?: boolean | null
+          legal_entity_id?: string | null
+          legal_name: string
+          maticni_broj?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          phone?: string | null
+          pib?: string | null
+          postal_code?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_internal?: boolean | null
+          legal_entity_id?: string | null
+          legal_name?: string
+          maticni_broj?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          phone?: string | null
+          pib?: string | null
+          postal_code?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_categories: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          id: string
+          is_system: boolean | null
+          name: string
+          name_sr: string | null
+          parent_id: string | null
+          sort_order: number | null
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number | null
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "company_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_category_assignments: {
+        Row: {
+          category_id: string
+          company_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          category_id: string
+          company_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          category_id?: string
+          company_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_category_assignments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "company_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_category_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_category_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_company_assignments: {
+        Row: {
+          assigned_at: string
+          company_id: string
+          contact_id: string
+          department: string | null
+          id: string
+          is_primary: boolean | null
+          job_title: string | null
+          tenant_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          company_id: string
+          contact_id: string
+          department?: string | null
+          id?: string
+          is_primary?: boolean | null
+          job_title?: string | null
+          tenant_id: string
+        }
+        Update: {
+          assigned_at?: string
+          company_id?: string
+          contact_id?: string
+          department?: string | null
+          id?: string
+          is_primary?: boolean | null
+          job_title?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_company_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_company_assignments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_company_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          first_name: string
+          function_area: string | null
+          id: string
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          seniority_level: string | null
+          tenant_id: string
+          type: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          function_area?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          seniority_level?: string | null
+          tenant_id: string
+          type?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          function_area?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          seniority_level?: string | null
+          tenant_id?: string
+          type?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2151,10 +2547,14 @@ export type Database = {
         Row: {
           assigned_to: string | null
           company: string | null
+          contact_id: string | null
           converted_partner_id: string | null
           created_at: string
           email: string | null
+          first_name: string | null
           id: string
+          job_title: string | null
+          last_name: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -2166,10 +2566,14 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           company?: string | null
+          contact_id?: string | null
           converted_partner_id?: string | null
           created_at?: string
           email?: string | null
+          first_name?: string | null
           id?: string
+          job_title?: string | null
+          last_name?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -2181,10 +2585,14 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           company?: string | null
+          contact_id?: string | null
           converted_partner_id?: string | null
           created_at?: string
           email?: string | null
+          first_name?: string | null
           id?: string
+          job_title?: string | null
+          last_name?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -2194,6 +2602,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_converted_partner_id_fkey"
             columns: ["converted_partner_id"]
@@ -2545,6 +2960,173 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          employee_id: string | null
+          id: string
+          is_internal: boolean | null
+          is_organizer: boolean | null
+          meeting_id: string
+          tenant_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          employee_id?: string | null
+          id?: string
+          is_internal?: boolean | null
+          is_organizer?: boolean | null
+          meeting_id: string
+          tenant_id: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          employee_id?: string | null
+          id?: string
+          is_internal?: boolean | null
+          is_organizer?: boolean | null
+          meeting_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_participants_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_participants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_types: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          name_sr: string | null
+          tenant_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          name_sr?: string | null
+          tenant_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          name_sr?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          communication_channel: string | null
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          location: string | null
+          meeting_type_id: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          communication_channel?: string | null
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          location?: string | null
+          meeting_type_id?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          communication_channel?: string | null
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          location?: string | null
+          meeting_type_id?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_meeting_type_id_fkey"
+            columns: ["meeting_type_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2941,8 +3523,11 @@ export type Database = {
       opportunities: {
         Row: {
           assigned_to: string | null
+          closed_at: string | null
+          contact_id: string | null
           created_at: string
           currency: string
+          description: string | null
           expected_close_date: string | null
           id: string
           lead_id: string | null
@@ -2957,8 +3542,11 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          closed_at?: string | null
+          contact_id?: string | null
           created_at?: string
           currency?: string
+          description?: string | null
           expected_close_date?: string | null
           id?: string
           lead_id?: string | null
@@ -2973,8 +3561,11 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          closed_at?: string | null
+          contact_id?: string | null
           created_at?: string
           currency?: string
+          description?: string | null
           expected_close_date?: string | null
           id?: string
           lead_id?: string | null
@@ -2988,6 +3579,13 @@ export type Database = {
           value?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "opportunities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "opportunities_lead_id_fkey"
             columns: ["lead_id"]
@@ -4778,6 +5376,10 @@ export type Database = {
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
         Returns: string
+      }
+      seed_company_categories: {
+        Args: { _tenant_id: string }
+        Returns: undefined
       }
       seed_tenant_chart_of_accounts: {
         Args: { _tenant_id: string }
