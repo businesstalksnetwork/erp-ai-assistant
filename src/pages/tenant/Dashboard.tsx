@@ -3,18 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
+import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
+import { TopCustomersChart } from "@/components/dashboard/TopCustomersChart";
+import { ModuleHealthSummary } from "@/components/dashboard/ModuleHealthSummary";
+import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
 import { addDays } from "date-fns";
 
 export default function TenantDashboard() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { canAccess } = usePermissions();
   const navigate = useNavigate();
 
   const fmtNum = (n: number) =>
@@ -94,7 +100,6 @@ export default function TenantDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
-  // Pending approvals
   const { data: pendingApprovalCount = 0 } = useQuery({
     queryKey: ["dashboard-pending-approvals", tenantId],
     queryFn: async () => {
@@ -105,30 +110,23 @@ export default function TenantDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
-  // Upcoming loan payments (next 7 days)
   const { data: upcomingLoanPayments = 0 } = useQuery({
     queryKey: ["dashboard-upcoming-loans", tenantId],
     queryFn: async () => {
       if (!tenantId) return 0;
-      // Get active loans and check schedule dates vs existing payments
       const { data: loans } = await supabase.from("loans").select("*").eq("tenant_id", tenantId).eq("status", "active");
       if (!loans?.length) return 0;
       const { data: payments } = await supabase.from("loan_payments").select("loan_id, period_number").eq("tenant_id", tenantId);
       const paidSet = new Set((payments || []).map((p: any) => `${p.loan_id}-${p.period_number}`));
-      
       const today = new Date();
       const weekFromNow = addDays(today, 7);
       let count = 0;
-
       loans.forEach((loan: any) => {
-        const monthlyRate = Number(loan.interest_rate) / 100 / 12;
         const termMonths = loan.term_months;
         for (let i = 1; i <= termMonths; i++) {
           if (paidSet.has(`${loan.id}-${i}`)) continue;
-          const paymentDate = addDays(new Date(loan.start_date), i * 30); // approximate
-          if (paymentDate >= today && paymentDate <= weekFromNow) {
-            count++;
-          }
+          const paymentDate = addDays(new Date(loan.start_date), i * 30);
+          if (paymentDate >= today && paymentDate <= weekFromNow) count++;
         }
       });
       return count;
@@ -148,8 +146,9 @@ export default function TenantDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
+        <WelcomeHeader />
         <Button variant="outline" size="sm" onClick={() => {
           exportToCsv(
             [{ metric: t("revenue"), value: revenue }, { metric: t("expenses"), value: expenses }, { metric: t("profit"), value: profit }, { metric: t("cashBalance"), value: cashBalance }],
@@ -161,9 +160,10 @@ export default function TenantDashboard() {
         </Button>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label}>
+          <Card key={kpi.label} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
               <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
@@ -175,6 +175,10 @@ export default function TenantDashboard() {
         ))}
       </div>
 
+      {/* AI Insights - prominent */}
+      {tenantId && <AiInsightsWidget tenantId={tenantId} />}
+
+      {/* Charts Row 1 */}
       {tenantId && (
         <div className="grid gap-4 md:grid-cols-2">
           <RevenueExpensesChart tenantId={tenantId} />
@@ -182,8 +186,18 @@ export default function TenantDashboard() {
         </div>
       )}
 
-      {tenantId && <AiInsightsWidget tenantId={tenantId} />}
+      {/* Charts Row 2 - new charts */}
+      {tenantId && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <CashFlowChart tenantId={tenantId} />
+          <TopCustomersChart tenantId={tenantId} />
+        </div>
+      )}
 
+      {/* Module Health */}
+      {tenantId && <ModuleHealthSummary tenantId={tenantId} />}
+
+      {/* Pending Actions + Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-lg">{t("pendingActions")}</CardTitle></CardHeader>
@@ -241,12 +255,21 @@ export default function TenantDashboard() {
         <Card>
           <CardHeader><CardTitle className="text-lg">{t("quickActions")}</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" onClick={() => navigate("/accounting/invoices/new")}>
-              <FileText className="h-4 w-4 mr-2" /> {t("newInvoice")}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/accounting/journal")}>
-              <Calculator className="h-4 w-4 mr-2" /> {t("newJournalEntry")}
-            </Button>
+            {canAccess("accounting") && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate("/accounting/invoices/new")}>
+                  <FileText className="h-4 w-4 mr-2" /> {t("newInvoice")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate("/accounting/journal")}>
+                  <Calculator className="h-4 w-4 mr-2" /> {t("newJournalEntry")}
+                </Button>
+              </>
+            )}
+            {canAccess("crm") && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/crm/leads")}>
+                <TrendingUp className="h-4 w-4 mr-2" /> {t("addLead")}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
