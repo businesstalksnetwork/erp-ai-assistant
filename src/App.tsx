@@ -33,6 +33,9 @@ import CostCenters from "@/pages/tenant/CostCenters";
 import BankAccounts from "@/pages/tenant/BankAccounts";
 import TenantIntegrations from "@/pages/tenant/Integrations";
 import BusinessRules from "@/pages/tenant/BusinessRules";
+import ChartOfAccounts from "@/pages/tenant/ChartOfAccounts";
+import JournalEntries from "@/pages/tenant/JournalEntries";
+import FiscalPeriods from "@/pages/tenant/FiscalPeriods";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +79,9 @@ const App = () => (
                 <Route path="settings/bank-accounts" element={<BankAccounts />} />
                 <Route path="settings/integrations" element={<TenantIntegrations />} />
                 <Route path="settings/business-rules" element={<BusinessRules />} />
+                <Route path="accounting/chart-of-accounts" element={<ChartOfAccounts />} />
+                <Route path="accounting/journal" element={<JournalEntries />} />
+                <Route path="accounting/fiscal-periods" element={<FiscalPeriods />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
