@@ -2105,6 +2105,67 @@ export type Database = {
           },
         ]
       }
+      loan_payments: {
+        Row: {
+          created_at: string
+          id: string
+          interest_amount: number
+          journal_entry_id: string | null
+          loan_id: string
+          payment_date: string
+          period_number: number
+          principal_amount: number
+          tenant_id: string
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interest_amount?: number
+          journal_entry_id?: string | null
+          loan_id: string
+          payment_date?: string
+          period_number: number
+          principal_amount?: number
+          tenant_id: string
+          total_amount?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interest_amount?: number
+          journal_entry_id?: string | null
+          loan_id?: string
+          payment_date?: string
+          period_number?: number
+          principal_amount?: number
+          tenant_id?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_payments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loan_schedules: {
         Row: {
           balance: number

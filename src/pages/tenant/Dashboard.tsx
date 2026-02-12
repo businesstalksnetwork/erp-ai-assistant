@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
+import { addDays } from "date-fns";
 
 export default function TenantDashboard() {
   const { t } = useLanguage();
@@ -19,75 +20,41 @@ export default function TenantDashboard() {
   const fmtNum = (n: number) =>
     n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Revenue: sum of credits on revenue accounts from posted journal entries
+  // Revenue
   const { data: revenue = 0 } = useQuery({
     queryKey: ["dashboard-revenue", tenantId],
     queryFn: async () => {
-      const { data: entries } = await supabase
-        .from("journal_entries")
-        .select("id")
-        .eq("tenant_id", tenantId!)
-        .eq("status", "posted");
+      const { data: entries } = await supabase.from("journal_entries").select("id").eq("tenant_id", tenantId!).eq("status", "posted");
       if (!entries?.length) return 0;
-
-      const { data: revenueAccounts } = await supabase
-        .from("chart_of_accounts")
-        .select("id")
-        .eq("tenant_id", tenantId!)
-        .eq("account_type", "revenue");
+      const { data: revenueAccounts } = await supabase.from("chart_of_accounts").select("id").eq("tenant_id", tenantId!).eq("account_type", "revenue");
       if (!revenueAccounts?.length) return 0;
-
-      const { data: lines } = await supabase
-        .from("journal_lines")
-        .select("credit")
-        .in("journal_entry_id", entries.map((e) => e.id))
-        .in("account_id", revenueAccounts.map((a) => a.id));
+      const { data: lines } = await supabase.from("journal_lines").select("credit").in("journal_entry_id", entries.map((e) => e.id)).in("account_id", revenueAccounts.map((a) => a.id));
       return lines?.reduce((sum, l) => sum + Number(l.credit), 0) || 0;
     },
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Expenses: sum of debits on expense accounts from posted journal entries
+  // Expenses
   const { data: expenses = 0 } = useQuery({
     queryKey: ["dashboard-expenses", tenantId],
     queryFn: async () => {
-      const { data: entries } = await supabase
-        .from("journal_entries")
-        .select("id")
-        .eq("tenant_id", tenantId!)
-        .eq("status", "posted");
+      const { data: entries } = await supabase.from("journal_entries").select("id").eq("tenant_id", tenantId!).eq("status", "posted");
       if (!entries?.length) return 0;
-      const entryIds = entries.map((e) => e.id);
-
-      const { data: expenseAccounts } = await supabase
-        .from("chart_of_accounts")
-        .select("id")
-        .eq("tenant_id", tenantId!)
-        .eq("account_type", "expense");
+      const { data: expenseAccounts } = await supabase.from("chart_of_accounts").select("id").eq("tenant_id", tenantId!).eq("account_type", "expense");
       if (!expenseAccounts?.length) return 0;
-      const accountIds = expenseAccounts.map((a) => a.id);
-
-      const { data: lines } = await supabase
-        .from("journal_lines")
-        .select("debit")
-        .in("journal_entry_id", entryIds)
-        .in("account_id", accountIds);
+      const { data: lines } = await supabase.from("journal_lines").select("debit").in("journal_entry_id", entries.map((e) => e.id)).in("account_id", expenseAccounts.map((a) => a.id));
       return lines?.reduce((sum, l) => sum + Number(l.debit), 0) || 0;
     },
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Cash balance: total of paid invoices
+  // Cash balance
   const { data: cashBalance = 0 } = useQuery({
     queryKey: ["dashboard-cash", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("invoices")
-        .select("total")
-        .eq("tenant_id", tenantId!)
-        .eq("status", "paid");
+      const { data } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("status", "paid");
       return data?.reduce((sum, inv) => sum + Number(inv.total), 0) || 0;
     },
     enabled: !!tenantId,
@@ -98,11 +65,7 @@ export default function TenantDashboard() {
   const { data: draftCount = 0 } = useQuery({
     queryKey: ["dashboard-drafts", tenantId],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("journal_entries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId!)
-        .eq("status", "draft");
+      const { count } = await supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "draft");
       return count || 0;
     },
     enabled: !!tenantId,
@@ -113,29 +76,62 @@ export default function TenantDashboard() {
     queryKey: ["dashboard-overdue", tenantId],
     queryFn: async () => {
       const today = new Date().toISOString().split("T")[0];
-      const { count } = await supabase
-        .from("invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId!)
-        .in("status", ["draft", "sent"])
-        .lt("due_date", today);
+      const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).in("status", ["draft", "sent"]).lt("due_date", today);
       return count || 0;
     },
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 2,
   });
 
-  // Low stock count
   const { data: lowStockCount = 0 } = useQuery({
     queryKey: ["dashboard-low-stock", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("inventory_stock")
-        .select("id, quantity_on_hand, min_stock_level")
-        .eq("tenant_id", tenantId!)
-        .gt("min_stock_level", 0);
+      const { data } = await supabase.from("inventory_stock").select("id, quantity_on_hand, min_stock_level").eq("tenant_id", tenantId!).gt("min_stock_level", 0);
       if (!data) return 0;
       return data.filter((s) => Number(s.quantity_on_hand) < Number(s.min_stock_level)).length;
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  // Pending approvals
+  const { data: pendingApprovalCount = 0 } = useQuery({
+    queryKey: ["dashboard-pending-approvals", tenantId],
+    queryFn: async () => {
+      const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "pending");
+      return count || 0;
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  // Upcoming loan payments (next 7 days)
+  const { data: upcomingLoanPayments = 0 } = useQuery({
+    queryKey: ["dashboard-upcoming-loans", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return 0;
+      // Get active loans and check schedule dates vs existing payments
+      const { data: loans } = await supabase.from("loans").select("*").eq("tenant_id", tenantId).eq("status", "active");
+      if (!loans?.length) return 0;
+      const { data: payments } = await supabase.from("loan_payments").select("loan_id, period_number").eq("tenant_id", tenantId);
+      const paidSet = new Set((payments || []).map((p: any) => `${p.loan_id}-${p.period_number}`));
+      
+      const today = new Date();
+      const weekFromNow = addDays(today, 7);
+      let count = 0;
+
+      loans.forEach((loan: any) => {
+        const monthlyRate = Number(loan.interest_rate) / 100 / 12;
+        const termMonths = loan.term_months;
+        for (let i = 1; i <= termMonths; i++) {
+          if (paidSet.has(`${loan.id}-${i}`)) continue;
+          const paymentDate = addDays(new Date(loan.start_date), i * 30); // approximate
+          if (paymentDate >= today && paymentDate <= weekFromNow) {
+            count++;
+          }
+        }
+      });
+      return count;
     },
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 2,
@@ -198,9 +194,7 @@ export default function TenantDashboard() {
                   <AlertCircle className="h-4 w-4 text-accent" />
                   <span>{draftCount} {t("draftJournalEntries")}</span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/journal")}>
-                  {t("view")}
-                </Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/journal")}>{t("view")}</Button>
               </div>
             )}
             {overdueCount > 0 && (
@@ -209,9 +203,7 @@ export default function TenantDashboard() {
                   <AlertCircle className="h-4 w-4 text-destructive" />
                   <span>{overdueCount} {t("overdueInvoices")}</span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/invoices")}>
-                  {t("view")}
-                </Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/invoices")}>{t("view")}</Button>
               </div>
             )}
             {lowStockCount > 0 && (
@@ -220,12 +212,28 @@ export default function TenantDashboard() {
                   <Package className="h-4 w-4 text-accent" />
                   <span>{lowStockCount} {t("lowStockAlert")}</span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => navigate("/inventory/stock")}>
-                  {t("view")}
-                </Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/inventory/stock")}>{t("view")}</Button>
               </div>
             )}
-            {draftCount === 0 && overdueCount === 0 && lowStockCount === 0 && (
+            {pendingApprovalCount > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <ShieldCheck className="h-4 w-4 text-accent" />
+                  <span>{pendingApprovalCount} {t("pendingApprovals")}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/approval-workflows")}>{t("view")}</Button>
+              </div>
+            )}
+            {upcomingLoanPayments > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <CreditCard className="h-4 w-4 text-accent" />
+                  <span>{upcomingLoanPayments} {t("upcomingPayments")}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/loans")}>{t("view")}</Button>
+              </div>
+            )}
+            {draftCount === 0 && overdueCount === 0 && lowStockCount === 0 && pendingApprovalCount === 0 && upcomingLoanPayments === 0 && (
               <p className="text-muted-foreground text-sm">No pending actions</p>
             )}
           </CardContent>
