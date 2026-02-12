@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +45,8 @@ export default function PdvPeriods() {
   const [formName, setFormName] = useState("");
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
+  const [formLegalEntityId, setFormLegalEntityId] = useState("");
+  const { entities: legalEntities } = useLegalEntities();
 
   const { data: periods = [], isLoading } = useQuery({
     queryKey: ["pdv_periods", tenantId],
@@ -69,6 +73,7 @@ export default function PdvPeriods() {
       if (!formName || !formStart || !formEnd) throw new Error("All fields required");
       const { error } = await supabase.from("pdv_periods").insert({
         tenant_id: tenantId!, period_name: formName, start_date: formStart, end_date: formEnd,
+        legal_entity_id: formLegalEntityId || null,
       });
       if (error) throw error;
     },
@@ -76,7 +81,7 @@ export default function PdvPeriods() {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
       toast({ title: t("success") });
       setCreateOpen(false);
-      setFormName(""); setFormStart(""); setFormEnd("");
+      setFormName(""); setFormStart(""); setFormEnd(""); setFormLegalEntityId("");
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -425,6 +430,17 @@ export default function PdvPeriods() {
               <div><Label>{t("startDate")}</Label><Input type="date" value={formStart} onChange={e => setFormStart(e.target.value)} /></div>
               <div><Label>{t("endDate")}</Label><Input type="date" value={formEnd} onChange={e => setFormEnd(e.target.value)} /></div>
             </div>
+            {legalEntities.length > 0 && (
+              <div>
+                <Label>{t("legalEntity")}</Label>
+                <Select value={formLegalEntityId} onValueChange={setFormLegalEntityId}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                  <SelectContent>
+                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("cancel")}</Button>

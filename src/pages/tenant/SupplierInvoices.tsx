@@ -1,6 +1,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,7 +59,15 @@ export default function SupplierInvoices() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState<SIForm>(emptyForm);
+  const [form, setForm] = useState<SIForm>({ ...emptyForm, legal_entity_id: "" } as any);
+  const { entities: legalEntities } = useLegalEntities();
+
+  // Auto-select legal entity if only one exists
+  useEffect(() => {
+    if (legalEntities.length === 1 && !(form as any).legal_entity_id) {
+      setForm(f => ({ ...f, legal_entity_id: legalEntities[0].id } as any));
+    }
+  }, [legalEntities]);
 
   // 3-way matching state
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
@@ -126,6 +135,7 @@ export default function SupplierInvoices() {
         invoice_date: f.invoice_date, due_date: f.due_date || null,
         amount: f.amount, tax_amount: f.tax_amount, total: f.total,
         currency: f.currency, status: f.status, notes: f.notes || null,
+        legal_entity_id: (f as any).legal_entity_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("supplier_invoices").update(payload).eq("id", editId);
@@ -261,7 +271,7 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
+  const openAdd = () => { setEditId(null); setForm({ ...emptyForm, legal_entity_id: legalEntities.length === 1 ? legalEntities[0].id : "" } as any); setOpen(true); };
   const openEdit = (o: any) => {
     setEditId(o.id);
     setForm({
@@ -270,7 +280,8 @@ export default function SupplierInvoices() {
       invoice_date: o.invoice_date, due_date: o.due_date || "",
       amount: o.amount, tax_amount: o.tax_amount, total: o.total,
       currency: o.currency, status: o.status, notes: o.notes || "",
-    });
+      legal_entity_id: o.legal_entity_id || "",
+    } as any);
     setOpen(true);
   };
 
@@ -466,6 +477,17 @@ export default function SupplierInvoices() {
               </Select>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            {legalEntities.length > 0 && (
+              <div className="grid gap-2">
+                <Label>{t("legalEntity")}</Label>
+                <Select value={(form as any).legal_entity_id || ""} onValueChange={v => setForm({ ...form, legal_entity_id: v } as any)}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                  <SelectContent>
+                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>

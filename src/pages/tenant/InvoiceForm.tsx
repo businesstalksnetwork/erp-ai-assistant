@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,6 +77,15 @@ export default function InvoiceForm() {
   const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
+  const [legalEntityId, setLegalEntityId] = useState<string>("");
+  const { entities: legalEntities } = useLegalEntities();
+
+  // Auto-select legal entity if only one exists
+  useEffect(() => {
+    if (legalEntities.length === 1 && !legalEntityId) {
+      setLegalEntityId(legalEntities[0].id);
+    }
+  }, [legalEntities, legalEntityId]);
 
   // Fetch partners
   const { data: partners = [] } = useQuery({
@@ -303,6 +313,7 @@ export default function InvoiceForm() {
         invoice_type: invoiceType,
         advance_invoice_id: advanceInvoiceId || null,
         advance_amount_applied: advanceAmountApplied,
+        legal_entity_id: legalEntityId || null,
       };
 
 
@@ -410,6 +421,24 @@ export default function InvoiceForm() {
           )}
         </CardContent>
       </Card>
+
+      {/* Legal Entity */}
+      {legalEntities.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>{t("legalEntity")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="max-w-sm">
+              <Label>{t("selectLegalEntity")}</Label>
+              <Select value={legalEntityId} onValueChange={setLegalEntityId} disabled={isReadOnly || legalEntities.length === 1}>
+                <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                <SelectContent>
+                  {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Partner */}
       <Card>

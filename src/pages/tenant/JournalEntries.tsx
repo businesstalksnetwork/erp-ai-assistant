@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -36,19 +37,32 @@ export default function JournalEntries() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<any>(null);
+  const [legalEntityFilter, setLegalEntityFilter] = useState<string>("all");
+  const { entities: legalEntities } = useLegalEntities();
 
-  const [form, setForm] = useState({ entry_number: "", entry_date: new Date().toISOString().split("T")[0], description: "", reference: "" });
+  const [form, setForm] = useState({ entry_number: "", entry_date: new Date().toISOString().split("T")[0], description: "", reference: "", legal_entity_id: "" });
   const [lines, setLines] = useState<JournalLine[]>([{ ...emptyLine }, { ...emptyLine }]);
 
+  // Auto-select legal entity if only one exists
+  useEffect(() => {
+    if (legalEntities.length === 1 && !form.legal_entity_id) {
+      setForm(p => ({ ...p, legal_entity_id: legalEntities[0].id }));
+    }
+  }, [legalEntities, form.legal_entity_id]);
+
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["journal-entries", tenantId],
+    queryKey: ["journal-entries", tenantId, legalEntityFilter],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from("journal_entries")
-        .select("*")
+        .select("*, legal_entities(name)")
         .eq("tenant_id", tenantId)
         .order("entry_date", { ascending: false });
+      if (legalEntityFilter !== "all") {
+        query = query.eq("legal_entity_id", legalEntityFilter);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -87,6 +101,7 @@ export default function JournalEntries() {
           description: form.description || null,
           reference: form.reference || null,
           created_by: user?.id,
+          legal_entity_id: form.legal_entity_id || null,
         })
         .select("id")
         .single();
@@ -200,7 +215,7 @@ export default function JournalEntries() {
   });
 
   const resetForm = () => {
-    setForm({ entry_number: "", entry_date: new Date().toISOString().split("T")[0], description: "", reference: "" });
+    setForm({ entry_number: "", entry_date: new Date().toISOString().split("T")[0], description: "", reference: "", legal_entity_id: "" });
     setLines([{ ...emptyLine }, { ...emptyLine }]);
   };
 
@@ -255,9 +270,20 @@ export default function JournalEntries() {
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        {legalEntities.length > 1 && (
+          <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+              {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="rounded-md border">
@@ -268,19 +294,21 @@ export default function JournalEntries() {
               <TableHead>{t("entryDate")}</TableHead>
               <TableHead>{t("description")}</TableHead>
               <TableHead>{t("reference")}</TableHead>
+              {legalEntities.length > 1 && <TableHead>{t("legalEntity")}</TableHead>}
               <TableHead>{t("status")}</TableHead>
               <TableHead className="text-right">{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={legalEntities.length > 1 ? 7 : 6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
             ) : filtered.map(e => (
               <TableRow key={e.id}>
                 <TableCell className="font-mono">{e.entry_number}</TableCell>
                 <TableCell>{e.entry_date}</TableCell>
                 <TableCell>{e.description || "—"}</TableCell>
                 <TableCell>{e.reference || "—"}</TableCell>
+                {legalEntities.length > 1 && <TableCell>{(e as any).legal_entities?.name || "—"}</TableCell>}
                 <TableCell>{statusBadge(e.status)}</TableCell>
                 <TableCell className="text-right space-x-1">
                   <Button variant="ghost" size="icon" onClick={() => viewEntryDetails(e)}><Eye className="h-4 w-4" /></Button>
@@ -325,6 +353,17 @@ export default function JournalEntries() {
               <div className="space-y-1"><Label>{t("description")}</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
               <div className="space-y-1"><Label>{t("reference")}</Label><Input value={form.reference} onChange={e => setForm(p => ({ ...p, reference: e.target.value }))} /></div>
             </div>
+            {legalEntities.length > 0 && (
+              <div className="space-y-1 max-w-sm">
+                <Label>{t("legalEntity")}</Label>
+                <Select value={form.legal_entity_id} onValueChange={v => setForm(p => ({ ...p, legal_entity_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                  <SelectContent>
+                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">

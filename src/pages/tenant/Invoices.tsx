@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,16 +41,22 @@ export default function Invoices() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [legalEntityFilter, setLegalEntityFilter] = useState<string>("all");
+  const { entities: legalEntities } = useLegalEntities();
   const { checkApproval } = useApprovalCheck(tenantId, "invoice");
 
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices", tenantId],
+    queryKey: ["invoices", tenantId, legalEntityFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("invoices")
-        .select("*")
+        .select("*, legal_entities(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
+      if (legalEntityFilter !== "all") {
+        query = query.eq("legal_entity_id", legalEntityFilter);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -199,6 +206,15 @@ export default function Invoices() {
             <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
           </SelectContent>
         </Select>
+        {legalEntities.length > 1 && (
+          <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+              {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {isLoading ? (
@@ -212,6 +228,7 @@ export default function Invoices() {
               <TableHead>{t("invoiceNumber")}</TableHead>
               <TableHead>{t("invoiceDate")}</TableHead>
               <TableHead>{t("partner")}</TableHead>
+              {legalEntities.length > 1 && <TableHead>{t("legalEntity")}</TableHead>}
               <TableHead className="text-right">{t("total")}</TableHead>
               <TableHead>{t("status")}</TableHead>
               <TableHead>SEF</TableHead>
@@ -224,6 +241,7 @@ export default function Invoices() {
                 <TableCell className="font-medium">{inv.invoice_number}</TableCell>
                 <TableCell>{format(new Date(inv.invoice_date), "dd.MM.yyyy")}</TableCell>
                 <TableCell>{inv.partner_name}</TableCell>
+                {legalEntities.length > 1 && <TableCell>{(inv as any).legal_entities?.name || "—"}</TableCell>}
                 <TableCell className="text-right font-mono">
                   {Number(inv.total).toLocaleString("sr-RS", { minimumFractionDigits: 2 })} {inv.currency}
                 </TableCell>

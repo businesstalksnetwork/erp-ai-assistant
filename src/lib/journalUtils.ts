@@ -39,6 +39,7 @@ export async function createCodeBasedJournalEntry(params: {
   entryDate: string;
   description: string;
   reference: string;
+  legalEntityId?: string;
   lines: Array<{
     accountCode: string;
     debit: number;
@@ -47,7 +48,7 @@ export async function createCodeBasedJournalEntry(params: {
     sortOrder: number;
   }>;
 }) {
-  const { tenantId, userId, entryDate, description, reference, lines } = params;
+  const { tenantId, userId, entryDate, description, reference, legalEntityId, lines } = params;
 
   // Check fiscal period
   const fiscalPeriodId = await checkFiscalPeriodOpen(tenantId, entryDate);
@@ -78,6 +79,7 @@ export async function createCodeBasedJournalEntry(params: {
       posted_at: new Date().toISOString(),
       posted_by: userId,
       created_by: userId,
+      legal_entity_id: legalEntityId || null,
     }])
     .select("id")
     .single();
