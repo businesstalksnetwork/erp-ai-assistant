@@ -7436,6 +7436,7 @@ export type Database = {
           code: string
           commission_rate: number
           created_at: string
+          default_location_id: string | null
           email: string | null
           employee_id: string | null
           first_name: string
@@ -7443,12 +7444,14 @@ export type Database = {
           is_active: boolean
           last_name: string
           phone: string | null
+          role_type: string
           tenant_id: string
         }
         Insert: {
           code: string
           commission_rate?: number
           created_at?: string
+          default_location_id?: string | null
           email?: string | null
           employee_id?: string | null
           first_name: string
@@ -7456,12 +7459,14 @@ export type Database = {
           is_active?: boolean
           last_name: string
           phone?: string | null
+          role_type?: string
           tenant_id: string
         }
         Update: {
           code?: string
           commission_rate?: number
           created_at?: string
+          default_location_id?: string | null
           email?: string | null
           employee_id?: string | null
           first_name?: string
@@ -7469,9 +7474,17 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           phone?: string | null
+          role_type?: string
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salespeople_default_location_id_fkey"
+            columns: ["default_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "salespeople_employee_id_fkey"
             columns: ["employee_id"]
