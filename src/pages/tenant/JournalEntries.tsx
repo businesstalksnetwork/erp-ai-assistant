@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, Search, Eye, CheckCircle, Trash2 } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
 
 interface JournalLine {
   id?: string;
@@ -175,7 +176,20 @@ export default function JournalEntries() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("journalEntries")}</h1>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <div className="flex gap-2">
+          <ExportButton
+            data={filtered}
+            columns={[
+              { key: "entry_number", label: t("entryNumber") },
+              { key: "entry_date", label: t("entryDate") },
+              { key: "description", label: t("description") },
+              { key: "reference", label: t("reference") },
+              { key: "status", label: t("status") },
+            ]}
+            filename="journal_entries"
+          />
+          <Button onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">

@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download } from "lucide-react";
+import { exportToCsv } from "@/lib/exportCsv";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
@@ -151,7 +152,18 @@ export default function TenantDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
+        <Button variant="outline" size="sm" onClick={() => {
+          exportToCsv(
+            [{ metric: t("revenue"), value: revenue }, { metric: t("expenses"), value: expenses }, { metric: t("profit"), value: profit }, { metric: t("cashBalance"), value: cashBalance }],
+            [{ key: "metric", label: "Metric" }, { key: "value", label: "Value", formatter: (v) => Number(v).toFixed(2) }],
+            "dashboard_summary"
+          );
+        }}>
+          <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
+        </Button>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         {kpis.map((kpi) => (

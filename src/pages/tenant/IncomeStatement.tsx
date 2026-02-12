@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Printer } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
+import { PrintButton } from "@/components/PrintButton";
 
 export default function IncomeStatement() {
   const { t } = useLanguage();
@@ -73,7 +75,24 @@ export default function IncomeStatement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("incomeStatement")}</h1>
-        <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Print</Button>
+        <div className="flex gap-2 print:hidden">
+          <ExportButton
+            data={[...revenueAccounts, ...expenseAccounts].map(r => ({
+              code: r.account.code,
+              name: r.account.name,
+              type: r.account.account_type,
+              amount: r.amount,
+            }))}
+            columns={[
+              { key: "code", label: t("accountCode") },
+              { key: "name", label: t("accountName") },
+              { key: "type", label: t("accountType") },
+              { key: "amount", label: t("amount"), formatter: (v) => Number(v).toFixed(2) },
+            ]}
+            filename="income_statement"
+          />
+          <PrintButton />
+        </div>
       </div>
 
       <div className="flex gap-4 print:hidden">

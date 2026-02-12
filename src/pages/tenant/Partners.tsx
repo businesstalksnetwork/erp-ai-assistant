@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { ExportButton } from "@/components/ExportButton";
 
 interface Partner {
   id: string;
@@ -162,7 +163,22 @@ export default function Partners() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("partners")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+        <div className="flex gap-2">
+          <ExportButton
+            data={filtered}
+            columns={[
+              { key: "name", label: t("name") },
+              { key: "pib", label: t("pib") },
+              { key: "maticni_broj", label: t("maticniBroj") },
+              { key: "address", label: t("address") },
+              { key: "city", label: t("city") },
+              { key: "country", label: t("country") },
+              { key: "type", label: t("type") },
+            ]}
+            filename="partners"
+          />
+          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+        </div>
       </div>
 
       <Card>

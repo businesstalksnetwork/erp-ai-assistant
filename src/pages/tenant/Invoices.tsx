@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Send, BookOpen, DollarSign } from "lucide-react";
+import { Plus, Search, Send, BookOpen, DollarSign, FileDown } from "lucide-react";
 import { format } from "date-fns";
+import { ExportButton } from "@/components/ExportButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -151,10 +152,26 @@ export default function Invoices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("invoices")}</h1>
-        <Button onClick={() => navigate("/accounting/invoices/new")}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t("newInvoice")}
-        </Button>
+        <div className="flex gap-2">
+          <ExportButton
+            data={filtered}
+            columns={[
+              { key: "invoice_number", label: t("invoiceNumber") },
+              { key: "invoice_date", label: t("invoiceDate") },
+              { key: "partner_name", label: t("partner") },
+              { key: "subtotal", label: t("subtotal"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "tax_amount", label: t("taxAmount"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "total", label: t("total"), formatter: (v) => Number(v).toFixed(2) },
+              { key: "currency", label: t("currency") },
+              { key: "status", label: t("status") },
+            ]}
+            filename="invoices"
+          />
+          <Button onClick={() => navigate("/accounting/invoices/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("newInvoice")}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4">
