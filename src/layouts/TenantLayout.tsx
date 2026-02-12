@@ -41,7 +41,7 @@ import {
   ShoppingCart, Layers, Factory, FolderOpen, Monitor, CreditCard, Activity, Truck,
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
-  Globe, Command,
+  Globe, Command, Plug,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -60,6 +60,7 @@ const inventoryNav: NavItem[] = [
   { key: "products", url: "/inventory/products", icon: Package },
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
+  { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
 ];
 
 const accountingNav: NavItem[] = [
@@ -135,6 +136,7 @@ const settingsNav: NavItem[] = [
   { key: "users", url: "/settings/users", icon: Users },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "currencies", url: "/settings/currencies", icon: DollarSign },
+  { key: "integrations", url: "/settings/integrations", icon: Plug },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
 ];

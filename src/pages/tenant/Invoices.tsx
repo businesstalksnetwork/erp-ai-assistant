@@ -129,23 +129,18 @@ export default function Invoices() {
 
   const sefMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      const { error } = await supabase
-        .from("invoices")
-        .update({ sef_status: "submitted" })
-        .eq("id", invoiceId);
+      const { data, error } = await supabase.functions.invoke("sef-submit", {
+        body: { invoice_id: invoiceId, tenant_id: tenantId },
+      });
       if (error) throw error;
-      setTimeout(async () => {
-        await supabase
-          .from("invoices")
-          .update({ sef_status: "accepted" })
-          .eq("id", invoiceId);
-        queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      }, 2000);
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       toast({ title: t("success"), description: t("sefSubmitted") });
     },
+    onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
   const filtered = invoices.filter((inv) => {
