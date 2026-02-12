@@ -79,6 +79,7 @@ import {
   ListChecks,
   ReceiptText,
   Lock,
+  Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -151,7 +152,13 @@ const productionNav: NavItem[] = [
 ];
 
 const documentsNav: NavItem[] = [
-  { key: "documents", url: "/documents", icon: FolderOpen },
+  { key: "dmsRegistry", url: "/documents", icon: FolderOpen },
+  { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
+  { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
+  { key: "dmsProjects", url: "/documents/projects", icon: Layers },
+  { key: "dmsBrowser", url: "/documents/browser", icon: Search },
+  { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
+  { key: "dmsSettings", url: "/documents/settings", icon: Settings },
 ];
 
 const posNav: NavItem[] = [
