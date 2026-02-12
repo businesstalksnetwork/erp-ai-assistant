@@ -44,6 +44,20 @@ export default function InventoryStock() {
     enabled: !!tenantId,
   });
 
+  const { data: costLayers = [] } = useQuery({
+    queryKey: ["cost-layers-for-stock", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_cost_layers")
+        .select("product_id, warehouse_id, quantity_remaining, unit_cost")
+        .eq("tenant_id", tenantId!)
+        .gt("quantity_remaining", 0);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses", tenantId],
     queryFn: async () => {
@@ -90,6 +104,14 @@ export default function InventoryStock() {
   });
 
   const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  const getAvgCost = (productId: string, warehouseId: string) => {
+    const layers = costLayers.filter(l => l.product_id === productId && l.warehouse_id === warehouseId);
+    if (layers.length === 0) return 0;
+    const totalQty = layers.reduce((s, l) => s + Number(l.quantity_remaining), 0);
+    const totalVal = layers.reduce((s, l) => s + Number(l.quantity_remaining) * Number(l.unit_cost), 0);
+    return totalQty > 0 ? totalVal / totalQty : 0;
+  };
 
   return (
     <div className="space-y-6">
@@ -151,6 +173,8 @@ export default function InventoryStock() {
                 <TableHead className="text-right">{t("reserved")}</TableHead>
                 <TableHead className="text-right">{t("available")}</TableHead>
                 <TableHead className="text-right">{t("minLevel")}</TableHead>
+                <TableHead className="text-right">{t("avgCost")}</TableHead>
+                <TableHead className="text-right">{t("totalValue")}</TableHead>
                 <TableHead className="text-right">{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -161,6 +185,8 @@ export default function InventoryStock() {
                 const available = onHand - reserved;
                 const minLevel = Number(s.min_stock_level);
                 const isLow = minLevel > 0 && onHand < minLevel;
+                const avgCost = getAvgCost(s.product_id, s.warehouse_id);
+                const totalVal = onHand * avgCost;
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{(s.products as any)?.name}</TableCell>
@@ -174,6 +200,8 @@ export default function InventoryStock() {
                         <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> {fmtNum(minLevel)}</Badge>
                       ) : fmtNum(minLevel)}
                     </TableCell>
+                    <TableCell className="text-right font-mono">{avgCost > 0 ? fmtNum(avgCost) : "—"}</TableCell>
+                    <TableCell className="text-right font-mono">{totalVal > 0 ? fmtNum(totalVal) : "—"}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => setAdjustDialog({
                         stockId: s.id, productId: s.product_id, warehouseId: s.warehouse_id,
@@ -186,7 +214,7 @@ export default function InventoryStock() {
                 );
               })}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

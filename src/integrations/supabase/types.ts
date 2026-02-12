@@ -2688,10 +2688,13 @@ export type Database = {
           created_at: string
           depreciation_method: string
           description: string | null
+          disposal_type: string | null
           disposed_at: string | null
           id: string
+          legal_entity_id: string | null
           name: string
           notes: string | null
+          sale_price: number | null
           salvage_value: number
           status: string
           tenant_id: string
@@ -2705,10 +2708,13 @@ export type Database = {
           created_at?: string
           depreciation_method?: string
           description?: string | null
+          disposal_type?: string | null
           disposed_at?: string | null
           id?: string
+          legal_entity_id?: string | null
           name: string
           notes?: string | null
+          sale_price?: number | null
           salvage_value?: number
           status?: string
           tenant_id: string
@@ -2722,10 +2728,13 @@ export type Database = {
           created_at?: string
           depreciation_method?: string
           description?: string | null
+          disposal_type?: string | null
           disposed_at?: string | null
           id?: string
+          legal_entity_id?: string | null
           name?: string
           notes?: string | null
+          sale_price?: number | null
           salvage_value?: number
           status?: string
           tenant_id?: string
@@ -2741,7 +2750,126 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fixed_assets_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fixed_assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fx_revaluation_lines: {
+        Row: {
+          currency: string
+          difference: number
+          id: string
+          new_rate: number
+          open_item_id: string
+          original_amount_rsd: number
+          original_rate: number
+          revaluation_id: string
+          revalued_amount_rsd: number
+        }
+        Insert: {
+          currency: string
+          difference: number
+          id?: string
+          new_rate: number
+          open_item_id: string
+          original_amount_rsd: number
+          original_rate: number
+          revaluation_id: string
+          revalued_amount_rsd: number
+        }
+        Update: {
+          currency?: string
+          difference?: number
+          id?: string
+          new_rate?: number
+          open_item_id?: string
+          original_amount_rsd?: number
+          original_rate?: number
+          revaluation_id?: string
+          revalued_amount_rsd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_revaluation_lines_open_item_id_fkey"
+            columns: ["open_item_id"]
+            isOneToOne: false
+            referencedRelation: "open_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_revaluation_lines_revaluation_id_fkey"
+            columns: ["revaluation_id"]
+            isOneToOne: false
+            referencedRelation: "fx_revaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fx_revaluations: {
+        Row: {
+          base_currency: string
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          revaluation_date: string
+          tenant_id: string
+          total_gain: number
+          total_loss: number
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          revaluation_date: string
+          tenant_id: string
+          total_gain?: number
+          total_loss?: number
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          revaluation_date?: string
+          tenant_id?: string
+          total_gain?: number
+          total_loss?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_revaluations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_revaluations_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_revaluations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2855,6 +2983,64 @@ export type Database = {
           },
         ]
       }
+      inventory_cost_layers: {
+        Row: {
+          created_at: string
+          id: string
+          layer_date: string
+          product_id: string
+          quantity_remaining: number
+          reference: string | null
+          tenant_id: string
+          unit_cost: number
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layer_date: string
+          product_id: string
+          quantity_remaining: number
+          reference?: string | null
+          tenant_id: string
+          unit_cost: number
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layer_date?: string
+          product_id?: string
+          quantity_remaining?: number
+          reference?: string | null
+          tenant_id?: string
+          unit_cost?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_cost_layers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_cost_layers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_cost_layers_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -2866,6 +3052,7 @@ export type Database = {
           quantity: number
           reference: string | null
           tenant_id: string
+          unit_cost: number | null
           warehouse_id: string
         }
         Insert: {
@@ -2878,6 +3065,7 @@ export type Database = {
           quantity?: number
           reference?: string | null
           tenant_id: string
+          unit_cost?: number | null
           warehouse_id: string
         }
         Update: {
@@ -2890,6 +3078,7 @@ export type Database = {
           quantity?: number
           reference?: string | null
           tenant_id?: string
+          unit_cost?: number | null
           warehouse_id?: string
         }
         Relationships: [
@@ -3311,6 +3500,122 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kompenzacija: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_date: string
+          document_number: string
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          partner_id: string
+          status: string
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_date: string
+          document_number: string
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id: string
+          status?: string
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_date?: string
+          document_number?: string
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string
+          status?: string
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kompenzacija_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kompenzacija_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kompenzacija_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kompenzacija_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kompenzacija_items: {
+        Row: {
+          amount: number
+          direction: string
+          id: string
+          kompenzacija_id: string
+          open_item_id: string
+        }
+        Insert: {
+          amount: number
+          direction: string
+          id?: string
+          kompenzacija_id: string
+          open_item_id: string
+        }
+        Update: {
+          amount?: number
+          direction?: string
+          id?: string
+          kompenzacija_id?: string
+          open_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kompenzacija_items_kompenzacija_id_fkey"
+            columns: ["kompenzacija_id"]
+            isOneToOne: false
+            referencedRelation: "kompenzacija"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kompenzacija_items_open_item_id_fkey"
+            columns: ["open_item_id"]
+            isOneToOne: false
+            referencedRelation: "open_items"
             referencedColumns: ["id"]
           },
         ]
@@ -4947,6 +5252,7 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          costing_method: string | null
           created_at: string
           default_purchase_price: number
           default_sale_price: number
@@ -4963,6 +5269,7 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
           default_sale_price?: number
@@ -4979,6 +5286,7 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
           default_sale_price?: number

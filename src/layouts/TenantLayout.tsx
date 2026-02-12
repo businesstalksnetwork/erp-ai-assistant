@@ -61,6 +61,7 @@ const inventoryNav: NavItem[] = [
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
+  { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
 ];
 
 const accountingNav: NavItem[] = [
@@ -76,6 +77,8 @@ const accountingNav: NavItem[] = [
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },
   { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
   { key: "loans", url: "/accounting/loans", icon: Coins },
+  { key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign },
+  { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
   { key: "reports", url: "/accounting/reports", icon: BarChart3 },
 ];
 
