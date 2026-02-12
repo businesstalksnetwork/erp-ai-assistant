@@ -1,113 +1,93 @@
 
 
-# User Profile Page, Header Redesign, and Collapsible Sidebar Modules
+# Phase 14: Complete CRUD for Remaining Read-Only Modules
 
-## Overview
+## Current State
 
-Three changes in one: (1) a new User Profile page, (2) move logout + profile access to a user dropdown in the header, and (3) make sidebar module groups collapsible.
+After reviewing all ~40+ tenant pages, the vast majority already have full Supabase CRUD (create, read, update, delete). However, **4 modules** only display data with disabled "Add" buttons and no create/edit functionality:
 
----
+1. **Loans** -- read-only list, no add/edit
+2. **Fixed Assets** -- read-only list, no add/edit, no depreciation run trigger
+3. **Deferrals** -- read-only list, no add/edit, no recognition trigger
+4. **Approval Workflows** -- read-only list, no add/edit, no step management
 
-## 1. User Profile Page
-
-Create a new page at `/profile` where users can:
-
-- **View/edit display name** -- updates `auth.users` metadata via `supabase.auth.updateUser()`
-- **Change password** -- uses `supabase.auth.updateUser({ password })` with current password confirmation
-- **Manage notification preferences** -- reuses the existing `NotificationPreferences` component
-- **View account info** -- email (read-only), role, tenant name
-
-### File: `src/pages/tenant/Profile.tsx`
-
-Sections:
-- Account info card (email, role, tenant)
-- Display name form with save button
-- Password change form (new password + confirm)
-- Notification preferences (embedded `NotificationPreferences` component)
+This phase activates all 4 modules with full CRUD dialogs following the same proven patterns used across the rest of the app.
 
 ---
 
-## 2. Header User Menu (Right Side)
+## What Gets Built
 
-Replace the current sidebar logout button with a user avatar/dropdown in the header's right side.
+### 1. Loans -- Full CRUD
+- **Add/Edit dialog** with fields: type (receivable/payable), partner, description, principal, interest rate, term months, start date, currency, status
+- **Payment schedule view**: when expanding a loan, show calculated monthly payments (principal + interest amortization)
+- **Delete** with confirmation
 
-### Changes to `src/layouts/TenantLayout.tsx`:
+### 2. Fixed Assets -- Full CRUD + Depreciation
+- **Add/Edit dialog** with fields: name, category, acquisition date, acquisition cost, depreciation method (straight line / declining balance), useful life months, salvage value, status
+- **Run Depreciation** button: calculates and inserts a depreciation record for the current period into `fixed_asset_depreciation`
+- **Delete** with confirmation
 
-**Header (right side) -- add a `DropdownMenu` with:**
-- User avatar (initials circle) + display name
-- "Profile" link -> navigates to `/profile`
-- "Super Admin" link (if `isSuperAdmin`)
-- Divider
-- "Logout" button
+### 3. Deferrals -- Full CRUD + Recognition
+- **Add/Edit dialog** with fields: type (revenue/expense), description, total amount, start date, end date, periods count, account ID, currency, status
+- **Recognize Period** button: increments `recognized_amount` by the per-period amount and inserts a deferral schedule entry
+- **Delete** with confirmation
 
-**Sidebar footer -- remove** the logout button entirely.
-
-The header right side will contain: Super Admin button (if applicable) | Notification bell | Language toggle | **User dropdown**
-
----
-
-## 3. Collapsible Sidebar Module Groups
-
-Make each sidebar group (CRM, Purchasing, HR, Inventory, Accounting, etc.) collapsible using the `Collapsible` component from Radix UI (already installed).
-
-### Changes to `src/layouts/TenantLayout.tsx`:
-
-- Wrap each `SidebarGroup` content in `Collapsible` + `CollapsibleTrigger` + `CollapsibleContent`
-- The group label becomes the trigger with a chevron icon that rotates on open/close
-- Groups that contain the currently active route default to open
-- All other groups default to collapsed
-- Dashboard and single-item groups (Documents, Returns) stay always visible (not collapsible)
+### 4. Approval Workflows -- Full CRUD + Steps
+- **Add/Edit dialog** with fields: name, entity type, min approvers, threshold amount, is active
+- **Workflow Steps management**: inline table to add/remove approval steps (step order, role required, is mandatory)
+- **Delete** with confirmation
 
 ---
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/pages/tenant/Profile.tsx` | User profile page with display name, password change, and notification preferences |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/layouts/TenantLayout.tsx` | Remove sidebar logout; add user dropdown to header; wrap nav groups in Collapsible |
-| `src/App.tsx` | Add `/profile` route inside tenant layout |
-| `src/i18n/translations.ts` | Add keys: profile, displayName, changePassword, currentPassword, newPassword, confirmPassword, passwordChanged, profileUpdated, myAccount |
+| `src/pages/tenant/Loans.tsx` | Full rewrite: add/edit dialog, delete, payment schedule expansion |
+| `src/pages/tenant/FixedAssets.tsx` | Full rewrite: add/edit dialog, delete, depreciation action |
+| `src/pages/tenant/Deferrals.tsx` | Full rewrite: add/edit dialog, delete, recognition action |
+| `src/pages/tenant/ApprovalWorkflows.tsx` | Full rewrite: add/edit dialog with steps, delete |
+| `src/i18n/translations.ts` | Add missing keys for loan/asset/deferral/workflow form fields |
+
+## No New Files Required
+
+All changes are modifications to existing page components, following established patterns.
 
 ---
 
 ## Technical Details
 
-### User Dropdown Component (inline in TenantLayout)
+### Loans Payment Schedule
+- Client-side calculation using standard amortization formula
+- Displayed in an expandable accordion per loan (same pattern as Payroll runs)
+- Fields per row: period number, payment date, principal portion, interest portion, total payment, remaining balance
 
-Uses `DropdownMenu` from shadcn/ui with:
-- Trigger: a circular avatar showing user initials (from email or display name) 
-- Menu items: Profile, Super Admin (conditional), separator, Logout
-- Background: `bg-popover` with proper z-index (already handled by Radix)
+### Fixed Assets Depreciation
+- **Straight line**: monthly amount = (acquisition_cost - salvage_value) / useful_life_months
+- **Declining balance**: monthly amount = (book_value * annual_rate) / 12
+- Inserts into `fixed_asset_depreciation` table with period, amount, and cumulative values
+- Updates `accumulated_depreciation` and `book_value` on the asset record
 
-### Collapsible Groups
+### Deferrals Recognition
+- Per-period amount = total_amount / number of periods (months between start and end date)
+- Each recognition inserts a schedule entry and increments `recognized_amount`
+- When fully recognized, status auto-updates to "completed"
 
-Each module group wraps its content in:
+### Approval Workflows Steps
+- Uses `approval_workflow_steps` table (already exists)
+- Inline editable table within the workflow dialog
+- Each step: order number, role, is_mandatory flag
+- Steps are deleted and re-inserted on save (same pattern as PO lines)
 
-```text
-<Collapsible defaultOpen={groupContainsActiveRoute}>
-  <CollapsibleTrigger> Group Label + ChevronDown </CollapsibleTrigger>
-  <CollapsibleContent> SidebarMenu items </CollapsibleContent>
-</Collapsible>
-```
+---
 
-Uses `useLocation()` to check if any item URL in the group matches the current path, setting `defaultOpen` accordingly.
+## i18n Keys to Add
 
-### Profile Page Password Change
+**Loans**: loanType, receivable, payable, principal, interestRate, termMonths, monthlyPayment, paymentSchedule, remainingBalance, addLoan, editLoan
 
-- Two fields: new password + confirm password
-- Client-side validation: minimum 6 characters, passwords must match
-- Calls `supabase.auth.updateUser({ password: newPassword })`
-- Shows success toast on completion
+**Fixed Assets**: acquisitionDate, acquisitionCost, depreciationMethod, straightLine, decliningBalance, usefulLife, salvageValue, bookValue, accumulatedDepreciation, runDepreciation, addAsset, editAsset
 
-### Display Name Update
+**Deferrals**: revenueType, expenseType, totalAmount, recognizedAmount, periodsCount, recognizePeriod, addDeferral, editDeferral
 
-- Single input field pre-filled from `user.user_metadata.full_name` or `user.user_metadata.display_name`
-- Calls `supabase.auth.updateUser({ data: { full_name: value } })`
-- Shows success toast
+**Approval Workflows**: entityType, minApprovers, thresholdAmount, stepOrder, roleRequired, isMandatory, addWorkflow, editWorkflow, addStep
 
