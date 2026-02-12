@@ -1,59 +1,52 @@
 
 
-# Phase 3b: Invoicing + SEF eFaktura Integration
+# Phase 3c: Tax Rate Seeding + Accounts Payable/Receivable + Financial Reports
 
-All data is strictly per-tenant (per organization). Every table uses `tenant_id` with RLS policies so tenants only ever see their own invoices, tax rates, and line items.
+This phase adds critical accounting functionality: automatic tax rate provisioning, payment tracking, and basic financial reporting.
 
 ---
 
 ## What gets built
 
-### 1. Database tables (all tenant-scoped)
+### 1. Auto-seed Serbian Tax Rates for Tenants
 
-**tax_rates** — per-tenant tax rate configuration
-- id, tenant_id, name, rate (%), is_default, is_active
-- Seeded with Serbian defaults: 20% (opsta stopa), 10% (posebna), 0% (oslobodjeno)
+Currently the `tax_rates` table is empty -- invoicing won't work without rates. We'll:
+- Create a database function `seed_tenant_tax_rates(tenant_id)` that inserts the 3 standard Serbian PDV rates: 20% (Opsta stopa), 10% (Posebna stopa), 0% (Oslobodjeno od PDV-a)
+- Create a trigger on `tenants` table that calls this function on INSERT (so new tenants get rates automatically)
+- Run a one-time migration to seed rates for all existing tenants
 
-**invoices** — per-tenant invoice headers
-- id, tenant_id, invoice_number (auto: INV-YYYY-NNNNN), invoice_date, due_date
-- partner_name, partner_pib, partner_address (inline, partner registry comes Phase 4)
-- subtotal, tax_amount, total, currency (RSD default)
-- status: draft / sent / paid / cancelled / overdue
-- sef_status: not_submitted / submitted / accepted / rejected
-- notes, created_by, created_at, updated_at
+### 2. Tax Rates Management Page (`/settings/tax-rates`)
 
-**invoice_lines** — line items per invoice
-- id, invoice_id, description, quantity, unit_price, tax_rate_id
-- line_total, tax_amount, total_with_tax, sort_order
-- RLS joins through invoices to verify tenant_id
+- Table listing tenant's tax rates (name, rate %, default flag, active)
+- Add/Edit dialog for custom rates
+- Toggle default rate
+- Added to Settings navigation
 
-### 2. Invoice List Page (`/accounting/invoices`)
-- Table with search/filter by number, partner, status
-- Status badges (draft=gray, sent=blue, paid=green, overdue=red)
-- SEF status indicator
-- "New Invoice" button
+### 3. General Ledger View (`/accounting/ledger`)
 
-### 3. Invoice Create/Edit Form (`/accounting/invoices/new`, `/accounting/invoices/:id`)
-- Full-page form (not dialog — too complex)
-- Header: auto-generated number, dates, currency
-- Partner: name, PIB, address (free text for now)
-- Dynamic line items: description, qty, unit price, tax rate dropdown, computed totals
-- Summary: subtotal, tax breakdown by rate, grand total
-- Actions: Save Draft, Post, Cancel
+- Shows all posted journal entries grouped by account
+- Filter by account, date range
+- Running balance per account
+- Debit/Credit totals
 
-### 4. PDV (VAT) Calculation
-- Each line selects a tax rate from the tenant's `tax_rates`
-- Line tax = qty x unit_price x (rate / 100)
-- Summary groups tax totals by rate
+### 4. Trial Balance Report (`/accounting/reports/trial-balance`)
 
-### 5. Mock SEF eFaktura
-- "Submit to SEF" button on posted invoices
-- Simulates submission (updates sef_status to submitted, then accepted after delay)
-- Prepares UI for real API integration later
+- Summary of all accounts with total debits, total credits, and balances
+- Filter by fiscal period / date range
+- Shows only accounts with activity
+- Print-friendly layout
 
-### 6. Auto Invoice Numbers
-- Format: `INV-YYYY-NNNNN`
-- Generated from count of tenant's invoices in current year
+### 5. Income Statement (Bilans Uspeha) (`/accounting/reports/income-statement`)
+
+- Revenue accounts minus Expense accounts for a date range
+- Grouped by account type
+- Net income/loss calculation
+
+### 6. Balance Sheet (Bilans Stanja) (`/accounting/reports/balance-sheet`)
+
+- Assets, Liabilities, Equity sections
+- As-of-date snapshot
+- Assets = Liabilities + Equity validation
 
 ---
 
@@ -61,9 +54,12 @@ All data is strictly per-tenant (per organization). Every table uses `tenant_id`
 
 | Route | Page |
 |-------|------|
-| `/accounting/invoices` | Invoice list |
-| `/accounting/invoices/new` | Create invoice |
-| `/accounting/invoices/:id` | View/edit invoice |
+| `/settings/tax-rates` | Tax Rates CRUD |
+| `/accounting/ledger` | General Ledger |
+| `/accounting/reports` | Reports overview |
+| `/accounting/reports/trial-balance` | Trial Balance |
+| `/accounting/reports/income-statement` | Income Statement |
+| `/accounting/reports/balance-sheet` | Balance Sheet |
 
 ---
 
@@ -71,20 +67,24 @@ All data is strictly per-tenant (per organization). Every table uses `tenant_id`
 
 | Action | File |
 |--------|------|
-| Migration | `tax_rates`, `invoices`, `invoice_lines` tables + RLS |
-| Create | `src/pages/tenant/Invoices.tsx` |
-| Create | `src/pages/tenant/InvoiceForm.tsx` |
-| Modify | `src/App.tsx` — add 3 invoice routes |
-| Modify | `src/layouts/TenantLayout.tsx` — add Invoices nav item |
-| Modify | `src/i18n/translations.ts` — invoice keys (EN + SR) |
+| Migration | Seed tax rates function + trigger + backfill existing tenants |
+| Create | `src/pages/tenant/TaxRates.tsx` |
+| Create | `src/pages/tenant/GeneralLedger.tsx` |
+| Create | `src/pages/tenant/Reports.tsx` (overview) |
+| Create | `src/pages/tenant/TrialBalance.tsx` |
+| Create | `src/pages/tenant/IncomeStatement.tsx` |
+| Create | `src/pages/tenant/BalanceSheet.tsx` |
+| Modify | `src/App.tsx` -- add 6 routes |
+| Modify | `src/layouts/TenantLayout.tsx` -- add nav items for Ledger, Reports, Tax Rates |
+| Modify | `src/i18n/translations.ts` -- add report and tax rate keys |
 
 ---
 
 ## Technical notes
 
-- All queries filter by tenant_id via RLS — no cross-tenant data leakage
-- Invoice line totals calculated client-side, stored as source of truth on save
-- RLS on `invoice_lines` uses a subquery: `invoice_id IN (SELECT id FROM invoices WHERE tenant_id IN (SELECT get_user_tenant_ids(auth.uid())))`
-- SEF mock is client-side only for now; real integration will use an edge function
-- Tax rates are per-tenant so organizations can add custom rates beyond the Serbian defaults
+- Reports query `journal_lines` joined with `journal_entries` (status = 'posted') and `chart_of_accounts`
+- All data is tenant-scoped via existing RLS policies
+- Reports are read-only views with date filters
+- Tax rate seeding uses a `SECURITY DEFINER` function so it runs with elevated privileges during tenant creation
+- The trigger fires `AFTER INSERT ON tenants` to auto-provision rates
 
