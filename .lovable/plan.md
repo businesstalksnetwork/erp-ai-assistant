@@ -1,114 +1,152 @@
 
 
-# Phase 23: Complete CRM Module Overhaul
+# Phase: Complete DMS (Document Management System) Overhaul
 
 ## Overview
 
-Replace the current basic CRM (partners + simple leads/opportunities) with a full-featured CRM system including Companies with PIB lookup, Contacts with many-to-many company links, enhanced Leads with contact linking, Kanban Opportunities, Meetings with calendar, Activities timeline, and a CRM Dashboard.
-
----
+Transform the current basic file-upload `documents` table into a full Serbian-compliant Document Registry (Delovodnik) with protocol numbers, versioning, archive book, archiving workflows, projects, document browser, reports, confidentiality-based access control, and activity logging.
 
 ## Current State
 
-- **Partners table**: Simple CRUD with name/PIB/type (customer/supplier/both) -- no categories, no contacts
-- **Leads table**: Basic with `name`, `email`, `company` (free text), `source`, `status` -- tenant-scoped, no contact FK
-- **Opportunities table**: Basic with `title`, `value`, `stage`, `partner_id`, `lead_id` -- no Kanban, no `closed_at`
-- **Quotes/Sales Orders**: Exist and work, linked to partners/opportunities
-- **No tables for**: `companies`, `company_categories`, `contacts`, `contact_company_assignments`, `meetings`, `meeting_types`, `meeting_participants`, `activities`
+- **documents table**: Simple file storage with name, file_path, entity_type, tags, notes. No protocol numbers, no categories, no versioning, no access control.
+- **Storage bucket**: `tenant-documents` (private) exists and works.
+- **No tables for**: document_categories, document_versions, archive_book, archiving_requests, projects, project_members, document_projects, confidentiality_levels, role_confidentiality_access, custom_role_access, document_access, dms_activity_log, dms_notifications.
+- **Existing `documents` route**: `/documents` with basic upload/download/delete.
+
+## What We Already Have (DO NOT recreate)
+
+- Auth system with roles (useAuth, AuthProvider, user_roles table)
+- Tenant isolation (useTenant, tenant_id scoping, RLS)
+- Storage bucket `tenant-documents`
+- React Query patterns, toast notifications, i18n system
+- Sidebar navigation (TenantLayout with collapsible groups)
+- UI components (Table, Dialog, Badge, Select, Tabs, etc.)
+- Notification system (useNotifications, notification bell)
 
 ---
 
 ## Implementation Plan
 
-Due to the massive scope, this will be split into **3 sub-phases** implemented sequentially in one go:
+### Sub-Phase A: Database Schema (Migration)
 
-### Sub-Phase A: Database Schema + Companies + Contacts
+**New Tables:**
 
-**Migration SQL** -- Create all new tables:
+| Table | Purpose |
+|-------|---------|
+| `document_categories` | 57 categories in 11 groups (Serbian archive law), with group_name, code, name, name_sr |
+| `confidentiality_levels` | Configurable levels (Public, Internal, Confidential, Secret) with colors and ordering |
+| `role_confidentiality_access` | Maps tenant_role x confidentiality_level to can_read, can_edit |
+| `document_access` | Individual user access grants per document |
+| `document_versions` | Version history snapshots of document edits |
+| `archive_book` | Arhivska knjiga entries with retention periods |
+| `archiving_requests` | Izlucivanje request workflow (pending/approved/rejected/completed) |
+| `archiving_request_items` | Links archive_book entries to archiving requests |
+| `projects` | Project CRUD (name, code, description, status) |
+| `project_members` | Project membership with roles (owner, manager, member, viewer) |
+| `document_projects` | Many-to-many: documents to projects |
+| `dms_activity_log` | DMS-specific audit trail |
 
-| Table | Key Fields |
-|-------|-----------|
-| `companies` | tenant_id, legal_name, display_name, pib, maticni_broj, is_internal, status, email, phone, website, address, city, postal_code, country |
-| `company_categories` | tenant_id, name, name_sr, code (unique per tenant), color, parent_id, is_system, sort_order |
-| `company_category_assignments` | company_id, category_id |
-| `contacts` | tenant_id, first_name, last_name, email, phone, type (customer/supplier/prospect), seniority_level, function_area, company_name (legacy), address, city, postal_code, country, website, notes |
-| `contact_company_assignments` | contact_id, company_id, job_title, department, is_primary |
-| `meetings` | tenant_id, title, description, scheduled_at, duration_minutes, location, communication_channel, status, meeting_type_id, notes |
-| `meeting_types` | tenant_id, name, name_sr, color |
-| `meeting_participants` | meeting_id, contact_id, employee_id, company_id, is_organizer, is_internal |
-| `activities` | tenant_id, type, description, company_id, contact_id, lead_id, opportunity_id, meeting_id |
+**Alter existing `documents` table** to add:
+- `protocol_number` (text, unique per tenant) - format: XXX-YY/GGGG
+- `subject` (text) - document subject/title
+- `sender` (text) - who sent the document
+- `recipient` (text) - who received it
+- `category_id` (FK to document_categories)
+- `confidentiality_level_id` (FK to confidentiality_levels)
+- `date_received` (date)
+- `valid_until` (date, nullable)
+- `status` (aktivan/arhiviran/za_izlucivanje)
+- `current_version` (int, default 1)
+- `created_by` (uuid FK to auth.users)
 
-- All tables get RLS policies scoped to tenant_id
-- Seed system company_categories: supplier, customer, partner, investor, contractor, subcontractor
-- Update `leads` table: add `first_name`, `last_name`, `job_title`, `contact_id` FK
-- Update `opportunities` table: add `contact_id` FK, `closed_at`, `description`
-- Migrate existing `partners` data: create a view or keep partners table as-is and link companies to it via a migration that copies partner data into companies
-
-**Decision**: Keep the existing `partners` table for backward compatibility with invoices/POs/supplier invoices. The new `companies` table is the CRM entity. A `partner_id` FK on `companies` links them when needed for accounting documents.
+**Seed data:**
+- 57 document categories in 11 groups (Serbian standard)
+- Default confidentiality levels (Public, Internal, Confidential, Secret)
+- RLS policies on all new tables (tenant isolation)
 
 ### Sub-Phase B: UI Pages
 
-**New pages to create:**
+**Pages to create:**
 
-1. **CRM Dashboard** (`src/pages/tenant/CrmDashboard.tsx`)
-   - Stats cards: total leads, leads by status, open opportunity pipeline value, total contacts, conversion rate
-   - Quick links to Leads, Opportunities, Contacts, Companies
+1. **Document Registry (Delovodnik)** - Rewrite `src/pages/tenant/Documents.tsx`
+   - Protocol number auto-generation (XXX-YY/GGGG)
+   - Full-text search with AND logic
+   - Advanced filters: date range, sender, recipient, category, status, confidentiality
+   - File upload with standardized path: `{tenant}/{year}/{categoryCode}/{protocolNumber}_{timestamp}.{ext}`
+   - Inline PDF/image preview via signed URLs
+   - Status badges, protocol number display
+   - Excel export of filtered results
 
-2. **Companies List** (`src/pages/tenant/Companies.tsx`)
-   - Table with search, category filter (hierarchical)
-   - Stats: contacts count, meetings count per company
-   - Add/Edit dialog with PIB auto-lookup
-   - Category assignment via checkboxes
+2. **Document Detail** - `src/pages/tenant/DocumentDetail.tsx`
+   - View/edit document metadata
+   - Version history tab (side-by-side comparison)
+   - Access control tab (who can see/edit)
+   - Linked projects tab
+   - Activity log tab
 
-3. **Company Detail** (`src/pages/tenant/CompanyDetail.tsx`)
-   - Tabs: Overview (editable), Contacts, Meetings, Activities
-   - Contact tab shows linked contacts from `contact_company_assignments`
-   - Activities tab shows recent activity log entries
+3. **Archive Book** - `src/pages/tenant/ArchiveBook.tsx`
+   - Entry management with auto-generated entry numbers
+   - Retention periods: Permanent, 10y, 5y, 3y, 2y
+   - Stats: total entries, permanent, by retention distribution
+   - Excel and PDF export
+   - State Archive Transfer tracking (Article 23 - documents >30 years)
 
-4. **Contacts List** (`src/pages/tenant/Contacts.tsx`)
-   - Table with multi-select filters (type, seniority, function area)
-   - Shows linked companies as clickable badges
-   - Add/Edit with company combobox
+4. **Archiving Module** - `src/pages/tenant/Archiving.tsx`
+   - Candidates tab: expired/expiring documents with color-coded badges
+   - Requests tab: create archiving request (IZL-YYYY/N format)
+   - Workflow: Pending -> Approved/Rejected -> Completed
+   - Multi-select batch operations
+   - PDF destruction record generation
 
-5. **Contact Detail** (`src/pages/tenant/ContactDetail.tsx`)
-   - Editable info, linked companies (add/remove), related leads, related opportunities
+5. **Projects** - `src/pages/tenant/Projects.tsx`
+   - CRUD for projects
+   - Member management (owner, manager, member, viewer)
+   - Link documents to projects
 
-6. **Enhanced Leads** (`src/pages/tenant/Leads.tsx`) -- Rewrite
-   - Add first_name/last_name split, job_title, contact_id link
-   - Inline status change from table row
-   - Convert to Opportunity creates contact if needed
+6. **Project Detail** - `src/pages/tenant/ProjectDetail.tsx`
+   - Members tab with role management
+   - Linked documents tab
 
-7. **Kanban Opportunities** (`src/pages/tenant/Opportunities.tsx`) -- Rewrite
-   - 5-column Kanban board (qualification, proposal, negotiation, closed_won, closed_lost)
-   - Each column shows count + total RSD value
-   - Cards are clickable
-   - Auto-set `closed_at` on stage change to closed_won/closed_lost
+7. **Document Browser** - `src/pages/tenant/DocumentBrowser.tsx`
+   - Tree view: Year -> Category -> Files
+   - Grid view: Card layout grouped by year/category
+   - Search, inline preview, direct download
 
-8. **Opportunity Detail** (`src/pages/tenant/OpportunityDetail.tsx`)
-   - Quick stage-change buttons
-   - Create Quote action
-   - Related contact, lead info
+8. **DMS Reports** - `src/pages/tenant/DmsReports.tsx`
+   - Date range picker with presets
+   - Summary cards (total docs, period docs, archive entries, etc.)
+   - Charts: trend, category distribution, status distribution, retention, top senders/recipients
+   - Excel export, Annual Archive Report (Article 19)
 
-9. **Meetings** (`src/pages/tenant/Meetings.tsx`)
-   - Table + upcoming cards + stats (today, this week, upcoming, completed)
-   - Filters: search, status, communication channel
-   - Add/Edit dialog with participant selection
+9. **DMS Settings** - `src/pages/tenant/DmsSettings.tsx`
+   - Categories tab (view 57 categories in 11 accordion groups)
+   - Retention periods reference
+   - Confidentiality levels manager
+   - Access matrix (role x confidentiality)
 
-### Sub-Phase C: Edge Function + Integrations
+### Sub-Phase C: Routing + Navigation
 
-1. **company-lookup Edge Function** (`supabase/functions/company-lookup/index.ts`)
-   - Input: `{ pib: string }`
-   - Validates 9-digit format
-   - Calls Checkpoint.rs API: `https://api.checkpoint.rs/api/VratiSubjekt?PIB={pib}&token={CHECKPOINT_API_TOKEN}`
-   - Returns: `{ found, legal_name, pib, maticni_broj, address, city, postal_code, country }`
+**New routes under `/documents/`:**
+- `/documents` - Document Registry (Delovodnik)
+- `/documents/:id` - Document Detail
+- `/documents/archive-book` - Archive Book
+- `/documents/archiving` - Archiving Module
+- `/documents/projects` - Projects
+- `/documents/projects/:id` - Project Detail
+- `/documents/browser` - Document Browser
+- `/documents/reports` - DMS Reports
+- `/documents/settings` - DMS Settings
 
-2. **Routing updates** (`src/App.tsx`)
-   - Add routes: `/crm` (dashboard), `/crm/companies`, `/crm/companies/new`, `/crm/companies/:id`, `/crm/contacts`, `/crm/contacts/new`, `/crm/contacts/:id`, `/crm/leads` (rewrite), `/crm/leads/:id`, `/crm/opportunities` (rewrite), `/crm/opportunities/:id`, `/crm/meetings`
+**Sidebar update** - Expand documents nav group:
+- Delovodnik (registry)
+- Archive Book
+- Archiving
+- Projects
+- Document Browser
+- Reports
+- Settings (admin only)
 
-3. **Sidebar updates** (`src/layouts/TenantLayout.tsx`)
-   - Replace current CRM nav with: Dashboard, Companies, Contacts, Leads, Opportunities, Meetings, Quotes, Sales Orders
-
-4. **i18n translations** for all new CRM labels in both EN and SR
+**i18n** - Add ~100 new translation keys for DMS in both EN and SR.
 
 ---
 
@@ -116,150 +154,91 @@ Due to the massive scope, this will be split into **3 sub-phases** implemented s
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/phase23_crm.sql` | Full schema: 9 new tables, lead/opportunity alterations, RLS, seed data |
-| `src/pages/tenant/CrmDashboard.tsx` | CRM overview dashboard |
-| `src/pages/tenant/Companies.tsx` | Companies list with filters + PIB lookup |
-| `src/pages/tenant/CompanyDetail.tsx` | Company detail with tabs |
-| `src/pages/tenant/Contacts.tsx` | Contacts list with multi-select filters |
-| `src/pages/tenant/ContactDetail.tsx` | Contact detail with company links |
-| `src/pages/tenant/Meetings.tsx` | Meetings list + calendar cards |
-| `src/pages/tenant/OpportunityDetail.tsx` | Opportunity detail with stage buttons |
-| `supabase/functions/company-lookup/index.ts` | PIB lookup via Checkpoint.rs API |
+| Migration SQL | Schema: alter documents, create 12 new tables, seed 57 categories + 4 confidentiality levels, RLS |
+| `src/pages/tenant/DocumentDetail.tsx` | Document detail with tabs (versions, access, projects, activity) |
+| `src/pages/tenant/ArchiveBook.tsx` | Arhivska knjiga with retention tracking |
+| `src/pages/tenant/Archiving.tsx` | Archiving workflow (candidates + requests) |
+| `src/pages/tenant/Projects.tsx` | Project CRUD |
+| `src/pages/tenant/ProjectDetail.tsx` | Project detail with members + linked docs |
+| `src/pages/tenant/DocumentBrowser.tsx` | File explorer (tree + grid views) |
+| `src/pages/tenant/DmsReports.tsx` | Analytics dashboard for DMS |
+| `src/pages/tenant/DmsSettings.tsx` | DMS configuration (categories, access matrix) |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/Leads.tsx` | Rewrite: first_name/last_name, contact_id, inline status change |
-| `src/pages/tenant/Opportunities.tsx` | Rewrite: Kanban board, closed_at auto-set |
-| `src/App.tsx` | Add all new CRM routes |
-| `src/layouts/TenantLayout.tsx` | Update CRM sidebar nav items |
-| `src/i18n/translations.ts` | Add ~80 new CRM translation keys |
-| `src/config/rolePermissions.ts` | No change needed (crm module already exists) |
+| `src/pages/tenant/Documents.tsx` | Complete rewrite: protocol numbers, advanced filters, categories, confidentiality |
+| `src/App.tsx` | Add 9 new DMS routes |
+| `src/layouts/TenantLayout.tsx` | Expand documents nav group with 7 sub-items |
+| `src/i18n/translations.ts` | Add ~100 DMS translation keys (EN + SR) |
 
 ---
 
 ## Technical Details
 
-### Database Schema (Key Tables)
+### Protocol Number Generation
 
 ```text
-companies (
-  id uuid PK DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES tenants(id),
-  legal_name text NOT NULL,
-  display_name text,
-  pib varchar(9),
-  maticni_broj varchar(8),
-  is_internal boolean DEFAULT false,
-  status text DEFAULT 'active' CHECK (status IN ('active','inactive','archived')),
-  email text, phone text, website text,
-  address text, city text, postal_code text, country text DEFAULT 'Srbija',
-  partner_id uuid REFERENCES partners(id),  -- link to legacy partners for accounting
-  notes text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-)
+Format: XXX-YY/GGGG
+  XXX = sequential number within current year (zero-padded to 3+)
+  YY  = category code (from document_categories.code)
+  GGGG = current year
 
-contacts (
-  id uuid PK DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES tenants(id),
-  first_name text NOT NULL,
-  last_name text,
-  email text, phone text,
-  type text DEFAULT 'prospect' CHECK (type IN ('customer','supplier','prospect')),
-  seniority_level text CHECK (seniority_level IN ('c_level','executive','senior_manager','manager','senior','mid','junior','intern')),
-  function_area text CHECK (function_area IN ('management','sales','marketing','finance','hr','it','operations','legal','procurement','production','other')),
-  address text, city text, postal_code text, country text,
-  website text, notes text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-)
-
-contact_company_assignments (
-  id uuid PK, contact_id uuid FK, company_id uuid FK,
-  job_title text, department text, is_primary boolean DEFAULT false,
-  tenant_id uuid FK, assigned_at timestamptz DEFAULT now()
-)
-
-meetings (
-  id uuid PK, tenant_id uuid FK,
-  title text NOT NULL, description text,
-  scheduled_at timestamptz NOT NULL, duration_minutes int DEFAULT 60,
-  location text,
-  communication_channel text CHECK (... IN ('in_person','video_call','phone_call','email','hybrid')),
-  status text DEFAULT 'scheduled' CHECK (... IN ('scheduled','in_progress','completed','cancelled')),
-  meeting_type_id uuid FK -> meeting_types,
-  notes text, created_at, updated_at
-)
-
-activities (
-  id uuid PK, tenant_id uuid FK,
-  type text NOT NULL, description text,
-  company_id uuid FK, contact_id uuid FK,
-  lead_id uuid FK, opportunity_id uuid FK,
-  meeting_id uuid FK,
-  created_at timestamptz DEFAULT now()
-)
+Generated server-side via:
+  SELECT COALESCE(MAX(seq_number), 0) + 1
+  FROM documents
+  WHERE tenant_id = $1 AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM now())
 ```
 
-### Leads Table Alterations
+### Document Categories (57 in 11 groups - Serbian standard)
 
 ```text
-ALTER TABLE leads ADD COLUMN first_name text;
-ALTER TABLE leads ADD COLUMN last_name text;
-ALTER TABLE leads ADD COLUMN job_title text;
-ALTER TABLE leads ADD COLUMN contact_id uuid REFERENCES contacts(id);
--- Migrate existing data: SET first_name = name WHERE first_name IS NULL
-UPDATE leads SET first_name = name WHERE first_name IS NULL;
+Groups: Normativna akta, Opsta dokumentacija, Kadrovi, Finansije, Racunovodstvo,
+        Komercijala, Tehnicka dokumentacija, Pravna dokumentacija, Marketing,
+        IT dokumentacija, Ostalo
+Each with 4-7 specific category codes.
 ```
 
-### Opportunities Table Alterations
+### Confidentiality-Based Access Control
 
 ```text
-ALTER TABLE opportunities ADD COLUMN contact_id uuid REFERENCES contacts(id);
-ALTER TABLE opportunities ADD COLUMN closed_at timestamptz;
-ALTER TABLE opportunities ADD COLUMN description text;
+Priority order in can_access_document():
+1. Creator always has full access
+2. Admin role always has full access  
+3. role_confidentiality_access: maps role x level -> can_read/can_edit
+4. document_access: individual grants per document
+5. project_members: access through linked projects
 ```
 
-### Kanban Board Pattern
+### Archive Book Entry Number
 
 ```text
-5 columns: qualification | proposal | negotiation | closed_won | closed_lost
-Each column:
-  - Header: stage name + count badge + total RSD value
-  - Cards: title, partner/contact name, value, probability, expected close date
-  - Click -> navigate to /crm/opportunities/:id
+Format: Auto-incremented per tenant per year
+Retention options: trajno (permanent), 10, 5, 3, 2 years
+State Archive Transfer: permanent entries older than 30 years
 ```
 
-### Company PIB Lookup Flow
+### Archiving Request Workflow
 
 ```text
-1. User types 9-digit PIB in Companies form
-2. Frontend calls edge function: POST /company-lookup { pib }
-3. Edge function checks Checkpoint.rs API
-4. Returns company data -> auto-fills form fields
-5. User confirms and saves
+Request number: IZL-YYYY/N (N = sequential)
+States: pending -> approved/rejected -> completed
+Completing marks linked docs as 'za_izlucivanje'
 ```
 
-### Contact Type Auto-Inference
+### File Path Convention
 
 ```text
-When a contact is linked to a company:
-  - Fetch company's category codes
-  - If codes include 'supplier'/'contractor'/'subcontractor' -> type = 'supplier'
-  - If codes include 'customer' -> type = 'customer'
-  - Otherwise -> type = 'prospect'
-  - Type field becomes read-only when company is selected
+{tenantId}/{year}/{categoryCode}/{protocolNumber}_{timestamp}.{extension}
+Example: abc123/2026/01-02/001-01-02_2026_1707753600.pdf
 ```
 
-### CRM Dashboard Queries
+### Version Comparison
 
 ```text
-- Leads count (total) + by status breakdown
-- Open opportunities: filter out closed_won/closed_lost, sum value
-- Contacts count
-- Conversion rate: (converted leads / total leads) * 100
-- Quick action links to each CRM sub-module
+document_versions stores full snapshot of all fields + file_path per version.
+Side-by-side diff highlights changed fields between any two versions.
+Revert creates a new version (preserving audit trail).
 ```
 
