@@ -1,90 +1,72 @@
 
 
-# Phase 9: Advanced Accounting & Compliance Tables (PRD Supplement)
+# Phase 10: AI Assistant & Smart Insights
 
-Add the remaining edge-case tables and features needed for production-grade Serbian regulatory compliance and advanced financial operations. This phase fills the gaps between the current module set and a fully compliant ERP.
+Integrate AI-powered features across the ERP, delivering on the "AI from the start" product strategy. This phase adds a conversational AI assistant for natural-language queries and anomaly/insight detection surfaced directly in the dashboard.
 
 ---
 
 ## What Gets Built
 
-### Group A: Fixed Assets & Depreciation
-Track company assets with automated depreciation schedules per Serbian accounting standards.
+### 1. AI Chat Assistant
+A slide-out panel accessible from every page that lets users ask questions in natural language (EN/SR). Examples:
+- "What are my top 5 overdue invoices?"
+- "Show me revenue trend for the last 6 months"
+- "Which products are below reorder level?"
 
-| Table | Purpose |
-|-------|---------|
-| `fixed_assets` | Asset register: name, acquisition_date, acquisition_cost, useful_life_months, depreciation_method (straight_line/declining), salvage_value, status (active/disposed/fully_depreciated), tenant_id |
-| `fixed_asset_depreciation` | Monthly depreciation entries: asset_id, period, amount, accumulated_total, journal_entry_id (auto-posted) |
+The assistant translates questions into Supabase queries scoped to the user's tenant, returning formatted answers.
 
-### Group B: Accounts Receivable & Payable Aging
-Structured aging snapshots for AR/AP analysis and bad debt provisioning.
+### 2. Anomaly Detection & Smart Alerts
+Background analysis that surfaces unusual patterns on the tenant dashboard:
+- Unusually large invoices (> 3x average)
+- Revenue spikes or drops (> 20% month-over-month)
+- Inventory items at zero or negative stock
+- Overdue receivables concentration on a single partner
+- Payroll cost anomalies
 
-| Table | Purpose |
-|-------|---------|
-| `ar_aging_snapshots` | Periodic AR aging: snapshot_date, partner_id, current/30/60/90/over90 buckets, total_outstanding |
-| `ap_aging_snapshots` | Periodic AP aging: same structure for supplier payables |
-| `bad_debt_provisions` | Bad debt reserves: partner_id, provision_date, amount, reason, journal_entry_id, status |
-
-### Group C: Deferrals & Accruals
-Prepaid expenses and deferred revenue with automated monthly recognition.
-
-| Table | Purpose |
-|-------|---------|
-| `deferrals` | Deferred revenue/expense: type (revenue/expense), total_amount, recognized_amount, start_date, end_date, frequency (monthly), source_invoice_id, account_id |
-| `deferral_schedules` | Individual recognition entries: deferral_id, period_date, amount, journal_entry_id, status (pending/posted) |
-
-### Group D: Loan & Installment Tracking
-Track company loans (given/received) with amortization schedules.
-
-| Table | Purpose |
-|-------|---------|
-| `loans` | Loan header: partner_id, type (receivable/payable), principal, interest_rate, start_date, term_months, status |
-| `loan_schedules` | Amortization lines: loan_id, due_date, principal_payment, interest_payment, balance, status (pending/paid), journal_entry_id |
-
-### Group E: Separation of Duties (SOD) & Approval Workflows
-Enforce multi-step approval and duty segregation for financial transactions.
-
-| Table | Purpose |
-|-------|---------|
-| `approval_workflows` | Workflow definitions: entity_type (invoice/journal_entry/purchase_order), min_approvers, required_roles, threshold_amount |
-| `approval_requests` | Individual approval instances: workflow_id, entity_type, entity_id, status (pending/approved/rejected), requested_by |
-| `approval_steps` | Approval actions: request_id, approver_user_id, action (approve/reject), comment, acted_at |
-
-### Group F: Currency & Exchange Rates
-Multi-currency support with NBS exchange rate tracking.
-
-| Table | Purpose |
-|-------|---------|
-| `currencies` | Currency master: code (RSD, EUR, USD), name, symbol, is_base |
-| `exchange_rates` | Daily rates: from_currency, to_currency, rate, rate_date, source (manual/NBS) |
+### 3. Dashboard AI Insights Widget
+A new card on the tenant dashboard showing the top 3-5 AI-generated insights, refreshed on page load.
 
 ---
 
-## Frontend Updates
+## Architecture
 
-### New Pages
+### Edge Function: `ai-assistant`
+- Receives natural language query + tenant_id
+- Uses an LLM (OpenAI or similar) to classify intent and generate a safe, read-only SQL query
+- Executes the query against the tenant's data (with RLS via service role scoped to tenant)
+- Returns a formatted natural-language answer with optional data table
 
-| Page | Route | Description |
-|------|-------|-------------|
-| `FixedAssets.tsx` | `/accounting/fixed-assets` | Asset register with depreciation schedules |
-| `AgingReports.tsx` | `/accounting/reports/aging` | AR/AP aging analysis with bucket visualization |
-| `Deferrals.tsx` | `/accounting/deferrals` | Manage deferred revenue/expenses and recognition schedules |
-| `Loans.tsx` | `/accounting/loans` | Loan tracking with amortization tables |
-| `ApprovalWorkflows.tsx` | `/settings/approvals` | Configure and manage approval rules |
-| `Currencies.tsx` | `/settings/currencies` | Currency master and exchange rate management |
+### Edge Function: `ai-insights`
+- Called on dashboard load (or scheduled)
+- Runs a set of predefined analytical queries against tenant data
+- Applies threshold-based anomaly detection rules
+- Returns a list of insights with severity, description, and suggested action
 
-### Navigation Changes
-- Add Fixed Assets, Deferrals, Loans under Accounting sidebar group
-- Add Aging Reports under Reports sub-navigation
-- Add Approval Workflows and Currencies under Settings
+### Database
+
+| Table | Purpose |
+|-------|---------|
+| `ai_conversations` | Chat history: tenant_id, user_id, messages (JSONB array), created_at |
+| `ai_insights_cache` | Cached insights: tenant_id, insight_type, severity (info/warning/critical), title, description, data (JSONB), generated_at, expires_at |
 
 ---
 
-## Event Bus Integration
-- `fixed_asset.depreciated` -- auto-post depreciation journal entries monthly
-- `deferral.recognized` -- auto-post recognition journal entries
-- `loan_payment.due` -- notification/reminder for upcoming installments
-- `approval.completed` -- update entity status when all approvals are met
+## Frontend
+
+### New Components
+
+| Component | Description |
+|-----------|-------------|
+| `AiAssistantPanel.tsx` | Slide-out drawer with chat interface, accessible via floating button on all tenant pages |
+| `AiInsightsWidget.tsx` | Dashboard card showing latest AI-generated insights with severity badges |
+
+### Modified Pages
+
+| File | Changes |
+|------|---------|
+| `src/layouts/TenantLayout.tsx` | Add floating AI assistant button + drawer |
+| `src/pages/tenant/Dashboard.tsx` | Add AI Insights widget card |
 
 ---
 
@@ -92,34 +74,39 @@ Multi-currency support with NBS exchange rate tracking.
 
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/..._advanced_accounting.sql` | ~14 tables, RLS, triggers, event subscriptions |
-| `src/pages/tenant/FixedAssets.tsx` | Asset register and depreciation |
-| `src/pages/tenant/AgingReports.tsx` | AR/AP aging visualization |
-| `src/pages/tenant/Deferrals.tsx` | Deferred revenue/expense management |
-| `src/pages/tenant/Loans.tsx` | Loan amortization tracking |
-| `src/pages/tenant/ApprovalWorkflows.tsx` | SOD and approval configuration |
-| `src/pages/tenant/Currencies.tsx` | Multi-currency and exchange rates |
+| `supabase/migrations/..._ai_tables.sql` | 2 tables with RLS |
+| `supabase/functions/ai-assistant/index.ts` | NL query processing edge function |
+| `supabase/functions/ai-insights/index.ts` | Anomaly detection edge function |
+| `src/components/ai/AiAssistantPanel.tsx` | Chat drawer component |
+| `src/components/ai/AiInsightsWidget.tsx` | Dashboard insights card |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add 6 new routes |
-| `src/layouts/TenantLayout.tsx` | Add new sidebar items under Accounting and Settings |
-| `src/i18n/translations.ts` | Add EN/SR keys for all new entities |
-| `src/pages/tenant/Reports.tsx` | Add Aging Reports card |
-| `supabase/functions/process-module-event/index.ts` | Add handlers for depreciation, deferral recognition, approval completion |
+| `src/layouts/TenantLayout.tsx` | Add AI assistant floating button and panel |
+| `src/pages/tenant/Dashboard.tsx` | Add insights widget |
+| `src/i18n/translations.ts` | Add EN/SR keys for AI features |
+| `supabase/config.toml` | Register new edge functions |
+
+---
+
+## Security Considerations
+
+- The AI assistant generates **read-only SELECT queries only** -- no mutations allowed
+- All queries are executed with tenant_id filtering enforced at the query level (defense in depth on top of RLS)
+- Query results are capped (LIMIT 100) to prevent data exfiltration
+- Chat history is stored per-tenant with RLS isolation
+- The LLM API key is stored as a Supabase secret, never exposed to the frontend
 
 ---
 
 ## Technical Notes
 
-- Fixed asset depreciation uses Serbian straight-line method by default; declining balance as option
-- AR/AP aging snapshots are point-in-time records, not live views -- a scheduled job or manual action creates them
-- Deferrals auto-generate recognition schedules on creation (monthly entries between start and end date)
-- Loan amortization schedules are pre-calculated on loan creation using standard annuity formula
-- Approval workflows use a threshold-based system: transactions above a certain amount require additional approvers
-- Exchange rates table supports both manual entry and future NBS API integration
-- All tables include tenant_id with RLS policies for multi-tenant isolation
-- Base currency defaults to RSD per Serbian market focus
+- The assistant needs an LLM API key (OpenAI) configured as a project secret
+- Intent classification maps user questions to predefined query templates for safety, rather than generating arbitrary SQL
+- Insights use simple statistical thresholds initially (no ML models needed) -- e.g., compare current month vs. 3-month rolling average
+- Serbian language support: the LLM handles both EN and SR input natively; insight text is generated in the user's selected language
+- Conversation context is maintained per session for follow-up questions
+- Insights are cached for 1 hour to avoid redundant computation on dashboard refreshes
 
