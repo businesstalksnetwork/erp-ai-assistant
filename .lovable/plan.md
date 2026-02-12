@@ -1,66 +1,106 @@
 
 
-# Sidebar Restructure: Move Partners to CRM + Comprehensive Settings
+# Phase 7: Business Rules Engine + Dashboard Charts
 
-## Problem
+## Overview
 
-Partners (customers/suppliers) are currently under Settings, but they belong in a CRM/Sales module. Settings should focus purely on organization configuration. Tax Rates also belongs in Settings as it's configuration, not a business entity.
+Two remaining gaps: the Business Rules page is a placeholder, and the Dashboard has KPI cards but no visual charts despite `recharts` being installed. This phase builds both.
 
-## New Sidebar Structure
+---
 
-```text
---- Main ---
-  Dashboard
+## Part 1: Business Rules
 
---- CRM ---
-  Partners (moved from /settings/partners to /crm/partners)
+Business Rules are tenant-level configuration settings that control system behavior. Instead of a generic rules engine, we implement concrete, useful settings.
 
---- Inventory ---
-  Products
-  Stock Overview
-  Movement History
+### What gets configured
 
---- Accounting ---
-  Chart of Accounts
-  Journal Entries
-  Invoices
-  Fiscal Periods
-  General Ledger
-  Reports
+**Auto-numbering sequences:**
+- Invoice number format and next sequence (e.g., `INV-2026-{seq}`, next: 42)
+- Journal entry number format and next sequence (e.g., `JE-{seq}`)
 
---- Settings ---
-  Company Settings (hub: legal entities, locations, warehouses, sales channels, cost centers, bank accounts, integrations, business rules)
-  Tax Rates
-  Users
-  Audit Log
-```
+**Default account mappings:**
+- Default Receivable Account (used when posting invoices)
+- Default Revenue Account
+- Default Tax Payable Account
+- Default Cash/Bank Account (used when marking invoices paid)
+- Default COGS Account (for inventory cost tracking)
 
-## Changes
+**General settings:**
+- Default currency (RSD, EUR, USD)
+- Fiscal year start month (January, April, July, October)
+- Require approval for journal entries over a threshold amount
+- Auto-post invoices (skip draft stage)
 
-### 1. Route update (`App.tsx`)
-- Change `/settings/partners` to `/crm/partners`
+### Database
 
-### 2. Sidebar restructure (`TenantLayout.tsx`)
-- Remove Partners from `settingsNav`
-- Add new `crmNav` group with Partners
-- Keep Tax Rates in Settings (it's configuration)
+Create a `tenant_settings` table:
+- `id`, `tenant_id` (unique), `settings` (JSONB)
+- One row per tenant, JSONB stores all configuration
+- RLS: tenant members can read, admins can update
+- Seed default settings when a tenant is created (extend the existing seed trigger)
 
-### 3. Settings hub page (`Settings.tsx`)
-- Add Tax Rates and Users cards to the settings hub so all org config is accessible from one page
-- Keep existing cards (legal entities, locations, warehouses, etc.)
+### Frontend (`/settings/business-rules`)
 
-### 4. Translations (`translations.ts`)
-- Add "crm" key for the new sidebar group label (EN: "CRM", SR: "CRM")
+- Card-based layout with sections: Numbering, Default Accounts, General
+- Each section has inline-editable fields
+- Account dropdowns pull from `chart_of_accounts`
+- Save button persists the entire settings object
+- Validation: account codes must exist, sequence numbers must be positive
 
-### 5. Partners page (`Partners.tsx`)
-- Update any internal navigation references from `/settings/partners` to `/crm/partners`
+---
+
+## Part 2: Dashboard Charts
+
+Add two charts to the Dashboard using `recharts` (already installed):
+
+**Revenue vs Expenses (last 6 months):**
+- Bar chart with monthly revenue and expense totals
+- Data comes from existing journal_lines queries, grouped by month
+- Uses `BarChart` from recharts
+
+**Invoice Status Distribution:**
+- Pie/donut chart showing count of invoices by status (draft, sent, paid, cancelled)
+- Simple query on `invoices` table grouped by status
+- Uses `PieChart` from recharts
+
+### Layout
+
+Charts go in a new row between the KPI cards and the AI Insights card on the Dashboard.
+
+---
+
+## Files
+
+| Action | File | What |
+|--------|------|------|
+| Migration | New SQL migration | `tenant_settings` table + RLS + default seed in tenant creation trigger |
+| Rewrite | `src/pages/tenant/BusinessRules.tsx` | Full settings UI with numbering, default accounts, general config |
+| Modify | `src/pages/tenant/Dashboard.tsx` | Add Revenue/Expenses bar chart and Invoice Status pie chart |
+| Modify | `src/i18n/translations.ts` | Add keys for business rules labels and chart labels (EN + SR) |
+
+---
 
 ## Technical Details
 
-| File | Change |
-|------|--------|
-| `src/layouts/TenantLayout.tsx` | Add `crmNav` array, move Partners there, add CRM sidebar group |
-| `src/App.tsx` | Change route from `settings/partners` to `crm/partners` |
-| `src/pages/tenant/Settings.tsx` | Add Tax Rates + Users cards to the hub |
-| `src/i18n/translations.ts` | Add "crm" translation key |
+- `tenant_settings` uses a single JSONB column to avoid schema changes when adding new settings. Default structure:
+```json
+{
+  "invoice_prefix": "INV",
+  "invoice_next_seq": 1,
+  "journal_prefix": "JE",
+  "journal_next_seq": 1,
+  "default_receivable_account_id": null,
+  "default_revenue_account_id": null,
+  "default_tax_account_id": null,
+  "default_cash_account_id": null,
+  "default_cogs_account_id": null,
+  "default_currency": "RSD",
+  "fiscal_year_start_month": 1,
+  "journal_approval_threshold": null,
+  "auto_post_invoices": false
+}
+```
+- The monthly revenue/expense chart query groups `journal_lines` by `entry_date` month for the last 6 months, filtering by account type (revenue vs expense)
+- Chart colors follow the existing theme: `text-accent` for revenue, `text-destructive` for expenses
+- The tenant creation seed trigger is extended to also insert a default `tenant_settings` row
 
