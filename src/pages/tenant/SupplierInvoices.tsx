@@ -1,5 +1,6 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, CheckCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 const STATUSES = ["draft", "received", "approved", "paid", "cancelled"] as const;
 
@@ -41,10 +43,33 @@ const emptyForm: SIForm = {
 export default function SupplierInvoices() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<SIForm>(emptyForm);
+
+  // Handle pre-fill from PurchaseOrders navigation
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.fromPO) {
+      const po = state.fromPO;
+      setEditId(null);
+      setForm({
+        ...emptyForm,
+        purchase_order_id: po.purchase_order_id,
+        supplier_id: po.supplier_id,
+        supplier_name: po.supplier_name || "",
+        amount: po.amount || 0,
+        total: po.amount || 0,
+        currency: po.currency || "RSD",
+      });
+      setOpen(true);
+      // Clear state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["supplier-invoices", tenantId],
@@ -96,6 +121,76 @@ export default function SupplierInvoices() {
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["supplier-invoices"] }); setOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createJournalEntry = async (description: string, debitAccountType: string, creditAccountType: string, amount: number, reference: string) => {
+    if (!tenantId) return;
+    // Find accounts by type
+    const { data: accounts } = await supabase
+      .from("chart_of_accounts")
+      .select("id, account_type, name")
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .in("account_type", [debitAccountType, creditAccountType]);
+
+    const debitAccount = accounts?.find(a => a.account_type === debitAccountType);
+    const creditAccount = accounts?.find(a => a.account_type === creditAccountType);
+    if (!debitAccount || !creditAccount) throw new Error("Required accounts not found in chart of accounts");
+
+    const entryNumber = `JE-${Date.now().toString(36).toUpperCase()}`;
+    const { data: je, error: jeError } = await supabase.from("journal_entries").insert([{
+      tenant_id: tenantId,
+      entry_number: entryNumber,
+      entry_date: new Date().toISOString().split("T")[0],
+      description,
+      reference,
+      status: "posted",
+      posted_at: new Date().toISOString(),
+      posted_by: user?.id || null,
+      created_by: user?.id || null,
+    }]).select("id").single();
+    if (jeError) throw jeError;
+
+    await supabase.from("journal_lines").insert([
+      { journal_entry_id: je.id, account_id: debitAccount.id, debit: amount, credit: 0, description, sort_order: 0 },
+      { journal_entry_id: je.id, account_id: creditAccount.id, debit: 0, credit: amount, description, sort_order: 1 },
+    ]);
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: async (inv: any) => {
+      await createJournalEntry(
+        `Supplier Invoice ${inv.invoice_number} - Approval`,
+        "expense", "liability",
+        inv.total,
+        `SI-${inv.invoice_number}`
+      );
+      const { error } = await supabase.from("supplier_invoices").update({ status: "approved" }).eq("id", inv.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-invoices"] });
+      toast.success(t("journalEntryCreated"));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: async (inv: any) => {
+      await createJournalEntry(
+        `Supplier Invoice ${inv.invoice_number} - Payment`,
+        "liability", "asset",
+        inv.total,
+        `SI-PAY-${inv.invoice_number}`
+      );
+      const { error } = await supabase.from("supplier_invoices").update({ status: "paid" }).eq("id", inv.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-invoices"] });
+      toast.success(t("journalEntryCreated"));
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -172,7 +267,21 @@ export default function SupplierInvoices() {
                   <TableCell>{inv.due_date || "—"}</TableCell>
                   <TableCell className="text-right">{fmt(inv.total, inv.currency)}</TableCell>
                   <TableCell><Badge variant={statusColor(inv.status) as any}>{t(inv.status as any) || inv.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(inv)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(inv)}>{t("edit")}</Button>
+                      {inv.status === "received" && (
+                        <Button size="sm" variant="outline" onClick={() => approveMutation.mutate(inv)} disabled={approveMutation.isPending}>
+                          <CheckCircle className="h-3 w-3 mr-1" />{t("approveInvoice")}
+                        </Button>
+                      )}
+                      {inv.status === "approved" && (
+                        <Button size="sm" variant="outline" onClick={() => markPaidMutation.mutate(inv)} disabled={markPaidMutation.isPending}>
+                          <CreditCard className="h-3 w-3 mr-1" />{t("markAsPaidSupplier")}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

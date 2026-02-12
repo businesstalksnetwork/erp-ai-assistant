@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2, Package, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const STATUSES = ["draft", "sent", "confirmed", "received", "cancelled"] as const;
 
@@ -49,6 +50,7 @@ export default function PurchaseOrders() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<POForm>(emptyForm);
@@ -124,6 +126,48 @@ export default function PurchaseOrders() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const createGRN = async (o: any) => {
+    try {
+      const { data: lines } = await supabase.from("purchase_order_lines").select("*").eq("purchase_order_id", o.id);
+      const receiptNumber = `GRN-${Date.now().toString(36).toUpperCase()}`;
+      const { data: grn, error: grnError } = await supabase.from("goods_receipts").insert([{
+        tenant_id: tenantId!,
+        receipt_number: receiptNumber,
+        purchase_order_id: o.id,
+        status: "draft",
+      }]).select("id").single();
+      if (grnError) throw grnError;
+      if (lines && lines.length > 0) {
+        const grnLines = lines.map(l => ({
+          goods_receipt_id: grn.id,
+          product_id: l.product_id,
+          quantity_ordered: l.quantity,
+          quantity_received: l.quantity,
+        }));
+        await supabase.from("goods_receipt_lines").insert(grnLines);
+      }
+      qc.invalidateQueries({ queryKey: ["goods-receipts"] });
+      toast.success(t("conversionSuccess"));
+      navigate("/purchasing/goods-receipts");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const createSupplierInvoice = (o: any) => {
+    navigate("/purchasing/supplier-invoices", {
+      state: {
+        fromPO: {
+          purchase_order_id: o.id,
+          supplier_id: o.supplier_id,
+          supplier_name: o.partners?.name || o.supplier_name,
+          amount: o.total,
+          currency: o.currency,
+        },
+      },
+    });
+  };
+
   const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEdit = async (o: any) => {
     setEditId(o.id);
@@ -192,7 +236,21 @@ export default function PurchaseOrders() {
                   <TableCell>{o.expected_date || "—"}</TableCell>
                   <TableCell className="text-right">{fmt(o.total, o.currency)}</TableCell>
                   <TableCell><Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button>
+                      {(o.status === "confirmed" || o.status === "sent") && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => createGRN(o)}>
+                            <Package className="h-3 w-3 mr-1" />{t("createGRN")}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => createSupplierInvoice(o)}>
+                            <FileText className="h-3 w-3 mr-1" />{t("createSupplierInvoice")}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface LeadForm {
   name: string;
@@ -36,6 +37,7 @@ export default function Leads() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<LeadForm>(emptyForm);
@@ -65,6 +67,33 @@ export default function Leads() {
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); setOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: async (lead: any) => {
+      // Create opportunity from lead
+      const { error: oppError } = await supabase.from("opportunities").insert([{
+        tenant_id: tenantId!,
+        title: lead.name,
+        lead_id: lead.id,
+        value: 0,
+        currency: "RSD",
+        probability: 50,
+        stage: "prospecting",
+        notes: lead.notes || "",
+      }]);
+      if (oppError) throw oppError;
+      // Mark lead as converted
+      const { error: leadError } = await supabase.from("leads").update({ status: "converted" }).eq("id", lead.id);
+      if (leadError) throw leadError;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      toast.success(t("conversionSuccess"));
+      navigate("/crm/opportunities");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -119,7 +148,16 @@ export default function Leads() {
                   <TableCell>{l.phone || "—"}</TableCell>
                   <TableCell>{l.source === "manual" ? t("manualSource" as any) : (t(l.source as any) || l.source)}</TableCell>
                   <TableCell><Badge variant={statusColor(l.status) as any}>{t(l.status as any) || l.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(l)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(l)}>{t("edit")}</Button>
+                      {l.status !== "converted" && l.status !== "lost" && (
+                        <Button size="sm" variant="outline" onClick={() => convertMutation.mutate(l)} disabled={convertMutation.isPending}>
+                          <ArrowRight className="h-3 w-3 mr-1" />{t("convertToOpportunity")}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

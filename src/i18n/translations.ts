@@ -657,6 +657,21 @@ export const translations = {
     requiredRoles: "Required Roles",
     workflowSaved: "Workflow saved successfully.",
     workflowDeleted: "Workflow deleted.",
+
+    // Phase 15: Cross-Module Pipeline
+    convertToOpportunity: "Convert to Opportunity",
+    createQuote: "Create Quote",
+    convertToSalesOrder: "Convert to Sales Order",
+    createInvoiceFromOrder: "Create Invoice",
+    createGRN: "Create GRN",
+    createSupplierInvoice: "Create Supplier Invoice",
+    completeAndConsume: "Complete & Consume",
+    materialsConsumed: "Materials consumed and finished goods added to inventory.",
+    approveInvoice: "Approve",
+    markAsPaidSupplier: "Mark as Paid",
+    conversionSuccess: "Conversion completed successfully.",
+    selectWarehouseForProduction: "Select warehouse for material consumption and finished goods output.",
+    journalEntryCreated: "Journal entry created.",
   },
   sr: {
     // Auth
@@ -1316,6 +1331,21 @@ export const translations = {
     requiredRoles: "Potrebne uloge",
     workflowSaved: "Tok odobravanja uspešno sačuvan.",
     workflowDeleted: "Tok odobravanja obrisan.",
+
+    // Phase 15: Cross-Module Pipeline
+    convertToOpportunity: "Pretvori u priliku",
+    createQuote: "Kreiraj ponudu",
+    convertToSalesOrder: "Pretvori u nalog",
+    createInvoiceFromOrder: "Kreiraj fakturu",
+    createGRN: "Kreiraj prijemnicu",
+    createSupplierInvoice: "Kreiraj ulaznu fakturu",
+    completeAndConsume: "Završi i utroši",
+    materialsConsumed: "Materijali utrošeni i gotovi proizvodi dodati na zalihe.",
+    approveInvoice: "Odobri",
+    markAsPaidSupplier: "Označi kao plaćeno",
+    conversionSuccess: "Konverzija uspešno završena.",
+    selectWarehouseForProduction: "Izaberite magacin za utrošak materijala i prijem gotovih proizvoda.",
+    journalEntryCreated: "Nalog za knjiženje kreiran.",
   },
 } as const;
 
