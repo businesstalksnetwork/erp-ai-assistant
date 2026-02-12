@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,8 @@ export default function YearEndClosing() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("");
+  const [legalEntityFilter, setLegalEntityFilter] = useState<string>("all");
+  const { entities: legalEntities } = useLegalEntities();
 
   const { data: periods = [], isLoading } = useQuery({
     queryKey: ["fiscal-periods", tenantId],
@@ -164,6 +167,18 @@ export default function YearEndClosing() {
                 </SelectContent>
               </Select>
             </div>
+            {legalEntities.length > 1 && (
+              <div className="space-y-1 flex-1 max-w-sm">
+                <Label>{t("legalEntityScope")}</Label>
+                <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {selectedPeriod?.status === "locked" && (
               <Badge variant="destructive"><Lock className="h-3 w-3 mr-1" />{t("locked")}</Badge>
             )}
