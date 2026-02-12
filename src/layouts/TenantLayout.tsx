@@ -38,6 +38,7 @@ import {
   Clock,
   CalendarOff,
   Banknote,
+  FileSignature,
 } from "lucide-react";
 
 const mainNav = [
@@ -65,6 +66,7 @@ const crmNav = [
 
 const hrNav = [
   { key: "employees" as const, url: "/hr/employees", icon: UserCheck },
+  { key: "contracts" as const, url: "/hr/contracts", icon: FileSignature },
   { key: "departments" as const, url: "/hr/departments", icon: Building },
   { key: "attendance" as const, url: "/hr/attendance", icon: Clock },
   { key: "leaveRequests" as const, url: "/hr/leave-requests", icon: CalendarOff },
