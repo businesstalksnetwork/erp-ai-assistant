@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -399,6 +400,7 @@ export default function TenantLayout() {
           <header className="h-14 border-b flex items-center justify-between px-4 bg-card">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <LanguageToggle />
             </div>
           </header>
