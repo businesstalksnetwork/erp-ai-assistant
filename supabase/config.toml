@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.sef-submit]
 verify_jwt = false
+
+[functions.fiscalize-receipt]
+verify_jwt = false

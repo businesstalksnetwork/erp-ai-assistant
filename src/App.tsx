@@ -112,6 +112,11 @@ import EmployeeSalaries from "@/pages/tenant/EmployeeSalaries";
 import InsuranceRecords from "@/pages/tenant/InsuranceRecords";
 import PositionTemplates from "@/pages/tenant/PositionTemplates";
 import HrReports from "@/pages/tenant/HrReports";
+import Salespeople from "@/pages/tenant/Salespeople";
+import SalesPerformance from "@/pages/tenant/SalesPerformance";
+import RetailPrices from "@/pages/tenant/RetailPrices";
+import FiscalDevices from "@/pages/tenant/FiscalDevices";
+import PosDailyReport from "@/pages/tenant/PosDailyReport";
 
 const queryClient = new QueryClient();
 
@@ -220,6 +225,11 @@ const App = () => (
                 <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><DmsSettings /></ProtectedRoute>} />
                 <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><PosTerminal /></ProtectedRoute>} />
                 <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
+                <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><FiscalDevices /></ProtectedRoute>} />
+                <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><PosDailyReport /></ProtectedRoute>} />
+                <Route path="crm/salespeople" element={<ProtectedRoute requiredModule="crm"><Salespeople /></ProtectedRoute>} />
+                <Route path="crm/sales-performance" element={<ProtectedRoute requiredModule="crm"><SalesPerformance /></ProtectedRoute>} />
+                <Route path="crm/retail-prices" element={<ProtectedRoute requiredModule="crm"><RetailPrices /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
                 <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
                 <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule="accounting"><FixedAssets /></ProtectedRoute>} />
