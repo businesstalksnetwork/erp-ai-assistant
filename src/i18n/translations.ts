@@ -608,6 +608,18 @@ export const translations = {
     exportSuccess: "Export completed successfully.",
     noDataToExport: "No data to export.",
     generatingPdf: "Generating PDF...",
+
+    // Phase 14: User Profile
+    myAccount: "My Account",
+    accountInfo: "Account Information",
+    displayName: "Display Name",
+    changePassword: "Change Password",
+    newPassword: "New Password",
+    confirmPassword: "Confirm Password",
+    passwordChanged: "Password changed successfully.",
+    profileUpdated: "Profile updated successfully.",
+    passwordTooShort: "Password must be at least 6 characters.",
+    passwordsDoNotMatch: "Passwords do not match.",
   },
   sr: {
     // Auth
@@ -1218,6 +1230,18 @@ export const translations = {
     exportSuccess: "Izvoz uspešno završen.",
     noDataToExport: "Nema podataka za izvoz.",
     generatingPdf: "Generisanje PDF-a...",
+
+    // Phase 14: User Profile
+    myAccount: "Moj nalog",
+    accountInfo: "Informacije o nalogu",
+    displayName: "Ime za prikaz",
+    changePassword: "Promeni lozinku",
+    newPassword: "Nova lozinka",
+    confirmPassword: "Potvrdi lozinku",
+    passwordChanged: "Lozinka uspešno promenjena.",
+    profileUpdated: "Profil uspešno ažuriran.",
+    passwordTooShort: "Lozinka mora imati najmanje 6 karaktera.",
+    passwordsDoNotMatch: "Lozinke se ne poklapaju.",
   },
 } as const;
 

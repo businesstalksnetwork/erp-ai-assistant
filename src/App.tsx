@@ -74,6 +74,7 @@ import Deferrals from "@/pages/tenant/Deferrals";
 import Loans from "@/pages/tenant/Loans";
 import ApprovalWorkflows from "@/pages/tenant/ApprovalWorkflows";
 import Currencies from "@/pages/tenant/Currencies";
+import Profile from "@/pages/tenant/Profile";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +106,8 @@ const App = () => (
 
               {/* Tenant routes */}
               <Route path="/" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
-                <Route path="dashboard" element={<TenantDashboard />} />
+              <Route path="dashboard" element={<TenantDashboard />} />
+                <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<TenantSettings />} />
                 <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><TenantUsers /></ProtectedRoute>} />
                 <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><AuditLog /></ProtectedRoute>} />
