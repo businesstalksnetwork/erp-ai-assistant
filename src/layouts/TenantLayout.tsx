@@ -307,21 +307,29 @@ export default function TenantLayout() {
               />
             )}
 
-            {/* User profile card */}
-            <div className="p-3 border-t border-sidebar-border">
+          </SidebarFooter>
+        </Sidebar>
+
+        <div className="flex-1 flex flex-col min-h-screen">
+          <header className="h-12 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <Separator orientation="vertical" className="h-5" />
+              <Breadcrumbs />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <NotificationBell />
+              <Separator orientation="vertical" className="h-5" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex w-full items-center gap-2.5 rounded-md p-2 hover:bg-sidebar-accent transition-colors text-left">
-                    <div className="h-8 w-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                  <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-accent transition-colors">
+                    <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
                       {userInitials}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-                      <p className="text-[11px] text-sidebar-foreground/50 truncate">{user?.email}</p>
-                    </div>
+                    <span className="hidden sm:block text-sm font-medium truncate max-w-[120px]">{userName}</span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuContent side="bottom" align="end" className="w-56">
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     {t("myAccount")}
@@ -343,19 +351,6 @@ export default function TenantLayout() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-
-        <div className="flex-1 flex flex-col min-h-screen">
-          <header className="h-12 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger />
-              <Separator orientation="vertical" className="h-5" />
-              <Breadcrumbs />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <NotificationBell />
             </div>
           </header>
           <main className="flex-1 p-6 overflow-auto animate-in fade-in duration-300">
