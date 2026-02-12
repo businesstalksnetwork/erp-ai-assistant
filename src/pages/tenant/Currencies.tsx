@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Currencies() {
   const { t } = useLanguage();
@@ -35,11 +37,34 @@ export default function Currencies() {
     enabled: !!tenantId,
   });
 
+  const { toast } = useToast();
+  const [nbsImporting, setNbsImporting] = useState(false);
+
+  const handleNbsImport = async () => {
+    setNbsImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("nbs-exchange-rates", {
+        body: { tenant_id: tenantId },
+      });
+      if (error) throw error;
+      toast({ title: t("success"), description: `${t("importExchangeRates")}: ${data.imported} (${data.date})` });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setNbsImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("currencies")}</h1>
-        <Button size="sm" disabled><Plus className="h-4 w-4 mr-1" />{t("add")}</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={handleNbsImport} disabled={nbsImporting}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${nbsImporting ? "animate-spin" : ""}`} />{t("importNow")}
+          </Button>
+          <Button size="sm" disabled><Plus className="h-4 w-4 mr-1" />{t("add")}</Button>
+        </div>
       </div>
       <Tabs defaultValue="currencies">
         <TabsList>

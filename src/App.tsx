@@ -94,6 +94,7 @@ import CompanyDetail from "@/pages/tenant/CompanyDetail";
 import Contacts from "@/pages/tenant/Contacts";
 import ContactDetail from "@/pages/tenant/ContactDetail";
 import Meetings from "@/pages/tenant/Meetings";
+import Eotpremnica from "@/pages/tenant/Eotpremnica";
 
 const queryClient = new QueryClient();
 
@@ -168,6 +169,7 @@ const App = () => (
                 <Route path="inventory/products" element={<ProtectedRoute requiredModule="inventory"><Products /></ProtectedRoute>} />
                 <Route path="inventory/stock" element={<ProtectedRoute requiredModule="inventory"><InventoryStock /></ProtectedRoute>} />
                 <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
+                <Route path="inventory/dispatch-notes" element={<ProtectedRoute requiredModule="inventory"><Eotpremnica /></ProtectedRoute>} />
                 <Route path="hr/employees" element={<ProtectedRoute requiredModule="hr"><Employees /></ProtectedRoute>} />
                 <Route path="hr/contracts" element={<ProtectedRoute requiredModule="hr"><EmployeeContracts /></ProtectedRoute>} />
                 <Route path="hr/departments" element={<ProtectedRoute requiredModule="hr"><Departments /></ProtectedRoute>} />

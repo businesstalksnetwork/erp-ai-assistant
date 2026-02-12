@@ -2387,6 +2387,162 @@ export type Database = {
           },
         ]
       }
+      eotpremnica: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_date: string
+          document_number: string
+          driver_name: string | null
+          id: string
+          invoice_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          receiver_address: string | null
+          receiver_name: string
+          receiver_pib: string | null
+          sales_order_id: string | null
+          sender_address: string | null
+          sender_name: string
+          sender_pib: string | null
+          status: string
+          tenant_id: string
+          total_weight: number | null
+          updated_at: string
+          vehicle_plate: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_date?: string
+          document_number: string
+          driver_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          receiver_address?: string | null
+          receiver_name: string
+          receiver_pib?: string | null
+          sales_order_id?: string | null
+          sender_address?: string | null
+          sender_name: string
+          sender_pib?: string | null
+          status?: string
+          tenant_id: string
+          total_weight?: number | null
+          updated_at?: string
+          vehicle_plate?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_date?: string
+          document_number?: string
+          driver_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          receiver_address?: string | null
+          receiver_name?: string
+          receiver_pib?: string | null
+          sales_order_id?: string | null
+          sender_address?: string | null
+          sender_name?: string
+          sender_pib?: string | null
+          status?: string
+          tenant_id?: string
+          total_weight?: number | null
+          updated_at?: string
+          vehicle_plate?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eotpremnica_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eotpremnica_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eotpremnica_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eotpremnica_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eotpremnica_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eotpremnica_lines: {
+        Row: {
+          description: string
+          eotpremnica_id: string
+          id: string
+          product_id: string | null
+          quantity: number
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          description: string
+          eotpremnica_id: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          unit?: string
+        }
+        Update: {
+          description?: string
+          eotpremnica_id?: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eotpremnica_lines_eotpremnica_id_fkey"
+            columns: ["eotpremnica_id"]
+            isOneToOne: false
+            referencedRelation: "eotpremnica"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eotpremnica_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exchange_rates: {
         Row: {
           created_at: string
@@ -5508,6 +5664,127 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sef_connections: {
+        Row: {
+          api_key_encrypted: string
+          api_url: string
+          created_at: string
+          environment: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_sync_at: string | null
+          legal_entity_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_encrypted?: string
+          api_url?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          legal_entity_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          api_url?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          legal_entity_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sef_connections_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sef_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sef_submissions: {
+        Row: {
+          error_message: string | null
+          id: string
+          invoice_id: string
+          request_payload: Json | null
+          resolved_at: string | null
+          response_payload: Json | null
+          sef_connection_id: string
+          sef_invoice_id: string | null
+          status: string
+          submitted_at: string
+          tenant_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          invoice_id: string
+          request_payload?: Json | null
+          resolved_at?: string | null
+          response_payload?: Json | null
+          sef_connection_id: string
+          sef_invoice_id?: string | null
+          status?: string
+          submitted_at?: string
+          tenant_id: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          invoice_id?: string
+          request_payload?: Json | null
+          resolved_at?: string | null
+          response_payload?: Json | null
+          sef_connection_id?: string
+          sef_invoice_id?: string | null
+          status?: string
+          submitted_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sef_submissions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sef_submissions_sef_connection_id_fkey"
+            columns: ["sef_connection_id"]
+            isOneToOne: false
+            referencedRelation: "sef_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sef_submissions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
