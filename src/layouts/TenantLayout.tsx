@@ -49,6 +49,9 @@ import {
   Monitor,
   CreditCard,
   Activity,
+  Truck,
+  ClipboardCheck,
+  FileInput,
 } from "lucide-react";
 
 const mainNav = [
@@ -76,6 +79,12 @@ const crmNav = [
   { key: "opportunities" as const, url: "/crm/opportunities", icon: TrendingUp },
   { key: "quotes" as const, url: "/crm/quotes", icon: FileCheck },
   { key: "salesOrders" as const, url: "/crm/sales-orders", icon: ShoppingCart },
+];
+
+const purchasingNav = [
+  { key: "purchaseOrders" as const, url: "/purchasing/orders", icon: Truck },
+  { key: "goodsReceipts" as const, url: "/purchasing/goods-receipts", icon: ClipboardCheck },
+  { key: "supplierInvoices" as const, url: "/purchasing/supplier-invoices", icon: FileInput },
 ];
 
 const hrNav = [
@@ -154,6 +163,27 @@ export default function TenantLayout() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {crmNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("purchasing")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {purchasingNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
                         <NavLink

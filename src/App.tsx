@@ -49,6 +49,9 @@ import Leads from "@/pages/tenant/Leads";
 import Opportunities from "@/pages/tenant/Opportunities";
 import Quotes from "@/pages/tenant/Quotes";
 import SalesOrders from "@/pages/tenant/SalesOrders";
+import PurchaseOrders from "@/pages/tenant/PurchaseOrders";
+import GoodsReceipts from "@/pages/tenant/GoodsReceipts";
+import SupplierInvoices from "@/pages/tenant/SupplierInvoices";
 import Products from "@/pages/tenant/Products";
 import InventoryStock from "@/pages/tenant/InventoryStock";
 import InventoryMovements from "@/pages/tenant/InventoryMovements";
@@ -124,6 +127,9 @@ const App = () => (
                 <Route path="crm/opportunities" element={<Opportunities />} />
                 <Route path="crm/quotes" element={<Quotes />} />
                 <Route path="crm/sales-orders" element={<SalesOrders />} />
+                <Route path="purchasing/orders" element={<PurchaseOrders />} />
+                <Route path="purchasing/goods-receipts" element={<GoodsReceipts />} />
+                <Route path="purchasing/supplier-invoices" element={<SupplierInvoices />} />
                 <Route path="inventory/products" element={<Products />} />
                 <Route path="inventory/stock" element={<InventoryStock />} />
                 <Route path="inventory/movements" element={<InventoryMovements />} />
