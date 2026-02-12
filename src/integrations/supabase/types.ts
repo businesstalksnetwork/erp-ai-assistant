@@ -883,6 +883,69 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          company: string | null
+          converted_partner_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company?: string | null
+          converted_partner_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company?: string | null
+          converted_partner_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_partner_id_fkey"
+            columns: ["converted_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           approved_at: string | null
@@ -1066,6 +1129,79 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      opportunities: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          currency: string
+          expected_close_date: string | null
+          id: string
+          lead_id: string | null
+          notes: string | null
+          partner_id: string | null
+          probability: number
+          stage: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          currency?: string
+          expected_close_date?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          probability?: number
+          stage?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          currency?: string
+          expected_close_date?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          probability?: number
+          stage?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partners: {
         Row: {
@@ -1338,6 +1474,158 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          line_total: number
+          product_id: string | null
+          quantity: number
+          quote_id: string
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+          tax_rate_value: number
+          total_with_tax: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          quote_id: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          quote_id?: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_lines_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          notes: string | null
+          opportunity_id: string | null
+          partner_id: string | null
+          partner_name: string
+          quote_date: string
+          quote_number: string
+          status: string
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          opportunity_id?: string | null
+          partner_id?: string | null
+          partner_name?: string
+          quote_date?: string
+          quote_number: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          opportunity_id?: string | null
+          partner_id?: string | null
+          partner_name?: string
+          quote_date?: string
+          quote_number?: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_channels: {
         Row: {
           created_at: string
@@ -1366,6 +1654,165 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sales_channels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_order_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          line_total: number
+          product_id: string | null
+          quantity: number
+          sales_order_id: string
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+          tax_rate_value: number
+          total_with_tax: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sales_order_id: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sales_order_id?: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          partner_id: string | null
+          partner_name: string
+          quote_id: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          partner_id?: string | null
+          partner_name?: string
+          quote_id?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          partner_id?: string | null
+          partner_name?: string
+          quote_id?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

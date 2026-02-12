@@ -45,6 +45,10 @@ import TrialBalance from "@/pages/tenant/TrialBalance";
 import IncomeStatement from "@/pages/tenant/IncomeStatement";
 import BalanceSheet from "@/pages/tenant/BalanceSheet";
 import Partners from "@/pages/tenant/Partners";
+import Leads from "@/pages/tenant/Leads";
+import Opportunities from "@/pages/tenant/Opportunities";
+import Quotes from "@/pages/tenant/Quotes";
+import SalesOrders from "@/pages/tenant/SalesOrders";
 import Products from "@/pages/tenant/Products";
 import InventoryStock from "@/pages/tenant/InventoryStock";
 import InventoryMovements from "@/pages/tenant/InventoryMovements";
@@ -110,6 +114,10 @@ const App = () => (
                 <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
                 <Route path="settings/tax-rates" element={<TaxRates />} />
                 <Route path="crm/partners" element={<Partners />} />
+                <Route path="crm/leads" element={<Leads />} />
+                <Route path="crm/opportunities" element={<Opportunities />} />
+                <Route path="crm/quotes" element={<Quotes />} />
+                <Route path="crm/sales-orders" element={<SalesOrders />} />
                 <Route path="inventory/products" element={<Products />} />
                 <Route path="inventory/stock" element={<InventoryStock />} />
                 <Route path="inventory/movements" element={<InventoryMovements />} />
