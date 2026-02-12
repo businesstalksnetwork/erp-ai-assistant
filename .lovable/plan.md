@@ -1,215 +1,237 @@
 
-
-# Phase 23: State Integration Foundation
+# Phase 24: Advanced Accounting Engine
 
 ## Overview
 
-Build the SEF (Serbian e-Invoice) connector architecture, eOtpremnica (electronic dispatch note) document model with status lifecycle, and NBS (National Bank of Serbia) exchange rate auto-import edge function. Both SEF and eOtpremnica are per-tenant features configurable from either the Super Admin panel or the tenant's Settings > Integrations page.
+Add four advanced accounting capabilities: FX revaluation with journal posting, Kompenzacija (mutual debt offsetting) workflow, enhanced fixed asset disposal with gain/loss handling and sale proceeds, and inventory costing methods (FIFO and weighted average cost layers).
 
 ---
 
-## Current State
+## Part 1: Database Migration
 
-- **SEF**: Invoices already have a `sef_status` column (`not_submitted`, `submitted`, `accepted`, `rejected`) and mock submit logic in `Invoices.tsx` (direct DB update + setTimeout). No connector config table, no edge function, no API key storage.
-- **eOtpremnica**: No tables, no UI, no model.
-- **NBS Exchange Rates**: `exchange_rates` table exists with `from_currency`, `to_currency`, `rate`, `rate_date`, `source`. `Currencies.tsx` page displays them. No auto-import.
-- **Integrations Page**: Both tenant (`Integrations.tsx`) and super admin (`IntegrationSupport.tsx`) pages are placeholder stubs showing "Coming Soon".
+A single migration creates all new tables and alters existing ones.
 
----
-
-## Part 1: Database Tables (Migration)
-
-### 1.1 `sef_connections` -- Per-tenant SEF connector config
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | unique |
-| legal_entity_id | uuid FK legal_entities | nullable, scope to specific entity |
-| api_url | text | SEF API base URL |
-| api_key_encrypted | text | Encrypted API key (stored securely) |
-| environment | text | `'sandbox'` or `'production'`, default `'sandbox'` |
-| is_active | boolean | default false |
-| last_sync_at | timestamptz | nullable |
-| last_error | text | nullable |
-| created_at | timestamptz | default now() |
-| updated_at | timestamptz | default now() |
-
-- RLS: super_admin OR tenant admin can read/write
-- Unique constraint on `(tenant_id)` (one connection per tenant)
-
-### 1.2 `sef_submissions` -- Invoice submission audit log
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | |
-| tenant_id | uuid FK tenants | |
-| invoice_id | uuid FK invoices | |
-| sef_connection_id | uuid FK sef_connections | |
-| status | text | `'pending'`, `'submitted'`, `'accepted'`, `'rejected'`, `'error'` |
-| sef_invoice_id | text | SEF-assigned ID, nullable |
-| request_payload | jsonb | What was sent |
-| response_payload | jsonb | What was received |
-| error_message | text | nullable |
-| submitted_at | timestamptz | default now() |
-| resolved_at | timestamptz | nullable |
-
-### 1.3 `eotpremnica` -- Electronic dispatch notes
+### 1.1 `fx_revaluations` -- FX revaluation run log
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
 | tenant_id | uuid FK tenants | |
 | legal_entity_id | uuid FK legal_entities | nullable |
-| document_number | text | Auto-generated |
-| document_date | date | |
-| sender_name | text | |
-| sender_pib | text | nullable |
-| sender_address | text | nullable |
-| receiver_name | text | |
-| receiver_pib | text | nullable |
-| receiver_address | text | nullable |
-| warehouse_id | uuid FK warehouses | nullable |
-| invoice_id | uuid FK invoices | nullable (linked invoice) |
-| sales_order_id | uuid FK sales_orders | nullable |
-| status | text | `'draft'`, `'confirmed'`, `'in_transit'`, `'delivered'`, `'cancelled'` |
-| notes | text | nullable |
-| total_weight | numeric | nullable |
-| vehicle_plate | text | nullable |
-| driver_name | text | nullable |
+| revaluation_date | date | |
+| base_currency | text | default 'RSD' |
+| total_gain | numeric | default 0 |
+| total_loss | numeric | default 0 |
+| journal_entry_id | uuid FK journal_entries | nullable |
 | created_by | uuid | nullable |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+| created_at | timestamptz | default now() |
 
-### 1.4 `eotpremnica_lines` -- Dispatch note line items
+### 1.2 `fx_revaluation_lines` -- Per-open-item revaluation detail
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid PK | |
-| eotpremnica_id | uuid FK eotpremnica | |
-| product_id | uuid FK products | nullable |
-| description | text | |
-| quantity | numeric | |
-| unit | text | default `'kom'` |
-| sort_order | int | default 0 |
+| revaluation_id | uuid FK fx_revaluations | |
+| open_item_id | uuid FK open_items | |
+| currency | text | |
+| original_rate | numeric | |
+| new_rate | numeric | |
+| original_amount_rsd | numeric | |
+| revalued_amount_rsd | numeric | |
+| difference | numeric | gain if positive, loss if negative |
+
+### 1.3 `kompenzacija` -- Offsetting agreements
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| legal_entity_id | uuid FK legal_entities | nullable |
+| document_number | text | auto-generated |
+| document_date | date | |
+| partner_id | uuid FK partners | |
+| total_amount | numeric | |
+| status | text | 'draft', 'confirmed', 'cancelled' |
+| journal_entry_id | uuid FK journal_entries | nullable |
+| notes | text | nullable |
+| created_by | uuid | nullable |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### 1.4 `kompenzacija_items` -- Items being offset
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| kompenzacija_id | uuid FK kompenzacija | |
+| open_item_id | uuid FK open_items | |
+| amount | numeric | amount being offset |
+| direction | text | 'receivable' or 'payable' |
+
+### 1.5 `inventory_cost_layers` -- FIFO/weighted avg cost tracking
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| tenant_id | uuid FK tenants | |
+| product_id | uuid FK products | |
+| warehouse_id | uuid FK warehouses | |
+| layer_date | date | receipt date |
+| quantity_remaining | numeric | starts at received qty |
+| unit_cost | numeric | cost per unit in this layer |
+| reference | text | nullable (PO/GR reference) |
+| created_at | timestamptz | |
+
+### 1.6 ALTER `fixed_assets`
+
+Add columns:
+- `sale_price` numeric default 0 -- proceeds from sale
+- `disposal_type` text -- 'scrapped', 'sold', 'transferred'
+- `legal_entity_id` uuid FK legal_entities nullable
+
+### 1.7 ALTER `products`
+
+Add column:
+- `costing_method` text default 'weighted_average' -- 'fifo' or 'weighted_average'
+
+### 1.8 ALTER `inventory_movements`
+
+Add column:
+- `unit_cost` numeric default 0 -- cost per unit at time of movement
+
+RLS policies on all new tables scoped by tenant_id. Updated_at triggers on kompenzacija.
 
 ---
 
-## Part 2: NBS Exchange Rate Auto-Import Edge Function
+## Part 2: FX Revaluation Page
 
-### New file: `supabase/functions/nbs-exchange-rates/index.ts`
+### New file: `src/pages/tenant/FxRevaluation.tsx`
 
-- Fetches the NBS public XML/JSON feed for the daily middle exchange rate list
-- Uses the NBS public API: `https://nbs.rs/kursnaListaMod498/kursnaLista` (or the JSON variant)
-- For each currency in the response, upserts into `exchange_rates` with `source = 'NBS'`
-- Accepts `tenant_id` in request body -- imports rates for that tenant
-- Can be called manually from the Currencies page or scheduled via cron
-- No API key needed (NBS rates are public)
+**Workflow:**
+1. User selects a revaluation date
+2. System fetches all open items in foreign currencies (remaining_amount > 0, currency != 'RSD')
+3. For each, looks up the exchange rate on the revaluation date from `exchange_rates`
+4. Calculates: original RSD amount (original_amount * original_rate) vs revalued (remaining * new_rate)
+5. Shows a preview table with per-item gains/losses
+6. User clicks "Post Revaluation" which:
+   - Creates `fx_revaluations` + `fx_revaluation_lines` records
+   - Posts a journal entry: net gain credits 6700 (FX Gain), net loss debits 5700 (FX Loss), offset against the receivable/payable account (2020 for AR, 4320 for AP)
+   - Uses `createCodeBasedJournalEntry`
 
-### Config in `supabase/config.toml`
-```
-[functions.nbs-exchange-rates]
-verify_jwt = false
-```
-
----
-
-## Part 3: SEF Connector Edge Function Scaffold
-
-### New file: `supabase/functions/sef-submit/index.ts`
-
-- Accepts `{ invoice_id, tenant_id }` in request body
-- Looks up `sef_connections` for the tenant
-- If no active connection, returns error
-- Builds the SEF XML/JSON payload from invoice data (invoice + lines)
-- For now: scaffold only -- logs the payload and creates a `sef_submissions` record with status `'pending'`
-- In sandbox mode: simulates acceptance after creation (updates to `'accepted'`)
-- In production mode: would call the real SEF API (placeholder for future)
-- Updates `invoices.sef_status` based on submission result
-
-### Config in `supabase/config.toml`
-```
-[functions.sef-submit]
-verify_jwt = false
-```
+**UI elements:**
+- Date picker for revaluation date
+- Legal entity filter (optional)
+- Preview table: Partner | Document | Currency | Original Rate | New Rate | Original RSD | Revalued RSD | Difference
+- Summary cards: Total Gain, Total Loss, Net Effect
+- "Post Revaluation" button
+- History tab showing past revaluations
 
 ---
 
-## Part 4: Tenant Integrations Page (Full Rebuild)
+## Part 3: Kompenzacija (Offsetting) Page
 
-### Modify: `src/pages/tenant/Integrations.tsx`
+### New file: `src/pages/tenant/Kompenzacija.tsx`
 
-Replace the "Coming Soon" stub with a full integrations management page containing:
+**Workflow:**
+1. User selects a partner who has both receivable and payable open items
+2. System shows receivable items on the left, payable items on the right
+3. User selects items to offset and enters amounts (up to remaining_amount)
+4. Total receivable offset must equal total payable offset
+5. On confirm:
+   - Creates `kompenzacija` + `kompenzacija_items` records
+   - Posts journal entry: Debit AP account (4320), Credit AR account (2020) for the offset amount
+   - Updates `open_items` -- reduces `remaining_amount`, sets status to 'partial' or 'closed' + status 'offset'
+   - Status goes from 'draft' to 'confirmed'
 
-**SEF Connection Card:**
-- Shows current connection status (not configured / sandbox / production)
-- Form: API URL, API Key, Environment toggle (sandbox/production)
-- Enable/Disable toggle
-- Test Connection button (calls edge function with a test flag)
-- Last sync timestamp and error display
-
-**NBS Exchange Rates Card:**
-- Shows last import date
-- "Import Now" button that calls the `nbs-exchange-rates` edge function
-- Shows count of rates imported
-
-**eOtpremnica Card:**
-- Status info (feature enabled/disabled via tenant_settings)
-- Link to the dispatch notes list page
-
----
-
-## Part 5: Super Admin Integration Support Page
-
-### Modify: `src/pages/super-admin/IntegrationSupport.tsx`
-
-Replace the stub with a management view:
-
-- Table of all tenants showing their SEF connection status (not configured / sandbox / production / error)
-- Ability to configure SEF connection for any tenant (opens a dialog similar to tenant-side)
-- NBS rates section: "Import for All Tenants" bulk action
-- Per-tenant connection health indicators
+**UI elements:**
+- Partner selector
+- Two-column layout: Receivables | Payables
+- Checkboxes + amount inputs per item
+- Running total showing balance
+- Confirm button (disabled if totals don't match)
+- List view of past kompenzacija documents with status badges
+- Cancel action (creates reversal journal entry)
 
 ---
 
-## Part 6: eOtpremnica List Page + Route
+## Part 4: Enhanced Fixed Asset Disposal
 
-### New file: `src/pages/tenant/Eotpremnica.tsx`
+### Modify: `src/pages/tenant/FixedAssets.tsx`
 
-- List view of dispatch notes with filters (status, date range, search)
-- Create dialog with form fields matching the table schema
-- Status badges with lifecycle transitions:
-  - draft -> confirmed -> in_transit -> delivered
-  - Any non-delivered status -> cancelled
-- Status change buttons on each row
-- Link to related invoice if present
-- Legal entity filter (reuses `useLegalEntities`)
+Current disposal logic only handles loss on disposal (book value > 0). Enhance to support:
 
-### Route additions in `App.tsx`
-- Add route: `inventory/dispatch-notes` -> `Eotpremnica` component
-- Protected by `inventory` module
-
-### Sidebar addition in `TenantLayout.tsx`
-- Add `{ key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck }` to `inventoryNav`
-
----
-
-## Part 7: Wire SEF Submit Through Edge Function
-
-### Modify: `src/pages/tenant/Invoices.tsx`
-
-- Replace the mock `sefMutation` (direct DB update + setTimeout) with a real edge function call to `sef-submit`
-- Show submission status from `sef_submissions` table
-- Add loading/error states for SEF submission
+1. **Disposal type selector** in the edit dialog when status changes to "disposed": scrapped, sold, transferred
+2. **Sale price field** -- if sold, user enters the sale price
+3. **Gain/Loss calculation**:
+   - Book value = cost - accumulated depreciation
+   - If sold: gain = sale_price - book_value (can be positive = gain, negative = loss)
+   - Journal lines:
+     - Debit 1290 (Accum Dep) for accumulated amount
+     - Debit Bank/Cash 2410 for sale_price (if sold)
+     - Credit 1200 (Asset) for cost
+     - If gain > 0: Credit 8210 (Gain on Disposal)
+     - If loss > 0: Debit 8200 (Loss on Disposal)
+   - If scrapped: same as current but uses disposal_type field
+4. **Legal entity selector** on the asset form (new `legal_entity_id` column)
+5. Save `disposal_type` and `sale_price` to the fixed_assets record
 
 ---
 
-## Part 8: Translations
+## Part 5: Inventory Costing Methods
+
+### Modify: `src/pages/tenant/Products.tsx`
+
+- Add `costing_method` field to the product form (Select: FIFO / Weighted Average)
+- Display costing method in the products table
+
+### New file: `src/pages/tenant/InventoryCostLayers.tsx`
+
+- Read-only view of cost layers per product
+- Shows: Product | Warehouse | Layer Date | Qty Remaining | Unit Cost | Reference
+- Filters: product, warehouse
+- Summary: total value per product
+
+### Modify: `src/pages/tenant/InventoryStock.tsx`
+
+- Show "Avg Cost" column from cost layers (computed as weighted average of remaining layers)
+- Show "Total Value" column (qty * avg cost)
+
+### Modify: `src/pages/tenant/GoodsReceipts.tsx`
+
+- When a goods receipt is confirmed, create a cost layer in `inventory_cost_layers`
+- Unit cost comes from the purchase order line or manual entry
+
+---
+
+## Part 6: Routes and Navigation
+
+### Modify: `src/App.tsx`
+
+Add routes:
+- `accounting/fx-revaluation` -> FxRevaluation (accounting module)
+- `accounting/kompenzacija` -> Kompenzacija (accounting module)
+- `inventory/cost-layers` -> InventoryCostLayers (inventory module)
+
+### Modify: `src/layouts/TenantLayout.tsx`
+
+Add to `accountingNav`:
+- `{ key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign }`
+- `{ key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight }`
+
+Add to `inventoryNav`:
+- `{ key: "costLayers", url: "/inventory/cost-layers", icon: Layers }` (or Coins)
+
+---
+
+## Part 7: Translations
 
 ### Modify: `src/i18n/translations.ts`
 
-Add keys for both EN and SR:
-- `sefConnection`, `sefConfiguration`, `apiUrl`, `apiKey`, `environment`, `sandbox`, `production`, `testConnection`, `connectionActive`, `connectionInactive`, `lastSync`, `importNow`, `importExchangeRates`, `nbsExchangeRates`, `dispatchNotes`, `eotpremnica`, `documentNumber`, `senderName`, `receiverName`, `inTransit`, `delivered`, `vehiclePlate`, `driverName`, `totalWeight`, `confirmDispatch`, `markDelivered`, `sefNotConfigured`, `sefSubmitting`, `configureForTenant`, `bulkImportRates`
+Add ~40 keys for EN and SR:
+- FX revaluation: `fxRevaluation`, `revaluationDate`, `originalRate`, `newRate`, `revaluedAmount`, `fxGain`, `fxLoss`, `netEffect`, `postRevaluation`, `revaluationHistory`, `noForeignCurrencyItems`
+- Kompenzacija: `kompenzacija`, `offsetting`, `selectPartnerForOffset`, `receivables`, `payables`, `offsetAmount`, `totalToOffset`, `amountsMustMatch`, `confirmKompenzacija`, `kompenzacijaConfirmed`, `kompenzacijaCancelled`
+- Fixed assets: `disposalType`, `scrapped`, `sold`, `transferred`, `salePrice`, `gainOnDisposal`, `lossOnDisposal`
+- Inventory costing: `costingMethod`, `fifo`, `weightedAverage`, `costLayers`, `layerDate`, `qtyRemaining`, `unitCost`, `avgCost`, `totalValue`
 
 ---
 
@@ -217,89 +239,79 @@ Add keys for both EN and SR:
 
 | File | Purpose |
 |------|---------|
-| `supabase/functions/nbs-exchange-rates/index.ts` | NBS exchange rate auto-import |
-| `supabase/functions/sef-submit/index.ts` | SEF invoice submission scaffold |
-| `src/pages/tenant/Eotpremnica.tsx` | Dispatch notes list + CRUD |
+| `src/pages/tenant/FxRevaluation.tsx` | FX revaluation preview + posting page |
+| `src/pages/tenant/Kompenzacija.tsx` | Mutual debt offsetting workflow |
+| `src/pages/tenant/InventoryCostLayers.tsx` | Cost layer viewer |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/Integrations.tsx` | Full rebuild: SEF config, NBS import, eOtpremnica status cards |
-| `src/pages/super-admin/IntegrationSupport.tsx` | Tenant SEF connection management + bulk NBS import |
-| `src/pages/tenant/Invoices.tsx` | Replace mock SEF mutation with edge function call |
-| `src/pages/tenant/Currencies.tsx` | Add "Import NBS Rates" button |
-| `src/layouts/TenantLayout.tsx` | Add dispatch notes to inventory nav |
-| `src/App.tsx` | Add eotpremnica route |
-| `src/i18n/translations.ts` | Add ~30 new translation keys |
-| `supabase/config.toml` | Add nbs-exchange-rates and sef-submit function configs |
-
-## Migration (SQL)
-
-A single migration will create:
-- `sef_connections` table with RLS policies
-- `sef_submissions` table with RLS policies
-- `eotpremnica` table with RLS policies
-- `eotpremnica_lines` table with RLS policies
-- Updated_at triggers on new tables
-- Indexes on tenant_id and status columns
+| `src/pages/tenant/FixedAssets.tsx` | Disposal type, sale price, gain/loss logic, legal entity |
+| `src/pages/tenant/Products.tsx` | Add costing_method field |
+| `src/pages/tenant/InventoryStock.tsx` | Avg cost + total value columns |
+| `src/pages/tenant/GoodsReceipts.tsx` | Create cost layers on receipt confirmation |
+| `src/layouts/TenantLayout.tsx` | Add nav items for FX reval, kompenzacija, cost layers |
+| `src/App.tsx` | Add 3 new routes |
+| `src/i18n/translations.ts` | ~40 new translation keys |
 
 ---
 
 ## Technical Details
 
-### SEF Connection Flow
+### FX Revaluation Journal Entry Pattern
 
 ```text
-Tenant Admin configures SEF in Settings > Integrations:
-  1. Enters API URL + API Key + selects Environment
-  2. Clicks "Test Connection" -> calls sef-submit with test=true flag
-  3. Enables the connection (is_active = true)
+For receivables (customer owes us in EUR):
+  If EUR appreciated (gain):
+    Debit  2020 (AR)        difference
+    Credit 6700 (FX Gain)   difference
+  If EUR depreciated (loss):
+    Debit  5700 (FX Loss)   difference
+    Credit 2020 (AR)        difference
 
-Invoice submission:
-  1. User clicks "SEF" button on a sent invoice
-  2. Frontend calls sef-submit edge function with invoice_id
-  3. Edge function:
-     a. Loads sef_connections for tenant
-     b. Builds payload from invoice + invoice_lines
-     c. Creates sef_submissions record (status: pending)
-     d. In sandbox: simulates acceptance
-     e. In production: would POST to SEF API (future)
-     f. Updates invoices.sef_status
-  4. Frontend shows updated status
+For payables (we owe supplier in EUR):
+  If EUR appreciated (loss - we owe more):
+    Debit  5700 (FX Loss)   difference
+    Credit 4320 (AP)        difference
+  If EUR depreciated (gain - we owe less):
+    Debit  4320 (AP)        difference
+    Credit 6700 (FX Gain)   difference
 ```
 
-### eOtpremnica Status Lifecycle
+### Kompenzacija Journal Entry
 
 ```text
-  draft --> confirmed --> in_transit --> delivered
-    |          |              |
-    v          v              v
-  cancelled  cancelled    cancelled
+Debit  4320 (AP - reduces payable)     offset_amount
+Credit 2020 (AR - reduces receivable)  offset_amount
 ```
 
-### NBS Rate Import Flow
+### Enhanced Disposal Journal (Sale Example)
 
 ```text
-  1. Edge function called with { tenant_id }
-  2. Fetches NBS daily rate list (public endpoint, no auth)
-  3. Parses response for currency codes + middle rates
-  4. For each currency: upserts exchange_rates row
-     - from_currency = currency code (EUR, USD, etc.)
-     - to_currency = 'RSD'
-     - rate = middle rate
-     - rate_date = today
-     - source = 'NBS'
-  5. Returns count of rates imported
+Asset cost: 100,000  Accumulated dep: 60,000  Book value: 40,000  Sale price: 55,000  Gain: 15,000
+
+Debit  1290 (Accum Dep)         60,000
+Debit  2410 (Bank/Cash)         55,000
+Credit 1200 (Fixed Asset)      100,000
+Credit 8210 (Gain on Disposal)  15,000
 ```
 
-### Super Admin SEF Management
+### Inventory Cost Layer - FIFO Consumption
 
 ```text
-IntegrationSupport page shows:
-  - Table: tenant_name | sef_environment | is_active | last_sync | last_error
-  - Each row has "Configure" button opening a dialog
-  - Dialog pre-fills existing connection data for that tenant
-  - "Import NBS Rates for All" button iterates active tenants
+When goods go out (sale/production):
+1. Query cost_layers for product+warehouse ordered by layer_date ASC
+2. Consume from oldest layer first
+3. Reduce quantity_remaining
+4. Calculate COGS = sum of (consumed_qty * layer.unit_cost)
+5. Post journal: Debit 7000 (COGS), Credit 1300 (Inventory)
 ```
 
+### Weighted Average Recalculation
+
+```text
+On each new receipt:
+  new_avg = (existing_qty * old_avg + new_qty * new_cost) / (existing_qty + new_qty)
+  All remaining layers consolidated into one effective cost
+```
