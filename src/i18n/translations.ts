@@ -270,6 +270,19 @@ export const translations = {
     selectWarehouse: "Select warehouse for inventory",
     noWarehouse: "No inventory deduction",
     warehouseHint: "Select a warehouse to automatically deduct product quantities from inventory.",
+
+    // Audit Log
+    entityType: "Entity Type",
+    action: "Action",
+    page: "Page",
+
+    // User Management
+    teamMembers: "Team Members",
+    invitationSent: "Invitation sent successfully.",
+    pendingInvitations: "Pending Invitations",
+    expiresAt: "Expires",
+    removeMemberConfirm: "Are you sure you want to remove this member from the organization?",
+    you: "You",
   },
   sr: {
     // Auth
@@ -542,6 +555,19 @@ export const translations = {
     selectWarehouse: "Izaberite magacin za inventar",
     noWarehouse: "Bez oduzimanja zaliha",
     warehouseHint: "Izaberite magacin za automatsko oduzimanje količina proizvoda iz inventara.",
+
+    // Audit Log
+    entityType: "Tip entiteta",
+    action: "Akcija",
+    page: "Stranica",
+
+    // User Management
+    teamMembers: "Članovi tima",
+    invitationSent: "Pozivnica uspešno poslata.",
+    pendingInvitations: "Pozivnice na čekanju",
+    expiresAt: "Ističe",
+    removeMemberConfirm: "Da li ste sigurni da želite da uklonite ovog člana iz organizacije?",
+    you: "Vi",
   },
 } as const;
 
