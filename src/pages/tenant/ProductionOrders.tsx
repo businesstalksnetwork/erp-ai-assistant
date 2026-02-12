@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, CheckCircle, Loader2 } from "lucide-react";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 const STATUSES = ["draft", "planned", "in_progress", "completed", "cancelled"] as const;
 
@@ -34,7 +35,7 @@ export default function ProductionOrders() {
     queryKey: ["production_orders", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("production_orders").select("*, products(name), bom_templates(name)").eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      const { data } = await supabase.from("production_orders").select("*, products(name, purchase_price), bom_templates(name)").eq("tenant_id", tenantId).order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!tenantId,
@@ -100,18 +101,22 @@ export default function ProductionOrders() {
   const completeMutation = useMutation({
     mutationFn: async () => {
       if (!completeOrder || !selectedWarehouse || !tenantId) throw new Error("Missing data");
-      
+
+      let totalMaterialCost = 0;
+
       // Fetch BOM lines if BOM template is set
       if (completeOrder.bom_template_id) {
         const { data: bomLines } = await supabase
           .from("bom_lines")
-          .select("material_product_id, quantity")
+          .select("material_product_id, quantity, products(purchase_price)")
           .eq("bom_template_id", completeOrder.bom_template_id);
-        
+
         if (bomLines) {
-          // Consume materials (negative adjustment)
           for (const line of bomLines) {
             const consumeQty = line.quantity * completeOrder.quantity;
+            const unitCost = (line as any).products?.purchase_price || 0;
+            totalMaterialCost += consumeQty * unitCost;
+
             await supabase.rpc("adjust_inventory_stock", {
               p_tenant_id: tenantId,
               p_product_id: line.material_product_id,
@@ -126,7 +131,7 @@ export default function ProductionOrders() {
         }
       }
 
-      // Add finished goods (positive adjustment)
+      // Add finished goods
       if (completeOrder.product_id) {
         await supabase.rpc("adjust_inventory_stock", {
           p_tenant_id: tenantId,
@@ -137,6 +142,22 @@ export default function ProductionOrders() {
           p_reference: `Production Order ${completeOrder.id}`,
           p_notes: "Finished goods output",
           p_created_by: user?.id || null,
+        });
+      }
+
+      // PRC 14.5: WIP Journal Entry → Debit 5100 (Finished Goods) / Credit 5000 (WIP)
+      if (totalMaterialCost > 0) {
+        const entryDate = new Date().toISOString().split("T")[0];
+        await createCodeBasedJournalEntry({
+          tenantId,
+          userId: user?.id || null,
+          entryDate,
+          description: `Production completion - ${completeOrder.products?.name || completeOrder.id}`,
+          reference: `PROD-${completeOrder.id.substring(0, 8)}`,
+          lines: [
+            { accountCode: "5100", debit: totalMaterialCost, credit: 0, description: "Finished goods received", sortOrder: 0 },
+            { accountCode: "5000", debit: 0, credit: totalMaterialCost, description: "WIP consumed", sortOrder: 1 },
+          ],
         });
       }
 
@@ -152,7 +173,7 @@ export default function ProductionOrders() {
       setCompleteDialogOpen(false);
       setCompleteOrder(null);
       setSelectedWarehouse("");
-      toast({ title: t("materialsConsumed") });
+      toast({ title: t("wipJournalCreated") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });

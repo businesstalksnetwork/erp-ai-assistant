@@ -42,6 +42,12 @@ const emptyForm = {
   country: "RS",
   type: "customer",
   is_active: true,
+  credit_limit: 0,
+  payment_terms_days: 30,
+  default_currency: "RSD",
+  email: "",
+  phone: "",
+  contact_person: "",
 };
 
 export default function Partners() {
@@ -91,6 +97,12 @@ export default function Partners() {
         country: form.country,
         type: form.type,
         is_active: form.is_active,
+        credit_limit: form.credit_limit || 0,
+        payment_terms_days: form.payment_terms_days || 30,
+        default_currency: form.default_currency || "RSD",
+        email: form.email || null,
+        phone: form.phone || null,
+        contact_person: form.contact_person || null,
       };
       if (editingPartner) {
         const { error } = await supabase.from("partners").update(payload).eq("id", editingPartner.id);
@@ -127,7 +139,7 @@ export default function Partners() {
     setDialogOpen(true);
   };
 
-  const openEdit = (p: Partner) => {
+  const openEdit = (p: any) => {
     setEditingPartner(p);
     setForm({
       name: p.name,
@@ -139,6 +151,12 @@ export default function Partners() {
       country: p.country,
       type: p.type,
       is_active: p.is_active,
+      credit_limit: p.credit_limit || 0,
+      payment_terms_days: p.payment_terms_days || 30,
+      default_currency: p.default_currency || "RSD",
+      email: p.email || "",
+      phone: p.phone || "",
+      contact_person: p.contact_person || "",
     });
     setDialogOpen(true);
   };
@@ -275,6 +293,26 @@ export default function Partners() {
                   <SelectItem value="both">{t("both")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label>{t("email")}</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <div><Label>{t("phone")}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div><Label>{t("contactPerson")}</Label><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label>{t("creditLimit")}</Label><Input type="number" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: +e.target.value })} /></div>
+              <div><Label>{t("paymentTermsDays")}</Label><Input type="number" value={form.payment_terms_days} onChange={(e) => setForm({ ...form, payment_terms_days: +e.target.value })} /></div>
+              <div>
+                <Label>{t("defaultCurrency")}</Label>
+                <Select value={form.default_currency} onValueChange={(v) => setForm({ ...form, default_currency: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RSD">RSD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
