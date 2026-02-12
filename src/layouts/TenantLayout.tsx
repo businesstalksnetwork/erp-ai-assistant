@@ -41,7 +41,7 @@ import {
   ShoppingCart, Layers, Factory, FolderOpen, Monitor, CreditCard, Activity, Truck,
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
-  Globe, Command, Plug,
+  Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -108,9 +108,20 @@ const hrNav: NavItem[] = [
   { key: "employees", url: "/hr/employees", icon: UserCheck },
   { key: "contracts", url: "/hr/contracts", icon: FileSignature },
   { key: "departments", url: "/hr/departments", icon: Building },
-  { key: "attendance", url: "/hr/attendance", icon: Clock },
+  { key: "positionTemplates", url: "/hr/position-templates", icon: Briefcase },
+  { key: "workLogs", url: "/hr/work-logs", icon: Clock },
+  { key: "overtimeHours", url: "/hr/overtime", icon: Timer },
+  { key: "nightWork", url: "/hr/night-work", icon: Moon },
+  { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff },
+  { key: "holidays", url: "/hr/holidays", icon: Calendar },
   { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
+  { key: "deductionsModule", url: "/hr/deductions", icon: Coins },
+  { key: "allowance", url: "/hr/allowances", icon: Banknote },
+  { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
+  { key: "externalWorkers", url: "/hr/external-workers", icon: Users },
+  { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
+  { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
 ];
 
 const productionNav: NavItem[] = [
