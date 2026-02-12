@@ -75,6 +75,8 @@ import {
   ChevronDown,
   User,
   LogOut,
+  FileSpreadsheet,
+  ListChecks,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -98,6 +100,8 @@ const accountingNav: NavItem[] = [
   { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen },
   { key: "journalEntries", url: "/accounting/journal", icon: Calculator },
   { key: "invoices", url: "/accounting/invoices", icon: Receipt },
+  { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
+  { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },
