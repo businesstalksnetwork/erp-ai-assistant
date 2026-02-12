@@ -2587,12 +2587,18 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          contact_person: string | null
           country: string
           created_at: string
+          credit_limit: number | null
+          default_currency: string | null
+          email: string | null
           id: string
           is_active: boolean
           maticni_broj: string | null
           name: string
+          payment_terms_days: number | null
+          phone: string | null
           pib: string | null
           postal_code: string | null
           tenant_id: string
@@ -2602,12 +2608,18 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          contact_person?: string | null
           country?: string
           created_at?: string
+          credit_limit?: number | null
+          default_currency?: string | null
+          email?: string | null
           id?: string
           is_active?: boolean
           maticni_broj?: string | null
           name: string
+          payment_terms_days?: number | null
+          phone?: string | null
           pib?: string | null
           postal_code?: string | null
           tenant_id: string
@@ -2617,12 +2629,18 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          contact_person?: string | null
           country?: string
           created_at?: string
+          credit_limit?: number | null
+          default_currency?: string | null
+          email?: string | null
           id?: string
           is_active?: boolean
           maticni_broj?: string | null
           name?: string
+          payment_terms_days?: number | null
+          phone?: string | null
           pib?: string | null
           postal_code?: string | null
           tenant_id?: string
@@ -4139,6 +4157,10 @@ export type Database = {
       calculate_payroll_for_run: {
         Args: { p_payroll_run_id: string }
         Returns: undefined
+      }
+      check_fiscal_period_open: {
+        Args: { p_entry_date: string; p_tenant_id: string }
+        Returns: string
       }
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }

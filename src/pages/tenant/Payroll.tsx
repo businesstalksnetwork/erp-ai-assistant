@@ -3,7 +3,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Plus, Loader2, Calculator, Check, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 export default function Payroll() {
   const { t } = useLanguage();
@@ -40,7 +41,6 @@ export default function Payroll() {
     enabled: !!tenantId,
   });
 
-  // Fetch items for expanded runs
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const { data: runItems = [] } = useQuery({
     queryKey: ["payroll-items", expandedRun],
@@ -75,8 +75,43 @@ export default function Payroll() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // PRC 14.6: Approve → Debit 8000 (Salary Expense) / Credit 2100 (Net Payable) + Credit 4700 (Tax+Contributions)
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const run = runs.find((r: any) => r.id === id);
+      if (!run || !tenantId) throw new Error("Missing data");
+
+      const entryDate = new Date().toISOString().split("T")[0];
+      const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
+
+      if (status === "approved") {
+        const totalTaxContrib = Number(run.total_taxes) + Number(run.total_contributions);
+        await createCodeBasedJournalEntry({
+          tenantId,
+          userId: user?.id || null,
+          entryDate,
+          description: `Payroll ${periodLabel} - Accrual`,
+          reference: `PR-${periodLabel}`,
+          lines: [
+            { accountCode: "8000", debit: Number(run.total_gross), credit: 0, description: `Salary expense ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "2100", debit: 0, credit: Number(run.total_net), description: `Net payable ${periodLabel}`, sortOrder: 1 },
+            { accountCode: "4700", debit: 0, credit: totalTaxContrib, description: `Tax & contributions ${periodLabel}`, sortOrder: 2 },
+          ],
+        });
+      } else if (status === "paid") {
+        await createCodeBasedJournalEntry({
+          tenantId,
+          userId: user?.id || null,
+          entryDate,
+          description: `Payroll ${periodLabel} - Payment`,
+          reference: `PR-PAY-${periodLabel}`,
+          lines: [
+            { accountCode: "2100", debit: Number(run.total_net), credit: 0, description: `Clear net payable ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "1000", debit: 0, credit: Number(run.total_net), description: `Bank payment ${periodLabel}`, sortOrder: 1 },
+          ],
+        });
+      }
+
       const updates: any = { status };
       if (status === "approved") { updates.approved_by = user?.id; updates.approved_at = new Date().toISOString(); }
       const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
@@ -84,7 +119,7 @@ export default function Payroll() {
     },
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["payroll-runs"] });
-      toast.success(v.status === "approved" ? t("payrollApproved") : t("payrollMarkedPaid"));
+      toast.success(v.status === "approved" ? t("payrollPosted") : t("payrollPaymentPosted"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -128,12 +163,12 @@ export default function Payroll() {
                         </Button>
                       )}
                       {run.status === "calculated" && (
-                        <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "approved" })}>
+                        <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "approved" })} disabled={statusMutation.isPending}>
                           <Check className="h-4 w-4 mr-2" />{t("approvePayroll")}
                         </Button>
                       )}
                       {run.status === "approved" && (
-                        <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "paid" })}>
+                        <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "paid" })} disabled={statusMutation.isPending}>
                           <Banknote className="h-4 w-4 mr-2" />{t("markAsPaidPayroll")}
                         </Button>
                       )}

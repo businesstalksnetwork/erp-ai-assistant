@@ -16,6 +16,7 @@ import { Plus, Loader2, CheckCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 
 const STATUSES = ["draft", "received", "approved", "paid", "cancelled"] as const;
 
@@ -66,7 +67,6 @@ export default function SupplierInvoices() {
         currency: po.currency || "RSD",
       });
       setOpen(true);
-      // Clear state
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -124,48 +124,26 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const createJournalEntry = async (description: string, debitAccountType: string, creditAccountType: string, amount: number, reference: string) => {
-    if (!tenantId) return;
-    // Find accounts by type
-    const { data: accounts } = await supabase
-      .from("chart_of_accounts")
-      .select("id, account_type, name")
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true)
-      .in("account_type", [debitAccountType, creditAccountType]);
-
-    const debitAccount = accounts?.find(a => a.account_type === debitAccountType);
-    const creditAccount = accounts?.find(a => a.account_type === creditAccountType);
-    if (!debitAccount || !creditAccount) throw new Error("Required accounts not found in chart of accounts");
-
-    const entryNumber = `JE-${Date.now().toString(36).toUpperCase()}`;
-    const { data: je, error: jeError } = await supabase.from("journal_entries").insert([{
-      tenant_id: tenantId,
-      entry_number: entryNumber,
-      entry_date: new Date().toISOString().split("T")[0],
-      description,
-      reference,
-      status: "posted",
-      posted_at: new Date().toISOString(),
-      posted_by: user?.id || null,
-      created_by: user?.id || null,
-    }]).select("id").single();
-    if (jeError) throw jeError;
-
-    await supabase.from("journal_lines").insert([
-      { journal_entry_id: je.id, account_id: debitAccount.id, debit: amount, credit: 0, description, sort_order: 0 },
-      { journal_entry_id: je.id, account_id: creditAccount.id, debit: 0, credit: amount, description, sort_order: 1 },
-    ]);
-  };
-
+  // PRC 14.3: Approve → Debit 7000 (COGS) + Debit 4700 (Input VAT) / Credit 2100 (AP)
   const approveMutation = useMutation({
     mutationFn: async (inv: any) => {
-      await createJournalEntry(
-        `Supplier Invoice ${inv.invoice_number} - Approval`,
-        "expense", "liability",
-        inv.total,
-        `SI-${inv.invoice_number}`
-      );
+      if (!tenantId) throw new Error("No tenant");
+      const entryDate = new Date().toISOString().split("T")[0];
+      const lines: any[] = [
+        { accountCode: "7000", debit: inv.amount, credit: 0, description: `COGS - ${inv.invoice_number}`, sortOrder: 0 },
+      ];
+      if (inv.tax_amount > 0) {
+        lines.push({ accountCode: "4700", debit: inv.tax_amount, credit: 0, description: `Input VAT - ${inv.invoice_number}`, sortOrder: 1 });
+      }
+      lines.push({ accountCode: "2100", debit: 0, credit: inv.total, description: `AP - ${inv.invoice_number}`, sortOrder: 2 });
+
+      await createCodeBasedJournalEntry({
+        tenantId, userId: user?.id || null, entryDate,
+        description: `Supplier Invoice ${inv.invoice_number} - Approval`,
+        reference: `SI-${inv.invoice_number}`,
+        lines,
+      });
+
       const { error } = await supabase.from("supplier_invoices").update({ status: "approved" }).eq("id", inv.id);
       if (error) throw error;
     },
@@ -176,14 +154,21 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // PRC 14.3: Pay → Debit 2100 (AP) / Credit 1000 (Cash/Bank)
   const markPaidMutation = useMutation({
     mutationFn: async (inv: any) => {
-      await createJournalEntry(
-        `Supplier Invoice ${inv.invoice_number} - Payment`,
-        "liability", "asset",
-        inv.total,
-        `SI-PAY-${inv.invoice_number}`
-      );
+      if (!tenantId) throw new Error("No tenant");
+      const entryDate = new Date().toISOString().split("T")[0];
+      await createCodeBasedJournalEntry({
+        tenantId, userId: user?.id || null, entryDate,
+        description: `Supplier Invoice ${inv.invoice_number} - Payment`,
+        reference: `SI-PAY-${inv.invoice_number}`,
+        lines: [
+          { accountCode: "2100", debit: inv.total, credit: 0, description: `Clear AP - ${inv.invoice_number}`, sortOrder: 0 },
+          { accountCode: "1000", debit: 0, credit: inv.total, description: `Payment - ${inv.invoice_number}`, sortOrder: 1 },
+        ],
+      });
+
       const { error } = await supabase.from("supplier_invoices").update({ status: "paid" }).eq("id", inv.id);
       if (error) throw error;
     },

@@ -672,6 +672,14 @@ export const translations = {
     conversionSuccess: "Conversion completed successfully.",
     selectWarehouseForProduction: "Select warehouse for material consumption and finished goods output.",
     journalEntryCreated: "Journal entry created.",
+    payrollPosted: "Payroll journal entry posted.",
+    payrollPaymentPosted: "Payroll payment journal entry posted.",
+    wipJournalCreated: "WIP journal entry created and inventory updated.",
+    cannotPostToClosedPeriod: "Cannot post to a closed fiscal period.",
+    creditLimit: "Credit Limit",
+    paymentTermsDays: "Payment Terms (Days)",
+    contactPerson: "Contact Person",
+    inputVat: "Input VAT",
   },
   sr: {
     // Auth
@@ -1346,6 +1354,14 @@ export const translations = {
     conversionSuccess: "Konverzija uspešno završena.",
     selectWarehouseForProduction: "Izaberite magacin za utrošak materijala i prijem gotovih proizvoda.",
     journalEntryCreated: "Nalog za knjiženje kreiran.",
+    payrollPosted: "Nalog za knjiženje zarada proknjižen.",
+    payrollPaymentPosted: "Nalog za isplatu zarada proknjižen.",
+    wipJournalCreated: "WIP nalog za knjiženje kreiran i zalihe ažurirane.",
+    cannotPostToClosedPeriod: "Nije moguće knjižiti u zatvorenom periodu.",
+    creditLimit: "Kreditni limit",
+    paymentTermsDays: "Rok plaćanja (dana)",
+    contactPerson: "Kontakt osoba",
+    inputVat: "Ulazni PDV",
   },
 } as const;
 
