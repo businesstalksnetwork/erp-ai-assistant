@@ -115,9 +115,13 @@ const accountingNav: NavItem[] = [
 ];
 
 const crmNav: NavItem[] = [
-  { key: "partners", url: "/crm/partners", icon: Handshake },
+  { key: "crmDashboard", url: "/crm", icon: LayoutDashboard },
+  { key: "companies", url: "/crm/companies", icon: Building },
+  { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
+  { key: "meetings", url: "/crm/meetings", icon: CalendarDays },
+  { key: "partners", url: "/crm/partners", icon: Handshake },
   { key: "quotes", url: "/crm/quotes", icon: FileCheck },
   { key: "salesOrders", url: "/crm/sales-orders", icon: ShoppingCart },
 ];
