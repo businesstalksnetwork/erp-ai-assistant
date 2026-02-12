@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, Sparkles, FileText, Calculator, AlertCircle, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
+import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 
 export default function TenantDashboard() {
   const { t } = useLanguage();
@@ -164,6 +166,13 @@ export default function TenantDashboard() {
           </Card>
         ))}
       </div>
+
+      {tenantId && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <RevenueExpensesChart tenantId={tenantId} />
+          <InvoiceStatusChart tenantId={tenantId} />
+        </div>
+      )}
 
       <Card>
         <CardHeader>
