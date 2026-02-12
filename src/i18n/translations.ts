@@ -816,6 +816,27 @@ export const translations = {
     invoiceTypeRegular: "Regular",
     invoiceTypeAdvance: "Advance",
     invoiceTypeAdvanceFinal: "Final (advance deduction)",
+
+    // Year-End Closing
+    yearEndClosing: "Year-End Closing",
+    yearEndClosingDesc: "Close revenue and expense accounts to retained earnings and lock the fiscal period.",
+    selectFiscalPeriod: "Select Fiscal Period",
+    yearEndSelectPeriodDesc: "Choose the fiscal period to perform year-end closing on.",
+    totalRevenue: "Total Revenue",
+    totalExpenses: "Total Expenses",
+    // netIncome already defined above
+    revenueAccounts: "Revenue Accounts to Close",
+    expenseAccounts: "Expense Accounts to Close",
+    closingEntry: "Closing Entry",
+    yearEndWarning: "Irreversible Action",
+    yearEndWarningDesc: "Year-end closing will create a closing journal entry, zero out all revenue/expense accounts to retained earnings (3000), and lock the fiscal period permanently.",
+    performYearEndClosing: "Perform Year-End Closing",
+    yearEndClosingConfirm: "Confirm Year-End Closing",
+    yearEndClosingConfirmDesc: "This will create closing entries and LOCK the fiscal period. This action cannot be undone. Are you sure?",
+    confirmAndClose: "Confirm & Close",
+    yearEndClosingSuccess: "Year-end closing completed successfully",
+    yearEndAlreadyClosed: "This fiscal period has been closed and locked.",
+    // balance already defined above
   },
   sr: {
     // Auth
@@ -1634,6 +1655,27 @@ export const translations = {
     invoiceTypeRegular: "Redovna",
     invoiceTypeAdvance: "Avansna",
     invoiceTypeAdvanceFinal: "Konačna (odbitak avansa)",
+
+    // Year-End Closing
+    yearEndClosing: "Godišnje zatvaranje",
+    yearEndClosingDesc: "Zatvaranje prihoda i rashoda na neraspoređenu dobit i zaključavanje fiskalnog perioda.",
+    selectFiscalPeriod: "Izaberi fiskalni period",
+    yearEndSelectPeriodDesc: "Izaberite fiskalni period za godišnje zatvaranje.",
+    totalRevenue: "Ukupni prihodi",
+    totalExpenses: "Ukupni rashodi",
+    // netIncome already defined above
+    revenueAccounts: "Računi prihoda za zatvaranje",
+    expenseAccounts: "Računi rashoda za zatvaranje",
+    closingEntry: "Zaključno knjiženje",
+    yearEndWarning: "Nepovratna akcija",
+    yearEndWarningDesc: "Godišnje zatvaranje će kreirati zaključno knjiženje, anulirati sve račune prihoda/rashoda na neraspoređenu dobit (3000) i trajno zaključati fiskalni period.",
+    performYearEndClosing: "Izvrši godišnje zatvaranje",
+    yearEndClosingConfirm: "Potvrda godišnjeg zatvaranja",
+    yearEndClosingConfirmDesc: "Ovo će kreirati zaključna knjiženja i ZAKLJUČATI fiskalni period. Ova akcija se ne može poništiti. Da li ste sigurni?",
+    confirmAndClose: "Potvrdi i zatvori",
+    yearEndClosingSuccess: "Godišnje zatvaranje uspešno izvršeno",
+    yearEndAlreadyClosed: "Ovaj fiskalni period je zatvoren i zaključan.",
+    // balance already defined above
   },
 } as const;
 

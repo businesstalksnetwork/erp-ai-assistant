@@ -78,7 +78,7 @@ import Profile from "@/pages/tenant/Profile";
 import BankStatements from "@/pages/tenant/BankStatements";
 import OpenItems from "@/pages/tenant/OpenItems";
 import PdvPeriods from "@/pages/tenant/PdvPeriods";
-
+import YearEndClosing from "@/pages/tenant/YearEndClosing";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -167,6 +167,7 @@ const App = () => (
                 <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule="accounting"><BankStatements /></ProtectedRoute>} />
                 <Route path="accounting/open-items" element={<ProtectedRoute requiredModule="accounting"><OpenItems /></ProtectedRoute>} />
                 <Route path="accounting/pdv" element={<ProtectedRoute requiredModule="accounting"><PdvPeriods /></ProtectedRoute>} />
+                <Route path="accounting/year-end" element={<ProtectedRoute requiredModule="accounting"><YearEndClosing /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

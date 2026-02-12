@@ -78,6 +78,7 @@ import {
   FileSpreadsheet,
   ListChecks,
   ReceiptText,
+  Lock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -105,6 +106,7 @@ const accountingNav: NavItem[] = [
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
+  { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },
   { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
