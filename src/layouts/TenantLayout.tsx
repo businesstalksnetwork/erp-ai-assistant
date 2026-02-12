@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -139,6 +140,7 @@ const settingsNav = [
 export default function TenantLayout() {
   const { t } = useLanguage();
   const { signOut, user } = useAuth();
+  const { canAccess } = usePermissions();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -176,6 +178,7 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            {canAccess("crm") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("crm")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -183,13 +186,8 @@ export default function TenantLayout() {
                   {crmNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -197,6 +195,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("purchasing") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("purchasing")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -204,13 +204,8 @@ export default function TenantLayout() {
                   {purchasingNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -218,6 +213,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("returns") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("returns")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -225,13 +222,8 @@ export default function TenantLayout() {
                   {returnsNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -239,6 +231,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("hr") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("hr")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -246,13 +240,8 @@ export default function TenantLayout() {
                   {hrNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -260,6 +249,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("inventory") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("inventory")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -267,13 +258,8 @@ export default function TenantLayout() {
                   {inventoryNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -281,6 +267,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("accounting") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("accounting")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -288,13 +276,8 @@ export default function TenantLayout() {
                   {accountingNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -302,6 +285,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("production") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("production")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -309,13 +294,8 @@ export default function TenantLayout() {
                   {productionNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -323,6 +303,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("documents") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("documents")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -330,13 +312,8 @@ export default function TenantLayout() {
                   {documentsNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -344,6 +321,8 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("pos") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("pos")}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -351,13 +330,8 @@ export default function TenantLayout() {
                   {posNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -365,21 +339,28 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
+            {canAccess("settings") && (
             <SidebarGroup>
               <SidebarGroupLabel>{t("settings")}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {settingsNav.map((item) => (
+                  {settingsNav.filter((item) => {
+                    if (item.url === "/settings") return true;
+                    if (item.url === "/settings/users") return canAccess("settings-users");
+                    if (item.url === "/settings/approvals") return canAccess("settings-approvals");
+                    if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
+                    if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
+                    if (item.url === "/settings/currencies") return canAccess("settings-currencies");
+                    if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
+                    if (item.url === "/settings/events") return canAccess("settings-events");
+                    if (item.url === "/settings/integrations") return canAccess("settings-integrations");
+                    return true;
+                  }).map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          end={item.url === "/settings"}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{t(item.key)}</span>
+                        <NavLink to={item.url} end={item.url === "/settings"} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                          <item.icon className="h-4 w-4" /><span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -387,6 +368,7 @@ export default function TenantLayout() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            )}
           </SidebarContent>
           <div className="mt-auto p-4 border-t border-sidebar-border">
             <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-sidebar-foreground">

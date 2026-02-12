@@ -598,6 +598,8 @@ export const translations = {
     approvalNotifications: "Approval Notifications",
     hrNotifications: "HR Notifications",
     accountingNotifications: "Accounting Notifications",
+    accessDenied: "Access Denied",
+    accessDeniedMessage: "You don't have permission to view this page.",
   },
   sr: {
     // Auth
@@ -1198,6 +1200,8 @@ export const translations = {
     approvalNotifications: "Obaveštenja o odobrenjima",
     hrNotifications: "HR obaveštenja",
     accountingNotifications: "Računovodstvena obaveštenja",
+    accessDenied: "Pristup odbijen",
+    accessDeniedMessage: "Nemate dozvolu za pregled ove stranice.",
   },
 } as const;
 

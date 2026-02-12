@@ -107,58 +107,58 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
                 <Route path="dashboard" element={<TenantDashboard />} />
                 <Route path="settings" element={<TenantSettings />} />
-                <Route path="settings/users" element={<TenantUsers />} />
-                <Route path="settings/audit-log" element={<AuditLog />} />
+                <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><TenantUsers /></ProtectedRoute>} />
+                <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><AuditLog /></ProtectedRoute>} />
                 <Route path="settings/legal-entities" element={<LegalEntities />} />
                 <Route path="settings/locations" element={<Locations />} />
                 <Route path="settings/warehouses" element={<Warehouses />} />
                 <Route path="settings/sales-channels" element={<SalesChannels />} />
                 <Route path="settings/cost-centers" element={<CostCenters />} />
                 <Route path="settings/bank-accounts" element={<BankAccounts />} />
-                <Route path="settings/integrations" element={<TenantIntegrations />} />
-                <Route path="settings/business-rules" element={<BusinessRules />} />
-                <Route path="accounting/chart-of-accounts" element={<ChartOfAccounts />} />
-                <Route path="accounting/journal" element={<JournalEntries />} />
-                <Route path="accounting/invoices" element={<Invoices />} />
-                <Route path="accounting/invoices/new" element={<InvoiceForm />} />
-                <Route path="accounting/invoices/:id" element={<InvoiceForm />} />
-                <Route path="accounting/fiscal-periods" element={<FiscalPeriods />} />
-                <Route path="accounting/ledger" element={<GeneralLedger />} />
-                <Route path="accounting/reports" element={<Reports />} />
-                <Route path="accounting/reports/trial-balance" element={<TrialBalance />} />
-                <Route path="accounting/reports/income-statement" element={<IncomeStatement />} />
-                <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
-                <Route path="settings/tax-rates" element={<TaxRates />} />
-                <Route path="crm/partners" element={<Partners />} />
-                <Route path="crm/leads" element={<Leads />} />
-                <Route path="crm/opportunities" element={<Opportunities />} />
-                <Route path="crm/quotes" element={<Quotes />} />
-                <Route path="crm/sales-orders" element={<SalesOrders />} />
-                <Route path="purchasing/orders" element={<PurchaseOrders />} />
-                <Route path="purchasing/goods-receipts" element={<GoodsReceipts />} />
-                <Route path="purchasing/supplier-invoices" element={<SupplierInvoices />} />
-                <Route path="inventory/products" element={<Products />} />
-                <Route path="inventory/stock" element={<InventoryStock />} />
-                <Route path="inventory/movements" element={<InventoryMovements />} />
-                <Route path="hr/employees" element={<Employees />} />
-                <Route path="hr/contracts" element={<EmployeeContracts />} />
-                <Route path="hr/departments" element={<Departments />} />
-                <Route path="hr/attendance" element={<Attendance />} />
-                <Route path="hr/leave-requests" element={<LeaveRequests />} />
-                <Route path="hr/payroll" element={<Payroll />} />
-                <Route path="production/bom" element={<BomTemplates />} />
-                <Route path="production/orders" element={<ProductionOrders />} />
-                <Route path="documents" element={<Documents />} />
-                <Route path="pos/terminal" element={<PosTerminal />} />
-                <Route path="pos/sessions" element={<PosSessions />} />
-                <Route path="settings/events" element={<EventMonitor />} />
-                <Route path="returns" element={<Returns />} />
-                <Route path="accounting/fixed-assets" element={<FixedAssets />} />
-                <Route path="accounting/reports/aging" element={<AgingReports />} />
-                <Route path="accounting/deferrals" element={<Deferrals />} />
-                <Route path="accounting/loans" element={<Loans />} />
-                <Route path="settings/approvals" element={<ApprovalWorkflows />} />
-                <Route path="settings/currencies" element={<Currencies />} />
+                <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><TenantIntegrations /></ProtectedRoute>} />
+                <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><BusinessRules /></ProtectedRoute>} />
+                <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule="accounting"><ChartOfAccounts /></ProtectedRoute>} />
+                <Route path="accounting/journal" element={<ProtectedRoute requiredModule="accounting"><JournalEntries /></ProtectedRoute>} />
+                <Route path="accounting/invoices" element={<ProtectedRoute requiredModule="accounting"><Invoices /></ProtectedRoute>} />
+                <Route path="accounting/invoices/new" element={<ProtectedRoute requiredModule="accounting"><InvoiceForm /></ProtectedRoute>} />
+                <Route path="accounting/invoices/:id" element={<ProtectedRoute requiredModule="accounting"><InvoiceForm /></ProtectedRoute>} />
+                <Route path="accounting/fiscal-periods" element={<ProtectedRoute requiredModule="accounting"><FiscalPeriods /></ProtectedRoute>} />
+                <Route path="accounting/ledger" element={<ProtectedRoute requiredModule="accounting"><GeneralLedger /></ProtectedRoute>} />
+                <Route path="accounting/reports" element={<ProtectedRoute requiredModule="accounting"><Reports /></ProtectedRoute>} />
+                <Route path="accounting/reports/trial-balance" element={<ProtectedRoute requiredModule="accounting"><TrialBalance /></ProtectedRoute>} />
+                <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule="accounting"><IncomeStatement /></ProtectedRoute>} />
+                <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule="accounting"><BalanceSheet /></ProtectedRoute>} />
+                <Route path="settings/tax-rates" element={<ProtectedRoute requiredModule="settings-tax-rates"><TaxRates /></ProtectedRoute>} />
+                <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><Partners /></ProtectedRoute>} />
+                <Route path="crm/leads" element={<ProtectedRoute requiredModule="crm"><Leads /></ProtectedRoute>} />
+                <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><Opportunities /></ProtectedRoute>} />
+                <Route path="crm/quotes" element={<ProtectedRoute requiredModule="crm"><Quotes /></ProtectedRoute>} />
+                <Route path="crm/sales-orders" element={<ProtectedRoute requiredModule="crm"><SalesOrders /></ProtectedRoute>} />
+                <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
+                <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><GoodsReceipts /></ProtectedRoute>} />
+                <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoices /></ProtectedRoute>} />
+                <Route path="inventory/products" element={<ProtectedRoute requiredModule="inventory"><Products /></ProtectedRoute>} />
+                <Route path="inventory/stock" element={<ProtectedRoute requiredModule="inventory"><InventoryStock /></ProtectedRoute>} />
+                <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
+                <Route path="hr/employees" element={<ProtectedRoute requiredModule="hr"><Employees /></ProtectedRoute>} />
+                <Route path="hr/contracts" element={<ProtectedRoute requiredModule="hr"><EmployeeContracts /></ProtectedRoute>} />
+                <Route path="hr/departments" element={<ProtectedRoute requiredModule="hr"><Departments /></ProtectedRoute>} />
+                <Route path="hr/attendance" element={<ProtectedRoute requiredModule="hr"><Attendance /></ProtectedRoute>} />
+                <Route path="hr/leave-requests" element={<ProtectedRoute requiredModule="hr"><LeaveRequests /></ProtectedRoute>} />
+                <Route path="hr/payroll" element={<ProtectedRoute requiredModule="hr"><Payroll /></ProtectedRoute>} />
+                <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
+                <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
+                <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
+                <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><PosTerminal /></ProtectedRoute>} />
+                <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
+                <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
+                <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
+                <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule="accounting"><FixedAssets /></ProtectedRoute>} />
+                <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule="accounting"><AgingReports /></ProtectedRoute>} />
+                <Route path="accounting/deferrals" element={<ProtectedRoute requiredModule="accounting"><Deferrals /></ProtectedRoute>} />
+                <Route path="accounting/loans" element={<ProtectedRoute requiredModule="accounting"><Loans /></ProtectedRoute>} />
+                <Route path="settings/approvals" element={<ProtectedRoute requiredModule="settings-approvals"><ApprovalWorkflows /></ProtectedRoute>} />
+                <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><Currencies /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
