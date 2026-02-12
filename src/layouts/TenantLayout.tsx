@@ -54,9 +54,12 @@ const accountingNav = [
   { key: "reports" as const, url: "/accounting/reports", icon: BarChart3 },
 ];
 
+const crmNav = [
+  { key: "partners" as const, url: "/crm/partners", icon: Handshake },
+];
+
 const settingsNav = [
   { key: "companySettings" as const, url: "/settings", icon: Settings },
-  { key: "partners" as const, url: "/settings/partners", icon: Handshake },
   { key: "taxRates" as const, url: "/settings/tax-rates", icon: Percent },
   { key: "users" as const, url: "/settings/users", icon: Users },
   { key: "auditLog" as const, url: "/settings/audit-log", icon: FileText },
@@ -90,6 +93,27 @@ export default function TenantLayout() {
                         <NavLink
                           to={item.url}
                           end
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("crm")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {crmNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
                           className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
                           activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                         >

@@ -103,7 +103,7 @@ const App = () => (
                 <Route path="accounting/reports/income-statement" element={<IncomeStatement />} />
                 <Route path="accounting/reports/balance-sheet" element={<BalanceSheet />} />
                 <Route path="settings/tax-rates" element={<TaxRates />} />
-                <Route path="settings/partners" element={<Partners />} />
+                <Route path="crm/partners" element={<Partners />} />
                 <Route path="inventory/products" element={<Products />} />
                 <Route path="inventory/stock" element={<InventoryStock />} />
                 <Route path="inventory/movements" element={<InventoryMovements />} />
