@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 
@@ -38,6 +39,7 @@ export default function SalesOrders() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<SalesOrderForm>(emptyForm);
@@ -103,6 +105,20 @@ export default function SalesOrders() {
     setOpen(true);
   };
 
+  const createInvoice = (o: any) => {
+    navigate("/accounting/invoices/new", {
+      state: {
+        fromSalesOrder: {
+          partner_id: o.partner_id,
+          partner_name: o.partners?.name || o.partner_name,
+          currency: o.currency,
+          notes: `From Sales Order ${o.order_number}`,
+          sales_order_id: o.id,
+        },
+      },
+    });
+  };
+
   const statusColor = (s: string) => {
     if (s === "delivered") return "default";
     if (s === "cancelled") return "destructive";
@@ -146,7 +162,16 @@ export default function SalesOrders() {
                   <TableCell>{o.order_date}</TableCell>
                   <TableCell className="text-right">{fmt(o.total, o.currency)}</TableCell>
                   <TableCell><Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button>
+                      {(o.status === "confirmed" || o.status === "delivered") && (
+                        <Button size="sm" variant="outline" onClick={() => createInvoice(o)}>
+                          <FileText className="h-3 w-3 mr-1" />{t("createInvoiceFromOrder")}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -58,6 +58,7 @@ export default function InvoiceForm() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -138,6 +139,21 @@ export default function InvoiceForm() {
         });
     }
   }, [isEdit, tenantId]);
+
+  // Handle pre-fill from Sales Order
+  useEffect(() => {
+    const state = location.state as any;
+    if (!isEdit && state?.fromSalesOrder) {
+      const so = state.fromSalesOrder;
+      if (so.partner_id) {
+        setSelectedPartnerId(so.partner_id);
+        setPartnerName(so.partner_name || "");
+      }
+      if (so.currency) setCurrency(so.currency);
+      if (so.notes) setNotes(so.notes);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, isEdit]);
 
   // Init empty line when tax rates load
   useEffect(() => {

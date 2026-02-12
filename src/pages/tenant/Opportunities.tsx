@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const STAGES = ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
 
@@ -38,6 +39,7 @@ export default function Opportunities() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<OpportunityForm>(emptyForm);
@@ -90,6 +92,30 @@ export default function Opportunities() {
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunities"] }); setOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createQuoteMutation = useMutation({
+    mutationFn: async (opp: any) => {
+      const quoteNumber = `Q-${Date.now().toString(36).toUpperCase()}`;
+      const { error } = await supabase.from("quotes").insert([{
+        tenant_id: tenantId!,
+        quote_number: quoteNumber,
+        opportunity_id: opp.id,
+        partner_id: opp.partner_id || null,
+        partner_name: opp.partners?.name || "",
+        quote_date: new Date().toISOString().split("T")[0],
+        status: "draft",
+        currency: opp.currency || "RSD",
+        notes: opp.notes || "",
+      }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      toast.success(t("conversionSuccess"));
+      navigate("/crm/quotes");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -146,7 +172,16 @@ export default function Opportunities() {
                   <TableCell>{o.probability}%</TableCell>
                   <TableCell><Badge variant={stageColor(o.stage) as any}>{t(o.stage as any) || o.stage}</Badge></TableCell>
                   <TableCell>{o.expected_close_date || "—"}</TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button>
+                      {o.stage !== "closed_won" && o.stage !== "closed_lost" && (
+                        <Button size="sm" variant="outline" onClick={() => createQuoteMutation.mutate(o)} disabled={createQuoteMutation.isPending}>
+                          <FileText className="h-3 w-3 mr-1" />{t("createQuote")}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

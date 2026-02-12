@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
 
@@ -39,6 +40,7 @@ export default function Quotes() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<QuoteForm>(emptyForm);
@@ -91,6 +93,38 @@ export default function Quotes() {
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["quotes"] }); setOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const convertToSOmutation = useMutation({
+    mutationFn: async (q: any) => {
+      const orderNumber = `SO-${Date.now().toString(36).toUpperCase()}`;
+      const { error: soError } = await supabase.from("sales_orders").insert([{
+        tenant_id: tenantId!,
+        order_number: orderNumber,
+        quote_id: q.id,
+        partner_id: q.partner_id || null,
+        partner_name: q.partners?.name || q.partner_name || "",
+        order_date: new Date().toISOString().split("T")[0],
+        status: "pending",
+        currency: q.currency || "RSD",
+        subtotal: q.subtotal || 0,
+        tax_amount: q.tax_amount || 0,
+        total: q.total || 0,
+        notes: q.notes || "",
+      }]);
+      if (soError) throw soError;
+      // Mark quote as accepted if not already
+      if (q.status !== "accepted") {
+        await supabase.from("quotes").update({ status: "accepted" }).eq("id", q.id);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["sales-orders"] });
+      toast.success(t("conversionSuccess"));
+      navigate("/crm/sales-orders");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -149,7 +183,16 @@ export default function Quotes() {
                   <TableCell>{q.valid_until || "—"}</TableCell>
                   <TableCell className="text-right">{fmt(q.total, q.currency)}</TableCell>
                   <TableCell><Badge variant={statusColor(q.status) as any}>{t(q.status as any) || q.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(q)}>{t("edit")}</Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(q)}>{t("edit")}</Button>
+                      {(q.status === "accepted" || q.status === "sent") && (
+                        <Button size="sm" variant="outline" onClick={() => convertToSOmutation.mutate(q)} disabled={convertToSOmutation.isPending}>
+                          <ArrowRight className="h-3 w-3 mr-1" />{t("convertToSalesOrder")}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
