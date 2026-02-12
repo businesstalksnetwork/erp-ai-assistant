@@ -25,6 +25,7 @@ import {
   BookOpen,
   Calculator,
   CalendarDays,
+  Receipt,
 } from "lucide-react";
 
 const tenantNav = [
@@ -37,6 +38,7 @@ const tenantNav = [
 const accountingNav = [
   { key: "chartOfAccounts" as const, url: "/accounting/chart-of-accounts", icon: BookOpen },
   { key: "journalEntries" as const, url: "/accounting/journal", icon: Calculator },
+  { key: "invoices" as const, url: "/accounting/invoices", icon: Receipt },
   { key: "fiscalPeriods" as const, url: "/accounting/fiscal-periods", icon: CalendarDays },
 ];
 

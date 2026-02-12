@@ -36,6 +36,8 @@ import BusinessRules from "@/pages/tenant/BusinessRules";
 import ChartOfAccounts from "@/pages/tenant/ChartOfAccounts";
 import JournalEntries from "@/pages/tenant/JournalEntries";
 import FiscalPeriods from "@/pages/tenant/FiscalPeriods";
+import Invoices from "@/pages/tenant/Invoices";
+import InvoiceForm from "@/pages/tenant/InvoiceForm";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +83,9 @@ const App = () => (
                 <Route path="settings/business-rules" element={<BusinessRules />} />
                 <Route path="accounting/chart-of-accounts" element={<ChartOfAccounts />} />
                 <Route path="accounting/journal" element={<JournalEntries />} />
+                <Route path="accounting/invoices" element={<Invoices />} />
+                <Route path="accounting/invoices/new" element={<InvoiceForm />} />
+                <Route path="accounting/invoices/:id" element={<InvoiceForm />} />
                 <Route path="accounting/fiscal-periods" element={<FiscalPeriods />} />
               </Route>
 

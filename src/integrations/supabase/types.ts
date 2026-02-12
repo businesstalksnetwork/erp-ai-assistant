@@ -245,6 +245,137 @@ export type Database = {
           },
         ]
       }
+      invoice_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+          tax_rate_value: number
+          total_with_tax: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id: string
+          line_total?: number
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number
+          total_with_tax?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          notes: string | null
+          partner_address: string | null
+          partner_name: string
+          partner_pib: string | null
+          sef_status: string
+          status: string
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          notes?: string | null
+          partner_address?: string | null
+          partner_name?: string
+          partner_pib?: string | null
+          sef_status?: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string | null
+          partner_address?: string | null
+          partner_name?: string
+          partner_pib?: string | null
+          sef_status?: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -542,6 +673,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sales_channels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_rates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          name_sr: string | null
+          rate: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          name_sr?: string | null
+          rate?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          name_sr?: string | null
+          rate?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_rates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
