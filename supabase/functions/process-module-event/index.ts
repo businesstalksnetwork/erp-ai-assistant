@@ -166,12 +166,21 @@ async function handleEvent(
     if (eventType === "pos.transaction_completed") {
       return { action: "deduct_pos_stock", message: "POS stock deduction placeholder", entity_id: entityId };
     }
+    if (eventType === "return_case.approved") {
+      return await handleReturnApprovedInventory(supabase, tenantId, entityId, payload);
+    }
+    if (eventType === "supplier_return.shipped") {
+      return await handleSupplierReturnShipped(supabase, tenantId, entityId, payload);
+    }
   }
 
   // --- Accounting handlers ---
   if (handlerModule === "accounting") {
     if (eventType === "pos.transaction_completed") {
       return { action: "create_pos_journal", message: "POS journal entry placeholder", entity_id: entityId };
+    }
+    if (eventType === "credit_note.issued") {
+      return { action: "create_storno_journal", message: "Credit note storno journal placeholder", entity_id: entityId };
     }
   }
 
@@ -216,4 +225,97 @@ async function handleInvoicePostedInventory(
   }
 
   return { action: "deduct_stock", adjusted_products: adjustments };
+}
+
+async function handleReturnApprovedInventory(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string,
+  returnCaseId: string,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const returnType = payload.return_type as string;
+  if (returnType !== "customer") {
+    return { action: "skip", message: "Only customer returns add stock back" };
+  }
+
+  const { data: lines } = await supabase
+    .from("return_lines")
+    .select("product_id, quantity_accepted")
+    .eq("return_case_id", returnCaseId)
+    .eq("inspection_status", "accepted")
+    .not("product_id", "is", null);
+
+  if (!lines || lines.length === 0) {
+    return { action: "skip", message: "No accepted product lines" };
+  }
+
+  // Use first warehouse available for tenant
+  const { data: wh } = await supabase
+    .from("warehouses")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true)
+    .limit(1)
+    .single();
+
+  if (!wh) {
+    return { action: "skip", message: "No active warehouse found" };
+  }
+
+  const adjustments: string[] = [];
+  for (const line of lines) {
+    const { error } = await supabase.rpc("adjust_inventory_stock", {
+      p_tenant_id: tenantId,
+      p_product_id: line.product_id,
+      p_warehouse_id: wh.id,
+      p_quantity: line.quantity_accepted,
+      p_movement_type: "in",
+      p_notes: `Event bus: customer return ${payload.case_number || returnCaseId}`,
+      p_reference: String(payload.case_number || returnCaseId),
+    });
+    if (error) throw new Error(`Stock adjustment failed for product ${line.product_id}: ${error.message}`);
+    adjustments.push(line.product_id);
+  }
+
+  return { action: "add_return_stock", adjusted_products: adjustments };
+}
+
+async function handleSupplierReturnShipped(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string,
+  shipmentId: string,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const warehouseId = payload.warehouse_id as string | undefined;
+  const returnCaseId = payload.return_case_id as string | undefined;
+  if (!warehouseId || !returnCaseId) {
+    return { action: "skip", message: "No warehouse or return case specified" };
+  }
+
+  const { data: lines } = await supabase
+    .from("return_lines")
+    .select("product_id, quantity_returned")
+    .eq("return_case_id", returnCaseId)
+    .not("product_id", "is", null);
+
+  if (!lines || lines.length === 0) {
+    return { action: "skip", message: "No product lines on return case" };
+  }
+
+  const adjustments: string[] = [];
+  for (const line of lines) {
+    const { error } = await supabase.rpc("adjust_inventory_stock", {
+      p_tenant_id: tenantId,
+      p_product_id: line.product_id,
+      p_warehouse_id: warehouseId,
+      p_quantity: -line.quantity_returned,
+      p_movement_type: "out",
+      p_notes: `Event bus: supplier return shipment ${payload.shipment_number || shipmentId}`,
+      p_reference: String(payload.shipment_number || shipmentId),
+    });
+    if (error) throw new Error(`Stock adjustment failed for product ${line.product_id}: ${error.message}`);
+    adjustments.push(line.product_id);
+  }
+
+  return { action: "deduct_supplier_return_stock", adjusted_products: adjustments };
 }

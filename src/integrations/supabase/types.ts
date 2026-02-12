@@ -351,6 +351,73 @@ export type Database = {
           },
         ]
       }
+      credit_notes: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_number: string
+          currency: string
+          id: string
+          invoice_id: string | null
+          issued_at: string | null
+          notes: string | null
+          return_case_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          credit_number: string
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          notes?: string | null
+          return_case_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_number?: string
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          notes?: string | null
+          return_case_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_return_case_id_fkey"
+            columns: ["return_case_id"]
+            isOneToOne: false
+            referencedRelation: "return_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           code: string
@@ -2361,6 +2428,126 @@ export type Database = {
           },
         ]
       }
+      return_cases: {
+        Row: {
+          case_number: string
+          created_at: string
+          id: string
+          notes: string | null
+          opened_at: string
+          partner_id: string | null
+          resolved_at: string | null
+          return_type: string
+          source_id: string
+          source_type: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          case_number: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          partner_id?: string | null
+          resolved_at?: string | null
+          return_type?: string
+          source_id: string
+          source_type?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          case_number?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          partner_id?: string | null
+          resolved_at?: string | null
+          return_type?: string
+          source_id?: string
+          source_type?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_cases_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_cases_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      return_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          inspection_status: string
+          notes: string | null
+          product_id: string | null
+          quantity_accepted: number
+          quantity_returned: number
+          reason: string
+          return_case_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          inspection_status?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity_accepted?: number
+          quantity_returned?: number
+          reason?: string
+          return_case_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          inspection_status?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity_accepted?: number
+          quantity_returned?: number
+          reason?: string
+          return_case_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_lines_return_case_id_fkey"
+            columns: ["return_case_id"]
+            isOneToOne: false
+            referencedRelation: "return_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_channels: {
         Row: {
           created_at: string
@@ -2630,6 +2817,80 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_return_shipments: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_order_id: string | null
+          return_case_id: string | null
+          shipment_number: string
+          shipped_at: string | null
+          status: string
+          tenant_id: string
+          tracking_number: string | null
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          return_case_id?: string | null
+          shipment_number: string
+          shipped_at?: string | null
+          status?: string
+          tenant_id: string
+          tracking_number?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          return_case_id?: string | null
+          shipment_number?: string
+          shipped_at?: string | null
+          status?: string
+          tenant_id?: string
+          tracking_number?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_return_shipments_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_return_shipments_return_case_id_fkey"
+            columns: ["return_case_id"]
+            isOneToOne: false
+            referencedRelation: "return_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_return_shipments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_return_shipments_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]

@@ -67,6 +67,7 @@ import Documents from "@/pages/tenant/Documents";
 import PosTerminal from "@/pages/tenant/PosTerminal";
 import PosSessions from "@/pages/tenant/PosSessions";
 import EventMonitor from "@/pages/tenant/EventMonitor";
+import Returns from "@/pages/tenant/Returns";
 
 const queryClient = new QueryClient();
 
@@ -145,6 +146,7 @@ const App = () => (
                 <Route path="pos/terminal" element={<PosTerminal />} />
                 <Route path="pos/sessions" element={<PosSessions />} />
                 <Route path="settings/events" element={<EventMonitor />} />
+                <Route path="returns" element={<Returns />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

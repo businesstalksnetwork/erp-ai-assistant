@@ -52,6 +52,7 @@ import {
   Truck,
   ClipboardCheck,
   FileInput,
+  RotateCcw,
 } from "lucide-react";
 
 const mainNav = [
@@ -85,6 +86,10 @@ const purchasingNav = [
   { key: "purchaseOrders" as const, url: "/purchasing/orders", icon: Truck },
   { key: "goodsReceipts" as const, url: "/purchasing/goods-receipts", icon: ClipboardCheck },
   { key: "supplierInvoices" as const, url: "/purchasing/supplier-invoices", icon: FileInput },
+];
+
+const returnsNav = [
+  { key: "returns" as const, url: "/returns", icon: RotateCcw },
 ];
 
 const hrNav = [
@@ -184,6 +189,27 @@ export default function TenantLayout() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {purchasingNav.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-sidebar-accent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{t(item.key)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t("returns")}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {returnsNav.map((item) => (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton asChild>
                         <NavLink
