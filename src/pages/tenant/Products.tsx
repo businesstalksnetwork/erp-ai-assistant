@@ -29,12 +29,13 @@ interface ProductForm {
   default_sale_price: number;
   tax_rate_id: string;
   is_active: boolean;
+  costing_method: string;
 }
 
 const emptyForm: ProductForm = {
   name: "", name_sr: "", sku: "", barcode: "", description: "",
   unit_of_measure: "pcs", default_purchase_price: 0, default_sale_price: 0,
-  tax_rate_id: "", is_active: true,
+  tax_rate_id: "", is_active: true, costing_method: "weighted_average",
 };
 
 export default function Products() {
@@ -122,6 +123,7 @@ export default function Products() {
       default_purchase_price: Number(p.default_purchase_price),
       default_sale_price: Number(p.default_sale_price),
       tax_rate_id: p.tax_rate_id || "", is_active: p.is_active,
+      costing_method: p.costing_method || "weighted_average",
     });
     setDialogOpen(true);
   };
@@ -166,6 +168,7 @@ export default function Products() {
                 <TableHead>{t("name")}</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>{t("unitOfMeasure")}</TableHead>
+                <TableHead>{t("costingMethod")}</TableHead>
                 <TableHead className="text-right">{t("purchasePrice")}</TableHead>
                 <TableHead className="text-right">{t("salePrice")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
@@ -178,6 +181,7 @@ export default function Products() {
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>{p.sku || "—"}</TableCell>
                   <TableCell>{p.unit_of_measure}</TableCell>
+                  <TableCell><Badge variant="outline">{p.costing_method === "fifo" ? t("fifo") : t("weightedAverage")}</Badge></TableCell>
                   <TableCell className="text-right font-mono">{fmtNum(Number(p.default_purchase_price))}</TableCell>
                   <TableCell className="text-right font-mono">{fmtNum(Number(p.default_sale_price))}</TableCell>
                   <TableCell>
@@ -206,7 +210,7 @@ export default function Products() {
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -245,6 +249,16 @@ export default function Products() {
                   {taxRates.map((tr) => (
                     <SelectItem key={tr.id} value={tr.id}>{tr.name} ({Number(tr.rate)}%)</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("costingMethod")}</Label>
+              <Select value={form.costing_method} onValueChange={(v) => setForm({ ...form, costing_method: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weighted_average">{t("weightedAverage")}</SelectItem>
+                  <SelectItem value="fifo">{t("fifo")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

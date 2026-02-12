@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 
 interface AssetForm {
   name: string;
@@ -27,6 +28,9 @@ interface AssetForm {
   useful_life_months: number;
   salvage_value: number;
   status: string;
+  disposal_type: string;
+  sale_price: number;
+  legal_entity_id: string;
 }
 
 const emptyForm: AssetForm = {
@@ -38,6 +42,9 @@ const emptyForm: AssetForm = {
   useful_life_months: 60,
   salvage_value: 0,
   status: "active",
+  disposal_type: "",
+  sale_price: 0,
+  legal_entity_id: "",
 };
 
 export default function FixedAssets() {
@@ -45,6 +52,7 @@ export default function FixedAssets() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { entities } = useLegalEntities();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<AssetForm>(emptyForm);
@@ -76,7 +84,7 @@ export default function FixedAssets() {
     mutationFn: async () => {
       if (!tenantId) return;
       const previousStatus = editId ? assets.find((a: any) => a.id === editId)?.status : null;
-      const payload = { ...form, tenant_id: tenantId };
+      const payload = { ...form, tenant_id: tenantId, legal_entity_id: form.legal_entity_id || null };
 
       if (editId) {
         const { error } = await supabase.from("fixed_assets").update(payload).eq("id", editId);
@@ -87,6 +95,8 @@ export default function FixedAssets() {
           const accum = getAccumulated(editId);
           const cost = form.acquisition_cost;
           const bookValue = cost - accum;
+          const salePrice = form.disposal_type === "sold" ? form.sale_price : 0;
+          const gainLoss = salePrice - bookValue;
           const entryDate = new Date().toISOString().split("T")[0];
 
           const lines: any[] = [];
@@ -97,25 +107,31 @@ export default function FixedAssets() {
             lines.push({ accountCode: "1290", debit: accum, credit: 0, description: `Clear accum. dep. - ${form.name}`, sortOrder: sortOrder++ });
           }
 
-          // If book value > 0, it's a loss on disposal
-          if (bookValue > 0) {
-            lines.push({ accountCode: "8200", debit: bookValue, credit: 0, description: `Loss on disposal - ${form.name}`, sortOrder: sortOrder++ });
+          // If sold, debit bank/cash for sale proceeds
+          if (form.disposal_type === "sold" && salePrice > 0) {
+            lines.push({ accountCode: "2410", debit: salePrice, credit: 0, description: `Sale proceeds - ${form.name}`, sortOrder: sortOrder++ });
           }
 
           // Credit the asset at cost
           lines.push({ accountCode: "1200", debit: 0, credit: cost, description: `Remove asset - ${form.name}`, sortOrder: sortOrder++ });
 
+          // Gain or loss
+          if (gainLoss > 0) {
+            lines.push({ accountCode: "8210", debit: 0, credit: gainLoss, description: `${t("gainOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
+          } else if (gainLoss < 0) {
+            lines.push({ accountCode: "8200", debit: Math.abs(gainLoss), credit: 0, description: `${t("lossOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
+          }
+
           if (lines.length > 0) {
             await createCodeBasedJournalEntry({
               tenantId, userId: user?.id || null, entryDate,
-              description: `Asset Disposal - ${form.name}`,
+              description: `Asset Disposal (${form.disposal_type || "scrapped"}) - ${form.name}`,
               reference: `DISP-${form.name}`,
               lines,
             });
           }
 
-          // Update disposed_at
-          await supabase.from("fixed_assets").update({ disposed_at: entryDate }).eq("id", editId);
+          await supabase.from("fixed_assets").update({ disposed_at: entryDate, disposal_type: form.disposal_type || "scrapped", sale_price: salePrice }).eq("id", editId);
         }
       } else {
         const { error } = await supabase.from("fixed_assets").insert(payload);
@@ -195,7 +211,7 @@ export default function FixedAssets() {
   const openAdd = () => { setEditId(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (a: any) => {
     setEditId(a.id);
-    setForm({ name: a.name, description: a.description || "", acquisition_date: a.acquisition_date, acquisition_cost: Number(a.acquisition_cost), depreciation_method: a.depreciation_method, useful_life_months: a.useful_life_months, salvage_value: Number(a.salvage_value), status: a.status });
+    setForm({ name: a.name, description: a.description || "", acquisition_date: a.acquisition_date, acquisition_cost: Number(a.acquisition_cost), depreciation_method: a.depreciation_method, useful_life_months: a.useful_life_months, salvage_value: Number(a.salvage_value), status: a.status, disposal_type: a.disposal_type || "", sale_price: Number(a.sale_price || 0), legal_entity_id: a.legal_entity_id || "" });
     setDialogOpen(true);
   };
 
@@ -317,6 +333,37 @@ export default function FixedAssets() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            {form.status === "disposed" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("disposalType")}</Label>
+                  <Select value={form.disposal_type || "scrapped"} onValueChange={(v) => setForm({ ...form, disposal_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scrapped">{t("scrapped")}</SelectItem>
+                      <SelectItem value="sold">{t("sold")}</SelectItem>
+                      <SelectItem value="transferred">{t("transferred")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.disposal_type === "sold" && (
+                  <div className="grid gap-2">
+                    <Label>{t("salePrice")}</Label>
+                    <Input type="number" min={0} step={0.01} value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="grid gap-2">
+              <Label>{t("legalEntity")}</Label>
+              <Select value={form.legal_entity_id || "__none__"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none__" ? "" : v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

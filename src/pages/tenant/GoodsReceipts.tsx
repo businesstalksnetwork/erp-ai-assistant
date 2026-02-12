@@ -123,7 +123,7 @@ export default function GoodsReceipts() {
         );
         if (error) throw error;
       }
-      // If completed, adjust inventory and create journal entry
+      // If completed, adjust inventory, create cost layers, and create journal entry
       if (f.status === "completed" && f.warehouse_id) {
         let totalValue = 0;
         for (const line of validLines) {
@@ -137,6 +137,19 @@ export default function GoodsReceipts() {
             const prod = products.find((p: any) => p.id === line.product_id);
             const price = prod?.default_purchase_price || 0;
             totalValue += line.quantity_received * price;
+
+            // Create cost layer
+            if (price > 0) {
+              await supabase.from("inventory_cost_layers").insert({
+                tenant_id: tenantId!,
+                product_id: line.product_id,
+                warehouse_id: f.warehouse_id,
+                layer_date: new Date().toISOString().split("T")[0],
+                quantity_remaining: line.quantity_received,
+                unit_cost: price,
+                reference: `GRN-${f.receipt_number}`,
+              });
+            }
           }
         }
 

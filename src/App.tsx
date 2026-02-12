@@ -95,6 +95,9 @@ import Contacts from "@/pages/tenant/Contacts";
 import ContactDetail from "@/pages/tenant/ContactDetail";
 import Meetings from "@/pages/tenant/Meetings";
 import Eotpremnica from "@/pages/tenant/Eotpremnica";
+import FxRevaluation from "@/pages/tenant/FxRevaluation";
+import Kompenzacija from "@/pages/tenant/Kompenzacija";
+import InventoryCostLayers from "@/pages/tenant/InventoryCostLayers";
 
 const queryClient = new QueryClient();
 
@@ -201,6 +204,9 @@ const App = () => (
                 <Route path="accounting/open-items" element={<ProtectedRoute requiredModule="accounting"><OpenItems /></ProtectedRoute>} />
                 <Route path="accounting/pdv" element={<ProtectedRoute requiredModule="accounting"><PdvPeriods /></ProtectedRoute>} />
                 <Route path="accounting/year-end" element={<ProtectedRoute requiredModule="accounting"><YearEndClosing /></ProtectedRoute>} />
+                <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule="accounting"><FxRevaluation /></ProtectedRoute>} />
+                <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule="accounting"><Kompenzacija /></ProtectedRoute>} />
+                <Route path="inventory/cost-layers" element={<ProtectedRoute requiredModule="inventory"><InventoryCostLayers /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
