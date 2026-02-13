@@ -1,125 +1,147 @@
 
+# P0 Security Fix: Tenant Membership Guards for All Edge Functions
 
-# PDF Reports for Serbian Regulatory Compliance
+## Problem
 
-## Overview
+14 out of 17 edge functions allow any authenticated user to access ANY tenant's data by simply passing a different `tenant_id`. Two functions (`nbs-exchange-rates`, `wms-slotting`) have zero authentication at all.
 
-Extend the existing `generate-pdf` edge function to produce downloadable PDF-quality HTML reports for all major financial statements and the PDV (VAT) return. Each report page will get a "Download PDF" button alongside the existing Print and CSV Export buttons.
+## Solution
 
----
-
-## Current State
-
-- **Invoice PDF**: Already implemented in `generate-pdf` edge function (Serbian FAKTURA format)
-- **Payslip (Platna Lista)**: Already implemented in `generate-pdf` (employee payslip with contributions breakdown)
-- **Financial reports**: Trial Balance, Income Statement, Balance Sheet exist as interactive pages with `PrintButton` (window.print) and CSV export -- but no styled PDF download
-- **PDV Periods**: Full POPDV section calculation exists but no exportable PDF for tax authority submission
+Add a shared tenant membership verification pattern to every function that accesses tenant-scoped data. The guard verifies the authenticated user is an active member of the requested tenant before proceeding.
 
 ---
 
-## Reports to Add
+## Guard Pattern (applied to all functions)
 
-### 1. Trial Balance PDF (Bruto Bilans)
-- Company header with legal entity info (name, PIB, maticni broj)
-- Date range header
-- Table: Account Code | Account Name | Debit | Credit | Balance
-- Footer totals row
-- Serbian formatting (sr-RS locale for numbers)
+After JWT validation and before any business logic, add:
 
-### 2. Income Statement PDF (Bilans Uspeha)
-- Revenue section grouped by account
-- Expense section grouped by account
-- Subtotals for each section
-- Net profit/loss line
-- Period header with date range
+```text
+1. Extract user from JWT (already done in most functions)
+2. Query tenant_members WHERE user_id = caller.id AND tenant_id = requested_tenant_id AND status = 'active'
+3. If no membership found -> return 403 Forbidden
+4. Proceed with business logic
+```
 
-### 3. Balance Sheet PDF (Bilans Stanja)
-- Assets section with subtotal
-- Liabilities section with subtotal
-- Equity section with subtotal
-- Assets = Liabilities + Equity verification line
-- As-of date header
-
-### 4. PDV Return PDF (PDV Prijava / POPDV Obrazac)
-- POPDV sections (3, 3a, 4, 5, 6, 8a, 8b, 8v, 9, 10, 11) with base amounts and VAT
-- Output VAT total vs Input VAT total
-- Net VAT payable/refundable
-- Period and legal entity header
-- Format matching Serbian tax authority expectations
-
-### 5. Aging Report PDF (Starost Potraživanja)
-- Grouped by partner
-- Columns: Current | 1-30 days | 31-60 days | 61-90 days | 90+ days
-- Totals row
+The service-role admin client (already instantiated in each function) performs this check so it bypasses RLS and works reliably.
 
 ---
 
-## Technical Approach
+## Functions to Fix (grouped by severity)
 
-### Edge Function: `supabase/functions/generate-pdf/index.ts`
+### CRITICAL: Zero Authentication (2 functions)
+These need both JWT auth AND tenant membership added:
 
-Extend the existing function with new `type` values:
-- `type: "trial_balance"` with `tenant_id`, `date_from`, `date_to`
-- `type: "income_statement"` with `tenant_id`, `date_from`, `date_to`
-- `type: "balance_sheet"` with `tenant_id`, `as_of_date`
-- `type: "pdv_return"` with `pdv_period_id`
-- `type: "aging_report"` with `tenant_id`, `as_of_date`
+1. **`nbs-exchange-rates/index.ts`** -- Add JWT validation + tenant membership check
+2. **`wms-slotting/index.ts`** -- Add JWT validation + tenant membership check
 
-Each generates a styled HTML document with:
-- Consistent company header (legal entity name, PIB, address)
-- Serbian number formatting (sr-RS locale)
-- Print-optimized CSS (@media print styles, page breaks)
-- Professional styling matching the existing invoice/payslip template
+### HIGH: Missing Tenant Membership (11 functions)
+These already validate JWT but allow cross-tenant access:
 
-### Frontend: Download PDF Button Component
+3. **`ai-insights/index.ts`** -- Add membership check after line 30
+4. **`ai-assistant/index.ts`** -- Add membership check after JWT validation
+5. **`create-notification/index.ts`** -- Add membership check after line 24
+6. **`sef-submit/index.ts`** -- Add membership check after line 24
+7. **`sef-poll-status/index.ts`** -- Add membership check after line 24
+8. **`fiscalize-receipt/index.ts`** -- Add membership check after line 33
+9. **`fiscalize-retry-offline/index.ts`** -- Add membership check after line 18
+10. **`ebolovanje-submit/index.ts`** -- Add membership check after JWT validation
+11. **`eotpremnica-submit/index.ts`** -- Add membership check after JWT validation
+12. **`web-sync/index.ts`** -- Add membership check after line 28
+13. **`generate-pdf/index.ts`** -- Add membership check to financial report branches (trial_balance, income_statement, balance_sheet, pdv_return, aging_report); invoice branch already has it
 
-Create a reusable `DownloadPdfButton` component that:
-- Calls the `generate-pdf` edge function with the appropriate parameters
-- Opens the returned HTML in a new tab (users can then print to PDF or save)
-- Shows loading state during fetch
+### OK: No changes needed (3 functions)
+- **`create-tenant`** -- Already checks super_admin role
+- **`web-order-import`** -- Webhook with HMAC signature verification (no user session)
+- **`company-lookup`** -- Stateless external API lookup, no tenant data accessed
 
-### Pages to Update
-
-Each report page gets a `DownloadPdfButton` next to the existing Print/Export buttons:
-
-- `TrialBalance.tsx` -- adds Download PDF with date range params
-- `IncomeStatement.tsx` -- adds Download PDF with date range params
-- `BalanceSheet.tsx` -- adds Download PDF with as-of-date param
-- `PdvPeriods.tsx` -- adds Download PDF per period (in the detail/view area)
-- `AgingReports.tsx` -- adds Download PDF with as-of-date param
-- `Payroll.tsx` -- ensure existing payslip download works for each employee row
-
-### Bug Fix in `generate-pdf`
-
-The existing code has a bug on line 51: it references `admin` before it's declared (line 61). The `const admin = createClient(...)` line needs to move above the payslip branch.
+### MEDIUM: Internal event bus (1 function)
+- **`process-module-event`** -- Uses internal service secret for function-to-function calls; acceptable pattern, but add tenant scoping validation for the JWT path
 
 ---
 
-## Files Changed
+## Implementation Details
 
-### Modified
-- `supabase/functions/generate-pdf/index.ts` -- add 5 new report types + fix admin declaration order
-- `src/pages/tenant/TrialBalance.tsx` -- add Download PDF button
-- `src/pages/tenant/IncomeStatement.tsx` -- add Download PDF button
-- `src/pages/tenant/BalanceSheet.tsx` -- add Download PDF button
-- `src/pages/tenant/PdvPeriods.tsx` -- add Download PDF button per period
-- `src/pages/tenant/AgingReports.tsx` -- add Download PDF button
-- `src/i18n/translations.ts` -- new keys: downloadPdf, generatingPdf, pdfReady
+### The membership check block (identical pattern for all)
 
-### New
-- `src/components/DownloadPdfButton.tsx` -- reusable button component
+For functions that already have `const admin = createClient(...serviceRoleKey)`:
+
+```typescript
+// Verify tenant membership
+const { data: membership } = await admin
+  .from("tenant_members")
+  .select("id")
+  .eq("user_id", caller.id)
+  .eq("tenant_id", tenant_id)
+  .eq("status", "active")
+  .maybeSingle();
+
+if (!membership) {
+  return new Response(
+    JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+```
+
+### For `nbs-exchange-rates` and `wms-slotting` (zero-auth functions)
+
+These need the full auth block added before business logic:
+
+```typescript
+const authHeader = req.headers.get("Authorization");
+if (!authHeader) {
+  return new Response(JSON.stringify({ error: "Unauthorized" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+const userClient = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+  { global: { headers: { Authorization: authHeader } } }
+);
+const { data: { user: caller }, error: authErr } = await userClient.auth.getUser();
+if (authErr || !caller) {
+  return new Response(JSON.stringify({ error: "Unauthorized" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+// Then the membership check as above
+```
+
+### For `generate-pdf` financial report branches
+
+The invoice branch already checks membership. The fix adds the same check inside `generateTrialBalance`, `generateIncomeStatement`, `generateBalanceSheet`, `generatePdvReturn`, and `generateAgingReport` -- passing the `user` object to each function and checking membership before querying data.
+
+### For `process-module-event` (JWT path only)
+
+When authenticated via JWT (not internal secret), add a check that the user has membership to the tenant associated with the event being processed.
 
 ---
 
-## Implementation Order
+## Files Modified
 
-1. Fix the `admin` variable bug in `generate-pdf`
-2. Add `DownloadPdfButton` component
-3. Add Trial Balance PDF generation + button
-4. Add Income Statement PDF generation + button
-5. Add Balance Sheet PDF generation + button
-6. Add PDV Return PDF generation + button
-7. Add Aging Report PDF generation + button
-8. Add translation keys
-9. Deploy edge function
+All changes are in `supabase/functions/`:
 
+1. `nbs-exchange-rates/index.ts` -- Add full JWT + membership guard
+2. `wms-slotting/index.ts` -- Add full JWT + membership guard
+3. `ai-insights/index.ts` -- Add membership guard
+4. `ai-assistant/index.ts` -- Add membership guard
+5. `create-notification/index.ts` -- Add membership guard
+6. `sef-submit/index.ts` -- Add membership guard
+7. `sef-poll-status/index.ts` -- Add membership guard
+8. `fiscalize-receipt/index.ts` -- Add membership guard
+9. `fiscalize-retry-offline/index.ts` -- Add membership guard
+10. `ebolovanje-submit/index.ts` -- Add membership guard
+11. `eotpremnica-submit/index.ts` -- Add membership guard
+12. `web-sync/index.ts` -- Add membership guard
+13. `generate-pdf/index.ts` -- Add membership guard to financial report functions
+14. `process-module-event/index.ts` -- Add tenant membership check on JWT path
+
+No frontend changes required. All changes are backend security hardening.
+
+---
+
+## Verification
+
+After deployment, every function should:
+- Return 401 if no/invalid JWT provided
+- Return 403 if valid JWT but user is not an active member of the requested tenant
+- Return 200/normal response only for authenticated tenant members
