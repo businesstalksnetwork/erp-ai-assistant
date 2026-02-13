@@ -1,89 +1,52 @@
 
-# Codebase Review: Issues Found and Next Steps
 
-## Issues Found
+# Fix Cyrillic to Latin Script in Serbian Translations
 
-### 1. Bug: Wrong Navigation Path on Dashboard
-**File**: `src/pages/tenant/Dashboard.tsx`, line 243
+## Problem
 
-The "Pending Approvals" action button navigates to `/accounting/approval-workflows` -- this route does not exist. The correct route is `/settings/pending-approvals`.
+The screenshot shows "offlineReceipts" displayed as a raw key, and several labels appear in Cyrillic script (e.g., "Статус фискалних рачуна"). The app should use Serbian **Latin** script exclusively.
 
-**Fix**: Change `navigate("/accounting/approval-workflows")` to `navigate("/settings/pending-approvals")`.
+## Root Cause
 
----
+In `src/i18n/translations.ts`, lines 2909-2931 contain **Cyrillic** Serbian text instead of Latin. Additionally, the key `offlineReceipts` is missing entirely from the Serbian (`sr`) section.
 
-### 2. Missing Sidebar Item: Attendance
-**File**: `src/layouts/TenantLayout.tsx`
+## Changes
 
-The route `/hr/attendance` exists in `App.tsx` (line 222) and the `Attendance` page component exists, but there is no entry in the `hrNav` array in the sidebar. Users can only reach it by typing the URL directly.
+**File**: `src/i18n/translations.ts` (lines 2909-2931)
 
-**Fix**: Add `{ key: "attendance", url: "/hr/attendance", icon: Clock }` to the `hrNav` array (after `leaveRequests` or near `workLogs`).
+Convert all 23 Cyrillic values to Latin and add the missing `offlineReceipts` key:
 
----
+| Key | Cyrillic (current) | Latin (fix) |
+|-----|-------------------|-------------|
+| eBolovanje | еБоловање | eBolovanje |
+| eBolovanjeRequired | Интеграција еБоловање... | Integracija eBolovanje je obavezna od 1. januara 2026. |
+| eBolovanjeDescription | Јединствени систем... | Jedinstveni sistem poslodavaca (eBolovanje -- Poslodavac) zahteva registraciju poslodavaca na eUpravi i elektronsku razmenu potvrda/doznaka o bolovanju. Podnosenje zahteva i prigovora pocinje 3. marta 2026. |
+| eBolovanjeFeature1 | Регистрација... | Registracija i autentifikacija na portalu eUprava |
+| eBolovanjeFeature2 | Електронска... | Elektronska razmena potvrda o bolovanju (doznake) |
+| eBolovanjeFeature3 | Подношење... | Podnosenje zahteva i prigovora (od 3. marta 2026.) |
+| eBolovanjeFeature4 | Интеграција... | Integracija sa zahtevima za odsustvo i obracunom zarada |
+| pdfReady | PDF извештај... | PDF izvestaj je spreman. |
+| fiscalReceiptStatus | Статус фискалних рачуна | Status fiskalnih racuna |
+| signedReceipts | Потписани | Potpisani |
+| **offlineReceipts** | *(missing)* | **Oflajn racuni** |
+| failedReceipts | Неуспели | Neuspeli |
+| noReceipts | Нема пронађених... | Nema pronadjenih racuna. |
+| paymentMethod | Начин плаћања | Nacin placanja |
+| activeSessions | Активне сесије | Aktivne sesije |
+| apiCalls24h | API позиви (24ч) | API pozivi (24c) |
+| errors24h | Грешке (24ч) | Greske (24c) |
+| systemEvents | Системски догађаји | Sistemski dogadjaji |
+| noSystemEvents | Нема забележених... | Nema zabelezenih sistemskih dogadjaja. |
+| events | догађаја | dogadjaja |
+| errorMessage | Грешка | Greska |
+| timestamp | Временска ознака | Vremenska oznaka |
+| pollAllSef | Освежи СЕФ статусе | Osvezi SEF statuse |
+| checked | проверено | provereno |
 
-### 3. Stale Global Search Paths
-**File**: `src/components/layout/GlobalSearch.tsx`, lines 44-45
+## Scope
 
-Two search items point to wrong paths under `/crm/`:
-- `Quotes` points to `/crm/quotes` -- actual route is `/sales/quotes`
-- `Sales Orders` points to `/crm/sales-orders` -- actual route is `/sales/sales-orders`
+- **1 file** modified: `src/i18n/translations.ts`
+- **23 values** converted from Cyrillic to Latin
+- **1 missing key** added (`offlineReceipts`)
+- No other files or logic changes needed
 
-Additionally, the Global Search is missing most pages. It only indexes ~20 items out of 100+ routes. Key missing entries include:
-- All WMS pages, Inventory sub-pages (kalkulacija, nivelacija, cost-layers, etc.)
-- All Accounting sub-pages (bank-statements, open-items, PDV, fixed-assets, deferrals, loans, etc.)
-- All HR sub-pages (work-logs, overtime, night-work, annual-leave, deductions, allowances, etc.)
-- All POS sub-pages (sessions, fiscal-devices, daily-report)
-- All Sales sub-pages (salespeople, sales-performance, retail-prices, sales-channels)
-- Web Sales pages
-- Documents sub-pages
-
-**Fix**: Expand the `items` array to cover all routable pages, grouped by module.
-
----
-
-### 4. Missing Translation Key: "bulkEntry"
-**File**: `src/i18n/translations.ts`
-
-The breadcrumb label for the "bulk" route segment maps to `"bulkEntry"`, but this key likely needs verification that it exists in the translations file.
-
-**Fix**: Verify and add `bulkEntry` and `calendar` translation keys if missing.
-
----
-
-## Summary of Fixes
-
-| # | Issue | File | Severity |
-|---|-------|------|----------|
-| 1 | Pending approvals navigates to non-existent route | Dashboard.tsx | Bug |
-| 2 | Attendance page not in sidebar | TenantLayout.tsx | Missing feature |
-| 3 | Quotes/Sales Orders search paths wrong + most pages missing from search | GlobalSearch.tsx | Bug + Gap |
-| 4 | Possibly missing translation keys | translations.ts | Minor |
-
----
-
-## Proposed Next Steps (Priority Order)
-
-1. **Fix the 4 issues above** -- bugs and missing items
-2. **Dark mode toggle** -- the app imports `next-themes` but doesn't appear to use it; add a theme toggle to the user dropdown
-3. **Mobile responsiveness audit** -- sidebar behavior on small screens
-4. **Loading states** -- add skeleton loaders to dashboard KPI cards and charts while data loads
-5. **Error boundaries** -- wrap module sections with error boundaries so one failing module doesn't crash the whole app
-
----
-
-## Technical Details
-
-### File Changes Required
-
-**`src/pages/tenant/Dashboard.tsx`** (1 line):
-- Line 243: Change `"/accounting/approval-workflows"` to `"/settings/pending-approvals"`
-
-**`src/layouts/TenantLayout.tsx`** (1 addition):
-- Add to `hrNav` array: `{ key: "attendance", url: "/hr/attendance", icon: Clock }`
-
-**`src/components/layout/GlobalSearch.tsx`** (major expansion):
-- Fix 2 wrong paths (quotes, sales-orders)
-- Add ~60 missing search entries covering all modules: Sales (6 items), Purchasing (3), Inventory (16 including WMS), Accounting (12), HR (17), POS (4), Web (2), Documents (7), Settings (8)
-
-**`src/i18n/translations.ts`** (verify/add):
-- Ensure `bulkEntry` and `calendar` keys exist in both `en` and `sr` objects
