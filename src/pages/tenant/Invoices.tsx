@@ -45,6 +45,24 @@ export default function Invoices() {
   const [legalEntityFilter, setLegalEntityFilter] = useState<string>("all");
   const { entities: legalEntities } = useLegalEntities();
   const { checkApproval } = useApprovalCheck(tenantId, "invoice");
+  const [pollingAll, setPollingAll] = useState(false);
+
+  const handlePollAllSef = async () => {
+    if (!tenantId) return;
+    setPollingAll(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sef-poll-status", {
+        body: { tenant_id: tenantId },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: t("success"), description: `${t("pollAllSef")}: ${data?.polled || 0} ${t("checked")}` });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setPollingAll(false);
+    }
+  };
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["invoices", tenantId, legalEntityFilter],
@@ -185,6 +203,10 @@ export default function Invoices() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("invoices")}</h1>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePollAllSef} disabled={pollingAll}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${pollingAll ? "animate-spin" : ""}`} />
+            {t("pollAllSef")}
+          </Button>
           <ExportButton
             data={filtered}
             columns={[

@@ -1474,6 +1474,8 @@ export const translations = {
     events: "events",
     errorMessage: "Error",
     timestamp: "Timestamp",
+    pollAllSef: "Refresh SEF Statuses",
+    checked: "checked",
   },
   sr: {
     // Auth
@@ -2896,6 +2898,8 @@ export const translations = {
     events: "догађаја",
     errorMessage: "Грешка",
     timestamp: "Временска ознака",
+    pollAllSef: "Освежи СЕФ статусе",
+    checked: "проверено",
   },
 } as const;
 
