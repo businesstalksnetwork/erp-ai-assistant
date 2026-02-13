@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { toast } from "sonner";
-import { Save, BarChart3 } from "lucide-react";
+import { Save, BarChart3, AlertTriangle } from "lucide-react";
 
 const currentYear = new Date().getFullYear();
 
@@ -120,6 +122,21 @@ export default function BudgetVsActuals() {
     [sr ? "Stvarni" : "Actual"]: r.actual,
   }));
 
+  // Anomaly detection: accounts where actual exceeds budget by >20%
+  const overBudgetRows = rows.filter(r => r.budget > 0 && r.variancePct < -20);
+  const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
+  const totalActual = rows.reduce((s, r) => s + r.actual, 0);
+
+  const aiNarrativeData = overBudgetRows.length > 0 ? {
+    overBudgetCount: overBudgetRows.length,
+    totalBudget,
+    totalActual,
+    topOverBudget: overBudgetRows.slice(0, 5).map(r => ({
+      code: r.code, name: sr && r.name_sr ? r.name_sr : r.name,
+      budget: r.budget, actual: r.actual, variancePct: Math.round(r.variancePct),
+    })),
+  } : {};
+
   return (
     <div className="space-y-6">
       <PageHeader title={sr ? "Budžet vs Stvarni" : "Budget vs Actuals"} actions={
@@ -132,6 +149,25 @@ export default function BudgetVsActuals() {
           </SelectContent>
         </Select>
       } />
+
+      {overBudgetRows.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {sr
+              ? `⚠️ ${overBudgetRows.length} kont(a/o) premašuju budžet za više od 20%: `
+              : `⚠️ ${overBudgetRows.length} account(s) exceed budget by more than 20%: `}
+            {overBudgetRows.slice(0, 3).map(r =>
+              `${r.code} (${Math.abs(Math.round(r.variancePct))}%)`
+            ).join(", ")}
+            {overBudgetRows.length > 3 && (sr ? ` i još ${overBudgetRows.length - 3}` : ` and ${overBudgetRows.length - 3} more`)}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {tenantId && overBudgetRows.length > 0 && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="dashboard" data={aiNarrativeData} />
+      )}
 
       {chartData.length > 0 && (
         <Card>
