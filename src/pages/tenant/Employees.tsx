@@ -15,6 +15,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 
@@ -27,6 +28,7 @@ interface EmployeeForm {
   address: string;
   city: string;
   position: string;
+  position_template_id: string | null;
   department_id: string | null;
   location_id: string | null;
   employment_type: EmploymentType;
@@ -42,7 +44,7 @@ interface EmployeeForm {
 
 const emptyForm: EmployeeForm = {
   first_name: "", last_name: "", email: "", phone: "", jmbg: "", address: "", city: "",
-  position: "", department_id: null, location_id: null, employment_type: "full_time",
+  position: "", position_template_id: null, department_id: null, location_id: null, employment_type: "full_time",
   start_date: new Date().toISOString().split("T")[0], hire_date: new Date().toISOString().split("T")[0],
   termination_date: "", early_termination_date: "", annual_leave_days: 20,
   slava_date: "", daily_work_hours: 8, is_archived: false,
@@ -52,6 +54,7 @@ export default function Employees() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
@@ -90,7 +93,7 @@ export default function Employees() {
     mutationFn: async (f: EmployeeForm) => {
       const full_name = `${f.first_name} ${f.last_name}`.trim();
       const payload = {
-        ...f, full_name, tenant_id: tenantId!, department_id: f.department_id || null, location_id: f.location_id || null,
+        ...f, full_name, tenant_id: tenantId!, department_id: f.department_id || null, location_id: f.location_id || null, position_template_id: f.position_template_id || null,
         status: f.is_archived ? "inactive" as const : "active" as const,
         termination_date: f.termination_date || null,
         early_termination_date: f.early_termination_date || null,
@@ -117,7 +120,8 @@ export default function Employees() {
       last_name: emp.last_name || emp.full_name?.split(" ").slice(1).join(" ") || "",
       email: emp.email || "", phone: emp.phone || "",
       jmbg: emp.jmbg || "", address: emp.address || "", city: emp.city || "",
-      position: emp.position || "", department_id: emp.department_id || null, location_id: emp.location_id || null,
+      position: emp.position || "", position_template_id: emp.position_template_id || null,
+      department_id: emp.department_id || null, location_id: emp.location_id || null,
       employment_type: emp.employment_type, start_date: emp.start_date,
       hire_date: emp.hire_date || emp.start_date || "",
       termination_date: emp.termination_date || "",
@@ -176,7 +180,7 @@ export default function Employees() {
             : employees.map((emp: any) => {
               const status = getStatus(emp);
               return (
-                <TableRow key={emp.id}>
+                <TableRow key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/hr/employees/${emp.id}`)}>
                   <TableCell className="font-medium">{emp.full_name}</TableCell>
                   <TableCell>{emp.position || "—"}</TableCell>
                   <TableCell>{emp.departments?.name || "—"}</TableCell>
@@ -184,7 +188,7 @@ export default function Employees() {
                   <TableCell>{empTypeLabel(emp.employment_type)}</TableCell>
                   <TableCell>{emp.hire_date || emp.start_date}</TableCell>
                   <TableCell><Badge variant={statusColor(status)}>{status === "active" ? t("active") : status === "archived" ? t("isArchived") : t("terminated")}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(emp)}>{t("edit")}</Button></TableCell>
+                  <TableCell><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}>{t("edit")}</Button></TableCell>
                 </TableRow>
               );
             })}

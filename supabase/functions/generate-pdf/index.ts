@@ -44,7 +44,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { invoice_id } = await req.json();
+    const body = await req.json();
+    const { type, invoice_id, payroll_item_id } = body;
+
+    if (type === "payslip" && payroll_item_id) {
+      return await generatePayslip(admin, payroll_item_id, corsHeaders);
+    }
+
     if (!invoice_id) {
       return new Response(JSON.stringify({ error: "invoice_id required" }), {
         status: 400,
@@ -225,3 +231,123 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function generatePayslip(admin: any, payrollItemId: string, corsHeaders: Record<string, string>) {
+  const { data: item, error: itemErr } = await admin
+    .from("payroll_items")
+    .select("*, payroll_runs(period_month, period_year, status, tenant_id)")
+    .eq("id", payrollItemId)
+    .single();
+  if (itemErr || !item) {
+    return new Response(JSON.stringify({ error: "Payroll item not found" }), {
+      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const tenantId = item.payroll_runs?.tenant_id;
+
+  const { data: employee } = await admin
+    .from("employees")
+    .select("*, departments(name), locations(name)")
+    .eq("id", item.employee_id)
+    .single();
+
+  const { data: legalEntity } = await admin
+    .from("legal_entities")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .limit(1)
+    .maybeSingle();
+
+  const period = item.payroll_runs;
+  const months = ["Januar", "Februar", "Mart", "April", "Maj", "Jun", "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar"];
+  const periodLabel = `${months[(period?.period_month || 1) - 1]} ${period?.period_year || ""}`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
+  .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+  .company-name { font-size: 18px; font-weight: bold; color: #1a1a1a; }
+  .company-info { font-size: 11px; line-height: 1.6; }
+  .title { font-size: 22px; font-weight: bold; color: #2563eb; text-align: center; margin: 20px 0; }
+  .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 24px; }
+  .employee-section { background: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 24px; }
+  .emp-label { font-size: 10px; text-transform: uppercase; color: #666; margin-bottom: 2px; }
+  .emp-value { font-size: 13px; font-weight: 600; }
+  .emp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  th { background: #2563eb; color: white; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  th.right { text-align: right; }
+  td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+  td.right { text-align: right; font-variant-numeric: tabular-nums; }
+  .totals { margin-left: auto; width: 300px; margin-top: 20px; }
+  .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+  .totals-row.grand { font-size: 16px; font-weight: bold; border-top: 2px solid #333; border-bottom: none; padding-top: 10px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 10px; color: #666; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="company-name">${legalEntity?.name || "Company"}</div>
+      <div class="company-info">
+        ${legalEntity?.address ? `${legalEntity.address}<br>` : ""}
+        ${legalEntity?.city ? `${legalEntity.city}, ` : ""}${legalEntity?.country || "RS"}<br>
+        ${legalEntity?.pib ? `PIB: ${legalEntity.pib}` : ""}
+      </div>
+    </div>
+  </div>
+
+  <div class="title">PLATNA LISTA</div>
+  <div class="subtitle">${periodLabel}</div>
+
+  <div class="employee-section">
+    <div class="emp-grid">
+      <div><div class="emp-label">Ime i prezime</div><div class="emp-value">${employee?.full_name || "—"}</div></div>
+      <div><div class="emp-label">JMBG</div><div class="emp-value">${employee?.jmbg || "—"}</div></div>
+      <div><div class="emp-label">Pozicija</div><div class="emp-value">${employee?.position || "—"}</div></div>
+      <div><div class="emp-label">Odeljenje</div><div class="emp-value">${employee?.departments?.name || "—"}</div></div>
+      <div><div class="emp-label">Lokacija</div><div class="emp-value">${employee?.locations?.name || "—"}</div></div>
+      <div><div class="emp-label">Radni dani</div><div class="emp-value">${item.actual_working_days} / ${item.working_days}</div></div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Stavka</th>
+      <th class="right">Iznos (RSD)</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>Bruto zarada</td><td class="right">${formatNum(Number(item.gross_salary))}</td></tr>
+      <tr><td>Oporezivi osnov</td><td class="right">${formatNum(Number(item.taxable_base))}</td></tr>
+      <tr><td>Porez na dohodak (10%)</td><td class="right">- ${formatNum(Number(item.income_tax))}</td></tr>
+      <tr><td>PIO doprinos (14%)</td><td class="right">- ${formatNum(Number(item.pension_contribution))}</td></tr>
+      <tr><td>Zdravstveno osiguranje (5.15%)</td><td class="right">- ${formatNum(Number(item.health_contribution))}</td></tr>
+      <tr><td>Osiguranje od nezaposlenosti (0.75%)</td><td class="right">- ${formatNum(Number(item.unemployment_contribution))}</td></tr>
+      ${item.overtime_hours_count > 0 ? `<tr><td>Prekovremeni rad (${item.overtime_hours_count}h)</td><td class="right">uklj.</td></tr>` : ""}
+      ${item.night_work_hours_count > 0 ? `<tr><td>Noćni rad (${item.night_work_hours_count}h)</td><td class="right">uklj.</td></tr>` : ""}
+      ${item.leave_days_deducted > 0 ? `<tr><td>Odbitak za odsustvo (${item.leave_days_deducted} dana)</td><td class="right">- ${formatNum(Number(item.leave_deduction_amount))}</td></tr>` : ""}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-row"><span>Bruto zarada:</span><span>${formatNum(Number(item.gross_salary))} RSD</span></div>
+    <div class="totals-row"><span>Ukupni doprinosi:</span><span>${formatNum(Number(item.pension_contribution) + Number(item.health_contribution) + Number(item.unemployment_contribution))} RSD</span></div>
+    <div class="totals-row"><span>Porez:</span><span>${formatNum(Number(item.income_tax))} RSD</span></div>
+    <div class="totals-row grand"><span>NETO ZARADA:</span><span>${formatNum(Number(item.net_salary))} RSD</span></div>
+    <div class="totals-row" style="margin-top:12px; color:#666;"><span>Ukupan trošak poslodavca:</span><span>${formatNum(Number(item.total_cost))} RSD</span></div>
+  </div>
+
+  <div class="footer">
+    Platna lista je generisana elektronski.
+  </div>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}

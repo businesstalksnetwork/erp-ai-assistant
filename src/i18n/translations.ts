@@ -1269,6 +1269,10 @@ export const translations = {
     copied: "Copied",
     webOrders: "Web Orders",
     orderSource: "Source",
+    personalInfo: "Personal Info",
+    payslips: "Payslips",
+    downloadPayslip: "Download Payslip",
+    employeeProfile: "Employee Profile",
   },
   sr: {
     // Auth
@@ -2540,6 +2544,10 @@ export const translations = {
     copied: "Kopirano",
     webOrders: "Web porudžbine",
     orderSource: "Izvor",
+    personalInfo: "Lični podaci",
+    payslips: "Platne liste",
+    downloadPayslip: "Preuzmi platnu listu",
+    employeeProfile: "Dosije zaposlenog",
   },
 } as const;
 
