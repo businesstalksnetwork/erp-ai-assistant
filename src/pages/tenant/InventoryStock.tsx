@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Search, AlertTriangle, Plus, Minus } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 export default function InventoryStock() {
   const { t } = useLanguage();
@@ -139,6 +141,35 @@ export default function InventoryStock() {
           filename="inventory_stock"
         />
       </div>
+
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="inventory" />}
+
+      {tenantId && (() => {
+        const lowStockItems = filtered.filter(s => {
+          const onHand = Number(s.quantity_on_hand);
+          const minLevel = Number(s.min_stock_level);
+          return minLevel > 0 && onHand < minLevel;
+        });
+        const zeroStockItems = filtered.filter(s => Number(s.quantity_on_hand) <= 0);
+        if (lowStockItems.length === 0 && zeroStockItems.length === 0) return null;
+        return (
+          <AiAnalyticsNarrative
+            tenantId={tenantId}
+            contextType="dashboard"
+            data={{
+              lowStockCount: lowStockItems.length,
+              zeroStockCount: zeroStockItems.length,
+              totalSKUs: stock.length,
+              topLowStock: lowStockItems.slice(0, 5).map(s => ({
+                name: (s.products as any)?.name,
+                sku: (s.products as any)?.sku,
+                onHand: Number(s.quantity_on_hand),
+                minLevel: Number(s.min_stock_level),
+              })),
+            }}
+          />
+        );
+      })()}
 
       <Card>
         <CardHeader>

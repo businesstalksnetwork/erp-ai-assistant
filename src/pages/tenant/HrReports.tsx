@@ -9,8 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { useState } from "react";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
@@ -108,6 +111,46 @@ export default function HrReports() {
         <div className="grid gap-1"><Label>{t("year")}</Label><Input type="number" className="w-24" value={filterYear} onChange={e => setFilterYear(+e.target.value)} /></div>
         <div className="grid gap-1"><Label>{t("periodMonth")}</Label><Input type="number" min={1} max={12} className="w-24" value={filterMonth} onChange={e => setFilterMonth(+e.target.value)} /></div>
       </div>
+
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="hr" />}
+
+      {(() => {
+        const excessiveOvertime = monthlyReport.filter(r => r.overtime > 40);
+        const missingLogs = monthlyReport.filter(r => r.total === 0);
+        if (excessiveOvertime.length === 0 && missingLogs.length === 0) return null;
+        return (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {excessiveOvertime.length > 0 && (
+                <span className="block">
+                  ⚠️ {excessiveOvertime.length} {t("employees").toLowerCase()} with excessive overtime (&gt;40h): {excessiveOvertime.slice(0, 3).map(r => `${r.name} (${r.overtime}h)`).join(", ")}
+                </span>
+              )}
+              {missingLogs.length > 0 && (
+                <span className="block">
+                  ⚠️ {missingLogs.length} {t("employees").toLowerCase()} with no logged hours: {missingLogs.slice(0, 3).map(r => r.name).join(", ")}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        );
+      })()}
+
+      {tenantId && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="dashboard"
+          data={{
+            employeeCount: employees.length,
+            totalHours: monthlyReport.reduce((a, b) => a + b.total, 0),
+            totalOvertime: monthlyReport.reduce((a, b) => a + b.overtime, 0),
+            excessiveOvertimeCount: monthlyReport.filter(r => r.overtime > 40).length,
+            missingLogsCount: monthlyReport.filter(r => r.total === 0).length,
+            avgHoursPerEmployee: employees.length > 0 ? Math.round(monthlyReport.reduce((a, b) => a + b.total, 0) / employees.length) : 0,
+          }}
+        />
+      )}
 
       <Tabs defaultValue="monthly">
         <TabsList>

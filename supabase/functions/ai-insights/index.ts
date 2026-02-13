@@ -202,6 +202,148 @@ serve(async (req) => {
       }
     }
 
+    // ─── Inventory-specific insights ───
+    if (!module || module === "inventory") {
+      // Slow movers: products with stock but no outbound movements in 90 days
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const { data: recentMovements } = await supabase
+        .from("inventory_movements")
+        .select("product_id")
+        .eq("tenant_id", tenant_id)
+        .in("movement_type", ["sale", "transfer_out", "production_consume"])
+        .gte("created_at", ninetyDaysAgo);
+
+      if (recentMovements && lowStock) {
+        const movedProductIds = new Set(recentMovements.map(m => m.product_id));
+        const slowMovers = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && !movedProductIds.has(s.product_id));
+        if (slowMovers.length > 0) {
+          insights.push({
+            insight_type: "slow_moving",
+            severity: "info",
+            title: sr ? `${slowMovers.length} artikala bez prometa 90+ dana` : `${slowMovers.length} Slow-Moving Items (90+ days)`,
+            description: sr
+              ? `${slowMovers.length} artikala sa zalihama nema izlaznih kretanja u poslednjih 90 dana.`
+              : `${slowMovers.length} items with stock have had no outbound movements in the last 90 days.`,
+            data: { count: slowMovers.length },
+          });
+        }
+      }
+
+      // Reorder suggestions based on consumption
+      if (lowStock) {
+        const belowMin = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
+        if (belowMin.length > 3) {
+          insights.push({
+            insight_type: "reorder_suggestion",
+            severity: "warning",
+            title: sr ? `${belowMin.length} artikala treba dopuniti` : `${belowMin.length} Items Need Reordering`,
+            description: sr
+              ? `${belowMin.length} artikala je ispod minimalnog nivoa. Preporučujemo kreiranje nabavnih naloga.`
+              : `${belowMin.length} items are below minimum levels. Consider creating purchase orders.`,
+            data: { count: belowMin.length },
+          });
+        }
+      }
+    }
+
+    // ─── HR-specific insights ───
+    if (!module || module === "hr") {
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+
+      // Excessive overtime
+      const { data: overtimeRecords } = await supabase
+        .from("overtime_hours")
+        .select("employee_id, hours")
+        .eq("tenant_id", tenant_id)
+        .eq("year", currentYear)
+        .eq("month", currentMonth);
+
+      if (overtimeRecords) {
+        const excessive = overtimeRecords.filter(o => Number(o.hours) > 40);
+        if (excessive.length > 0) {
+          insights.push({
+            insight_type: "excessive_overtime",
+            severity: "warning",
+            title: sr ? `${excessive.length} zaposlenih sa prekomernim prekovremenim` : `${excessive.length} Employees with Excessive Overtime`,
+            description: sr
+              ? `${excessive.length} zaposlenih ima više od 40 sati prekovremenog rada ovog meseca.`
+              : `${excessive.length} employees have logged more than 40 overtime hours this month.`,
+            data: { count: excessive.length },
+          });
+        }
+      }
+
+      // Leave balance warnings
+      const { data: leaveBalances } = await supabase
+        .from("annual_leave_balances")
+        .select("employee_id, entitled_days, carried_over_days, used_days")
+        .eq("tenant_id", tenant_id)
+        .eq("year", currentYear);
+
+      if (leaveBalances) {
+        const lowLeave = leaveBalances.filter(b => (b.entitled_days + b.carried_over_days - b.used_days) <= 3 && (b.entitled_days + b.carried_over_days - b.used_days) >= 0);
+        if (lowLeave.length > 0) {
+          insights.push({
+            insight_type: "leave_balance_warning",
+            severity: "info",
+            title: sr ? `${lowLeave.length} zaposlenih sa malo preostalih dana` : `${lowLeave.length} Employees Low on Leave Days`,
+            description: sr
+              ? `${lowLeave.length} zaposlenih ima 3 ili manje preostalih dana godišnjeg odmora.`
+              : `${lowLeave.length} employees have 3 or fewer remaining leave days this year.`,
+            data: { count: lowLeave.length },
+          });
+        }
+      }
+    }
+
+    // ─── CRM-specific insights ───
+    if (!module || module === "crm") {
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Stale leads
+      const { data: staleLeads, count: staleCount } = await supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id)
+        .eq("status", "new")
+        .lt("created_at", fourteenDaysAgo);
+
+      if (staleCount && staleCount > 0) {
+        insights.push({
+          insight_type: "stale_leads",
+          severity: "warning",
+          title: sr ? `${staleCount} neaktivnih lead-ova` : `${staleCount} Stale Leads`,
+          description: sr
+            ? `${staleCount} lead-ova je u statusu "novi" više od 14 dana bez akcije.`
+            : `${staleCount} leads have been in "new" status for over 14 days without any action.`,
+          data: { count: staleCount },
+        });
+      }
+
+      // High-value deals at risk
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: atRiskDeals } = await supabase
+        .from("opportunities")
+        .select("id, name, value")
+        .eq("tenant_id", tenant_id)
+        .eq("stage", "negotiation")
+        .lt("updated_at", sevenDaysAgo);
+
+      if (atRiskDeals && atRiskDeals.length > 0) {
+        const totalAtRisk = atRiskDeals.reduce((s, d) => s + Number(d.value || 0), 0);
+        insights.push({
+          insight_type: "high_value_at_risk",
+          severity: "critical",
+          title: sr ? `${atRiskDeals.length} poslova u riziku` : `${atRiskDeals.length} High-Value Deals at Risk`,
+          description: sr
+            ? `${atRiskDeals.length} poslova u fazi pregovaranja nisu ažurirana 7+ dana (ukupno ${totalAtRisk.toLocaleString("sr-RS")} RSD).`
+            : `${atRiskDeals.length} negotiation-stage deals haven't been updated in 7+ days (total ${totalAtRisk.toLocaleString("en-US")} RSD).`,
+          data: { count: atRiskDeals.length, totalValue: totalAtRisk },
+        });
+      }
+    }
+
     // ─── Analytics-specific insights ───
     if (!module || module === "analytics") {
       // 6. Budget variance check
@@ -329,8 +471,9 @@ serve(async (req) => {
 function filterByModule(insights: any[], module: string): any[] {
   const moduleMap: Record<string, string[]> = {
     analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "all_clear"],
-    inventory: ["zero_stock", "low_stock", "all_clear"],
-    hr: ["payroll_anomaly", "all_clear"],
+    inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "all_clear"],
+    hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "all_clear"],
+    crm: ["stale_leads", "high_value_at_risk", "all_clear"],
     accounting: ["overdue_invoices", "large_invoices", "draft_journals", "all_clear"],
   };
   const allowed = moduleMap[module];
