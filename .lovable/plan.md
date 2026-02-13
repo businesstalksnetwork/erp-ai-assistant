@@ -1,52 +1,65 @@
 
 
-# Fix Cyrillic to Latin Script in Serbian Translations
+# Reorganize Inventory (Magacin) Sidebar Structure
 
 ## Problem
 
-The screenshot shows "offlineReceipts" displayed as a raw key, and several labels appear in Cyrillic script (e.g., "Статус фискалних рачуна"). The app should use Serbian **Latin** script exclusively.
+The Inventory sidebar currently lists 17 items in a flat, unstructured list. This makes it hard to find items quickly, especially since it mixes core inventory, internal logistics, pricing operations, and WMS items together.
 
-## Root Cause
+## Proposed Structure
 
-In `src/i18n/translations.ts`, lines 2909-2931 contain **Cyrillic** Serbian text instead of Latin. Additionally, the key `offlineReceipts` is missing entirely from the Serbian (`sr`) section.
+Reorganize the 17 items into 4 logical sub-sections with small section labels (dividers) inside the collapsible group:
 
-## Changes
+**Core Inventory**
+- Proizvodi (Products)
+- Pregled zaliha (Stock Overview)
+- Istorija kretanja (Movement History)
+- Slojevi troskova (Cost Layers)
 
-**File**: `src/i18n/translations.ts` (lines 2909-2931)
+**Internal Logistics**
+- Interne narudzbenice (Internal Orders)
+- Interni prenosi (Internal Transfers)
+- Interni prijem (Internal Receipts)
+- Otpremnice (Dispatch Notes)
 
-Convert all 23 Cyrillic values to Latin and add the missing `offlineReceipts` key:
+**Pricing Operations**
+- Kalkulacija
+- Nivelacija
 
-| Key | Cyrillic (current) | Latin (fix) |
-|-----|-------------------|-------------|
-| eBolovanje | еБоловање | eBolovanje |
-| eBolovanjeRequired | Интеграција еБоловање... | Integracija eBolovanje je obavezna od 1. januara 2026. |
-| eBolovanjeDescription | Јединствени систем... | Jedinstveni sistem poslodavaca (eBolovanje -- Poslodavac) zahteva registraciju poslodavaca na eUpravi i elektronsku razmenu potvrda/doznaka o bolovanju. Podnosenje zahteva i prigovora pocinje 3. marta 2026. |
-| eBolovanjeFeature1 | Регистрација... | Registracija i autentifikacija na portalu eUprava |
-| eBolovanjeFeature2 | Електронска... | Elektronska razmena potvrda o bolovanju (doznake) |
-| eBolovanjeFeature3 | Подношење... | Podnosenje zahteva i prigovora (od 3. marta 2026.) |
-| eBolovanjeFeature4 | Интеграција... | Integracija sa zahtevima za odsustvo i obracunom zarada |
-| pdfReady | PDF извештај... | PDF izvestaj je spreman. |
-| fiscalReceiptStatus | Статус фискалних рачуна | Status fiskalnih racuna |
-| signedReceipts | Потписани | Potpisani |
-| **offlineReceipts** | *(missing)* | **Oflajn racuni** |
-| failedReceipts | Неуспели | Neuspeli |
-| noReceipts | Нема пронађених... | Nema pronadjenih racuna. |
-| paymentMethod | Начин плаћања | Nacin placanja |
-| activeSessions | Активне сесије | Aktivne sesije |
-| apiCalls24h | API позиви (24ч) | API pozivi (24c) |
-| errors24h | Грешке (24ч) | Greske (24c) |
-| systemEvents | Системски догађаји | Sistemski dogadjaji |
-| noSystemEvents | Нема забележених... | Nema zabelezenih sistemskih dogadjaja. |
-| events | догађаја | dogadjaja |
-| errorMessage | Грешка | Greska |
-| timestamp | Временска ознака | Vremenska oznaka |
-| pollAllSef | Освежи СЕФ статусе | Osvezi SEF statuse |
-| checked | проверено | provereno |
+**WMS (Warehouse Management)**
+- Zone i pozicije (Zones)
+- WMS Zadaci (Tasks)
+- Prijem (Receiving)
+- Komisioniranje (Picking)
+- Popis (Cycle Counts)
+- AI Slotting
 
-## Scope
+## Technical Approach
 
-- **1 file** modified: `src/i18n/translations.ts`
-- **23 values** converted from Cyrillic to Latin
-- **1 missing key** added (`offlineReceipts`)
-- No other files or logic changes needed
+### 1. Extend the NavItem type to support section dividers
 
+Add an optional `section` property to the `NavItem` type and add a `divider` variant:
+
+```typescript
+type NavItem = {
+  key: string;
+  url: string;
+  icon: LucideIcon;
+  section?: string; // optional section label before this item
+};
+```
+
+### 2. Update `CollapsibleNavGroup` rendering
+
+When an item has a `section` property, render a small muted label above it as a visual sub-header (e.g., "WMS", "INTERNA LOGISTIKA").
+
+### 3. Reorder and annotate the `inventoryNav` array
+
+Reorder items into the 4 groups and add `section` markers on the first item of each sub-group.
+
+## Files Modified
+
+1. **`src/layouts/TenantLayout.tsx`**
+   - Add `section?: string` to `NavItem` type
+   - Update `CollapsibleNavGroup` to render section dividers
+   - Reorder and annotate `inventoryNav` items into 4 sub-sections
