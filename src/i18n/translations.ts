@@ -397,6 +397,7 @@ export const translations = {
     selectEmployee: "Select Employee",
     selectDepartment: "Select Department",
     noDepartment: "No Department",
+    noLocation: "No Location",
 
     // Sales & CRM
     leads: "Leads",
@@ -1667,6 +1668,7 @@ export const translations = {
     selectEmployee: "Izaberite zaposlenog",
     selectDepartment: "Izaberite odeljenje",
     noDepartment: "Bez odeljenja",
+    noLocation: "Bez lokacije",
 
     // Sales & CRM
     leads: "Potencijalni klijenti",
