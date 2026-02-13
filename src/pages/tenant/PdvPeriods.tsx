@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Calculator, Eye, Send, FileDown } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 // POPDV sections per Serbian law
 const POPDV_SECTIONS = [
@@ -324,6 +325,7 @@ export default function PdvPeriods() {
               ]}
               filename={`popdv_${selectedPeriod.period_name}`}
             />
+            <DownloadPdfButton type="pdv_return" params={{ pdv_period_id: selectedPeriod.id }} />
           </div>
 
           {/* Summary cards */}

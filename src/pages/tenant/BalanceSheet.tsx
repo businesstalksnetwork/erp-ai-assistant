@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Printer } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { PrintButton } from "@/components/PrintButton";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 export default function BalanceSheet() {
   const { t } = useLanguage();
@@ -113,6 +114,7 @@ export default function BalanceSheet() {
             ]}
             filename="balance_sheet"
           />
+          <DownloadPdfButton type="balance_sheet" params={{ tenant_id: tenantId, as_of_date: asOfDate }} />
           <PrintButton />
         </div>
       </div>

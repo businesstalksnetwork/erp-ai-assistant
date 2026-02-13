@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { RefreshCw } from "lucide-react";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 function AgingTable({ data, loading, t }: { data: any[]; loading: boolean; t: (k: any) => string }) {
   if (loading) return <p className="text-muted-foreground">{t("loading")}</p>;
@@ -182,14 +183,17 @@ export default function AgingReports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("agingReports")}</h1>
-        <Button
-          size="sm"
-          onClick={() => generateSnapshotMutation.mutate()}
-          disabled={generateSnapshotMutation.isPending}
-        >
-          <RefreshCw className="h-4 w-4 mr-1" />
-          {t("generateSnapshot")}
-        </Button>
+        <div className="flex gap-2">
+          <DownloadPdfButton type="aging_report" params={{ tenant_id: tenantId, report_type: "ar" }} />
+          <Button
+            size="sm"
+            onClick={() => generateSnapshotMutation.mutate()}
+            disabled={generateSnapshotMutation.isPending}
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            {t("generateSnapshot")}
+          </Button>
+        </div>
       </div>
       <Tabs defaultValue="ar">
         <TabsList>
