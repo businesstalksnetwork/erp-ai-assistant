@@ -3,8 +3,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-connection-id",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-connection-id, x-webhook-signature, x-shopify-hmac-sha256, x-wc-webhook-signature",
 };
+
+function base64Encode(buf: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+
+async function verifyHmac(secret: string, bodyBytes: Uint8Array, signature: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const computed = await crypto.subtle.sign("HMAC", key, bodyBytes);
+  return base64Encode(computed) === signature;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -16,7 +29,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
+    // Read raw body for HMAC verification
+    const bodyBytes = new Uint8Array(await req.arrayBuffer());
+    const body = JSON.parse(new TextDecoder().decode(bodyBytes));
 
     // Identify the connection via API key header or connection_id in body
     const apiKey = req.headers.get("x-api-key");
@@ -48,6 +63,26 @@ serve(async (req) => {
       });
     }
 
+    // HMAC webhook signature validation
+    if (conn.webhook_secret) {
+      const signature = req.headers.get("x-webhook-signature")
+        || req.headers.get("x-shopify-hmac-sha256")
+        || req.headers.get("x-wc-webhook-signature");
+
+      if (!signature) {
+        return new Response(JSON.stringify({ error: "Missing webhook signature" }), {
+          status: 401, headers: corsHeaders,
+        });
+      }
+
+      const valid = await verifyHmac(conn.webhook_secret, bodyBytes, signature);
+      if (!valid) {
+        return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
+          status: 401, headers: corsHeaders,
+        });
+      }
+    }
+
     const tenantId = conn.tenant_id;
     const platform = conn.platform;
 
@@ -63,42 +98,33 @@ serve(async (req) => {
     };
 
     if (platform === "shopify") {
-      // Shopify orders/create webhook payload
       const o = body;
       orderData = {
         external_id: String(o.id || o.order_number),
         customer_name: o.customer ? `${o.customer.first_name || ""} ${o.customer.last_name || ""}`.trim() : "Web Customer",
         customer_email: o.customer?.email || o.email || "",
         items: (o.line_items || []).map((li: any) => ({
-          sku: li.sku || "",
-          barcode: li.barcode || "",
-          quantity: li.quantity,
-          price: Number(li.price),
-          name: li.title || li.name,
+          sku: li.sku || "", barcode: li.barcode || "", quantity: li.quantity,
+          price: Number(li.price), name: li.title || li.name,
         })),
         total: Number(o.total_price || 0),
         currency: o.currency || "RSD",
         notes: o.note || "",
       };
     } else if (platform === "woocommerce") {
-      // WooCommerce order webhook payload
       const o = body;
       orderData = {
         external_id: String(o.id || o.number),
         customer_name: o.billing ? `${o.billing.first_name || ""} ${o.billing.last_name || ""}`.trim() : "Web Customer",
         customer_email: o.billing?.email || "",
         items: (o.line_items || []).map((li: any) => ({
-          sku: li.sku || "",
-          quantity: li.quantity,
-          price: Number(li.price),
-          name: li.name,
+          sku: li.sku || "", quantity: li.quantity, price: Number(li.price), name: li.name,
         })),
         total: Number(o.total || 0),
         currency: o.currency || "RSD",
         notes: o.customer_note || "",
       };
     } else {
-      // Custom: expect standardized format
       orderData = {
         external_id: body.external_id || body.order_id || "",
         customer_name: body.customer_name || "Web Customer",
@@ -114,26 +140,14 @@ serve(async (req) => {
     let partnerId: string | null = null;
     if (orderData.customer_email) {
       const { data: existing } = await supabase
-        .from("partners")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("email", orderData.customer_email)
-        .limit(1)
-        .single();
-
+        .from("partners").select("id").eq("tenant_id", tenantId)
+        .eq("email", orderData.customer_email).limit(1).single();
       if (existing) {
         partnerId = existing.id;
       } else {
         const { data: newPartner } = await supabase
-          .from("partners")
-          .insert({
-            tenant_id: tenantId,
-            name: orderData.customer_name,
-            email: orderData.customer_email,
-            type: "customer",
-          })
-          .select("id")
-          .single();
+          .from("partners").insert({ tenant_id: tenantId, name: orderData.customer_name, email: orderData.customer_email, type: "customer" })
+          .select("id").single();
         partnerId = newPartner?.id || null;
       }
     }
@@ -142,115 +156,62 @@ serve(async (req) => {
     const orderLines: any[] = [];
     for (const item of orderData.items) {
       let productId: string | null = null;
-
       if (item.sku) {
-        const { data } = await supabase
-          .from("products")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("sku", item.sku)
-          .limit(1)
-          .single();
+        const { data } = await supabase.from("products").select("id").eq("tenant_id", tenantId).eq("sku", item.sku).limit(1).single();
         productId = data?.id || null;
       }
-
       if (!productId && item.barcode) {
-        const { data } = await supabase
-          .from("products")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("barcode", item.barcode)
-          .limit(1)
-          .single();
+        const { data } = await supabase.from("products").select("id").eq("tenant_id", tenantId).eq("barcode", item.barcode).limit(1).single();
         productId = data?.id || null;
       }
-
-      orderLines.push({
-        product_id: productId,
-        product_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-        total: item.quantity * item.price,
-      });
+      orderLines.push({ product_id: productId, product_name: item.name, quantity: item.quantity, unit_price: item.price, total: item.quantity * item.price });
     }
 
     // Generate order number
-    const { count } = await supabase
-      .from("sales_orders")
-      .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantId);
+    const { count } = await supabase.from("sales_orders").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId);
     const orderNumber = `WEB-${String((count || 0) + 1).padStart(5, "0")}`;
 
     // Create sales order
-    const { data: salesOrder, error: soErr } = await supabase
-      .from("sales_orders")
-      .insert({
-        tenant_id: tenantId,
-        order_number: orderNumber,
-        partner_id: partnerId,
-        partner_name: orderData.customer_name,
-        status: "confirmed",
-        subtotal: orderData.total,
-        tax_amount: 0,
-        total: orderData.total,
-        currency: orderData.currency,
-        notes: orderData.notes,
-        source: "web",
-        web_connection_id: conn.id,
-        external_order_id: orderData.external_id,
-      })
-      .select("id")
-      .single();
-
+    const { data: salesOrder, error: soErr } = await supabase.from("sales_orders").insert({
+      tenant_id: tenantId, order_number: orderNumber, partner_id: partnerId,
+      partner_name: orderData.customer_name, status: "confirmed",
+      subtotal: orderData.total, tax_amount: 0, total: orderData.total,
+      currency: orderData.currency, notes: orderData.notes, source: "web",
+      web_connection_id: conn.id, external_order_id: orderData.external_id,
+    }).select("id").single();
     if (soErr) throw soErr;
 
     // Create order lines
     if (salesOrder && orderLines.length > 0) {
       const lines = orderLines.map((l, i) => ({
-        sales_order_id: salesOrder.id,
-        product_id: l.product_id,
-        description: l.product_name,
-        quantity: l.quantity,
-        unit_price: l.unit_price,
-        line_total: l.total,
-        sort_order: i + 1,
+        sales_order_id: salesOrder.id, product_id: l.product_id,
+        description: l.product_name, quantity: l.quantity,
+        unit_price: l.unit_price, line_total: l.total, sort_order: i + 1,
       }));
-
       await supabase.from("sales_order_lines").insert(lines);
     }
 
-    // Create notifications for all tenant members
+    // Notifications
     try {
-      const { data: members } = await supabase
-        .from("tenant_members")
-        .select("user_id")
-        .eq("tenant_id", tenantId)
-        .eq("status", "active");
-
+      const { data: members } = await supabase.from("tenant_members").select("user_id").eq("tenant_id", tenantId).eq("status", "active");
       if (members && members.length > 0) {
         const notifications = members.map((m: any) => ({
-          tenant_id: tenantId,
-          user_id: m.user_id,
+          tenant_id: tenantId, user_id: m.user_id,
           title: `New web order: ${orderNumber}`,
           message: `Order from ${orderData.customer_name} (${platform}) - ${orderData.currency} ${orderData.total.toFixed(2)}`,
           type: "info",
         }));
         await supabase.from("notifications").insert(notifications);
       }
-    } catch (_) {
-      // Non-critical
-    }
+    } catch (_) { /* Non-critical */ }
 
-    return new Response(JSON.stringify({
-      success: true,
-      order_id: salesOrder?.id,
-      order_number: orderNumber,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: true, order_id: salesOrder?.id, order_number: orderNumber }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("web-order-import error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

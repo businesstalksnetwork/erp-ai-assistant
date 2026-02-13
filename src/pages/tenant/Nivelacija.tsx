@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Search, Trash2, TrendingUp, TrendingDown, Send } from "lucide-react";
 
 interface NivelacijaItem {
   product_id: string;
@@ -96,6 +96,16 @@ export default function Nivelacija() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  const postMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.rpc("post_nivelacija", { p_nivelacija_id: id });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["nivelacije"] }); toast({ title: t("posted") || "Posted" }); },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const addItem = () => setItems(prev => [...prev, { product_id: "", old_retail_price: 0, new_retail_price: 0, quantity_on_hand: 0 }]);
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
@@ -138,6 +148,7 @@ export default function Nivelacija() {
                 <TableHead>{t("date")}</TableHead>
                 <TableHead>{t("warehouse")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,6 +158,13 @@ export default function Nivelacija() {
                   <TableCell>{new Date(n.nivelacija_date).toLocaleDateString("sr-RS")}</TableCell>
                   <TableCell>{(n.warehouses as any)?.name || "—"}</TableCell>
                   <TableCell><Badge variant={n.status === "posted" ? "default" : "secondary"}>{n.status}</Badge></TableCell>
+                  <TableCell>
+                    {n.status === "draft" && (
+                      <Button size="sm" variant="outline" onClick={() => postMutation.mutate(n.id)} disabled={postMutation.isPending}>
+                        <Send className="h-3 w-3 mr-1" />{t("save")}
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (

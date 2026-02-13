@@ -99,8 +99,8 @@ export default function Kompenzacija() {
         description: `Kompenzacija - ${partners.find(p => p.id === partnerId)?.name}`,
         reference: docNumber,
         lines: [
-          { accountCode: "4320", debit: offsetAmount, credit: 0, description: "Offset AP", sortOrder: 0 },
-          { accountCode: "2020", debit: 0, credit: offsetAmount, description: "Offset AR", sortOrder: 1 },
+          { accountCode: "4350", debit: offsetAmount, credit: 0, description: "Offset AP", sortOrder: 0 },
+          { accountCode: "2040", debit: 0, credit: offsetAmount, description: "Offset AR", sortOrder: 1 },
         ],
       });
 

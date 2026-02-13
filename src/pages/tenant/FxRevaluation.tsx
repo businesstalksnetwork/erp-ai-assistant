@@ -141,16 +141,16 @@ export default function FxRevaluation() {
         // Gains: Debit AR/AP offset, Credit 6700 (FX Gain)
         const arGain = previewLines.filter(l => l.difference > 0 && l.direction === "receivable").reduce((s, l) => s + l.difference, 0);
         const apGain = previewLines.filter(l => l.difference > 0 && l.direction === "payable").reduce((s, l) => s + l.difference, 0);
-        if (arGain > 0) journalLines.push({ accountCode: "2020", debit: arGain, credit: 0, description: `FX Reval Gain - AR`, sortOrder: sortOrder++ });
-        if (apGain > 0) journalLines.push({ accountCode: "4320", debit: apGain, credit: 0, description: `FX Reval Gain - AP`, sortOrder: sortOrder++ });
-        journalLines.push({ accountCode: "6700", debit: 0, credit: totalGain, description: `FX Gain - ${revalDate}`, sortOrder: sortOrder++ });
+        if (arGain > 0) journalLines.push({ accountCode: "2040", debit: arGain, credit: 0, description: `FX Reval Gain - AR`, sortOrder: sortOrder++ });
+        if (apGain > 0) journalLines.push({ accountCode: "4350", debit: apGain, credit: 0, description: `FX Reval Gain - AP`, sortOrder: sortOrder++ });
+        journalLines.push({ accountCode: "6072", debit: 0, credit: totalGain, description: `FX Gain - ${revalDate}`, sortOrder: sortOrder++ });
       }
       if (totalLoss > 0) {
-        journalLines.push({ accountCode: "5700", debit: totalLoss, credit: 0, description: `FX Loss - ${revalDate}`, sortOrder: sortOrder++ });
+        journalLines.push({ accountCode: "5072", debit: totalLoss, credit: 0, description: `FX Loss - ${revalDate}`, sortOrder: sortOrder++ });
         const arLoss = previewLines.filter(l => l.difference < 0 && l.direction === "receivable").reduce((s, l) => s + Math.abs(l.difference), 0);
         const apLoss = previewLines.filter(l => l.difference < 0 && l.direction === "payable").reduce((s, l) => s + Math.abs(l.difference), 0);
-        if (arLoss > 0) journalLines.push({ accountCode: "2020", debit: 0, credit: arLoss, description: `FX Reval Loss - AR`, sortOrder: sortOrder++ });
-        if (apLoss > 0) journalLines.push({ accountCode: "4320", debit: 0, credit: apLoss, description: `FX Reval Loss - AP`, sortOrder: sortOrder++ });
+        if (arLoss > 0) journalLines.push({ accountCode: "2040", debit: 0, credit: arLoss, description: `FX Reval Loss - AR`, sortOrder: sortOrder++ });
+        if (apLoss > 0) journalLines.push({ accountCode: "4350", debit: 0, credit: apLoss, description: `FX Reval Loss - AP`, sortOrder: sortOrder++ });
       }
 
       const journalId = await createCodeBasedJournalEntry({
