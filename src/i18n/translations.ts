@@ -460,6 +460,13 @@ export const translations = {
     planned: "Planned",
     in_progress: "In Progress",
     completed: "Completed",
+    plannedCost: "Planned Cost",
+    waste: "Waste / Scrap",
+    recordWaste: "Record Waste",
+    bomVersion: "BOM Version",
+    startProduction: "Start Production",
+    insufficientStock: "Insufficient Stock",
+    materialAvailability: "Material Availability",
 
     // Documents
     documents: "Documents",
@@ -1783,6 +1790,13 @@ export const translations = {
     planned: "Planirano",
     in_progress: "U toku",
     completed: "Završeno",
+    plannedCost: "Planirana cena",
+    waste: "Otpad / Škart",
+    recordWaste: "Evidentiraj otpad",
+    bomVersion: "BOM verzija",
+    startProduction: "Pokreni proizvodnju",
+    insufficientStock: "Nedovoljne zalihe",
+    materialAvailability: "Raspoloživost materijala",
 
     // Documents
     documents: "DMS",

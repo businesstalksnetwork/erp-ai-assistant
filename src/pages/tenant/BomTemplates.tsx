@@ -50,10 +50,13 @@ export default function BomTemplates() {
       const payload = { tenant_id: tenantId, name: form.name, product_id: form.product_id || null, notes: form.notes || null };
       let bomId = editId;
       if (editId) {
-        await supabase.from("bom_templates").update(payload).eq("id", editId);
+        // Increment version instead of deleting old lines
+        const { data: existing } = await supabase.from("bom_templates").select("version").eq("id", editId).single();
+        const newVersion = (existing?.version || 1) + 1;
+        await supabase.from("bom_templates").update({ ...payload, version: newVersion }).eq("id", editId);
         await supabase.from("bom_lines").delete().eq("bom_template_id", editId);
       } else {
-        const { data } = await supabase.from("bom_templates").insert(payload).select("id").single();
+        const { data } = await supabase.from("bom_templates").insert({ ...payload, version: 1 }).select("id").single();
         bomId = data!.id;
       }
       if (lines.length > 0) {
@@ -97,17 +100,19 @@ export default function BomTemplates() {
           <TableRow>
             <TableHead>{t("name")}</TableHead>
             <TableHead>{t("product")}</TableHead>
+            <TableHead>{t("bomVersion")}</TableHead>
             <TableHead>{t("notes")}</TableHead>
             <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={4}>{t("loading")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={5}>{t("loading")}</TableCell></TableRow>
           ) : templates.map((tpl: any) => (
             <TableRow key={tpl.id}>
               <TableCell className="font-medium">{tpl.name}</TableCell>
               <TableCell>{tpl.products?.name || "-"}</TableCell>
+              <TableCell><Badge variant="outline">v{tpl.version || 1}</Badge></TableCell>
               <TableCell>{tpl.notes || "-"}</TableCell>
               <TableCell className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => openEdit(tpl)}><Pencil className="h-3 w-3" /></Button>

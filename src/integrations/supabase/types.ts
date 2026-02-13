@@ -1140,6 +1140,7 @@ export type Database = {
           product_id: string | null
           tenant_id: string
           updated_at: string
+          version: number
         }
         Insert: {
           created_at?: string
@@ -1150,6 +1151,7 @@ export type Database = {
           product_id?: string | null
           tenant_id: string
           updated_at?: string
+          version?: number
         }
         Update: {
           created_at?: string
@@ -1160,6 +1162,7 @@ export type Database = {
           product_id?: string | null
           tenant_id?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -7178,10 +7181,12 @@ export type Database = {
           actual_end: string | null
           actual_start: string | null
           bom_template_id: string | null
+          completed_quantity: number
           created_at: string
           created_by: string | null
           id: string
           notes: string | null
+          order_number: string | null
           planned_end: string | null
           planned_start: string | null
           product_id: string | null
@@ -7194,10 +7199,12 @@ export type Database = {
           actual_end?: string | null
           actual_start?: string | null
           bom_template_id?: string | null
+          completed_quantity?: number
           created_at?: string
           created_by?: string | null
           id?: string
           notes?: string | null
+          order_number?: string | null
           planned_end?: string | null
           planned_start?: string | null
           product_id?: string | null
@@ -7210,10 +7217,12 @@ export type Database = {
           actual_end?: string | null
           actual_start?: string | null
           bom_template_id?: string | null
+          completed_quantity?: number
           created_at?: string
           created_by?: string | null
           id?: string
           notes?: string | null
+          order_number?: string | null
           planned_end?: string | null
           planned_start?: string | null
           product_id?: string | null
@@ -7239,6 +7248,61 @@ export type Database = {
           },
           {
             foreignKeyName: "production_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_waste: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          production_order_id: string
+          quantity: number
+          reason: string | null
+          recorded_by: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          production_order_id: string
+          quantity?: number
+          reason?: string | null
+          recorded_by?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          production_order_id?: string
+          quantity?: number
+          reason?: string | null
+          recorded_by?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_waste_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_waste_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_waste_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -9102,6 +9166,15 @@ export type Database = {
       check_fiscal_period_open: {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
+      }
+      complete_production_order: {
+        Args: {
+          p_order_id: string
+          p_quantity_to_complete?: number
+          p_user_id?: string
+          p_warehouse_id: string
+        }
+        Returns: Json
       }
       confirm_internal_receipt: {
         Args: { p_receipt_id: string }
