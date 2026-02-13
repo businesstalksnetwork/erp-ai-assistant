@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -178,7 +179,7 @@ export default function Products() {
             <TableBody>
               {filtered.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium"><Link to={`/inventory/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link></TableCell>
                   <TableCell>{p.sku || "—"}</TableCell>
                   <TableCell>{p.unit_of_measure}</TableCell>
                   <TableCell><Badge variant="outline">{p.costing_method === "fifo" ? t("fifo") : t("weightedAverage")}</Badge></TableCell>

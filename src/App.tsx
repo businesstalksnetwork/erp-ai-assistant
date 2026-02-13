@@ -54,6 +54,7 @@ import PurchaseOrders from "@/pages/tenant/PurchaseOrders";
 import GoodsReceipts from "@/pages/tenant/GoodsReceipts";
 import SupplierInvoices from "@/pages/tenant/SupplierInvoices";
 import Products from "@/pages/tenant/Products";
+import ProductDetail from "@/pages/tenant/ProductDetail";
 import InventoryStock from "@/pages/tenant/InventoryStock";
 import InventoryMovements from "@/pages/tenant/InventoryMovements";
 import Employees from "@/pages/tenant/Employees";
@@ -192,6 +193,7 @@ const App = () => (
                 <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><GoodsReceipts /></ProtectedRoute>} />
                 <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoices /></ProtectedRoute>} />
                 <Route path="inventory/products" element={<ProtectedRoute requiredModule="inventory"><Products /></ProtectedRoute>} />
+                <Route path="inventory/products/:id" element={<ProtectedRoute requiredModule="inventory"><ProductDetail /></ProtectedRoute>} />
                 <Route path="inventory/stock" element={<ProtectedRoute requiredModule="inventory"><InventoryStock /></ProtectedRoute>} />
                 <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
                 <Route path="inventory/dispatch-notes" element={<ProtectedRoute requiredModule="inventory"><Eotpremnica /></ProtectedRoute>} />
