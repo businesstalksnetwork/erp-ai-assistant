@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { invoice_id, tenant_id, test } = await req.json();
+    const { invoice_id, tenant_id, test, request_id } = await req.json();
 
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id required" }), {
@@ -113,7 +113,8 @@ Deno.serve(async (req) => {
       })),
     };
 
-    // Create submission record
+    // Create submission record with requestId for idempotency
+    const sefRequestId = request_id || crypto.randomUUID();
     const { data: submission, error: subErr } = await supabase
       .from("sef_submissions")
       .insert({
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
         invoice_id,
         sef_connection_id: connection.id,
         status: "pending",
-        request_payload: sefPayload,
+        request_payload: { ...sefPayload, requestId: sefRequestId },
       })
       .select()
       .single();
