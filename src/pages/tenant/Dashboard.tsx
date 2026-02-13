@@ -13,6 +13,7 @@ import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 import { TopCustomersChart } from "@/components/dashboard/TopCustomersChart";
 import { ModuleHealthSummary } from "@/components/dashboard/ModuleHealthSummary";
+import { FiscalReceiptStatusWidget } from "@/components/dashboard/FiscalReceiptStatusWidget";
 import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
 import { addDays } from "date-fns";
@@ -196,6 +197,9 @@ export default function TenantDashboard() {
 
       {/* Module Health */}
       {tenantId && <ModuleHealthSummary tenantId={tenantId} />}
+
+      {/* Fiscal Receipt Status */}
+      {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
 
       {/* Pending Actions + Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
