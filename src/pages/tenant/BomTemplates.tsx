@@ -12,13 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Factory } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function BomTemplates() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", product_id: "", notes: "" });
@@ -116,6 +118,7 @@ export default function BomTemplates() {
               <TableCell>{tpl.notes || "-"}</TableCell>
               <TableCell className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => openEdit(tpl)}><Pencil className="h-3 w-3" /></Button>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/production/orders?bom=${tpl.id}`)} title={t("createFromBom")}><Factory className="h-3 w-3" /></Button>
                 <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(tpl.id)}><Trash2 className="h-3 w-3" /></Button>
               </TableCell>
             </TableRow>

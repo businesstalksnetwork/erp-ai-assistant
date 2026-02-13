@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, CheckCircle, Loader2, Play, X, Eye } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function ProductionOrders() {
   const { t } = useLanguage();
@@ -23,6 +23,7 @@ export default function ProductionOrders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, planned_start: "", planned_end: "", notes: "" });
@@ -59,10 +60,25 @@ export default function ProductionOrders() {
     queryKey: ["bom_templates", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("bom_templates").select("id, name").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("bom_templates").select("id, name, product_id").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
+  });
+
+  // Fetch BOM lines for material summary when a BOM is selected in create/edit
+  const { data: bomMaterialSummary = [] } = useQuery({
+    queryKey: ["bom_lines_summary", form.bom_template_id],
+    queryFn: async () => {
+      if (!form.bom_template_id) return [];
+      const { data } = await supabase
+        .from("bom_lines")
+        .select("quantity, unit, material_product_id, products(name, default_purchase_price)")
+        .eq("bom_template_id", form.bom_template_id)
+        .order("sort_order");
+      return data || [];
+    },
+    enabled: !!form.bom_template_id && open,
   });
 
   const { data: warehouses = [] } = useQuery({
@@ -174,6 +190,20 @@ export default function ProductionOrders() {
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
+
+  // Handle BOM URL param from BomTemplates "Create Order" shortcut
+  useEffect(() => {
+    const bomParam = searchParams.get("bom");
+    if (bomParam && boms.length > 0) {
+      const selectedBom = boms.find((b: any) => b.id === bomParam);
+      if (selectedBom) {
+        setEditId(null);
+        setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, planned_start: "", planned_end: "", notes: "" });
+        setOpen(true);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, boms]);
 
   const openCreate = () => {
     setEditId(null);
@@ -306,11 +336,30 @@ export default function ProductionOrders() {
             </div>
             <div>
               <Label>{t("bomTemplate")}</Label>
-              <Select value={form.bom_template_id} onValueChange={v => setForm({ ...form, bom_template_id: v })}>
+              <Select value={form.bom_template_id} onValueChange={v => {
+                const selectedBom = boms.find((b: any) => b.id === v);
+                setForm({ ...form, bom_template_id: v, product_id: selectedBom?.product_id || form.product_id });
+              }}>
                 <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
                 <SelectContent>{boms.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {/* Material summary from BOM */}
+            {form.bom_template_id && bomMaterialSummary.length > 0 && (
+              <div className="border rounded-md p-3 bg-muted/30 space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">{t("materialSummary")}</Label>
+                {bomMaterialSummary.map((line: any, i: number) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span>{line.products?.name || "-"}</span>
+                    <span className="text-muted-foreground">{(line.quantity * form.quantity).toFixed(2)} {line.unit}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-1 flex justify-between text-sm font-medium">
+                  <span>{t("estimatedCost")}</span>
+                  <span>{bomMaterialSummary.reduce((sum: number, l: any) => sum + (l.quantity * form.quantity * (l.products?.default_purchase_price || 0)), 0).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            )}
             <div><Label>{t("quantity")}</Label><Input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>{t("plannedStart")}</Label><Input type="date" value={form.planned_start} onChange={e => setForm({ ...form, planned_start: e.target.value })} /></div>

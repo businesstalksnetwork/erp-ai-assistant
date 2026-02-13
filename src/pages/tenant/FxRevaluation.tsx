@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
-import { DollarSign, TrendingUp, TrendingDown, ArrowLeftRight } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ArrowLeftRight, Download, AlertTriangle, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface RevalLine {
   open_item_id: string;
@@ -42,6 +43,8 @@ export default function FxRevaluation() {
   const [legalEntityFilter, setLegalEntityFilter] = useState("__all__");
   const [previewLines, setPreviewLines] = useState<RevalLine[]>([]);
   const [previewed, setPreviewed] = useState(false);
+  const [useLatestRate, setUseLatestRate] = useState(false);
+  const [fetchingRates, setFetchingRates] = useState(false);
 
   const { data: history = [] } = useQuery({
     queryKey: ["fx-revaluations", tenantId],
@@ -56,6 +59,39 @@ export default function FxRevaluation() {
     },
     enabled: !!tenantId,
   });
+
+  // Check rate availability for the selected date
+  const { data: availableRates = [] } = useQuery({
+    queryKey: ["fx-rates-availability", tenantId, revalDate],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("exchange_rates")
+        .select("from_currency, rate, rate_date, source")
+        .eq("tenant_id", tenantId!)
+        .eq("to_currency", "RSD")
+        .eq("rate_date", revalDate);
+      return data || [];
+    },
+    enabled: !!tenantId && !!revalDate,
+  });
+
+  const fetchNbsRates = async () => {
+    setFetchingRates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("nbs-exchange-rates", {
+        body: { tenant_id: tenantId, date: revalDate },
+      });
+      if (error) throw error;
+      const count = data?.imported || 0;
+      toast({ title: t("success"), description: `${count} ${t("ratesImported")}` });
+      // Refresh rate availability
+      qc.invalidateQueries({ queryKey: ["fx-rates-availability"] });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    } finally {
+      setFetchingRates(false);
+    }
+  };
 
   const previewMutation = useMutation({
     mutationFn: async () => {
@@ -84,6 +120,28 @@ export default function FxRevaluation() {
 
       const rateMap: Record<string, number> = {};
       rates?.forEach(r => { rateMap[r.from_currency] = Number(r.rate); });
+
+      // Fallback: use latest available rate for missing currencies
+      if (useLatestRate) {
+        const missingCurrencies = currencies.filter(c => !rateMap[c]);
+        if (missingCurrencies.length > 0) {
+          for (const cur of missingCurrencies) {
+            const { data: latestRate } = await supabase
+              .from("exchange_rates")
+              .select("rate, rate_date")
+              .eq("tenant_id", tenantId!)
+              .eq("to_currency", "RSD")
+              .eq("from_currency", cur)
+              .lte("rate_date", revalDate)
+              .order("rate_date", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (latestRate) {
+              rateMap[cur] = Number(latestRate.rate);
+            }
+          }
+        }
+      }
 
       const lines: RevalLine[] = [];
       for (const oi of openItems) {
@@ -231,10 +289,25 @@ export default function FxRevaluation() {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button onClick={fetchNbsRates} disabled={fetchingRates} variant="outline">
+                  {fetchingRates ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+                  {t("fetchNbsRates")}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Switch checked={useLatestRate} onCheckedChange={setUseLatestRate} />
+                  <span className="text-sm text-muted-foreground">{t("useLatestRate")}</span>
+                </div>
                 <Button onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending}>
                   {t("search")}
                 </Button>
               </div>
+              {availableRates.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {availableRates.map((r: any) => (
+                    <Badge key={r.from_currency} variant="outline" className="text-xs">{r.from_currency}: {Number(r.rate).toFixed(4)}</Badge>
+                  ))}
+                </div>
+              )}
             </CardHeader>
           </Card>
 
