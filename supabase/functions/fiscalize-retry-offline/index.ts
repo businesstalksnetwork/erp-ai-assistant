@@ -28,6 +28,15 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    // Verify tenant membership
+    const { data: membership } = await supabase
+      .from("tenant_members").select("id")
+      .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Get offline receipts (max 5 retries)
     const { data: offlineReceipts } = await supabase
       .from("fiscal_receipts")

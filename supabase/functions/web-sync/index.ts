@@ -33,6 +33,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "tenant_id and connection_id required" }), { status: 400, headers: corsHeaders });
     }
 
+    // Verify tenant membership
+    const { data: membership } = await supabase
+      .from("tenant_members").select("id")
+      .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Create sync log
     const { data: logEntry, error: logErr } = await supabase
       .from("web_sync_logs")

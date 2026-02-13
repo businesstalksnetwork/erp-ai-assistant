@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
     }
 
     // Check user JWT
+    let jwtUser: any = null;
     if (!authenticated && authHeader) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -32,6 +33,7 @@ Deno.serve(async (req) => {
       const { data: { user }, error: authErr } = await userClient.auth.getUser();
       if (!authErr && user) {
         authenticated = true;
+        jwtUser = user;
       }
     }
 
@@ -66,6 +68,17 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Event not found", details: eventError?.message }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Verify tenant membership for JWT-authenticated users
+    if (jwtUser && event.tenant_id) {
+      const { data: membership } = await supabase
+        .from("tenant_members").select("id")
+        .eq("user_id", jwtUser.id).eq("tenant_id", event.tenant_id).eq("status", "active").maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Skip if already completed

@@ -41,6 +41,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Verify tenant membership
+    const { data: membership } = await supabase
+      .from("tenant_members").select("id")
+      .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Check cache first
     const { data: cached } = await supabase
       .from("ai_insights_cache")

@@ -82,12 +82,28 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { type } = body;
 
+    // Helper: verify tenant membership for financial reports
+    const verifyMembership = async (tenantId: string) => {
+      const { data: mem } = await admin
+        .from("tenant_members").select("id")
+        .eq("user_id", user!.id).eq("tenant_id", tenantId).eq("status", "active").maybeSingle();
+      if (!mem) {
+        return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return null;
+    };
+
     // --- Payslip ---
     if (type === "payslip" && body.payroll_item_id) {
       return await generatePayslip(admin, body.payroll_item_id, corsHeaders);
     }
 
-    // --- Financial Reports ---
+    // --- Financial Reports (require tenant membership) ---
+    if ((type === "trial_balance" || type === "income_statement" || type === "balance_sheet" || type === "aging_report") && body.tenant_id) {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+    }
     if (type === "trial_balance") {
       return await generateTrialBalance(admin, body, corsHeaders);
     }
@@ -98,7 +114,7 @@ Deno.serve(async (req) => {
       return await generateBalanceSheet(admin, body, corsHeaders);
     }
     if (type === "pdv_return") {
-      return await generatePdvReturn(admin, body, corsHeaders);
+      return await generatePdvReturn(admin, body, user!, corsHeaders);
     }
     if (type === "aging_report") {
       return await generateAgingReport(admin, body, corsHeaders);
@@ -391,12 +407,21 @@ async function generateBalanceSheet(admin: any, body: any, corsHeaders: Record<s
 }
 
 // ─── PDV Return ───
-async function generatePdvReturn(admin: any, body: any, corsHeaders: Record<string, string>) {
+async function generatePdvReturn(admin: any, body: any, user: any, corsHeaders: Record<string, string>) {
   const { pdv_period_id } = body;
   if (!pdv_period_id) return new Response(JSON.stringify({ error: "pdv_period_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const { data: period, error: pErr } = await admin.from("pdv_periods").select("*").eq("id", pdv_period_id).single();
   if (pErr || !period) return new Response(JSON.stringify({ error: "PDV period not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  // Verify tenant membership for PDV period's tenant
+  const { data: membership } = await admin
+    .from("tenant_members").select("id")
+    .eq("user_id", user.id).eq("tenant_id", period.tenant_id).eq("status", "active").maybeSingle();
+  if (!membership) {
+    return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
 
   const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", period.tenant_id).limit(1).maybeSingle();
   const { data: entries = [] } = await admin.from("pdv_entries").select("*").eq("pdv_period_id", pdv_period_id).order("popdv_section, document_date");
