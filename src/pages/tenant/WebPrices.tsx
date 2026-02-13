@@ -54,6 +54,15 @@ export default function WebPrices() {
     enabled: !!tenantId,
   });
 
+  const { data: stockData = [] } = useQuery({
+    queryKey: ["inventory_stock_totals", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("inventory_stock").select("product_id, on_hand").eq("tenant_id", tenantId!);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: prices = [] } = useQuery({
     queryKey: ["web_prices", selectedList],
     queryFn: async () => {
@@ -109,6 +118,11 @@ export default function WebPrices() {
   const getProductName = (productId: string) => {
     const p = products.find((p: any) => p.id === productId);
     return p?.name || productId;
+  };
+
+  const getProductStock = (productId: string) => {
+    const entries = stockData.filter((s: any) => s.product_id === productId);
+    return entries.reduce((sum: number, s: any) => sum + Number(s.on_hand || 0), 0);
   };
 
   return (
@@ -172,6 +186,7 @@ export default function WebPrices() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("product")}</TableHead>
+                  <TableHead className="text-right">{t("onHand")}</TableHead>
                   <TableHead className="text-right">{t("wholesalePrice")}</TableHead>
                   <TableHead className="text-right">{t("webPrice")}</TableHead>
                   <TableHead className="text-right">{t("compareAtPrice")}</TableHead>
@@ -183,6 +198,9 @@ export default function WebPrices() {
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{getProductName(p.product_id)}</TableCell>
+                      <TableCell className="text-right">
+                        {(() => { const stock = getProductStock(p.product_id); return <Badge variant={stock > 0 ? "default" : "destructive"}>{stock}</Badge>; })()}
+                      </TableCell>
                       <TableCell className="text-right">{Number(prod?.default_sale_price || 0).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">{Number(p.web_price).toFixed(2)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">

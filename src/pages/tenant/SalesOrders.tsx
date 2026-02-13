@@ -27,12 +27,13 @@ interface SalesOrderForm {
   status: string;
   currency: string;
   notes: string;
+  salesperson_id: string | null;
 }
 
 const emptyForm: SalesOrderForm = {
   order_number: "", quote_id: null, partner_id: null, partner_name: "",
   order_date: new Date().toISOString().split("T")[0], status: "pending",
-  currency: "RSD", notes: "",
+  currency: "RSD", notes: "", salesperson_id: null,
 };
 
 export default function SalesOrders() {
@@ -49,7 +50,7 @@ export default function SalesOrders() {
     queryFn: async () => {
       const { data } = await supabase
         .from("sales_orders")
-        .select("*, partners(name), quotes(quote_number)")
+        .select("*, partners(name), quotes(quote_number), salespeople(first_name, last_name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       return data || [];
@@ -75,12 +76,22 @@ export default function SalesOrders() {
     enabled: !!tenantId,
   });
 
+  const { data: salespeople = [] } = useQuery({
+    queryKey: ["salespeople-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("salespeople").select("id, first_name, last_name").eq("tenant_id", tenantId!).eq("is_active", true).order("first_name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: SalesOrderForm) => {
       const payload = {
         ...f, tenant_id: tenantId!,
         partner_id: f.partner_id || null,
         quote_id: f.quote_id || null,
+        salesperson_id: f.salesperson_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("sales_orders").update(payload).eq("id", editId);
@@ -100,7 +111,7 @@ export default function SalesOrders() {
     setForm({
       order_number: o.order_number, quote_id: o.quote_id, partner_id: o.partner_id,
       partner_name: o.partner_name, order_date: o.order_date, status: o.status,
-      currency: o.currency, notes: o.notes || "",
+      currency: o.currency, notes: o.notes || "", salesperson_id: o.salesperson_id || null,
     });
     setOpen(true);
   };
@@ -142,6 +153,7 @@ export default function SalesOrders() {
               <TableRow>
                 <TableHead>{t("orderNumber")}</TableHead>
                 <TableHead>{t("partner")}</TableHead>
+                <TableHead>{t("salesperson")}</TableHead>
                 <TableHead>{t("quote")}</TableHead>
                 <TableHead>{t("orderDate")}</TableHead>
                 <TableHead className="text-right">{t("total")}</TableHead>
@@ -151,13 +163,14 @@ export default function SalesOrders() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
               ) : orders.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
               ) : orders.map((o: any) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-medium">{o.order_number}</TableCell>
                   <TableCell>{o.partners?.name || o.partner_name || "—"}</TableCell>
+                  <TableCell>{o.salespeople ? `${o.salespeople.first_name} ${o.salespeople.last_name}` : "—"}</TableCell>
                   <TableCell>{o.quotes?.quote_number || "—"}</TableCell>
                   <TableCell>{o.order_date}</TableCell>
                   <TableCell className="text-right">{fmt(o.total, o.currency)}</TableCell>
@@ -230,6 +243,16 @@ export default function SalesOrders() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("salesperson")}</Label>
+              <Select value={form.salesperson_id || "__none"} onValueChange={(v) => setForm({ ...form, salesperson_id: v === "__none" ? null : v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {salespeople.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>

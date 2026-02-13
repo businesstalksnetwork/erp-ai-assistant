@@ -32,6 +32,23 @@ export default function PosTerminal() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [lastReceipt, setLastReceipt] = useState<{ number: string; qr?: string } | null>(null);
 
+  // Auto-detect in-store salesperson for logged-in user
+  const { data: autoSalesperson } = useQuery({
+    queryKey: ["auto-salesperson", tenantId, user?.id],
+    queryFn: async (): Promise<{ id: string; first_name: string; last_name: string } | null> => {
+      if (!tenantId || !user) return null;
+      const { data } = await (supabase.from("salespeople") as any)
+        .select("id, first_name, last_name")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", user.id)
+        .eq("role_type", "in_store")
+        .eq("is_active", true)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!tenantId && !!user,
+  });
+
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
     queryFn: async () => {
@@ -101,7 +118,7 @@ export default function PosTerminal() {
         customer_name: customerName || null,
         location_id: activeSession.location_id || null,
         warehouse_id: activeSession.warehouse_id || null,
-        salesperson_id: activeSession.salesperson_id || null,
+        salesperson_id: autoSalesperson?.id || activeSession.salesperson_id || null,
         buyer_id: buyerId || null,
         receipt_type: "sale",
       }).select().single();
@@ -166,6 +183,7 @@ export default function PosTerminal() {
             <Badge variant="outline">{(activeSession as any).salespeople.first_name} {(activeSession as any).salespeople.last_name}</Badge>
           )}
           {fiscalDevices.length > 0 && <Badge variant="default" className="text-xs">{t("fiscalDevice")}: {fiscalDevices[0].device_name}</Badge>}
+          {autoSalesperson && <Badge variant="secondary">{autoSalesperson.first_name} {autoSalesperson.last_name}</Badge>}
         </div>
 
         <div className="relative">
