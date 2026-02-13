@@ -84,26 +84,32 @@ const inventoryNav: NavItem[] = [
 ];
 
 const accountingNav: NavItem[] = [
-  { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen },
+  // Bookkeeping
+  { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen, section: "bookkeeping" },
   { key: "journalEntries", url: "/accounting/journal", icon: Calculator },
-  { key: "invoices", url: "/accounting/invoices", icon: Receipt },
+  { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
+  // Invoicing & Payments
+  { key: "invoices", url: "/accounting/invoices", icon: Receipt, section: "invoicingPayments" },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
-  { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText },
-  { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
-  { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
-  { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
-  { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark },
+  { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
+  // Assets & Accruals
+  { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark, section: "assetsAccruals" },
   { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
   { key: "loans", url: "/accounting/loans", icon: Coins },
   { key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign },
-  { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
+  // Tax & Closing
+  { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText, section: "taxClosing" },
+  { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
+  { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
   { key: "reports", url: "/accounting/reports", icon: BarChart3 },
 ];
 
 const crmNav: NavItem[] = [
-  { key: "crmDashboard", url: "/crm", icon: LayoutDashboard },
-  { key: "companies", url: "/crm/companies", icon: Building },
+  // Overview
+  { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
+  // Records
+  { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
@@ -112,9 +118,11 @@ const crmNav: NavItem[] = [
 ];
 
 const salesNav: NavItem[] = [
-  { key: "quotes", url: "/sales/quotes", icon: FileCheck },
+  // Documents
+  { key: "quotes", url: "/sales/quotes", icon: FileCheck, section: "salesDocuments" },
   { key: "salesOrders", url: "/sales/sales-orders", icon: ShoppingCart },
-  { key: "salesChannels", url: "/sales/sales-channels", icon: Grid3X3 },
+  // Performance & Pricing
+  { key: "salesChannels", url: "/sales/sales-channels", icon: Grid3X3, section: "performancePricing" },
   { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
   { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
   { key: "retailPrices", url: "/sales/retail-prices", icon: Receipt },
@@ -136,23 +144,28 @@ const returnsNav: NavItem[] = [
 ];
 
 const hrNav: NavItem[] = [
-  { key: "employees", url: "/hr/employees", icon: UserCheck },
+  // Organization
+  { key: "employees", url: "/hr/employees", icon: UserCheck, section: "organization" },
   { key: "contracts", url: "/hr/contracts", icon: FileSignature },
   { key: "departments", url: "/hr/departments", icon: Building },
   { key: "positionTemplates", url: "/hr/position-templates", icon: Briefcase },
-  { key: "workLogs", url: "/hr/work-logs", icon: Clock },
+  // Working Time
+  { key: "workLogs", url: "/hr/work-logs", icon: Clock, section: "workingTime" },
   { key: "overtimeHours", url: "/hr/overtime", icon: Timer },
   { key: "nightWork", url: "/hr/night-work", icon: Moon },
-  { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff },
-  { key: "holidays", url: "/hr/holidays", icon: Calendar },
   { key: "attendance", url: "/hr/attendance", icon: Clock },
+  // Leave
+  { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff, section: "leave" },
+  { key: "holidays", url: "/hr/holidays", icon: Calendar },
   { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
-  { key: "deductionsModule", url: "/hr/deductions", icon: Coins },
+  // Compensation
+  { key: "deductionsModule", url: "/hr/deductions", icon: Coins, section: "compensation" },
   { key: "allowance", url: "/hr/allowances", icon: Banknote },
   { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
-  { key: "externalWorkers", url: "/hr/external-workers", icon: Users },
-  { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
+  // Other
+  { key: "externalWorkers", url: "/hr/external-workers", icon: Users, section: "other" },
+  { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
   { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
 ];
@@ -163,30 +176,37 @@ const productionNav: NavItem[] = [
 ];
 
 const documentsNav: NavItem[] = [
-  { key: "dmsRegistry", url: "/documents", icon: FolderOpen },
+  // Registry
+  { key: "dmsRegistry", url: "/documents", icon: FolderOpen, section: "registry" },
   { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
-  { key: "dmsProjects", url: "/documents/projects", icon: Layers },
+  // Management
+  { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
   { key: "dmsBrowser", url: "/documents/browser", icon: Search },
   { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
   { key: "dmsSettings", url: "/documents/settings", icon: Settings },
 ];
 
 const posNav: NavItem[] = [
-  { key: "posTerminal", url: "/pos/terminal", icon: Monitor },
-  { key: "posSessions", url: "/pos/sessions", icon: CreditCard },
+  // Terminal
+  { key: "posTerminal", url: "/pos/terminal", icon: Monitor, section: "terminal" },
+  // Administration
+  { key: "posSessions", url: "/pos/sessions", icon: CreditCard, section: "administration" },
   { key: "fiscalDevices", url: "/pos/fiscal-devices", icon: Receipt },
   { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
 ];
 
 const settingsNav: NavItem[] = [
-  { key: "companySettings", url: "/settings", icon: Settings },
+  // General
+  { key: "companySettings", url: "/settings", icon: Settings, section: "settingsGeneral" },
   { key: "taxRates", url: "/settings/tax-rates", icon: Percent },
-  { key: "users", url: "/settings/users", icon: Users },
+  { key: "currencies", url: "/settings/currencies", icon: DollarSign },
+  // Access & Control
+  { key: "users", url: "/settings/users", icon: Users, section: "accessControl" },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
-  { key: "currencies", url: "/settings/currencies", icon: DollarSign },
-  { key: "integrations", url: "/settings/integrations", icon: Plug },
+  // System
+  { key: "integrations", url: "/settings/integrations", icon: Plug, section: "system" },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
 ];
