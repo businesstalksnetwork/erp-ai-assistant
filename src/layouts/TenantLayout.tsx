@@ -44,7 +44,7 @@ import {
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
-  ScanBarcode, MapPin, RefreshCw, Brain,
+  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -171,8 +171,14 @@ const hrNav: NavItem[] = [
 ];
 
 const productionNav: NavItem[] = [
-  { key: "bomTemplates", url: "/production/bom", icon: Layers },
+  // Existing
+  { key: "bomTemplates", url: "/production/bom", icon: Layers, section: "existingSection" },
   { key: "productionOrders", url: "/production/orders", icon: Factory },
+  // AI Planning
+  { key: "aiPlanningDashboard", url: "/production/ai-planning", icon: Brain, section: "aiPlanningSection" },
+  { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays },
+  { key: "bottleneckPrediction", url: "/production/ai-planning/bottlenecks", icon: AlertTriangle },
+  { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3 },
 ];
 
 const documentsNav: NavItem[] = [

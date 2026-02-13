@@ -138,6 +138,10 @@ import WmsPicking from "@/pages/tenant/WmsPicking";
 import WmsCycleCounts from "@/pages/tenant/WmsCycleCounts";
 import WmsSlotting from "@/pages/tenant/WmsSlotting";
 import PostingRules from "@/pages/tenant/PostingRules";
+import AiPlanningDashboard from "@/pages/tenant/AiPlanningDashboard";
+import AiPlanningSchedule from "@/pages/tenant/AiPlanningSchedule";
+import AiBottleneckPrediction from "@/pages/tenant/AiBottleneckPrediction";
+import AiCapacitySimulation from "@/pages/tenant/AiCapacitySimulation";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -240,6 +244,10 @@ const App = () => (
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
                 <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
+                <Route path="production/ai-planning" element={<ProtectedRoute requiredModule="production"><AiPlanningDashboard /></ProtectedRoute>} />
+                <Route path="production/ai-planning/schedule" element={<ProtectedRoute requiredModule="production"><AiPlanningSchedule /></ProtectedRoute>} />
+                <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><AiBottleneckPrediction /></ProtectedRoute>} />
+                <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><AiCapacitySimulation /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
                 <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><DocumentDetail /></ProtectedRoute>} />
                 <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><ArchiveBook /></ProtectedRoute>} />

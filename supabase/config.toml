@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.fiscalize-retry-offline]
 verify_jwt = false
+
+[functions.production-ai-planning]
+verify_jwt = false
