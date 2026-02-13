@@ -4,6 +4,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { TenantSelector } from "@/components/TenantSelector";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -359,6 +360,7 @@ export default function TenantLayout() {
               <Breadcrumbs />
             </div>
             <div className="flex items-center gap-1.5">
+              <TenantSelector />
               <NotificationBell />
               <Separator orientation="vertical" className="h-5" />
               <DropdownMenu>

@@ -9081,6 +9081,8 @@ export type Database = {
         }
         Returns: string
       }
+      post_kalkulacija: { Args: { p_kalkulacija_id: string }; Returns: string }
+      post_nivelacija: { Args: { p_nivelacija_id: string }; Returns: string }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
         Returns: undefined

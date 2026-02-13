@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Trash2, Calculator } from "lucide-react";
+import { Plus, Search, Trash2, Calculator, Send } from "lucide-react";
 
 interface KalkulacijaItem {
   product_id: string;
@@ -101,6 +101,16 @@ export default function Kalkulacija() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  const postMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.rpc("post_kalkulacija", { p_kalkulacija_id: id });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["kalkulacije"] }); toast({ title: t("posted") || "Posted" }); },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const addItem = () => setItems(prev => [...prev, { product_id: "", quantity: 1, purchase_price: 0, markup_percent: 20, pdv_rate: 20, retail_price: 0 }]);
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
@@ -146,8 +156,9 @@ export default function Kalkulacija() {
               <TableRow>
                 <TableHead>{t("invoiceNumber")}</TableHead>
                 <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("warehouse")}</TableHead>
+                 <TableHead>{t("warehouse")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,6 +168,13 @@ export default function Kalkulacija() {
                   <TableCell>{new Date(k.kalkulacija_date).toLocaleDateString("sr-RS")}</TableCell>
                   <TableCell>{(k.warehouses as any)?.name || "—"}</TableCell>
                   <TableCell><Badge variant={k.status === "posted" ? "default" : "secondary"}>{k.status}</Badge></TableCell>
+                  <TableCell>
+                    {k.status === "draft" && (
+                      <Button size="sm" variant="outline" onClick={() => postMutation.mutate(k.id)} disabled={postMutation.isPending}>
+                        <Send className="h-3 w-3 mr-1" />{t("save")}
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (

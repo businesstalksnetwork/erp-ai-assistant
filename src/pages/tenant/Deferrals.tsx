@@ -113,12 +113,12 @@ export default function Deferrals() {
           : `DEF-EXP-${d.id.substring(0, 8)}-P${periodNum}`,
         lines: isRevenue
           ? [
-              { accountCode: "2500", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
-              { accountCode: "4000", debit: 0, credit: perPeriod, description: "Revenue recognized", sortOrder: 1 },
+              { accountCode: "4600", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
+              { accountCode: "6010", debit: 0, credit: perPeriod, description: "Revenue recognized", sortOrder: 1 },
             ]
           : [
-              { accountCode: "8000", debit: perPeriod, credit: 0, description: "Expense recognized", sortOrder: 0 },
-              { accountCode: "1800", debit: 0, credit: perPeriod, description: "Prepaid Expense recognition", sortOrder: 1 },
+              { accountCode: "5400", debit: perPeriod, credit: 0, description: "Expense recognized", sortOrder: 0 },
+              { accountCode: "1500", debit: 0, credit: perPeriod, description: "Prepaid Expense recognition", sortOrder: 1 },
             ],
       });
 

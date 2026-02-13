@@ -104,22 +104,22 @@ export default function FixedAssets() {
 
           // Debit Accumulated Depreciation (clear it)
           if (accum > 0) {
-            lines.push({ accountCode: "1290", debit: accum, credit: 0, description: `Clear accum. dep. - ${form.name}`, sortOrder: sortOrder++ });
+            lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `Clear accum. dep. - ${form.name}`, sortOrder: sortOrder++ });
           }
 
           // If sold, debit bank/cash for sale proceeds
           if (form.disposal_type === "sold" && salePrice > 0) {
-            lines.push({ accountCode: "2410", debit: salePrice, credit: 0, description: `Sale proceeds - ${form.name}`, sortOrder: sortOrder++ });
+            lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `Sale proceeds - ${form.name}`, sortOrder: sortOrder++ });
           }
 
           // Credit the asset at cost
-          lines.push({ accountCode: "1200", debit: 0, credit: cost, description: `Remove asset - ${form.name}`, sortOrder: sortOrder++ });
+          lines.push({ accountCode: "0120", debit: 0, credit: cost, description: `Remove asset - ${form.name}`, sortOrder: sortOrder++ });
 
           // Gain or loss
           if (gainLoss > 0) {
-            lines.push({ accountCode: "8210", debit: 0, credit: gainLoss, description: `${t("gainOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
+            lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("gainOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
           } else if (gainLoss < 0) {
-            lines.push({ accountCode: "8200", debit: Math.abs(gainLoss), credit: 0, description: `${t("lossOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
+            lines.push({ accountCode: "5073", debit: Math.abs(gainLoss), credit: 0, description: `${t("lossOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
           }
 
           if (lines.length > 0) {
@@ -186,8 +186,8 @@ export default function FixedAssets() {
         description: `Depreciation - ${asset.name} - ${period}`,
         reference: `DEP-${asset.name}-${period}`,
         lines: [
-          { accountCode: "8100", debit: amount, credit: 0, description: `Depreciation expense - ${asset.name}`, sortOrder: 0 },
-          { accountCode: "1290", debit: 0, credit: amount, description: `Accum. depreciation - ${asset.name}`, sortOrder: 1 },
+          { accountCode: "5310", debit: amount, credit: 0, description: `Depreciation expense - ${asset.name}`, sortOrder: 0 },
+          { accountCode: "0121", debit: 0, credit: amount, description: `Accum. depreciation - ${asset.name}`, sortOrder: 1 },
         ],
       });
 

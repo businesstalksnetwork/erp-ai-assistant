@@ -144,14 +144,14 @@ export default function Loans() {
 
       const lines = isPayable
         ? [
-            { accountCode: "2200", debit: scheduleRow.principal, credit: 0, description: "Loan principal payment", sortOrder: 0 },
-            { accountCode: "8300", debit: scheduleRow.interest, credit: 0, description: "Interest expense", sortOrder: 1 },
-            { accountCode: "1000", debit: 0, credit: scheduleRow.payment, description: "Bank payment", sortOrder: 2 },
+            { accountCode: "4200", debit: scheduleRow.principal, credit: 0, description: "Loan principal payment", sortOrder: 0 },
+            { accountCode: "5330", debit: scheduleRow.interest, credit: 0, description: "Interest expense", sortOrder: 1 },
+            { accountCode: "2431", debit: 0, credit: scheduleRow.payment, description: "Bank payment", sortOrder: 2 },
           ]
         : [
-            { accountCode: "1000", debit: scheduleRow.payment, credit: 0, description: "Bank receipt", sortOrder: 0 },
-            { accountCode: "1300", debit: 0, credit: scheduleRow.principal, description: "Loan receivable reduction", sortOrder: 1 },
-            { accountCode: "4100", debit: 0, credit: scheduleRow.interest, description: "Interest income", sortOrder: 2 },
+            { accountCode: "2431", debit: scheduleRow.payment, credit: 0, description: "Bank receipt", sortOrder: 0 },
+            { accountCode: "2040", debit: 0, credit: scheduleRow.principal, description: "Loan receivable reduction", sortOrder: 1 },
+            { accountCode: "6020", debit: 0, credit: scheduleRow.interest, description: "Interest income", sortOrder: 2 },
           ];
 
       const journalEntryId = await createCodeBasedJournalEntry({
