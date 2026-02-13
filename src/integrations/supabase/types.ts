@@ -7355,6 +7355,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_sales_orders_web_connection"
+            columns: ["web_connection_id"]
+            isOneToOne: false
+            referencedRelation: "web_connections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_orders_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -8096,6 +8103,156 @@ export type Database = {
           },
         ]
       }
+      web_connections: {
+        Row: {
+          access_token: string | null
+          api_key: string | null
+          api_secret: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_sync_at: string | null
+          platform: string
+          store_url: string
+          tenant_id: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          platform?: string
+          store_url: string
+          tenant_id: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          platform?: string
+          store_url?: string
+          tenant_id?: string
+          webhook_secret?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_price_lists: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+          web_connection_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+          web_connection_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+          web_connection_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_price_lists_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_price_lists_web_connection_id_fkey"
+            columns: ["web_connection_id"]
+            isOneToOne: false
+            referencedRelation: "web_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_prices: {
+        Row: {
+          compare_at_price: number | null
+          created_at: string
+          id: string
+          price: number
+          product_id: string
+          tenant_id: string
+          web_price_list_id: string
+        }
+        Insert: {
+          compare_at_price?: number | null
+          created_at?: string
+          id?: string
+          price?: number
+          product_id: string
+          tenant_id: string
+          web_price_list_id: string
+        }
+        Update: {
+          compare_at_price?: number | null
+          created_at?: string
+          id?: string
+          price?: number
+          product_id?: string
+          tenant_id?: string
+          web_price_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_prices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_prices_web_price_list_id_fkey"
+            columns: ["web_price_list_id"]
+            isOneToOne: false
+            referencedRelation: "web_price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       web_sync_logs: {
         Row: {
           completed_at: string | null
@@ -8131,6 +8288,13 @@ export type Database = {
           web_connection_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_web_sync_logs_connection"
+            columns: ["web_connection_id"]
+            isOneToOne: false
+            referencedRelation: "web_connections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "web_sync_logs_tenant_id_fkey"
             columns: ["tenant_id"]
