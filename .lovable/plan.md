@@ -1,139 +1,72 @@
 
-# Fiscalization Hardening: Configurable Tax Labels + Timeout Recovery
 
-## Overview
+# Fix RLS: `notifications` INSERT Policy with `WITH CHECK(true)`
 
-Two changes to improve Serbian fiscalization compliance:
-1. Replace hardcoded tax label mapping (20->A, 10->G, 0->E) with per-device configurable mapping stored in the database
-2. Add timeout recovery using `GET /api/v3/invoices/{requestId}` when the initial POST times out
+## Finding
 
----
+Only **one** problematic write policy was found:
 
-## Change 1: Configurable Tax Label Mapping
+| Table | Policy | Command | Issue |
+|---|---|---|---|
+| `notifications` | "Service role can insert notifications" | INSERT | `WITH CHECK(true)` applied to `public` role |
 
-### Database Migration
+This allows **any** user (authenticated or anonymous) to insert notifications targeting any tenant and any user. The policy name suggests it was intended for service-role-only use, but it actually grants unrestricted INSERT access.
 
-Add a `tax_label_map` JSONB column to `fiscal_devices`:
+The other flagged policy (`module_definitions` SELECT with `USING(true)`) is acceptable -- it's a read-only reference table scoped to `authenticated` with write operations properly gated behind `is_super_admin()`.
 
-```sql
-ALTER TABLE fiscal_devices 
-ADD COLUMN tax_label_map jsonb DEFAULT '{"20":"A","10":"G","0":"E"}'::jsonb;
-```
-
-The default value preserves current behavior. Each device can override it (e.g., a device with different VAT categories or farmer compensation rate 8%).
-
-### Edge Function Changes (`fiscalize-receipt/index.ts`)
-
-- Remove the hardcoded `TAX_LABEL_MAP` constant
-- Read `device.tax_label_map` after loading the device config
-- Build a resolved map: merge the device's custom map with a sensible fallback
-- Use it in both the item label assignment and the tax grouping logic
-
-### Frontend Changes (`FiscalDevices.tsx`)
-
-- Add a "Tax Label Mapping" section to the add/edit device dialog
-- Display as editable key-value rows (tax rate -> label) with ability to add/remove entries
-- Pre-populate with the default mapping when creating a new device
-- Store as JSON in the `tax_label_map` field
+All other tenant-scoped tables (companies, contacts, meetings, web_connections, web_prices, etc.) correctly use `get_user_tenant_ids(auth.uid())` for tenant scoping on write operations.
 
 ---
 
-## Change 2: Timeout Recovery with GET Status Check
+## Fix
 
-### Problem
+Replace the overly permissive `notifications` INSERT policy with two policies:
 
-Currently, if the POST to `/api/v3/invoices` times out (network issue, slow SDC), the function immediately marks the receipt as OFFLINE. But the SDC may have actually processed and signed the receipt -- creating a "ghost fiscal receipt" that the tax authority sees but the ERP does not.
+### Policy 1: Users can insert notifications for themselves within their tenants
 
-### Solution
+Users should only be able to create notifications where `user_id = auth.uid()` AND `tenant_id` is one of their active tenants. This supports client-side notification creation (e.g., reminders).
 
-Add a unique `requestId` (UUID) to each fiscalization attempt, sent as a header. On timeout, perform a `GET /api/v3/invoices/{requestId}` status check before falling back to offline mode.
+### Policy 2: Service role bypass
 
-### Edge Function Changes (`fiscalize-receipt/index.ts`)
+Edge functions that create notifications for other users (e.g., `create-notification`, `nbs-exchange-rates` admin alerts) use the service role key, which bypasses RLS entirely. No explicit policy is needed for them -- the service role is exempt from RLS by default in Supabase.
 
-1. Generate a UUID `requestId` before the POST call
-2. Add a 10-second timeout to the POST using `AbortSignal.timeout(10000)`
-3. Include `RequestId` header in the POST
-4. On timeout/error, attempt a GET status check:
-   ```
-   GET {device.api_url}/api/v3/invoices/{requestId}
-   ```
-5. If GET returns a valid response with `invoiceNumber`, use it (receipt was actually signed)
-6. If GET also fails, then fall back to OFFLINE mode
-7. Store `requestId` in the `fiscal_receipts` record for future retry correlation
+---
 
-### Database Migration
-
-Add a `request_id` column to `fiscal_receipts`:
+## Migration SQL
 
 ```sql
-ALTER TABLE fiscal_receipts 
-ADD COLUMN request_id uuid;
+-- Drop the overly permissive policy
+DROP POLICY IF EXISTS "Service role can insert notifications" ON public.notifications;
+
+-- Replace with tenant-scoped, user-scoped insert policy
+CREATE POLICY "Users can insert notifications for themselves"
+ON public.notifications
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  auth.uid() = user_id
+  AND tenant_id IN (SELECT get_user_tenant_ids(auth.uid()))
+);
 ```
-
-### Retry Function Update (`fiscalize-retry-offline/index.ts`)
-
-- When retrying offline receipts, use the stored `request_id` 
-- First try `GET /api/v3/invoices/{requestId}` to check if the original was actually processed
-- Only re-POST if the GET confirms no prior processing
 
 ---
 
 ## Technical Details
 
-### Files Modified
+**Why removing the old policy is safe:**
+- Edge functions (`create-notification`, `nbs-exchange-rates`, `process-module-event`) use `SUPABASE_SERVICE_ROLE_KEY` to create their Supabase client, which bypasses RLS completely
+- The new policy only affects direct client-side inserts, which should be scoped to the current user anyway
+- No frontend code inserts notifications for other users
 
-1. **New migration** -- Add `tax_label_map` to `fiscal_devices` and `request_id` to `fiscal_receipts`
-2. **`supabase/functions/fiscalize-receipt/index.ts`** -- Configurable tax labels + requestId + timeout recovery
-3. **`supabase/functions/fiscalize-retry-offline/index.ts`** -- Use stored requestId for GET-before-retry
-4. **`src/pages/tenant/FiscalDevices.tsx`** -- Tax label mapping editor in device dialog
+**What was reviewed and found correct:**
+- `ai_conversations` -- scoped by `auth.uid() = user_id AND tenant_id IN get_user_tenant_ids()`
+- `audit_log` -- scoped by `tenant_id IN get_user_tenant_ids() OR is_super_admin()`
+- `companies`, `contacts`, `meetings` -- scoped by `tenant_id IN get_user_tenant_ids()`
+- `notification_preferences` -- scoped by `auth.uid() = user_id`
+- `profiles` -- scoped by `id = auth.uid()`
+- `sef_submissions` -- scoped by tenant membership subquery
+- `web_connections`, `web_price_lists`, `web_prices`, `web_sync_logs` -- scoped by `tenant_id IN get_user_tenant_ids()`
+- `module_definitions` -- read `USING(true)` for authenticated (reference table), writes gated by `is_super_admin()`
 
-### Tax Label Map Editor UI
+**Files modified:** One database migration only. No code changes needed.
 
-The device form dialog will include a section like:
-
-```
-Tax Label Mapping
-+-----------+-------+--------+
-| Tax Rate  | Label | Action |
-+-----------+-------+--------+
-| 20        | A     | [x]    |
-| 10        | G     | [x]    |
-| 0         | E     | [x]    |
-+-----------+-------+--------+
-[+ Add Row]
-```
-
-Users can add entries for special rates (e.g., 8% farmer compensation -> label "K") or adjust labels to match their specific SDC/LPFR configuration.
-
-### Timeout Recovery Flow
-
-```
-Generate requestId (UUID)
-    |
-    v
-POST /api/v3/invoices (with RequestId header, 10s timeout)
-    |
-    +---> Success: use response as normal
-    |
-    +---> Timeout/Network Error:
-              |
-              v
-         GET /api/v3/invoices/{requestId} (5s timeout)
-              |
-              +---> Found (invoiceNumber present): receipt WAS signed, use it
-              |
-              +---> Not found / error: mark as OFFLINE, store requestId for later retry
-```
-
-### Retry-Offline Enhanced Flow
-
-```
-For each offline receipt with request_id:
-    |
-    v
-GET /api/v3/invoices/{requestId} first
-    |
-    +---> Found: update receipt, done (no duplicate fiscal receipt)
-    |
-    +---> Not found: proceed with POST retry (as before)
-```
