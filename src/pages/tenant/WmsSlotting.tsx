@@ -241,7 +241,7 @@ export default function WmsSlotting() {
               <p className="text-center text-muted-foreground py-8">{t("selectScenario")}</p>
             ) : (
               <Table>
-                <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead>From</TableHead><TableHead>To</TableHead><TableHead>{t("priority")}</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead>From</TableHead><TableHead>To</TableHead><TableHead>#</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {moves.length === 0 ? (
                     <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>

@@ -91,7 +91,7 @@ export default function WmsTasks() {
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("pending")}</p><div className="mt-2 flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /><span className="text-2xl font-bold">{pending}</span></div></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("inProgress")}</p><div className="mt-2 flex items-center gap-2"><Loader2 className="h-4 w-4 text-primary" /><span className="text-2xl font-bold">{inProgress}</span></div></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("wmsInProgress")}</p><div className="mt-2 flex items-center gap-2"><Loader2 className="h-4 w-4 text-primary" /><span className="text-2xl font-bold">{inProgress}</span></div></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("completedToday")}</p><div className="mt-2 flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /><span className="text-2xl font-bold">{completedToday}</span></div></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("exceptions")}</p><div className="mt-2 flex items-center gap-2"><AlertCircle className="h-4 w-4 text-destructive" /><span className="text-2xl font-bold">{exceptions}</span></div></CardContent></Card>
       </div>
@@ -104,14 +104,14 @@ export default function WmsTasks() {
         <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("allTypes")}</SelectItem>
+            <SelectItem value="all">{t("wmsAllTypes")}</SelectItem>
             {TASK_TYPES.map(tt => <SelectItem key={tt} value={tt}>{tt}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            <SelectItem value="all">{t("wmsAllStatuses")}</SelectItem>
             {TASK_STATUSES.map(ts => <SelectItem key={ts} value={ts}>{ts.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
