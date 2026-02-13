@@ -11,6 +11,7 @@ import { LeadFunnelChart } from "@/components/crm/LeadFunnelChart";
 import { OpportunityPipelineChart } from "@/components/crm/OpportunityPipelineChart";
 import { WinLossChart } from "@/components/crm/WinLossChart";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Badge } from "@/components/ui/badge";
 
@@ -105,6 +106,24 @@ export default function CrmDashboard() {
       />
 
       {tenantId && <AiModuleInsights tenantId={tenantId} module="crm" />}
+
+      {tenantId && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="planning"
+          data={{
+            totalLeads,
+            convertedLeads,
+            conversionRate,
+            pipelineValue,
+            openDeals: openOpps.length,
+            winRate,
+            wonCount: wonOpps.length,
+            lostCount: lostOpps.length,
+            topKomCount: topKom.length,
+          }}
+        />
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <LeadFunnelChart leads={leads as any} />
