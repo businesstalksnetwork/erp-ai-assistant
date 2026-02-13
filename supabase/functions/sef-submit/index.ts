@@ -71,9 +71,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Idempotency check (Critical Fix 1) ---
-    // If a submission already exists for this invoice+request_id that is not in a terminal
-    // failure state, return the existing status instead of creating a duplicate.
+    // --- Idempotency check ---
     const sefRequestId = request_id || crypto.randomUUID();
 
     const { data: existingSub } = await supabase
@@ -87,37 +85,23 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingSub) {
-      // If already accepted, return success
       if (existingSub.status === "accepted") {
         return new Response(
           JSON.stringify({
-            success: true,
-            status: "accepted",
-            sef_invoice_id: existingSub.sef_invoice_id,
-            message: "Invoice already accepted by SEF",
-            idempotent: true,
+            success: true, status: "accepted", sef_invoice_id: existingSub.sef_invoice_id,
+            message: "Invoice already accepted by SEF", idempotent: true,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // If pending or submitted, poll status instead of resubmitting
-      // In production this would call GET /publicApi/sales-invoice/status/{requestId}
-      // For now, return current status with polling hint
       if (existingSub.status === "pending" || existingSub.status === "submitted") {
-        // Update to polling state
-        await supabase
-          .from("sef_submissions")
-          .update({ status: "submitted" })
-          .eq("id", existingSub.id);
-
+        await supabase.from("sef_submissions").update({ status: "submitted" }).eq("id", existingSub.id);
         return new Response(
           JSON.stringify({
-            success: true,
-            status: existingSub.status,
-            message: "Submission already in progress. Upload success does not mean issued — poll status endpoint to confirm.",
-            submission_id: existingSub.id,
-            idempotent: true,
+            success: true, status: existingSub.status,
+            message: "Submission already in progress. Poll status to confirm.",
+            submission_id: existingSub.id, idempotent: true,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -138,7 +122,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build SEF payload (scaffold)
+    // Build SEF payload
     const sefPayload = {
       invoiceNumber: invoice.invoice_number,
       invoiceDate: invoice.invoice_date,
@@ -158,7 +142,7 @@ Deno.serve(async (req) => {
       })),
     };
 
-    // Create submission record — requestId is persisted per issuance attempt and reused on retry
+    // Create submission record
     const { data: submission, error: subErr } = await supabase
       .from("sef_submissions")
       .insert({
@@ -182,60 +166,89 @@ Deno.serve(async (req) => {
     if (connection.environment === "sandbox") {
       const fakeSefId = `SEF-${Date.now()}`;
 
-      await supabase
-        .from("sef_submissions")
-        .update({
-          status: "accepted",
-          sef_invoice_id: fakeSefId,
-          response_payload: { simulated: true, sef_id: fakeSefId },
-          resolved_at: new Date().toISOString(),
-        })
-        .eq("id", submission.id);
+      await supabase.from("sef_submissions").update({
+        status: "accepted", sef_invoice_id: fakeSefId,
+        response_payload: { simulated: true, sef_id: fakeSefId },
+        resolved_at: new Date().toISOString(),
+      }).eq("id", submission.id);
 
-      await supabase
-        .from("invoices")
-        .update({ sef_status: "accepted" })
-        .eq("id", invoice_id);
-
-      await supabase
-        .from("sef_connections")
-        .update({ last_sync_at: new Date().toISOString(), last_error: null })
-        .eq("id", connection.id);
+      await supabase.from("invoices").update({ sef_status: "accepted" }).eq("id", invoice_id);
+      await supabase.from("sef_connections").update({ last_sync_at: new Date().toISOString(), last_error: null }).eq("id", connection.id);
 
       return new Response(
-        JSON.stringify({
-          success: true,
-          status: "accepted",
-          sef_invoice_id: fakeSefId,
-          simulated: true,
-        }),
+        JSON.stringify({ success: true, status: "accepted", sef_invoice_id: fakeSefId, simulated: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Production mode: placeholder for real API call
-    // NOTE: Per SEF spec, POST /publicApi/sales-invoice/ubl/upload/{requestId}
-    // A successful response does NOT mean the invoice was issued.
-    // You MUST poll GET status endpoint to confirm terminal state.
-    // Rate limit: max 3 API calls/sec per API key (HTTP 429 on excess).
-    await supabase
-      .from("sef_submissions")
-      .update({ status: "submitted" })
-      .eq("id", submission.id);
+    // Production mode: real API call
+    try {
+      const uploadUrl = `${connection.api_url}/publicApi/sales-invoice/ubl/upload/${sefRequestId}`;
+      const apiRes = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "ApiKey": connection.api_key_encrypted,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(sefPayload),
+      });
 
-    await supabase
-      .from("invoices")
-      .update({ sef_status: "submitted" })
-      .eq("id", invoice_id);
+      if (apiRes.status === 429) {
+        await supabase.from("sef_submissions").update({
+          status: "rate_limited",
+          response_payload: { status: 429, message: "Rate limited" },
+        }).eq("id", submission.id);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        status: "submitted",
-        message: "Production SEF submission — upload success does not mean issued. Poll status endpoint to confirm. Respect rate limit (3 req/sec).",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+        await supabase.from("invoices").update({ sef_status: "submitted" }).eq("id", invoice_id);
+
+        return new Response(JSON.stringify({
+          success: false, status: "rate_limited",
+          message: "SEF rate limit exceeded (3 req/sec). Retry after delay.",
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const resBody = await apiRes.json().catch(() => ({ raw: await apiRes.text() }));
+
+      if (apiRes.ok) {
+        await supabase.from("sef_submissions").update({
+          status: "submitted",
+          response_payload: resBody,
+        }).eq("id", submission.id);
+
+        await supabase.from("invoices").update({ sef_status: "submitted" }).eq("id", invoice_id);
+        await supabase.from("sef_connections").update({ last_sync_at: new Date().toISOString(), last_error: null }).eq("id", connection.id);
+
+        return new Response(JSON.stringify({
+          success: true, status: "submitted",
+          message: "Upload success. Poll status endpoint to confirm acceptance.",
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } else {
+        await supabase.from("sef_submissions").update({
+          status: "error",
+          response_payload: resBody,
+        }).eq("id", submission.id);
+
+        await supabase.from("sef_connections").update({ last_error: JSON.stringify(resBody) }).eq("id", connection.id);
+
+        return new Response(JSON.stringify({
+          success: false, status: "error",
+          message: `SEF API returned ${apiRes.status}`,
+          details: resBody,
+        }), { status: apiRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    } catch (fetchErr) {
+      await supabase.from("sef_submissions").update({
+        status: "error",
+        response_payload: { error: fetchErr.message },
+      }).eq("id", submission.id);
+
+      await supabase.from("sef_connections").update({ last_error: fetchErr.message }).eq("id", connection.id);
+
+      return new Response(JSON.stringify({
+        success: false, status: "error", message: fetchErr.message,
+      }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
