@@ -75,7 +75,8 @@ const inventoryNav: NavItem[] = [
   { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator, section: "pricingOperations" },
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
   // WMS
-  { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin, section: "wms" },
+  { key: "wmsDashboard", url: "/inventory/wms/dashboard", icon: LayoutDashboard, section: "wms" },
+  { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
   { key: "wmsReceiving", url: "/inventory/wms/receiving", icon: Truck },
   { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
