@@ -100,6 +100,15 @@ export function GlobalSearch() {
     { label: t("kompenzacija"), path: "/accounting/kompenzacija", icon: ArrowLeftRight, group: "accounting", module: "accounting" },
     { label: t("reports"), path: "/accounting/reports", icon: BarChart3, group: "accounting", module: "accounting" },
 
+    // Analytics
+    { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "accounting" },
+    { label: t("financialRatios"), path: "/analytics/ratios", icon: Activity, group: "analytics", module: "accounting" },
+    { label: t("profitabilityAnalysis"), path: "/analytics/profitability", icon: TrendingUp, group: "analytics", module: "accounting" },
+    { label: t("cashFlowForecast"), path: "/analytics/cashflow-forecast", icon: DollarSign, group: "analytics", module: "accounting" },
+    { label: t("budgetVsActuals"), path: "/analytics/budget", icon: Target, group: "analytics", module: "accounting" },
+    { label: t("breakEvenAnalysis"), path: "/analytics/break-even", icon: Calculator, group: "analytics", module: "accounting" },
+    { label: t("businessPlanning"), path: "/analytics/planning", icon: Briefcase, group: "analytics", module: "accounting" },
+
     // HR
     { label: t("employees"), path: "/hr/employees", icon: UserCheck, group: "hr", module: "hr" },
     { label: t("contracts"), path: "/hr/contracts", icon: FileSignature, group: "hr", module: "hr" },
