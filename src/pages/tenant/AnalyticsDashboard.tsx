@@ -9,6 +9,7 @@ import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -247,6 +248,21 @@ export default function AnalyticsDashboard() {
         </Card>
       </div>
 
+      {tenantId && totals && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="dashboard"
+          data={{
+            grossMargin: Number(grossMargin.toFixed(1)),
+            currentRatio: Number(currentRatio.toFixed(2)),
+            dso: invoiceStats?.dso || 0,
+            debtToEquity: Number(debtToEquity.toFixed(2)),
+            revenue: Math.round(totals.revenue),
+            expenses: Math.round(totals.expenses),
+            profit: Math.round(totals.revenue - totals.expenses),
+          }}
+        />
+      )}
       {tenantId && <AiModuleInsights tenantId={tenantId} module="analytics" />}
     </div>
   );

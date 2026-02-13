@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -181,12 +182,33 @@ export default function BusinessPlanning() {
         </CardContent>
       </Card>
 
-      {/* AI Recommendations */}
+      {/* AI Recommendations (LLM-powered) */}
+      {tenantId && actuals && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="planning"
+          data={{
+            revenueYTD: Math.round(actuals.revenue),
+            expensesYTD: Math.round(actuals.expenses),
+            profitYTD: Math.round(actuals.profit),
+            revenueTarget,
+            profitTarget,
+            revenueProgress: Number(revProgress.toFixed(1)),
+            profitProgress: Number(profitProgress.toFixed(1)),
+            yoyGrowth: Number(yoyGrowth.toFixed(1)),
+            expenseRatio: Number((expenseRatio * 100).toFixed(0)),
+            prevYearRevenue: Math.round(actuals.prevRevenue),
+            prevYearProfit: Math.round(actuals.prevProfit),
+          }}
+        />
+      )}
+
+      {/* Static fallback recommendations */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-warning" />
-            {sr ? "AI preporuke" : "AI Recommendations"}
+            {sr ? "Brze preporuke" : "Quick Insights"}
           </CardTitle>
         </CardHeader>
         <CardContent>

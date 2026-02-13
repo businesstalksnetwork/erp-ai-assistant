@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { Activity, TrendingUp, DollarSign, Percent, Clock, Package } from "lucide-react";
 
 interface RatioCard {
@@ -166,6 +167,26 @@ export default function FinancialRatios() {
             </div>
           );
         })
+      )}
+
+      {tenantId && ratios && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="ratios"
+          data={{
+            currentRatio: ratios.currentRatio,
+            quickRatio: ratios.quickRatio,
+            cashRatio: ratios.cashRatio,
+            grossMargin: ratios.grossMargin,
+            netMargin: ratios.netMargin,
+            roa: ratios.roa,
+            roe: ratios.roe,
+            assetTurnover: ratios.assetTurnover,
+            inventoryTurnover: ratios.inventoryTurnover,
+            dso: ratios.dso,
+            debtToEquity: ratios.debtToEquity,
+          }}
+        />
       )}
     </div>
   );

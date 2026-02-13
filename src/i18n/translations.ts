@@ -1613,6 +1613,10 @@ export const translations = {
 
     // Analytics
     analytics: "Analytics",
+    analyticsOverview: "Overview",
+    financialHealth: "Financial Health",
+    forecasting: "Forecasting",
+    strategicPlanning: "Strategic Planning",
     analyticsDashboard: "Analytics Dashboard",
     financialRatios: "Financial Ratios",
     profitabilityAnalysis: "Profitability Analysis",
@@ -3182,6 +3186,10 @@ export const translations = {
 
     // Analytics
     analytics: "Analize",
+    analyticsOverview: "Pregled",
+    financialHealth: "Finansijsko zdravlje",
+    forecasting: "Predviđanje",
+    strategicPlanning: "Strateško planiranje",
     analyticsDashboard: "Analitički pregled",
     financialRatios: "Finansijski raciji",
     profitabilityAnalysis: "Analiza profitabilnosti",

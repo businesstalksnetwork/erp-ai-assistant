@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.production-ai-planning]
 verify_jwt = false
+
+[functions.ai-analytics-narrative]
+verify_jwt = false
