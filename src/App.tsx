@@ -125,6 +125,8 @@ import InternalOrders from "@/pages/tenant/InternalOrders";
 import InternalTransfers from "@/pages/tenant/InternalTransfers";
 import InternalGoodsReceipts from "@/pages/tenant/InternalGoodsReceipts";
 import WarehouseDetail from "@/pages/tenant/WarehouseDetail";
+import Kalkulacija from "@/pages/tenant/Kalkulacija";
+import Nivelacija from "@/pages/tenant/Nivelacija";
 
 const queryClient = new QueryClient();
 
@@ -261,6 +263,8 @@ const App = () => (
                 <Route path="inventory/internal-orders" element={<ProtectedRoute requiredModule="inventory"><InternalOrders /></ProtectedRoute>} />
                 <Route path="inventory/internal-transfers" element={<ProtectedRoute requiredModule="inventory"><InternalTransfers /></ProtectedRoute>} />
                 <Route path="inventory/internal-receipts" element={<ProtectedRoute requiredModule="inventory"><InternalGoodsReceipts /></ProtectedRoute>} />
+                <Route path="inventory/kalkulacija" element={<ProtectedRoute requiredModule="inventory"><Kalkulacija /></ProtectedRoute>} />
+                <Route path="inventory/nivelacija" element={<ProtectedRoute requiredModule="inventory"><Nivelacija /></ProtectedRoute>} />
                 <Route path="inventory/warehouses/:id" element={<ProtectedRoute requiredModule="inventory"><WarehouseDetail /></ProtectedRoute>} />
               </Route>
 
