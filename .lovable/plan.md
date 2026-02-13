@@ -1,117 +1,155 @@
 
 
-# Production AI Planning Module -- MVP Implementation
+# WMS and Production AI Planning -- Full Implementation Upgrade
 
-## Overview
+## Summary
 
-Add a new "AI Planning" sub-module within the existing Production module. This introduces 4 new pages and 1 new edge function that leverage Lovable AI (Gemini) to provide intelligent production scheduling, bottleneck prediction, and capacity insights based on existing production data.
+Upgrade both modules from their current MVP state to production-grade implementations with richer UIs, more interactive workflows, better data visualization, and comprehensive operational features.
 
-## Architecture
+---
 
-The module will reuse the existing `ai-assistant` pattern (Lovable AI Gateway via edge function) and the existing `production_orders`, `bom_templates`, `bom_lines`, `inventory_stock`, and `products` tables. No new database tables are needed for the MVP -- AI analysis is done on-the-fly from existing data.
+## Part 1: WMS Module Improvements
 
-## New Pages (4)
+### Current State
+- **WmsZones**: Full CRUD for zones, aisles, bins with visual grid. Solid.
+- **WmsTasks**: Task list with filters and status transitions. Basic KPI cards. Missing: task creation dialog, batch assignment, worker assignment dropdown, priority editing.
+- **WmsReceiving**: Create receiving with auto-putaway task generation. Missing: PO linkage, barcode/reference field, edit/cancel received items.
+- **WmsPicking**: Shows pick waves and active pick tasks. Very thin -- no wave creation, no order-to-wave assignment, no pick confirmation workflow.
+- **WmsCycleCounts**: Count creation and line-by-line counting. Missing: reconciliation step, variance approval, auto-adjustment of stock.
+- **WmsSlotting**: AI + local analysis, scenario management, move plan. Already the most complete page.
+- **WmsBinDetail**: Read-only bin view. Missing: stock adjustment, movement history, transfer action.
 
-### 1. `/production/ai-planning` -- AI Planning Dashboard
-The main entry point showing:
-- **KPI Cards**: Schedule adherence %, capacity utilization %, active orders, late orders
-- **AI-generated insights panel**: Bottleneck alerts, late-order risk, material shortage warnings
-- **"Generate AI Plan" button**: Triggers the AI scheduling engine
-- Data sourced from `production_orders` (statuses, dates) and `inventory_stock`
+### Planned Improvements
 
-### 2. `/production/ai-planning/schedule` -- AI-Optimized Schedule
-- **Gantt-style timeline view** (using simple CSS bars, not a heavy library) showing production orders on a date axis
-- **"Generate Schedule" button**: Sends current orders, BOM data, and capacity constraints to AI edge function
-- AI returns optimized order sequencing with start/end suggestions and explanations
-- **Human-in-the-loop controls**: Lock/unlock orders, override priorities, accept/reject AI suggestions
-- Each suggestion shows an explanation (e.g., "Moved Order X before Y to reduce changeover time")
+#### 1. WmsTasks -- Full Task Management
+- **Create Task dialog**: Manual task creation with type, warehouse, product, from/to bin, quantity, priority, notes
+- **Batch operations**: Multi-select tasks for bulk assign, bulk start, bulk cancel
+- **Worker assignment**: Dropdown to assign tasks to specific users (from `tenant_members`)
+- **Priority editing**: Inline priority change (1-5 with labels)
+- **Task detail side panel**: Click a task row to see full details including timestamps, assigned user name, exception reason
+- **Performance metrics**: Average completion time, tasks per hour (calculated from completed tasks)
 
-### 3. `/production/ai-planning/bottlenecks` -- Bottleneck Prediction
-- Lists predicted bottlenecks from AI analysis:
-  - Material shortages (cross-referencing BOM needs vs `inventory_stock`)
-  - Overloaded date ranges (too many orders in same window)
-  - Late-order probability
-- Each bottleneck has severity (critical/warning/info), explanation, and suggested action
-- Data gathered from production orders + inventory stock, analyzed by AI
+#### 2. WmsReceiving -- Enhanced Receiving
+- **Reference fields**: PO number, supplier reference, delivery note number inputs
+- **Lot/serial tracking**: Lot number and expiry date fields per receiving line
+- **Receiving from Purchase Orders**: Button to import lines from pending POs (fetches from `purchase_order_lines`)
+- **Quality hold option**: Toggle to place received stock in "held" status instead of "available"
+- **Cancel/void receiving**: Ability to reverse a receiving by removing bin stock and marking receive tasks as cancelled
 
-### 4. `/production/ai-planning/scenarios` -- Capacity Simulation
-- **What-if scenario builder**: User can adjust parameters:
-  - Add/remove shifts (multiplier on daily capacity)
-  - Change order priorities
-  - Delay/advance order dates
-- Click "Simulate" to get AI-generated comparison of KPIs (utilization %, on-time rate, WIP)
-- Shows before/after comparison cards
+#### 3. WmsPicking -- Full Pick Workflow
+- **Create Pick Wave dialog**: Select warehouse, add sales orders to wave, auto-generate pick tasks from order lines
+- **Wave management**: Release, start, complete waves with status transitions
+- **Pick confirmation**: Per-task confirmation dialog with actual picked quantity (partial picks supported)
+- **Pick list print view**: Printable list grouped by zone for paper-based picking
+- **Stats cards**: Total lines, picked lines, remaining lines, pick rate
 
-## New Edge Function (1)
+#### 4. WmsCycleCounts -- Reconciliation & Adjustment
+- **Reconcile action**: Button to finalize a count -- compares counted vs expected, calculates variance
+- **Variance approval dialog**: Show variances, allow manager to approve/reject adjustments
+- **Auto-adjust stock**: On approval, update `wms_bin_stock` quantities to match counted values
+- **Count completion**: Mark count as "completed" after all lines counted, "reconciled" after adjustments applied
+- **Variance summary cards**: Total items counted, discrepancies found, adjustment value
 
-### `supabase/functions/production-ai-planning/index.ts`
-- Accepts action types: `generate-schedule`, `predict-bottlenecks`, `simulate-scenario`, `dashboard-insights`
-- Fetches relevant production data from Supabase (orders, BOMs, inventory)
-- Constructs a detailed prompt with the data context
-- Calls Lovable AI Gateway (google/gemini-3-flash-preview) with tool calling for structured output
-- Returns structured JSON responses (schedule suggestions, bottleneck list, scenario comparison)
-- JWT-authenticated, tenant-scoped
+#### 5. WmsBinDetail -- Interactive Bin Management
+- **Stock adjustment dialog**: Add/remove stock directly on a bin with reason
+- **Transfer dialog**: Move stock from this bin to another bin (creates a move task)
+- **Movement history tab**: Show all tasks involving this bin (from/to) with timestamps
+- **Bin edit**: Inline edit of bin properties (max units, weight, accessibility score)
 
-## Sidebar Navigation Update
+#### 6. New Page: WMS Dashboard (`/inventory/wms/dashboard`)
+- **Warehouse-wide KPIs**: Total bins, occupied bins, utilization %, tasks pending/in-progress/completed today
+- **Zone heatmap**: Color-coded zone cards showing fill level (empty/partial/full/over-capacity)
+- **Active task summary**: Pie chart of task statuses, bar chart of tasks by type
+- **Recent activity feed**: Last 20 task completions/exceptions
+- **Quick actions**: Buttons to create receiving, pick wave, cycle count
 
-Update `productionNav` in `TenantLayout.tsx` to add sections:
+---
 
-```
-Production
-  [Existing]
-    BOM Templates
-    Production Orders
-  [AI Planning]
-    AI Dashboard
-    AI Schedule
-    Bottleneck Prediction
-    Capacity Simulation
-```
+## Part 2: Production AI Planning Improvements
 
-## Translation Keys (~30 new keys)
+### Current State
+- **AiPlanningDashboard**: KPI cards + insights list from AI. Simple generate button.
+- **AiPlanningSchedule**: Gantt bars with accept/reject/lock. No drag, no real order data display.
+- **AiBottleneckPrediction**: Flat list of bottleneck cards. No filtering, no linking to actual orders.
+- **AiCapacitySimulation**: 3 input parameters, before/after KPI cards. Very basic.
 
-Add to both `en` and `sr` sections:
-- `aiPlanning`, `aiSchedule`, `bottleneckPrediction`, `capacitySimulation`
-- `generateAiPlan`, `scheduleAdherence`, `capacityUtilization`, `lateOrders`
-- `lockOrder`, `unlockOrder`, `acceptSuggestion`, `rejectSuggestion`
-- `simulateScenario`, `addShift`, `removeShift`, `beforeAfter`
-- `aiExplanation`, `suggestedAction`, `materialShortage`, `overloadedPeriod`
-- `aiPlanningSection`, `existingSection` (section dividers)
-- And additional labels for the UI
+### Planned Improvements
 
-## Routing
+#### 1. AiPlanningDashboard -- Rich Production Intelligence Hub
+- **Auto-load on mount**: Fetch insights automatically instead of requiring button click (keep manual refresh option)
+- **Trend charts**: Schedule adherence and utilization over time (last 30 days from production_orders history)
+- **Order status breakdown**: Donut chart of orders by status (draft/in_progress/completed/cancelled)
+- **Material readiness panel**: Cross-reference BOM needs vs current inventory, show red/yellow/green per upcoming order
+- **Quick links to orders**: Click an insight to navigate to the affected production order
+- **Refresh interval**: Auto-refresh insights every 10 minutes with timestamp showing "Last updated: X ago"
 
-Add 4 new routes in `App.tsx` under production:
-```
-/production/ai-planning         -> AiPlanningDashboard
-/production/ai-planning/schedule -> AiPlanningSchedule
-/production/ai-planning/bottlenecks -> AiBottleneckPrediction
-/production/ai-planning/scenarios -> AiCapacitySimulation
-```
+#### 2. AiPlanningSchedule -- Interactive Production Schedule
+- **Load real orders**: Fetch and display actual production_orders as Gantt bars (not just AI suggestions)
+- **Color coding by status**: Draft (gray), In Progress (blue), Completed (green), Late (red)
+- **Date range selector**: Choose planning horizon (1 week, 2 weeks, 1 month, 3 months)
+- **Order detail tooltip**: Hover on Gantt bar to see product name, BOM, quantity, assigned warehouse
+- **Manual date editing**: Click order bar to open date picker for manual start/end adjustment
+- **Drag priority reorder**: Drag rows to change display order / priority
+- **AI overlay mode**: Toggle to show AI-suggested dates as ghost bars alongside actual dates
+- **Apply selected suggestions**: Batch-apply accepted AI suggestions by updating production_orders in DB
+- **Export schedule**: CSV export of current schedule view
 
-All wrapped in `<ProtectedRoute requiredModule="production">`.
+#### 3. AiBottleneckPrediction -- Actionable Bottleneck Analysis
+- **Severity filter tabs**: All / Critical / Warning / Info tabs
+- **Timeline view**: Show bottlenecks on a timeline relative to order due dates
+- **Linked orders panel**: Click a bottleneck to see the affected orders with links to order detail
+- **Material shortage detail**: For material shortages, show current stock vs required with deficit amount
+- **Action tracking**: Mark bottleneck as "acknowledged" or "resolved" (local state)
+- **Auto-refresh**: Re-analyze button with loading state, plus auto-suggest when new orders are added
+- **Trend indicator**: Show if bottleneck count is increasing or decreasing vs last analysis
 
-## Files to Create
+#### 4. AiCapacitySimulation -- Advanced Scenario Builder
+- **Named scenarios**: Save and compare multiple scenarios with names
+- **More parameters**: Add overtime hours, outsource percentage, maintenance window adjustment, demand change %
+- **Visual comparison**: Side-by-side bar charts for baseline vs scenario KPIs (using recharts)
+- **Scenario history**: List of past simulations with parameters and results
+- **Sensitivity analysis**: Show which parameter has the most impact on each KPI
+- **Recommendation panel**: AI suggests the best scenario based on optimization goals
 
-1. `src/pages/tenant/AiPlanningDashboard.tsx` -- Dashboard with KPIs and insights
-2. `src/pages/tenant/AiPlanningSchedule.tsx` -- Schedule generation and override UI
-3. `src/pages/tenant/AiBottleneckPrediction.tsx` -- Bottleneck list with AI analysis
-4. `src/pages/tenant/AiCapacitySimulation.tsx` -- What-if scenario builder
-5. `supabase/functions/production-ai-planning/index.ts` -- Edge function for AI calls
+#### 5. New Page: Production Calendar (`/production/ai-planning/calendar`)
+- **Monthly calendar view**: Show production orders as colored blocks on a calendar grid
+- **Capacity indicator**: Daily capacity bar at top of each day cell
+- **Drag to reschedule**: Move orders between dates
+- **Filter by product/BOM/status**: Sidebar filters
+- **Today marker**: Highlighted current date line
 
-## Files to Modify
+---
 
-1. `src/layouts/TenantLayout.tsx` -- Add AI Planning nav items with section divider
-2. `src/App.tsx` -- Add 4 new routes
-3. `src/i18n/translations.ts` -- Add ~30 translation keys (en + sr)
-4. `supabase/config.toml` -- Register new edge function
+## Technical Details
 
-## What is NOT in MVP
+### Files to Create (2 new pages)
+1. `src/pages/tenant/WmsDashboard.tsx` -- WMS operational dashboard
+2. `src/pages/tenant/AiPlanningCalendar.tsx` -- Production calendar view
 
-- No new database tables (AI works on existing data)
-- No autonomous execution (always human-in-the-loop)
-- No multi-site scheduling
-- No reinforcement learning
-- No MES integration
-- No automated procurement triggers
+### Files to Modify (10 files)
+1. `src/pages/tenant/WmsTasks.tsx` -- Add create dialog, batch ops, assignment, detail panel
+2. `src/pages/tenant/WmsReceiving.tsx` -- Add reference fields, lot tracking, PO import, quality hold
+3. `src/pages/tenant/WmsPicking.tsx` -- Add wave creation, pick confirmation, stats, print view
+4. `src/pages/tenant/WmsCycleCounts.tsx` -- Add reconciliation, variance approval, auto-adjust
+5. `src/pages/tenant/WmsBinDetail.tsx` -- Add stock adjustment, transfer, movement history, edit
+6. `src/pages/tenant/AiPlanningDashboard.tsx` -- Add auto-load, charts, material readiness, links
+7. `src/pages/tenant/AiPlanningSchedule.tsx` -- Add real orders, date range, color coding, manual editing, apply suggestions
+8. `src/pages/tenant/AiBottleneckPrediction.tsx` -- Add severity tabs, linked orders, material detail, action tracking
+9. `src/pages/tenant/AiCapacitySimulation.tsx` -- Add named scenarios, more params, charts, history
+10. `src/layouts/TenantLayout.tsx` -- Add WMS Dashboard nav item
+11. `src/App.tsx` -- Add 2 new routes
+12. `src/i18n/translations.ts` -- Add ~50 new translation keys
+
+### No Database Changes Required
+All features use existing tables: `wms_tasks`, `wms_bin_stock`, `wms_bins`, `wms_zones`, `wms_pick_waves`, `wms_pick_wave_orders`, `wms_cycle_counts`, `wms_cycle_count_lines`, `wms_putaway_rules`, `wms_slotting_scenarios`, `wms_slotting_moves`, `production_orders`, `bom_templates`, `bom_lines`, `inventory_stock`, `products`, `warehouses`, `purchase_order_lines`, `sales_order_lines`.
+
+### No Edge Function Changes Required
+The existing `production-ai-planning` and `wms-slotting` edge functions already support all needed AI actions.
+
+### Implementation Order
+Due to the scope, this will be implemented in logical batches:
+1. **Batch 1**: WMS Dashboard (new) + WmsTasks improvements + WmsBinDetail improvements
+2. **Batch 2**: WmsReceiving + WmsPicking + WmsCycleCounts improvements
+3. **Batch 3**: AiPlanningDashboard + AiPlanningSchedule improvements
+4. **Batch 4**: AiBottleneckPrediction + AiCapacitySimulation + AiPlanningCalendar (new)
 
