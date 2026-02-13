@@ -62,7 +62,7 @@ export async function createCodeBasedJournalEntry(params: {
     })
   );
 
-  // Generate entry number
+  // Generate entry number (Serbian accounts: classes 0-9 per Pravilnik 89/2020)
   const entryNumber = `JE-${Date.now().toString(36).toUpperCase()}`;
 
   // Create journal entry

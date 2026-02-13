@@ -4654,6 +4654,124 @@ export type Database = {
           },
         ]
       }
+      kalkulacija_items: {
+        Row: {
+          id: string
+          kalkulacija_id: string
+          markup_percent: number
+          pdv_rate: number
+          product_id: string
+          purchase_price: number
+          quantity: number
+          retail_price: number
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          kalkulacija_id: string
+          markup_percent?: number
+          pdv_rate?: number
+          product_id: string
+          purchase_price?: number
+          quantity?: number
+          retail_price?: number
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          kalkulacija_id?: string
+          markup_percent?: number
+          pdv_rate?: number
+          product_id?: string
+          purchase_price?: number
+          quantity?: number
+          retail_price?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulacija_items_kalkulacija_id_fkey"
+            columns: ["kalkulacija_id"]
+            isOneToOne: false
+            referencedRelation: "kalkulacije"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacija_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kalkulacije: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          internal_receipt_id: string | null
+          journal_entry_id: string | null
+          kalkulacija_date: string
+          kalkulacija_number: string
+          notes: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          internal_receipt_id?: string | null
+          journal_entry_id?: string | null
+          kalkulacija_date?: string
+          kalkulacija_number: string
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          internal_receipt_id?: string | null
+          journal_entry_id?: string | null
+          kalkulacija_date?: string
+          kalkulacija_number?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kalkulacije_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacije_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacije_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kompenzacija: {
         Row: {
           created_at: string
@@ -5680,6 +5798,118 @@ export type Database = {
           },
         ]
       }
+      nivelacija_items: {
+        Row: {
+          id: string
+          new_retail_price: number
+          nivelacija_id: string
+          old_retail_price: number
+          price_difference: number
+          product_id: string
+          quantity_on_hand: number
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          new_retail_price?: number
+          nivelacija_id: string
+          old_retail_price?: number
+          price_difference?: number
+          product_id: string
+          quantity_on_hand?: number
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          new_retail_price?: number
+          nivelacija_id?: string
+          old_retail_price?: number
+          price_difference?: number
+          product_id?: string
+          quantity_on_hand?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nivelacija_items_nivelacija_id_fkey"
+            columns: ["nivelacija_id"]
+            isOneToOne: false
+            referencedRelation: "nivelacije"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nivelacija_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nivelacije: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          nivelacija_date: string
+          nivelacija_number: string
+          notes: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          nivelacija_date?: string
+          nivelacija_number: string
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          nivelacija_date?: string
+          nivelacija_number?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nivelacije_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nivelacije_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nivelacije_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           category: string
@@ -6182,6 +6412,7 @@ export type Database = {
           employee_id: string
           gross_salary: number
           health_contribution: number
+          health_employer: number
           id: string
           income_tax: number
           leave_days_deducted: number
@@ -6191,6 +6422,7 @@ export type Database = {
           overtime_hours_count: number
           payroll_run_id: string
           pension_contribution: number
+          pension_employer: number
           taxable_base: number
           total_cost: number
           unemployment_contribution: number
@@ -6203,6 +6435,7 @@ export type Database = {
           employee_id: string
           gross_salary?: number
           health_contribution?: number
+          health_employer?: number
           id?: string
           income_tax?: number
           leave_days_deducted?: number
@@ -6212,6 +6445,7 @@ export type Database = {
           overtime_hours_count?: number
           payroll_run_id: string
           pension_contribution?: number
+          pension_employer?: number
           taxable_base?: number
           total_cost?: number
           unemployment_contribution?: number
@@ -6224,6 +6458,7 @@ export type Database = {
           employee_id?: string
           gross_salary?: number
           health_contribution?: number
+          health_employer?: number
           id?: string
           income_tax?: number
           leave_days_deducted?: number
@@ -6233,6 +6468,7 @@ export type Database = {
           overtime_hours_count?: number
           payroll_run_id?: string
           pension_contribution?: number
+          pension_employer?: number
           taxable_base?: number
           total_cost?: number
           unemployment_contribution?: number
@@ -6651,6 +6887,7 @@ export type Database = {
           invoice_id: string | null
           is_fiscal: boolean
           items: Json
+          journal_entry_id: string | null
           location_id: string | null
           original_transaction_id: string | null
           payment_method: string
@@ -6674,6 +6911,7 @@ export type Database = {
           invoice_id?: string | null
           is_fiscal?: boolean
           items?: Json
+          journal_entry_id?: string | null
           location_id?: string | null
           original_transaction_id?: string | null
           payment_method?: string
@@ -6697,6 +6935,7 @@ export type Database = {
           invoice_id?: string | null
           is_fiscal?: boolean
           items?: Json
+          journal_entry_id?: string | null
           location_id?: string | null
           original_transaction_id?: string | null
           payment_method?: string
@@ -6723,6 +6962,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
           {
@@ -8837,6 +9083,10 @@ export type Database = {
       }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
+        Returns: undefined
+      }
+      process_pos_sale: {
+        Args: { p_tenant_id: string; p_transaction_id: string }
         Returns: string
       }
       release_stock_for_order: {
