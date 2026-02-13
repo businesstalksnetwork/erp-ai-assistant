@@ -36,6 +36,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    const body = await req.json();
     const {
       transaction_id, tenant_id, device_id, items, payments,
       buyer_id, receipt_type = "normal", transaction_type = "sale",

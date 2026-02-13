@@ -80,12 +80,16 @@ export default function Invoices() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
 
   // Post invoice: update status to sent + create journal entry + inventory movements
+  // Model B: Post immediately, then queue SEF submission with requestId for idempotency
   const postMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      // Update status to sent
+      // Generate unique SEF request ID for idempotency
+      const sefRequestId = crypto.randomUUID();
+
+      // Update status to sent and store SEF request ID
       const { error: updateError } = await supabase
         .from("invoices")
-        .update({ status: "sent" })
+        .update({ status: "sent", sef_request_id: sefRequestId })
         .eq("id", invoiceId);
       if (updateError) throw updateError;
 
@@ -95,6 +99,16 @@ export default function Invoices() {
         p_default_warehouse_id: selectedWarehouse || null,
       });
       if (rpcError) throw rpcError;
+
+      // Auto-submit to SEF (non-blocking, Model B: post first, SEF follow-up)
+      try {
+        await supabase.functions.invoke("sef-submit", {
+          body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: sefRequestId },
+        });
+      } catch (sefErr) {
+        console.error("SEF auto-submit failed (will retry):", sefErr);
+        // Not fatal in Model B — user can retry via "Retry SEF" button
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -127,10 +141,14 @@ export default function Invoices() {
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
+  // SEF retry mutation — generates new requestId for idempotent retry
   const sefMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
+      const newRequestId = crypto.randomUUID();
+      // Update the request ID for this retry attempt
+      await supabase.from("invoices").update({ sef_request_id: newRequestId }).eq("id", invoiceId);
       const { data, error } = await supabase.functions.invoke("sef-submit", {
-        body: { invoice_id: invoiceId, tenant_id: tenantId },
+        body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: newRequestId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -263,10 +281,10 @@ export default function Invoices() {
                         {t("paid")}
                       </Button>
                     )}
-                    {inv.status === "sent" && inv.sef_status === "not_submitted" && (
+                    {inv.status === "sent" && (inv.sef_status === "not_submitted" || inv.sef_status === "rejected") && (
                       <Button size="sm" variant="outline" onClick={() => sefMutation.mutate(inv.id)}>
                         <Send className="h-3 w-3 mr-1" />
-                        SEF
+                        {inv.sef_status === "rejected" ? "Retry SEF" : "SEF"}
                       </Button>
                     )}
                   </div>

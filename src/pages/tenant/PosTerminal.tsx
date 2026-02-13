@@ -111,7 +111,9 @@ export default function PosTerminal() {
     mutationFn: async () => {
       if (!tenantId || !activeSession) throw new Error("No active session");
       const txNum = `POS-${Date.now()}`;
-      const { data: tx } = await supabase.from("pos_transactions").insert({
+
+      // Step 1: Insert transaction with pending_fiscal status
+      const { data: tx, error: txErr } = await supabase.from("pos_transactions").insert({
         session_id: activeSession.id,
         tenant_id: tenantId,
         transaction_number: txNum,
@@ -126,12 +128,18 @@ export default function PosTerminal() {
         salesperson_id: identifiedSeller?.id || activeSession.salesperson_id || null,
         buyer_id: buyerId || null,
         receipt_type: "sale",
+        status: "pending_fiscal",
       }).select().single();
 
-      // Auto-fiscalize if fiscal device available
-      if (fiscalDevices.length > 0 && tx) {
+      if (txErr || !tx) throw new Error(txErr?.message || "Failed to create transaction");
+
+      // Step 2: Fiscalize first (if fiscal device available)
+      let fiscalized = false;
+      let offlineReceipt = false;
+
+      if (fiscalDevices.length > 0) {
         try {
-          const { data: result } = await supabase.functions.invoke("fiscalize-receipt", {
+          const { data: result, error: fiscalErr } = await supabase.functions.invoke("fiscalize-receipt", {
             body: {
               transaction_id: tx.id,
               tenant_id: tenantId,
@@ -143,16 +151,37 @@ export default function PosTerminal() {
               transaction_type: "sale",
             },
           });
+
+          if (fiscalErr) throw fiscalErr;
+
           if (result?.receipt_number) {
             setLastReceipt({ number: result.receipt_number, qr: result.qr_code_url });
+            fiscalized = true;
+            offlineReceipt = !!result.offline;
+
+            // Update transaction status to fiscalized
+            await supabase.from("pos_transactions")
+              .update({ status: "fiscalized" })
+              .eq("id", tx.id);
           }
         } catch (e) {
           console.error("Fiscalization failed:", e);
+          // Do NOT proceed to posting if fiscalization fails (no offline receipt)
+          await supabase.from("pos_transactions")
+            .update({ status: "fiscal_failed" })
+            .eq("id", tx.id);
+          throw new Error("Fiskalizacija nije uspela. Transakcija nije proknjižena.");
         }
+      } else {
+        // No fiscal device — mark as fiscalized (non-fiscal POS)
+        fiscalized = true;
+        await supabase.from("pos_transactions")
+          .update({ status: "fiscalized" })
+          .eq("id", tx.id);
       }
 
-      // Create journal entry + inventory deduction via RPC
-      if (tx) {
+      // Step 3: Only post accounting after successful fiscalization
+      if (fiscalized) {
         try {
           await supabase.rpc("process_pos_sale", {
             p_transaction_id: tx.id,
@@ -160,6 +189,8 @@ export default function PosTerminal() {
           });
         } catch (e) {
           console.error("POS accounting failed:", e);
+          // Transaction is fiscalized but accounting failed — flag it
+          toast({ title: "Upozorenje", description: "Fiskalni račun je izdat ali knjiženje nije uspelo. Kontaktirajte administratora.", variant: "destructive" });
         }
       }
 

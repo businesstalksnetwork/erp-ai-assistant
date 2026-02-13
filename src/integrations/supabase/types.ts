@@ -4379,6 +4379,7 @@ export type Database = {
           sale_type: string
           sales_channel_id: string | null
           salesperson_id: string | null
+          sef_request_id: string | null
           sef_status: string
           status: string
           subtotal: number
@@ -4408,6 +4409,7 @@ export type Database = {
           sale_type?: string
           sales_channel_id?: string | null
           salesperson_id?: string | null
+          sef_request_id?: string | null
           sef_status?: string
           status?: string
           subtotal?: number
@@ -4437,6 +4439,7 @@ export type Database = {
           sale_type?: string
           sales_channel_id?: string | null
           salesperson_id?: string | null
+          sef_request_id?: string | null
           sef_status?: string
           status?: string
           subtotal?: number
@@ -6491,6 +6494,71 @@ export type Database = {
           },
         ]
       }
+      payroll_parameters: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          gazette_reference: string | null
+          health_employee_rate: number
+          health_employer_rate: number
+          id: string
+          max_contribution_base: number
+          min_contribution_base: number
+          nontaxable_amount: number
+          pio_employee_rate: number
+          pio_employer_rate: number
+          tax_rate: number
+          tenant_id: string
+          unemployment_employee_rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          effective_from: string
+          effective_to?: string | null
+          gazette_reference?: string | null
+          health_employee_rate?: number
+          health_employer_rate?: number
+          id?: string
+          max_contribution_base?: number
+          min_contribution_base?: number
+          nontaxable_amount?: number
+          pio_employee_rate?: number
+          pio_employer_rate?: number
+          tax_rate?: number
+          tenant_id: string
+          unemployment_employee_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          gazette_reference?: string | null
+          health_employee_rate?: number
+          health_employer_rate?: number
+          id?: string
+          max_contribution_base?: number
+          min_contribution_base?: number
+          nontaxable_amount?: number
+          pio_employee_rate?: number
+          pio_employer_rate?: number
+          tax_rate?: number
+          tenant_id?: string
+          unemployment_employee_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_parameters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           approved_at: string | null
@@ -6894,6 +6962,7 @@ export type Database = {
           receipt_type: string
           salesperson_id: string | null
           session_id: string
+          status: string
           subtotal: number
           tax_amount: number
           tenant_id: string
@@ -6918,6 +6987,7 @@ export type Database = {
           receipt_type?: string
           salesperson_id?: string | null
           session_id: string
+          status?: string
           subtotal?: number
           tax_amount?: number
           tenant_id: string
@@ -6942,6 +7012,7 @@ export type Database = {
           receipt_type?: string
           salesperson_id?: string | null
           session_id?: string
+          status?: string
           subtotal?: number
           tax_amount?: number
           tenant_id?: string
