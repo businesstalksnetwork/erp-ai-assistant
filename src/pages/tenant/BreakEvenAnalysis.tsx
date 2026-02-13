@@ -44,17 +44,18 @@ export default function BreakEvenAnalysis() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("amount, side, account_id, accounts:account_id(account_type, is_variable_cost), journal:journal_entry_id(status)") as any)
-        .eq("tenant_id", tenantId!);
+        .select("debit, credit, account_id, accounts:account_id(account_type, is_variable_cost), journal:journal_entry_id(status, tenant_id)") as any)
+        .eq("journal.tenant_id", tenantId!);
 
       let revenue = 0, fixedCosts = 0, variableCosts = 0;
       for (const line of (lines as any[]) || []) {
         if (line.journal?.status !== "posted") continue;
-        const amt = Number(line.amount) || 0;
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
         if (line.accounts?.account_type === "revenue") {
-          revenue += line.side === "credit" ? amt : -amt;
+          revenue += credit - debit; // revenue normal balance is credit
         } else if (line.accounts?.account_type === "expense") {
-          const cost = line.side === "debit" ? amt : -amt;
+          const cost = debit - credit; // expense normal balance is debit
           if (line.accounts?.is_variable_cost) variableCosts += cost;
           else fixedCosts += cost;
         }

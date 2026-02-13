@@ -46,8 +46,8 @@ export default function FinancialRatios() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("amount, side, accounts:account_id(account_type, code), journal:journal_entry_id(status)") as any)
-        .eq("tenant_id", tenantId!);
+        .select("debit, credit, accounts:account_id(account_type, code), journal:journal_entry_id(status, tenant_id)") as any)
+        .eq("journal.tenant_id", tenantId!);
 
       let assets = 0, liabilities = 0, equity = 0, revenue = 0, expenses = 0;
       let currentAssets = 0, currentLiabilities = 0, cash = 0, inventory = 0;
@@ -56,8 +56,9 @@ export default function FinancialRatios() {
         if (line.journal?.status !== "posted") continue;
         const type = line.accounts?.account_type;
         const code = line.accounts?.code || "";
-        const amt = Number(line.amount) || 0;
-        const net = line.side === "debit" ? amt : -amt;
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
+        const net = debit - credit;
 
         if (type === "asset") {
           assets += net;

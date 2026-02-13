@@ -35,8 +35,8 @@ export default function AnalyticsDashboard() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("amount, side, accounts:account_id(account_type, code), journal:journal_entry_id(entry_date, status)") as any)
-        .eq("tenant_id", tenantId!);
+        .select("debit, credit, accounts:account_id(account_type, code), journal:journal_entry_id(entry_date, status, tenant_id)") as any)
+        .eq("journal.tenant_id", tenantId!);
 
       if (!lines) return { monthly: [], totals: { revenue: 0, expenses: 0, assets: 0, liabilities: 0, equity: 0 } };
 
@@ -46,26 +46,28 @@ export default function AnalyticsDashboard() {
       for (const line of lines as any[]) {
         if (line.journal?.status !== "posted") continue;
         const acctType = line.accounts?.account_type;
-        const amt = Number(line.amount) || 0;
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
         const date = line.journal?.entry_date;
         const monthKey = date ? date.substring(0, 7) : "unknown";
+        const net = debit - credit;
 
         if (acctType === "revenue") {
-          const val = line.side === "credit" ? amt : -amt;
+          const val = -net; // revenue normal balance is credit
           totalRevenue += val;
           if (!monthly[monthKey]) monthly[monthKey] = { revenue: 0, expenses: 0 };
           monthly[monthKey].revenue += val;
         } else if (acctType === "expense") {
-          const val = line.side === "debit" ? amt : -amt;
+          const val = net; // expense normal balance is debit
           totalExpenses += val;
           if (!monthly[monthKey]) monthly[monthKey] = { revenue: 0, expenses: 0 };
           monthly[monthKey].expenses += val;
         } else if (acctType === "asset") {
-          totalAssets += line.side === "debit" ? amt : -amt;
+          totalAssets += net;
         } else if (acctType === "liability") {
-          totalLiabilities += line.side === "credit" ? amt : -amt;
+          totalLiabilities += -net;
         } else if (acctType === "equity") {
-          totalEquity += line.side === "credit" ? amt : -amt;
+          totalEquity += -net;
         }
       }
 

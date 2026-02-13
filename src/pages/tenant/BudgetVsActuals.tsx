@@ -64,16 +64,17 @@ export default function BudgetVsActuals() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("amount, side, account_id, journal:journal_entry_id(entry_date, status)") as any)
-        .eq("tenant_id", tenantId!);
+        .select("debit, credit, account_id, journal:journal_entry_id(entry_date, status, tenant_id)") as any)
+        .eq("journal.tenant_id", tenantId!);
 
       const result: Record<string, number> = {};
       for (const line of (lines as any[]) || []) {
         if (line.journal?.status !== "posted") continue;
         const d = line.journal.entry_date;
         if (!d || !d.startsWith(year)) continue;
-        const amt = Number(line.amount) || 0;
-        const net = line.side === "debit" ? amt : -amt;
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
+        const net = debit - credit;
         result[line.account_id] = (result[line.account_id] || 0) + Math.abs(net);
       }
       return result;

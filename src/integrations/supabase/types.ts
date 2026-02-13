@@ -4686,6 +4686,7 @@ export type Database = {
           journal_entry_id: string | null
           legal_entity_id: string | null
           notes: string | null
+          paid_at: string | null
           partner_address: string | null
           partner_id: string | null
           partner_name: string
@@ -4716,6 +4717,7 @@ export type Database = {
           journal_entry_id?: string | null
           legal_entity_id?: string | null
           notes?: string | null
+          paid_at?: string | null
           partner_address?: string | null
           partner_id?: string | null
           partner_name?: string
@@ -4746,6 +4748,7 @@ export type Database = {
           journal_entry_id?: string | null
           legal_entity_id?: string | null
           notes?: string | null
+          paid_at?: string | null
           partner_address?: string | null
           partner_id?: string | null
           partner_name?: string
@@ -10338,6 +10341,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      force_delete_journal_entries: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
       }
       generate_protocol_number: {
         Args: { p_category_code: string; p_tenant_id: string }

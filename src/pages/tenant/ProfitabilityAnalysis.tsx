@@ -95,8 +95,8 @@ export default function ProfitabilityAnalysis() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("amount, side, cost_center:cost_center_id(name), accounts:account_id(account_type), journal:journal_entry_id(status)") as any)
-        .eq("tenant_id", tenantId!)
+        .select("debit, credit, cost_center:cost_center_id(name), accounts:account_id(account_type), journal:journal_entry_id(status, tenant_id)") as any)
+        .eq("journal.tenant_id", tenantId!)
         .not("cost_center_id", "is", null);
 
       if (!lines) return [] as CCRow[];
@@ -105,9 +105,10 @@ export default function ProfitabilityAnalysis() {
         if (line.journal?.status !== "posted") continue;
         const ccName = line.cost_center?.name || "—";
         if (!byCC[ccName]) byCC[ccName] = { revenue: 0, expenses: 0 };
-        const amt = Number(line.amount) || 0;
-        if (line.accounts?.account_type === "revenue") byCC[ccName].revenue += line.side === "credit" ? amt : -amt;
-        else if (line.accounts?.account_type === "expense") byCC[ccName].expenses += line.side === "debit" ? amt : -amt;
+        const debit = Number(line.debit) || 0;
+        const credit = Number(line.credit) || 0;
+        if (line.accounts?.account_type === "revenue") byCC[ccName].revenue += credit - debit;
+        else if (line.accounts?.account_type === "expense") byCC[ccName].expenses += debit - credit;
       }
       return Object.entries(byCC)
         .map(([name, d]) => {
