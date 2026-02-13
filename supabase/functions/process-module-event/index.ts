@@ -158,7 +158,20 @@ async function handleEvent(
       return await handleInvoicePostedInventory(supabase, tenantId, entityId, payload);
     }
     if (eventType === "sales_order.confirmed") {
-      return { action: "reserve_stock", message: "Stock reservation placeholder", entity_id: entityId };
+      const { error } = await supabase.rpc("reserve_stock_for_order", {
+        p_tenant_id: tenantId,
+        p_sales_order_id: entityId,
+      });
+      if (error) throw new Error(`Stock reservation failed: ${error.message}`);
+      return { action: "reserve_stock", message: "Stock reserved for sales order", entity_id: entityId };
+    }
+    if (eventType === "sales_order.cancelled") {
+      const { error } = await supabase.rpc("release_stock_for_order", {
+        p_tenant_id: tenantId,
+        p_sales_order_id: entityId,
+      });
+      if (error) throw new Error(`Stock release failed: ${error.message}`);
+      return { action: "release_stock", message: "Stock released for cancelled order", entity_id: entityId };
     }
     if (eventType === "production.completed") {
       return { action: "add_finished_goods", message: "Production output placeholder", entity_id: entityId };

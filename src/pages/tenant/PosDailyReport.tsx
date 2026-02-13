@@ -11,7 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, DollarSign, CreditCard, Banknote, RotateCcw, Printer } from "lucide-react";
+import { FileText, DollarSign, CreditCard, Banknote, RotateCcw, Printer, Clock } from "lucide-react";
+
+interface TaxGroup {
+  rate: number;
+  taxableBase: number;
+  taxAmount: number;
+  total: number;
+}
 
 export default function PosDailyReport() {
   const { t } = useLanguage();
@@ -20,6 +27,8 @@ export default function PosDailyReport() {
   const qc = useQueryClient();
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [reportDate, setReportDate] = useState(new Date().toISOString().split("T")[0]);
+  const [openingFloat, setOpeningFloat] = useState<number>(0);
+  const [actualCashCount, setActualCashCount] = useState<number | null>(null);
 
   const { data: locations = [] } = useQuery({
     queryKey: ["locations_shops", tenantId],
@@ -37,6 +46,17 @@ export default function PosDailyReport() {
       if (locationFilter !== "all") q = q.eq("location_id", locationFilter);
       const { data } = await q;
       return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["pos_sessions_daily", tenantId, locationFilter, reportDate],
+    queryFn: async () => {
+      let q = supabase.from("pos_sessions").select("*, profiles:cashier_id(full_name)").eq("tenant_id", tenantId!).gte("opened_at", `${reportDate}T00:00:00`).lt("opened_at", `${reportDate}T23:59:59`);
+      if (locationFilter !== "all") q = q.eq("location_id", locationFilter);
+      const { data } = await q;
+      return (data as any[]) || [];
     },
     enabled: !!tenantId,
   });
@@ -59,11 +79,52 @@ export default function PosDailyReport() {
   const totalRefunds = refunds.reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
   const netSales = totalSales - totalRefunds;
   const cashTotal = sales.filter((tx: any) => tx.payment_method === "cash").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
+  const cashRefunds = refunds.filter((tx: any) => tx.payment_method === "cash").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
   const cardTotal = sales.filter((tx: any) => tx.payment_method === "card").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
   const otherTotal = totalSales - cashTotal - cardTotal;
+  const expectedCash = cashTotal - cashRefunds;
+  const cashVariance = actualCashCount !== null ? actualCashCount - (openingFloat + expectedCash) : null;
+
+  // Tax breakdown from items JSONB
+  const taxGroups: TaxGroup[] = (() => {
+    const groups: Record<number, TaxGroup> = {};
+    for (const tx of sales) {
+      const items = (tx as any).items;
+      if (!Array.isArray(items)) continue;
+      for (const item of items) {
+        const rate = Number(item.tax_rate || 0);
+        const base = Number(item.unit_price || 0) * Number(item.quantity || 0);
+        const tax = base * (rate / 100);
+        if (!groups[rate]) groups[rate] = { rate, taxableBase: 0, taxAmount: 0, total: 0 };
+        groups[rate].taxableBase += base;
+        groups[rate].taxAmount += tax;
+        groups[rate].total += base + tax;
+      }
+    }
+    return Object.values(groups).sort((a, b) => b.rate - a.rate);
+  })();
+
+  // Shift summary: group transactions by session_id
+  const shiftSummary = sessions.map((session: any) => {
+    const sessionTx = sales.filter((tx: any) => tx.session_id === session.id);
+    const sessionRefunds = refunds.filter((tx: any) => tx.session_id === session.id);
+    return {
+      id: session.id,
+      cashier: (session.profiles as any)?.full_name || "—",
+      openedAt: session.opened_at,
+      closedAt: session.closed_at,
+      salesCount: sessionTx.length,
+      refundCount: sessionRefunds.length,
+      totalSales: sessionTx.reduce((s: number, tx: any) => s + Number(tx.total || 0), 0),
+    };
+  });
 
   const generateReport = useMutation({
     mutationFn: async () => {
+      const taxBreakdown = taxGroups.reduce((acc, g) => {
+        acc[`${g.rate}%`] = { taxableBase: g.taxableBase, taxAmount: g.taxAmount, total: g.total };
+        return acc;
+      }, {} as Record<string, any>);
       const { error } = await supabase.from("pos_daily_reports").insert({
         tenant_id: tenantId!,
         location_id: locationFilter !== "all" ? locationFilter : null,
@@ -76,8 +137,11 @@ export default function PosDailyReport() {
         other_total: otherTotal,
         transaction_count: sales.length,
         refund_count: refunds.length,
-        tax_breakdown: {},
-      });
+        tax_breakdown: taxBreakdown,
+        opening_float: openingFloat,
+        actual_cash_count: actualCashCount,
+        cash_variance: cashVariance,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pos_daily_reports"] }); toast({ title: t("success") }); },
@@ -100,6 +164,7 @@ export default function PosDailyReport() {
         </div>
       </div>
 
+      {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><DollarSign className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{totalSales.toFixed(2)}</p><p className="text-sm text-muted-foreground">{t("totalSales")}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><RotateCcw className="h-8 w-8 text-destructive" /><div><p className="text-2xl font-bold">{totalRefunds.toFixed(2)}</p><p className="text-sm text-muted-foreground">{t("totalRefunds")}</p></div></div></CardContent></Card>
@@ -107,30 +172,124 @@ export default function PosDailyReport() {
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CreditCard className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{cardTotal.toFixed(2)}</p><p className="text-sm text-muted-foreground">{t("cardTotal")}</p></div></div></CardContent></Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{t("zReport")} — {reportDate}</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />{t("printReceipt")}</Button>
-            <Button onClick={() => generateReport.mutate()} disabled={transactions.length === 0}><FileText className="h-4 w-4 mr-2" />{t("generateReport")}</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="space-y-2">
+      {/* Z-Report + Tax Breakdown side by side */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{t("zReport")} — {reportDate}</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />{t("printReceipt")}</Button>
+              <Button size="sm" onClick={() => generateReport.mutate()} disabled={transactions.length === 0}><FileText className="h-4 w-4 mr-2" />{t("generateReport")}</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span>{t("totalSales")}:</span><span className="font-bold">{totalSales.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>{t("totalRefunds")}:</span><span className="font-bold text-destructive">-{totalRefunds.toFixed(2)}</span></div>
               <div className="flex justify-between border-t pt-2"><span className="font-bold">{t("netSales")}:</span><span className="font-bold text-lg">{netSales.toFixed(2)}</span></div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between"><span>{t("cash")}:</span><span>{cashTotal.toFixed(2)}</span></div>
+              <div className="flex justify-between mt-2"><span>{t("cash")}:</span><span>{cashTotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>{t("card")}:</span><span>{cardTotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>{t("other")}:</span><span>{otherTotal.toFixed(2)}</span></div>
               <div className="flex justify-between border-t pt-2"><span>{t("transactions")}:</span><span>{sales.length} / {refunds.length} {t("refund")}</span></div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>{t("taxBreakdown")}</CardTitle></CardHeader>
+          <CardContent>
+            {taxGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noResults")}</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("taxRate")}</TableHead>
+                    <TableHead className="text-right">{t("taxableBase")}</TableHead>
+                    <TableHead className="text-right">{t("taxAmount")}</TableHead>
+                    <TableHead className="text-right">{t("total")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {taxGroups.map(g => (
+                    <TableRow key={g.rate}>
+                      <TableCell><Badge variant="outline">{g.rate}%</Badge></TableCell>
+                      <TableCell className="text-right">{g.taxableBase.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{g.taxAmount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold">{g.total.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cash Reconciliation */}
+      <Card>
+        <CardHeader><CardTitle>{t("cashReconciliation")}</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("openingFloat")}</Label>
+              <Input type="number" step="0.01" value={openingFloat} onChange={e => setOpeningFloat(Number(e.target.value))} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("expectedCash")}</Label>
+              <Input value={expectedCash.toFixed(2)} readOnly className="bg-muted" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("actualCashCount")}</Label>
+              <Input type="number" step="0.01" value={actualCashCount ?? ""} onChange={e => setActualCashCount(e.target.value ? Number(e.target.value) : null)} placeholder="0.00" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">{t("cashVariance")}</Label>
+              <Input
+                value={cashVariance !== null ? cashVariance.toFixed(2) : "—"}
+                readOnly
+                className={`bg-muted ${cashVariance !== null && cashVariance !== 0 ? (cashVariance > 0 ? "text-green-600" : "text-destructive") : ""}`}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground self-center">
+              = {t("actualCashCount")} − ({t("openingFloat")} + {t("expectedCash")})
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Shift Summary */}
+      {shiftSummary.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" />{t("shiftSummary")}</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("cashier")}</TableHead>
+                  <TableHead>{t("openedAt")}</TableHead>
+                  <TableHead>{t("closedAt")}</TableHead>
+                  <TableHead className="text-right">{t("totalSales")}</TableHead>
+                  <TableHead className="text-right">{t("transactions")}</TableHead>
+                  <TableHead className="text-right">{t("refund")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shiftSummary.map(s => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.cashier}</TableCell>
+                    <TableCell>{s.openedAt ? new Date(s.openedAt).toLocaleTimeString() : "—"}</TableCell>
+                    <TableCell>{s.closedAt ? new Date(s.closedAt).toLocaleTimeString() : <Badge variant="secondary">{t("active")}</Badge>}</TableCell>
+                    <TableCell className="text-right font-bold">{s.totalSales.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{s.salesCount}</TableCell>
+                    <TableCell className="text-right">{s.refundCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* History */}
       <Card>
