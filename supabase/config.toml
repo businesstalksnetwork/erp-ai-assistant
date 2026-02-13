@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.wms-slotting]
 verify_jwt = false
+
+[functions.sef-poll-status]
+verify_jwt = false
+
+[functions.ebolovanje-submit]
+verify_jwt = false
+
+[functions.eotpremnica-submit]
+verify_jwt = false
+
+[functions.fiscalize-retry-offline]
+verify_jwt = false

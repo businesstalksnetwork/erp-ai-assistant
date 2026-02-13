@@ -2541,6 +2541,198 @@ export type Database = {
           },
         ]
       }
+      ebolovanje_claims: {
+        Row: {
+          amount: number | null
+          claim_type: string
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          diagnosis_code: string | null
+          doctor_name: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          legal_entity_id: string | null
+          medical_facility: string | null
+          notes: string | null
+          rfzo_claim_number: string | null
+          start_date: string
+          status: string
+          submitted_at: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          claim_type?: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          diagnosis_code?: string | null
+          doctor_name?: string | null
+          employee_id: string
+          end_date: string
+          id?: string
+          legal_entity_id?: string | null
+          medical_facility?: string | null
+          notes?: string | null
+          rfzo_claim_number?: string | null
+          start_date: string
+          status?: string
+          submitted_at?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          claim_type?: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          diagnosis_code?: string | null
+          doctor_name?: string | null
+          employee_id?: string
+          end_date?: string
+          id?: string
+          legal_entity_id?: string | null
+          medical_facility?: string | null
+          notes?: string | null
+          rfzo_claim_number?: string | null
+          start_date?: string
+          status?: string
+          submitted_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebolovanje_claims_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebolovanje_claims_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebolovanje_claims_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebolovanje_connections: {
+        Row: {
+          certificate_data: string | null
+          created_at: string
+          environment: string
+          euprava_password_encrypted: string | null
+          euprava_username: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_sync_at: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_data?: string | null
+          created_at?: string
+          environment?: string
+          euprava_password_encrypted?: string | null
+          euprava_username?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_data?: string | null
+          created_at?: string
+          environment?: string
+          euprava_password_encrypted?: string | null
+          euprava_username?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebolovanje_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebolovanje_doznake: {
+        Row: {
+          claim_id: string
+          created_at: string
+          doznaka_number: string | null
+          id: string
+          issued_date: string | null
+          response_payload: Json | null
+          rfzo_status: string | null
+          tenant_id: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          doznaka_number?: string | null
+          id?: string
+          issued_date?: string | null
+          response_payload?: Json | null
+          rfzo_status?: string | null
+          tenant_id: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          doznaka_number?: string | null
+          id?: string
+          issued_date?: string | null
+          response_payload?: Json | null
+          rfzo_status?: string | null
+          tenant_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebolovanje_doznake_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "ebolovanje_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ebolovanje_doznake_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_contracts: {
         Row: {
           contract_type: string
@@ -2833,6 +3025,9 @@ export type Database = {
       }
       eotpremnica: {
         Row: {
+          api_request_id: string | null
+          api_response: Json | null
+          api_status: string
           created_at: string
           created_by: string | null
           document_date: string
@@ -2857,6 +3052,9 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          api_request_id?: string | null
+          api_response?: Json | null
+          api_status?: string
           created_at?: string
           created_by?: string | null
           document_date?: string
@@ -2881,6 +3079,9 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          api_request_id?: string | null
+          api_response?: Json | null
+          api_status?: string
           created_at?: string
           created_by?: string | null
           document_date?: string
@@ -2938,6 +3139,53 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eotpremnica_connections: {
+        Row: {
+          api_key_encrypted: string | null
+          api_url: string | null
+          created_at: string
+          environment: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_sync_at: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          api_url?: string | null
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          api_url?: string | null
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_sync_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eotpremnica_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3233,6 +3481,7 @@ export type Database = {
           fiscal_device_id: string
           id: string
           invoice_id: string | null
+          last_retry_at: string | null
           payment_method: string
           pfr_request: Json | null
           pfr_response: Json | null
@@ -3240,11 +3489,13 @@ export type Database = {
           qr_code_url: string | null
           receipt_number: string
           receipt_type: string
+          retry_count: number
           signed_at: string | null
           tax_items: Json
           tenant_id: string
           total_amount: number
           transaction_type: string
+          verification_status: string
         }
         Insert: {
           buyer_id?: string | null
@@ -3252,6 +3503,7 @@ export type Database = {
           fiscal_device_id: string
           id?: string
           invoice_id?: string | null
+          last_retry_at?: string | null
           payment_method?: string
           pfr_request?: Json | null
           pfr_response?: Json | null
@@ -3259,11 +3511,13 @@ export type Database = {
           qr_code_url?: string | null
           receipt_number?: string
           receipt_type?: string
+          retry_count?: number
           signed_at?: string | null
           tax_items?: Json
           tenant_id: string
           total_amount?: number
           transaction_type?: string
+          verification_status?: string
         }
         Update: {
           buyer_id?: string | null
@@ -3271,6 +3525,7 @@ export type Database = {
           fiscal_device_id?: string
           id?: string
           invoice_id?: string | null
+          last_retry_at?: string | null
           payment_method?: string
           pfr_request?: Json | null
           pfr_response?: Json | null
@@ -3278,11 +3533,13 @@ export type Database = {
           qr_code_url?: string | null
           receipt_number?: string
           receipt_type?: string
+          retry_count?: number
           signed_at?: string | null
           tax_items?: Json
           tenant_id?: string
           total_amount?: number
           transaction_type?: string
+          verification_status?: string
         }
         Relationships: [
           {
@@ -7127,6 +7384,50 @@ export type Database = {
           },
         ]
       }
+      posting_rule_catalog: {
+        Row: {
+          created_at: string
+          credit_account_code: string | null
+          debit_account_code: string | null
+          description: string
+          id: string
+          is_active: boolean
+          rule_code: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credit_account_code?: string | null
+          debit_account_code?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean
+          rule_code: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credit_account_code?: string | null
+          debit_account_code?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean
+          rule_code?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posting_rule_catalog_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_consumption: {
         Row: {
           created_at: string
@@ -10029,6 +10330,10 @@ export type Database = {
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_posting_rules_for_tenant: {
+        Args: { p_tenant_id: string }
         Returns: undefined
       }
       seed_tenant_chart_of_accounts: {
