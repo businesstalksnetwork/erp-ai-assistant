@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.fiscalize-receipt]
 verify_jwt = false
+
+[functions.web-sync]
+verify_jwt = false
+
+[functions.web-order-import]
+verify_jwt = false

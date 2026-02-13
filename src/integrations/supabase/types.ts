@@ -7276,6 +7276,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          external_order_id: string | null
           id: string
           invoice_id: string | null
           notes: string | null
@@ -7286,17 +7287,20 @@ export type Database = {
           quote_id: string | null
           sales_channel_id: string | null
           salesperson_id: string | null
+          source: string | null
           status: string
           subtotal: number
           tax_amount: number
           tenant_id: string
           total: number
           updated_at: string
+          web_connection_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           currency?: string
+          external_order_id?: string | null
           id?: string
           invoice_id?: string | null
           notes?: string | null
@@ -7307,17 +7311,20 @@ export type Database = {
           quote_id?: string | null
           sales_channel_id?: string | null
           salesperson_id?: string | null
+          source?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
           tenant_id: string
           total?: number
           updated_at?: string
+          web_connection_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           currency?: string
+          external_order_id?: string | null
           id?: string
           invoice_id?: string | null
           notes?: string | null
@@ -7328,12 +7335,14 @@ export type Database = {
           quote_id?: string | null
           sales_channel_id?: string | null
           salesperson_id?: string | null
+          source?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
           tenant_id?: string
           total?: number
           updated_at?: string
+          web_connection_id?: string | null
         }
         Relationships: [
           {
@@ -8071,6 +8080,50 @@ export type Database = {
           },
           {
             foreignKeyName: "warehouses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_sync_logs: {
+        Row: {
+          completed_at: string | null
+          errors: Json | null
+          id: string
+          products_synced: number | null
+          started_at: string
+          status: string
+          sync_type: string
+          tenant_id: string
+          web_connection_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          errors?: Json | null
+          id?: string
+          products_synced?: number | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          tenant_id: string
+          web_connection_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          errors?: Json | null
+          id?: string
+          products_synced?: number | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          tenant_id?: string
+          web_connection_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_sync_logs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
