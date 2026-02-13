@@ -1,75 +1,64 @@
 
 
-# Enhance Cash Flow Forecast Page
+# Enhance Profitability Analysis Page
 
 ## Current State
 
-The page exists with basic functionality:
-- 3 KPI cards (Outstanding AR, Monthly Loan Payment, Collection Rate slider)
-- One chart combining historical + forecast with solid lines (no visual distinction)
-- Weighted moving average forecast for 3 months
+The page has 3 tabs (Customer, Product, Cost Center) but only shows **revenue** -- no COGS, no margins, no percentages. The product tab is table-only (no chart). Missing CSV export.
 
-## What's Missing (from the approved plan)
+## Enhancements
 
-1. **AR aging-weighted inflows** -- use bucket probabilities (current: 95%, 30d: 85%, 60d: 70%, 90d: 50%, 90d+: 25%) instead of flat rate
-2. **AP aging outflows** -- upcoming payables from `ap_aging_snapshots`
-3. **Bank balance** -- current cash position from latest `bank_statements`
-4. **Cumulative cash position line** -- running total showing predicted bank balance
-5. **Visual distinction** -- dashed lines for forecast months vs solid for historical
-6. **Monthly summary table** -- tabular breakdown below the chart
-7. **Risk alerts** -- warnings when projected net cash goes negative
+### Single file change: `src/pages/tenant/ProfitabilityAnalysis.tsx`
 
-## Implementation
+### By Customer Tab
+- **Add COGS**: Join `invoice_lines.product_id` to `products.default_purchase_price` to calculate cost per line, then aggregate cost by `partner_name`
+- **Add columns**: Revenue | COGS | Gross Profit | Margin %
+- **Chart**: Stacked bar (Revenue vs COGS) for top 10 customers
+- **Color-code margin**: Green for margin above 30%, yellow 15-30%, red below 15%
 
-### Single file change: `src/pages/tenant/CashFlowForecast.tsx`
+### By Product Tab
+- **Add COGS**: Same product cost lookup -- `quantity * default_purchase_price` per line
+- **Add columns**: Quantity | Revenue | COGS | Gross Profit | Margin %
+- **Add chart**: Horizontal bar chart showing top 10 products by profit (was table-only)
+- **Color-code margin**: Same thresholds
 
-**Data fetching additions:**
-- Query `ar_aging_snapshots` (latest per tenant) to get bucket breakdown; apply collection probabilities per bucket and spread weighted AR across 3 forecast months
-- Query `ap_aging_snapshots` (latest per tenant) for upcoming payables
-- Query `bank_statements` (latest by `statement_date`) to get `closing_balance` as current cash position
+### By Cost Center Tab
+- Already has Revenue/Expenses/Profit -- add **Margin %** column
+- Color-code the margin column
 
-**New KPI cards (expand from 3 to 5):**
-- Current Bank Balance (from bank_statements closing_balance)
-- Projected Cash (3 months out = bank balance + cumulative net)
-- Keep existing: Outstanding AR, Monthly Loan Payment, Collection Rate slider
+### Summary KPI Cards (top of page, above tabs)
+- Total Revenue
+- Total COGS
+- Gross Profit
+- Average Margin %
 
-**Chart enhancements:**
-- Add a `cumulativeCash` data key that starts from bank balance and adds net each month
-- Use custom dot renderer to show filled dots for historical, hollow for forecast
-- Add an Area fill under the cumulative cash line for visual impact
-- Forecast lines rendered with `strokeDasharray="5 5"`
-
-**Summary table below chart:**
-- Columns: Month | Inflow | Outflow | Net | Cumulative Cash
-- Forecast rows highlighted with a subtle background color
-
-**Risk alerts:**
-- If any forecast month has cumulative cash below 0, show a warning banner with AlertTriangle icon
-
-### No database changes needed
-
-All data sources (`ar_aging_snapshots`, `ap_aging_snapshots`, `bank_statements`, `invoices`, `supplier_invoices`, `loans`) already exist.
+### CSV Export
+- Add `ExportButton` component to `PageHeader` actions for each tab's data
 
 ## Technical Detail
 
+The key data flow for COGS:
+
 ```text
-KPI Cards (5 across on lg, wrap on mobile)
-+----------------+----------------+----------------+----------------+-------------------+
-| Bank Balance   | Outstanding AR | Upcoming AP    | Loan Payment   | Collection Rate   |
-| from bank_stmt | from invoices  | from ap_aging  | from loans     | [====slider====]  |
-+----------------+----------------+----------------+----------------+-------------------+
+invoice_lines (quantity, unit_price, product_id)
+  JOIN products (default_purchase_price)
+  JOIN invoices (partner_name, status, tenant_id)
 
-Chart (ComposedChart)
-- Area: cumulativeCash (light blue fill)
-- Line solid: historical inflow/outflow/net
-- Line dashed: forecast inflow/outflow/net
-- ReferenceLine y=0
-
-Table
-| Month   | Inflow    | Outflow   | Net       | Cash Position |
-|---------|-----------|-----------|-----------|---------------|
-| 2025-10 | 500,000   | 420,000   | 80,000    | 1,280,000     |
-| 2025-11 | 480,000   | 410,000   | 70,000    | 1,350,000     |  (forecast bg)
-| ...     |           |           |           |               |
+COGS per line = quantity * default_purchase_price
+Revenue per line = line_total (or quantity * unit_price)
+Gross Profit = Revenue - COGS
+Margin % = (Gross Profit / Revenue) * 100
 ```
+
+Customer query changes:
+- Fetch `invoice_lines` with `product:product_id(default_purchase_price)` and `invoice:invoice_id(partner_name, status, tenant_id)`
+- Filter by tenant and status
+- Aggregate revenue and COGS by `partner_name`
+
+Product query changes:
+- Same fetch, aggregate by `description` (product name)
+
+Cost center query stays the same but adds margin % calculation.
+
+No database changes needed -- all data already exists.
 
