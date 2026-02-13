@@ -6,6 +6,66 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper: format Date as YYYY-MM-DD without timezone issues
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isWeekend(d: Date): boolean {
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+async function isNationalHoliday(supabase: any, dateStr: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("holidays")
+    .select("id")
+    .is("tenant_id", null)
+    .eq("date", dateStr)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
+async function getLastWorkingDay(supabase: any): Promise<string> {
+  const d = new Date();
+  for (let i = 0; i < 10; i++) {
+    const dateStr = formatDate(d);
+    if (!isWeekend(d) && !(await isNationalHoliday(supabase, dateStr))) {
+      return dateStr;
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  throw new Error("Could not determine last working day within 10-day window");
+}
+
+async function sendAdminNotification(
+  supabase: any, tenant_id: string, date: string
+) {
+  const { data: admins } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("tenant_id", tenant_id)
+    .eq("role", "admin");
+
+  if (!admins?.length) return;
+
+  const rows = admins.map((a: any) => ({
+    tenant_id,
+    user_id: a.user_id,
+    type: "warning",
+    category: "system",
+    title: "NBS Exchange Rate Import Failed",
+    message: `Failed to fetch exchange rates from NBS for ${date}. Rates were NOT imported. Please retry or enter rates manually.`,
+    entity_type: "exchange_rates",
+    entity_id: null,
+  }));
+
+  await supabase.from("notifications").insert(rows);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,9 +111,9 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch NBS exchange rate list (public JSON API)
-    const today = new Date().toISOString().split("T")[0];
-    const nbsUrl = `https://nbs.rs/kursnaListaMod498/kursnaLista?date=${today}&type=3`;
+    // Resolve target date: skip weekends and national holidays
+    const targetDate = await getLastWorkingDay(supabase);
+    const nbsUrl = `https://nbs.rs/kursnaListaMod498/kursnaLista?date=${targetDate}&type=3`;
 
     let rates: Array<{ code: string; rate: number }> = [];
 
@@ -61,7 +121,6 @@ Deno.serve(async (req) => {
       const nbsRes = await fetch(nbsUrl);
       if (nbsRes.ok) {
         const text = await nbsRes.text();
-        // Parse NBS XML response - extract currency codes and middle rates
         const currencyMatches = text.matchAll(
           /<currency_code>([A-Z]{3})<\/currency_code>[\s\S]*?<middle_rate>([\d.,]+)<\/middle_rate>/gi
         );
@@ -74,17 +133,20 @@ Deno.serve(async (req) => {
         }
       }
     } catch (fetchErr) {
-      console.log("NBS API fetch failed, using fallback rates:", fetchErr);
+      console.error("NBS API fetch failed:", fetchErr);
     }
 
-    // If NBS API fails or returns no data, use common fallback rates
+    // No hardcoded fallback — fail loudly and notify admins
     if (rates.length === 0) {
-      rates = [
-        { code: "EUR", rate: 117.17 },
-        { code: "USD", rate: 108.45 },
-        { code: "GBP", rate: 136.89 },
-        { code: "CHF", rate: 121.34 },
-      ];
+      await sendAdminNotification(supabase, tenant_id, targetDate);
+
+      return new Response(
+        JSON.stringify({
+          error: "NBS API returned no exchange rates",
+          details: `No rates available for ${targetDate}. NBS may be unavailable. Admin has been notified.`,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     let imported = 0;
@@ -95,7 +157,7 @@ Deno.serve(async (req) => {
           from_currency: code,
           to_currency: "RSD",
           rate,
-          rate_date: today,
+          rate_date: targetDate,
           source: "NBS",
         },
         { onConflict: "tenant_id,from_currency,to_currency,rate_date" }
@@ -103,14 +165,22 @@ Deno.serve(async (req) => {
       if (!error) imported++;
     }
 
+    const today = formatDate(new Date());
+    const adjusted = targetDate !== today;
+
     return new Response(
-      JSON.stringify({ success: true, imported, date: today }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({
+        success: true,
+        imported,
+        date: targetDate,
+        adjusted,
+        ...(adjusted ? { originalDate: today, reason: "Weekend or national holiday" } : {}),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
