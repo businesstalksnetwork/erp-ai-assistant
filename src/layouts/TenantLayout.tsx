@@ -190,12 +190,14 @@ function CollapsibleNavGroup({
   currentPath,
   t,
   accentColor,
+  icon: Icon,
 }: {
   label: string;
   items: NavItem[];
   currentPath: string;
   t: (key: any) => string;
   accentColor?: string;
+  icon?: LucideIcon;
 }) {
   const isActive = items.some((item) => currentPath.startsWith(item.url));
 
@@ -204,7 +206,8 @@ function CollapsibleNavGroup({
       <Collapsible defaultOpen={isActive}>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-semibold text-sidebar-foreground/60 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
           <span className="flex items-center gap-2">
-            {accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
+            {Icon && <Icon className={`h-3.5 w-3.5 ${accentColor ? accentColor.replace('bg-', 'text-') : ''}`} />}
+            {!Icon && accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
             {label}
           </span>
           <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
@@ -301,37 +304,37 @@ export default function TenantLayout() {
             </SidebarGroup>
 
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" icon={Users} />
             )}
             {canAccess("sales") && (
-              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-amber-500" />
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-amber-500" icon={ShoppingCart} />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" icon={Truck} />
             )}
             {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" />
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" icon={Package} />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" icon={Factory} />
             )}
             {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" />
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" icon={Calculator} />
             )}
             {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" />
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" icon={UserCheck} />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-500" />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-500" icon={Monitor} />
             )}
             {canAccess("web") && (
-              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-500" />
+              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-500" icon={Globe} />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" />
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
             )}
             {canAccess("returns") && (
-              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-rose-400" />
+              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-rose-400" icon={RotateCcw} />
             )}
           </SidebarContent>
 
@@ -355,6 +358,7 @@ export default function TenantLayout() {
                 currentPath={currentPath}
                 t={t}
                 accentColor="bg-slate-400"
+                icon={Settings}
               />
             )}
 
