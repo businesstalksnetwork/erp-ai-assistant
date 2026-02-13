@@ -15,7 +15,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 
-const emptyForm = { device_name: "", device_type: "pfr", ib_number: "", jid: "", api_url: "", pac: "", location_id: "", location_name: "", location_address: "", is_active: true };
+import TaxLabelMapEditor from "@/components/fiscal/TaxLabelMapEditor";
+
+const DEFAULT_TAX_MAP = { "20": "A", "10": "G", "0": "E" };
+const emptyForm = { device_name: "", device_type: "pfr", ib_number: "", jid: "", api_url: "", pac: "", location_id: "", location_name: "", location_address: "", is_active: true, tax_label_map: DEFAULT_TAX_MAP as Record<string, string> };
 
 export default function FiscalDevices() {
   const { t } = useLanguage();
@@ -83,7 +86,7 @@ export default function FiscalDevices() {
 
   const openEdit = (d: any) => {
     setEditing(d);
-    setForm({ device_name: d.device_name, device_type: d.device_type, ib_number: d.ib_number, jid: d.jid || "", api_url: d.api_url || "", pac: d.pac || "", location_id: d.location_id || "", location_name: d.location_name, location_address: d.location_address, is_active: d.is_active });
+    setForm({ device_name: d.device_name, device_type: d.device_type, ib_number: d.ib_number, jid: d.jid || "", api_url: d.api_url || "", pac: d.pac || "", location_id: d.location_id || "", location_name: d.location_name, location_address: d.location_address, is_active: d.is_active, tax_label_map: d.tax_label_map || DEFAULT_TAX_MAP });
     setDialogOpen(true);
   };
 
@@ -197,6 +200,7 @@ export default function FiscalDevices() {
             </div>
             <div><Label>{t("pfrUrl")}</Label><Input value={form.api_url} onChange={e => setForm(f => ({ ...f, api_url: e.target.value }))} placeholder="http://localhost:3333" /></div>
             <div><Label>{t("pacCode")}</Label><Input value={form.pac} onChange={e => setForm(f => ({ ...f, pac: e.target.value }))} /></div>
+            <TaxLabelMapEditor value={form.tax_label_map} onChange={v => setForm(f => ({ ...f, tax_label_map: v }))} />
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
               <Label>{t("active")}</Label>

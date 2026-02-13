@@ -60,10 +60,47 @@ Deno.serve(async (req) => {
       }
 
       try {
+        // Step 1: If we have a request_id, first try GET to check if original was processed
+        if (receipt.request_id) {
+          try {
+            const getRes = await fetch(`${device.api_url}/api/v3/invoices/${receipt.request_id}`, {
+              method: "GET",
+              headers: { ...(device.pac ? { "PAC": device.pac } : {}) },
+              signal: AbortSignal.timeout(5000),
+            });
+            if (getRes.ok) {
+              const getBody = await getRes.json();
+              if (getBody.invoiceNumber) {
+                // Original was actually signed -- update receipt, no re-POST needed
+                await supabase.from("fiscal_receipts").update({
+                  receipt_number: getBody.invoiceNumber,
+                  qr_code_url: getBody.verificationUrl || null,
+                  signed_at: getBody.sdcDateTime || new Date().toISOString(),
+                  pfr_response: getBody,
+                  retry_count: receipt.retry_count + 1,
+                  last_retry_at: new Date().toISOString(),
+                  verification_status: "verified",
+                }).eq("id", receipt.id);
+
+                results.push({ id: receipt.id, status: "recovered_via_get", receipt_number: getBody.invoiceNumber });
+                continue;
+              }
+            }
+          } catch {
+            // GET failed, proceed to POST retry
+          }
+        }
+
+        // Step 2: POST retry (original was not processed)
         const pfrPayload = receipt.pfr_request || {};
+        const newRequestId = crypto.randomUUID();
         const res = await fetch(`${device.api_url}/api/v3/invoices`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "PAC": device.pac || "" },
+          headers: {
+            "Content-Type": "application/json",
+            "PAC": device.pac || "",
+            "RequestId": newRequestId,
+          },
           body: JSON.stringify(pfrPayload),
           signal: AbortSignal.timeout(10000),
         });
@@ -78,6 +115,7 @@ Deno.serve(async (req) => {
             retry_count: receipt.retry_count + 1,
             last_retry_at: new Date().toISOString(),
             verification_status: "verified",
+            request_id: newRequestId,
           }).eq("id", receipt.id);
 
           results.push({ id: receipt.id, status: "success", receipt_number: pfrResponse.invoiceNumber });
@@ -86,6 +124,7 @@ Deno.serve(async (req) => {
             retry_count: receipt.retry_count + 1,
             last_retry_at: new Date().toISOString(),
             verification_status: receipt.retry_count + 1 >= 5 ? "failed" : "pending",
+            request_id: newRequestId,
           }).eq("id", receipt.id);
 
           results.push({ id: receipt.id, status: "failed", http_status: res.status });

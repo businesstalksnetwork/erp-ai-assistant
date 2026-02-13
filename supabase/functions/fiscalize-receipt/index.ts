@@ -11,10 +11,15 @@ const PAYMENT_TYPE_MAP: Record<string, number> = {
   other: 0, cash: 1, card: 2, check: 3, wire_transfer: 4, voucher: 5, mobile: 6,
 };
 
-// PFR tax label mapping
-const TAX_LABEL_MAP: Record<number, string> = {
-  20: "A", 10: "G", 0: "E",
+// Default tax label mapping (used as fallback if device has none)
+const DEFAULT_TAX_LABEL_MAP: Record<string, string> = {
+  "20": "A", "10": "G", "0": "E",
 };
+
+function resolveTaxLabel(taxRate: number, deviceMap: Record<string, string> | null): string {
+  const map = { ...DEFAULT_TAX_LABEL_MAP, ...(deviceMap || {}) };
+  return map[String(taxRate)] || "A";
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -73,6 +78,9 @@ serve(async (req) => {
       });
     }
 
+    // Resolve tax label map from device config (configurable per device)
+    const taxLabelMap: Record<string, string> | null = device.tax_label_map as Record<string, string> | null;
+
     // Build PFR InvoiceRequest
     const now = new Date();
     const invoiceRequest: Record<string, unknown> = {
@@ -88,7 +96,7 @@ serve(async (req) => {
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unit_price,
-        labels: [TAX_LABEL_MAP[item.tax_rate] || "A"],
+        labels: [resolveTaxLabel(item.tax_rate, taxLabelMap)],
         totalAmount: item.total_amount,
       })),
     };
@@ -102,46 +110,82 @@ serve(async (req) => {
     }
 
     // Calculate totals for tax breakdown
-    const taxItems: { label: string; rate: number; base: number; amount: number }[] = [];
     const taxGroups: Record<string, { rate: number; base: number; amount: number }> = {};
     for (const item of items) {
-      const label = TAX_LABEL_MAP[item.tax_rate] || "A";
+      const label = resolveTaxLabel(item.tax_rate, taxLabelMap);
       const base = item.unit_price * item.quantity;
       const taxAmt = base * (item.tax_rate / 100);
       if (!taxGroups[label]) taxGroups[label] = { rate: item.tax_rate, base: 0, amount: 0 };
       taxGroups[label].base += base;
       taxGroups[label].amount += taxAmt;
     }
-    for (const [label, data] of Object.entries(taxGroups)) {
-      taxItems.push({ label, ...data });
-    }
-
+    const taxItems = Object.entries(taxGroups).map(([label, data]) => ({ label, ...data }));
     const totalAmount = items.reduce((s: number, i: any) => s + i.total_amount, 0);
 
-    // POST to PFR API
+    // Generate requestId for timeout recovery
+    const requestId = crypto.randomUUID();
+
+    // POST to PFR API with timeout + requestId header
     let pfrResponse: Record<string, unknown> = {};
     let receiptNumber = "";
     let qrCodeUrl = "";
     let signedAt = now.toISOString();
+    let isOffline = false;
 
     try {
       const pfrRes = await fetch(`${device.api_url}/api/v3/invoices`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(device.pac ? { "PAC": device.pac } : {}) },
+        headers: {
+          "Content-Type": "application/json",
+          ...(device.pac ? { "PAC": device.pac } : {}),
+          "RequestId": requestId,
+        },
         body: JSON.stringify(invoiceRequest),
+        signal: AbortSignal.timeout(10000),
       });
       pfrResponse = await pfrRes.json();
       receiptNumber = (pfrResponse as any).invoiceNumber || `FR-${Date.now()}`;
       qrCodeUrl = (pfrResponse as any).verificationUrl || "";
       signedAt = (pfrResponse as any).sdcDateTime || now.toISOString();
-    } catch (pfrErr) {
-      // PFR not reachable -- store request for retry, generate placeholder
-      console.error("PFR API error:", pfrErr);
-      receiptNumber = `OFFLINE-${Date.now()}`;
-      pfrResponse = { error: "PFR not reachable", offline: true };
+    } catch (postErr) {
+      // POST failed (timeout or network) -- attempt GET status check
+      console.error("PFR POST error, attempting GET recovery:", postErr);
+      try {
+        const getRes = await fetch(`${device.api_url}/api/v3/invoices/${requestId}`, {
+          method: "GET",
+          headers: {
+            ...(device.pac ? { "PAC": device.pac } : {}),
+          },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (getRes.ok) {
+          const getBody = await getRes.json();
+          if (getBody.invoiceNumber) {
+            // Receipt was actually signed by SDC
+            console.log("GET recovery successful, receipt was signed:", getBody.invoiceNumber);
+            pfrResponse = getBody;
+            receiptNumber = getBody.invoiceNumber;
+            qrCodeUrl = getBody.verificationUrl || "";
+            signedAt = getBody.sdcDateTime || now.toISOString();
+          } else {
+            // GET returned but no invoice -- truly offline
+            isOffline = true;
+          }
+        } else {
+          isOffline = true;
+        }
+      } catch (getErr) {
+        console.error("GET recovery also failed:", getErr);
+        isOffline = true;
+      }
+
+      if (isOffline) {
+        receiptNumber = `OFFLINE-${Date.now()}`;
+        pfrResponse = { error: "PFR not reachable", offline: true };
+      }
     }
 
-    // Store fiscal receipt
+    // Store fiscal receipt (with request_id for retry correlation)
     const { data: receipt, error: receiptErr } = await supabase
       .from("fiscal_receipts")
       .insert({
@@ -159,6 +203,7 @@ serve(async (req) => {
         pfr_response: pfrResponse,
         qr_code_url: qrCodeUrl || null,
         signed_at: signedAt,
+        request_id: requestId,
       })
       .select()
       .single();
@@ -181,7 +226,7 @@ serve(async (req) => {
       qr_code_url: qrCodeUrl,
       signed_at: signedAt,
       receipt_id: receipt?.id,
-      offline: !!(pfrResponse as any).offline,
+      offline: isOffline,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
