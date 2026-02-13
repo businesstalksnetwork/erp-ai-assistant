@@ -176,6 +176,9 @@ export default function TenantDashboard() {
         ))}
       </div>
 
+      {/* Fiscal Receipt Status - prominent position */}
+      {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
+
       {/* AI Insights - prominent */}
       {tenantId && <AiInsightsWidget tenantId={tenantId} />}
 
@@ -198,8 +201,6 @@ export default function TenantDashboard() {
       {/* Module Health */}
       {tenantId && <ModuleHealthSummary tenantId={tenantId} />}
 
-      {/* Fiscal Receipt Status */}
-      {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
 
       {/* Pending Actions + Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
