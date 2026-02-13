@@ -1,39 +1,108 @@
 
-# Comprehensive Compliance Recheck -- Gap Analysis (Updated)
 
-## STATUS MATRIX
+# Wire Module Management to Tenant Visibility
 
-| # | Issue | Status |
-|---|-------|--------|
-| 1 | Chart of Accounts (Anglo-Saxon to Serbian) | ✅ FIXED |
-| 2 | Invoice posting accounts (2040/6010/2470) | ✅ FIXED |
-| 3 | POS journal entries + inventory | ✅ FIXED |
-| 4 | Maloprodaja 1320/1329/1340 logic | ✅ FIXED — post_kalkulacija/post_nivelacija now split embedded VAT (1340) from margin (1329) |
-| 5 | Payroll nontaxable = 34,221 RSD | ✅ FIXED |
-| 6 | Payroll 6 contribution lines | ✅ FIXED |
-| 7 | Payroll min/max contribution bases | ✅ FIXED — payroll_parameters table created with effective-dated min/max bases |
-| 8-12 | Account codes (FixedAssets/Loans/Deferrals/FxReval/Kompenzacija) | ✅ FIXED |
-| 13-19 | Edge Functions JWT auth | ✅ FIXED — all have getUser() in-code validation |
-| 20 | web-order-import HMAC | ✅ FIXED |
-| 21 | useTenant multi-tenant | ✅ FIXED |
-| 22 | Kalkulacija/Nivelacija journal posting | ✅ FIXED |
-| 23 | verify_jwt config.toml | ✅ N/A — platform requires verify_jwt=false with in-code validation |
-| 24 | POS: posting before fiscalization | ✅ FIXED — fiscal-first state machine: pending_fiscal → fiscalized → posted |
-| 25 | Invoice: "sent" = posted (SEF async) | ✅ FIXED — Model B: post + auto-SEF submit, retry on failure |
-| 26 | SEF requestId idempotency | ✅ FIXED — sef_request_id column + requestId in payload |
-| 27 | SEF async polling/reconciliation | PARTIAL — Manual retry via "Retry SEF" button. Background polling is future work. |
-| 28 | Retail pricing embedded VAT | ✅ FIXED — account 1340 in post_kalkulacija/post_nivelacija |
-| 29 | Payroll parameters table | ✅ FIXED — effective-dated table with RLS |
-| 30 | eBolovanje integration | NOT IMPLEMENTED — requires RFZO API credentials |
-| 31 | eOtpremnica compliance | PARTIAL — CRUD exists, no API submission (private sector Oct 2027) |
-| 32 | fiscalize-receipt body bug | ✅ FIXED — added `const body = await req.json()` |
-| 33 | Super admin audit trail | NOT IMPLEMENTED — enhancement |
-| 34 | RLS permissive policy | PRE-EXISTING |
-| 35 | Leaked password protection | PRE-EXISTING — auth setting |
+## The Problem
 
-## Remaining Future Work
-- eBolovanje integration (RFZO API)
-- eOtpremnica state API (MoF, mandatory Oct 2027 for private)
-- SEF background polling/reconciliation job
-- Super admin audit trail
-- RLS permissive policy audit
+The super admin Module Management page (`/super-admin/modules`) correctly saves toggle state to the `tenant_modules` database table, but **nothing on the tenant side reads it**. The `usePermissions()` hook only checks the hardcoded `rolePermissions` config -- it never queries `tenant_modules`.
+
+**Result:** Turning off "CRM" for a tenant in the admin panel has zero effect. The tenant still sees CRM in the sidebar and can access all CRM routes.
+
+## Root Cause
+
+```text
+CURRENT FLOW (broken):
+
+Super Admin toggles module OFF
+       |
+       v
+tenant_modules.is_enabled = false   <-- saved to DB
+       |
+       X  (nothing reads this)
+
+usePermissions() --> rolePermissions (hardcoded) --> canAccess("crm") = true
+       |
+       v
+Sidebar shows CRM, routes accessible
+```
+
+## Key Mapping Mismatch
+
+The DB `module_definitions.key` values don't fully align with the frontend `ModuleGroup` type:
+
+| DB key       | Frontend ModuleGroup | Status      |
+|-------------|---------------------|-------------|
+| crm          | crm                  | Match       |
+| sales        | sales                | Match       |
+| accounting   | accounting           | Match       |
+| inventory    | inventory            | Match       |
+| hr           | hr                   | Match       |
+| web          | web                  | Match       |
+| pos          | pos                  | Match       |
+| production   | production           | Match       |
+| dms          | documents            | MISMATCH    |
+| (none)       | purchasing           | MISSING     |
+| (none)       | returns              | MISSING     |
+
+## Solution
+
+### 1. Add missing module definitions to the database
+
+Insert two new rows into `module_definitions`:
+- `purchasing` ("Purchasing")
+- `returns` ("Returns")
+
+Rename `dms` key to `documents` (or add a mapping).
+
+### 2. Update `usePermissions()` to intersect role permissions with tenant modules
+
+The hook will:
+1. Fetch enabled `tenant_modules` for the current tenant (with module key via join)
+2. Intersect with the role-based permissions
+3. A module is accessible only if BOTH the role allows it AND the tenant has it enabled
+
+```text
+FIXED FLOW:
+
+usePermissions()
+       |
+       +-- rolePermissions[effectiveRole]  --> Set A (role allows)
+       |
+       +-- tenant_modules (DB query)       --> Set B (tenant has enabled)
+       |
+       v
+canAccess(module) = A.has(module) AND B.has(module)
+```
+
+### 3. Handle edge cases
+
+- **Super admins** bypass tenant module checks (they need to see everything for support)
+- **Settings, dashboard** are always available (not toggleable modules)
+- **Loading state** -- don't flash content while tenant_modules query loads
+- **Cache** -- use React Query with reasonable staleTime so sidebar doesn't flicker
+
+## Technical Changes
+
+### Migration SQL
+- Insert `purchasing` and `returns` into `module_definitions`
+- Update `dms` key to `documents` (and update any existing `tenant_modules` references)
+
+### `src/hooks/usePermissions.ts`
+- Add a React Query call to fetch `tenant_modules` joined with `module_definitions` for the current tenant
+- Build a Set of enabled module keys
+- Update `canAccess()` to check both role AND tenant module enablement
+- Super admin bypasses tenant module check
+- Always allow `dashboard` and `settings` (core modules)
+
+### `src/pages/super-admin/ModuleManagement.tsx`
+- No changes needed (already works correctly with DB)
+
+### `src/layouts/TenantLayout.tsx`
+- No changes needed (already uses `canAccess()` which will now be properly wired)
+
+## Implementation Order
+
+1. Database migration: add missing module_definitions + fix dms/documents key
+2. Update `usePermissions.ts`: add tenant_modules query + intersection logic
+3. Test: toggle a module off in super admin, verify tenant sidebar hides it
+
