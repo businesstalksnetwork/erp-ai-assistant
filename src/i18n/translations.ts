@@ -1211,6 +1211,7 @@ export const translations = {
     qrCode: "QR Code",
     pfrUrl: "PFR URL",
     pacCode: "PAC Code",
+    taxLabelMapping: "Tax Label Mapping",
     deviceConnected: "Device Connected",
     deviceOffline: "Device Offline",
 
@@ -2675,6 +2676,7 @@ export const translations = {
     qrCode: "QR kod",
     pfrUrl: "PFR URL",
     pacCode: "PAC kod",
+    taxLabelMapping: "Mapiranje poreskih oznaka",
     deviceConnected: "Uređaj povezan",
     deviceOffline: "Uređaj nedostupan",
 

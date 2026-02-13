@@ -3375,6 +3375,7 @@ export type Database = {
           location_id: string | null
           location_name: string
           pac: string | null
+          tax_label_map: Json | null
           tenant_id: string
         }
         Insert: {
@@ -3391,6 +3392,7 @@ export type Database = {
           location_id?: string | null
           location_name?: string
           pac?: string | null
+          tax_label_map?: Json | null
           tenant_id: string
         }
         Update: {
@@ -3407,6 +3409,7 @@ export type Database = {
           location_id?: string | null
           location_name?: string
           pac?: string | null
+          tax_label_map?: Json | null
           tenant_id?: string
         }
         Relationships: [
@@ -3489,6 +3492,7 @@ export type Database = {
           qr_code_url: string | null
           receipt_number: string
           receipt_type: string
+          request_id: string | null
           retry_count: number
           signed_at: string | null
           tax_items: Json
@@ -3511,6 +3515,7 @@ export type Database = {
           qr_code_url?: string | null
           receipt_number?: string
           receipt_type?: string
+          request_id?: string | null
           retry_count?: number
           signed_at?: string | null
           tax_items?: Json
@@ -3533,6 +3538,7 @@ export type Database = {
           qr_code_url?: string | null
           receipt_number?: string
           receipt_type?: string
+          request_id?: string | null
           retry_count?: number
           signed_at?: string | null
           tax_items?: Json
