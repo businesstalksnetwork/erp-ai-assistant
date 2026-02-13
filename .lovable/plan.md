@@ -1,56 +1,122 @@
 
-# Fiscal Receipt Widget Enhancement
+
+# Fix Broken Links, Reorder Sidebar, and Polish UX
 
 ## Overview
 
-Three changes: (1) reposition the widget on the dashboard, (2) add trend indicators comparing today vs. last 7 days, and (3) add a click-to-open detail dialog showing recent receipts filtered by status.
+The main issue is a broken link on the Settings hub page pointing to `/settings/sales-channels` (which has no route -- the actual route is `/sales/sales-channels`). Beyond that, the sidebar group ordering can be improved for a more logical workflow, and several breadcrumb labels are missing for newer pages.
 
 ---
 
-## 1. Move Widget Higher on Dashboard
+## 1. Fix Broken Sales Channels Link
 
-**File**: `src/pages/tenant/Dashboard.tsx`
+**File**: `src/pages/tenant/Settings.tsx`
 
-Move the `FiscalReceiptStatusWidget` render from line 202 (after Module Health) to right after the KPI cards grid (after line 177), before AI Insights. The widget will render conditionally as before (`tenantId && canAccess("pos")`).
+The Settings hub page links to `/settings/sales-channels` but there is no such route in `App.tsx`. The actual Sales Channels page lives at `/sales/sales-channels`. Fix the link to point to the correct route.
 
-New order:
-1. Welcome header
-2. KPI cards
-3. **Fiscal Receipt Status** (moved here)
-4. AI Insights
-5. Charts Row 1 & 2
-6. Module Health
-7. Pending Actions + Quick Actions
+Change line 16:
+- From: `{ label: t("salesChannels"), icon: ShoppingBag, to: "/settings/sales-channels" }`
+- To: `{ label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" }`
 
 ---
 
-## 2. Add Trend Indicators
+## 2. Reorder Sidebar Groups for Logical Flow
 
-**File**: `src/components/dashboard/FiscalReceiptStatusWidget.tsx`
+**File**: `src/layouts/TenantLayout.tsx`
 
-Add two new queries to get counts from the last 24 hours and previous 7 days:
-- `fiscal-trend-today-signed`: count of signed receipts created today
-- `fiscal-trend-week-signed`: count of signed receipts created in the last 7 days
-- Same for offline and failed
+Current order: Dashboard, CRM, Sales, Web, Purchasing, Returns, HR, Inventory, Accounting, Production, Documents, POS
 
-Calculate a simple trend: compare today's count to the daily average over the past 7 days. Display an up/down arrow with percentage next to each stat count using `TrendingUp`/`TrendingDown` icons.
+Proposed order (groups related modules together):
 
-The trend query filters use `created_at` with `gte` for date ranges (today = `new Date().toISOString().split("T")[0]`, week = 7 days ago).
+1. **Dashboard** -- entry point
+2. **CRM** -- customer-facing start of workflow
+3. **Sales** -- quotes, orders, channels (flows from CRM)
+4. **Purchasing** -- procurement (counterpart to sales)
+5. **Inventory** -- stock management (receives from purchasing, ships from sales)
+6. **Production** -- manufacturing (consumes inventory)
+7. **Accounting** -- financial backbone
+8. **HR** -- workforce management
+9. **POS** -- retail operations
+10. **Web Sales** -- e-commerce (specialized sales channel)
+11. **Documents** -- document management (cross-cutting)
+12. **Returns** -- exception handling (last)
+13. **Settings** (footer, unchanged)
+
+This follows the natural business flow: acquire customers -> sell -> buy materials -> manage stock -> produce -> account -> manage people.
 
 ---
 
-## 3. Add Click-to-Open Detail Dialog
+## 3. Add Missing Breadcrumb Labels
 
-**File**: `src/components/dashboard/FiscalReceiptStatusWidget.tsx`
+**File**: `src/components/layout/Breadcrumbs.tsx`
 
-- Make each stat card clickable (`cursor-pointer`, `hover:bg-muted` transition)
-- Clicking opens a `Dialog` showing the 20 most recent `fiscal_receipts` matching the clicked filter:
-  - **Signed**: `receipt_number NOT LIKE 'OFFLINE-%'`
-  - **Offline**: `receipt_number LIKE 'OFFLINE-%'`
-  - **Failed**: `verification_status = 'failed'`
-- The dialog contains a `Table` with columns: Receipt Number, Total Amount, Payment Method, Created At, Verification Status
-- Each row shows formatted date and amount
-- Dialog title shows the filter name (e.g., "Signed Receipts")
+Add labels for routes that are missing from the `routeLabels` map:
+
+- `"posting-rules"`: `"postingRules"`
+- `"fx-revaluation"`: `"fxRevaluation"`
+- `"kompenzacija"`: `"kompenzacija"`
+- `"cost-layers"`: `"costLayers"`
+- `"internal-orders"`: `"internalOrders"`
+- `"internal-transfers"`: `"internalTransfers"`
+- `"internal-receipts"`: `"internalReceipts"`
+- `"kalkulacija"`: `"kalkulacija"`
+- `"nivelacija"`: `"nivelacija"`
+- `"dispatch-notes"`: `"dispatchNotes"`
+- `"wms"`: `"inventory"` (parent segment)
+- `"zones"`: `"wmsZones"`
+- `"tasks"`: `"wmsTasks"`
+- `"receiving"`: `"wmsReceiving"`
+- `"picking"`: `"wmsPicking"`
+- `"cycle-counts"`: `"wmsCycleCounts"`
+- `"slotting"`: `"wmsSlotting"`
+- `"work-logs"`: `"workLogs"`
+- `"overtime"`: `"overtimeHours"`
+- `"night-work"`: `"nightWork"`
+- `"annual-leave"`: `"annualLeaveBalance"`
+- `"holidays"`: `"holidays"`
+- `"deductions"`: `"deductionsModule"`
+- `"allowances"`: `"allowance"`
+- `"salaries"`: `"salaryHistory"`
+- `"external-workers"`: `"externalWorkers"`
+- `"insurance"`: `"insuranceRecords"`
+- `"position-templates"`: `"positionTemplates"`
+- `"ebolovanje"`: `"eBolovanje"`
+- `"salespeople"`: `"salespeople"`
+- `"sales-performance"`: `"salesPerformance"`
+- `"retail-prices"`: `"retailPrices"`
+- `"fiscal-devices"`: `"fiscalDevices"`
+- `"daily-report"`: `"dailyReport"`
+- `"pending-approvals"`: `"pendingApprovalsPage"`
+- `"sales"`: `"salesModule"`
+- `"web"`: `"webSales"`
+- `"bulk"`: `"bulkEntry"`
+- `"calendar"`: `"calendar"`
+- `"bins"`: `"wmsBins"`
+
+---
+
+## 4. Improve Sidebar Accent Colors
+
+**File**: `src/layouts/TenantLayout.tsx`
+
+Assign more distinct, visually harmonious accent colors that better differentiate groups:
+
+| Group | Current | Proposed |
+|-------|---------|----------|
+| CRM | blue-400 | blue-500 |
+| Sales | orange-400 | amber-500 |
+| Purchasing | orange-400 (duplicate!) | violet-500 |
+| Returns | red-400 | rose-400 |
+| HR | violet-400 | purple-500 |
+| Inventory | amber-400 | yellow-500 |
+| Accounting | emerald-400 | emerald-500 |
+| Production | cyan-400 | cyan-500 |
+| Documents | pink-400 | pink-500 |
+| POS | teal-400 | teal-500 |
+| Web | indigo-400 | indigo-500 |
+| Settings | gray-400 | slate-400 |
+
+Key fix: Purchasing and Sales currently share `orange-400`. They will get distinct colors.
 
 ---
 
@@ -58,49 +124,13 @@ The trend query filters use `created_at` with `gte` for date ranges (today = `ne
 
 ### Files Modified
 
-1. **`src/pages/tenant/Dashboard.tsx`** -- Move the `FiscalReceiptStatusWidget` render from after Module Health to after KPI cards
-2. **`src/components/dashboard/FiscalReceiptStatusWidget.tsx`** -- Add trend queries, clickable stats, and detail dialog
-3. **`src/i18n/translations.ts`** -- Add translation keys: `receiptLog`, `receiptDetails`, `noReceipts`, `todayTrend`, `totalAmount`, `paymentMethod`, `verificationStatus`
+1. **`src/pages/tenant/Settings.tsx`** -- Fix broken `/settings/sales-channels` link to `/sales/sales-channels`
+2. **`src/layouts/TenantLayout.tsx`** -- Reorder sidebar groups; update accent colors
+3. **`src/components/layout/Breadcrumbs.tsx`** -- Add ~30 missing breadcrumb labels
 
-### New Dependencies Used (already installed)
-- `Dialog` from `@radix-ui/react-dialog` (via `src/components/ui/dialog.tsx`)
-- `Table` components (via `src/components/ui/table.tsx`)
-- `TrendingUp`, `TrendingDown` from `lucide-react`
-- `format` from `date-fns`
+### No Files Deleted
 
-### Query Structure for Trends
-
-```typescript
-// Today's signed count
-const todaySigned = await supabase
-  .from("fiscal_receipts")
-  .select("id", { count: "exact", head: true })
-  .eq("tenant_id", tenantId)
-  .not("receipt_number", "like", "OFFLINE-%")
-  .gte("created_at", todayStr);
-
-// Last 7 days signed count (for daily average)
-const weekSigned = await supabase
-  .from("fiscal_receipts")
-  .select("id", { count: "exact", head: true })
-  .eq("tenant_id", tenantId)
-  .not("receipt_number", "like", "OFFLINE-%")
-  .gte("created_at", weekAgoStr);
-
-// Trend = ((todayCount - weekAvg) / weekAvg) * 100
-```
-
-### Detail Dialog Query
-
-```typescript
-const { data: receipts } = await supabase
-  .from("fiscal_receipts")
-  .select("id, receipt_number, total_amount, payment_method, created_at, verification_status")
-  .eq("tenant_id", tenantId)
-  // + filter based on clicked category
-  .order("created_at", { ascending: false })
-  .limit(20);
-```
+The `SalesChannels` page at `src/pages/tenant/SalesChannels.tsx` is actively used by the `/sales/sales-channels` route. No pages need deletion -- the issue was a stale link, not an orphaned page.
 
 ### No Database Changes Required
-All data comes from the existing `fiscal_receipts` table using `created_at`, `receipt_number`, and `verification_status` columns.
+
