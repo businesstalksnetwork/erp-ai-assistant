@@ -1,121 +1,177 @@
 
 
-# Rename "Inventar" to "Magacin", "Dokumenti" to "DMS" + Cross-Module Connection Audit
+# Product Detail Pricing View + Web Sync Edge Functions + Web Order Import
 
-## Part 1: Renames
+## Status Check
 
-Simple translation changes:
-
-| Current (SR) | New (SR) | EN stays |
-|---|---|---|
-| `inventory: "Inventar"` | `inventory: "Magacin"` | "Inventory" (or could change to "Warehouse") |
-| `documents: "Dokumenti"` | `documents: "DMS"` | "Documents" (or "DMS") |
-
-These are sidebar nav group labels used in `TenantLayout.tsx` via `t("inventory")` and `t("documents")`.
-
-**Files to modify**: `src/i18n/translations.ts` only (line 1507 for SR inventory, line 1699 for SR documents).
+**Migration for `salesperson_id`**: Already done -- migration `20260212202908` added `salesperson_id` to `quotes`, `sales_orders`, `invoices`, `opportunities`, and `pos_transactions`. No action needed.
 
 ---
 
-## Part 2: Cross-Module Connection Audit
+## Feature 1: Product Detail Page with 3-Tier Pricing View
 
-Here is what currently exists and what is missing between modules:
+There is currently no product detail page -- products are only managed via the list view with an inline dialog. We will create a dedicated detail page showing all pricing tiers side-by-side.
 
-### What IS connected
+### New file: `src/pages/tenant/ProductDetail.tsx`
 
-| From | To | How |
-|---|---|---|
-| Products | Inventory Stock | `inventory_stock.product_id` -- stock levels per product per warehouse |
-| Products | Retail Prices | `retail_prices.product_id` -- retail pricing per location |
-| Products | Web Prices | `web_prices.product_id` -- web pricing per connection |
-| Products | Invoices | `invoice_lines.product_id` -- sales invoicing |
-| Products | POS | `pos_transaction_lines.product_id` -- retail sales |
-| Invoices | Inventory | Posting an invoice with a warehouse deducts stock via `adjust_inventory_stock` RPC |
-| Goods Receipts | Inventory | GRN receipt adds stock + creates cost layers |
-| Production | Inventory | Complete & Consume moves materials out and finished goods in |
-| Salespeople | POS | `pos_transactions.salesperson_id` |
-| Salespeople | Invoices | `invoices.salesperson_id` |
-| Salespeople | Opportunities | `opportunities.salesperson_id` |
-| CRM Lead | Opportunity | Lead-to-opportunity conversion pipeline |
-| Opportunity | Quote | Cross-module pipeline |
-| Quote | Sales Order | Cross-module pipeline |
-| Sales Order | Invoice | Cross-module pipeline |
-| PO | GRN | Purchase order to goods receipt |
-| GRN | Supplier Invoice | 3-way matching |
+A tabbed page accessible at `/inventory/products/:id` with:
 
-### What is MISSING (gaps to address)
+**Header**: Product name, SKU, barcode, status badge, Edit button
 
-| Gap | Impact | Priority |
-|---|---|---|
-| **Web has no link to inventory/stock** | Web prices reference products but there is no stock sync -- a Shopify/WooCommerce store cannot know what is in stock | High |
-| **Web has no order import** | Orders from web platforms do not flow into Sales Orders or Invoices | High |
-| **POS does not record salesperson on transactions** (UI gap) | The `salesperson_id` FK exists on `pos_transactions` but the POS terminal UI does not let you pick or auto-assign a salesperson | Medium |
-| **Salespeople not linked to Quotes** | `quotes` table has no `salesperson_id` column -- wholesale analytics cannot track quote activity per komercijalista | Medium |
-| **Sales Orders missing salesperson** | `sales_orders` has no `salesperson_id` -- cannot attribute order revenue to a person | Medium |
-| **Web prices not shown on Product detail** | When viewing a product, you cannot see its web price or retail price side-by-side | Low |
-| **No inventory reservation for Sales Orders** | Creating a sales order does not reserve stock (`reserved` qty stays 0) | Low |
+**Tab 1 -- Overview**
+- Basic info card: name (EN/SR), SKU, barcode, UOM, costing method, tax rate, description
+- Status and default prices (purchase / wholesale sale)
+
+**Tab 2 -- Pricing (all 3 tiers side-by-side)**
+- **Wholesale Price**: from `products.default_sale_price` (the base price)
+- **Retail Prices**: query `retail_prices` WHERE `product_id = this product` -- show per price list: price list name, retail price, margin vs wholesale
+- **Web Prices**: query `web_prices` WHERE `product_id = this product` -- show per price list: connection name, web price, compare-at price, margin vs wholesale
+- All in one card with 3 sections, making it easy to compare pricing strategy
+
+**Tab 3 -- Inventory**
+- Stock levels per warehouse from `inventory_stock` WHERE `product_id`
+- Total on-hand, reserved, available
+- Recent movements from `inventory_movements` (last 10)
+
+### Route addition in `App.tsx`
+```
+<Route path="inventory/products/:id" element={<ProductDetail />} />
+```
+
+### Products.tsx update
+- Make product name in the table a clickable link to `/inventory/products/:id`
 
 ---
 
-## Proposed Implementation (this round)
+## Feature 2: Web Sync Edge Function (Stock + Catalog Push)
 
-### 1. Translations rename (quick)
-- SR: `inventory: "Magacin"`, `documents: "DMS"`
+### New file: `supabase/functions/web-sync/index.ts`
 
-### 2. Add `salesperson_id` to `quotes` and `sales_orders` tables
-- Migration: `ALTER TABLE quotes ADD COLUMN salesperson_id uuid REFERENCES salespeople(id)`
-- Migration: `ALTER TABLE sales_orders ADD COLUMN salesperson_id uuid REFERENCES salespeople(id)`
-- Update Quotes.tsx and SalesOrders.tsx to show salesperson dropdown
-- Update types.ts
+An edge function that pushes product catalog and stock data to connected web platforms (Shopify, WooCommerce, custom API).
 
-### 3. POS Terminal: auto-assign salesperson
-- Query `salespeople` where `user_id = current_user` and `role_type = 'in_store'`
-- Auto-set `salesperson_id` on `pos_transactions` when completing a sale
-- Show the active salesperson name in the POS header
+**Request**: `POST { tenant_id, connection_id, sync_type: "full" | "stock_only" | "prices_only" }`
 
-### 4. Web inventory availability indicator
-- On WebPrices.tsx, show current stock level next to each product (read from `inventory_stock`)
-- Add a "Stock" column showing total on-hand across all warehouses
-- This is a read-only display for now (actual sync to platforms would be a future edge function)
+**Logic**:
+1. Fetch the `web_connection` record to get platform type, `store_url`, `api_key`, `api_secret`
+2. Fetch all `web_prices` for this connection's price lists, joined with `products` for catalog data
+3. Fetch `inventory_stock` totals per product (SUM on_hand across warehouses)
+4. Based on platform type:
+   - **Shopify**: Use Shopify Admin REST API to create/update products and set inventory levels
+   - **WooCommerce**: Use WooCommerce REST API (`/wp-json/wc/v3/products`)
+   - **Custom API**: POST the payload to the connection's `webhook_url`
+5. Log sync results to a new `web_sync_logs` table
+
+### Database: New `web_sync_logs` table (migration)
+```
+web_sync_logs (
+  id uuid PK,
+  tenant_id uuid FK,
+  web_connection_id uuid FK,
+  sync_type text,        -- 'full', 'stock_only', 'prices_only'
+  status text,           -- 'success', 'partial', 'failed'
+  products_synced int,
+  errors jsonb,
+  started_at timestamptz,
+  completed_at timestamptz
+)
+```
+
+### UI: Add "Sync" button to `WebSettings.tsx`
+- Per connection: "Sync Now" button that calls the edge function
+- Show last sync status and timestamp from `web_sync_logs`
+
+---
+
+## Feature 3: Web Order Import (Webhook Ingestion)
+
+### New file: `supabase/functions/web-order-import/index.ts`
+
+A webhook endpoint that receives orders from web platforms and creates Sales Orders.
+
+**Endpoint**: `POST /web-order-import`
+
+**Logic**:
+1. Identify the connection by `api_key` header or `connection_id` in payload
+2. Parse the order based on platform format:
+   - **Shopify**: Parse Shopify webhook payload (`orders/create`)
+   - **WooCommerce**: Parse WooCommerce webhook payload
+   - **Custom**: Expect a standardized JSON format
+3. Map products by SKU or barcode to internal `products.id`
+4. Create a `sales_order` with:
+   - `source = 'web'`, `web_connection_id`, `status = 'confirmed'`
+   - Partner: look up or create from customer email/name
+   - Lines: map order items to products with quantities and prices
+5. Return order ID for the platform to store as reference
+
+### Database changes (migration)
+- `ALTER TABLE sales_orders ADD COLUMN source text DEFAULT 'manual'` -- values: 'manual', 'web', 'pos'
+- `ALTER TABLE sales_orders ADD COLUMN web_connection_id uuid REFERENCES web_connections(id)`
+- `ALTER TABLE sales_orders ADD COLUMN external_order_id text` -- the platform's order ID
+
+### UI: `WebSettings.tsx` additions
+- Show webhook URL per connection (copy-to-clipboard)
+- Show recent imported orders count
+- Link to Sales Orders filtered by `source = 'web'`
+
+---
 
 ## Files to Create
-None.
+
+| File | Purpose |
+|------|---------|
+| `src/pages/tenant/ProductDetail.tsx` | Product detail page with 3-tier pricing view |
+| `supabase/functions/web-sync/index.ts` | Push catalog/stock to Shopify/WooCommerce |
+| `supabase/functions/web-order-import/index.ts` | Receive orders from web platforms |
 
 ## Files to Modify
 
 | File | Changes |
-|---|---|
-| Migration SQL | ALTER `quotes` + `sales_orders`: add `salesperson_id` |
-| `src/i18n/translations.ts` | Rename inventory/documents in SR |
-| `src/integrations/supabase/types.ts` | Add salesperson_id to quotes/sales_orders types |
-| `src/pages/tenant/Quotes.tsx` | Salesperson dropdown in CRUD |
-| `src/pages/tenant/SalesOrders.tsx` | Salesperson dropdown in CRUD |
-| `src/pages/tenant/PosTerminal.tsx` | Auto-assign in-store salesperson |
-| `src/pages/tenant/WebPrices.tsx` | Show stock availability column |
+|------|---------|
+| `src/App.tsx` | Add route for `/inventory/products/:id` |
+| `src/pages/tenant/Products.tsx` | Make product names clickable links |
+| `src/pages/tenant/WebSettings.tsx` | Add Sync button, webhook URL display, import stats |
+| `src/i18n/translations.ts` | ~20 new keys (pricing tiers, sync, import, etc.) |
+| `src/integrations/supabase/types.ts` | Add new table types and column additions |
+| `supabase/config.toml` | Register new edge functions |
+| New migration SQL | `web_sync_logs` table + `sales_orders` columns |
 
 ## Technical Notes
 
-### Cross-Module Data Flow (complete picture after fixes)
+### Edge Function Authentication
+
+- `web-sync`: Called from the app UI with user auth token -- verify JWT = true
+- `web-order-import`: Called from external platforms (Shopify/WooCommerce webhooks) -- verify JWT = false, authenticate via API key matching against `web_connections.api_key`
+
+### Shopify API Integration Pattern
 
 ```text
-CRM Pipeline:
-  Lead -> Opportunity (salesperson_id) -> Quote (salesperson_id) -> Sales Order (salesperson_id) -> Invoice (salesperson_id)
+POST https://{store}.myshopify.com/admin/api/2024-01/products.json
+Headers: X-Shopify-Access-Token: {api_key}
 
-Retail Pipeline:
-  POS Terminal (salesperson_id auto from logged-in user) -> pos_transactions -> inventory deduction
-
-Web Pipeline (current):
-  Web Connection -> Web Price Lists -> Web Prices (product_id)
-  Missing: stock sync out, order import in
-
-Inventory Flow:
-  Purchase Order -> Goods Receipt (+stock, +cost layers) -> Supplier Invoice (3-way match)
-  Invoice posting / POS sale -> -stock (adjust_inventory_stock RPC)
-  Production complete -> -materials, +finished goods
+For inventory:
+POST https://{store}.myshopify.com/admin/api/2024-01/inventory_levels/set.json
 ```
 
-### Future work (not this round)
-- Edge function for product/stock sync to Shopify/WooCommerce
-- Web order import (create sales orders from platform webhooks)
-- Stock reservation on sales order confirmation
+### WooCommerce API Integration Pattern
+
+```text
+PUT https://{store}/wp-json/wc/v3/products/{id}
+Auth: Basic (consumer_key:consumer_secret)
+```
+
+### Data Flow After Implementation
+
+```text
+Outbound (Sync):
+  Products + inventory_stock + web_prices
+    -> web-sync edge function
+    -> Shopify/WooCommerce API
+    -> web_sync_logs (result tracking)
+
+Inbound (Import):
+  Shopify/WooCommerce webhook (orders/create)
+    -> web-order-import edge function
+    -> sales_orders (source='web') + sales_order_lines
+    -> Notification to user
+```
 
