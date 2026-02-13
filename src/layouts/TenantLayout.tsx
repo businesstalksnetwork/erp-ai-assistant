@@ -1,3 +1,4 @@
+import React from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -52,6 +53,7 @@ interface NavItem {
   key: string;
   url: string;
   icon: LucideIcon;
+  section?: string;
 }
 
 const mainNav: NavItem[] = [
@@ -59,17 +61,21 @@ const mainNav: NavItem[] = [
 ];
 
 const inventoryNav: NavItem[] = [
-  { key: "products", url: "/inventory/products", icon: Package },
+  // Core Inventory
+  { key: "products", url: "/inventory/products", icon: Package, section: "coreInventory" },
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
-  { key: "internalOrders", url: "/inventory/internal-orders", icon: ClipboardCheck },
+  { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
+  // Internal Logistics
+  { key: "internalOrders", url: "/inventory/internal-orders", icon: ClipboardCheck, section: "internalLogistics" },
   { key: "internalTransfers", url: "/inventory/internal-transfers", icon: Truck },
   { key: "internalReceipts", url: "/inventory/internal-receipts", icon: FileInput },
-  { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator },
-  { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
-  { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
-  { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
+  // Pricing Operations
+  { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator, section: "pricingOperations" },
+  { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
+  // WMS
+  { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin, section: "wms" },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
   { key: "wmsReceiving", url: "/inventory/wms/receiving", icon: Truck },
   { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
@@ -217,18 +223,27 @@ function CollapsibleNavGroup({
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{t(item.key as any)}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <React.Fragment key={item.key}>
+                  {item.section && (
+                    <li className="px-3 pt-3 pb-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                        {t(item.section as any)}
+                      </span>
+                    </li>
+                  )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{t(item.key as any)}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </React.Fragment>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
