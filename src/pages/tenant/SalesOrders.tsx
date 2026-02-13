@@ -96,14 +96,45 @@ export default function SalesOrders() {
       if (editId) {
         const { error } = await supabase.from("sales_orders").update(payload).eq("id", editId);
         if (error) throw error;
+
+        // Stock reservation on status change
+        const oldOrder = orders.find((o: any) => o.id === editId);
+        const oldStatus = oldOrder?.status;
+        if (oldStatus !== f.status) {
+          if (f.status === "confirmed" && oldStatus !== "confirmed") {
+            await emitStockEvent(editId, "sales_order.confirmed");
+          } else if (f.status === "cancelled" && oldStatus === "confirmed") {
+            await emitStockEvent(editId, "sales_order.cancelled");
+          }
+        }
       } else {
-        const { error } = await supabase.from("sales_orders").insert([payload]);
+        const { data: inserted, error } = await supabase.from("sales_orders").insert([payload]).select("id").single();
         if (error) throw error;
+        // If created as confirmed directly
+        if (f.status === "confirmed" && inserted) {
+          await emitStockEvent(inserted.id, "sales_order.confirmed");
+        }
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sales-orders"] }); setOpen(false); toast.success(t("success")); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const emitStockEvent = async (orderId: string, eventType: string) => {
+    try {
+      const { data: evt } = await supabase.from("module_events").insert({
+        tenant_id: tenantId!,
+        event_type: eventType,
+        source_module: "sales",
+        entity_type: "sales_order",
+        entity_id: orderId,
+        payload: {},
+      }).select("id").single();
+      if (evt) {
+        await supabase.functions.invoke("process-module-event", { body: { event_id: evt.id } });
+      }
+    } catch { /* best effort */ }
+  };
 
   const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (o: any) => {

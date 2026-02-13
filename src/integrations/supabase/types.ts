@@ -6061,13 +6061,16 @@ export type Database = {
       }
       pos_daily_reports: {
         Row: {
+          actual_cash_count: number | null
           card_total: number
           cash_total: number
+          cash_variance: number | null
           created_at: string
           fiscal_device_id: string | null
           id: string
           location_id: string | null
           net_sales: number
+          opening_float: number
           other_total: number
           refund_count: number
           report_date: string
@@ -6079,13 +6082,16 @@ export type Database = {
           transaction_count: number
         }
         Insert: {
+          actual_cash_count?: number | null
           card_total?: number
           cash_total?: number
+          cash_variance?: number | null
           created_at?: string
           fiscal_device_id?: string | null
           id?: string
           location_id?: string | null
           net_sales?: number
+          opening_float?: number
           other_total?: number
           refund_count?: number
           report_date: string
@@ -6097,13 +6103,16 @@ export type Database = {
           transaction_count?: number
         }
         Update: {
+          actual_cash_count?: number | null
           card_total?: number
           cash_total?: number
+          cash_variance?: number | null
           created_at?: string
           fiscal_device_id?: string | null
           id?: string
           location_id?: string | null
           net_sales?: number
+          opening_float?: number
           other_total?: number
           refund_count?: number
           report_date?: string
@@ -8255,6 +8264,14 @@ export type Database = {
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
         Returns: string
+      }
+      release_stock_for_order: {
+        Args: { p_sales_order_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      reserve_stock_for_order: {
+        Args: { p_sales_order_id: string; p_tenant_id: string }
+        Returns: undefined
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
