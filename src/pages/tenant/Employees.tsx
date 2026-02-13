@@ -89,6 +89,15 @@ export default function Employees() {
     enabled: !!tenantId,
   });
 
+  const { data: positionTemplates = [] } = useQuery({
+    queryKey: ["position-templates-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("position_templates").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: EmployeeForm) => {
       const full_name = `${f.first_name} ${f.last_name}`.trim();
@@ -210,8 +219,30 @@ export default function Employees() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("jmbg")}</Label><Input value={form.jmbg} onChange={e => setForm({ ...form, jmbg: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("position")}</Label><Input value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} /></div>
+              <div className="grid gap-2">
+                <Label>{t("position")}</Label>
+                {positionTemplates.length > 0 ? (
+                  <Select value={form.position_template_id || "__none"} onValueChange={v => {
+                    const tpl = positionTemplates.find((p: any) => p.id === v);
+                    setForm({ ...form, position_template_id: v === "__none" ? null : v, position: tpl ? tpl.name : form.position });
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">{t("manual")}</SelectItem>
+                      {positionTemplates.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
+                )}
+              </div>
             </div>
+            {!form.position_template_id && positionTemplates.length > 0 && (
+              <div className="grid gap-2">
+                <Label>{t("position")} ({t("manual")})</Label>
+                <Input value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
