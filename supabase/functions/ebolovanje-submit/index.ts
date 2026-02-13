@@ -5,6 +5,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function validateJmbg(jmbg: string): boolean {
+  return /^\d{13}$/.test(jmbg);
+}
+
+function validatePib(pib: string): boolean {
+  return /^\d{9}$/.test(pib);
+}
+
+function validateIcd10(code: string): boolean {
+  return /^[A-Z]\d{2}(\.\d{1,2})?$/i.test(code);
+}
+
+function validateIsoDate(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+}
+
+const VALID_CLAIM_TYPES = ["sick_leave", "maternity", "work_injury"];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -61,11 +79,60 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Claim not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Build RFZO-compatible payload (placeholder structure)
+    // --- PAYLOAD VALIDATION ---
+    const errors: string[] = [];
+
+    const employeeJmbg = (claim.employees as any)?.jmbg;
+    if (!employeeJmbg || !validateJmbg(employeeJmbg)) {
+      errors.push("Employee must have a valid 13-digit JMBG.");
+    }
+
+    const employerPib = (claim.legal_entities as any)?.pib;
+    if (!employerPib || !validatePib(employerPib)) {
+      errors.push("Legal entity must have a valid 9-digit PIB.");
+    }
+
+    if (!claim.claim_type || !VALID_CLAIM_TYPES.includes(claim.claim_type)) {
+      errors.push(`Claim type must be one of: ${VALID_CLAIM_TYPES.join(", ")}.`);
+    }
+
+    if (!claim.start_date || !validateIsoDate(claim.start_date)) {
+      errors.push("Start date is required and must be a valid date (YYYY-MM-DD).");
+    }
+
+    if (claim.end_date) {
+      if (!validateIsoDate(claim.end_date)) {
+        errors.push("End date must be a valid date (YYYY-MM-DD).");
+      } else if (claim.start_date && claim.end_date < claim.start_date) {
+        errors.push("End date must be on or after start date.");
+      }
+    }
+
+    if (["sick_leave", "work_injury"].includes(claim.claim_type)) {
+      if (!claim.diagnosis_code) {
+        errors.push("Diagnosis code (ICD-10) is required for sick leave and work injury claims.");
+      } else if (!validateIcd10(claim.diagnosis_code)) {
+        errors.push("Diagnosis code must be valid ICD-10 format (e.g. J06, J06.9).");
+      }
+    }
+
+    if (!claim.doctor_name || claim.doctor_name.trim() === "") {
+      errors.push("Doctor name is required.");
+    }
+
+    if (!claim.medical_facility || claim.medical_facility.trim() === "") {
+      errors.push("Medical facility is required.");
+    }
+
+    if (errors.length > 0) {
+      return new Response(JSON.stringify({ error: "Validation failed", details: errors }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Build RFZO-compatible payload
     const rfzoPayload = {
       employeeName: (claim.employees as any)?.full_name,
-      employeeJmbg: (claim.employees as any)?.jmbg,
-      employerPib: (claim.legal_entities as any)?.pib,
+      employeeJmbg,
+      employerPib,
       employerName: (claim.legal_entities as any)?.name,
       claimType: claim.claim_type,
       startDate: claim.start_date,
@@ -77,7 +144,6 @@ Deno.serve(async (req) => {
     };
 
     if (connection.environment === "sandbox") {
-      // Sandbox simulation
       const fakeClaimNumber = `RFZO-${Date.now()}`;
       await supabase.from("ebolovanje_claims").update({
         status: "submitted",
@@ -85,7 +151,6 @@ Deno.serve(async (req) => {
         rfzo_claim_number: fakeClaimNumber,
       }).eq("id", claim_id);
 
-      // Create simulated doznaka
       await supabase.from("ebolovanje_doznake").insert({
         tenant_id,
         claim_id,
@@ -113,6 +178,6 @@ Deno.serve(async (req) => {
       message: "Claim submitted. eUprava API integration pending Ministry specification.",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

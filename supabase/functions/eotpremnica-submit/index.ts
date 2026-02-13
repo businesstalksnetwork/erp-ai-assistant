@@ -5,6 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function validatePib(pib: string): boolean {
+  return /^\d{9}$/.test(pib);
+}
+
+function validateSerbianPlate(plate: string): boolean {
+  return /^[A-Z]{2}\s?-?\s?\d{2,4}\s?-?\s?[A-Z]{2}$/i.test(plate);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -61,9 +69,59 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Dispatch note not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // --- PAYLOAD VALIDATION ---
+    const errors: string[] = [];
+    const lines = (note as any).eotpremnica_lines || [];
+
+    if (!note.sender_name || note.sender_name.trim() === "") {
+      errors.push("Sender name is required.");
+    }
+
+    if (!note.receiver_name || note.receiver_name.trim() === "") {
+      errors.push("Receiver name is required.");
+    }
+
+    if (note.sender_pib && !validatePib(note.sender_pib)) {
+      errors.push("Sender PIB must be a valid 9-digit number.");
+    }
+
+    if (note.receiver_pib && !validatePib(note.receiver_pib)) {
+      errors.push("Receiver PIB must be a valid 9-digit number.");
+    }
+
+    if (note.vehicle_plate) {
+      if (!validateSerbianPlate(note.vehicle_plate)) {
+        errors.push("Vehicle plate must be a valid Serbian format (e.g. BG-123-AA).");
+      }
+      if (!note.driver_name || note.driver_name.trim() === "") {
+        errors.push("Driver name is required when vehicle plate is specified.");
+      }
+    }
+
+    if (lines.length === 0) {
+      errors.push("At least one dispatch line item is required.");
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineNum = i + 1;
+      if (!line.description || line.description.trim() === "") {
+        errors.push(`Line ${lineNum}: description is required.`);
+      }
+      if (!line.quantity || Number(line.quantity) <= 0) {
+        errors.push(`Line ${lineNum}: quantity must be greater than 0.`);
+      }
+      if (!line.unit || line.unit.trim() === "") {
+        errors.push(`Line ${lineNum}: unit is required.`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return new Response(JSON.stringify({ error: "Validation failed", details: errors }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const requestId = crypto.randomUUID();
 
-    // Build Ministry XML payload (placeholder structure)
     const payload = {
       requestId,
       documentNumber: note.document_number,
@@ -77,7 +135,7 @@ Deno.serve(async (req) => {
       vehiclePlate: note.vehicle_plate,
       driverName: note.driver_name,
       totalWeight: note.total_weight,
-      lines: ((note as any).eotpremnica_lines || []).map((l: any) => ({
+      lines: lines.map((l: any) => ({
         description: l.description,
         quantity: l.quantity,
         unit: l.unit,
@@ -108,6 +166,6 @@ Deno.serve(async (req) => {
       message: "Dispatch note submitted. Ministry API integration pending specification.",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
