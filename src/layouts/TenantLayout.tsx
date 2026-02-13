@@ -60,6 +60,9 @@ const inventoryNav: NavItem[] = [
   { key: "products", url: "/inventory/products", icon: Package },
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
+  { key: "internalOrders", url: "/inventory/internal-orders", icon: ClipboardCheck },
+  { key: "internalTransfers", url: "/inventory/internal-transfers", icon: Truck },
+  { key: "internalReceipts", url: "/inventory/internal-receipts", icon: FileInput },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
   { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
 ];

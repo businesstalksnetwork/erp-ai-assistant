@@ -191,7 +191,11 @@ export default function InventoryStock() {
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{(s.products as any)?.name}</TableCell>
                     <TableCell>{(s.products as any)?.sku || "—"}</TableCell>
-                    <TableCell>{(s.warehouses as any)?.name}</TableCell>
+                    <TableCell>
+                      <a href={`/inventory/warehouses/${s.warehouse_id}`} className="text-primary hover:underline">
+                        {(s.warehouses as any)?.name}
+                      </a>
+                    </TableCell>
                     <TableCell className="text-right font-mono">{fmtNum(onHand)}</TableCell>
                     <TableCell className="text-right font-mono">{fmtNum(reserved)}</TableCell>
                     <TableCell className="text-right font-mono">{fmtNum(available)}</TableCell>
