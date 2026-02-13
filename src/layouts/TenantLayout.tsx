@@ -43,6 +43,7 @@ import {
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
+  ScanBarcode, MapPin, RefreshCw, Brain,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +69,12 @@ const inventoryNav: NavItem[] = [
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
   { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
+  { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
+  { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
+  { key: "wmsReceiving", url: "/inventory/wms/receiving", icon: Truck },
+  { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
+  { key: "wmsCycleCounts", url: "/inventory/wms/cycle-counts", icon: RefreshCw },
+  { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain },
 ];
 
 const accountingNav: NavItem[] = [
