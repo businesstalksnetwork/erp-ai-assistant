@@ -58,6 +58,7 @@ import ProductDetail from "@/pages/tenant/ProductDetail";
 import InventoryStock from "@/pages/tenant/InventoryStock";
 import InventoryMovements from "@/pages/tenant/InventoryMovements";
 import Employees from "@/pages/tenant/Employees";
+import EmployeeDetail from "@/pages/tenant/EmployeeDetail";
 import EmployeeContracts from "@/pages/tenant/EmployeeContracts";
 import Departments from "@/pages/tenant/Departments";
 import Attendance from "@/pages/tenant/Attendance";
@@ -198,6 +199,7 @@ const App = () => (
                 <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
                 <Route path="inventory/dispatch-notes" element={<ProtectedRoute requiredModule="inventory"><Eotpremnica /></ProtectedRoute>} />
                 <Route path="hr/employees" element={<ProtectedRoute requiredModule="hr"><Employees /></ProtectedRoute>} />
+                <Route path="hr/employees/:id" element={<ProtectedRoute requiredModule="hr"><EmployeeDetail /></ProtectedRoute>} />
                 <Route path="hr/contracts" element={<ProtectedRoute requiredModule="hr"><EmployeeContracts /></ProtectedRoute>} />
                 <Route path="hr/departments" element={<ProtectedRoute requiredModule="hr"><Departments /></ProtectedRoute>} />
                 <Route path="hr/attendance" element={<ProtectedRoute requiredModule="hr"><Attendance /></ProtectedRoute>} />
