@@ -25,21 +25,21 @@ export function usePermissions() {
   );
 
   // Fetch enabled modules for this tenant from DB
+  const shouldFetch = !!tenantId && !isSuperAdmin;
   const { data: enabledModuleKeys, isLoading: modulesLoading } = useQuery({
-    queryKey: ["tenant-enabled-modules", tenantId],
+    queryKey: ["tenant-enabled-modules", tenantId ?? "__none__"],
     queryFn: async () => {
-      if (!tenantId) return null;
       const { data, error } = await supabase
         .from("tenant_modules")
         .select("module_id, module_definitions!inner(key)")
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", tenantId!)
         .eq("is_enabled", true);
       if (error) throw error;
       return new Set(
         (data || []).map((row: any) => row.module_definitions?.key as string).filter(Boolean)
       );
     },
-    enabled: !!tenantId && !isSuperAdmin,
+    enabled: shouldFetch,
     staleTime: 1000 * 60 * 5,
   });
 
