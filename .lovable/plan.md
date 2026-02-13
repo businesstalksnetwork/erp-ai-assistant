@@ -1,140 +1,245 @@
 
+# Next Phase: Full Compliance Features Implementation
 
-# Compliance and Security Audit -- Fix Plan
-
-This plan addresses all Critical and High severity findings from the audit. Changes are grouped by priority.
-
----
-
-## CRITICAL FIX 1: SEF Retry Semantics (Idempotency)
-
-**Problem**: "Retry SEF" generates a new `requestId`, which can create duplicate invoices on the SEF portal if the original submission was actually accepted but we didn't poll for status.
-
-**Fix**:
-- **`src/pages/tenant/Invoices.tsx`** -- Remove the `sefMutation` logic that generates a new `requestId`. Instead, reuse the existing `sef_request_id` already stored on the invoice. Only generate a new `requestId` if the previous submission was definitively rejected (terminal state).
-- **`supabase/functions/sef-submit/index.ts`** -- Before creating a new `sef_submissions` record, check if one already exists for the same `invoice_id` with the same `request_id`. If so, re-query its status instead of creating a duplicate. Add a `polling` mode that queries the SEF status endpoint (GET) to confirm terminal state before allowing resubmission.
-- Add `sef_status` state `polling` to the UI badge colors.
-- Add SEF status reconciliation: the edge function should check `sef_submissions` for any `submitted`/`pending` records and poll their status rather than blindly resubmitting.
-
-**Files changed**:
-- `src/pages/tenant/Invoices.tsx` -- fix retry mutation to reuse `sef_request_id`
-- `supabase/functions/sef-submit/index.ts` -- add idempotency check, polling mode, rate limit awareness
+This plan implements all 6 previously out-of-scope items. The user has emphasized that SEF, eBolovanje, and eOtpremnica connections must be **per-tenant configurations**, manageable from both:
+- **Tenant Settings > Integrations** (by tenant admin)
+- **Super Admin > Integration Support** (by platform admin helping tenants)
 
 ---
 
-## CRITICAL FIX 2: Payroll Contribution Rates
+## 1. Payroll: max_contribution_base Enforcement (5x Average Wage)
 
-**Problem**: PIO employer rate is hardcoded as 11.5% in migrations and RPCs. Official CROSO rate is 12%.
+The `payroll_parameters` table already has `min_contribution_base` (51,297) and `max_contribution_base` (732,820) columns. The RPC needs to read from this table.
 
-**Fix**:
-- New migration to update `payroll_parameters` default: `pio_employer_rate` from `0.115` to `0.12`.
-- Update the `calculate_payroll_for_run` RPC to read rates from `payroll_parameters` table instead of hardcoded values (if not already doing so -- the migration at `20260213111633` hardcodes `0.115` directly in the RPC body).
-- Update `src/pages/tenant/Payroll.tsx` table headers from "PIO posl. 11.5%" to "PIO posl." (read actual rate from parameters, not hardcode in UI).
-- Add `max_contribution_base` column to `payroll_parameters` if missing (5x average wage constraint).
+### Migration: Update `calculate_payroll_for_run` RPC
+- Query `payroll_parameters` for the tenant where `effective_from <= period start` (descending, limit 1)
+- Use fetched rates (`pio_employee_rate`, `pio_employer_rate`, `health_employee_rate`, etc.) instead of hardcoded values
+- Clamp contribution base: `GREATEST(gross, min_base)` then `LEAST(result, max_base)`
+- Handle part-time proportional adjustment: `base * work_hours / 40`
+- Tax base remains `gross - nontaxable` (not capped same way)
 
-**Files changed**:
-- New migration SQL (update defaults + fix RPC)
-- `src/pages/tenant/Payroll.tsx` -- dynamic rate display
+### `src/pages/tenant/Payroll.tsx`
+- Fetch active `payroll_parameters` for tenant and display at top (effective date, nontaxable, min/max base)
+- Column headers use dynamic rates from parameters instead of hardcoded "PIO 14%", "Zdrav. 5.15%", etc.
 
 ---
 
-## CRITICAL FIX 3: POS Sale Posting Missing Embedded VAT (1340)
+## 2. Posting Rule Catalog (Tenant-Configurable Account Mappings)
 
-**Problem**: `process_pos_sale` RPC removes retail inventory (Cr 1320) but does not release the embedded VAT component (Dr 1340). This leaves a residual 1340 balance and distorts VAT decomposition.
-
-**Current entries** (lines 117-120 of `process_pos_sale`):
+### Migration: New `posting_rule_catalog` table
 ```
-D: 5010 (COGS at cost)
-D: 1329 (Reverse markup = subtotal - cost)
-C: 1320 (Retail inventory at subtotal)
+id, tenant_id, rule_code (text, unique per tenant),
+description (text), debit_account_code (text), credit_account_code (text),
+is_active (bool, default true), created_at, updated_at
+```
+- RLS: tenant membership scoped
+- Seed default rows via trigger on tenant insert (or add to `create-tenant` edge function)
+- Default rule codes cover POS (pos_cash_receipt, pos_card_receipt, pos_revenue, pos_output_vat, pos_cogs, pos_retail_inv, pos_reverse_markup, pos_embedded_vat), Invoicing (invoice_ar, invoice_revenue, invoice_output_vat, invoice_cogs, invoice_inventory), and Payroll (payroll_gross_exp, payroll_net_payable, payroll_tax, payroll_bank)
+
+### New page: `src/pages/tenant/PostingRules.tsx`
+- Table of all posting rules grouped by module (POS, Invoicing, Payroll)
+- Editable account code per rule (validated against `chart_of_accounts`)
+- Save updates to `posting_rule_catalog`
+
+### Route and Navigation
+- Route: `/settings/posting-rules` in `App.tsx`
+- Settings page card in `Settings.tsx` (new icon link)
+- Settings nav entry in `TenantLayout.tsx`
+
+### Update RPCs (future migration)
+- `process_pos_sale`: Look up accounts from `posting_rule_catalog` instead of hardcoded '2430', '1320', etc.
+- `process_invoice_post`: Same pattern
+- Payroll posting in `Payroll.tsx` `statusMutation`: Read from catalog
+
+---
+
+## 3. Full SEF Production API with POST/GET Polling + Rate Limiting
+
+### Update `supabase/functions/sef-submit/index.ts`
+- In production mode, perform real `POST /publicApi/sales-invoice/ubl/upload/{requestId}` using `connection.api_url` and `connection.api_key_encrypted`
+- Handle HTTP 429 (rate limit) -- set status `rate_limited`, return retry-after hint
+- Handle HTTP 4xx/5xx -- set status `error`, store response body
+
+### New edge function: `supabase/functions/sef-poll-status/index.ts`
+- Accepts `tenant_id` + optional `invoice_id` (single) or batch mode (all pending)
+- Queries `sef_submissions` where `status IN ('submitted', 'pending')`
+- For each, calls `GET /publicApi/sales-invoice/status/{requestId}` using stored requestId
+- Rate limiter: max 3 calls/sec (`await sleep(334)` between calls)
+- Updates `sef_submissions.status` and `invoices.sef_status` to terminal state
+- JWT auth required
+
+### `src/pages/tenant/Invoices.tsx`
+- Add "Poll Status" button for invoices with `sef_status === 'submitted'` or `'pending'`
+- Calls `sef-poll-status` edge function, shows result toast
+
+### Config
+- Register `sef-poll-status` in `supabase/config.toml`
+
+---
+
+## 4. Full eBolovanje Module (Per-Tenant Connection + CRUD)
+
+### Migration: New tables
+**`ebolovanje_connections`** (per-tenant config):
+```
+id, tenant_id (unique), euprava_username, euprava_password_encrypted,
+certificate_data, environment (sandbox/production),
+is_active (bool), last_sync_at, last_error, created_at, updated_at
 ```
 
-**Missing**: The 1320 balance includes embedded VAT (stored in 1340 at kalkulacija). On sale, the VAT portion must also be released.
-
-**Correct entries**:
+**`ebolovanje_claims`**:
 ```
-D: 5010 (COGS at cost)
-D: 1329 (Reverse markup)
-D: 1340 (Release embedded VAT = tax_amount from the transaction)
-C: 1320 (Retail inventory at retail price INCLUDING VAT = subtotal + tax_amount)
+id, tenant_id, employee_id, legal_entity_id,
+claim_type (sick_leave/maternity/work_injury),
+start_date, end_date, diagnosis_code, doctor_name, medical_facility,
+rfzo_claim_number, status (draft/submitted/confirmed/rejected/paid),
+submitted_at, confirmed_at, amount, notes,
+created_by, created_at, updated_at
 ```
 
-**Fix**: New migration with `CREATE OR REPLACE FUNCTION process_pos_sale` that:
-1. Credits 1320 for the full retail amount (subtotal + tax_amount, not just subtotal)
-2. Debits 1340 for the embedded VAT component
-3. Recalculates markup as `retail_total - embedded_vat - cost`
+**`ebolovanje_doznake`** (confirmations):
+```
+id, tenant_id, claim_id (FK), doznaka_number,
+issued_date, valid_from, valid_to,
+rfzo_status, response_payload (jsonb), created_at
+```
 
-**Files changed**:
-- New migration SQL
+All with RLS scoped to tenant membership.
 
----
+### `src/pages/tenant/EBolovanje.tsx` -- Full rewrite
+Replace the stub with:
+- Table listing claims with status badges
+- Create dialog: employee selector, date range, claim type, diagnosis info
+- Status advancement buttons (draft -> submitted -> confirmed)
+- Detail view with linked doznake
+- Filter by status, date range, employee
 
-## CRITICAL FIX 4: RLS `USING (true)` Audit
+### New edge function: `supabase/functions/ebolovanje-submit/index.ts`
+- Accepts `claim_id`, `tenant_id`
+- Loads connection from `ebolovanje_connections`
+- Builds RFZO-compatible payload from claim data
+- Stub for actual eUprava API call (placeholder with correct data structure)
+- Updates claim status to `submitted`
 
-**Problem**: `module_definitions` table has `USING (true)` for SELECT. The audit says this is critical for tenant-scoped tables.
+### Per-Tenant Connection Settings
+**`src/pages/tenant/Integrations.tsx`**: Add eBolovanje connection card (similar pattern to existing SEF card):
+- Show connection status, toggle active/inactive
+- Edit form: eUprava username, password, environment
+- Test connection button
 
-**Assessment**: `module_definitions` is a **global catalog** table (not tenant-scoped), so `USING (true)` for SELECT is actually correct here -- all authenticated users need to see which modules exist. The `FOR ALL` policy is restricted to super admins. This is **not a real vulnerability** but we should document why.
-
-**Action**: No code change needed. We will add a comment in the migration for clarity. However, we should audit all other tables to confirm no tenant-scoped table has `USING (true)`.
-
----
-
-## HIGH FIX 5: `process-module-event` Edge Function -- No Auth
-
-**Problem**: This function uses `SUPABASE_SERVICE_ROLE_KEY` and has no authentication check. Anyone can POST an `event_id` and trigger inventory adjustments, notifications, etc.
-
-**Fix**: Add a shared internal secret check. The function should require either:
-- A valid user JWT (for user-initiated events), OR
-- A service secret header (`X-Internal-Secret`) matching a configured secret (for function-to-function calls)
-
-**Files changed**:
-- `supabase/functions/process-module-event/index.ts` -- add auth gate
-
----
-
-## HIGH FIX 6: POS Payment Account Configurability
-
-**Problem**: Cash and card both map to hardcoded accounts (2430/2431). Card sales should use a clearing account until bank settlement, and this must be configurable per tenant.
-
-**Fix**: This is a configuration concern. For now, add a comment in the RPC noting that 2431 for card is a clearing account (Tekuci racun). Full configurability (tenant-level posting rule catalog) is a v2 feature. No code change in this phase -- the current mapping is acceptable for MVP if documented.
+**`src/pages/super-admin/IntegrationSupport.tsx`**: Add eBolovanje section:
+- Table of all tenants with their eBolovanje connection status
+- Configure button opening dialog (same as SEF pattern)
 
 ---
 
-## HIGH FIX 7: eBolovanje Integration (Stub)
+## 5. eOtpremnica API Integration (Per-Tenant Connection)
 
-**Problem**: eBolovanje (employer sick leave portal) is mandatory from 1 Jan 2026. No implementation exists.
+### Migration
+**`eotpremnica_connections`** (per-tenant config):
+```
+id, tenant_id (unique), api_url, api_key_encrypted,
+environment (sandbox/production), is_active (bool),
+last_sync_at, last_error, created_at, updated_at
+```
 
-**Fix**: Create a stub page and database table as a placeholder:
-- New page `src/pages/tenant/EBolovanje.tsx` with a "Coming Soon" indicator and description of the integration requirements
-- Add route and nav entry under HR module
-- This is not a full implementation but prevents the system from being non-compliant by omission -- it signals the feature is planned
+**Add columns to `eotpremnica`**:
+- `api_status` (text, default 'not_submitted')
+- `api_request_id` (text)
+- `api_response` (jsonb)
 
-**Files changed**:
-- New `src/pages/tenant/EBolovanje.tsx`
-- `src/App.tsx` (route)
-- `src/layouts/TenantLayout.tsx` (nav)
-- `src/i18n/translations.ts`
+### New edge function: `supabase/functions/eotpremnica-submit/index.ts`
+- Accepts `eotpremnica_id`, `tenant_id`
+- Loads dispatch note with lines from DB
+- Loads connection from `eotpremnica_connections`
+- Builds XML payload per Ministry specification (sender/receiver PIB, vehicle, lines)
+- Stub for actual API POST
+- Updates eotpremnica `api_status` and stores response
+
+### `src/pages/tenant/Eotpremnica.tsx`
+- Add "Submit to eOtpremnica" button (visible when status is `confirmed` and connection is active)
+- Show `api_status` badge column
+
+### Per-Tenant Connection Settings
+**`src/pages/tenant/Integrations.tsx`**: Add eOtpremnica connection card:
+- Connection status, toggle, edit form (API URL, key, environment)
+- Test connection button
+
+**`src/pages/super-admin/IntegrationSupport.tsx`**: Add eOtpremnica section:
+- Table of all tenants with their eOtpremnica connection status
+- Configure button
+
+---
+
+## 6. Offline Fiscal Receipt PFR Retry + Verification
+
+### Migration: Add columns to `fiscal_receipts`
+- `retry_count` (integer, default 0)
+- `last_retry_at` (timestamptz)
+- `verification_status` (text, default 'pending')
+
+### New edge function: `supabase/functions/fiscalize-retry-offline/index.ts`
+- Queries `fiscal_receipts` where `receipt_number LIKE 'OFFLINE-%'` for the tenant
+- Re-posts stored `pfr_request` to `device.api_url/api/v3/invoices`
+- On success: updates receipt_number, qr_code_url, signed_at, pfr_response, verification_status
+- On failure: increments retry_count, caps at 5
+- JWT auth required
+
+### `src/pages/tenant/FiscalDevices.tsx`
+- Add "Offline Receipts" panel showing count per device
+- "Retry All Offline" button calling edge function
+- Table of offline receipts with retry status
 
 ---
 
 ## Implementation Order
 
-1. Migration: Fix payroll rates (Critical 2)
-2. Migration: Fix POS posting 1340 release (Critical 3)
-3. `sef-submit` edge function: idempotency + polling (Critical 1)
-4. `Invoices.tsx`: fix retry to reuse requestId (Critical 1)
-5. `process-module-event`: add auth gate (High 5)
-6. eBolovanje stub page + route + nav (High 7)
-7. Payroll.tsx: dynamic rate headers (Critical 2)
+1. **Migration: payroll RPC update** (max_contribution_base + dynamic rates)
+2. **Migration: posting_rule_catalog table** + seed defaults
+3. **Migration: ebolovanje_connections + ebolovanje_claims + ebolovanje_doznake tables**
+4. **Migration: eotpremnica_connections table + eotpremnica columns**
+5. **Migration: fiscal_receipts columns**
+6. **Edge functions**: sef-poll-status, ebolovanje-submit, eotpremnica-submit, fiscalize-retry-offline
+7. **Update sef-submit**: production API calls
+8. **Frontend**: PostingRules page + route/nav
+9. **Frontend**: EBolovanje full rewrite
+10. **Frontend**: Integrations.tsx -- add eBolovanje + eOtpremnica connection cards
+11. **Frontend**: IntegrationSupport.tsx -- add eBolovanje + eOtpremnica sections
+12. **Frontend**: Eotpremnica.tsx -- add submit button + api_status
+13. **Frontend**: FiscalDevices.tsx -- add offline retry panel
+14. **Frontend**: Invoices.tsx -- add poll status button
+15. **Frontend**: Payroll.tsx -- dynamic rate headers + parameters display
+16. **Translations**: All new keys in en + sr
 
 ---
 
-## Out of Scope (Documented for Next Phase)
+## Files Changed Summary
 
-- Full SEF production API integration (real POST + GET polling with rate limiting)
-- Full eBolovanje eUprava connector
-- eOtpremnica API (mandatory Oct 2027 for private sector; Jan 2026 for public/excise -- build if targeting those clients)
-- Tenant-configurable posting rule catalog (account mappings)
-- Offline fiscal receipt compliance verification against PFR certification rules
-- `max_contribution_base` enforcement (5x average wage) in payroll RPC
+### New Files
+- `src/pages/tenant/PostingRules.tsx`
+- `supabase/functions/sef-poll-status/index.ts`
+- `supabase/functions/ebolovanje-submit/index.ts`
+- `supabase/functions/eotpremnica-submit/index.ts`
+- `supabase/functions/fiscalize-retry-offline/index.ts`
 
+### Modified Files
+- `src/App.tsx` (new route: posting-rules)
+- `src/layouts/TenantLayout.tsx` (nav entry for posting rules)
+- `src/pages/tenant/Settings.tsx` (posting rules card)
+- `src/pages/tenant/Integrations.tsx` (eBolovanje + eOtpremnica cards)
+- `src/pages/super-admin/IntegrationSupport.tsx` (eBolovanje + eOtpremnica sections)
+- `src/pages/tenant/EBolovanje.tsx` (full rewrite from stub)
+- `src/pages/tenant/Eotpremnica.tsx` (submit button + api_status)
+- `src/pages/tenant/FiscalDevices.tsx` (offline retry panel)
+- `src/pages/tenant/Invoices.tsx` (poll status button)
+- `src/pages/tenant/Payroll.tsx` (dynamic rates + parameters display)
+- `supabase/functions/sef-submit/index.ts` (production API calls)
+- `supabase/config.toml` (new functions)
+- `src/i18n/translations.ts` (new keys)
+
+### New Migrations (5)
+1. Update `calculate_payroll_for_run` RPC with dynamic rates + base clamping
+2. Create `posting_rule_catalog` table + RLS + seed trigger
+3. Create `ebolovanje_connections`, `ebolovanje_claims`, `ebolovanje_doznake` + RLS
+4. Create `eotpremnica_connections` + add columns to `eotpremnica` + RLS
+5. Add columns to `fiscal_receipts` (retry_count, last_retry_at, verification_status)
