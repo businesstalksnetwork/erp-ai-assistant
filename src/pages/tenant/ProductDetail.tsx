@@ -37,9 +37,9 @@ export default function ProductDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("retail_prices" as any)
-        .select("*, retail_price_lists(name)")
+        .select("*, retail_price_lists!inner(name, tenant_id)")
         .eq("product_id", id!)
-        .eq("tenant_id", tenantId!);
+        .eq("retail_price_lists.tenant_id", tenantId!);
       return (data as any[]) || [];
     },
     enabled: !!id && !!tenantId,

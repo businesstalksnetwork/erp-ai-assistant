@@ -208,26 +208,35 @@ serve(async (req) => {
     if (salesOrder && orderLines.length > 0) {
       const lines = orderLines.map((l, i) => ({
         sales_order_id: salesOrder.id,
-        tenant_id: tenantId,
         product_id: l.product_id,
-        product_name: l.product_name,
+        description: l.product_name,
         quantity: l.quantity,
         unit_price: l.unit_price,
-        total: l.total,
+        line_total: l.total,
         sort_order: i + 1,
       }));
 
       await supabase.from("sales_order_lines").insert(lines);
     }
 
-    // Create notification
+    // Create notifications for all tenant members
     try {
-      await supabase.from("notifications").insert({
-        tenant_id: tenantId,
-        title: `New web order: ${orderNumber}`,
-        message: `Order from ${orderData.customer_name} (${platform}) - ${orderData.currency} ${orderData.total.toFixed(2)}`,
-        type: "info",
-      });
+      const { data: members } = await supabase
+        .from("tenant_members")
+        .select("user_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active");
+
+      if (members && members.length > 0) {
+        const notifications = members.map((m: any) => ({
+          tenant_id: tenantId,
+          user_id: m.user_id,
+          title: `New web order: ${orderNumber}`,
+          message: `Order from ${orderData.customer_name} (${platform}) - ${orderData.currency} ${orderData.total.toFixed(2)}`,
+          type: "info",
+        }));
+        await supabase.from("notifications").insert(notifications);
+      }
     } catch (_) {
       // Non-critical
     }
