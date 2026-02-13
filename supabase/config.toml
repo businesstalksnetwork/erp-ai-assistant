@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.ai-analytics-narrative]
 verify_jwt = false
+
+[functions.seed-demo-data]
+verify_jwt = false
