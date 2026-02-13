@@ -123,6 +123,38 @@ Deno.serve(async (req) => {
     const le = LEGAL_ENTITY_ID;
 
     // ═══════════════════════════════════════════════════
+    // 0. CLEANUP existing data for this tenant (reverse FK order)
+    // ═══════════════════════════════════════════════════
+    const cleanupTables = [
+      "journal_lines", "journal_entries",
+      "open_items", "work_logs", "annual_leave_balances",
+      "inventory_movements", "pos_transactions", "pos_sessions",
+      "production_order_lines", "production_orders",
+      "quote_lines", "quotes",
+      "sales_order_lines", "sales_orders",
+      "purchase_order_lines", "purchase_orders",
+      "goods_receipt_lines", "goods_receipts",
+      "supplier_invoices",
+      "fiscal_receipts",
+      "invoice_lines", "invoices",
+      "employee_contracts", "employee_salaries", "employees",
+      "inventory_stock",
+      "wms_bins", "wms_zones", "warehouses",
+      "contact_company_assignments", "contacts",
+      "company_category_assignments", "companies", "company_categories",
+      "partners",
+      "fiscal_devices", "fiscal_periods",
+      "departments", "locations",
+      "activities", "leads", "opportunities",
+      "products",
+    ];
+    for (const table of cleanupTables) {
+      const { error } = await supabase.from(table).delete().eq("tenant_id", t);
+      if (error) console.log(`Cleanup ${table}: ${error.message}`);
+    }
+    log.push("✓ Cleanup complete");
+
+    // ═══════════════════════════════════════════════════
     // 1. UPDATE LEGAL ENTITY
     // ═══════════════════════════════════════════════════
     await supabase.from("legal_entities").update({
@@ -261,7 +293,9 @@ Deno.serve(async (req) => {
         email: `${fn.toLowerCase()}.${ln.toLowerCase().replace(/[ćčžšđ]/g, c => ({ć:"c",č:"c",ž:"z",š:"s",đ:"d"}[c] || c))}@${companyNames[i % 50].toLowerCase().replace(/[^a-z]/g, "").slice(0, 8)}.rs`,
         phone: `+381${randInt(60, 69)}${randInt(1000000, 9999999)}`,
         city: pick(cities),
-        type: pick(["lead", "customer", "partner"]),
+        type: pick(["customer", "supplier", "prospect"]),
+        function_area: pick(["management", "sales", "marketing", "finance", "hr", "it", "operations"]),
+        seniority_level: pick(["c_level", "executive", "manager", "senior", "mid", "junior"]),
       });
     }
     await batchInsert(supabase, "contacts", contacts);
@@ -330,7 +364,7 @@ Deno.serve(async (req) => {
       for (const zn of zoneNames) {
         const id = uuid();
         zoneIds.push(id);
-        zones.push({ id, tenant_id: t, warehouse_id: wh, name: zn, code: `${zn.slice(0, 3).toUpperCase()}-${wh.slice(0, 4)}`, zone_type: "general", is_active: true });
+        zones.push({ id, tenant_id: t, warehouse_id: wh, name: zn, code: `${zn.slice(0, 3).toUpperCase()}-${wh.slice(0, 4)}`, zone_type: pick(["receiving", "reserve", "forward_pick", "packing", "shipping", "quarantine", "returns"]), is_active: true });
       }
     }
     await batchInsert(supabase, "wms_zones", zones);
@@ -439,16 +473,16 @@ Deno.serve(async (req) => {
     log.push("✓ 25 employees + contracts + salaries");
 
     // ═══════════════════════════════════════════════════
-    // 12. INVOICES (10,000) + INVOICE LINES
+    // 12. INVOICES (2,000) + INVOICE LINES
     // ═══════════════════════════════════════════════════
     const invoices: any[] = [];
     const invoiceLines: any[] = [];
     const invoiceIds: string[] = [];
 
-    for (let i = 0; i < 10000; i++) {
+    for (let i = 0; i < 2000; i++) {
       const invId = uuid();
       invoiceIds.push(invId);
-      const month = Math.floor(i / 834); // ~834 per month
+      const month = Math.floor(i / 167); // ~167 per month
       const invDate = dateIn2025(Math.min(month, 11));
       const numLines = randInt(1, 4);
       let subtotal = 0;
@@ -503,16 +537,16 @@ Deno.serve(async (req) => {
       });
     }
     await batchInsert(supabase, "invoices", invoices);
-    log.push("✓ 10,000 invoices");
+    log.push("✓ 2,000 invoices");
     await batchInsert(supabase, "invoice_lines", invoiceLines);
     log.push(`✓ ${invoiceLines.length} invoice lines`);
 
     // ═══════════════════════════════════════════════════
-    // 13. FISCAL RECEIPTS (5,000)
+    // 13. FISCAL RECEIPTS (1,000)
     // ═══════════════════════════════════════════════════
     const receipts: any[] = [];
-    for (let i = 0; i < 5000; i++) {
-      const month = Math.floor(i / 417);
+    for (let i = 0; i < 1000; i++) {
+      const month = Math.floor(i / 84);
       const dt = dateIn2025(Math.min(month, 11));
       const total = randAmount(500, 50000);
       const taxRate = 20;
@@ -528,20 +562,20 @@ Deno.serve(async (req) => {
         transaction_type: "sale",
         verification_status: pick(["verified", "verified", "verified", "pending"]),
         tax_items: [{ label: "Ђ", rate: taxRate, base: baseAmount, tax: taxAmt }],
-        invoice_id: i < 3000 ? invoiceIds[i] : null,
+        invoice_id: i < 800 ? invoiceIds[i] : null,
         signed_at: dt,
         created_at: dt,
       });
     }
     await batchInsert(supabase, "fiscal_receipts", receipts);
-    log.push("✓ 5,000 fiscal receipts");
+    log.push("✓ 1,000 fiscal receipts");
 
     // ═══════════════════════════════════════════════════
-    // 14. SUPPLIER INVOICES (2,000)
+    // 14. SUPPLIER INVOICES (500)
     // ═══════════════════════════════════════════════════
     const suppInvoices: any[] = [];
-    for (let i = 0; i < 2000; i++) {
-      const month = Math.floor(i / 167);
+    for (let i = 0; i < 500; i++) {
+      const month = Math.floor(i / 42);
       const dt = dateIn2025(Math.min(month, 11));
       const amount = randAmount(5000, 200000);
       const tax = Math.round(amount * 0.2 * 100) / 100;
@@ -562,14 +596,14 @@ Deno.serve(async (req) => {
       });
     }
     await batchInsert(supabase, "supplier_invoices", suppInvoices);
-    log.push("✓ 2,000 supplier invoices");
+    log.push("✓ 500 supplier invoices");
 
     // ═══════════════════════════════════════════════════
-    // 15. PURCHASE ORDERS (500)
+    // 15. PURCHASE ORDERS (200)
     // ═══════════════════════════════════════════════════
     const poIds: string[] = [];
     const purchaseOrders: any[] = [];
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 200; i++) {
       const id = uuid();
       poIds.push(id);
       const month = Math.floor(i / 42);
@@ -590,14 +624,14 @@ Deno.serve(async (req) => {
       });
     }
     await batchInsert(supabase, "purchase_orders", purchaseOrders);
-    log.push("✓ 500 purchase orders");
+    log.push("✓ 200 purchase orders");
 
     // ═══════════════════════════════════════════════════
-    // 16. SALES ORDERS (1,000) + LINES
+    // 16. SALES ORDERS (300) + LINES
     // ═══════════════════════════════════════════════════
     const salesOrders: any[] = [];
     const soLines: any[] = [];
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 300; i++) {
       const soId = uuid();
       const month = Math.floor(i / 84);
       const dt = dateIn2025(Math.min(month, 11));
@@ -629,7 +663,7 @@ Deno.serve(async (req) => {
         order_number: `SO-2025-${String(i + 1).padStart(5, "0")}`,
         order_date: dateStr(dt),
         partner_id: partnerId, partner_name: partnerData.name,
-        status: pick(["confirmed", "confirmed", "confirmed", "shipped", "draft"]),
+        status: pick(["pending", "confirmed", "confirmed", "shipped", "delivered"]),
         currency: "RSD",
         subtotal: Math.round(subtotal * 100) / 100,
         tax_amount: Math.round(taxAmount * 100) / 100,
@@ -639,7 +673,7 @@ Deno.serve(async (req) => {
     }
     await batchInsert(supabase, "sales_orders", salesOrders);
     await batchInsert(supabase, "sales_order_lines", soLines);
-    log.push(`✓ 1,000 sales orders + ${soLines.length} lines`);
+    log.push(`✓ 300 sales orders + ${soLines.length} lines`);
 
     // ═══════════════════════════════════════════════════
     // 17. QUOTES (300) + LINES
@@ -775,11 +809,11 @@ Deno.serve(async (req) => {
     log.push(`✓ ${sessions.length} POS sessions + ${transactions.length} transactions`);
 
     // ═══════════════════════════════════════════════════
-    // 20. GOODS RECEIPTS (500)
+    // 20. GOODS RECEIPTS (200)
     // ═══════════════════════════════════════════════════
     const goodsReceipts: any[] = [];
     const grLines: any[] = [];
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 200; i++) {
       const grId = uuid();
       const month = Math.floor(i / 42);
       const dt = dateIn2025(Math.min(month, 11));
@@ -805,14 +839,14 @@ Deno.serve(async (req) => {
     }
     await batchInsert(supabase, "goods_receipts", goodsReceipts);
     await batchInsert(supabase, "goods_receipt_lines", grLines);
-    log.push(`✓ 500 goods receipts + ${grLines.length} lines`);
+    log.push(`✓ 200 goods receipts + ${grLines.length} lines`);
 
     // ═══════════════════════════════════════════════════
-    // 21. INVENTORY MOVEMENTS (15,000)
+    // 21. INVENTORY MOVEMENTS (3,000)
     // ═══════════════════════════════════════════════════
     const movements: any[] = [];
-    for (let i = 0; i < 15000; i++) {
-      const month = Math.floor(i / 1250);
+    for (let i = 0; i < 3000; i++) {
+      const month = Math.floor(i / 250);
       const dt = dateIn2025(Math.min(month, 11));
       const type = pick(["in", "in", "out", "out", "out", "adjustment"]);
       movements.push({
@@ -828,7 +862,7 @@ Deno.serve(async (req) => {
       });
     }
     await batchInsert(supabase, "inventory_movements", movements);
-    log.push("✓ 15,000 inventory movements");
+    log.push("✓ 3,000 inventory movements");
 
     // ═══════════════════════════════════════════════════
     // 22. CRM LEADS (200)
@@ -900,10 +934,10 @@ Deno.serve(async (req) => {
     log.push("✓ 25 annual leave balances");
 
     // ═══════════════════════════════════════════════════
-    // 25. WORK LOGS (25 employees x ~250 working days)
+    // 25. WORK LOGS (10 employees x ~250 working days)
     // ═══════════════════════════════════════════════════
     const workLogs: any[] = [];
-    for (const empId of empIds) {
+    for (const empId of empIds.slice(0, 10)) {
       for (let day = 0; day < 365; day++) {
         const d = new Date(2025, 0, day + 1);
         if (d.getDay() === 0 || d.getDay() === 6) continue;
@@ -925,8 +959,8 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     const openItems: any[] = [];
     // AR from some invoices
-    for (let i = 0; i < 500; i++) {
-      const inv = invoices[i * 20]; // every 20th invoice
+    for (let i = 0; i < 200; i++) {
+      const inv = invoices[i * 10]; // every 10th invoice
       if (!inv) break;
       const paid = inv.status === "paid" ? inv.total : randAmount(0, inv.total);
       openItems.push({
@@ -946,8 +980,8 @@ Deno.serve(async (req) => {
       });
     }
     // AP from supplier invoices
-    for (let i = 0; i < 200; i++) {
-      const si = suppInvoices[i * 10];
+    for (let i = 0; i < 100; i++) {
+      const si = suppInvoices[i * 5];
       if (!si) break;
       const paid = si.status === "paid" ? si.total : randAmount(0, si.total);
       openItems.push({
