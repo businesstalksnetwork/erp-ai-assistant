@@ -1,93 +1,133 @@
 
-# Popunjavanje testnih podataka za "AI IT Development"
+# Popravka svih analitičkih stranica
 
-## Sta se pravi
+## Problem
 
-Jedna nova edge funkcija `seed-demo-data` koja ce u jednom pozivu napuniti kompletnu bazu podataka za tenant "AI IT Development" sa realisticnim srpskim poslovnim podacima za celu 2025. godinu.
+Sve analitičke stranice (Analytics Dashboard, Financial Ratios, Budget vs Actuals, Break-Even, Cash Flow Forecast, Profitability) ne prikazuju podatke jer frontend kod koristi kolone koje ne postoje u bazi:
 
-## Obim podataka
+### Nepostojece kolone u upitima
 
-| Modul | Podatci |
-|---|---|
-| **Pravno lice** | Update PIB, maticni broj, adresa za AI IT Development |
-| **Lokacije** | 3 lokacije (Beograd - centrala, Novi Sad - filijala, Nis - magacin) |
-| **Odeljenja** | 5 odeljenja (IT, Prodaja, Finansije, Logistika, Proizvodnja) |
-| **Zaposleni** | 25 zaposlenih sa ugovorima, platama, evidencijom rada |
-| **Partneri** | 50 klijenata + 15 dobavljaca sa srpskim imenima i PIB-ovima |
-| **Kompanije (CRM)** | 50 kompanija sa kategorijama |
-| **Kontakti** | 80 kontakata povezanih sa kompanijama |
-| **Proizvodi** | 100 proizvoda (IT oprema, softver, usluge) sa SKU i barkodovima |
-| **Skladista** | 3 skladista sa WMS zonama i binovima |
-| **Magacinski saldo** | Stock za svih 100 proizvoda u vise skladista |
-| **Fiskalni periodi** | 12 meseci za 2025. godinu (otvoreni) |
-| **Fakture** | 10.000 izlaznih faktura sa linijama (jan-dec 2025) |
-| **Fiskalni racuni** | 5.000 fiskalnih racuna (POS + fakture) |
-| **Fiskalni uredjaji** | 3 uredjaja (po lokaciji) |
-| **Ulazne fakture** | 2.000 ulaznih faktura od dobavljaca |
-| **Nabavne porudzbine** | 500 nabavnih porudzbina |
-| **Prodajni nalozi** | 1.000 prodajnih naloga |
-| **Ponude** | 300 ponuda |
-| **Proizvodni nalozi** | 200 proizvodnih naloga sa BOM-ovima |
-| **POS sesije** | 365 dnevnih sesija sa transakcijama |
-| **Magacinska primanja** | 500 prijema robe |
-| **Inventurni pokreti** | 15.000 ulaznih/izlaznih kretanja |
-| **CRM Leads** | 200 leadova u razlicitim fazama |
-| **CRM Opportunities** | 100 prilika u razlicitim stageiovima |
-| **Godisnji odmori** | Balans za svakog zaposlenog |
-| **Evidencija rada** | Dnevni worklogs za 25 zaposlenih x 250 radnih dana |
-| **Otvorene stavke** | AR/AP stavke sa delimicnim placanjima |
-| **Knjizenja** | Journal entries za fakture i plate |
+| Tabela | Frontend trazi | Baza ima |
+|---|---|---|
+| `journal_lines` | `amount`, `side` | `debit`, `credit` |
+| `journal_lines` | `tenant_id` (filter) | nema `tenant_id` (pripada `journal_entries`) |
+| `invoices` | `paid_at` | ne postoji |
+| `loans` | `monthly_payment` | ne postoji (ima `principal`, `interest_rate`, `term_months`) |
+
+### Prazne tabele (seed ih nije popunio)
+
+- `budgets` -- Budget vs Actuals nema podataka
+- `cost_centers` -- Profitability by Cost Center je prazna
+- `bank_statements` -- Cash Flow Forecast nema pocetni saldo
+- `ar_aging_snapshots` -- Cash Flow nema aging podatke
+- `loans` -- nema podataka za mesecne rate
+
+### Premalo journal entries
+
+Samo 20 journal entries (svaka 100. faktura) -- treba vise za smislene grafike.
+
+---
+
+## Plan popravke
+
+### Korak 1: Popravka svih analytics upita u frontendu
+
+Svaki upit koji koristi `journal_lines` mora se prepraviti da:
+- Umesto `.eq("tenant_id", tenantId!)` na `journal_lines`, koristi filter preko relacije `journal:journal_entry_id(tenant_id, ...)`
+- Umesto `amount` i `side`, koristi `debit` i `credit` kolone
+- Logika: `net = debit - credit` umesto `side === "debit" ? amount : -amount`
+
+**Fajlovi za izmenu:**
+
+1. **`src/pages/tenant/AnalyticsDashboard.tsx`**
+   - Popraviti journal_lines upit: ukloniti `.eq("tenant_id")`, dodati filter `.eq("journal.tenant_id", tenantId)`
+   - Zameniti `amount`/`side` sa `debit`/`credit`
+
+2. **`src/pages/tenant/FinancialRatios.tsx`**
+   - Ista popravka za journal_lines
+   - Ukloniti referencu na `paid_at` -- koristiti `updated_at` ili procenu na osnovu `due_date`
+
+3. **`src/pages/tenant/BudgetVsActuals.tsx`**
+   - Popraviti journal_lines upit
+
+4. **`src/pages/tenant/BreakEvenAnalysis.tsx`**
+   - Popraviti journal_lines upit
+
+5. **`src/pages/tenant/CashFlowForecast.tsx`**
+   - Popraviti referencu na `paid_at` u invoices
+   - Popraviti `monthly_payment` -- izracunati iz `principal / term_months`
+
+6. **`src/pages/tenant/ProfitabilityAnalysis.tsx`**
+   - Popraviti journal_lines upit za cost center tab
+
+### Korak 2: Dopuna seed funkcije
+
+Dodati u `seed-demo-data` funkciju generisanje podataka za:
+
+- **Budgets** (~21 redova) -- godisnji budzet za svaki revenue/expense account
+- **Cost Centers** (5) -- IT, Prodaja, Finansije, Logistika, Proizvodnja
+- **Bank Statements** (12) -- mesecni izvodi za 2025
+- **Loans** (3) -- aktivni krediti
+- **Vise journal entries** (500+) -- za svaku 4. fakturu umesto svake 100.
+- **Journal lines sa cost_center_id** -- povezati neke linije sa cost centrima
+- **`paid_at` simulacija** -- posto kolona ne postoji, DSO ce koristiti `due_date` + random offset
+
+### Korak 3: Ponovno pokretanje seed funkcije
+
+Pozvati azuriranu seed funkciju da popuni nove tabele.
+
+---
 
 ## Tehnicki detalji
 
-### Nova edge funkcija: `supabase/functions/seed-demo-data/index.ts`
+### Primer popravke journal_lines upita (pre/posle)
 
-- Koristi `SUPABASE_SERVICE_ROLE_KEY` za direktan pristup bez RLS ogranicenja
-- Zahteva super_admin autorizaciju (ista provera kao create-tenant)
-- Podatke ubacuje u batch-evima od po 500 redova (Supabase limit)
-- Koristi postojece chart_of_accounts ID-ove i tax_rate ID-ove
-- Generise realisticne srpske nazive firmi, imena zaposlenih, nazive proizvoda
-- Datumi ravnomerno rasporedjeni od 01.01.2025 do 31.12.2025
-- Iznosi faktura variraju od 5.000 do 500.000 RSD
-- Statusne distribucije: 70% paid, 20% sent, 10% draft za fakture
+Pre:
+```typescript
+const { data: lines } = await (supabase
+  .from("journal_lines")
+  .select("amount, side, accounts:account_id(account_type, code), 
+           journal:journal_entry_id(entry_date, status)")
+  .eq("tenant_id", tenantId!));
 
-### Pozivanje
-
-Korisnik ce moci da pozove funkciju klikom na dugme ili cu ja pozvati direktno nakon deploy-a. Funkcija se poziva jednom i traje oko 30-60 sekundi.
-
-### Redosled insertovanja (zbog FK constraints)
-
-```text
-1. Legal entity update (PIB, adresa)
-2. Lokacije
-3. Odeljenja
-4. Fiskalni periodi (12 meseci 2025)
-5. Fiskalni uredjaji
-6. Partneri (50 klijenata + 15 dobavljaca)
-7. Kompanije + kategorije + kontakti
-8. Proizvodi (100)
-9. Skladista + WMS zone + binovi
-10. Inventory stock
-11. Zaposleni + ugovori
-12. Fakture (10.000) + invoice_lines (batch po 500)
-13. Fiskalni racuni (5.000)
-14. Ulazne fakture (2.000)
-15. Nabavne porudzbine (500) + linije
-16. Prodajni nalozi (1.000) + linije
-17. Ponude (300) + linije
-18. Proizvodni nalozi (200)
-19. POS sesije (365) + transakcije
-20. Inventory movements (15.000)
-21. CRM leads (200) + opportunities (100)
-22. Evidencija rada + godisnji odmori
-23. Open items + delimicna placanja
-24. Journal entries za kljucne dokumente
+const net = line.side === "debit" ? amt : -amt;
 ```
 
-### Fajlovi koji se menjaju
+Posle:
+```typescript
+const { data: lines } = await (supabase
+  .from("journal_lines")
+  .select("debit, credit, accounts:account_id(account_type, code), 
+           journal:journal_entry_id(entry_date, status, tenant_id)")
+  .eq("journal.tenant_id", tenantId!));
 
-| Fajl | Promene |
+const net = (Number(line.debit) || 0) - (Number(line.credit) || 0);
+```
+
+### DSO popravka (bez `paid_at`)
+
+Posto `invoices` nema `paid_at`, DSO ce se racunati kao prosecno vreme od `invoice_date` do `due_date` za placene fakture, ili cemo dodati `paid_at` kolonu u migraciji.
+
+Preporuka: **dodati `paid_at` kolonu** u migraciji jer je DSO kljucni pokazatelj.
+
+### Loans `monthly_payment` popravka
+
+```typescript
+// Izracunati iz postojecih kolona
+const monthlyPayment = loan.principal / loan.term_months;
+```
+
+---
+
+## Fajlovi za izmenu
+
+| Fajl | Izmena |
 |---|---|
-| `supabase/functions/seed-demo-data/index.ts` | **NOVO** - Kompletna seed edge funkcija |
-
-Nema promena na frontend-u -- funkcija ce se pozvati direktno posle deploy-a da napuni bazu.
+| `src/pages/tenant/AnalyticsDashboard.tsx` | Popravka journal_lines upita (debit/credit, tenant filter) |
+| `src/pages/tenant/FinancialRatios.tsx` | Popravka journal_lines upita + DSO bez paid_at |
+| `src/pages/tenant/BudgetVsActuals.tsx` | Popravka journal_lines upita |
+| `src/pages/tenant/BreakEvenAnalysis.tsx` | Popravka journal_lines upita |
+| `src/pages/tenant/CashFlowForecast.tsx` | Popravka loans + invoices upita |
+| `src/pages/tenant/ProfitabilityAnalysis.tsx` | Popravka journal_lines upita za cost center |
+| `supabase/functions/seed-demo-data/index.ts` | Dodati budgets, cost_centers, bank_statements, loans, vise JE |
+| Migracija | Dodati `paid_at` kolonu na `invoices` tabelu |
