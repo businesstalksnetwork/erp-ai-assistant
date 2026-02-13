@@ -1,191 +1,139 @@
 
+# Fiscalization Hardening: Configurable Tax Labels + Timeout Recovery
 
-# Fix NBS Exchange Rates: Audit-Compliant Rate Import
+## Overview
 
-## Problem
-
-The `nbs-exchange-rates` edge function has three compliance issues:
-
-1. **Silent hardcoded fallback** -- When the NBS API fails, it silently inserts stale hardcoded rates (EUR 117.17, USD 108.45, etc.) with no indication to the user or admin. This breaks audit traceability.
-2. **No weekend/holiday logic** -- NBS does not publish rates on weekends or Serbian national holidays. The function requests today's date blindly, gets no data, then falls back to hardcoded rates.
-3. **No admin notification** -- When rate import fails, nobody is alerted.
-
-## Solution
-
-Rewrite the function to:
-- Detect weekends and Serbian national holidays, automatically resolve to the last working day
-- Remove hardcoded fallback rates entirely
-- Fail loudly with a 500 error when NBS API returns no data
-- Send admin notifications (via `create-notification` pattern) when import fails or when non-working-day adjustment occurs
+Two changes to improve Serbian fiscalization compliance:
+1. Replace hardcoded tax label mapping (20->A, 10->G, 0->E) with per-device configurable mapping stored in the database
+2. Add timeout recovery using `GET /api/v3/invoices/{requestId}` when the initial POST times out
 
 ---
 
-## Implementation Details
+## Change 1: Configurable Tax Label Mapping
 
-### File: `supabase/functions/nbs-exchange-rates/index.ts`
+### Database Migration
 
-**1. Add "last working day" resolver**
+Add a `tax_label_map` JSONB column to `fiscal_devices`:
 
-```typescript
-// Helper: format Date as YYYY-MM-DD without timezone issues
-function formatDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function isWeekend(d: Date): boolean {
-  const day = d.getDay();
-  return day === 0 || day === 6;
-}
-
-// Query the holidays table for national holidays (tenant_id IS NULL)
-async function isNationalHoliday(supabase, dateStr: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("holidays")
-    .select("id")
-    .is("tenant_id", null)
-    .eq("date", dateStr)
-    .limit(1);
-  return (data?.length ?? 0) > 0;
-}
-
-// Walk backwards from today until we find a working day (max 10 days back)
-async function getLastWorkingDay(supabase): Promise<string> {
-  const d = new Date();
-  for (let i = 0; i < 10; i++) {
-    const dateStr = formatDate(d);
-    if (!isWeekend(d) && !(await isNationalHoliday(supabase, dateStr))) {
-      return dateStr;
-    }
-    d.setDate(d.getDate() - 1);
-  }
-  throw new Error("Could not determine last working day within 10-day window");
-}
+```sql
+ALTER TABLE fiscal_devices 
+ADD COLUMN tax_label_map jsonb DEFAULT '{"20":"A","10":"G","0":"E"}'::jsonb;
 ```
 
-**2. Remove hardcoded fallback, fail loudly**
+The default value preserves current behavior. Each device can override it (e.g., a device with different VAT categories or farmer compensation rate 8%).
 
-Replace the current silent fallback block (lines 80-88) with an error:
+### Edge Function Changes (`fiscalize-receipt/index.ts`)
 
-```typescript
-if (rates.length === 0) {
-  // Send admin notification about failure
-  await sendAdminNotification(supabase, tenant_id, targetDate);
+- Remove the hardcoded `TAX_LABEL_MAP` constant
+- Read `device.tax_label_map` after loading the device config
+- Build a resolved map: merge the device's custom map with a sensible fallback
+- Use it in both the item label assignment and the tax grouping logic
 
-  return new Response(
-    JSON.stringify({
-      error: "NBS API returned no exchange rates",
-      details: `No rates available for ${targetDate}. NBS may be unavailable. Admin has been notified.`,
-    }),
-    { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-```
+### Frontend Changes (`FiscalDevices.tsx`)
 
-**3. Admin notification on failure**
-
-Use the existing `notifications` table (same pattern as `create-notification` function):
-
-```typescript
-async function sendAdminNotification(
-  supabase, tenant_id: string, date: string
-) {
-  // Find admin users for this tenant
-  const { data: admins } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("tenant_id", tenant_id)
-    .eq("role", "admin");
-
-  if (!admins?.length) return;
-
-  const rows = admins.map((a) => ({
-    tenant_id,
-    user_id: a.user_id,
-    type: "warning",
-    category: "system",
-    title: "NBS Exchange Rate Import Failed",
-    message: `Failed to fetch exchange rates from NBS for ${date}. Rates were NOT imported. Please retry or enter rates manually.`,
-    entity_type: "exchange_rates",
-    entity_id: null,
-  }));
-
-  await supabase.from("notifications").insert(rows);
-}
-```
-
-**4. Use `formatDate` instead of `toISOString().split("T")[0]`**
-
-Replace line 55 to avoid UTC timezone shift issues (e.g., calling at 23:30 CET would produce tomorrow's UTC date):
-
-```typescript
-const targetDate = await getLastWorkingDay(supabase);
-```
-
-**5. Also log non-working-day adjustment**
-
-When today is not a working day, include the adjustment info in the success response:
-
-```typescript
-const today = formatDate(new Date());
-const adjusted = targetDate !== today;
-
-return new Response(
-  JSON.stringify({
-    success: true,
-    imported,
-    date: targetDate,
-    adjusted,
-    ...(adjusted ? { originalDate: today, reason: "Weekend or national holiday" } : {}),
-  }),
-  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-);
-```
+- Add a "Tax Label Mapping" section to the add/edit device dialog
+- Display as editable key-value rows (tax rate -> label) with ability to add/remove entries
+- Pre-populate with the default mapping when creating a new device
+- Store as JSON in the `tax_label_map` field
 
 ---
 
-## Complete Flow After Fix
+## Change 2: Timeout Recovery with GET Status Check
 
-```text
-Request arrives with tenant_id
+### Problem
+
+Currently, if the POST to `/api/v3/invoices` times out (network issue, slow SDC), the function immediately marks the receipt as OFFLINE. But the SDC may have actually processed and signed the receipt -- creating a "ghost fiscal receipt" that the tax authority sees but the ERP does not.
+
+### Solution
+
+Add a unique `requestId` (UUID) to each fiscalization attempt, sent as a header. On timeout, perform a `GET /api/v3/invoices/{requestId}` status check before falling back to offline mode.
+
+### Edge Function Changes (`fiscalize-receipt/index.ts`)
+
+1. Generate a UUID `requestId` before the POST call
+2. Add a 10-second timeout to the POST using `AbortSignal.timeout(10000)`
+3. Include `RequestId` header in the POST
+4. On timeout/error, attempt a GET status check:
+   ```
+   GET {device.api_url}/api/v3/invoices/{requestId}
+   ```
+5. If GET returns a valid response with `invoiceNumber`, use it (receipt was actually signed)
+6. If GET also fails, then fall back to OFFLINE mode
+7. Store `requestId` in the `fiscal_receipts` record for future retry correlation
+
+### Database Migration
+
+Add a `request_id` column to `fiscal_receipts`:
+
+```sql
+ALTER TABLE fiscal_receipts 
+ADD COLUMN request_id uuid;
+```
+
+### Retry Function Update (`fiscalize-retry-offline/index.ts`)
+
+- When retrying offline receipts, use the stored `request_id` 
+- First try `GET /api/v3/invoices/{requestId}` to check if the original was actually processed
+- Only re-POST if the GET confirms no prior processing
+
+---
+
+## Technical Details
+
+### Files Modified
+
+1. **New migration** -- Add `tax_label_map` to `fiscal_devices` and `request_id` to `fiscal_receipts`
+2. **`supabase/functions/fiscalize-receipt/index.ts`** -- Configurable tax labels + requestId + timeout recovery
+3. **`supabase/functions/fiscalize-retry-offline/index.ts`** -- Use stored requestId for GET-before-retry
+4. **`src/pages/tenant/FiscalDevices.tsx`** -- Tax label mapping editor in device dialog
+
+### Tax Label Map Editor UI
+
+The device form dialog will include a section like:
+
+```
+Tax Label Mapping
++-----------+-------+--------+
+| Tax Rate  | Label | Action |
++-----------+-------+--------+
+| 20        | A     | [x]    |
+| 10        | G     | [x]    |
+| 0         | E     | [x]    |
++-----------+-------+--------+
+[+ Add Row]
+```
+
+Users can add entries for special rates (e.g., 8% farmer compensation -> label "K") or adjust labels to match their specific SDC/LPFR configuration.
+
+### Timeout Recovery Flow
+
+```
+Generate requestId (UUID)
     |
     v
-JWT validation + tenant membership check (already done)
+POST /api/v3/invoices (with RequestId header, 10s timeout)
     |
-    v
-Resolve target date: walk back from today, skip weekends + national holidays
+    +---> Success: use response as normal
     |
-    v
-Fetch NBS API for target date
-    |
-    +---> Rates found: upsert into exchange_rates, return success
-    |
-    +---> No rates / API error:
-              - Send warning notification to tenant admins
-              - Return 502 error with details (NO hardcoded fallback)
+    +---> Timeout/Network Error:
+              |
+              v
+         GET /api/v3/invoices/{requestId} (5s timeout)
+              |
+              +---> Found (invoiceNumber present): receipt WAS signed, use it
+              |
+              +---> Not found / error: mark as OFFLINE, store requestId for later retry
 ```
 
----
+### Retry-Offline Enhanced Flow
 
-## Frontend Impact
-
-The `Currencies.tsx` page already shows toast errors from the function response. With the new 502 error, it will display a clear message like "NBS API returned no exchange rates. Admin has been notified." instead of silently importing wrong hardcoded values.
-
-No frontend changes needed.
-
----
-
-## Files Modified
-
-1. `supabase/functions/nbs-exchange-rates/index.ts` -- Full rewrite of rate fetching logic
-
-## What This Fixes
-
-- **Audit compliance**: No more phantom rates from hardcoded values polluting the general ledger
-- **Weekend/holiday handling**: Automatically uses last working day's rates (NBS standard behavior)
-- **Timezone safety**: Uses manual date formatting instead of `toISOString()` which can shift dates near midnight CET
-- **Admin visibility**: Tenant admins get notified immediately when rate import fails
-- **Traceability**: Response includes whether date was adjusted and why
-
+```
+For each offline receipt with request_id:
+    |
+    v
+GET /api/v3/invoices/{requestId} first
+    |
+    +---> Found: update receipt, done (no duplicate fiscal receipt)
+    |
+    +---> Not found: proceed with POST retry (as before)
+```
