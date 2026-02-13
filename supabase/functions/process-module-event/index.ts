@@ -12,6 +12,36 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth gate (High Fix 5): require either a valid user JWT or internal service secret
+    const authHeader = req.headers.get("Authorization");
+    const internalSecret = req.headers.get("X-Internal-Secret");
+    const expectedSecret = Deno.env.get("INTERNAL_SERVICE_SECRET");
+
+    let authenticated = false;
+
+    // Check internal secret for function-to-function calls
+    if (internalSecret && expectedSecret && internalSecret === expectedSecret) {
+      authenticated = true;
+    }
+
+    // Check user JWT
+    if (!authenticated && authHeader) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user }, error: authErr } = await userClient.auth.getUser();
+      if (!authErr && user) {
+        authenticated = true;
+      }
+    }
+
+    if (!authenticated) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { event_id } = await req.json();
     if (!event_id) {
       return new Response(JSON.stringify({ error: "event_id is required" }), {

@@ -115,6 +115,7 @@ import EmployeeSalaries from "@/pages/tenant/EmployeeSalaries";
 import InsuranceRecords from "@/pages/tenant/InsuranceRecords";
 import PositionTemplates from "@/pages/tenant/PositionTemplates";
 import HrReports from "@/pages/tenant/HrReports";
+import EBolovanje from "@/pages/tenant/EBolovanje";
 import Salespeople from "@/pages/tenant/Salespeople";
 import SalesPerformance from "@/pages/tenant/SalesPerformance";
 import RetailPrices from "@/pages/tenant/RetailPrices";
@@ -233,6 +234,7 @@ const App = () => (
                 <Route path="hr/insurance" element={<ProtectedRoute requiredModule="hr"><InsuranceRecords /></ProtectedRoute>} />
                 <Route path="hr/position-templates" element={<ProtectedRoute requiredModule="hr"><PositionTemplates /></ProtectedRoute>} />
                 <Route path="hr/reports" element={<ProtectedRoute requiredModule="hr"><HrReports /></ProtectedRoute>} />
+                <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule="hr"><EBolovanje /></ProtectedRoute>} />
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
                 <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
