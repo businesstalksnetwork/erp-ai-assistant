@@ -106,6 +106,16 @@ const accountingNav: NavItem[] = [
   { key: "reports", url: "/accounting/reports", icon: BarChart3 },
 ];
 
+const analyticsNav: NavItem[] = [
+  { key: "analyticsDashboard", url: "/analytics", icon: BarChart3 },
+  { key: "financialRatios", url: "/analytics/ratios", icon: Activity },
+  { key: "profitabilityAnalysis", url: "/analytics/profitability", icon: TrendingUp },
+  { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign },
+  { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
+  { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator },
+  { key: "businessPlanning", url: "/analytics/planning", icon: Briefcase },
+];
+
 const crmNav: NavItem[] = [
   // Overview
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
@@ -364,6 +374,9 @@ export default function TenantLayout() {
             )}
             {canAccess("accounting") && (
               <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" icon={Calculator} />
+            )}
+            {canAccess("analytics") && (
+              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} accentColor="bg-orange-500" icon={BarChart3} />
             )}
             {canAccess("hr") && (
               <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" icon={UserCheck} />

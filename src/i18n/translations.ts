@@ -1610,6 +1610,16 @@ export const translations = {
     scenarioHistory: "Scenario History",
     productionCalendar: "Production Calendar",
     dailyCapacity: "Daily Capacity",
+
+    // Analytics
+    analytics: "Analytics",
+    analyticsDashboard: "Analytics Dashboard",
+    financialRatios: "Financial Ratios",
+    profitabilityAnalysis: "Profitability Analysis",
+    cashFlowForecast: "Cash Flow Forecast",
+    budgetVsActuals: "Budget vs Actuals",
+    breakEvenAnalysis: "Break-Even Analysis",
+    businessPlanning: "Business Planning",
   },
   sr: {
     // Auth
@@ -3169,6 +3179,16 @@ export const translations = {
     scenarioHistory: "Istorija scenarija",
     productionCalendar: "Proizvodni kalendar",
     dailyCapacity: "Dnevni kapacitet",
+
+    // Analytics
+    analytics: "Analize",
+    analyticsDashboard: "Analitički pregled",
+    financialRatios: "Finansijski raciji",
+    profitabilityAnalysis: "Analiza profitabilnosti",
+    cashFlowForecast: "Prognoza novčanog toka",
+    budgetVsActuals: "Budžet vs Stvarni",
+    breakEvenAnalysis: "Analiza tačke rentabilnosti",
+    businessPlanning: "Poslovno planiranje",
   },
 } as const;
 

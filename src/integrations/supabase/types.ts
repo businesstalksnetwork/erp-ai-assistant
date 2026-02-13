@@ -1181,6 +1181,51 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string | null
+          fiscal_year: number
+          id: string
+          month: number
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          created_at?: string | null
+          fiscal_year: number
+          id?: string
+          month: number
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string | null
+          fiscal_year?: number
+          id?: string
+          month?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_type: string
@@ -1190,6 +1235,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_system: boolean
+          is_variable_cost: boolean | null
           level: number
           name: string
           name_sr: string | null
@@ -1205,6 +1251,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
+          is_variable_cost?: boolean | null
           level?: number
           name: string
           name_sr?: string | null
@@ -1220,6 +1267,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_system?: boolean
+          is_variable_cost?: boolean | null
           level?: number
           name?: string
           name_sr?: string | null

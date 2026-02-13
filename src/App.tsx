@@ -144,6 +144,13 @@ import AiBottleneckPrediction from "@/pages/tenant/AiBottleneckPrediction";
 import AiCapacitySimulation from "@/pages/tenant/AiCapacitySimulation";
 import AiPlanningCalendar from "@/pages/tenant/AiPlanningCalendar";
 import WmsDashboard from "@/pages/tenant/WmsDashboard";
+import AnalyticsDashboard from "@/pages/tenant/AnalyticsDashboard";
+import FinancialRatios from "@/pages/tenant/FinancialRatios";
+import ProfitabilityAnalysis from "@/pages/tenant/ProfitabilityAnalysis";
+import CashFlowForecast from "@/pages/tenant/CashFlowForecast";
+import BudgetVsActuals from "@/pages/tenant/BudgetVsActuals";
+import BreakEvenAnalysis from "@/pages/tenant/BreakEvenAnalysis";
+import BusinessPlanning from "@/pages/tenant/BusinessPlanning";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -299,6 +306,13 @@ const App = () => (
                 <Route path="inventory/wms/picking" element={<ProtectedRoute requiredModule="inventory"><WmsPicking /></ProtectedRoute>} />
                 <Route path="inventory/wms/cycle-counts" element={<ProtectedRoute requiredModule="inventory"><WmsCycleCounts /></ProtectedRoute>} />
                 <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule="inventory"><WmsSlotting /></ProtectedRoute>} />
+                <Route path="analytics" element={<ProtectedRoute requiredModule="analytics"><AnalyticsDashboard /></ProtectedRoute>} />
+                <Route path="analytics/ratios" element={<ProtectedRoute requiredModule="analytics"><FinancialRatios /></ProtectedRoute>} />
+                <Route path="analytics/profitability" element={<ProtectedRoute requiredModule="analytics"><ProfitabilityAnalysis /></ProtectedRoute>} />
+                <Route path="analytics/cashflow-forecast" element={<ProtectedRoute requiredModule="analytics"><CashFlowForecast /></ProtectedRoute>} />
+                <Route path="analytics/budget" element={<ProtectedRoute requiredModule="analytics"><BudgetVsActuals /></ProtectedRoute>} />
+                <Route path="analytics/break-even" element={<ProtectedRoute requiredModule="analytics"><BreakEvenAnalysis /></ProtectedRoute>} />
+                <Route path="analytics/planning" element={<ProtectedRoute requiredModule="analytics"><BusinessPlanning /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
