@@ -1,122 +1,168 @@
 
+# Comprehensive E2E Verification Report
 
-# Stock Reservation + POS Daily Report Enhancements + WebSettings Verification
+## Summary
 
-## 1. Stock Reservation on Sales Order Confirmation
-
-When a Sales Order status changes to "confirmed", reserve the ordered quantities in `inventory_stock`.
-
-### Database: New RPC function `reserve_stock_for_order`
-
-A new migration creating an RPC that:
-- Reads all `sales_order_lines` for the given order
-- For each line with a `product_id`, increases `quantity_reserved` on `inventory_stock` (using a default warehouse or the first available warehouse with stock)
-- If the order is cancelled after confirmation, a corresponding `release_stock_for_order` RPC reverses the reservation
-
-```text
-reserve_stock_for_order(p_tenant_id, p_sales_order_id)
-  -> FOR each sales_order_line with product_id
-     -> UPDATE inventory_stock SET quantity_reserved = quantity_reserved + line.quantity
-        WHERE product_id = line.product_id (pick warehouse with most stock)
-
-release_stock_for_order(p_tenant_id, p_sales_order_id)
-  -> Reverse: quantity_reserved = quantity_reserved - line.quantity
-```
-
-### Edge function update: `process-module-event/index.ts`
-
-Replace the placeholder at line 161 (`"Stock reservation placeholder"`) with actual logic that calls `reserve_stock_for_order` RPC. Also handle `sales_order.cancelled` to release stock.
-
-### UI update: `SalesOrders.tsx`
-
-When the status changes from non-confirmed to "confirmed", trigger the `process-module-event` edge function with event `sales_order.confirmed`. When changed to "cancelled", trigger `sales_order.cancelled`.
+After thorough inspection of the codebase, database schema, edge functions, and UI components, I found **6 critical issues** and **3 minor issues** that need fixing.
 
 ---
 
-## 2. POS Daily Report Enhancements
+## CRITICAL Issues
 
-### Tax Breakdown Section
+### 1. Missing Database Tables: `web_connections`, `web_price_lists`, `web_prices`
 
-The `pos_transactions` table stores `tax_amount` and `items` (JSONB with per-item `tax_rate`). Currently the Z-Report shows `tax_breakdown: {}` as empty.
+These three tables are referenced throughout the code but **no migration ever creates them**. This means:
+- `WebSettings.tsx` queries `web_connections` -- will fail
+- `WebPrices.tsx` queries `web_prices` / `web_price_lists` -- will fail
+- `ProductDetail.tsx` queries `web_prices` -- will fail
+- `web-sync` edge function queries `web_connections` and `web_prices` -- will fail
+- `web-order-import` edge function queries `web_connections` -- will fail
+- `web_sync_logs.web_connection_id` FK references `web_connections` which doesn't exist -- migration may have failed
 
-**Changes to `PosDailyReport.tsx`:**
-- Parse each transaction's `items` JSONB to extract per-tax-rate totals (e.g., 20% PDV, 10% PDV, 0%)
-- Display a **Tax Breakdown** card in the Z-Report section showing:
-  - Tax rate | Taxable base | Tax amount | Total
-  - One row per distinct rate
-- Pass the computed breakdown into `generateReport` mutation instead of `{}`
+**Fix**: Create a migration with all three tables:
+- `web_connections` (id, tenant_id, platform, store_url, api_key, api_secret, access_token, webhook_secret, is_active, last_sync_at, last_error)
+- `web_price_lists` (id, tenant_id, web_connection_id, name, currency, is_active)
+- `web_prices` (id, tenant_id, web_price_list_id, product_id, price, compare_at_price)
 
-### Shift-Based Reporting
+All with RLS policies for tenant isolation.
 
-The `pos_sessions` table has `opened_at` and `closed_at` timestamps plus `cashier_id`. Add a shift summary section:
-- Query `pos_sessions` for the selected date/location
-- Show per-session: cashier name, open/close times, transaction count, total sales
-- Group transactions by `session_id` for the breakdown
+### 2. `web-sync` Edge Function Uses Non-Existent `auth.getClaims()`
 
-### Cash Drawer Reconciliation
+Line 27: `anonClient.auth.getClaims(token)` -- this method does not exist in supabase-js v2. 
 
-Add fields for expected vs actual cash:
-- **Expected cash** = cash sales total - cash refunds (already computed)
-- Add two inputs: "Opening float" and "Actual cash count" (manual entry)
-- Show **Variance** = actual - (opening float + expected cash)
-- Store these values in the `pos_daily_reports` record (new columns: `opening_float`, `actual_cash_count`, `cash_variance`)
+**Fix**: Replace with `supabase.auth.getUser(token)` to validate the JWT.
+
+### 3. `ProductDetail.tsx` Queries `retail_prices` with Wrong Column
+
+Line 42: `.eq("tenant_id", tenantId!)` -- but `retail_prices` has no `tenant_id` column. It only has `price_list_id`, `product_id`, etc.
+
+**Fix**: Remove the `.eq("tenant_id", tenantId!)` filter from the retail_prices query, or join through `retail_price_lists` which does have `tenant_id`.
+
+### 4. `web-order-import` Inserts Invalid Columns into `sales_order_lines`
+
+Line 213-214: Inserts `tenant_id` and `product_name` into `sales_order_lines`, but neither column exists. The table has: `sales_order_id, product_id, quantity, unit_price, description, sort_order, tax_rate_id, tax_rate_value, tax_amount, line_total, total_with_tax`.
+
+**Fix**: Map `product_name` to `description`, remove `tenant_id`, and map `total` to `line_total`.
+
+### 5. `web-order-import` Notification Insert Missing Required `user_id`
+
+Line 225-229: Inserts into `notifications` without `user_id`, which is likely required. This will silently fail.
+
+**Fix**: Either query tenant members and create notifications for each, or use the existing `create-notification` edge function which handles multi-user notification dispatch.
+
+### 6. `web_sync_logs` Migration Likely Failed
+
+The migration `20260213085747` tries to create `web_sync_logs` with a FK to `web_connections(id)`, but `web_connections` doesn't exist. This migration would have failed, meaning `web_sync_logs` may also not exist.
+
+**Wait** -- the DB query confirmed `web_sync_logs` does exist. Let me check if it was created without the FK. The `sales_orders` columns (`source`, `web_connection_id`, `external_order_id`) also exist. So the migration partially succeeded or the FK was handled differently.
 
 ---
 
-## 3. WebSettings UI Verification
+## Minor Issues
 
-The WebSettings page already has Sync Now, webhook URL, and import stats implemented. No code changes needed -- just visual verification that the components render correctly. This will be confirmed after implementation of items 1 and 2.
+### 7. `PosDailyReport.tsx` Session Query Uses Non-Standard Join
+
+Line 56: `.select("*, profiles:cashier_id(full_name)")` -- this assumes a `profiles` table with `full_name`. If the profiles table doesn't have this exact structure, the cashier name will show "---".
+
+### 8. `web-sync` Missing `SUPABASE_ANON_KEY` Environment Variable
+
+Line 24: Uses `Deno.env.get("SUPABASE_ANON_KEY")` -- this is available by default in Supabase edge functions, but the auth flow using `getClaims` is broken anyway (issue #2).
+
+### 9. `SalesOrders.tsx` Stock Event Best-Effort Catch
+
+Line 136: `catch { /* best effort */ }` swallows all errors from stock reservation. If the RPC fails, the user gets no feedback.
 
 ---
 
-## Files to Create
+## What's Working Correctly
 
-None (only a migration file).
+| Feature | Status |
+|---------|--------|
+| Route structure (App.tsx) | All routes properly registered including `/inventory/products/:id` |
+| `ProductDetail.tsx` Overview tab | Renders product details correctly |
+| `ProductDetail.tsx` Inventory tab | Queries `inventory_stock` and `inventory_movements` correctly |
+| Products.tsx clickable links | Product names link to `/inventory/products/:id` |
+| `SalesOrders.tsx` salesperson dropdown | Queries and assigns `salesperson_id` correctly |
+| `SalesOrders.tsx` stock event emission | Correctly creates `module_events` and invokes `process-module-event` |
+| `process-module-event` stock RPCs | Correctly calls `reserve_stock_for_order` / `release_stock_for_order` |
+| Database RPCs | `reserve_stock_for_order`, `release_stock_for_order`, `adjust_inventory_stock` all exist |
+| `inventory_stock.quantity_reserved` | Column exists |
+| `sales_orders` new columns | `source`, `web_connection_id`, `external_order_id`, `salesperson_id` all present |
+| `pos_daily_reports` reconciliation columns | `opening_float`, `actual_cash_count`, `cash_variance` all present |
+| `PosDailyReport.tsx` tax breakdown | Logic correctly parses items JSONB and groups by tax_rate |
+| `PosDailyReport.tsx` cash reconciliation | UI with opening float, expected cash, actual count, variance |
+| `PosDailyReport.tsx` shift summary | Queries pos_sessions and groups transactions by session |
+| `PosDailyReport.tsx` Z-Report generation | Saves report with tax breakdown and reconciliation data |
+| `retail_prices` / `retail_price_lists` tables | Exist with correct schema |
+| Edge function registration (config.toml) | All functions registered |
+| i18n translations | New keys added for all features |
 
-## Files to Modify
+---
 
-| File | Changes |
-|---|---|
-| New migration SQL | `reserve_stock_for_order` and `release_stock_for_order` RPCs; add `opening_float`, `actual_cash_count`, `cash_variance` to `pos_daily_reports` |
-| `supabase/functions/process-module-event/index.ts` | Replace stock reservation placeholder with real RPC call; add cancellation handler |
-| `src/pages/tenant/SalesOrders.tsx` | Fire `process-module-event` on status change to confirmed/cancelled |
-| `src/pages/tenant/PosDailyReport.tsx` | Tax breakdown computation and display; shift summary section; cash reconciliation inputs |
-| `src/integrations/supabase/types.ts` | Add new RPC types and `pos_daily_reports` column types |
-| `src/i18n/translations.ts` | New keys: taxBreakdown, taxableBase, shiftSummary, cashier, openingFloat, actualCashCount, cashVariance, expectedCash, etc. |
+## Fix Plan
 
-## Technical Notes
-
-### Tax Breakdown Computation
-
-Each `pos_transactions.items` is a JSONB array like:
-```text
-[{ name, quantity, unit_price, tax_rate: 20, total_amount }, ...]
-```
-
-Group by `tax_rate`, sum `unit_price * quantity` as taxable base, compute tax per group:
-```text
-taxableBase = sum(unit_price * quantity) per tax_rate
-taxAmount = taxableBase * (tax_rate / 100)
-```
-
-### Stock Reservation Flow
+### Migration: Create missing web tables and fix FK
 
 ```text
-Sales Order created (status: pending)
-  -> No stock impact
+CREATE TABLE web_connections (
+  id uuid PK DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  platform text NOT NULL DEFAULT 'shopify',
+  store_url text NOT NULL,
+  api_key text,
+  api_secret text,
+  access_token text,
+  webhook_secret text,
+  is_active boolean DEFAULT false,
+  last_sync_at timestamptz,
+  last_error text,
+  created_at timestamptz DEFAULT now()
+) + RLS
 
-Status changed to "confirmed"
-  -> process-module-event("sales_order.confirmed")
-  -> reserve_stock_for_order RPC
-  -> inventory_stock.quantity_reserved += ordered qty
+CREATE TABLE web_price_lists (
+  id uuid PK,
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  web_connection_id uuid REFERENCES web_connections(id),
+  name text NOT NULL,
+  currency text DEFAULT 'RSD',
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+) + RLS
 
-Status changed to "cancelled" (from confirmed)
-  -> process-module-event("sales_order.cancelled")  
-  -> release_stock_for_order RPC
-  -> inventory_stock.quantity_reserved -= ordered qty
+CREATE TABLE web_prices (
+  id uuid PK,
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  web_price_list_id uuid REFERENCES web_price_lists(id) ON DELETE CASCADE,
+  product_id uuid REFERENCES products(id),
+  price numeric NOT NULL DEFAULT 0,
+  compare_at_price numeric,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(web_price_list_id, product_id)
+) + RLS
 
-Status changed to "delivered" + invoice created
-  -> Invoice posting already deducts quantity_on_hand via adjust_inventory_stock
-  -> Should also release the reservation (quantity_reserved -= qty)
+-- Add FK on web_sync_logs if missing
+ALTER TABLE web_sync_logs
+  ADD CONSTRAINT IF NOT EXISTS fk_web_sync_logs_connection
+  FOREIGN KEY (web_connection_id) REFERENCES web_connections(id);
+
+-- Add FK on sales_orders if missing  
+ALTER TABLE sales_orders
+  ADD CONSTRAINT IF NOT EXISTS fk_sales_orders_web_connection
+  FOREIGN KEY (web_connection_id) REFERENCES web_connections(id);
 ```
 
+### Code Fixes
+
+| File | Fix |
+|------|-----|
+| `supabase/functions/web-sync/index.ts` | Replace `getClaims()` with `auth.getUser()` for JWT validation |
+| `src/pages/tenant/ProductDetail.tsx` | Fix retail_prices query: remove `.eq("tenant_id")`, filter through `price_list_id` join instead |
+| `supabase/functions/web-order-import/index.ts` | Fix `sales_order_lines` insert: remove `tenant_id`, rename `product_name` to `description`, rename `total` to `line_total` |
+| `supabase/functions/web-order-import/index.ts` | Fix notification: use `create-notification` edge function or insert per-user |
+
+### Files to modify
+- New migration SQL file
+- `supabase/functions/web-sync/index.ts` (auth fix)
+- `supabase/functions/web-order-import/index.ts` (column mapping fix + notification fix)
+- `src/pages/tenant/ProductDetail.tsx` (retail_prices query fix)
+- `src/integrations/supabase/types.ts` (add web table types)
