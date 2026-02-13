@@ -1,335 +1,195 @@
 
 
-# Critical Accounting & POS Compliance Fix -- Serbian Pravilnik 89/2020
+# Fix Remaining Known Issues (6 Items)
 
-This plan addresses the 25 critical/high bugs identified in the audit, prioritized by legal compliance impact. The PRD v2.0 document has been analyzed in full.
-
----
-
-## Summary of Critical Issues Found
-
-| # | Issue | Severity | Current State | Required State |
-|---|-------|----------|--------------|----------------|
-| 1 | Chart of Accounts uses Anglo-Saxon codes (1000/1200/2100) | CRITICAL | Codes like 1000, 1200, 6000, 8000 | Serbian classes 0-9 per Pravilnik 89/2020 |
-| 2 | POS creates no journal entries | CRITICAL | Only pos_transactions row | Must create Revenue (6010), PDV (2470), COGS (5xxx) entries |
-| 3 | POS creates no inventory movements | CRITICAL | Stock unchanged after sale | Must deduct from store warehouse |
-| 4 | No maloprodaja accounting (1320/1329) | CRITICAL | No retail inventory concepts | Need Roba u maloprodaji, Razlika u ceni, Kalkulacija, Nivelacija |
-| 5 | No COGS posting on any sale | CRITICAL | Revenue posted, cost never recognized | D: 5010 Nabavna vrednost, P: 1320 Roba |
-| 6 | Payroll nontaxable = 25,000 RSD | CRITICAL | Hardcoded 25,000 | Must be 34,221 RSD for 2026 |
-| 7 | Payroll contributions lumped into 1 line | HIGH | Single pension/health/unemployment | 8 separate lines per Serbian law |
-| 8 | Invoice posting uses wrong accounts | HIGH | D:1200 P:6000 | D:2040 Kupci, P:6010 Prihod, D:2470 PDV |
-| 9 | Payroll journal uses wrong accounts | HIGH | D:8000 P:2100 P:4700 | D:5200 Bruto zarade, P:4500 Obaveze za neto, P:4510 Porez, P:4520-4570 doprinosi |
-| 10 | All edge functions JWT disabled | HIGH | verify_jwt = false, no code-level check | Add getClaims() validation |
-| 11 | Missing accounts for FX revaluation | HIGH | No 5072/6072 accounts | Required for kursne razlike |
-| 12 | Missing accounts for Kompenzacija | HIGH | No 2040/4350 accounts | Required for mutual offset |
+This plan addresses all 6 remaining known issues: generate-pdf JWT fix (already partially done), web-order-import webhook signature validation, useTenant multi-tenant support, Kalkulacija/Nivelacija journal posting RPCs, fixed asset account code corrections, and all other frontend files still using old Anglo-Saxon account codes.
 
 ---
 
-## Phase 1: Serbian Chart of Accounts Overhaul (Database Migration)
+## Issue 1: generate-pdf -- Already Has JWT
 
-Replace the entire seed function with proper Serbian Kontni Plan codes per Pravilnik 89/2020.
+**Finding**: The `generate-pdf` edge function at lines 24-45 already validates JWT via `getUser()` and checks tenant membership at lines 77-89. This issue is **already resolved** from the previous implementation. No changes needed.
 
-### New Account Structure (Classes 0-9)
+---
 
-```text
-Class 0 - Fixed Assets:
-  0100 Zemljiste (Land)
-  0120 Masine i oprema (Machinery & Equipment)
-  0121 Akumulirana amortizacija (Accumulated Depreciation)
-  0200 Gradevinski objekti (Buildings)
-  0300 Nematerijalna ulaganja (Intangible Assets)
+## Issue 2: web-order-import -- Add HMAC Webhook Signature Validation
 
-Class 1 - Inventory (Zalihe):
-  1100 Sirovine i materijal (Raw Materials)
-  1200 Gotova roba (Finished Goods)
-  1300 Roba (Merchandise - veleprodaja)
-  1320 Roba u maloprodaji (Retail Merchandise - at retail price)
-  1329 Razlika u ceni (Price Difference / Retail Markup)
-  1500 Unapred placeni troskovi (Prepaid Expenses)
+The `web_connections` table already has a `webhook_secret` column. We'll use it for HMAC-SHA256 signature verification.
 
-Class 2 - Receivables & Cash:
-  2040 Kupci (Accounts Receivable / Customers)
-  2090 Ispravka vrednosti kupaca (Bad Debt Allowance)
-  2430 Gotovina (Cash)
-  2431 Tekuci racun (Bank Account)
-  2470 PDV na izlaznim fakturama (Output VAT)
-  2480 PDV na ulaznim fakturama (Input VAT)
+### Changes: `supabase/functions/web-order-import/index.ts`
 
-Class 3 - Equity:
-  3000 Osnovni kapital (Share Capital)
-  3300 Revalorizacione rezerve (Revaluation Reserve)
-  3400 Nerasporedjena dobit (Retained Earnings)
-  3500 Gubitak (Loss)
+After identifying the connection (line 43), add HMAC validation:
 
-Class 4 - Liabilities:
-  4200 Dugorocne obaveze (Long-term Debt)
-  4350 Dobavljaci (Accounts Payable / Suppliers)
-  4500 Obaveze za neto zarade (Net Salary Payable)
-  4510 Obaveze za porez na zarade (Income Tax Payable)
-  4520 Obaveze za PIO zaposleni (Pension - Employee)
-  4521 Obaveze za PIO poslodavac (Pension - Employer)
-  4530 Obaveze za zdravstvo zaposleni (Health - Employee)
-  4531 Obaveze za zdravstvo poslodavac (Health - Employer)
-  4540 Obaveze za nezaposlenost zaposleni (Unemployment - Employee)
-  4541 Obaveze za nezaposlenost poslodavac (Unemployment - Employer)
-  4600 Prihodi buducih perioda (Deferred Revenue)
-
-Class 5 - Expenses:
-  5010 Nabavna vrednost prodate robe (COGS)
-  5072 Gubitak na kursnim razlikama (FX Loss)
-  5073 Gubitak na otpisu (Write-off Loss)
-  5074 Gubitak na donaciji (Donation Loss)
-  5200 Bruto zarade i naknade (Gross Salary Expense)
-  5310 Amortizacija (Depreciation Expense)
-  5330 Kamatni rashodi (Interest Expense)
-  5400 Usluge (Services Expense)
-  5530 Materijal (Materials Expense)
-
-Class 6 - Revenue:
-  6010 Prihod od prodaje robe (Sales Revenue)
-  6072 Dobitak na kursnim razlikama (FX Gain)
-
-Class 7 - Year-end Closing:
-  7100 Zakljucak prihoda (Revenue Closing)
-  7200 Zakljucak rashoda (Expense Closing)
-
-Class 8 - Financial Items (kept for backward compat, mapped):
-  (legacy 8000/8100/8200/8300 mapped to proper 5xxx accounts)
-
-Class 9 - Tax:
-  9100 Porez na dobit (Income Tax Expense)
+```
+if (conn.webhook_secret) {
+  const signature = req.headers.get("x-webhook-signature") 
+    || req.headers.get("x-shopify-hmac-sha256")
+    || req.headers.get("x-wc-webhook-signature");
+  
+  if (!signature) return 401 "Missing webhook signature";
+  
+  // Compute HMAC-SHA256 of raw body using webhook_secret
+  const key = await crypto.subtle.importKey(...)
+  const computed = base64(await crypto.subtle.sign(..., bodyBytes))
+  if (computed !== signature) return 401 "Invalid signature";
+}
 ```
 
-### Migration Strategy
-
-The migration will:
-1. Create a mapping table from old codes to new codes
-2. Insert all new Serbian-compliant accounts for all existing tenants
-3. Update all references in journal_lines to point to new account IDs
-4. Update the seed function for new tenants
-5. Mark old Anglo-Saxon accounts as inactive (not delete, for audit trail)
-6. Update all RPC functions that reference account codes
+This is compatible with Shopify (sends `X-Shopify-Hmac-Sha256`) and WooCommerce (sends `X-WC-Webhook-Signature`) out of the box.
 
 ---
 
-## Phase 2: Fix Invoice Posting (create_journal_from_invoice)
+## Issue 3: useTenant -- Multi-Tenant Support
+
+### Problem
+`useTenant()` uses `.maybeSingle()` which fails silently when a user belongs to multiple tenants -- it only returns the first one.
+
+### Solution
+- Fetch ALL active memberships (not just one)
+- Store a `selectedTenantId` in localStorage for persistence
+- If user has multiple tenants, use the stored selection or default to first
+- Export a `tenants` array and `switchTenant()` function
+- Add a TenantSelector dropdown component to the layout header
+
+### Changes
+
+**`src/hooks/useTenant.ts`** -- Return all memberships + selection logic:
+- Query with `.select()` instead of `.maybeSingle()`
+- Return `{ tenants, tenantId, role, switchTenant, isLoading }`
+- Use `localStorage.getItem("selectedTenantId")` for persistence
+
+**New: `src/components/TenantSelector.tsx`** -- Dropdown in header:
+- Only renders if user has 2+ tenants
+- Shows current tenant name with a Select dropdown
+- Calls `switchTenant(id)` on change
+
+**`src/layouts/TenantLayout.tsx`** -- Add TenantSelector to header area
+
+---
+
+## Issue 4: Kalkulacija/Nivelacija -- Wire Journal Posting via RPC
+
+### Problem
+Both pages create documents (rows in `kalkulacije`/`nivelacije` tables) but do NOT create the required journal entries for the 1320/1329 accounting. They only save data -- no GL impact.
+
+### Solution: Database RPCs
+
+**New RPC: `post_kalkulacija(p_kalkulacija_id uuid)`**
+
+When a kalkulacija is "posted":
+- D: 1320 Roba u maloprodaji (total retail price x qty)
+- P: 1329 Razlika u ceni (markup portion = retail - cost, per item x qty)
+- P: 1300 Roba (total purchase cost x qty)
+- Updates `kalkulacije.status = 'posted'` and sets `journal_entry_id`
+
+**New RPC: `post_nivelacija(p_nivelacija_id uuid)`**
+
+When a nivelacija is "posted":
+- If total price difference > 0 (price increase):
+  - D: 1320 (increase amount)
+  - P: 1329 (increase in RuC)
+- If total price difference < 0 (price decrease):
+  - D: 1329 (decrease RuC)
+  - P: 1320 (decrease amount)
+- Updates `nivelacije.status = 'posted'` and sets `journal_entry_id`
+
+### UI Changes
+
+**`src/pages/tenant/Kalkulacija.tsx`**:
+- Add "Post" button on draft kalkulacije rows
+- Calls `supabase.rpc("post_kalkulacija", { p_kalkulacija_id: id })`
+- Shows "posted" badge after success
+
+**`src/pages/tenant/Nivelacija.tsx`**:
+- Same pattern: "Post" button on draft rows
+- Calls `supabase.rpc("post_nivelacija", { p_nivelacija_id: id })`
+
+---
+
+## Issue 5: Fixed Asset Disposal -- Wrong Account Codes
 
 ### Current (Wrong)
-- D: 1200 (AR) / P: 6000 (Revenue) / P: 4700 (VAT)
+The `FixedAssets.tsx` disposal logic uses:
+- `1290` for accumulated depreciation (not in Serbian CoA seed)
+- `1200` to credit asset removal (1200 = Gotovi proizvodi, NOT fixed assets)
+- `8210` / `8200` for gain/loss (class 8 is legacy/inactive)
+- `8100` for depreciation expense (should be `5310`)
+- `8300` for interest expense in Loans (should be `5330`)
+- `8000` for expense recognition in Deferrals (should be appropriate 5xxx)
 
-### Correct per PRD PRC 6.1
-- D: 2040 Kupci (full amount incl. PDV)
-- P: 6010 Prihod od prodaje (subtotal)
-- P: 2470 PDV na izlaznim fakturama (tax amount)
+### Correct Serbian Account Mapping
 
-### Payment Journal (mark as paid)
-- D: 2430 Gotovina or 2431 Tekuci racun
-- P: 2040 Kupci
+| Module | Old Code | New Code | Account Name |
+|--------|----------|----------|-------------|
+| FixedAssets: Depreciation expense | 8100 | 5310 | Amortizacija |
+| FixedAssets: Accum. depreciation | 1290 | 0121 | Akumulirana amortizacija - oprema |
+| FixedAssets: Asset removal credit | 1200 | 0120 | Masine i oprema |
+| FixedAssets: Gain on disposal | 8210 | 6072 | Pozitivne kursne razlike (or new 6900 account) |
+| FixedAssets: Loss on disposal | 8200 | 5073 | Rashodi od otpisa |
+| FixedAssets: Sale proceeds debit | 2410 | 2431 | Tekuci racun |
+| Loans: Interest expense | 8300 | 5330 | Kamatni rashodi |
+| Loans: Bank payment | 1000 | 2431 | Tekuci racun |
+| Loans: Bank receipt | 1000 | 2431 | Tekuci racun |
+| Loans: Loan receivable | 1300 | 2040 | Kupci (or dedicated loan receivable) |
+| Loans: Loan payable principal | 2200 | 4200 | Dugorocne obaveze |
+| Loans: Interest income | 4100 | 6020 | Prihod od usluga (or new 6600) |
+| Deferrals: Expense recognized | 8000 | 5400 | Troskovi usluga |
+| Deferrals: Prepaid expense | 1800 | 1500 | Unapred placeni troskovi |
+| Deferrals: Deferred revenue | 2500 | 4600 | Prihodi buducih perioda |
+| Deferrals: Revenue recognized | 4000 | 6010 | Prihod od prodaje |
+| FxRevaluation: FX Gain | 6700 | 6072 | Pozitivne kursne razlike |
+| FxRevaluation: FX Loss | 5700 | 5072 | Negativne kursne razlike |
+| FxRevaluation: AR offset | 2020 | 2040 | Kupci |
+| FxRevaluation: AP offset | 4320 | 4350 | Dobavljaci |
+| Kompenzacija: AP offset | 4320 | 4350 | Dobavljaci |
+| Kompenzacija: AR offset | 2020 | 2040 | Kupci |
 
-### Add COGS Posting
-When invoice has product lines with inventory, also post:
-- D: 5010 Nabavna vrednost prodate robe (cost of items)
-- P: 1300 Roba (or 1200 Gotova roba)
+### Files to Update
 
-Cost is determined from `inventory_cost_layers` (FIFO) or product `default_purchase_price`.
-
----
-
-## Phase 3: POS Transaction Accounting Integration
-
-### Current State
-`PosTerminal.tsx` completeSale creates only a `pos_transactions` row. No GL, no inventory.
-
-### Required Changes
-
-**New RPC: `process_pos_sale`**
-
-Called after pos_transaction insert, this function will:
-
-1. **Journal Entry - Revenue Recognition**:
-   - Cash sale: D: 2430 Gotovina, P: 6010 Prihod, P: 2470 PDV
-   - Card sale: D: 2431 Tekuci racun, P: 6010 Prihod, P: 2470 PDV
-
-2. **Journal Entry - COGS**:
-   - D: 5010 Nabavna vrednost prodate robe
-   - P: 1320 Roba u maloprodaji (for retail locations)
-
-3. **Inventory Deduction**:
-   - Call `adjust_inventory_stock` for each item, deducting from the POS location's warehouse
-
-4. **Update pos_transaction** with `journal_entry_id`
-
-### PosTerminal.tsx Changes
-
-After successful `pos_transactions` insert, call:
-```sql
-SELECT process_pos_sale(transaction_id, tenant_id);
-```
-
----
-
-## Phase 4: Maloprodaja (Retail) Accounting
-
-### New Concepts Required
-
-**Konto 1320 - Roba u maloprodaji**: Goods in retail stores valued at RETAIL price (including PDV markup). This is NOT the purchase cost -- it's the selling price stored as inventory value.
-
-**Konto 1329 - Razlika u ceni (RuC)**: Contra-account to 1320. Stores the difference between retail price and purchase cost. Always a credit balance. When goods are received into retail: 1320 is debited at retail price, 1329 is credited for the markup portion, and 1300/1200 is credited for the cost.
-
-**Kalkulacija (Price Calculation)**: When goods move from veleprodajni magacin (wholesale warehouse) to prodajni magacin (retail store), a kalkulacija document is created that:
-- Records purchase cost (nabavna cena)
-- Adds markup (marza)
-- Adds PDV
-- Calculates retail price (maloprodajna cena sa PDV)
-- Creates journal: D: 1320 (retail price), P: 1329 (markup + PDV), P: 1300 (cost)
-
-**Nivelacija (Price Adjustment)**: When retail prices change:
-- If price increases: D: 1320 (increase), P: 1329 (increase in RuC)
-- If price decreases: D: 1329 (decrease RuC), P: 1320 (decrease)
-
-### Integration with Internal Supply Chain
-
-When `confirm_internal_receipt` fires (store confirms goods from warehouse):
-1. Current: adds stock to destination warehouse
-2. New: ALSO creates kalkulacija journal entry:
-   - D: 1320 Roba u maloprodaji (at retail price)
-   - P: 1329 Razlika u ceni (markup portion)
-   - P: 1300 Roba (at purchase cost)
-
-When POS sale occurs:
-1. D: 5010 COGS (at cost -- derived from 1320 - 1329)
-2. P: 1320 Roba u maloprodaji (at retail price)
-3. D: 1329 Razlika u ceni (reverse the markup)
-
-### New Page: Kalkulacija
-
-A page to manage kalkulacija documents showing:
-- Product, purchase price, markup %, PDV rate, retail price
-- Link to internal transfer / goods receipt
-- Journal entry preview before posting
-
-### New Page: Nivelacija
-
-A page to manage price changes:
-- Select products at a retail location
-- Enter new retail price
-- System calculates adjustment to 1320/1329
-- Posts journal entry on confirmation
-
----
-
-## Phase 5: Payroll Calculation Fix
-
-### Current Issues in `calculate_payroll_for_run`
-
-1. **v_nontaxable = 25,000** -- Must be **34,221 RSD** (2026 value per Zakon o porezu na dohodak)
-2. **Tax formula wrong**: Currently deducts contributions before nontaxable. Correct: taxable = gross - nontaxable (contributions are NOT deducted from tax base in Serbia)
-3. **Contributions lumped**: Only tracks pension/health/unemployment. Must track 8 separate lines.
-
-### Correct 2026 Serbian Payroll Calculation
-
-```text
-Given: Bruto zarada (gross salary)
-
-Employee contributions (from gross):
-  PIO zaposleni:        14.00% of gross -> konto 4520
-  Zdravstvo zaposleni:   5.15% of gross -> konto 4530
-  Nezaposlenost zaposl:  0.75% of gross -> konto 4540
-
-Taxable base: gross - 34,221 (neoporezivi iznos)
-Porez na zarade: 10% of taxable base -> konto 4510
-
-Net = gross - PIO_zap - zdravstvo_zap - nezaposlenost_zap - porez
-
-Employer contributions (on top of gross):
-  PIO poslodavac:       11.50% of gross -> konto 4521
-  Zdravstvo poslodavac:  5.15% of gross -> konto 4531
-
-Total cost = gross + PIO_poslodavac + zdravstvo_poslodavac
-```
-
-Note: Unemployment employer contribution was abolished. Only 6 contribution lines (not 8 -- correcting the user's count: nezaposlenost poslodavac no longer exists in 2026).
-
-### Payroll Journal Entry Fix
-
-**On Approve (accrual):**
-- D: 5200 Bruto zarade (full gross)
-- P: 4500 Obaveze za neto (net amount)
-- P: 4510 Porez na zarade (income tax)
-- P: 4520 PIO zaposleni (pension employee)
-- P: 4530 Zdravstvo zaposleni (health employee)
-- P: 4540 Nezaposlenost zaposleni (unemployment employee)
-
-**Employer cost entry:**
-- D: 5200 Bruto zarade - doprinosi poslodavca
-- P: 4521 PIO poslodavac
-- P: 4531 Zdravstvo poslodavac
-
-**On Payment:**
-- D: 4500 Obaveze za neto / P: 2431 Tekuci racun (pay employees)
-- D: 4510+4520+4530+4540+4521+4531 / P: 2431 (pay state)
-
-### Payroll UI Update (Payroll.tsx)
-
-Update the payroll items table to show all 6 contribution lines separately instead of the current 3 columns.
-
----
-
-## Phase 6: Edge Function JWT Security
-
-Add `getClaims()` validation to these edge functions:
-- `create-tenant` (admin only)
-- `fiscalize-receipt` (tenant user)
-- `sef-submit` (tenant user)
-- `generate-pdf` (tenant user)
-- `ai-assistant` (authenticated user)
-- `ai-insights` (authenticated user)
-- `create-notification` (authenticated user)
-
-Keep `verify_jwt = false` in config.toml (signing-keys approach) but add code-level JWT validation.
-
-Public endpoints (no JWT needed but add signature/secret validation):
-- `nbs-exchange-rates` (cron/public data)
-- `web-sync` (webhook)
-- `web-order-import` (webhook)
-- `company-lookup` (public utility)
-- `process-module-event` (internal trigger)
-
----
-
-## Files Summary
-
-### New Files
-| File | Purpose |
+| File | Changes |
 |------|---------|
-| Migration SQL | Complete chart of accounts overhaul, process_pos_sale RPC, payroll fix |
-| `src/pages/tenant/Kalkulacija.tsx` | Retail price calculation management |
-| `src/pages/tenant/Nivelacija.tsx` | Retail price adjustment management |
+| `src/pages/tenant/FixedAssets.tsx` | 1290->0121, 1200->0120, 8210->6072, 8200->5073, 8100->5310, 2410->2431 |
+| `src/pages/tenant/Loans.tsx` | 2200->4200, 8300->5330, 1000->2431, 1300->2040, 4100->6020 |
+| `src/pages/tenant/Deferrals.tsx` | 8000->5400, 1800->1500, 2500->4600, 4000->6010 |
+| `src/pages/tenant/FxRevaluation.tsx` | 6700->6072, 5700->5072, 2020->2040, 4320->4350 |
+| `src/pages/tenant/Kompenzacija.tsx` | 4320->4350, 2020->2040 |
 
-### Modified Files
-| File | Change |
+---
+
+## Issue 6: eBolovanje Integration -- Not in Scope
+
+eBolovanje (electronic sick leave reporting, mandatory since Jan 2026) requires integration with the RFZO (Republic Health Insurance Fund) API. This is a separate feature that needs:
+- API credentials and endpoint documentation from RFZO
+- New DB table for sick leave records
+- Edge function to submit XML to RFZO
+
+This is noted as a future task and will NOT be implemented in this plan -- it requires external API access and government-issued credentials.
+
+---
+
+## Implementation Order
+
+1. **Database migration**: Create `post_kalkulacija` and `post_nivelacija` RPCs
+2. **Fix account codes**: Update all 5 frontend files with wrong codes (FixedAssets, Loans, Deferrals, FxRevaluation, Kompenzacija)
+3. **Wire Kalkulacija/Nivelacija pages**: Add Post button calling RPCs
+4. **web-order-import**: Add HMAC signature validation
+5. **useTenant**: Multi-tenant support + TenantSelector component
+6. **TenantLayout**: Add TenantSelector to header
+
+### Files Summary
+
+| File | Action |
 |------|--------|
-| `src/pages/tenant/PosTerminal.tsx` | Call process_pos_sale after transaction |
-| `src/pages/tenant/Payroll.tsx` | Show 6 contribution columns, update journal posting accounts |
-| `src/pages/tenant/Invoices.tsx` | Update account references in posting |
-| `src/lib/journalUtils.ts` | Update all account code references |
-| `src/layouts/TenantLayout.tsx` | Add Kalkulacija/Nivelacija to nav |
-| `src/App.tsx` | Add routes |
-| `src/i18n/translations.ts` | Add Serbian accounting terms |
-| `supabase/functions/create-tenant/index.ts` | Add getClaims() |
-| `supabase/functions/fiscalize-receipt/index.ts` | Add getClaims() |
-| `supabase/functions/sef-submit/index.ts` | Add getClaims() |
-| `supabase/functions/generate-pdf/index.ts` | Add getClaims() |
-| `supabase/functions/ai-assistant/index.ts` | Add getClaims() |
-| `supabase/functions/ai-insights/index.ts` | Add getClaims() |
-| `supabase/functions/create-notification/index.ts` | Add getClaims() |
-
-### Implementation Order
-1. Database migration (accounts + RPCs) -- foundation for everything
-2. Invoice posting fix (uses new accounts)
-3. POS accounting integration (uses new accounts + COGS)
-4. Maloprodaja pages (Kalkulacija, Nivelacija)
-5. Payroll calculation fix
-6. Edge function security
-7. Translations + navigation
+| Migration SQL | New RPCs: post_kalkulacija, post_nivelacija |
+| `src/pages/tenant/FixedAssets.tsx` | Fix 6 account codes |
+| `src/pages/tenant/Loans.tsx` | Fix 5 account codes |
+| `src/pages/tenant/Deferrals.tsx` | Fix 4 account codes |
+| `src/pages/tenant/FxRevaluation.tsx` | Fix 4 account codes |
+| `src/pages/tenant/Kompenzacija.tsx` | Fix 2 account codes |
+| `src/pages/tenant/Kalkulacija.tsx` | Add Post button + RPC call |
+| `src/pages/tenant/Nivelacija.tsx` | Add Post button + RPC call |
+| `supabase/functions/web-order-import/index.ts` | Add HMAC validation |
+| `src/hooks/useTenant.ts` | Multi-tenant fetch + switchTenant |
+| `src/components/TenantSelector.tsx` | New component |
+| `src/layouts/TenantLayout.tsx` | Add TenantSelector to header |
 
