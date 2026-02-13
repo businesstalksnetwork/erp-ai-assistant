@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.web-order-import]
 verify_jwt = false
+
+[functions.wms-slotting]
+verify_jwt = false

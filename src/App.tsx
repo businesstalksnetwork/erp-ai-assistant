@@ -128,6 +128,13 @@ import InternalGoodsReceipts from "@/pages/tenant/InternalGoodsReceipts";
 import WarehouseDetail from "@/pages/tenant/WarehouseDetail";
 import Kalkulacija from "@/pages/tenant/Kalkulacija";
 import Nivelacija from "@/pages/tenant/Nivelacija";
+import WmsZones from "@/pages/tenant/WmsZones";
+import WmsBinDetail from "@/pages/tenant/WmsBinDetail";
+import WmsTasks from "@/pages/tenant/WmsTasks";
+import WmsReceiving from "@/pages/tenant/WmsReceiving";
+import WmsPicking from "@/pages/tenant/WmsPicking";
+import WmsCycleCounts from "@/pages/tenant/WmsCycleCounts";
+import WmsSlotting from "@/pages/tenant/WmsSlotting";
 
 const queryClient = new QueryClient();
 
@@ -268,6 +275,13 @@ const App = () => (
                 <Route path="inventory/kalkulacija" element={<ProtectedRoute requiredModule="inventory"><Kalkulacija /></ProtectedRoute>} />
                 <Route path="inventory/nivelacija" element={<ProtectedRoute requiredModule="inventory"><Nivelacija /></ProtectedRoute>} />
                 <Route path="inventory/warehouses/:id" element={<ProtectedRoute requiredModule="inventory"><WarehouseDetail /></ProtectedRoute>} />
+                <Route path="inventory/wms/zones" element={<ProtectedRoute requiredModule="inventory"><WmsZones /></ProtectedRoute>} />
+                <Route path="inventory/wms/bins/:id" element={<ProtectedRoute requiredModule="inventory"><WmsBinDetail /></ProtectedRoute>} />
+                <Route path="inventory/wms/tasks" element={<ProtectedRoute requiredModule="inventory"><WmsTasks /></ProtectedRoute>} />
+                <Route path="inventory/wms/receiving" element={<ProtectedRoute requiredModule="inventory"><WmsReceiving /></ProtectedRoute>} />
+                <Route path="inventory/wms/picking" element={<ProtectedRoute requiredModule="inventory"><WmsPicking /></ProtectedRoute>} />
+                <Route path="inventory/wms/cycle-counts" element={<ProtectedRoute requiredModule="inventory"><WmsCycleCounts /></ProtectedRoute>} />
+                <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule="inventory"><WmsSlotting /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
