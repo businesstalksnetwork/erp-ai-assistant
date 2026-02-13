@@ -177,6 +177,7 @@ const settingsNav: NavItem[] = [
   { key: "taxRates", url: "/settings/tax-rates", icon: Percent },
   { key: "users", url: "/settings/users", icon: Users },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
+  { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
   { key: "currencies", url: "/settings/currencies", icon: DollarSign },
   { key: "integrations", url: "/settings/integrations", icon: Plug },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },

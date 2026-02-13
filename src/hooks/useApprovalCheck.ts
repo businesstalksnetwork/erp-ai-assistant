@@ -86,16 +86,26 @@ export function useApprovalCheck(tenantId: string | null, entityType: string) {
       return;
     }
 
-    // Fire module event
+    // Fire module event + notification
     try {
-      await supabase.functions.invoke("process-module-event", {
-        body: {
-          tenant_id: tenantId,
-          event_type: "approval.requested",
-          source_module: "approvals",
-          payload: { entity_type: entityType, entity_id: entityId, amount },
-        },
-      });
+      await Promise.all([
+        supabase.functions.invoke("process-module-event", {
+          body: {
+            tenant_id: tenantId,
+            event_type: "approval.requested",
+            source_module: "approvals",
+            payload: { entity_type: entityType, entity_id: entityId, amount },
+          },
+        }),
+        supabase.functions.invoke("create-notification", {
+          body: {
+            tenant_id: tenantId,
+            type: "approval_required",
+            title: "Approval Required",
+            message: `A ${entityType} requires approval (amount: ${amount}).`,
+          },
+        }),
+      ]);
     } catch {
       // Non-critical
     }

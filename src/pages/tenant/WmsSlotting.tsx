@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap, Loader2 } from "lucide-react";
 
 export default function WmsSlotting() {
   const { t } = useLanguage();
@@ -31,6 +32,7 @@ export default function WmsSlotting() {
   const [spaceWeight, setSpaceWeight] = useState(10);
   const [selectedScenario, setSelectedScenario] = useState<any>(null);
   const [createDialog, setCreateDialog] = useState(false);
+  const [useAi, setUseAi] = useState(true);
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses", tenantId],
@@ -77,82 +79,94 @@ export default function WmsSlotting() {
       }).select("id").single();
       if (error) throw error;
 
-      // Gather data for analysis
-      const [binStock, bins, pickHistory] = await Promise.all([
-        supabase.from("wms_bin_stock").select("bin_id, product_id, quantity").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!),
-        supabase.from("wms_bins").select("id, code, zone_id, level, accessibility_score, max_units, sort_order").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("is_active", true),
-        supabase.from("wms_tasks").select("product_id, from_bin_id, created_at").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("task_type", "pick").eq("status", "completed").gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
-      ]);
+      if (useAi) {
+        // AI-powered analysis via Edge Function
+        const { data: aiResult, error: aiError } = await supabase.functions.invoke("wms-slotting", {
+          body: {
+            warehouse_id: warehouseId,
+            tenant_id: tenantId!,
+            weights: { travel: params.travel_weight, space: params.space_weight, affinity: params.affinity_weight },
+          },
+        });
 
-      // Calculate velocity (picks per product)
-      const velocity: Record<string, number> = {};
-      (pickHistory.data || []).forEach((p: any) => { velocity[p.product_id] = (velocity[p.product_id] || 0) + 1; });
+        if (aiError) throw aiError;
 
-      // Current placement
-      const currentPlacement: Record<string, string> = {};
-      (binStock.data || []).forEach((bs: any) => { currentPlacement[bs.product_id] = bs.bin_id; });
+        const recommendations = aiResult?.recommendations || [];
+        const estimatedImprovement = aiResult?.estimated_improvement || { travel_reduction_pct: 0, summary: "No improvement data" };
 
-      // Score bins by accessibility (higher score = better for fast-movers)
-      const binsData = bins.data || [];
-      const sortedBins = [...binsData].sort((a: any, b: any) => b.accessibility_score - a.accessibility_score || a.sort_order - b.sort_order);
+        // Update scenario with AI results
+        await supabase.from("wms_slotting_scenarios").update({
+          status: "completed",
+          results: recommendations,
+          estimated_improvement: { travel_reduction_pct: estimatedImprovement.travel_reduction_pct, moves_count: recommendations.length, summary: estimatedImprovement.summary },
+        }).eq("id", scenario.id);
 
-      // Sort products by velocity (highest first)
-      const sortedProducts = Object.entries(velocity).sort((a, b) => b[1] - a[1]);
-
-      // Generate recommendations: assign highest-velocity SKUs to highest-accessibility bins
-      const recommendations: any[] = [];
-      const usedBins = new Set<string>();
-
-      for (const [productId, picks] of sortedProducts) {
-        const currentBin = currentPlacement[productId];
-        if (!currentBin) continue;
-
-        const bestBin = sortedBins.find((b: any) => !usedBins.has(b.id) && b.id !== currentBin);
-        if (!bestBin) continue;
-
-        const currentBinData = binsData.find((b: any) => b.id === currentBin);
-        if (!currentBinData) continue;
-
-        // Only recommend if it's actually an improvement
-        if (bestBin.accessibility_score > (currentBinData as any).accessibility_score) {
-          recommendations.push({
-            product_id: productId,
-            from_bin_id: currentBin,
-            to_bin_id: bestBin.id,
-            score: bestBin.accessibility_score - (currentBinData as any).accessibility_score,
-            reasons: [`${picks} picks in 90 days`, `Accessibility: ${(currentBinData as any).accessibility_score} → ${bestBin.accessibility_score}`],
-          });
-          usedBins.add(bestBin.id);
+        // Save move plan from AI recommendations
+        if (recommendations.length > 0) {
+          // Resolve bin IDs from codes if needed
+          const moveInserts = recommendations.map((r: any, i: number) => ({
+            tenant_id: tenantId!, scenario_id: scenario.id,
+            product_id: r.product_id,
+            from_bin_id: r.current_bin || null,
+            to_bin_id: r.recommended_bin || null,
+            quantity: 0, priority: i + 1, status: "proposed" as const,
+          }));
+          await supabase.from("wms_slotting_moves").insert(moveInserts);
         }
-      }
+      } else {
+        // Local algorithm fallback
+        const [binStock, bins, pickHistory] = await Promise.all([
+          supabase.from("wms_bin_stock").select("bin_id, product_id, quantity").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!),
+          supabase.from("wms_bins").select("id, code, zone_id, level, accessibility_score, max_units, sort_order").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("is_active", true),
+          supabase.from("wms_tasks").select("product_id, from_bin_id, created_at").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("task_type", "pick").eq("status", "completed").gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
+        ]);
 
-      // Calculate estimated improvement
-      const totalCurrentScore = recommendations.reduce((acc, r) => {
-        const bin = binsData.find((b: any) => b.id === r.from_bin_id);
-        return acc + ((bin as any)?.accessibility_score || 0);
-      }, 0);
-      const totalNewScore = recommendations.reduce((acc, r) => {
-        const bin = binsData.find((b: any) => b.id === r.to_bin_id);
-        return acc + ((bin as any)?.accessibility_score || 0);
-      }, 0);
+        const velocity: Record<string, number> = {};
+        (pickHistory.data || []).forEach((p: any) => { velocity[p.product_id] = (velocity[p.product_id] || 0) + 1; });
 
-      const improvement = totalCurrentScore > 0 ? Math.round(((totalNewScore - totalCurrentScore) / totalCurrentScore) * 100) : 0;
+        const currentPlacement: Record<string, string> = {};
+        (binStock.data || []).forEach((bs: any) => { currentPlacement[bs.product_id] = bs.bin_id; });
 
-      // Save results
-      await supabase.from("wms_slotting_scenarios").update({
-        status: "completed",
-        results: recommendations,
-        estimated_improvement: { travel_reduction_pct: improvement, moves_count: recommendations.length },
-      }).eq("id", scenario.id);
+        const binsData = bins.data || [];
+        const sortedBins = [...binsData].sort((a: any, b: any) => b.accessibility_score - a.accessibility_score || a.sort_order - b.sort_order);
+        const sortedProducts = Object.entries(velocity).sort((a, b) => b[1] - a[1]);
 
-      // Save move plan
-      if (recommendations.length > 0) {
-        const moveInserts = recommendations.map((r: any, i: number) => ({
-          tenant_id: tenantId!, scenario_id: scenario.id,
-          product_id: r.product_id, from_bin_id: r.from_bin_id, to_bin_id: r.to_bin_id,
-          quantity: 0, priority: i + 1, status: "proposed" as const,
-        }));
-        await supabase.from("wms_slotting_moves").insert(moveInserts);
+        const recommendations: any[] = [];
+        const usedBins = new Set<string>();
+
+        for (const [productId, picks] of sortedProducts) {
+          const currentBin = currentPlacement[productId];
+          if (!currentBin) continue;
+          const bestBin = sortedBins.find((b: any) => !usedBins.has(b.id) && b.id !== currentBin);
+          if (!bestBin) continue;
+          const currentBinData = binsData.find((b: any) => b.id === currentBin);
+          if (!currentBinData) continue;
+          if (bestBin.accessibility_score > (currentBinData as any).accessibility_score) {
+            recommendations.push({
+              product_id: productId, from_bin_id: currentBin, to_bin_id: bestBin.id,
+              score: bestBin.accessibility_score - (currentBinData as any).accessibility_score,
+              reasons: [`${picks} picks in 90 days`, `Accessibility: ${(currentBinData as any).accessibility_score} → ${bestBin.accessibility_score}`],
+            });
+            usedBins.add(bestBin.id);
+          }
+        }
+
+        const totalCurrentScore = recommendations.reduce((acc, r) => acc + ((binsData.find((b: any) => b.id === r.from_bin_id) as any)?.accessibility_score || 0), 0);
+        const totalNewScore = recommendations.reduce((acc, r) => acc + ((binsData.find((b: any) => b.id === r.to_bin_id) as any)?.accessibility_score || 0), 0);
+        const improvement = totalCurrentScore > 0 ? Math.round(((totalNewScore - totalCurrentScore) / totalCurrentScore) * 100) : 0;
+
+        await supabase.from("wms_slotting_scenarios").update({
+          status: "completed", results: recommendations,
+          estimated_improvement: { travel_reduction_pct: improvement, moves_count: recommendations.length },
+        }).eq("id", scenario.id);
+
+        if (recommendations.length > 0) {
+          await supabase.from("wms_slotting_moves").insert(recommendations.map((r: any, i: number) => ({
+            tenant_id: tenantId!, scenario_id: scenario.id,
+            product_id: r.product_id, from_bin_id: r.from_bin_id, to_bin_id: r.to_bin_id,
+            quantity: 0, priority: i + 1, status: "proposed" as const,
+          })));
+        }
       }
 
       return scenario.id;
@@ -274,6 +288,10 @@ export default function WmsSlotting() {
             <div><Label>{t("scenarioName")}</Label><Input value={scenarioName} onChange={e => setScenarioName(e.target.value)} placeholder={t("optional")} /></div>
             <div className="space-y-4">
               <CardDescription>{t("optimizationWeights")}</CardDescription>
+              <div className="flex items-center gap-2 mb-2">
+                <Switch checked={useAi} onCheckedChange={setUseAi} />
+                <Label className="text-sm">{useAi ? t("useAiAnalysis") : t("localAnalysis")}</Label>
+              </div>
               <div><Label className="text-xs">{t("travelReduction")} ({travelWeight}%)</Label>
                 <Slider value={[travelWeight]} onValueChange={([v]) => { setTravelWeight(v); setAffinityWeight(Math.max(0, 100 - v - spaceWeight)); }} max={100} step={5} /></div>
               <div><Label className="text-xs">{t("affinityGrouping")} ({affinityWeight}%)</Label>
@@ -285,7 +303,7 @@ export default function WmsSlotting() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialog(false)}>{t("cancel")}</Button>
             <Button onClick={() => runAnalysisMutation.mutate()} disabled={!warehouseId || runAnalysisMutation.isPending}>
-              <Brain className="h-4 w-4 mr-1" />{runAnalysisMutation.isPending ? t("loading") : t("runAnalysis")}
+              {runAnalysisMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />{useAi ? t("aiAnalyzing") : t("loading")}</> : <><Brain className="h-4 w-4 mr-1" />{t("runAnalysis")}</>}
             </Button>
           </DialogFooter>
         </DialogContent>
