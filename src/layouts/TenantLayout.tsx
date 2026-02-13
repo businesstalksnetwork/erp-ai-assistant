@@ -139,6 +139,7 @@ const hrNav: NavItem[] = [
   { key: "nightWork", url: "/hr/night-work", icon: Moon },
   { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff },
   { key: "holidays", url: "/hr/holidays", icon: Calendar },
+  { key: "attendance", url: "/hr/attendance", icon: Clock },
   { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
   { key: "deductionsModule", url: "/hr/deductions", icon: Coins },
   { key: "allowance", url: "/hr/allowances", icon: Banknote },
