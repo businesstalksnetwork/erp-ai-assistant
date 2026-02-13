@@ -3,13 +3,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { toast } from "sonner";
-import { User, Lock, Bell, Info } from "lucide-react";
+import { User, Lock, Bell, Info, Shield } from "lucide-react";
 
 export default function Profile() {
   const { t } = useLanguage();
@@ -24,6 +26,26 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // POS PIN state
+  const [posPin, setPosPin] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
+
+  // Fetch linked salesperson record
+  const { data: salesperson, refetch: refetchSalesperson } = useQuery({
+    queryKey: ["my-salesperson", tenantId, user?.id],
+    queryFn: async () => {
+      if (!tenantId || !user) return null;
+      const { data } = await (supabase.from("salespeople") as any)
+        .select("id, first_name, last_name, pos_pin")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!tenantId && !!user,
+  });
 
   const handleUpdateName = async () => {
     setSavingName(true);
@@ -56,6 +78,23 @@ export default function Profile() {
       toast.success(t("passwordChanged"));
       setNewPassword("");
       setConfirmPassword("");
+    }
+  };
+
+  const handleSavePin = async () => {
+    if (posPin.length !== 4) return;
+    if (!salesperson?.id) return;
+    setSavingPin(true);
+    const { error } = await (supabase.from("salespeople") as any)
+      .update({ pos_pin: posPin })
+      .eq("id", salesperson.id);
+    setSavingPin(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(t("pinSaved"));
+      setPosPin("");
+      refetchSalesperson();
     }
   };
 
@@ -138,6 +177,43 @@ export default function Profile() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* POS PIN Code - only visible if user has a linked salesperson record */}
+      {salesperson && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              {t("posPin")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t("posPinDescription")}
+            </p>
+            {salesperson.pos_pin && (
+              <p className="text-sm">
+                <span className="text-muted-foreground">Current PIN: </span>
+                <span className="font-mono">••••</span>
+              </p>
+            )}
+            <div className="flex flex-col gap-2">
+              <Label>{salesperson.pos_pin ? t("updatePosPin") : t("setPosPin")}</Label>
+              <InputOTP maxLength={4} value={posPin} onChange={setPosPin}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <Button onClick={handleSavePin} disabled={savingPin || posPin.length !== 4}>
+              {savingPin ? t("saving") : t("save")}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notification Preferences */}
       <div>

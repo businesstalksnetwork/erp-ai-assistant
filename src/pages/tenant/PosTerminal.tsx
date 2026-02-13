@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw } from "lucide-react";
+import { PosPinDialog } from "@/components/pos/PosPinDialog";
 
 interface CartItem {
   product_id: string;
@@ -17,6 +18,12 @@ interface CartItem {
   unit_price: number;
   quantity: number;
   tax_rate: number;
+}
+
+interface IdentifiedSeller {
+  id: string;
+  first_name: string;
+  last_name: string;
 }
 
 export default function PosTerminal() {
@@ -31,23 +38,7 @@ export default function PosTerminal() {
   const [buyerId, setBuyerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [lastReceipt, setLastReceipt] = useState<{ number: string; qr?: string } | null>(null);
-
-  // Auto-detect in-store salesperson for logged-in user
-  const { data: autoSalesperson } = useQuery({
-    queryKey: ["auto-salesperson", tenantId, user?.id],
-    queryFn: async (): Promise<{ id: string; first_name: string; last_name: string } | null> => {
-      if (!tenantId || !user) return null;
-      const { data } = await (supabase.from("salespeople") as any)
-        .select("id, first_name, last_name")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", user.id)
-        .eq("role_type", "in_store")
-        .eq("is_active", true)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!tenantId && !!user,
-  });
+  const [identifiedSeller, setIdentifiedSeller] = useState<IdentifiedSeller | null>(null);
 
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
@@ -57,6 +48,20 @@ export default function PosTerminal() {
       return data;
     },
     enabled: !!tenantId,
+  });
+
+  // Fetch salespeople at this location for PIN verification
+  const { data: locationSalespeople = [] } = useQuery({
+    queryKey: ["location-salespeople", tenantId, activeSession?.location_id],
+    queryFn: async () => {
+      if (!tenantId || !activeSession?.location_id) return [];
+      const { data } = await (supabase.from("salespeople") as any)
+        .select("id, first_name, last_name, pos_pin")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true);
+      return data || [];
+    },
+    enabled: !!tenantId && !!activeSession?.location_id,
   });
 
   const { data: products = [] } = useQuery({
@@ -118,7 +123,7 @@ export default function PosTerminal() {
         customer_name: customerName || null,
         location_id: activeSession.location_id || null,
         warehouse_id: activeSession.warehouse_id || null,
-        salesperson_id: autoSalesperson?.id || activeSession.salesperson_id || null,
+        salesperson_id: identifiedSeller?.id || activeSession.salesperson_id || null,
         buyer_id: buyerId || null,
         receipt_type: "sale",
       }).select().single();
@@ -158,6 +163,7 @@ export default function PosTerminal() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  // No active session
   if (!activeSession) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -172,18 +178,44 @@ export default function PosTerminal() {
     );
   }
 
+  // PIN gate: require seller identification before accessing terminal
+  const hasPinSalespeople = locationSalespeople.filter((sp: any) => sp.pos_pin);
+  if (hasPinSalespeople.length > 0 && !identifiedSeller) {
+    return (
+      <PosPinDialog
+        salespeople={hasPinSalespeople}
+        onIdentified={(sp) => setIdentifiedSeller({ id: sp.id, first_name: sp.first_name, last_name: sp.last_name })}
+      />
+    );
+  }
+
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
       {/* Product Grid */}
       <div className="flex-1 flex flex-col space-y-4">
         {/* Session info bar */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
           <Badge variant="outline">{(activeSession as any).locations?.name || t("location")}</Badge>
           {(activeSession as any).salespeople && (
             <Badge variant="outline">{(activeSession as any).salespeople.first_name} {(activeSession as any).salespeople.last_name}</Badge>
           )}
           {fiscalDevices.length > 0 && <Badge variant="default" className="text-xs">{t("fiscalDevice")}: {fiscalDevices[0].device_name}</Badge>}
-          {autoSalesperson && <Badge variant="secondary">{autoSalesperson.first_name} {autoSalesperson.last_name}</Badge>}
+          {identifiedSeller && (
+            <Badge variant="secondary">
+              {identifiedSeller.first_name} {identifiedSeller.last_name}
+            </Badge>
+          )}
+          {hasPinSalespeople.length > 0 && identifiedSeller && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+              onClick={() => setIdentifiedSeller(null)}
+            >
+              <RefreshCw className="h-3 w-3" />
+              {t("switchSeller")}
+            </Button>
+          )}
         </div>
 
         <div className="relative">
