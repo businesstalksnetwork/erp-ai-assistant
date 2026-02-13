@@ -81,8 +81,8 @@ export default function AiPlanningDashboard() {
         if (!bomLines?.length) continue;
         let allReady = true, anyMissing = false;
         for (const bl of bomLines) {
-          const { data: stock } = await supabase.from("inventory_stock").select("on_hand").eq("product_id", bl.material_product_id).eq("tenant_id", tenantId!);
-          const total = stock?.reduce((s: number, st: any) => s + st.on_hand, 0) || 0;
+          const { data: stock } = await supabase.from("inventory_stock").select("quantity_on_hand").eq("product_id", bl.material_product_id).eq("tenant_id", tenantId!);
+          const total = stock?.reduce((s: number, st: any) => s + st.quantity_on_hand, 0) || 0;
           if (total < bl.quantity) { anyMissing = true; allReady = false; }
         }
         readiness.push({ id: order.id, order_number: order.order_number, bom: (order as any).bom_templates?.name, status: allReady ? "green" : anyMissing ? "red" : "yellow" });
