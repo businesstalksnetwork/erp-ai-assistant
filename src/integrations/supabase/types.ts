@@ -3775,6 +3775,341 @@ export type Database = {
           },
         ]
       }
+      internal_goods_receipt_items: {
+        Row: {
+          discrepancy_notes: string | null
+          id: string
+          product_id: string
+          quantity_expected: number
+          quantity_received: number
+          receipt_id: string
+          transfer_item_id: string | null
+        }
+        Insert: {
+          discrepancy_notes?: string | null
+          id?: string
+          product_id: string
+          quantity_expected?: number
+          quantity_received?: number
+          receipt_id: string
+          transfer_item_id?: string | null
+        }
+        Update: {
+          discrepancy_notes?: string | null
+          id?: string
+          product_id?: string
+          quantity_expected?: number
+          quantity_received?: number
+          receipt_id?: string
+          transfer_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_goods_receipt_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_goods_receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "internal_goods_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_goods_receipt_items_transfer_item_id_fkey"
+            columns: ["transfer_item_id"]
+            isOneToOne: false
+            referencedRelation: "internal_transfer_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_goods_receipts: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          internal_transfer_id: string
+          notes: string | null
+          receipt_number: string
+          received_by: string | null
+          receiving_warehouse_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          internal_transfer_id: string
+          notes?: string | null
+          receipt_number: string
+          received_by?: string | null
+          receiving_warehouse_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          internal_transfer_id?: string
+          notes?: string | null
+          receipt_number?: string
+          received_by?: string | null
+          receiving_warehouse_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_goods_receipts_internal_transfer_id_fkey"
+            columns: ["internal_transfer_id"]
+            isOneToOne: false
+            referencedRelation: "internal_transfers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_goods_receipts_receiving_warehouse_id_fkey"
+            columns: ["receiving_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_goods_receipts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_order_items: {
+        Row: {
+          id: string
+          internal_order_id: string
+          product_id: string
+          quantity_approved: number | null
+          quantity_requested: number
+        }
+        Insert: {
+          id?: string
+          internal_order_id: string
+          product_id: string
+          quantity_approved?: number | null
+          quantity_requested?: number
+        }
+        Update: {
+          id?: string
+          internal_order_id?: string
+          product_id?: string
+          quantity_approved?: number | null
+          quantity_requested?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_order_items_internal_order_id_fkey"
+            columns: ["internal_order_id"]
+            isOneToOne: false
+            referencedRelation: "internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_orders: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          order_number: string
+          requested_by: string | null
+          requesting_location_id: string | null
+          source_warehouse_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_number: string
+          requested_by?: string | null
+          requesting_location_id?: string | null
+          source_warehouse_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          requested_by?: string | null
+          requesting_location_id?: string | null
+          source_warehouse_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_orders_requesting_location_id_fkey"
+            columns: ["requesting_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_orders_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_transfer_items: {
+        Row: {
+          id: string
+          product_id: string
+          quantity_received: number | null
+          quantity_sent: number
+          transfer_id: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          quantity_received?: number | null
+          quantity_sent?: number
+          transfer_id: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          quantity_received?: number | null
+          quantity_sent?: number
+          transfer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_transfer_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_transfer_items_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "internal_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_transfers: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          from_warehouse_id: string
+          id: string
+          internal_order_id: string | null
+          notes: string | null
+          shipped_at: string | null
+          status: string
+          tenant_id: string
+          to_warehouse_id: string
+          transfer_number: string
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          from_warehouse_id: string
+          id?: string
+          internal_order_id?: string | null
+          notes?: string | null
+          shipped_at?: string | null
+          status?: string
+          tenant_id: string
+          to_warehouse_id: string
+          transfer_number: string
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          from_warehouse_id?: string
+          id?: string
+          internal_order_id?: string | null
+          notes?: string | null
+          shipped_at?: string | null
+          status?: string
+          tenant_id?: string
+          to_warehouse_id?: string
+          transfer_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_transfers_from_warehouse_id_fkey"
+            columns: ["from_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_transfers_internal_order_id_fkey"
+            columns: ["internal_order_id"]
+            isOneToOne: false
+            referencedRelation: "internal_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_transfers_to_warehouse_id_fkey"
+            columns: ["to_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_cost_layers: {
         Row: {
           created_at: string
@@ -4821,6 +5156,47 @@ export type Database = {
           },
         ]
       }
+      location_types: {
+        Row: {
+          code: string
+          created_at: string
+          has_sellers: boolean
+          has_warehouse: boolean
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          has_sellers?: boolean
+          has_warehouse?: boolean
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          has_sellers?: boolean
+          has_warehouse?: boolean
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           address: string | null
@@ -4830,6 +5206,7 @@ export type Database = {
           default_warehouse_id: string | null
           id: string
           is_active: boolean
+          location_type_id: string | null
           name: string
           tenant_id: string
           type: string
@@ -4842,6 +5219,7 @@ export type Database = {
           default_warehouse_id?: string | null
           id?: string
           is_active?: boolean
+          location_type_id?: string | null
           name: string
           tenant_id: string
           type?: string
@@ -4854,6 +5232,7 @@ export type Database = {
           default_warehouse_id?: string | null
           id?: string
           is_active?: boolean
+          location_type_id?: string | null
           name?: string
           tenant_id?: string
           type?: string
@@ -4871,6 +5250,13 @@ export type Database = {
             columns: ["default_warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locations_location_type_id_fkey"
+            columns: ["location_type_id"]
+            isOneToOne: false
+            referencedRelation: "location_types"
             referencedColumns: ["id"]
           },
           {
@@ -8399,6 +8785,14 @@ export type Database = {
       check_fiscal_period_open: {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
+      }
+      confirm_internal_receipt: {
+        Args: { p_receipt_id: string }
+        Returns: undefined
+      }
+      confirm_internal_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: undefined
       }
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }

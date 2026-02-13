@@ -121,6 +121,10 @@ import WebSettings from "@/pages/tenant/WebSettings";
 import WebPrices from "@/pages/tenant/WebPrices";
 import FiscalDevices from "@/pages/tenant/FiscalDevices";
 import PosDailyReport from "@/pages/tenant/PosDailyReport";
+import InternalOrders from "@/pages/tenant/InternalOrders";
+import InternalTransfers from "@/pages/tenant/InternalTransfers";
+import InternalGoodsReceipts from "@/pages/tenant/InternalGoodsReceipts";
+import WarehouseDetail from "@/pages/tenant/WarehouseDetail";
 
 const queryClient = new QueryClient();
 
@@ -254,6 +258,10 @@ const App = () => (
                 <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule="accounting"><FxRevaluation /></ProtectedRoute>} />
                 <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule="accounting"><Kompenzacija /></ProtectedRoute>} />
                 <Route path="inventory/cost-layers" element={<ProtectedRoute requiredModule="inventory"><InventoryCostLayers /></ProtectedRoute>} />
+                <Route path="inventory/internal-orders" element={<ProtectedRoute requiredModule="inventory"><InternalOrders /></ProtectedRoute>} />
+                <Route path="inventory/internal-transfers" element={<ProtectedRoute requiredModule="inventory"><InternalTransfers /></ProtectedRoute>} />
+                <Route path="inventory/internal-receipts" element={<ProtectedRoute requiredModule="inventory"><InternalGoodsReceipts /></ProtectedRoute>} />
+                <Route path="inventory/warehouses/:id" element={<ProtectedRoute requiredModule="inventory"><WarehouseDetail /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
