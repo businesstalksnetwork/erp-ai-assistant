@@ -40,7 +40,7 @@ export default function CashFlowForecast() {
       const [invoicesRes, supplierRes, loansRes, arAgingRes, apAgingRes, bankRes] = await Promise.all([
         supabase.from("invoices").select("total, status, invoice_date, paid_at").eq("tenant_id", tenantId!),
         supabase.from("supplier_invoices").select("amount, status, invoice_date").eq("tenant_id", tenantId!),
-        supabase.from("loans").select("monthly_payment").eq("tenant_id", tenantId!).in("status", ["active"]),
+        supabase.from("loans").select("principal, term_months").eq("tenant_id", tenantId!).in("status", ["active"]),
         supabase.from("ar_aging_snapshots").select("bucket_current, bucket_30, bucket_60, bucket_90, bucket_over90, snapshot_date").eq("tenant_id", tenantId!).order("snapshot_date", { ascending: false }).limit(1),
         supabase.from("ap_aging_snapshots").select("total_outstanding, snapshot_date").eq("tenant_id", tenantId!).order("snapshot_date", { ascending: false }).limit(1),
         supabase.from("bank_statements").select("closing_balance, statement_date").eq("tenant_id", tenantId!).order("statement_date", { ascending: false }).limit(1),
@@ -79,7 +79,11 @@ export default function CashFlowForecast() {
           net: Math.round(v.inflow - v.outflow),
         }));
 
-      const monthlyLoanPayment = (loansRes.data || []).reduce((s: number, l: any) => s + (Number(l.monthly_payment) || 0), 0);
+      const monthlyLoanPayment = (loansRes.data || []).reduce((s: number, l: any) => {
+        const principal = Number(l.principal) || 0;
+        const termMonths = Number(l.term_months) || 1;
+        return s + (principal / termMonths);
+      }, 0);
 
       // AR aging buckets
       const arAging = arAgingRes.data?.[0] || null;
