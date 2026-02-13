@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Download, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +66,16 @@ export default function EmployeeDetail() {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<EmployeeForm | null>(null);
+  const [contractOpen, setContractOpen] = useState(false);
+  const [contractForm, setContractForm] = useState({
+    contract_type: "indefinite", start_date: new Date().toISOString().split("T")[0],
+    end_date: "", gross_salary: 0, net_salary: 0, working_hours_per_week: 40,
+    currency: "RSD", is_active: true,
+  });
+  const [salaryOpen, setSalaryOpen] = useState(false);
+  const [salaryForm, setSalaryForm] = useState({
+    amount: 0, amount_type: "gross", start_date: new Date().toISOString().split("T")[0], end_date: "",
+  });
 
   const { data: employee, isLoading } = useQuery({
     queryKey: ["employee-detail", id],
@@ -181,6 +192,34 @@ export default function EmployeeDetail() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["employee-detail"] }); qc.invalidateQueries({ queryKey: ["employees"] }); setEditOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const contractMutation = useMutation({
+    mutationFn: async (f: typeof contractForm) => {
+      const payload = {
+        employee_id: id!, tenant_id: tenantId!, contract_type: f.contract_type,
+        start_date: f.start_date, end_date: f.end_date || null,
+        gross_salary: f.gross_salary, net_salary: f.net_salary,
+        working_hours_per_week: f.working_hours_per_week, currency: f.currency, is_active: f.is_active,
+      };
+      const { error } = await supabase.from("employee_contracts").insert([payload]);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employee-contracts"] }); setContractOpen(false); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const salaryMutation = useMutation({
+    mutationFn: async (f: typeof salaryForm) => {
+      const payload = {
+        employee_id: id!, tenant_id: tenantId!, amount: f.amount,
+        amount_type: f.amount_type, start_date: f.start_date, end_date: f.end_date || null,
+      };
+      const { error } = await supabase.from("employee_salaries").insert([payload]);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employee-salaries"] }); setSalaryOpen(false); toast.success(t("success")); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -306,6 +345,11 @@ export default function EmployeeDetail() {
 
         {/* Contracts */}
         <TabsContent value="contracts">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => { setContractForm({ contract_type: "indefinite", start_date: new Date().toISOString().split("T")[0], end_date: "", gross_salary: 0, net_salary: 0, working_hours_per_week: 40, currency: "RSD", is_active: true }); setContractOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />{t("addContract")}
+            </Button>
+          </div>
           <Card><CardContent className="p-0">
             <Table>
               <TableHeader><TableRow>
@@ -333,6 +377,11 @@ export default function EmployeeDetail() {
 
         {/* Salary History */}
         <TabsContent value="salaries">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => { setSalaryForm({ amount: 0, amount_type: "gross", start_date: new Date().toISOString().split("T")[0], end_date: "" }); setSalaryOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />{t("addSalary")}
+            </Button>
+          </div>
           <Card><CardContent className="p-0">
             <Table>
               <TableHeader><TableRow>
@@ -577,6 +626,89 @@ export default function EmployeeDetail() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Add Contract Dialog */}
+      <Dialog open={contractOpen} onOpenChange={setContractOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t("addContract")}</DialogTitle></DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>{t("contractTypeLabel")} *</Label>
+              <Select value={contractForm.contract_type} onValueChange={v => setContractForm({ ...contractForm, contract_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="indefinite">{t("indefinite")}</SelectItem>
+                  <SelectItem value="fixed_term">{t("fixedTerm")}</SelectItem>
+                  <SelectItem value="temporary">{t("temporary")}</SelectItem>
+                  <SelectItem value="contract">{t("contractType")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={contractForm.start_date} onChange={e => setContractForm({ ...contractForm, start_date: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={contractForm.end_date} onChange={e => setContractForm({ ...contractForm, end_date: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("grossSalary")}</Label><Input type="number" value={contractForm.gross_salary} onChange={e => setContractForm({ ...contractForm, gross_salary: +e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("netSalary")}</Label><Input type="number" value={contractForm.net_salary} onChange={e => setContractForm({ ...contractForm, net_salary: +e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("workingHours")}</Label><Input type="number" value={contractForm.working_hours_per_week} onChange={e => setContractForm({ ...contractForm, working_hours_per_week: +e.target.value })} /></div>
+              <div className="grid gap-2">
+                <Label>{t("currency")}</Label>
+                <Select value={contractForm.currency} onValueChange={v => setContractForm({ ...contractForm, currency: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RSD">RSD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch checked={contractForm.is_active} onCheckedChange={v => setContractForm({ ...contractForm, is_active: v })} />
+              {t("active")}
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContractOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={() => contractMutation.mutate(contractForm)} disabled={!contractForm.start_date || contractMutation.isPending}>
+              {contractMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Salary Dialog */}
+      <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("addSalary")}</DialogTitle></DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2"><Label>{t("amount")} *</Label><Input type="number" value={salaryForm.amount} onChange={e => setSalaryForm({ ...salaryForm, amount: +e.target.value })} /></div>
+            <div className="grid gap-2">
+              <Label>{t("amountTypeLabel")}</Label>
+              <Select value={salaryForm.amount_type} onValueChange={v => setSalaryForm({ ...salaryForm, amount_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gross">{t("gross")}</SelectItem>
+                  <SelectItem value="net">{t("net")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={salaryForm.start_date} onChange={e => setSalaryForm({ ...salaryForm, start_date: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={salaryForm.end_date} onChange={e => setSalaryForm({ ...salaryForm, end_date: e.target.value })} /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSalaryOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={() => salaryMutation.mutate(salaryForm)} disabled={!salaryForm.amount || !salaryForm.start_date || salaryMutation.isPending}>
+              {salaryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
