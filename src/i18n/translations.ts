@@ -1504,7 +1504,7 @@ export const translations = {
     salesModule: "Prodaja",
 
     // Inventory
-    inventory: "Inventar",
+    inventory: "Magacin",
     products: "Proizvodi",
     product: "Proizvod",
     stockOverview: "Pregled zaliha",
@@ -1696,7 +1696,7 @@ export const translations = {
     completed: "Završeno",
 
     // Documents
-    documents: "Dokumenti",
+    documents: "DMS",
     upload: "Otpremi",
     file: "Fajl",
     fileSize: "Veličina fajla",
