@@ -115,13 +115,13 @@ export default function WmsReceiving() {
       const { data: bins } = await supabase.from("wms_bins").select("id").eq("zone_id", zoneId).eq("tenant_id", tenantId!).eq("is_active", true).limit(1);
       if (!bins?.length) throw new Error("No bins in the receiving zone");
       const receivingBinId = bins[0].id;
-      const stockStatus = qualityHold ? "held" : "available";
+      const stockStatus = qualityHold ? "on_hold" : "available";
 
       for (const line of lines) {
         await supabase.from("wms_bin_stock").insert({
           tenant_id: tenantId!, bin_id: receivingBinId, product_id: line.product_id,
           warehouse_id: warehouseId, quantity: line.quantity, status: stockStatus,
-          lot_number: line.lot_number || null, expiry_date: line.expiry_date || null,
+          lot_number: line.lot_number || null,
         });
         await supabase.from("wms_tasks").insert({
           tenant_id: tenantId!, warehouse_id: warehouseId, task_type: "receive",
