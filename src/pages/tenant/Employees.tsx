@@ -28,6 +28,7 @@ interface EmployeeForm {
   city: string;
   position: string;
   department_id: string | null;
+  location_id: string | null;
   employment_type: EmploymentType;
   start_date: string;
   hire_date: string;
@@ -41,7 +42,7 @@ interface EmployeeForm {
 
 const emptyForm: EmployeeForm = {
   first_name: "", last_name: "", email: "", phone: "", jmbg: "", address: "", city: "",
-  position: "", department_id: null, employment_type: "full_time",
+  position: "", department_id: null, location_id: null, employment_type: "full_time",
   start_date: new Date().toISOString().split("T")[0], hire_date: new Date().toISOString().split("T")[0],
   termination_date: "", early_termination_date: "", annual_leave_days: 20,
   slava_date: "", daily_work_hours: 8, is_archived: false,
@@ -59,7 +60,7 @@ export default function Employees() {
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees", tenantId, showArchived],
     queryFn: async () => {
-      let q = supabase.from("employees").select("*, departments(name)").eq("tenant_id", tenantId!).order("full_name");
+      let q = supabase.from("employees").select("*, departments(name), locations(name)").eq("tenant_id", tenantId!).order("full_name");
       if (!showArchived) q = q.eq("is_archived", false);
       const { data } = await q;
       return data || [];
@@ -76,11 +77,20 @@ export default function Employees() {
     enabled: !!tenantId,
   });
 
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: EmployeeForm) => {
       const full_name = `${f.first_name} ${f.last_name}`.trim();
       const payload = {
-        ...f, full_name, tenant_id: tenantId!, department_id: f.department_id || null,
+        ...f, full_name, tenant_id: tenantId!, department_id: f.department_id || null, location_id: f.location_id || null,
         status: f.is_archived ? "inactive" as const : "active" as const,
         termination_date: f.termination_date || null,
         early_termination_date: f.early_termination_date || null,
@@ -107,7 +117,7 @@ export default function Employees() {
       last_name: emp.last_name || emp.full_name?.split(" ").slice(1).join(" ") || "",
       email: emp.email || "", phone: emp.phone || "",
       jmbg: emp.jmbg || "", address: emp.address || "", city: emp.city || "",
-      position: emp.position || "", department_id: emp.department_id || null,
+      position: emp.position || "", department_id: emp.department_id || null, location_id: emp.location_id || null,
       employment_type: emp.employment_type, start_date: emp.start_date,
       hire_date: emp.hire_date || emp.start_date || "",
       termination_date: emp.termination_date || "",
@@ -141,6 +151,7 @@ export default function Employees() {
           <ExportButton data={employees} columns={[
             { key: "full_name", label: t("fullName") }, { key: "email", label: t("email") },
             { key: "phone", label: t("phone") }, { key: "position", label: t("position") },
+            { key: "departments.name", label: t("department") }, { key: "locations.name", label: t("location") },
             { key: "employment_type", label: t("employmentType") }, { key: "start_date", label: t("startDate") },
           ]} filename="employees" />
           <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
@@ -153,14 +164,15 @@ export default function Employees() {
             <TableHead>{t("fullName")}</TableHead>
             <TableHead>{t("position")}</TableHead>
             <TableHead>{t("department")}</TableHead>
+            <TableHead>{t("location")}</TableHead>
             <TableHead>{t("employmentType")}</TableHead>
             <TableHead>{t("hireDate")}</TableHead>
             <TableHead>{t("status")}</TableHead>
             <TableHead>{t("actions")}</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-            : employees.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+            {isLoading ? <TableRow><TableCell colSpan={8} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+            : employees.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : employees.map((emp: any) => {
               const status = getStatus(emp);
               return (
@@ -168,6 +180,7 @@ export default function Employees() {
                   <TableCell className="font-medium">{emp.full_name}</TableCell>
                   <TableCell>{emp.position || "—"}</TableCell>
                   <TableCell>{emp.departments?.name || "—"}</TableCell>
+                  <TableCell>{emp.locations?.name || "—"}</TableCell>
                   <TableCell>{empTypeLabel(emp.employment_type)}</TableCell>
                   <TableCell>{emp.hire_date || emp.start_date}</TableCell>
                   <TableCell><Badge variant={statusColor(status)}>{status === "active" ? t("active") : status === "archived" ? t("isArchived") : t("terminated")}</Badge></TableCell>
@@ -210,6 +223,18 @@ export default function Employees() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-2">
+                <Label>{t("location")}</Label>
+                <Select value={form.location_id || "__none"} onValueChange={v => setForm({ ...form, location_id: v === "__none" ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">{t("noLocation")}</SelectItem>
+                    {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("employmentType")}</Label>
                 <Select value={form.employment_type} onValueChange={v => setForm({ ...form, employment_type: v as EmploymentType })}>

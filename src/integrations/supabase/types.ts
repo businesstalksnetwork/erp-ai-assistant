@@ -2675,6 +2675,7 @@ export type Database = {
           is_archived: boolean
           jmbg: string | null
           last_name: string | null
+          location_id: string | null
           phone: string | null
           position: string | null
           position_template_id: string | null
@@ -2705,6 +2706,7 @@ export type Database = {
           is_archived?: boolean
           jmbg?: string | null
           last_name?: string | null
+          location_id?: string | null
           phone?: string | null
           position?: string | null
           position_template_id?: string | null
@@ -2735,6 +2737,7 @@ export type Database = {
           is_archived?: boolean
           jmbg?: string | null
           last_name?: string | null
+          location_id?: string | null
           phone?: string | null
           position?: string | null
           position_template_id?: string | null
@@ -2759,6 +2762,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
