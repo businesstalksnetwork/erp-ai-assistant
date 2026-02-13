@@ -22,6 +22,13 @@ function formatAmount(n: number): string {
   return n.toFixed(2);
 }
 
+function formatPrice(n: number): string {
+  // SEF allows up to 4 decimals for cbc:PriceAmount
+  const s = n.toFixed(4);
+  // Trim trailing zeros but keep at least 2 decimals
+  return s.replace(/0{1,2}$/, '');
+}
+
 /** Map our tax_rate_value (e.g. 20, 10, 0) to UBL TaxCategory ID per Serbian eFaktura spec */
 function getTaxCategoryId(taxRateValue: number): string {
   if (taxRateValue === 0) return "O"; // Zero-rated / exempt
@@ -135,7 +142,7 @@ function buildUblXml(
         </cac:ClassifiedTaxCategory>
       </cac:Item>
       <cac:Price>
-        <cbc:PriceAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(line.unit_price)}</cbc:PriceAmount>
+        <cbc:PriceAmount currencyID="${escapeXml(invoice.currency)}">${formatPrice(line.unit_price)}</cbc:PriceAmount>
       </cac:Price>
     </cac:InvoiceLine>`
     )
@@ -395,6 +402,7 @@ Deno.serve(async (req) => {
       .from("invoices")
       .select("*, invoice_lines(*)")
       .eq("id", invoice_id)
+      .eq("tenant_id", tenant_id)
       .single();
 
     if (invErr || !invoice) {

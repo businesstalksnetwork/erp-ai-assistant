@@ -6,12 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { rolePermissions, type ModuleGroup, type TenantRole } from "@/config/rolePermissions";
 
 /** Modules that are always accessible regardless of tenant_modules config */
-const ALWAYS_ON: ModuleGroup[] = [
-  "dashboard", "settings",
-  "settings-users", "settings-approvals", "settings-business-rules",
-  "settings-tax-rates", "settings-currencies", "settings-audit-log",
-  "settings-events", "settings-integrations",
-];
+const ALWAYS_ON: ModuleGroup[] = ["dashboard", "settings"];
 
 export function usePermissions() {
   const { tenantId, role, isLoading: tenantLoading } = useTenant();

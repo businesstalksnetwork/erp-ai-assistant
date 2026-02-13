@@ -135,6 +135,12 @@ Deno.serve(async (req) => {
 
     // CRON MODE: no tenant_id — import for all tenants with currencies
     if (!tenant_id) {
+      const cronSecret = req.headers.get("x-cron-secret");
+      if (cronSecret !== Deno.env.get("CRON_SECRET")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const { data: tenantRows } = await supabase
         .from("currencies")
         .select("tenant_id")
