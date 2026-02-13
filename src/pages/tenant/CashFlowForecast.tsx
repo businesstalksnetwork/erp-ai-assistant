@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -328,6 +329,22 @@ export default function CashFlowForecast() {
           </div>
         </CardContent>
       </Card>
+
+      {tenantId && forecastInput && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="cashflow"
+          data={{
+            bankBalance: forecastInput.bankBalance,
+            arTotal: forecastInput.arTotal,
+            apOutstanding: forecastInput.apOutstanding,
+            monthlyLoanPayment: forecastInput.monthlyLoanPayment,
+            projectedCash,
+            hasNegativeMonth,
+            collectionRate: collectionRate[0],
+          }}
+        />
+      )}
     </div>
   );
 }
