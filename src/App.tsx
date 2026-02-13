@@ -142,6 +142,7 @@ import AiPlanningDashboard from "@/pages/tenant/AiPlanningDashboard";
 import AiPlanningSchedule from "@/pages/tenant/AiPlanningSchedule";
 import AiBottleneckPrediction from "@/pages/tenant/AiBottleneckPrediction";
 import AiCapacitySimulation from "@/pages/tenant/AiCapacitySimulation";
+import AiPlanningCalendar from "@/pages/tenant/AiPlanningCalendar";
 import WmsDashboard from "@/pages/tenant/WmsDashboard";
 const queryClient = new QueryClient();
 

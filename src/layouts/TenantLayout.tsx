@@ -180,6 +180,7 @@ const productionNav: NavItem[] = [
   { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays },
   { key: "bottleneckPrediction", url: "/production/ai-planning/bottlenecks", icon: AlertTriangle },
   { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3 },
+  { key: "productionCalendar", url: "/production/ai-planning/calendar", icon: Calendar },
 ];
 
 const documentsNav: NavItem[] = [
