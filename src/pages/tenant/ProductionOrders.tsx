@@ -13,10 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, CheckCircle, Loader2 } from "lucide-react";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
-
-const STATUSES = ["draft", "planned", "in_progress", "completed", "cancelled"] as const;
+import { Plus, Pencil, CheckCircle, Loader2, Play, X, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function ProductionOrders() {
   const { t } = useLanguage();
@@ -24,18 +22,24 @@ export default function ProductionOrders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, status: "draft" as string, planned_start: "", planned_end: "", notes: "" });
+  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, planned_start: "", planned_end: "", notes: "" });
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [completeOrder, setCompleteOrder] = useState<any>(null);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+  const [selectedWarehouse, setSelectedWarehouse] = useState("");
+  const [quantityToComplete, setQuantityToComplete] = useState<number>(0);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["production_orders", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("production_orders").select("*, products(name, purchase_price), bom_templates(name)").eq("tenant_id", tenantId).order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("production_orders")
+        .select("*, products(name, default_purchase_price), bom_templates(name)")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!tenantId,
@@ -71,6 +75,42 @@ export default function ProductionOrders() {
     enabled: !!tenantId,
   });
 
+  // Material availability check for complete dialog
+  const { data: materialAvailability = [] } = useQuery({
+    queryKey: ["material_availability", completeOrder?.bom_template_id, selectedWarehouse, completeOrder?.quantity],
+    queryFn: async () => {
+      if (!completeOrder?.bom_template_id || !selectedWarehouse) return [];
+      const { data: bomLines } = await supabase
+        .from("bom_lines")
+        .select("material_product_id, quantity, products(name)")
+        .eq("bom_template_id", completeOrder.bom_template_id);
+      if (!bomLines) return [];
+
+      const results = await Promise.all(
+        bomLines.map(async (line: any) => {
+          const required = line.quantity * quantityToComplete;
+          const { data: stock } = await supabase
+            .from("inventory_stock")
+            .select("quantity_on_hand")
+            .eq("product_id", line.material_product_id)
+            .eq("warehouse_id", selectedWarehouse)
+            .maybeSingle();
+          const available = stock?.quantity_on_hand || 0;
+          return {
+            name: line.products?.name || "-",
+            required,
+            available,
+            sufficient: available >= required,
+          };
+        })
+      );
+      return results;
+    },
+    enabled: !!completeOrder?.bom_template_id && !!selectedWarehouse && quantityToComplete > 0,
+  });
+
+  const hasInsufficientMaterial = materialAvailability.some((m) => !m.sufficient);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!tenantId) throw new Error("No tenant");
@@ -79,14 +119,15 @@ export default function ProductionOrders() {
         product_id: form.product_id || null,
         bom_template_id: form.bom_template_id || null,
         quantity: form.quantity,
-        status: form.status,
+        status: "draft" as string,
         planned_start: form.planned_start || null,
         planned_end: form.planned_end || null,
         notes: form.notes || null,
         created_by: user?.id || null,
       };
       if (editId) {
-        await supabase.from("production_orders").update(payload).eq("id", editId);
+        const { status: _, ...updatePayload } = payload;
+        await supabase.from("production_orders").update(updatePayload).eq("id", editId);
       } else {
         await supabase.from("production_orders").insert(payload);
       }
@@ -98,101 +139,77 @@ export default function ProductionOrders() {
     },
   });
 
-  const completeMutation = useMutation({
-    mutationFn: async () => {
-      if (!completeOrder || !selectedWarehouse || !tenantId) throw new Error("Missing data");
-
-      let totalMaterialCost = 0;
-
-      // Fetch BOM lines if BOM template is set
-      if (completeOrder.bom_template_id) {
-        const { data: bomLines } = await supabase
-          .from("bom_lines")
-          .select("material_product_id, quantity, products(purchase_price)")
-          .eq("bom_template_id", completeOrder.bom_template_id);
-
-        if (bomLines) {
-          for (const line of bomLines) {
-            const consumeQty = line.quantity * completeOrder.quantity;
-            const unitCost = (line as any).products?.purchase_price || 0;
-            totalMaterialCost += consumeQty * unitCost;
-
-            await supabase.rpc("adjust_inventory_stock", {
-              p_tenant_id: tenantId,
-              p_product_id: line.material_product_id,
-              p_warehouse_id: selectedWarehouse,
-              p_quantity: -consumeQty,
-              p_movement_type: "out",
-              p_reference: `Production Order ${completeOrder.id}`,
-              p_notes: "Material consumption",
-              p_created_by: user?.id || null,
-            });
-          }
-        }
-      }
-
-      // Add finished goods
-      if (completeOrder.product_id) {
-        await supabase.rpc("adjust_inventory_stock", {
-          p_tenant_id: tenantId,
-          p_product_id: completeOrder.product_id,
-          p_warehouse_id: selectedWarehouse,
-          p_quantity: completeOrder.quantity,
-          p_movement_type: "in",
-          p_reference: `Production Order ${completeOrder.id}`,
-          p_notes: "Finished goods output",
-          p_created_by: user?.id || null,
-        });
-      }
-
-      // PRC 14.5: WIP Journal Entry → Debit 5100 (Finished Goods) / Credit 5000 (WIP)
-      if (totalMaterialCost > 0) {
-        const entryDate = new Date().toISOString().split("T")[0];
-        await createCodeBasedJournalEntry({
-          tenantId,
-          userId: user?.id || null,
-          entryDate,
-          description: `Production completion - ${completeOrder.products?.name || completeOrder.id}`,
-          reference: `PROD-${completeOrder.id.substring(0, 8)}`,
-          lines: [
-            { accountCode: "5100", debit: totalMaterialCost, credit: 0, description: "Finished goods received", sortOrder: 0 },
-            { accountCode: "5000", debit: 0, credit: totalMaterialCost, description: "WIP consumed", sortOrder: 1 },
-          ],
-        });
-      }
-
-      // Update production order status
-      await supabase.from("production_orders").update({
-        status: "completed",
-        actual_end: new Date().toISOString().split("T")[0],
-      }).eq("id", completeOrder.id);
+  // Status transition mutations
+  const transitionMutation = useMutation({
+    mutationFn: async ({ id, status, extra }: { id: string; status: string; extra?: Record<string, any> }) => {
+      await supabase.from("production_orders").update({ status, ...extra }).eq("id", id);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_orders"] });
+      toast({ title: t("success") });
+    },
+  });
+
+  // Atomic complete via RPC
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      if (!completeOrder || !selectedWarehouse) throw new Error("Missing data");
+      const { data, error } = await supabase.rpc("complete_production_order", {
+        p_order_id: completeOrder.id,
+        p_warehouse_id: selectedWarehouse,
+        p_quantity_to_complete: quantityToComplete,
+        p_user_id: user?.id || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["production_orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setCompleteDialogOpen(false);
       setCompleteOrder(null);
       setSelectedWarehouse("");
-      toast({ title: t("wipJournalCreated") });
+      const msg = data?.fully_completed ? t("wipJournalCreated") : t("materialsConsumed");
+      toast({ title: msg });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  const openCreate = () => { setEditId(null); setForm({ product_id: "", bom_template_id: "", quantity: 1, status: "draft", planned_start: "", planned_end: "", notes: "" }); setOpen(true); };
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ product_id: "", bom_template_id: "", quantity: 1, planned_start: "", planned_end: "", notes: "" });
+    setOpen(true);
+  };
+
   const openEdit = (o: any) => {
+    if (o.status !== "draft") return;
     setEditId(o.id);
-    setForm({ product_id: o.product_id || "", bom_template_id: o.bom_template_id || "", quantity: Number(o.quantity), status: o.status, planned_start: o.planned_start || "", planned_end: o.planned_end || "", notes: o.notes || "" });
+    setForm({
+      product_id: o.product_id || "",
+      bom_template_id: o.bom_template_id || "",
+      quantity: Number(o.quantity),
+      planned_start: o.planned_start || "",
+      planned_end: o.planned_end || "",
+      notes: o.notes || "",
+    });
     setOpen(true);
   };
 
   const openComplete = (o: any) => {
     setCompleteOrder(o);
     setSelectedWarehouse("");
+    const remaining = Number(o.quantity) - Number(o.completed_quantity || 0);
+    setQuantityToComplete(remaining);
     setCompleteDialogOpen(true);
   };
 
   const statusColor = (s: string) => {
-    switch (s) { case "completed": return "default"; case "in_progress": return "secondary"; case "cancelled": return "destructive"; default: return "outline"; }
+    switch (s) {
+      case "completed": return "default";
+      case "in_progress": return "secondary";
+      case "cancelled": return "destructive";
+      default: return "outline";
+    }
   };
 
   return (
@@ -204,32 +221,68 @@ export default function ProductionOrders() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>{t("orderNumber")}</TableHead>
             <TableHead>{t("product")}</TableHead>
             <TableHead>{t("bomTemplate")}</TableHead>
             <TableHead>{t("quantity")}</TableHead>
+            <TableHead>{t("completed")}</TableHead>
             <TableHead>{t("status")}</TableHead>
             <TableHead>{t("plannedStart")}</TableHead>
-            <TableHead>{t("plannedEnd")}</TableHead>
             <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={7}>{t("loading")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8}>{t("loading")}</TableCell></TableRow>
           ) : orders.map((o: any) => (
             <TableRow key={o.id}>
+              <TableCell className="font-mono text-sm">{o.order_number || o.id.substring(0, 8)}</TableCell>
               <TableCell>{o.products?.name || "-"}</TableCell>
               <TableCell>{o.bom_templates?.name || "-"}</TableCell>
               <TableCell>{o.quantity}</TableCell>
+              <TableCell>{o.completed_quantity || 0}</TableCell>
               <TableCell><Badge variant={statusColor(o.status)}>{t(o.status as any)}</Badge></TableCell>
               <TableCell>{o.planned_start || "-"}</TableCell>
-              <TableCell>{o.planned_end || "-"}</TableCell>
               <TableCell>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(o)}><Pencil className="h-3 w-3" /></Button>
+                <div className="flex gap-1 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/production/orders/${o.id}`)}>
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                  {o.status === "draft" && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => openEdit(o)}><Pencil className="h-3 w-3" /></Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => transitionMutation.mutate({ id: o.id, status: "planned" })}
+                        disabled={!o.product_id || !o.bom_template_id}
+                        title={!o.product_id || !o.bom_template_id ? t("selectProduct") : ""}
+                      >
+                        {t("planned")}
+                      </Button>
+                    </>
+                  )}
+                  {o.status === "planned" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => transitionMutation.mutate({ id: o.id, status: "in_progress", extra: { actual_start: new Date().toISOString().split("T")[0] } })}
+                    >
+                      <Play className="h-3 w-3 mr-1" />{t("in_progress")}
+                    </Button>
+                  )}
                   {(o.status === "in_progress" || o.status === "planned") && (
                     <Button size="sm" variant="outline" onClick={() => openComplete(o)}>
                       <CheckCircle className="h-3 w-3 mr-1" />{t("completeAndConsume")}
+                    </Button>
+                  )}
+                  {o.status !== "completed" && o.status !== "cancelled" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => transitionMutation.mutate({ id: o.id, status: "cancelled" })}
+                    >
+                      <X className="h-3 w-3" />
                     </Button>
                   )}
                 </div>
@@ -239,7 +292,7 @@ export default function ProductionOrders() {
         </TableBody>
       </Table>
 
-      {/* Edit/Create Dialog */}
+      {/* Create/Edit Dialog (draft only) */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("productionOrders")}</DialogTitle></DialogHeader>
@@ -259,13 +312,6 @@ export default function ProductionOrders() {
               </Select>
             </div>
             <div><Label>{t("quantity")}</Label><Input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
-            <div>
-              <Label>{t("status")}</Label>
-              <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any)}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>{t("plannedStart")}</Label><Input type="date" value={form.planned_start} onChange={e => setForm({ ...form, planned_start: e.target.value })} /></div>
               <div><Label>{t("plannedEnd")}</Label><Input type="date" value={form.planned_end} onChange={e => setForm({ ...form, planned_end: e.target.value })} /></div>
@@ -276,9 +322,9 @@ export default function ProductionOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Complete & Consume Dialog */}
+      {/* Complete & Consume Dialog with material availability */}
       <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("completeAndConsume")}</DialogTitle>
             <DialogDescription>{t("selectWarehouseForProduction")}</DialogDescription>
@@ -293,17 +339,61 @@ export default function ProductionOrders() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>{t("quantity")}</Label>
+              <Input
+                type="number"
+                value={quantityToComplete}
+                onChange={e => setQuantityToComplete(Number(e.target.value))}
+                max={completeOrder ? Number(completeOrder.quantity) - Number(completeOrder.completed_quantity || 0) : 0}
+                min={1}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("completed")}: {completeOrder?.completed_quantity || 0} / {completeOrder?.quantity}
+              </p>
+            </div>
             {completeOrder && (
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>{t("product")}: {completeOrder.products?.name || "-"}</p>
-                <p>{t("quantity")}: {completeOrder.quantity}</p>
                 <p>{t("bomTemplate")}: {completeOrder.bom_templates?.name || "-"}</p>
+              </div>
+            )}
+            {/* Material availability table */}
+            {selectedWarehouse && materialAvailability.length > 0 && (
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">{t("materials")}</TableHead>
+                      <TableHead className="text-xs text-right">{t("quantity")}</TableHead>
+                      <TableHead className="text-xs text-right">{t("available")}</TableHead>
+                      <TableHead className="text-xs">{t("status")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {materialAvailability.map((m, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-sm">{m.name}</TableCell>
+                        <TableCell className="text-sm text-right">{m.required}</TableCell>
+                        <TableCell className="text-sm text-right">{m.available}</TableCell>
+                        <TableCell>
+                          <Badge variant={m.sufficient ? "default" : "destructive"}>
+                            {m.sufficient ? "OK" : t("error")}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCompleteDialogOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => completeMutation.mutate()} disabled={!selectedWarehouse || completeMutation.isPending}>
+            <Button
+              onClick={() => completeMutation.mutate()}
+              disabled={!selectedWarehouse || completeMutation.isPending || hasInsufficientMaterial || quantityToComplete <= 0}
+            >
               {completeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("confirm")}
             </Button>
           </DialogFooter>

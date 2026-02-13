@@ -66,6 +66,7 @@ import LeaveRequests from "@/pages/tenant/LeaveRequests";
 import Payroll from "@/pages/tenant/Payroll";
 import BomTemplates from "@/pages/tenant/BomTemplates";
 import ProductionOrders from "@/pages/tenant/ProductionOrders";
+import ProductionOrderDetail from "@/pages/tenant/ProductionOrderDetail";
 import Documents from "@/pages/tenant/Documents";
 import DocumentDetail from "@/pages/tenant/DocumentDetail";
 import ArchiveBook from "@/pages/tenant/ArchiveBook";
@@ -227,6 +228,7 @@ const App = () => (
                 <Route path="hr/reports" element={<ProtectedRoute requiredModule="hr"><HrReports /></ProtectedRoute>} />
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
+                <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
                 <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><DocumentDetail /></ProtectedRoute>} />
                 <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><ArchiveBook /></ProtectedRoute>} />
