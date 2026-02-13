@@ -7471,6 +7471,7 @@ export type Database = {
           phone: string | null
           role_type: string
           tenant_id: string
+          user_id: string | null
         }
         Insert: {
           code: string
@@ -7486,6 +7487,7 @@ export type Database = {
           phone?: string | null
           role_type?: string
           tenant_id: string
+          user_id?: string | null
         }
         Update: {
           code?: string
@@ -7501,6 +7503,7 @@ export type Database = {
           phone?: string | null
           role_type?: string
           tenant_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

@@ -172,8 +172,8 @@ export default function ProductDetail() {
                       {retailPrices.map((rp: any) => (
                         <TableRow key={rp.id}>
                           <TableCell>{rp.retail_price_lists?.name || "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{fmtNum(Number(rp.price))}</TableCell>
-                          <TableCell className="text-right font-mono">{calcMargin(Number(rp.price), wholesalePrice)}</TableCell>
+                          <TableCell className="text-right font-mono">{fmtNum(Number(rp.retail_price))}</TableCell>
+                          <TableCell className="text-right font-mono">{calcMargin(Number(rp.retail_price), wholesalePrice)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
