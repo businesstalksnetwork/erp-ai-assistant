@@ -85,29 +85,50 @@ export default function Payroll() {
       const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
 
       if (status === "approved") {
-        const totalTaxContrib = Number(run.total_taxes) + Number(run.total_contributions);
+        // Fetch items to get employer contributions
+        const { data: items } = await supabase.from("payroll_items").select("*").eq("payroll_run_id", id);
+        const totalPioE = items?.reduce((s, i) => s + Number(i.pension_contribution), 0) || 0;
+        const totalHealthE = items?.reduce((s, i) => s + Number(i.health_contribution), 0) || 0;
+        const totalUnempE = items?.reduce((s, i) => s + Number(i.unemployment_contribution), 0) || 0;
+        const totalPioR = items?.reduce((s, i) => s + Number(i.pension_employer || 0), 0) || 0;
+        const totalHealthR = items?.reduce((s, i) => s + Number(i.health_employer || 0), 0) || 0;
+
+        // Employee accrual: D:5200 Bruto / P:4500 Net / P:4510 Tax / P:4520-4540 contributions
         await createCodeBasedJournalEntry({
-          tenantId,
-          userId: user?.id || null,
-          entryDate,
+          tenantId, userId: user?.id || null, entryDate,
           description: `Payroll ${periodLabel} - Accrual`,
           reference: `PR-${periodLabel}`,
           lines: [
-            { accountCode: "8000", debit: Number(run.total_gross), credit: 0, description: `Salary expense ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "2100", debit: 0, credit: Number(run.total_net), description: `Net payable ${periodLabel}`, sortOrder: 1 },
-            { accountCode: "4700", debit: 0, credit: totalTaxContrib, description: `Tax & contributions ${periodLabel}`, sortOrder: 2 },
+            { accountCode: "5200", debit: Number(run.total_gross), credit: 0, description: `Gross salary ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "4500", debit: 0, credit: Number(run.total_net), description: `Net payable ${periodLabel}`, sortOrder: 1 },
+            { accountCode: "4510", debit: 0, credit: Number(run.total_taxes), description: `Income tax ${periodLabel}`, sortOrder: 2 },
+            { accountCode: "4520", debit: 0, credit: totalPioE, description: `PIO employee ${periodLabel}`, sortOrder: 3 },
+            { accountCode: "4530", debit: 0, credit: totalHealthE, description: `Health employee ${periodLabel}`, sortOrder: 4 },
+            { accountCode: "4540", debit: 0, credit: totalUnempE, description: `Unemployment employee ${periodLabel}`, sortOrder: 5 },
           ],
         });
+        // Employer contributions: D:5201 / P:4521 PIO / P:4531 Health
+        if (totalPioR + totalHealthR > 0) {
+          await createCodeBasedJournalEntry({
+            tenantId, userId: user?.id || null, entryDate,
+            description: `Payroll ${periodLabel} - Employer contributions`,
+            reference: `PR-EC-${periodLabel}`,
+            lines: [
+              { accountCode: "5201", debit: totalPioR + totalHealthR, credit: 0, description: `Employer contributions ${periodLabel}`, sortOrder: 0 },
+              { accountCode: "4521", debit: 0, credit: totalPioR, description: `PIO employer ${periodLabel}`, sortOrder: 1 },
+              { accountCode: "4531", debit: 0, credit: totalHealthR, description: `Health employer ${periodLabel}`, sortOrder: 2 },
+            ],
+          });
+        }
       } else if (status === "paid") {
+        // Payment: D:4500 Net / P:2431 Bank
         await createCodeBasedJournalEntry({
-          tenantId,
-          userId: user?.id || null,
-          entryDate,
+          tenantId, userId: user?.id || null, entryDate,
           description: `Payroll ${periodLabel} - Payment`,
           reference: `PR-PAY-${periodLabel}`,
           lines: [
-            { accountCode: "2100", debit: Number(run.total_net), credit: 0, description: `Clear net payable ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "1000", debit: 0, credit: Number(run.total_net), description: `Bank payment ${periodLabel}`, sortOrder: 1 },
+            { accountCode: "4500", debit: Number(run.total_net), credit: 0, description: `Pay employees ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "2431", debit: 0, credit: Number(run.total_net), description: `Bank payment ${periodLabel}`, sortOrder: 1 },
           ],
         });
       }
@@ -180,10 +201,13 @@ export default function Payroll() {
                           <TableRow>
                             <TableHead>{t("employee")}</TableHead>
                             <TableHead className="text-right">{t("grossSalary")}</TableHead>
-                            <TableHead className="text-right">{t("pensionContribution")}</TableHead>
-                            <TableHead className="text-right">{t("healthContribution")}</TableHead>
+                            <TableHead className="text-right">PIO 14%</TableHead>
+                            <TableHead className="text-right">Zdrav. 5.15%</TableHead>
+                            <TableHead className="text-right">Nezap. 0.75%</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
+                            <TableHead className="text-right">PIO posl. 11.5%</TableHead>
+                            <TableHead className="text-right">Zdrav. posl. 5.15%</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -194,8 +218,11 @@ export default function Payroll() {
                               <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.pension_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_contribution))}</TableCell>
+                              <TableCell className="text-right">{fmtNum(Number(item.unemployment_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.income_tax))}</TableCell>
                               <TableCell className="text-right font-semibold">{fmtNum(Number(item.net_salary))}</TableCell>
+                              <TableCell className="text-right">{fmtNum(Number(item.pension_employer || 0))}</TableCell>
+                              <TableCell className="text-right">{fmtNum(Number(item.health_employer || 0))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.total_cost))}</TableCell>
                             </TableRow>
                           ))}

@@ -151,6 +151,18 @@ export default function PosTerminal() {
         }
       }
 
+      // Create journal entry + inventory deduction via RPC
+      if (tx) {
+        try {
+          await supabase.rpc("process_pos_sale", {
+            p_transaction_id: tx.id,
+            p_tenant_id: tenantId,
+          });
+        } catch (e) {
+          console.error("POS accounting failed:", e);
+        }
+      }
+
       return tx;
     },
     onSuccess: () => {
