@@ -1,136 +1,89 @@
 
+# Codebase Review: Issues Found and Next Steps
 
-# Fix Broken Links, Reorder Sidebar, and Polish UX
+## Issues Found
 
-## Overview
+### 1. Bug: Wrong Navigation Path on Dashboard
+**File**: `src/pages/tenant/Dashboard.tsx`, line 243
 
-The main issue is a broken link on the Settings hub page pointing to `/settings/sales-channels` (which has no route -- the actual route is `/sales/sales-channels`). Beyond that, the sidebar group ordering can be improved for a more logical workflow, and several breadcrumb labels are missing for newer pages.
+The "Pending Approvals" action button navigates to `/accounting/approval-workflows` -- this route does not exist. The correct route is `/settings/pending-approvals`.
 
----
-
-## 1. Fix Broken Sales Channels Link
-
-**File**: `src/pages/tenant/Settings.tsx`
-
-The Settings hub page links to `/settings/sales-channels` but there is no such route in `App.tsx`. The actual Sales Channels page lives at `/sales/sales-channels`. Fix the link to point to the correct route.
-
-Change line 16:
-- From: `{ label: t("salesChannels"), icon: ShoppingBag, to: "/settings/sales-channels" }`
-- To: `{ label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" }`
+**Fix**: Change `navigate("/accounting/approval-workflows")` to `navigate("/settings/pending-approvals")`.
 
 ---
 
-## 2. Reorder Sidebar Groups for Logical Flow
-
+### 2. Missing Sidebar Item: Attendance
 **File**: `src/layouts/TenantLayout.tsx`
 
-Current order: Dashboard, CRM, Sales, Web, Purchasing, Returns, HR, Inventory, Accounting, Production, Documents, POS
+The route `/hr/attendance` exists in `App.tsx` (line 222) and the `Attendance` page component exists, but there is no entry in the `hrNav` array in the sidebar. Users can only reach it by typing the URL directly.
 
-Proposed order (groups related modules together):
-
-1. **Dashboard** -- entry point
-2. **CRM** -- customer-facing start of workflow
-3. **Sales** -- quotes, orders, channels (flows from CRM)
-4. **Purchasing** -- procurement (counterpart to sales)
-5. **Inventory** -- stock management (receives from purchasing, ships from sales)
-6. **Production** -- manufacturing (consumes inventory)
-7. **Accounting** -- financial backbone
-8. **HR** -- workforce management
-9. **POS** -- retail operations
-10. **Web Sales** -- e-commerce (specialized sales channel)
-11. **Documents** -- document management (cross-cutting)
-12. **Returns** -- exception handling (last)
-13. **Settings** (footer, unchanged)
-
-This follows the natural business flow: acquire customers -> sell -> buy materials -> manage stock -> produce -> account -> manage people.
+**Fix**: Add `{ key: "attendance", url: "/hr/attendance", icon: Clock }` to the `hrNav` array (after `leaveRequests` or near `workLogs`).
 
 ---
 
-## 3. Add Missing Breadcrumb Labels
+### 3. Stale Global Search Paths
+**File**: `src/components/layout/GlobalSearch.tsx`, lines 44-45
 
-**File**: `src/components/layout/Breadcrumbs.tsx`
+Two search items point to wrong paths under `/crm/`:
+- `Quotes` points to `/crm/quotes` -- actual route is `/sales/quotes`
+- `Sales Orders` points to `/crm/sales-orders` -- actual route is `/sales/sales-orders`
 
-Add labels for routes that are missing from the `routeLabels` map:
+Additionally, the Global Search is missing most pages. It only indexes ~20 items out of 100+ routes. Key missing entries include:
+- All WMS pages, Inventory sub-pages (kalkulacija, nivelacija, cost-layers, etc.)
+- All Accounting sub-pages (bank-statements, open-items, PDV, fixed-assets, deferrals, loans, etc.)
+- All HR sub-pages (work-logs, overtime, night-work, annual-leave, deductions, allowances, etc.)
+- All POS sub-pages (sessions, fiscal-devices, daily-report)
+- All Sales sub-pages (salespeople, sales-performance, retail-prices, sales-channels)
+- Web Sales pages
+- Documents sub-pages
 
-- `"posting-rules"`: `"postingRules"`
-- `"fx-revaluation"`: `"fxRevaluation"`
-- `"kompenzacija"`: `"kompenzacija"`
-- `"cost-layers"`: `"costLayers"`
-- `"internal-orders"`: `"internalOrders"`
-- `"internal-transfers"`: `"internalTransfers"`
-- `"internal-receipts"`: `"internalReceipts"`
-- `"kalkulacija"`: `"kalkulacija"`
-- `"nivelacija"`: `"nivelacija"`
-- `"dispatch-notes"`: `"dispatchNotes"`
-- `"wms"`: `"inventory"` (parent segment)
-- `"zones"`: `"wmsZones"`
-- `"tasks"`: `"wmsTasks"`
-- `"receiving"`: `"wmsReceiving"`
-- `"picking"`: `"wmsPicking"`
-- `"cycle-counts"`: `"wmsCycleCounts"`
-- `"slotting"`: `"wmsSlotting"`
-- `"work-logs"`: `"workLogs"`
-- `"overtime"`: `"overtimeHours"`
-- `"night-work"`: `"nightWork"`
-- `"annual-leave"`: `"annualLeaveBalance"`
-- `"holidays"`: `"holidays"`
-- `"deductions"`: `"deductionsModule"`
-- `"allowances"`: `"allowance"`
-- `"salaries"`: `"salaryHistory"`
-- `"external-workers"`: `"externalWorkers"`
-- `"insurance"`: `"insuranceRecords"`
-- `"position-templates"`: `"positionTemplates"`
-- `"ebolovanje"`: `"eBolovanje"`
-- `"salespeople"`: `"salespeople"`
-- `"sales-performance"`: `"salesPerformance"`
-- `"retail-prices"`: `"retailPrices"`
-- `"fiscal-devices"`: `"fiscalDevices"`
-- `"daily-report"`: `"dailyReport"`
-- `"pending-approvals"`: `"pendingApprovalsPage"`
-- `"sales"`: `"salesModule"`
-- `"web"`: `"webSales"`
-- `"bulk"`: `"bulkEntry"`
-- `"calendar"`: `"calendar"`
-- `"bins"`: `"wmsBins"`
+**Fix**: Expand the `items` array to cover all routable pages, grouped by module.
 
 ---
 
-## 4. Improve Sidebar Accent Colors
+### 4. Missing Translation Key: "bulkEntry"
+**File**: `src/i18n/translations.ts`
 
-**File**: `src/layouts/TenantLayout.tsx`
+The breadcrumb label for the "bulk" route segment maps to `"bulkEntry"`, but this key likely needs verification that it exists in the translations file.
 
-Assign more distinct, visually harmonious accent colors that better differentiate groups:
+**Fix**: Verify and add `bulkEntry` and `calendar` translation keys if missing.
 
-| Group | Current | Proposed |
-|-------|---------|----------|
-| CRM | blue-400 | blue-500 |
-| Sales | orange-400 | amber-500 |
-| Purchasing | orange-400 (duplicate!) | violet-500 |
-| Returns | red-400 | rose-400 |
-| HR | violet-400 | purple-500 |
-| Inventory | amber-400 | yellow-500 |
-| Accounting | emerald-400 | emerald-500 |
-| Production | cyan-400 | cyan-500 |
-| Documents | pink-400 | pink-500 |
-| POS | teal-400 | teal-500 |
-| Web | indigo-400 | indigo-500 |
-| Settings | gray-400 | slate-400 |
+---
 
-Key fix: Purchasing and Sales currently share `orange-400`. They will get distinct colors.
+## Summary of Fixes
+
+| # | Issue | File | Severity |
+|---|-------|------|----------|
+| 1 | Pending approvals navigates to non-existent route | Dashboard.tsx | Bug |
+| 2 | Attendance page not in sidebar | TenantLayout.tsx | Missing feature |
+| 3 | Quotes/Sales Orders search paths wrong + most pages missing from search | GlobalSearch.tsx | Bug + Gap |
+| 4 | Possibly missing translation keys | translations.ts | Minor |
+
+---
+
+## Proposed Next Steps (Priority Order)
+
+1. **Fix the 4 issues above** -- bugs and missing items
+2. **Dark mode toggle** -- the app imports `next-themes` but doesn't appear to use it; add a theme toggle to the user dropdown
+3. **Mobile responsiveness audit** -- sidebar behavior on small screens
+4. **Loading states** -- add skeleton loaders to dashboard KPI cards and charts while data loads
+5. **Error boundaries** -- wrap module sections with error boundaries so one failing module doesn't crash the whole app
 
 ---
 
 ## Technical Details
 
-### Files Modified
+### File Changes Required
 
-1. **`src/pages/tenant/Settings.tsx`** -- Fix broken `/settings/sales-channels` link to `/sales/sales-channels`
-2. **`src/layouts/TenantLayout.tsx`** -- Reorder sidebar groups; update accent colors
-3. **`src/components/layout/Breadcrumbs.tsx`** -- Add ~30 missing breadcrumb labels
+**`src/pages/tenant/Dashboard.tsx`** (1 line):
+- Line 243: Change `"/accounting/approval-workflows"` to `"/settings/pending-approvals"`
 
-### No Files Deleted
+**`src/layouts/TenantLayout.tsx`** (1 addition):
+- Add to `hrNav` array: `{ key: "attendance", url: "/hr/attendance", icon: Clock }`
 
-The `SalesChannels` page at `src/pages/tenant/SalesChannels.tsx` is actively used by the `/sales/sales-channels` route. No pages need deletion -- the issue was a stale link, not an orphaned page.
+**`src/components/layout/GlobalSearch.tsx`** (major expansion):
+- Fix 2 wrong paths (quotes, sales-orders)
+- Add ~60 missing search entries covering all modules: Sales (6 items), Purchasing (3), Inventory (16 including WMS), Accounting (12), HR (17), POS (4), Web (2), Documents (7), Settings (8)
 
-### No Database Changes Required
-
+**`src/i18n/translations.ts`** (verify/add):
+- Ensure `bulkEntry` and `calendar` keys exist in both `en` and `sr` objects
