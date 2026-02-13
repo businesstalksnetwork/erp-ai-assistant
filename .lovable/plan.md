@@ -1,72 +1,107 @@
 
 
-# Fix RLS: `notifications` INSERT Policy with `WITH CHECK(true)`
+# Phase 2: Real-Time Data & Dashboards
 
-## Finding
+## Overview
 
-Only **one** problematic write policy was found:
-
-| Table | Policy | Command | Issue |
-|---|---|---|---|
-| `notifications` | "Service role can insert notifications" | INSERT | `WITH CHECK(true)` applied to `public` role |
-
-This allows **any** user (authenticated or anonymous) to insert notifications targeting any tenant and any user. The policy name suggests it was intended for service-role-only use, but it actually grants unrestricted INSERT access.
-
-The other flagged policy (`module_definitions` SELECT with `USING(true)`) is acceptable -- it's a read-only reference table scoped to `authenticated` with write operations properly gated behind `is_super_admin()`.
-
-All other tenant-scoped tables (companies, contacts, meetings, web_connections, web_prices, etc.) correctly use `get_user_tenant_ids(auth.uid())` for tenant scoping on write operations.
+Three new dashboard features that replace static placeholders with live data from existing database tables.
 
 ---
 
-## Fix
+## 1. Fiscal Receipt Status Widget
 
-Replace the overly permissive `notifications` INSERT policy with two policies:
+**New component**: `src/components/dashboard/FiscalReceiptStatusWidget.tsx`
 
-### Policy 1: Users can insert notifications for themselves within their tenants
+A card for the tenant dashboard that queries `fiscal_receipts` grouped by status, showing:
+- **Signed** count (receipts with a valid `receipt_number` not starting with `OFFLINE-`)
+- **Offline** count (receipts where `receipt_number LIKE 'OFFLINE-%'`)
+- **Failed** count (receipts where `verification_status = 'failed'` or retry_count >= max threshold)
 
-Users should only be able to create notifications where `user_id = auth.uid()` AND `tenant_id` is one of their active tenants. This supports client-side notification creation (e.g., reminders).
+Includes a "Retry Offline" button that invokes `fiscalize-retry-offline` (reusing the existing logic from `FiscalDevices.tsx`).
 
-### Policy 2: Service role bypass
+Uses a simple horizontal bar or three stat boxes with color coding (green/amber/red).
 
-Edge functions that create notifications for other users (e.g., `create-notification`, `nbs-exchange-rates` admin alerts) use the service role key, which bypasses RLS entirely. No explicit policy is needed for them -- the service role is exempt from RLS by default in Supabase.
+**Integration**: Added to `src/pages/tenant/Dashboard.tsx` below the Module Health Summary, gated behind `canAccess("pos")` or a fiscal module check.
 
 ---
 
-## Migration SQL
+## 2. Live Platform Monitoring (Super Admin)
 
-```sql
--- Drop the overly permissive policy
-DROP POLICY IF EXISTS "Service role can insert notifications" ON public.notifications;
+**Rewrite**: `src/pages/super-admin/PlatformMonitoring.tsx`
 
--- Replace with tenant-scoped, user-scoped insert policy
-CREATE POLICY "Users can insert notifications for themselves"
-ON public.notifications
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  auth.uid() = user_id
-  AND tenant_id IN (SELECT get_user_tenant_ids(auth.uid()))
-);
-```
+Wire the three static cards to real data:
+
+| Card | Data Source | Query |
+|---|---|---|
+| Active Sessions | `audit_log` | Count distinct `user_id` where `created_at > now() - 1 hour` |
+| API Calls (24h) | `module_events` | Count rows where `created_at > now() - 24 hours` |
+| Errors (24h) | `module_events` | Count rows where `status = 'failed'` AND `created_at > now() - 24 hours` |
+
+**System Events table**: Replace the static "No events" text with a live table showing the 20 most recent `module_events` rows across all tenants (super admin has cross-tenant visibility), displaying: timestamp, tenant, event_type, status, error_message.
+
+Add auto-refresh every 30 seconds using `refetchInterval` on the React Query hooks.
+
+---
+
+## 3. Module Health Summary Enhancement
+
+**Update**: `src/components/dashboard/ModuleHealthSummary.tsx`
+
+Add a row below record counts showing recent event activity per module:
+
+- Query `module_events` for the current tenant, grouped by `source_module`, counting events in the last 24 hours and errors (status = 'failed')
+- Display as a small badge or sub-line under each module: e.g., "12 events / 1 error"
+
+This gives a quick pulse on module activity alongside the existing record counts.
 
 ---
 
 ## Technical Details
 
-**Why removing the old policy is safe:**
-- Edge functions (`create-notification`, `nbs-exchange-rates`, `process-module-event`) use `SUPABASE_SERVICE_ROLE_KEY` to create their Supabase client, which bypasses RLS completely
-- The new policy only affects direct client-side inserts, which should be scoped to the current user anyway
-- No frontend code inserts notifications for other users
+### Files Created
+1. `src/components/dashboard/FiscalReceiptStatusWidget.tsx` -- New fiscal status card with retry button
 
-**What was reviewed and found correct:**
-- `ai_conversations` -- scoped by `auth.uid() = user_id AND tenant_id IN get_user_tenant_ids()`
-- `audit_log` -- scoped by `tenant_id IN get_user_tenant_ids() OR is_super_admin()`
-- `companies`, `contacts`, `meetings` -- scoped by `tenant_id IN get_user_tenant_ids()`
-- `notification_preferences` -- scoped by `auth.uid() = user_id`
-- `profiles` -- scoped by `id = auth.uid()`
-- `sef_submissions` -- scoped by tenant membership subquery
-- `web_connections`, `web_price_lists`, `web_prices`, `web_sync_logs` -- scoped by `tenant_id IN get_user_tenant_ids()`
-- `module_definitions` -- read `USING(true)` for authenticated (reference table), writes gated by `is_super_admin()`
+### Files Modified
+1. `src/pages/tenant/Dashboard.tsx` -- Import and render `FiscalReceiptStatusWidget`
+2. `src/pages/super-admin/PlatformMonitoring.tsx` -- Replace static cards with live queries from `audit_log` and `module_events`
+3. `src/components/dashboard/ModuleHealthSummary.tsx` -- Add event activity indicators per module
+4. `src/i18n/translations.ts` -- Add translation keys for new labels
 
-**Files modified:** One database migration only. No code changes needed.
+### No Database Changes Required
+All data sources (`fiscal_receipts`, `audit_log`, `module_events`, `module_event_logs`) already exist with proper RLS policies. Super Admin queries use `is_super_admin()` for cross-tenant access; tenant queries are scoped by `tenant_id`.
+
+### Query Patterns
+
+**Fiscal Receipt Status** (tenant-scoped):
+```typescript
+// Signed
+supabase.from("fiscal_receipts").select("id", { count: "exact", head: true })
+  .eq("tenant_id", tenantId).not("receipt_number", "like", "OFFLINE-%");
+
+// Offline
+supabase.from("fiscal_receipts").select("id", { count: "exact", head: true })
+  .eq("tenant_id", tenantId).like("receipt_number", "OFFLINE-%");
+```
+
+**Platform Monitoring** (super admin, cross-tenant):
+```typescript
+// Active sessions (last hour)
+supabase.from("audit_log").select("user_id", { count: "exact", head: true })
+  .gte("created_at", oneHourAgo);
+
+// Events 24h
+supabase.from("module_events").select("id", { count: "exact", head: true })
+  .gte("created_at", twentyFourHoursAgo);
+
+// Recent system events
+supabase.from("module_events").select("*")
+  .order("created_at", { ascending: false }).limit(20);
+```
+
+**Module Event Activity** (tenant-scoped):
+```typescript
+supabase.from("module_events").select("source_module, status")
+  .eq("tenant_id", tenantId).gte("created_at", twentyFourHoursAgo);
+// Then group client-side by source_module
+```
 
