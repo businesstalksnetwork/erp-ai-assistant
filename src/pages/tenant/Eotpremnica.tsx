@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Truck, CheckCircle, ArrowRight, X } from "lucide-react";
+import { Plus, Search, Truck, CheckCircle, ArrowRight, X, Send } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors: Record<string, string> = {
@@ -158,6 +158,7 @@ export default function Eotpremnica() {
               <TableHead>{t("receiverName")}</TableHead>
               {legalEntities.length > 1 && <TableHead>{t("legalEntity")}</TableHead>}
               <TableHead>{t("status")}</TableHead>
+              <TableHead>API</TableHead>
               <TableHead>{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -171,7 +172,26 @@ export default function Eotpremnica() {
                 {legalEntities.length > 1 && <TableCell>{n.legal_entities?.name || "—"}</TableCell>}
                 <TableCell><Badge className={statusColors[n.status] || ""}>{t(n.status as any)}</Badge></TableCell>
                 <TableCell>
+                  <Badge variant="outline" className="text-xs">{(n as any).api_status || "not_submitted"}</Badge>
+                </TableCell>
+                <TableCell>
                   <div className="flex gap-1">
+                    {n.status === "confirmed" && ((n as any).api_status === "not_submitted" || !(n as any).api_status) && (
+                      <Button size="sm" variant="outline" onClick={async () => {
+                        try {
+                          const { data, error } = await supabase.functions.invoke("eotpremnica-submit", {
+                            body: { eotpremnica_id: n.id, tenant_id: tenantId },
+                          });
+                          if (error) throw error;
+                          queryClient.invalidateQueries({ queryKey: ["eotpremnica"] });
+                          toast({ title: t("success") });
+                        } catch (err: any) {
+                          toast({ title: t("error"), description: err.message, variant: "destructive" });
+                        }
+                      }}>
+                        <Send className="h-3 w-3 mr-1" />{t("submitApi")}
+                      </Button>
+                    )}
                     {nextStatus[n.status] && (
                       <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: n.id, newStatus: nextStatus[n.status] })}>
                         {n.status === "draft" && <CheckCircle className="h-3 w-3 mr-1" />}

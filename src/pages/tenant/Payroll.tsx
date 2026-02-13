@@ -25,6 +25,23 @@ export default function Payroll() {
   const now = new Date();
   const [form, setForm] = useState({ period_month: now.getMonth() + 1, period_year: now.getFullYear() });
 
+  // Fetch active payroll parameters
+  const { data: params } = useQuery({
+    queryKey: ["payroll-params", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("payroll_parameters")
+        .select("*")
+        .eq("tenant_id", tenantId!)
+        .lte("effective_from", new Date().toISOString().split("T")[0])
+        .order("effective_from", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
   const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const { data: runs = [], isLoading } = useQuery({
@@ -155,6 +172,18 @@ export default function Payroll() {
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
       </div>
 
+      {/* Active Payroll Parameters */}
+      {params && (
+        <Card>
+          <CardContent className="py-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span className="text-muted-foreground">{t("effectiveFrom")}: <strong>{params.effective_from}</strong></span>
+            <span className="text-muted-foreground">{t("nontaxableAmount")}: <strong>{fmtNum(Number(params.nontaxable_amount))} RSD</strong></span>
+            <span className="text-muted-foreground">{t("minContributionBase")}: <strong>{fmtNum(Number(params.min_contribution_base))} RSD</strong></span>
+            <span className="text-muted-foreground">{t("maxContributionBase")}: <strong>{fmtNum(Number(params.max_contribution_base))} RSD</strong></span>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : runs.length === 0 ? (
@@ -200,14 +229,14 @@ export default function Payroll() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>{t("employee")}</TableHead>
-                            <TableHead className="text-right">{t("grossSalary")}</TableHead>
-                            <TableHead className="text-right">PIO 14%</TableHead>
-                            <TableHead className="text-right">Zdrav. 5.15%</TableHead>
-                            <TableHead className="text-right">Nezap. 0.75%</TableHead>
+                             <TableHead className="text-right">{t("grossSalary")}</TableHead>
+                            <TableHead className="text-right">PIO {params ? `${Number(params.pio_employee_rate)}%` : "14%"}</TableHead>
+                            <TableHead className="text-right">Zdrav. {params ? `${Number(params.health_employee_rate)}%` : "5.15%"}</TableHead>
+                            <TableHead className="text-right">Nezap. {params ? `${Number(params.unemployment_employee_rate)}%` : "0.75%"}</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
-                            <TableHead className="text-right">PIO posl. 12%</TableHead>
-                            <TableHead className="text-right">Zdrav. posl. 5.15%</TableHead>
+                            <TableHead className="text-right">PIO posl. {params ? `${Number(params.pio_employer_rate)}%` : "12%"}</TableHead>
+                            <TableHead className="text-right">Zdrav. posl. {params ? `${Number(params.health_employer_rate)}%` : "5.15%"}</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                           </TableRow>
                         </TableHeader>
