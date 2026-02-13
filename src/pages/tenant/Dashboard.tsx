@@ -240,7 +240,7 @@ export default function TenantDashboard() {
                   <ShieldCheck className="h-4 w-4 text-accent" />
                   <span>{pendingApprovalCount} {t("pendingApprovals")}</span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/approval-workflows")}>{t("view")}</Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/settings/pending-approvals")}>{t("view")}</Button>
               </div>
             )}
             {upcomingLoanPayments > 0 && (
