@@ -7469,6 +7469,7 @@ export type Database = {
           is_active: boolean
           last_name: string
           phone: string | null
+          pos_pin: string | null
           role_type: string
           tenant_id: string
           user_id: string | null
@@ -7485,6 +7486,7 @@ export type Database = {
           is_active?: boolean
           last_name: string
           phone?: string | null
+          pos_pin?: string | null
           role_type?: string
           tenant_id: string
           user_id?: string | null
@@ -7501,6 +7503,7 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           phone?: string | null
+          pos_pin?: string | null
           role_type?: string
           tenant_id?: string
           user_id?: string | null
@@ -8462,6 +8465,7 @@ export type Database = {
         | "sales"
         | "hr"
         | "user"
+        | "store"
       attendance_status:
         | "present"
         | "absent"
@@ -8617,6 +8621,7 @@ export const Constants = {
         "sales",
         "hr",
         "user",
+        "store",
       ],
       attendance_status: [
         "present",

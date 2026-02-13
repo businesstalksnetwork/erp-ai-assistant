@@ -1,4 +1,4 @@
-export type TenantRole = "admin" | "manager" | "accountant" | "sales" | "hr" | "user";
+export type TenantRole = "admin" | "manager" | "accountant" | "sales" | "hr" | "store" | "user";
 
 export type ModuleGroup =
   | "dashboard"
@@ -44,6 +44,7 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   ],
   sales: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
   hr: ["dashboard", "hr", "documents"],
+  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns"],
   user: ["dashboard", "documents", "pos"],
 };
 
