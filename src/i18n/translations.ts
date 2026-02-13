@@ -1398,6 +1398,15 @@ export const translations = {
     proposedMoves: "Proposed Moves",
     startTask: "Start",
     completeAction: "Complete",
+
+    // eBolovanje
+    eBolovanje: "eBolovanje",
+    eBolovanjeRequired: "eBolovanje integration is mandatory from January 1, 2026",
+    eBolovanjeDescription: "The unified employer system (eBolovanje – Poslodavac) requires employers to register on eUprava and exchange sick leave confirmations/doznake electronically. Claims and objections submissions begin March 3, 2026.",
+    eBolovanjeFeature1: "eUprava portal registration and authentication",
+    eBolovanjeFeature2: "Electronic exchange of sick leave confirmations (doznake)",
+    eBolovanjeFeature3: "Submission of claims and objections (from March 3, 2026)",
+    eBolovanjeFeature4: "Integration with HR leave requests and payroll",
   },
   sr: {
     // Auth
@@ -2798,6 +2807,15 @@ export const translations = {
     proposedMoves: "Predložena premeštanja",
     startTask: "Pokreni",
     completeAction: "Završi",
+
+    // eBolovanje
+    eBolovanje: "еБоловање",
+    eBolovanjeRequired: "Интеграција еБоловање је обавезна од 1. јануара 2026.",
+    eBolovanjeDescription: "Јединствени систем послодаваца (еБоловање – Послодавац) захтева регистрацију послодаваца на еУправи и електронску размену потврда/дознака о боловању. Подношење захтева и приговора почиње 3. марта 2026.",
+    eBolovanjeFeature1: "Регистрација и аутентификација на порталу еУправа",
+    eBolovanjeFeature2: "Електронска размена потврда о боловању (дознаке)",
+    eBolovanjeFeature3: "Подношење захтева и приговора (од 3. марта 2026.)",
+    eBolovanjeFeature4: "Интеграција са захтевима за одсуство и обрачуном зарада",
   },
 } as const;
 

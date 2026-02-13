@@ -206,7 +206,7 @@ export default function Payroll() {
                             <TableHead className="text-right">Nezap. 0.75%</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
-                            <TableHead className="text-right">PIO posl. 11.5%</TableHead>
+                            <TableHead className="text-right">PIO posl. 12%</TableHead>
                             <TableHead className="text-right">Zdrav. posl. 5.15%</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                           </TableRow>

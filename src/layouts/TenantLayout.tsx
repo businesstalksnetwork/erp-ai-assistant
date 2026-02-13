@@ -146,6 +146,7 @@ const hrNav: NavItem[] = [
   { key: "externalWorkers", url: "/hr/external-workers", icon: Users },
   { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
+  { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
   { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
 ];
 

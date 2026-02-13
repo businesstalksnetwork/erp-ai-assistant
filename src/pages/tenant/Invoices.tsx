@@ -29,6 +29,7 @@ const statusColors: Record<string, string> = {
 const sefColors: Record<string, string> = {
   not_submitted: "bg-muted text-muted-foreground",
   submitted: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  polling: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   accepted: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
@@ -141,14 +142,23 @@ export default function Invoices() {
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
-  // SEF retry mutation — generates new requestId for idempotent retry
+  // SEF retry mutation — reuses existing requestId for idempotent retry (Critical Fix 1)
+  // A new requestId is only generated if the invoice has no existing one (e.g. rejected terminal state)
   const sefMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      const newRequestId = crypto.randomUUID();
-      // Update the request ID for this retry attempt
-      await supabase.from("invoices").update({ sef_request_id: newRequestId }).eq("id", invoiceId);
+      const invoice = invoices.find(i => i.id === invoiceId);
+      const existingRequestId = (invoice as any)?.sef_request_id;
+      // Only generate new requestId if previous was definitively rejected or missing
+      const sefStatus = invoice?.sef_status;
+      const requestId = (sefStatus === "rejected" || !existingRequestId)
+        ? crypto.randomUUID()
+        : existingRequestId;
+      // Update only if we generated a new one
+      if (requestId !== existingRequestId) {
+        await supabase.from("invoices").update({ sef_request_id: requestId }).eq("id", invoiceId);
+      }
       const { data, error } = await supabase.functions.invoke("sef-submit", {
-        body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: newRequestId },
+        body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: requestId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
