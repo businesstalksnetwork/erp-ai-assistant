@@ -1,126 +1,117 @@
 
 
-# Add Section Sub-Groups to All Sidebar Modules
+# Production AI Planning Module -- MVP Implementation
 
-Apply the same section-divider pattern already used in Inventory to every module that has 5+ items. Modules with fewer items (Purchasing, Production, Web, Returns) stay flat since they don't benefit from sub-grouping.
+## Overview
 
-## Modules to Reorganize
+Add a new "AI Planning" sub-module within the existing Production module. This introduces 4 new pages and 1 new edge function that leverage Lovable AI (Gemini) to provide intelligent production scheduling, bottleneck prediction, and capacity insights based on existing production data.
 
-### Accounting (15 items -> 4 sections)
+## Architecture
 
-**Knjizenje (Bookkeeping)**
-- Kontni plan (Chart of Accounts)
-- Nalozi za knjizenje (Journal Entries)
-- Glavna knjiga (General Ledger)
+The module will reuse the existing `ai-assistant` pattern (Lovable AI Gateway via edge function) and the existing `production_orders`, `bom_templates`, `bom_lines`, `inventory_stock`, and `products` tables. No new database tables are needed for the MVP -- AI analysis is done on-the-fly from existing data.
 
-**Fakturisanje i placanja (Invoicing and Payments)**
-- Fakture (Invoices)
-- Izvodi (Bank Statements)
-- Otvorene stavke (Open Items)
-- Kompenzacija
+## New Pages (4)
 
-**Osnovna sredstva i obracuni (Assets and Accruals)**
-- Osnovna sredstva (Fixed Assets)
-- Razgranicenja (Deferrals)
-- Krediti (Loans)
-- Kursne razlike (FX Revaluation)
+### 1. `/production/ai-planning` -- AI Planning Dashboard
+The main entry point showing:
+- **KPI Cards**: Schedule adherence %, capacity utilization %, active orders, late orders
+- **AI-generated insights panel**: Bottleneck alerts, late-order risk, material shortage warnings
+- **"Generate AI Plan" button**: Triggers the AI scheduling engine
+- Data sourced from `production_orders` (statuses, dates) and `inventory_stock`
 
-**Poresko i zatvaranje (Tax and Closing)**
-- PDV periodi
-- Fiskalni periodi
-- Zakljucenje godine (Year-End)
-- Izvestaji (Reports)
+### 2. `/production/ai-planning/schedule` -- AI-Optimized Schedule
+- **Gantt-style timeline view** (using simple CSS bars, not a heavy library) showing production orders on a date axis
+- **"Generate Schedule" button**: Sends current orders, BOM data, and capacity constraints to AI edge function
+- AI returns optimized order sequencing with start/end suggestions and explanations
+- **Human-in-the-loop controls**: Lock/unlock orders, override priorities, accept/reject AI suggestions
+- Each suggestion shows an explanation (e.g., "Moved Order X before Y to reduce changeover time")
 
-### CRM (7 items -> 2 sections)
+### 3. `/production/ai-planning/bottlenecks` -- Bottleneck Prediction
+- Lists predicted bottlenecks from AI analysis:
+  - Material shortages (cross-referencing BOM needs vs `inventory_stock`)
+  - Overloaded date ranges (too many orders in same window)
+  - Late-order probability
+- Each bottleneck has severity (critical/warning/info), explanation, and suggested action
+- Data gathered from production orders + inventory stock, analyzed by AI
 
-**Pregled (Overview)**
-- CRM kontrolna tabla (Dashboard)
+### 4. `/production/ai-planning/scenarios` -- Capacity Simulation
+- **What-if scenario builder**: User can adjust parameters:
+  - Add/remove shifts (multiplier on daily capacity)
+  - Change order priorities
+  - Delay/advance order dates
+- Click "Simulate" to get AI-generated comparison of KPIs (utilization %, on-time rate, WIP)
+- Shows before/after comparison cards
 
-**Evidencija (Records)**
-- Kompanije, Kontakti, Lidovi, Prilike, Sastanci, Partneri
+## New Edge Function (1)
 
-### Sales (6 items -> 2 sections)
+### `supabase/functions/production-ai-planning/index.ts`
+- Accepts action types: `generate-schedule`, `predict-bottlenecks`, `simulate-scenario`, `dashboard-insights`
+- Fetches relevant production data from Supabase (orders, BOMs, inventory)
+- Constructs a detailed prompt with the data context
+- Calls Lovable AI Gateway (google/gemini-3-flash-preview) with tool calling for structured output
+- Returns structured JSON responses (schedule suggestions, bottleneck list, scenario comparison)
+- JWT-authenticated, tenant-scoped
 
-**Dokumenta (Documents)**
-- Ponude (Quotes)
-- Prodajni nalozi (Sales Orders)
+## Sidebar Navigation Update
 
-**Performanse i cene (Performance and Pricing)**
-- Kanali prodaje, Prodavci, Performanse prodaje, Maloprodajne cene
+Update `productionNav` in `TenantLayout.tsx` to add sections:
 
-### HR (19 items -> 5 sections)
+```
+Production
+  [Existing]
+    BOM Templates
+    Production Orders
+  [AI Planning]
+    AI Dashboard
+    AI Schedule
+    Bottleneck Prediction
+    Capacity Simulation
+```
 
-**Organizacija (Organization)**
-- Zaposleni, Ugovori, Odeljenja, Sabloni pozicija
+## Translation Keys (~30 new keys)
 
-**Radno vreme (Working Time)**
-- Radni nalozi, Prekovremeni, Nocni rad, Prisustvo
+Add to both `en` and `sr` sections:
+- `aiPlanning`, `aiSchedule`, `bottleneckPrediction`, `capacitySimulation`
+- `generateAiPlan`, `scheduleAdherence`, `capacityUtilization`, `lateOrders`
+- `lockOrder`, `unlockOrder`, `acceptSuggestion`, `rejectSuggestion`
+- `simulateScenario`, `addShift`, `removeShift`, `beforeAfter`
+- `aiExplanation`, `suggestedAction`, `materialShortage`, `overloadedPeriod`
+- `aiPlanningSection`, `existingSection` (section dividers)
+- And additional labels for the UI
 
-**Odsustva (Leave)**
-- Godisnji odmor, Praznici, Zahtevi za odsustvo
+## Routing
 
-**Zarade i naknade (Compensation)**
-- Odbici, Dodaci, Istorija plata, Obracun zarada
+Add 4 new routes in `App.tsx` under production:
+```
+/production/ai-planning         -> AiPlanningDashboard
+/production/ai-planning/schedule -> AiPlanningSchedule
+/production/ai-planning/bottlenecks -> AiBottleneckPrediction
+/production/ai-planning/scenarios -> AiCapacitySimulation
+```
 
-**Ostalo (Other)**
-- Eksterni radnici, Osiguranje, eBolovanje, HR Izvestaji
+All wrapped in `<ProtectedRoute requiredModule="production">`.
 
-### Documents (7 items -> 2 sections)
+## Files to Create
 
-**Delovodnik (Registry)**
-- Delovodnik, Arhivska knjiga, Arhiviranje
+1. `src/pages/tenant/AiPlanningDashboard.tsx` -- Dashboard with KPIs and insights
+2. `src/pages/tenant/AiPlanningSchedule.tsx` -- Schedule generation and override UI
+3. `src/pages/tenant/AiBottleneckPrediction.tsx` -- Bottleneck list with AI analysis
+4. `src/pages/tenant/AiCapacitySimulation.tsx` -- What-if scenario builder
+5. `supabase/functions/production-ai-planning/index.ts` -- Edge function for AI calls
 
-**Upravljanje (Management)**
-- Projekti, Pretraga, Izvestaji, Podesavanja
+## Files to Modify
 
-### POS (4 items -> 2 sections)
+1. `src/layouts/TenantLayout.tsx` -- Add AI Planning nav items with section divider
+2. `src/App.tsx` -- Add 4 new routes
+3. `src/i18n/translations.ts` -- Add ~30 translation keys (en + sr)
+4. `supabase/config.toml` -- Register new edge function
 
-**Terminal**
-- POS terminal
+## What is NOT in MVP
 
-**Administracija (Administration)**
-- Sesije, Fiskalni uredjaji, Dnevni izvestaj
-
-### Settings (9 items -> 3 sections)
-
-**Opstа podesavanja (General)**
-- Podesavanja kompanije, Poreske stope, Valute
-
-**Pristup i kontrola (Access and Control)**
-- Korisnici, Tokovi odobrenja, Odobrenja na cekanju
-
-**Sistem (System)**
-- Integracije, Revizorski trag, Monitor dogadjaja
-
-## Translation Keys to Add
-
-New section keys needed (both `en` and `sr`):
-
-| Key | English | Serbian |
-|-----|---------|---------|
-| bookkeeping | Bookkeeping | Knjizenje |
-| invoicingPayments | Invoicing & Payments | Fakturisanje i placanja |
-| assetsAccruals | Assets & Accruals | Sredstva i obracuni |
-| taxClosing | Tax & Closing | Porezi i zatvaranje |
-| overview | Overview | Pregled |
-| records | Records | Evidencija |
-| salesDocuments | Documents | Dokumenta |
-| performancePricing | Performance & Pricing | Performanse i cene |
-| organization | Organization | Organizacija |
-| workingTime | Working Time | Radno vreme |
-| leave | Leave | Odsustva |
-| compensation | Compensation | Zarade i naknade |
-| other | Other | Ostalo |
-| registry | Registry | Delovodnik |
-| management | Management | Upravljanje |
-| terminal | Terminal | Terminal |
-| administration | Administration | Administracija |
-| generalSettings | General | Opsta podesavanja |
-| accessControl | Access & Control | Pristup i kontrola |
-| system | System | Sistem |
-
-## Files Modified
-
-1. **`src/layouts/TenantLayout.tsx`** -- Add `section` markers to all nav arrays
-2. **`src/i18n/translations.ts`** -- Add ~20 new section label translation keys
+- No new database tables (AI works on existing data)
+- No autonomous execution (always human-in-the-loop)
+- No multi-site scheduling
+- No reinforcement learning
+- No MES integration
+- No automated procurement triggers
 
