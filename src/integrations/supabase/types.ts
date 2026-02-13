@@ -9087,6 +9087,790 @@ export type Database = {
           },
         ]
       }
+      wms_aisles: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          zone_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          zone_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_aisles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_aisles_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "wms_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_bin_stock: {
+        Row: {
+          bin_id: string
+          id: string
+          lot_number: string | null
+          product_id: string
+          quantity: number
+          received_at: string
+          status: Database["public"]["Enums"]["wms_bin_stock_status"]
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          bin_id: string
+          id?: string
+          lot_number?: string | null
+          product_id: string
+          quantity?: number
+          received_at?: string
+          status?: Database["public"]["Enums"]["wms_bin_stock_status"]
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          bin_id?: string
+          id?: string
+          lot_number?: string | null
+          product_id?: string
+          quantity?: number
+          received_at?: string
+          status?: Database["public"]["Enums"]["wms_bin_stock_status"]
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_bin_stock_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bin_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bin_stock_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bin_stock_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_bins: {
+        Row: {
+          accessibility_score: number
+          aisle_id: string | null
+          bin_type: Database["public"]["Enums"]["wms_bin_type"]
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          level: number
+          max_units: number | null
+          max_volume: number | null
+          max_weight: number | null
+          restrictions: Json | null
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+          zone_id: string
+        }
+        Insert: {
+          accessibility_score?: number
+          aisle_id?: string | null
+          bin_type?: Database["public"]["Enums"]["wms_bin_type"]
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          level?: number
+          max_units?: number | null
+          max_volume?: number | null
+          max_weight?: number | null
+          restrictions?: Json | null
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+          zone_id: string
+        }
+        Update: {
+          accessibility_score?: number
+          aisle_id?: string | null
+          bin_type?: Database["public"]["Enums"]["wms_bin_type"]
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          level?: number
+          max_units?: number | null
+          max_volume?: number | null
+          max_weight?: number | null
+          restrictions?: Json | null
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_bins_aisle_id_fkey"
+            columns: ["aisle_id"]
+            isOneToOne: false
+            referencedRelation: "wms_aisles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bins_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_bins_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "wms_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_cycle_count_lines: {
+        Row: {
+          approved_by: string | null
+          bin_id: string
+          count_id: string
+          counted_at: string | null
+          counted_by: string | null
+          counted_quantity: number | null
+          created_at: string
+          expected_quantity: number
+          id: string
+          product_id: string
+          status: Database["public"]["Enums"]["wms_count_line_status"]
+          tenant_id: string
+          variance: number | null
+        }
+        Insert: {
+          approved_by?: string | null
+          bin_id: string
+          count_id: string
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_quantity?: number | null
+          created_at?: string
+          expected_quantity?: number
+          id?: string
+          product_id: string
+          status?: Database["public"]["Enums"]["wms_count_line_status"]
+          tenant_id: string
+          variance?: number | null
+        }
+        Update: {
+          approved_by?: string | null
+          bin_id?: string
+          count_id?: string
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_quantity?: number | null
+          created_at?: string
+          expected_quantity?: number
+          id?: string
+          product_id?: string
+          status?: Database["public"]["Enums"]["wms_count_line_status"]
+          tenant_id?: string
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_cycle_count_lines_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_cycle_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "wms_cycle_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_cycle_count_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_cycle_count_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_cycle_counts: {
+        Row: {
+          completed_at: string | null
+          count_number: string
+          count_type: Database["public"]["Enums"]["wms_count_type"]
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["wms_count_status"]
+          tenant_id: string
+          warehouse_id: string
+          zone_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          count_number?: string
+          count_type?: Database["public"]["Enums"]["wms_count_type"]
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["wms_count_status"]
+          tenant_id: string
+          warehouse_id: string
+          zone_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          count_number?: string
+          count_type?: Database["public"]["Enums"]["wms_count_type"]
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["wms_count_status"]
+          tenant_id?: string
+          warehouse_id?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_cycle_counts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_cycle_counts_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_cycle_counts_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "wms_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_pick_wave_orders: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          status: string
+          tenant_id: string
+          wave_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          status?: string
+          tenant_id: string
+          wave_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          status?: string
+          tenant_id?: string
+          wave_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_pick_wave_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_pick_wave_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_pick_wave_orders_wave_id_fkey"
+            columns: ["wave_id"]
+            isOneToOne: false
+            referencedRelation: "wms_pick_waves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_pick_waves: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["wms_wave_status"]
+          tenant_id: string
+          warehouse_id: string
+          wave_number: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["wms_wave_status"]
+          tenant_id: string
+          warehouse_id: string
+          wave_number?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["wms_wave_status"]
+          tenant_id?: string
+          warehouse_id?: string
+          wave_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_pick_waves_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_pick_waves_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_putaway_rules: {
+        Row: {
+          created_at: string
+          id: string
+          priority: number
+          product_category: string | null
+          target_zone_id: string
+          tenant_id: string
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          priority?: number
+          product_category?: string | null
+          target_zone_id: string
+          tenant_id: string
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          priority?: number
+          product_category?: string | null
+          target_zone_id?: string
+          tenant_id?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_putaway_rules_target_zone_id_fkey"
+            columns: ["target_zone_id"]
+            isOneToOne: false
+            referencedRelation: "wms_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_putaway_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_putaway_rules_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_slotting_moves: {
+        Row: {
+          created_at: string
+          from_bin_id: string
+          id: string
+          priority: number
+          product_id: string
+          quantity: number
+          scenario_id: string
+          status: Database["public"]["Enums"]["wms_slotting_move_status"]
+          task_id: string | null
+          tenant_id: string
+          to_bin_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_bin_id: string
+          id?: string
+          priority?: number
+          product_id: string
+          quantity?: number
+          scenario_id: string
+          status?: Database["public"]["Enums"]["wms_slotting_move_status"]
+          task_id?: string | null
+          tenant_id: string
+          to_bin_id: string
+        }
+        Update: {
+          created_at?: string
+          from_bin_id?: string
+          id?: string
+          priority?: number
+          product_id?: string
+          quantity?: number
+          scenario_id?: string
+          status?: Database["public"]["Enums"]["wms_slotting_move_status"]
+          task_id?: string | null
+          tenant_id?: string
+          to_bin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_slotting_moves_from_bin_id_fkey"
+            columns: ["from_bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_moves_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_moves_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "wms_slotting_scenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_moves_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "wms_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_moves_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_moves_to_bin_id_fkey"
+            columns: ["to_bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_slotting_scenarios: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          estimated_improvement: Json | null
+          id: string
+          name: string
+          parameters: Json
+          results: Json | null
+          status: Database["public"]["Enums"]["wms_slotting_status"]
+          tenant_id: string
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          estimated_improvement?: Json | null
+          id?: string
+          name: string
+          parameters?: Json
+          results?: Json | null
+          status?: Database["public"]["Enums"]["wms_slotting_status"]
+          tenant_id: string
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          estimated_improvement?: Json | null
+          id?: string
+          name?: string
+          parameters?: Json
+          results?: Json | null
+          status?: Database["public"]["Enums"]["wms_slotting_status"]
+          tenant_id?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_slotting_scenarios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_slotting_scenarios_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_tasks: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          exception_reason: string | null
+          from_bin_id: string | null
+          id: string
+          notes: string | null
+          order_reference: string | null
+          priority: number
+          product_id: string | null
+          quantity: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["wms_task_status"]
+          task_number: string
+          task_type: Database["public"]["Enums"]["wms_task_type"]
+          tenant_id: string
+          to_bin_id: string | null
+          warehouse_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          exception_reason?: string | null
+          from_bin_id?: string | null
+          id?: string
+          notes?: string | null
+          order_reference?: string | null
+          priority?: number
+          product_id?: string | null
+          quantity?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["wms_task_status"]
+          task_number?: string
+          task_type: Database["public"]["Enums"]["wms_task_type"]
+          tenant_id: string
+          to_bin_id?: string | null
+          warehouse_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          exception_reason?: string | null
+          from_bin_id?: string | null
+          id?: string
+          notes?: string | null
+          order_reference?: string | null
+          priority?: number
+          product_id?: string | null
+          quantity?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["wms_task_status"]
+          task_number?: string
+          task_type?: Database["public"]["Enums"]["wms_task_type"]
+          tenant_id?: string
+          to_bin_id?: string | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_tasks_from_bin_id_fkey"
+            columns: ["from_bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_tasks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_tasks_to_bin_id_fkey"
+            columns: ["to_bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_tasks_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_zones: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          pick_method: Database["public"]["Enums"]["wms_pick_method"]
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+          zone_type: Database["public"]["Enums"]["wms_zone_type"]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          pick_method?: Database["public"]["Enums"]["wms_pick_method"]
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+          zone_type?: Database["public"]["Enums"]["wms_zone_type"]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          pick_method?: Database["public"]["Enums"]["wms_pick_method"]
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+          zone_type?: Database["public"]["Enums"]["wms_zone_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_zones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_zones_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_logs: {
         Row: {
           created_at: string
@@ -9286,6 +10070,45 @@ export type Database = {
       membership_status: "active" | "invited" | "disabled"
       payroll_status: "draft" | "calculated" | "approved" | "paid"
       tenant_status: "active" | "suspended" | "trial"
+      wms_bin_stock_status:
+        | "available"
+        | "damaged"
+        | "quarantine"
+        | "on_hold"
+        | "allocated"
+      wms_bin_type: "bin" | "shelf" | "pallet" | "flow_rack"
+      wms_count_line_status: "pending" | "counted" | "recounted" | "approved"
+      wms_count_status: "planned" | "in_progress" | "completed" | "reconciled"
+      wms_count_type: "scheduled" | "trigger" | "abc"
+      wms_pick_method: "each" | "case" | "pallet"
+      wms_slotting_move_status: "proposed" | "approved" | "executed" | "skipped"
+      wms_slotting_status: "draft" | "analyzing" | "completed"
+      wms_task_status:
+        | "pending"
+        | "assigned"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "exception"
+      wms_task_type:
+        | "receive"
+        | "putaway"
+        | "pick"
+        | "replenish"
+        | "move"
+        | "reslot"
+        | "count"
+        | "pack"
+        | "load"
+      wms_wave_status: "draft" | "released" | "in_progress" | "completed"
+      wms_zone_type:
+        | "receiving"
+        | "reserve"
+        | "forward_pick"
+        | "packing"
+        | "shipping"
+        | "quarantine"
+        | "returns"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -9445,6 +10268,49 @@ export const Constants = {
       membership_status: ["active", "invited", "disabled"],
       payroll_status: ["draft", "calculated", "approved", "paid"],
       tenant_status: ["active", "suspended", "trial"],
+      wms_bin_stock_status: [
+        "available",
+        "damaged",
+        "quarantine",
+        "on_hold",
+        "allocated",
+      ],
+      wms_bin_type: ["bin", "shelf", "pallet", "flow_rack"],
+      wms_count_line_status: ["pending", "counted", "recounted", "approved"],
+      wms_count_status: ["planned", "in_progress", "completed", "reconciled"],
+      wms_count_type: ["scheduled", "trigger", "abc"],
+      wms_pick_method: ["each", "case", "pallet"],
+      wms_slotting_move_status: ["proposed", "approved", "executed", "skipped"],
+      wms_slotting_status: ["draft", "analyzing", "completed"],
+      wms_task_status: [
+        "pending",
+        "assigned",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "exception",
+      ],
+      wms_task_type: [
+        "receive",
+        "putaway",
+        "pick",
+        "replenish",
+        "move",
+        "reslot",
+        "count",
+        "pack",
+        "load",
+      ],
+      wms_wave_status: ["draft", "released", "in_progress", "completed"],
+      wms_zone_type: [
+        "receiving",
+        "reserve",
+        "forward_pick",
+        "packing",
+        "shipping",
+        "quarantine",
+        "returns",
+      ],
     },
   },
 } as const
