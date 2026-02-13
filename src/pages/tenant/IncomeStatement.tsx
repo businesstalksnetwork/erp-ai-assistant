@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Printer } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { PrintButton } from "@/components/PrintButton";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 export default function IncomeStatement() {
   const { t } = useLanguage();
@@ -91,6 +92,7 @@ export default function IncomeStatement() {
             ]}
             filename="income_statement"
           />
+          <DownloadPdfButton type="income_statement" params={{ tenant_id: tenantId, date_from: dateFrom, date_to: dateTo }} />
           <PrintButton />
         </div>
       </div>

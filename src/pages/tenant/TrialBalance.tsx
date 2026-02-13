@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { PrintButton } from "@/components/PrintButton";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 export default function TrialBalance() {
   const { t } = useLanguage();
@@ -84,6 +85,7 @@ export default function TrialBalance() {
             ]}
             filename="trial_balance"
           />
+          <DownloadPdfButton type="trial_balance" params={{ tenant_id: tenantId, date_from: dateFrom, date_to: dateTo }} />
           <PrintButton />
         </div>
       </div>

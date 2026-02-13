@@ -1461,6 +1461,7 @@ export const translations = {
     eUpravaPassword: "eUprava Password",
     submitted: "Submitted",
     claimNumber: "Claim Number",
+    pdfReady: "PDF report is ready.",
   },
   sr: {
     // Auth
@@ -2870,6 +2871,7 @@ export const translations = {
     eBolovanjeFeature2: "Електронска размена потврда о боловању (дознаке)",
     eBolovanjeFeature3: "Подношење захтева и приговора (од 3. марта 2026.)",
     eBolovanjeFeature4: "Интеграција са захтевима за одсуство и обрачуном зарада",
+    pdfReady: "PDF извештај је спреман.",
   },
 } as const;
 
