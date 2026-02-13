@@ -176,15 +176,15 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
               <Route path="dashboard" element={<TenantDashboard />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="settings" element={<TenantSettings />} />
+                <Route path="settings" element={<ProtectedRoute requiredModule="settings"><TenantSettings /></ProtectedRoute>} />
                 <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><TenantUsers /></ProtectedRoute>} />
                 <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><AuditLog /></ProtectedRoute>} />
-                <Route path="settings/legal-entities" element={<LegalEntities />} />
-                <Route path="settings/locations" element={<Locations />} />
-                <Route path="settings/warehouses" element={<Warehouses />} />
+                <Route path="settings/legal-entities" element={<ProtectedRoute requiredModule="settings"><LegalEntities /></ProtectedRoute>} />
+                <Route path="settings/locations" element={<ProtectedRoute requiredModule="settings"><Locations /></ProtectedRoute>} />
+                <Route path="settings/warehouses" element={<ProtectedRoute requiredModule="settings"><Warehouses /></ProtectedRoute>} />
                 
-                <Route path="settings/cost-centers" element={<CostCenters />} />
-                <Route path="settings/bank-accounts" element={<BankAccounts />} />
+                <Route path="settings/cost-centers" element={<ProtectedRoute requiredModule="settings"><CostCenters /></ProtectedRoute>} />
+                <Route path="settings/bank-accounts" element={<ProtectedRoute requiredModule="settings"><BankAccounts /></ProtectedRoute>} />
                 <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><TenantIntegrations /></ProtectedRoute>} />
                 <Route path="settings/posting-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PostingRules /></ProtectedRoute>} />
                 <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><BusinessRules /></ProtectedRoute>} />
@@ -250,6 +250,7 @@ const App = () => (
                 <Route path="production/ai-planning/schedule" element={<ProtectedRoute requiredModule="production"><AiPlanningSchedule /></ProtectedRoute>} />
                 <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><AiBottleneckPrediction /></ProtectedRoute>} />
                 <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><AiCapacitySimulation /></ProtectedRoute>} />
+                <Route path="production/ai-planning/calendar" element={<ProtectedRoute requiredModule="production"><AiPlanningCalendar /></ProtectedRoute>} />
                 <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
                 <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><DocumentDetail /></ProtectedRoute>} />
                 <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><ArchiveBook /></ProtectedRoute>} />

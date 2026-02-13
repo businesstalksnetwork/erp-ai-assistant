@@ -106,6 +106,12 @@ Deno.serve(async (req) => {
 
     // CRON MODE: no tenant_id — poll all tenants with active SEF connections
     if (!tenant_id) {
+      const cronSecret = req.headers.get("x-cron-secret");
+      if (cronSecret !== Deno.env.get("CRON_SECRET")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const { data: connections } = await supabase
         .from("sef_connections")
         .select("*")
