@@ -53,7 +53,7 @@ export default function PosDailyReport() {
   const { data: sessions = [] } = useQuery({
     queryKey: ["pos_sessions_daily", tenantId, locationFilter, reportDate],
     queryFn: async () => {
-      let q = supabase.from("pos_sessions").select("*, profiles:cashier_id(full_name)").eq("tenant_id", tenantId!).gte("opened_at", `${reportDate}T00:00:00`).lt("opened_at", `${reportDate}T23:59:59`);
+      let q = supabase.from("pos_sessions").select("*, profiles:opened_by(full_name)").eq("tenant_id", tenantId!).gte("opened_at", `${reportDate}T00:00:00`).lt("opened_at", `${reportDate}T23:59:59`);
       if (locationFilter !== "all") q = q.eq("location_id", locationFilter);
       const { data } = await q;
       return (data as any[]) || [];
