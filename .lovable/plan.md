@@ -1,104 +1,72 @@
 
 
-# Employee Detail Page (Dosije Zaposlenog) + Enhanced Employee Form
+# Employee Module Polish + Position Template Dropdown in Add Form
 
 ## What This Does
 
-Transforms the employee module from a simple list-with-dialog into a full employee profile system. Clicking on an employee opens a dedicated detail page with tabs showing all related data: personal info, contracts, salary history, payroll payslips (platna lista), leave requests, work logs, attendance, and deductions. The employee add/edit form is also improved to match the reference design (with Position from templates as a dropdown, Location, and a cleaner layout).
+Completes the remaining items from the Employee Detail plan that weren't fully applied, and adds inline contract creation from the Employee Detail page.
 
 ---
 
 ## Changes
 
-### 1. Employee Detail Page (`src/pages/tenant/EmployeeDetail.tsx`)
+### 1. Position Template Dropdown in Employees.tsx Add/Edit Form
 
-A new page at route `/hr/employees/:id` with a tabbed layout:
+The `Employees.tsx` form still uses a plain `<Input>` for position (line 213). Update it to match the `EmployeeDetail.tsx` edit form pattern:
+- Fetch `position_templates` for the tenant (same query already in EmployeeDetail)
+- Replace the position text input with a `<Select>` dropdown when templates exist
+- Show a manual fallback text input when "Manual" is selected or no templates exist
+- Auto-fill `position` text from template name when a template is selected
 
-**Header**: Employee name, position, department, location, status badge, and an Edit button.
+### 2. Inline Contract Creation from Employee Detail
 
-**Tabs**:
-- **Licni podaci (Personal Info)**: All employee fields displayed in a read-only card format (name, email, phone, JMBG, address, city, hire date, termination dates, annual leave, slava, daily hours, employment type)
-- **Ugovori (Contracts)**: List of `employee_contracts` for this employee, with ability to add new ones inline
-- **Plate (Salary History)**: List of `employee_salaries` records for this employee
-- **Platne liste (Payslips)**: List of `payroll_items` joined with `payroll_runs` for this employee, with a "Download PDF" button for each that generates a payslip via the `generate-pdf` edge function (extended to support payslip type)
-- **Odsustva (Leave Requests)**: `leave_requests` filtered by this employee
-- **Evidencija rada (Work Logs)**: `work_logs` filtered by this employee
-- **Obustave (Deductions)**: Active `deductions` for this employee
+The Contracts tab on the Employee Detail page currently only shows a read-only list. Add:
+- An "Add Contract" button at the top of the Contracts tab
+- A dialog (reusing the same form pattern from `EmployeeContracts.tsx`) pre-filled with the current employee's ID
+- After saving, refresh the contracts list for that employee
 
-### 2. Enhanced Employee Add/Edit Form
+### 3. Inline Salary Record Creation from Employee Detail
 
-Update the dialog in `Employees.tsx` to match the reference screenshot:
-- **Position**: Change from free text `Input` to a `Select` dropdown that pulls from `position_templates` table (already exists with `position_template_id` FK on employees). Keep the free-text `position` field as a fallback label.
-- **Location**: Already added -- keep as is
-- **Shorter work hours toggle**: Add a toggle for part-time indication (maps to `daily_work_hours < 8`)
-- Cleaner 2-column layout matching the reference design
-
-### 3. Payslip PDF Generation
-
-Extend the existing `generate-pdf` edge function to accept a `type: "payslip"` parameter alongside `payroll_item_id`. When called with payslip type, it generates an HTML payslip (platna lista) showing:
-- Employee name, JMBG, position, department
-- Period (month/year)
-- Gross salary breakdown: base, taxes, contributions, deductions, net
-- Company info from legal entity
-
-### 4. Employee Table Click Navigation
-
-Change the employee table rows from opening an edit dialog to navigating to the detail page (`/hr/employees/:id`). The "Edit" button moves to the detail page header.
-
-### 5. Route Registration
-
-Add the new route in `App.tsx`:
-```text
-/hr/employees/:id -> EmployeeDetail
-```
+Same pattern for the Salaries tab:
+- "Add Salary" button
+- Simple dialog with amount, amount_type (net/gross), start_date, end_date
+- Pre-filled with employee_id
 
 ---
 
 ## Technical Details
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `src/pages/tenant/EmployeeDetail.tsx` | Full employee profile page with tabs |
+### Files to Modify
 
-### Modified Files
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add route for `/hr/employees/:id` |
-| `src/pages/tenant/Employees.tsx` | Row click navigates to detail; position uses dropdown from `position_templates`; add `position_template_id` to form |
-| `supabase/functions/generate-pdf/index.ts` | Add payslip PDF generation (type: "payslip") |
-| `src/i18n/translations.ts` | Add keys: personalInfo, contracts, salaryHistory, payslips, leaveRequests, workLogs, downloadPayslip, employeeProfile, shorterWorkHours, etc. |
+| `src/pages/tenant/Employees.tsx` | Add `position_templates` query; replace position `Input` with `Select` dropdown + manual fallback (same pattern as EmployeeDetail lines 494-514) |
+| `src/pages/tenant/EmployeeDetail.tsx` | Add "Add Contract" button + dialog on contracts tab; Add "Add Salary" button + dialog on salaries tab |
 
-### Employee Detail Page Tab Structure
+### Position Template Dropdown Logic
 
 ```text
-EmployeeDetail
-  |-- Header (name, position, dept, location, status, Edit btn)
-  |-- Tabs
-       |-- Licni podaci    -> read-only employee fields
-       |-- Ugovori         -> employee_contracts WHERE employee_id = :id
-       |-- Plate           -> employee_salaries WHERE employee_id = :id
-       |-- Platne liste    -> payroll_items JOIN payroll_runs WHERE employee_id = :id
-       |-- Odsustva        -> leave_requests WHERE employee_id = :id
-       |-- Evidencija rada -> work_logs WHERE employee_id = :id
-       |-- Obustave        -> deductions WHERE employee_id = :id
+1. Fetch position_templates WHERE tenant_id = current AND is_active = true
+2. If templates exist:
+   - Show Select dropdown with all templates + "Manual" option
+   - On select: set position_template_id and auto-fill position text
+   - If "Manual" selected: show additional text input for position
+3. If no templates: show plain text input (current behavior)
 ```
 
-### Payslip PDF Flow
+### Contract Dialog Fields
+- contract_type: Select (indefinite, fixed_term, temporary, contract)
+- start_date, end_date: date inputs
+- gross_salary, net_salary: number inputs
+- working_hours_per_week: number (default 40)
+- currency: Select (RSD, EUR, USD)
+- is_active: Switch (default true)
+- employee_id: auto-set from URL param (hidden)
 
-```text
-User clicks "Download" on a payroll_item
-  -> Calls generate-pdf edge function with { type: "payslip", payroll_item_id }
-  -> Edge function fetches payroll_item + payroll_run + employee + legal_entity
-  -> Returns HTML payslip
-  -> Browser opens in new tab for print/save as PDF
-```
-
-### Position Template Integration
-
-The `employees` table already has a `position_template_id` column (FK to `position_templates`). The form will:
-1. Fetch `position_templates` for the tenant
-2. Show a dropdown to select a position template
-3. Auto-fill the `position` text field with the template name
-4. Store both `position_template_id` (reference) and `position` (display text)
+### Salary Dialog Fields
+- amount: number input
+- amount_type: Select (net, gross)
+- start_date: date input
+- end_date: date input (optional)
+- employee_id: auto-set from URL param (hidden)
 
