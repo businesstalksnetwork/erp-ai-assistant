@@ -107,12 +107,16 @@ const accountingNav: NavItem[] = [
 ];
 
 const analyticsNav: NavItem[] = [
-  { key: "analyticsDashboard", url: "/analytics", icon: BarChart3 },
-  { key: "financialRatios", url: "/analytics/ratios", icon: Activity },
+  // Overview
+  { key: "analyticsDashboard", url: "/analytics", icon: BarChart3, section: "analyticsOverview" },
+  // Financial Health
+  { key: "financialRatios", url: "/analytics/ratios", icon: Activity, section: "financialHealth" },
   { key: "profitabilityAnalysis", url: "/analytics/profitability", icon: TrendingUp },
-  { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign },
+  // Forecasting
+  { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign, section: "forecasting" },
   { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
-  { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator },
+  // Strategic Planning
+  { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator, section: "strategicPlanning" },
   { key: "businessPlanning", url: "/analytics/planning", icon: Briefcase },
 ];
 
