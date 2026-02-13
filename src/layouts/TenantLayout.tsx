@@ -301,37 +301,37 @@ export default function TenantLayout() {
             </SidebarGroup>
 
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-400" />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" />
             )}
             {canAccess("sales") && (
-              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
-            )}
-            {canAccess("web") && (
-              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-400" />
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-amber-500" />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-orange-400" />
-            )}
-            {canAccess("returns") && (
-              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-red-400" />
-            )}
-            {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-violet-400" />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" />
             )}
             {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-amber-400" />
-            )}
-            {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-400" />
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-400" />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" />
             )}
-            {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-400" />
+            {canAccess("accounting") && (
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" />
+            )}
+            {canAccess("hr") && (
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-400" />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-500" />
+            )}
+            {canAccess("web") && (
+              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-500" />
+            )}
+            {canAccess("documents") && (
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" />
+            )}
+            {canAccess("returns") && (
+              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-rose-400" />
             )}
           </SidebarContent>
 
@@ -354,7 +354,7 @@ export default function TenantLayout() {
                 })}
                 currentPath={currentPath}
                 t={t}
-                accentColor="bg-gray-400"
+                accentColor="bg-slate-400"
               />
             )}
 

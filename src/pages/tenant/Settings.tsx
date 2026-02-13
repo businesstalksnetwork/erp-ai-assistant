@@ -13,7 +13,7 @@ export default function TenantSettings() {
     { label: t("legalEntities"), icon: Building2, to: "/settings/legal-entities" },
     { label: t("locations"), icon: MapPin, to: "/settings/locations" },
     { label: t("warehouses"), icon: Warehouse, to: "/settings/warehouses" },
-    { label: t("salesChannels"), icon: ShoppingBag, to: "/settings/sales-channels" },
+    { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
     { label: t("costCenters"), icon: CircleDollarSign, to: "/settings/cost-centers" },
     { label: t("bankAccounts"), icon: Landmark, to: "/settings/bank-accounts" },
     { label: t("taxRates"), icon: Percent, to: "/settings/tax-rates" },
