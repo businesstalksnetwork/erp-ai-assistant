@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Send, BookOpen, DollarSign, FileDown } from "lucide-react";
+import { Plus, Search, Send, BookOpen, DollarSign, FileDown, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { ExportButton } from "@/components/ExportButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -295,6 +295,24 @@ export default function Invoices() {
                       <Button size="sm" variant="outline" onClick={() => sefMutation.mutate(inv.id)}>
                         <Send className="h-3 w-3 mr-1" />
                         {inv.sef_status === "rejected" ? "Retry SEF" : "SEF"}
+                      </Button>
+                    )}
+                    {inv.status === "sent" && (inv.sef_status === "submitted" || inv.sef_status === "polling") && (
+                      <Button size="sm" variant="outline" onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const { data, error } = await supabase.functions.invoke("sef-poll-status", {
+                            body: { tenant_id: tenantId, invoice_id: inv.id },
+                          });
+                          if (error) throw error;
+                          queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                          toast({ title: t("success"), description: data?.status || "Polled" });
+                        } catch (err: any) {
+                          toast({ title: t("error"), description: err.message, variant: "destructive" });
+                        }
+                      }}>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        {t("pollStatus")}
                       </Button>
                     )}
                   </div>

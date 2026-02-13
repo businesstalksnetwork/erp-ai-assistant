@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Wifi, WifiOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 
 const emptyForm = { device_name: "", device_type: "pfr", ib_number: "", jid: "", api_url: "", pac: "", location_id: "", location_name: "", location_address: "", is_active: true };
 
@@ -87,11 +87,44 @@ export default function FiscalDevices() {
     setDialogOpen(true);
   };
 
+  // Offline receipts query
+  const { data: offlineReceipts = [] } = useQuery({
+    queryKey: ["offline_receipts", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("fiscal_receipts").select("*, fiscal_devices(device_name)").eq("tenant_id", tenantId!).like("receipt_number", "OFFLINE-%");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const [retrying, setRetrying] = useState(false);
+  const handleRetryOffline = async () => {
+    setRetrying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fiscalize-retry-offline", { body: { tenant_id: tenantId } });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["offline_receipts"] });
+      toast({ title: t("success"), description: t("offlineRetried") });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t("fiscalDevices")}</h1>
-        <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <div className="flex gap-2">
+          {offlineReceipts.length > 0 && (
+            <Button variant="outline" onClick={handleRetryOffline} disabled={retrying}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${retrying ? "animate-spin" : ""}`} />
+              {t("retryOffline")} ({offlineReceipts.length})
+            </Button>
+          )}
+          <Button onClick={() => { setEditing(null); setForm(emptyForm); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        </div>
       </div>
 
       <div className="border rounded-lg">
