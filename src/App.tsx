@@ -142,6 +142,7 @@ import AiPlanningDashboard from "@/pages/tenant/AiPlanningDashboard";
 import AiPlanningSchedule from "@/pages/tenant/AiPlanningSchedule";
 import AiBottleneckPrediction from "@/pages/tenant/AiBottleneckPrediction";
 import AiCapacitySimulation from "@/pages/tenant/AiCapacitySimulation";
+import WmsDashboard from "@/pages/tenant/WmsDashboard";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -288,6 +289,7 @@ const App = () => (
                 <Route path="inventory/kalkulacija" element={<ProtectedRoute requiredModule="inventory"><Kalkulacija /></ProtectedRoute>} />
                 <Route path="inventory/nivelacija" element={<ProtectedRoute requiredModule="inventory"><Nivelacija /></ProtectedRoute>} />
                 <Route path="inventory/warehouses/:id" element={<ProtectedRoute requiredModule="inventory"><WarehouseDetail /></ProtectedRoute>} />
+                <Route path="inventory/wms/dashboard" element={<ProtectedRoute requiredModule="inventory"><WmsDashboard /></ProtectedRoute>} />
                 <Route path="inventory/wms/zones" element={<ProtectedRoute requiredModule="inventory"><WmsZones /></ProtectedRoute>} />
                 <Route path="inventory/wms/bins/:id" element={<ProtectedRoute requiredModule="inventory"><WmsBinDetail /></ProtectedRoute>} />
                 <Route path="inventory/wms/tasks" element={<ProtectedRoute requiredModule="inventory"><WmsTasks /></ProtectedRoute>} />
