@@ -43,6 +43,17 @@ serve(async (req) => {
       referent_receipt_number, referent_receipt_date, cashier_name,
     } = body;
 
+    // Verify tenant membership
+    if (tenant_id) {
+      const { data: membership } = await supabase
+        .from("tenant_members").select("id")
+        .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Load fiscal device config
     const { data: device, error: deviceErr } = await supabase
       .from("fiscal_devices")
