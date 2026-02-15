@@ -1624,6 +1624,13 @@ export const translations = {
     budgetVsActuals: "Budget vs Actuals",
     breakEvenAnalysis: "Break-Even Analysis",
     businessPlanning: "Business Planning",
+    accountingArchitecture: "Accounting Architecture",
+    accountingArchitectureDesc: "Visual overview of how all accounting modules connect — from source documents through journal posting to financial reports.",
+    sourceDocuments: "Source Documents",
+    journalEngine: "Journal Engine",
+    financialReports: "Financial Reports",
+    subLedgers: "Sub-Ledgers",
+    taxCompliance: "Tax & Compliance",
   },
   sr: {
     // Auth
@@ -3197,6 +3204,13 @@ export const translations = {
     budgetVsActuals: "Budžet vs Stvarni",
     breakEvenAnalysis: "Analiza tačke rentabilnosti",
     businessPlanning: "Poslovno planiranje",
+    accountingArchitecture: "Arhitektura računovodstva",
+    accountingArchitectureDesc: "Vizuelni pregled kako se svi računovodstveni moduli povezuju — od izvornih dokumenata kroz knjiženje do finansijskih izveštaja.",
+    sourceDocuments: "Izvorni dokumenti",
+    journalEngine: "Motor za knjiženje",
+    financialReports: "Finansijski izveštaji",
+    subLedgers: "Pomoćne knjige",
+    taxCompliance: "Porezi i usklađenost",
   },
 } as const;
 

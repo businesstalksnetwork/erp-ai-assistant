@@ -12,12 +12,14 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("tenants").select("id", { count: "exact", head: true }),
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("tenants").select("id"),
+      supabase.from("profiles").select("id"),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(5),
     ]).then(([t, u, a]) => {
-      setTenantCount(t.count || 0);
-      setUserCount(u.count || 0);
+      if (t.error) console.error("Tenant count error:", t.error);
+      if (u.error) console.error("User count error:", u.error);
+      setTenantCount(t.data?.length ?? 0);
+      setUserCount(u.data?.length ?? 0);
       setRecentActivity(a.data || []);
     });
   }, []);

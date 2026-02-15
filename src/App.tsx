@@ -138,6 +138,7 @@ import WmsPicking from "@/pages/tenant/WmsPicking";
 import WmsCycleCounts from "@/pages/tenant/WmsCycleCounts";
 import WmsSlotting from "@/pages/tenant/WmsSlotting";
 import PostingRules from "@/pages/tenant/PostingRules";
+import AccountingArchitecture from "@/pages/tenant/AccountingArchitecture";
 import AiPlanningDashboard from "@/pages/tenant/AiPlanningDashboard";
 import AiPlanningSchedule from "@/pages/tenant/AiPlanningSchedule";
 import AiBottleneckPrediction from "@/pages/tenant/AiBottleneckPrediction";
@@ -194,6 +195,7 @@ const App = () => (
                 <Route path="settings/bank-accounts" element={<ProtectedRoute requiredModule="settings"><BankAccounts /></ProtectedRoute>} />
                 <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><TenantIntegrations /></ProtectedRoute>} />
                 <Route path="settings/posting-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PostingRules /></ProtectedRoute>} />
+                <Route path="settings/accounting-architecture" element={<ProtectedRoute requiredModule="settings"><AccountingArchitecture /></ProtectedRoute>} />
                 <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><BusinessRules /></ProtectedRoute>} />
                 <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule="accounting"><ChartOfAccounts /></ProtectedRoute>} />
                 <Route path="accounting/journal" element={<ProtectedRoute requiredModule="accounting"><JournalEntries /></ProtectedRoute>} />
