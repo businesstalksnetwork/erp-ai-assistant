@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export default function TenantSettings() {
@@ -21,6 +21,7 @@ export default function TenantSettings() {
     { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
     { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
     { label: t("postingRules"), icon: BookOpen, to: "/settings/posting-rules" },
+    { label: t("accountingArchitecture"), icon: GitBranch, to: "/settings/accounting-architecture" },
     ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
   ];
 
