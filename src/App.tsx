@@ -152,6 +152,7 @@ import CashFlowForecast from "@/pages/tenant/CashFlowForecast";
 import BudgetVsActuals from "@/pages/tenant/BudgetVsActuals";
 import BreakEvenAnalysis from "@/pages/tenant/BreakEvenAnalysis";
 import BusinessPlanning from "@/pages/tenant/BusinessPlanning";
+import Expenses from "@/pages/tenant/Expenses";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -204,6 +205,7 @@ const App = () => (
                 <Route path="accounting/invoices/:id" element={<ProtectedRoute requiredModule="accounting"><InvoiceForm /></ProtectedRoute>} />
                 <Route path="accounting/fiscal-periods" element={<ProtectedRoute requiredModule="accounting"><FiscalPeriods /></ProtectedRoute>} />
                 <Route path="accounting/ledger" element={<ProtectedRoute requiredModule="accounting"><GeneralLedger /></ProtectedRoute>} />
+                <Route path="accounting/expenses" element={<ProtectedRoute requiredModule="accounting"><Expenses /></ProtectedRoute>} />
                 <Route path="accounting/reports" element={<ProtectedRoute requiredModule="accounting"><Reports /></ProtectedRoute>} />
                 <Route path="accounting/reports/trial-balance" element={<ProtectedRoute requiredModule="accounting"><TrialBalance /></ProtectedRoute>} />
                 <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule="accounting"><IncomeStatement /></ProtectedRoute>} />
