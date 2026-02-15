@@ -31,7 +31,7 @@ export default function RetailPrices() {
   const { data: priceLists = [] } = useQuery({
     queryKey: ["retail_price_lists", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("retail_price_lists").select("*, locations(name)").eq("tenant_id", tenantId!);
+      const { data } = await supabase.from("retail_price_lists").select("*").eq("tenant_id", tenantId!);
       return data || [];
     },
     enabled: !!tenantId,
@@ -142,7 +142,7 @@ export default function RetailPrices() {
                       <button className="text-left hover:underline" onClick={() => setSelectedList(pl.id)}>{pl.name}</button>
                       {pl.is_default && <Badge variant="outline" className="ml-2">{t("primary")}</Badge>}
                     </TableCell>
-                    <TableCell>{pl.locations?.name || t("allLocations")}</TableCell>
+                    <TableCell>{locations.find((l: any) => l.id === pl.location_id)?.name || t("allLocations")}</TableCell>
                     <TableCell><Badge variant={pl.is_active ? "default" : "secondary"}>{pl.is_active ? t("active") : t("inactive")}</Badge></TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => openEditList(pl)}><Pencil className="h-4 w-4" /></Button>
