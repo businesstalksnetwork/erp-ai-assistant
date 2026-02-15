@@ -1585,6 +1585,49 @@ Deno.serve(async (req) => {
     log.push(`✓ ${payrollRuns.length} payroll runs + ${payrollItems.length} payroll items`);
 
     // ═══════════════════════════════════════════════════
+    // 48b. PAYROLL JOURNAL ENTRIES (salary expenses)
+    // ═══════════════════════════════════════════════════
+    const payrollJE: any[] = [];
+    const payrollJL: any[] = [];
+    for (const pr of payrollRuns) {
+      if (pr.status !== "paid" && pr.status !== "approved") continue;
+      const jeId = uuid();
+      const entryDate = `${pr.period_year}-${String(pr.period_month).padStart(2, "0")}-28`;
+      const monthIdx = (pr.period_year - 2025) * 12 + (pr.period_month - 1);
+
+      payrollJE.push({
+        id: jeId, tenant_id: t,
+        entry_number: `JE-PL-${pr.period_year}-${String(pr.period_month).padStart(2, "0")}`,
+        entry_date: entryDate,
+        description: `Plate ${String(pr.period_month).padStart(2, "0")}/${pr.period_year}`,
+        reference: `PAYROLL-${pr.period_year}-${pr.period_month}`,
+        status: "posted",
+        fiscal_period_id: fpIds[Math.min(monthIdx, fpIds.length - 1)],
+        posted_at: entryDate + "T12:00:00Z",
+        legal_entity_id: le, source: "payroll",
+      });
+
+      // Employer contributions (PIO 10% + Health 5.15%)
+      const employerContrib = Math.round(pr.total_gross * 0.1515);
+
+      payrollJL.push(
+        { id: uuid(), journal_entry_id: jeId, account_id: ACC_EXPENSES,
+          debit: pr.total_gross, credit: 0, description: "Bruto plate", sort_order: 1 },
+        { id: uuid(), journal_entry_id: jeId, account_id: ACC_EXPENSES,
+          debit: employerContrib, credit: 0, description: "Doprinosi na teret poslodavca", sort_order: 2 },
+        { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
+          debit: 0, credit: pr.total_net, description: "Neto plate za isplatu", sort_order: 3 },
+        { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
+          debit: 0, credit: pr.total_taxes + pr.total_contributions, description: "Porez i doprinosi", sort_order: 4 },
+        { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
+          debit: 0, credit: employerContrib, description: "Doprinosi poslodavac", sort_order: 5 },
+      );
+    }
+    await batchInsert(supabase, "journal_entries", payrollJE);
+    await batchInsert(supabase, "journal_lines", payrollJL);
+    log.push(`✓ ${payrollJE.length} payroll journal entries + ${payrollJL.length} journal lines`);
+
+    // ═══════════════════════════════════════════════════
     // 49. ALLOWANCE TYPES + ALLOWANCES
     // ═══════════════════════════════════════════════════
     const atIds: string[] = [];

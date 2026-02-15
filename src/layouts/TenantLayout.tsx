@@ -44,7 +44,7 @@ import {
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
-  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle,
+  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -93,6 +93,7 @@ const accountingNav: NavItem[] = [
   { key: "invoices", url: "/accounting/invoices", icon: Receipt, section: "invoicingPayments" },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
+  { key: "expensesOverview", url: "/accounting/expenses", icon: TrendingDown },
   { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
   // Assets & Accruals
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark, section: "assetsAccruals" },
