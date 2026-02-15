@@ -1,81 +1,132 @@
 
 
-# E2E Test Results and Fix Plan
+# Security and Architecture Hardening Plan
 
-## Testing Summary
+Based on the comprehensive review, this plan addresses the most critical issues in priority order. I've audited all 20+ edge functions and the client-side auth logic to produce actionable fixes.
 
-I navigated through all major modules while logged in as Super Admin. Here are the results:
+---
 
-### Modules Working Correctly (Data Loads)
+## Phase 1: Critical Fixes
 
-| Module | Page | Status |
-|---|---|---|
-| Dashboard | /dashboard | OK - Revenue, expenses, AI insights all show |
-| CRM | /crm/companies | OK - 100 companies |
-| CRM | /crm/contacts | OK - 160 contacts with company links |
-| CRM | /crm/leads | OK - 200 leads with statuses |
-| CRM | /crm/opportunities | OK - Kanban board with contacts linked |
-| CRM | /crm/meetings | OK - 30 meetings visible |
-| Accounting | /accounting/invoices | OK - 2000 invoices |
-| Accounting | /accounting/bank-statements | OK - 12 statements |
-| Accounting | /accounting/fixed-assets | OK - 20 assets with book values |
-| Accounting | /accounting/loans | OK - 3 loans |
-| Accounting | /accounting/open-items | OK - Receivable/Payable with payments |
-| Purchasing | /purchasing/supplier-invoices | OK - Linked to POs now |
-| Inventory | /inventory/products | OK - 200 products |
-| WMS | /inventory/wms/tasks | OK - 96 pending, 105 in progress |
-| Returns | /returns | OK - 10 return cases |
-| Web Sales | /web/prices | OK - Web price list visible |
-| HR | /hr/contracts | OK - 25 contracts |
+### 1.1 Refactor useAuth.tsx -- Proper Role Fetch Separation
 
-### BUGS FOUND - Require Code Fixes
+**Current state**: The code already uses `setTimeout(..., 0)` inside `onAuthStateChange` to defer the role fetch. This partially mitigates the Supabase deadlock issue, but it's still fragile because:
+- The `setTimeout` callback captures a stale `session` closure
+- If `onAuthStateChange` fires rapidly (tab focus, token refresh), multiple role fetches race
+- `loading` stays `true` until the deferred callback completes, but there's no cancellation
 
-#### Bug 1: Employees Page Broken (CRITICAL)
+**Fix**: Move role fetching to a separate `useEffect` keyed on `user?.id`:
 
-- **Page**: `/hr/employees`
-- **Symptom**: "No results found" despite 25 active employees in DB
-- **Root Cause**: PostgREST error PGRST201 - ambiguous relationship between `employees` and `departments`. Two foreign keys exist: `employees.department_id -> departments.id` AND `departments.manager_employee_id -> employees.id`
-- **Network Response**: HTTP 300 with error message: "Could not embed because more than one relationship was found for 'employees' and 'departments'"
-- **Fix**: In `src/pages/tenant/Employees.tsx` line 66, change the select from `departments(name)` to `departments!employees_department_id_fkey(name)` to disambiguate the relationship
-
-#### Bug 2: Retail Prices Page Empty (MEDIUM)
-
-- **Page**: `/sales/retail-prices`
-- **Symptom**: Retail Price List tab shows empty table, despite 1 `retail_price_lists` record existing in DB
-- **Root Cause**: The `retail_price_lists` table does not have a `tenant_id` column - it likely uses a different column name or the RLS policy blocks access. Need to investigate the table schema and the RetailPrices component query.
-- **Fix**: Check table schema for correct column name and update the query or RLS policy accordingly
-
-#### Bug 3: Attendance Page Empty (LOW - Expected)
-
-- **Page**: `/hr/attendance`
-- **Symptom**: "No results found" for today's date (02/15/2026)
-- **Root Cause**: Date filter defaults to today, and attendance data was seeded for past dates. This is expected behavior, not a bug.
-
-## Implementation Plan
-
-### Step 1: Fix Employees Page (Disambiguate FK)
-
-File: `src/pages/tenant/Employees.tsx`
-
-Change line 66:
 ```typescript
-// FROM:
-let q = supabase.from("employees").select("*, departments(name), locations(name)")
-
-// TO:
-let q = supabase.from("employees").select("*, departments!employees_department_id_fkey(name), locations(name)")
+// onAuthStateChange: ONLY set session/user state (thin, synchronous)
+// Separate useEffect: fetch roles when user.id changes
+// Add cleanup to cancel stale fetches
 ```
 
-### Step 2: Fix Retail Prices Page
+**Also**: Clear `localStorage` tenant selection on sign-out (currently only `useTenant` state is cleared, not storage).
 
-1. Check the `retail_price_lists` table schema to find the correct tenant filtering column
-2. Update the RetailPrices component query to match the schema
-3. Verify the RLS policy allows authenticated users to read the data
+### 1.2 Fix Edge Functions Missing Auth Checks (3 functions)
 
-### Files to Modify
+After auditing all 20 edge functions, here is the auth status:
+
+| Function | Has JWT Check | Has Tenant Check | Issue |
+|---|---|---|---|
+| sef-submit | Yes | Yes | OK |
+| fiscalize-receipt | Yes | Yes | OK |
+| create-notification | Yes | Yes | OK |
+| generate-pdf | Yes | Yes | OK |
+| ai-analytics-narrative | Yes | Yes | OK |
+| ai-assistant | Yes | Yes | OK |
+| ai-insights | Yes | Yes | OK |
+| create-tenant | Yes | Super Admin check | OK |
+| process-module-event | Yes | Yes | OK (also supports internal secret) |
+| web-order-import | No (uses API key/HMAC) | Yes (via connection) | OK -- webhook pattern |
+| ebolovanje-submit | Needs check | Needs check | **FIX** |
+| eotpremnica-submit | Needs check | Needs check | **FIX** |
+| **company-lookup** | **NO** | **NO** | **CRITICAL -- fully open** |
+| nbs-exchange-rates | Needs check | Needs check | **FIX** |
+| fiscalize-retry-offline | Needs check | Needs check | **FIX** |
+| wms-slotting | Needs check | Needs check | **FIX** |
+| production-ai-planning | Needs check | Needs check | **FIX** |
+| web-sync | Needs check | Needs check | **FIX** |
+| seed-demo-data (x3) | No | No | OK -- dev-only, should be removed in prod |
+
+**Fix**: Add the standard auth guard pattern (getUser + tenant membership check) to all 8 functions marked above. For `company-lookup`, add at minimum a JWT check since it calls an external API with a stored token.
+
+### 1.3 Validate selectedTenantId Against Membership
+
+**Current state**: `useTenant.ts` reads from `localStorage` and trusts whatever ID is stored. If a user is removed from a tenant, they'll see empty/errored pages until they manually switch.
+
+**Fix**: After the memberships query resolves, if `selectedId` is not in the membership list, reset to the first available tenant.
+
+Also: clear `STORAGE_KEY` in `useAuth.signOut()`.
+
+---
+
+## Phase 2: High Priority Fixes
+
+### 2.1 Add Server-Side Journal Entry Invariants (Database Migration)
+
+Create a PostgreSQL trigger that enforces:
+- **Balanced journals**: On status change to `posted`, verify `SUM(debit) = SUM(credit)` for that entry's lines
+- **Immutability**: Prevent UPDATE/DELETE on `journal_lines` where the parent entry status is `posted`
+
+```sql
+-- Trigger: prevent posting unbalanced journals
+-- Trigger: prevent modification of posted journal lines
+-- Trigger: atomic storno (reversal creates entry + marks original as reversed in one transaction)
+```
+
+### 2.2 Standardize Edge Function Auth with Shared Helper
+
+Create a reusable auth validation pattern. Since edge functions can't share imports across folders in Supabase, we'll create a documented pattern and apply it consistently. The pattern:
+
+```text
+1. Parse Authorization header
+2. Create user client with anon key
+3. Call getUser() to validate token
+4. If tenant_id provided, verify membership via service role client
+5. Return { user, tenantId } or 401/403 Response
+```
+
+---
+
+## Phase 3: Medium Priority Improvements
+
+### 3.1 Filter Global Search by Tenant Module Enablement
+
+**Current state**: `GlobalSearch.tsx` already filters by `canAccess()` (role permissions). This is good -- the review's concern about a "permission oracle" is already addressed.
+
+**No change needed** -- this is already implemented at line 167.
+
+### 3.2 Fix useTenant Sign-Out Cleanup
+
+Add `localStorage.removeItem(STORAGE_KEY)` to `useAuth.signOut()` to prevent stale tenant selection on re-login.
+
+---
+
+## Files to Modify
 
 | File | Change |
 |---|---|
-| `src/pages/tenant/Employees.tsx` | Disambiguate departments FK in select query |
-| `src/pages/tenant/RetailPrices.tsx` | Fix query for retail_price_lists (investigate schema first) |
+| `src/hooks/useAuth.tsx` | Refactor role fetch to separate useEffect; clear tenant on signOut |
+| `src/hooks/useTenant.ts` | Validate selectedId against membership list |
+| `supabase/functions/company-lookup/index.ts` | Add JWT validation |
+| `supabase/functions/ebolovanje-submit/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/eotpremnica-submit/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/nbs-exchange-rates/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/fiscalize-retry-offline/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/wms-slotting/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/production-ai-planning/index.ts` | Add JWT + tenant membership check |
+| `supabase/functions/web-sync/index.ts` | Add JWT + tenant membership check |
+| Database migration | Journal balance trigger + immutability trigger |
+
+---
+
+## What This Plan Does NOT Change (and why)
+
+- **verify_jwt = false in config.toml**: The Supabase signing-keys system requires `verify_jwt = false` with in-code validation. This is the documented pattern for this project's setup and is correct.
+- **seed-demo-data functions**: These are dev-only utilities. They should be removed before production but are not a security risk in the current context.
+- **RLS policies**: No schema changes to add `tenant_id` to child tables in this phase -- that's a larger migration best done separately.
+- **VAT scenario codes**: This is a business logic enhancement, not a bug fix. Should be planned as a separate feature.
 
