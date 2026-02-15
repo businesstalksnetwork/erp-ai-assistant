@@ -1,133 +1,111 @@
 
-# Popravka svih analitičkih stranica
 
-## Problem
+# Dopuna svih praznih tabela i popravka veza
 
-Sve analitičke stranice (Analytics Dashboard, Financial Ratios, Budget vs Actuals, Break-Even, Cash Flow Forecast, Profitability) ne prikazuju podatke jer frontend kod koristi kolone koje ne postoje u bazi:
+## Sta je problem
 
-### Nepostojece kolone u upitima
+Pregled baze je pokazao da:
+1. **2000 nabavnih porudzbina nema nijednu liniju** (po_lines = 0)
+2. **200 proizvodnih naloga nema BOM vezu** (bom_template_id = NULL)
+3. **30+ tabela je potpuno prazno** -- stranice koje ih prikazuju nece raditi
+4. **Nema valuta, praznika, PDV perioda** -- osnovni sistemski podaci fale
 
-| Tabela | Frontend trazi | Baza ima |
+## Sta ce se popuniti
+
+### Kriticne popravke veza
+
+| Problem | Popravka |
+|---|---|
+| PO lines = 0 (2000 PO-a bez stavki) | Dodati 1-3 linije za svaki PO |
+| Production orders bez BOM-a | Kreirati 20 BOM templates + bom_lines, povezati sa production orders |
+| POS daily reports = 3 | Generisati dnevni izvestaj za svaku POS sesiju (~261) |
+
+### Nove tabele za popuniti
+
+| Tabela | Kolicina | Opis |
 |---|---|---|
-| `journal_lines` | `amount`, `side` | `debit`, `credit` |
-| `journal_lines` | `tenant_id` (filter) | nema `tenant_id` (pripada `journal_entries`) |
-| `invoices` | `paid_at` | ne postoji |
-| `loans` | `monthly_payment` | ne postoji (ima `principal`, `interest_rate`, `term_months`) |
+| **currencies** | 5 | RSD, EUR, USD, CHF, GBP |
+| **exchange_rates** | 60 | Mesecni kursevi za 2025 (5 valuta x 12 meseci) |
+| **holidays** | 10 | Srpski drzavni praznici za 2025 |
+| **pdv_periods** | 12 | Mesecni PDV periodi za 2025 |
+| **pdv_entries** | ~300 | PDV stavke vezane za fakture/ulazne fakture |
+| **salespeople** | 5 | Prodajni predstavnici (iz postojecih zaposlenih) |
+| **sales_channels** | 4 | Direktna prodaja, Web, Partner, Telefon |
+| **sales_targets** | 60 | Mesecni targeti za svakog salesperson-a |
+| **leave_requests** | 50 | Zahtevi za odmor za 2025 |
+| **attendance_records** | ~2500 | Dnevna evidencija dolazaka (10 zaposlenih x 250 dana) |
+| **payroll_runs** | 12 | Mesecni obracun plata |
+| **payroll_items** | 300 | 25 zaposlenih x 12 meseci |
+| **fixed_assets** | 20 | IT oprema, namestaj, vozila |
+| **bom_templates** | 20 | Bill of Materials za proizvode |
+| **bom_lines** | 60-80 | Materijali po BOM-u |
+| **production_consumption** | ~400 | Utrosak materijala po proizvodnim nalozima |
+| **activities** | 200 | CRM aktivnosti (pozivi, emailovi, sastanci) |
+| **meetings** | 30 | Sastanci sa klijentima |
+| **allowances** | 50 | Dodaci na platu |
+| **deductions** | 30 | Odbici od plate |
+| **overtime_hours** | 40 | Prekovremeni rad |
+| **insurance_records** | 25 | Zdravstveno osiguranje po zaposlenom |
+| **position_templates** | 10 | Sabloni pozicija |
+| **purchase_order_lines** | ~4000 | 1-3 stavke po PO |
+| **pos_daily_reports** | ~261 | Dnevni POS izvestaji |
 
-### Prazne tabele (seed ih nije popunio)
+### Tabele koje se NE popunjavaju (zahtevaju korisnicku akciju)
 
-- `budgets` -- Budget vs Actuals nema podataka
-- `cost_centers` -- Profitability by Cost Center je prazna
-- `bank_statements` -- Cash Flow Forecast nema pocetni saldo
-- `ar_aging_snapshots` -- Cash Flow nema aging podatke
-- `loans` -- nema podataka za mesecne rate
-
-### Premalo journal entries
-
-Samo 20 journal entries (svaka 100. faktura) -- treba vise za smislene grafike.
-
----
-
-## Plan popravke
-
-### Korak 1: Popravka svih analytics upita u frontendu
-
-Svaki upit koji koristi `journal_lines` mora se prepraviti da:
-- Umesto `.eq("tenant_id", tenantId!)` na `journal_lines`, koristi filter preko relacije `journal:journal_entry_id(tenant_id, ...)`
-- Umesto `amount` i `side`, koristi `debit` i `credit` kolone
-- Logika: `net = debit - credit` umesto `side === "debit" ? amount : -amount`
-
-**Fajlovi za izmenu:**
-
-1. **`src/pages/tenant/AnalyticsDashboard.tsx`**
-   - Popraviti journal_lines upit: ukloniti `.eq("tenant_id")`, dodati filter `.eq("journal.tenant_id", tenantId)`
-   - Zameniti `amount`/`side` sa `debit`/`credit`
-
-2. **`src/pages/tenant/FinancialRatios.tsx`**
-   - Ista popravka za journal_lines
-   - Ukloniti referencu na `paid_at` -- koristiti `updated_at` ili procenu na osnovu `due_date`
-
-3. **`src/pages/tenant/BudgetVsActuals.tsx`**
-   - Popraviti journal_lines upit
-
-4. **`src/pages/tenant/BreakEvenAnalysis.tsx`**
-   - Popraviti journal_lines upit
-
-5. **`src/pages/tenant/CashFlowForecast.tsx`**
-   - Popraviti referencu na `paid_at` u invoices
-   - Popraviti `monthly_payment` -- izracunati iz `principal / term_months`
-
-6. **`src/pages/tenant/ProfitabilityAnalysis.tsx`**
-   - Popraviti journal_lines upit za cost center tab
-
-### Korak 2: Dopuna seed funkcije
-
-Dodati u `seed-demo-data` funkciju generisanje podataka za:
-
-- **Budgets** (~21 redova) -- godisnji budzet za svaki revenue/expense account
-- **Cost Centers** (5) -- IT, Prodaja, Finansije, Logistika, Proizvodnja
-- **Bank Statements** (12) -- mesecni izvodi za 2025
-- **Loans** (3) -- aktivni krediti
-- **Vise journal entries** (500+) -- za svaku 4. fakturu umesto svake 100.
-- **Journal lines sa cost_center_id** -- povezati neke linije sa cost centrima
-- **`paid_at` simulacija** -- posto kolona ne postoji, DSO ce koristiti `due_date` + random offset
-
-### Korak 3: Ponovno pokretanje seed funkcije
-
-Pozvati azuriranu seed funkciju da popuni nove tabele.
-
----
+Sledece tabele se koriste za specificne operacije i nema smisla ih automatski popunjavati:
+- `documents` / `dms_projects` -- DMS zahteva upload fajlova
+- `approval_workflows` -- konfiguracija tokova odobravanja
+- `kalkulacije` / `nivelacije` / `kompenzacija` -- specificni srpski dokumenti
+- `credit_notes` / `return_cases` -- povratnice se prave iz faktura
+- `internal_orders` / `internal_transfers` / `internal_goods_receipts` -- interni nalozi
+- `deferrals` / `bad_debt_provisions` -- razgranicenja
 
 ## Tehnicki detalji
 
-### Primer popravke journal_lines upita (pre/posle)
+### Izmena: `supabase/functions/seed-demo-data/index.ts`
 
-Pre:
-```typescript
-const { data: lines } = await (supabase
-  .from("journal_lines")
-  .select("amount, side, accounts:account_id(account_type, code), 
-           journal:journal_entry_id(entry_date, status)")
-  .eq("tenant_id", tenantId!));
+Postojeca edge funkcija se prosiruje sa novim sekcijama (32-50+). Dodaje se i cleanup za nove tabele. Kljucne promene:
 
-const net = line.side === "debit" ? amt : -amt;
+1. Cleanup blok se prosiruje sa novim tabelama
+2. Dodaje se 18+ novih sekcija za generisanje podataka
+3. PO lines se generisu za svih 200 PO-a (2000 je zapravo greska u sedu, treba biti 200)
+4. BOM templates se kreiraju i povezuju sa production_orders
+
+### Redosled novih inserata
+
+```text
+32. Currencies (5)
+33. Exchange rates (60)  
+34. Holidays (10)
+35. Position templates (10)
+36. Salespeople (5) -- zavisi od employees
+37. Sales channels (4)
+38. Sales targets (60) -- zavisi od salespeople
+39. PDV periods (12)
+40. PDV entries (~300) -- zavisi od invoices, supplier_invoices
+41. Purchase order lines (~600) -- zavisi od purchase_orders, products
+42. BOM templates (20) + BOM lines (80) -- zavisi od products
+43. Update production_orders sa bom_template_id
+44. Production consumption (~400) -- zavisi od production_orders, products
+45. Fixed assets (20) -- zavisi od chart_of_accounts
+46. Leave requests (50) -- zavisi od employees
+47. Attendance records (~2500) -- zavisi od employees
+48. Payroll runs (12) + Payroll items (300) -- zavisi od employees
+49. Allowances (50) + Deductions (30) -- zavisi od employees
+50. Overtime hours (40) -- zavisi od employees
+51. Insurance records (25) -- zavisi od employees
+52. Activities (200) -- zavisi od companies, contacts, leads, opportunities
+53. Meetings (30)
+54. POS daily reports (~261) -- zavisi od pos_sessions
 ```
 
-Posle:
-```typescript
-const { data: lines } = await (supabase
-  .from("journal_lines")
-  .select("debit, credit, accounts:account_id(account_type, code), 
-           journal:journal_entry_id(entry_date, status, tenant_id)")
-  .eq("journal.tenant_id", tenantId!));
+### Upravljanje timeout-om
 
-const net = (Number(line.debit) || 0) - (Number(line.credit) || 0);
-```
+Funkcija mora da zavrsi unutar 60 sekundi. Posto vec ima mnogo podataka, nove sekcije koriste manje batch-ove i efikasniji kod. Ako bude potrebno, podaci se mogu razdeliti na dva poziva.
 
-### DSO popravka (bez `paid_at`)
-
-Posto `invoices` nema `paid_at`, DSO ce se racunati kao prosecno vreme od `invoice_date` do `due_date` za placene fakture, ili cemo dodati `paid_at` kolonu u migraciji.
-
-Preporuka: **dodati `paid_at` kolonu** u migraciji jer je DSO kljucni pokazatelj.
-
-### Loans `monthly_payment` popravka
-
-```typescript
-// Izracunati iz postojecih kolona
-const monthlyPayment = loan.principal / loan.term_months;
-```
-
----
-
-## Fajlovi za izmenu
+### Fajlovi za izmenu
 
 | Fajl | Izmena |
 |---|---|
-| `src/pages/tenant/AnalyticsDashboard.tsx` | Popravka journal_lines upita (debit/credit, tenant filter) |
-| `src/pages/tenant/FinancialRatios.tsx` | Popravka journal_lines upita + DSO bez paid_at |
-| `src/pages/tenant/BudgetVsActuals.tsx` | Popravka journal_lines upita |
-| `src/pages/tenant/BreakEvenAnalysis.tsx` | Popravka journal_lines upita |
-| `src/pages/tenant/CashFlowForecast.tsx` | Popravka loans + invoices upita |
-| `src/pages/tenant/ProfitabilityAnalysis.tsx` | Popravka journal_lines upita za cost center |
-| `supabase/functions/seed-demo-data/index.ts` | Dodati budgets, cost_centers, bank_statements, loans, vise JE |
-| Migracija | Dodati `paid_at` kolonu na `invoices` tabelu |
+| `supabase/functions/seed-demo-data/index.ts` | Prosirenje sa ~20 novih sekcija podataka + cleanup |
+
