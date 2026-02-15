@@ -1,119 +1,54 @@
 
-# Add "Rashodi" (Expenses) Module and Connect Salaries to Expenses
+
+# Standardize All Number Formatting to 2 Decimal Places
 
 ## Problem
 
-Currently there is no dedicated "Rashodi" (Expenses) section anywhere in the application. Salaries/payroll, supplier costs, depreciation, and other operating expenses are scattered across different modules but never consolidated. More critically, **payroll runs in the seed data don't generate journal entries**, so salaries never appear as expenses (rashodi) in the financial reports, dashboard KPIs, or Income Statement.
+Number formatting is inconsistent across ~50 files. Some use `minimumFractionDigits: 2`, some have no max, some use no decimals at all (e.g., the new Expenses page), and others use `.toFixed()` with varying precision.
 
-## What Changes
+## Solution
 
-### 1. Create a dedicated "Rashodi" (Expenses) page
+### 1. Create a shared formatter in `src/lib/utils.ts`
 
-A new page at `/accounting/expenses` that provides a consolidated view of all expenses:
-
-- **Summary cards** at top: Total Expenses, Salary Expenses, Supplier Expenses, Operating Expenses (all from journal entries against expense-type accounts)
-- **Monthly expense breakdown chart** (bar chart by expense category)
-- **Expense table** listing all journal entries posted to expense accounts, showing: date, description, account name, amount, cost center
-- **Category filter**: All / Salaries / Suppliers / Depreciation / Operating
-- **Date range filter**
-- Links to drill into specific modules (Payroll, Supplier Invoices, Fixed Assets)
-
-### 2. Add payroll journal entries to seed data
-
-In `seed-demo-data/index.ts`, after creating payroll runs (section 48), add journal entries for each "paid" payroll run:
-
-- **Debit**: ACC_EXPENSES (Gross salary expense) for total_gross
-- **Debit**: ACC_EXPENSES (Employer contributions) for employer PIO + health
-- **Credit**: ACC_AP (Net salary payable) for total_net  
-- **Credit**: ACC_AP (Tax + contributions payable) for total_taxes + total_contributions + employer contributions
-
-This ensures salaries flow into the expense account and appear in:
-- Dashboard KPI "Rashodi" card
-- Revenue vs Expenses chart
-- Income Statement
-- The new Rashodi page
-
-### 3. Add sidebar navigation link
-
-Add "Rashodi" to the `accountingNav` array in `TenantLayout.tsx` under the "Invoicing & Payments" section, after supplier-related links.
-
-### 4. Add route and translations
-
-- Route: `/accounting/expenses` in `App.tsx`
-- Translation keys: `expensesOverview`, `salaryExpenses`, `supplierExpenses`, `operatingExpenses`, `expenseCategory`, `allExpenses`
-
-## Technical Details
-
-### Expenses Page Query Logic
-
-The page queries `journal_lines` joined with `chart_of_accounts` (where `account_type = 'expense'`) and `journal_entries` (where `status = 'posted'`). It groups results by account code prefix to categorize:
-
-- **Salaries**: Journal entries with description containing "Plate" / "Bruto" / "Payroll"
-- **Suppliers**: Entries referencing supplier invoices (UF-*)  
-- **Depreciation**: Entries referencing fixed assets
-- **Operating**: Everything else
-
-### Payroll Journal Entries in Seed
-
-For each payroll run with status "paid" or "approved":
+Add a single `fmtNum` helper function:
 
 ```typescript
-// After payroll runs are created (section 48)
-for (const pr of payrollRuns) {
-  if (pr.status !== "paid" && pr.status !== "approved") continue;
-  const jeId = uuid();
-  const entryDate = `${pr.period_year}-${String(pr.period_month).padStart(2,"0")}-28`;
-  const monthIdx = (pr.period_year - 2025) * 12 + (pr.period_month - 1);
-  
-  journalEntries.push({
-    id: jeId, tenant_id: t,
-    entry_number: `JE-PL-${pr.period_year}-${String(pr.period_month).padStart(2,"0")}`,
-    entry_date: entryDate,
-    description: `Plate ${String(pr.period_month).padStart(2,"0")}/${pr.period_year}`,
-    reference: `PAYROLL-${pr.period_year}-${pr.period_month}`,
-    status: "posted",
-    fiscal_period_id: fpIds[Math.min(monthIdx, fpIds.length - 1)],
-    posted_at: entryDate + "T12:00:00Z",
-    legal_entity_id: le, source: "payroll",
-  });
-  
-  // Employer contributions (PIO 10% + Health 5.15%)
-  const employerContrib = Math.round(pr.total_gross * 0.1515);
-  
-  journalLines.push(
-    // Debit: Gross salary expense
-    { id: uuid(), journal_entry_id: jeId, account_id: ACC_EXPENSES,
-      debit: pr.total_gross, credit: 0, description: "Bruto plate", sort_order: 1 },
-    // Debit: Employer contributions expense
-    { id: uuid(), journal_entry_id: jeId, account_id: ACC_EXPENSES,
-      debit: employerContrib, credit: 0, description: "Doprinosi na teret poslodavca", sort_order: 2 },
-    // Credit: Net salary payable
-    { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
-      debit: 0, credit: pr.total_net, description: "Neto plate za isplatu", sort_order: 3 },
-    // Credit: Tax + employee contributions payable
-    { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
-      debit: 0, credit: pr.total_taxes + pr.total_contributions, description: "Porez i doprinosi", sort_order: 4 },
-    // Credit: Employer contributions payable
-    { id: uuid(), journal_entry_id: jeId, account_id: ACC_AP,
-      debit: 0, credit: employerContrib, description: "Doprinosi poslodavac", sort_order: 5 },
-  );
-}
+export const fmtNum = (n: number) =>
+  n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 ```
 
-### Sidebar Entry
+### 2. Replace all inline formatters across ~30 files
 
-```typescript
-// In accountingNav, after openItems:
-{ key: "expensesOverview", url: "/accounting/expenses", icon: TrendingDown, section: "invoicingPayments" },
-```
+Remove per-file `const fmtNum = ...` definitions and `toLocaleString("sr-RS", {...})` calls, importing the shared `fmtNum` from `@/lib/utils` instead.
 
-### Files Modified
+**Files to update (grouped by pattern):**
 
-| File | Change |
-|---|---|
-| `src/pages/tenant/Expenses.tsx` | **NEW** -- Consolidated expenses (rashodi) page with charts, filters, and drill-down |
-| `src/layouts/TenantLayout.tsx` | Add "Rashodi" nav item to accounting section |
-| `src/App.tsx` | Add route `/accounting/expenses` |
-| `src/i18n/translations.ts` | Add translation keys for expenses page |
-| `supabase/functions/seed-demo-data/index.ts` | Add payroll journal entries so salaries appear as expenses |
-| `supabase/functions/daily-data-seed/index.ts` | Include payroll expense entries in daily seed |
+**A. Files with local `fmtNum` definitions (replace with import):**
+- Dashboard.tsx, Payroll.tsx, Nivelacija.tsx, Kalkulacija.tsx, Kompenzacija.tsx, Deductions.tsx, Allowances.tsx, InvoiceForm.tsx, InventoryCostLayers.tsx, InventoryMovements.tsx, ProductDetail.tsx, PdvPeriods.tsx
+
+**B. Files using inline `.toLocaleString("sr-RS")` without decimals (add 2 decimals):**
+- Expenses.tsx (stats, chart tooltip, table cells)
+- CompanyDetail.tsx (if numeric, not date)
+
+**C. Files using `.toLocaleString("sr-RS", { minimumFractionDigits: 2 })` without max (add max):**
+- Invoices.tsx, ProductionOrderDetail.tsx, ProductionOrders.tsx, InvoiceForm.tsx (inline calls)
+
+**D. Files using `.toFixed()` for display (switch to `fmtNum` for consistent Serbian locale formatting):**
+- TrialBalance.tsx (CSV export can keep toFixed)
+- BusinessPlanning.tsx, BreakEvenAnalysis.tsx, FinancialRatios.tsx, ProfitabilityAnalysis.tsx, CashFlowForecast.tsx, BudgetVsActuals.tsx
+
+**E. Chart components with inline formatters:**
+- RevenueExpensesChart.tsx, CashFlowChart.tsx, TopCustomersChart.tsx, OpportunityPipelineChart.tsx, WinLossChart.tsx, LeadFunnelChart.tsx
+
+### 3. Exceptions (keep as-is)
+
+- Percentage values (e.g., `toFixed(1) + "%"`) -- these are not currency
+- Date `.toLocaleString("sr-RS")` calls -- not numeric
+- CSV export formatters using `.toFixed(2)` -- these need plain strings, not locale-formatted
+
+## Technical Notes
+
+- The shared `fmtNum` uses Serbian locale (`sr-RS`) with comma as decimal separator per project convention
+- All monetary values will display as e.g., `1.234.567,89` instead of `1234568` or `1234567.89`
+- No functional changes -- purely display formatting consistency
+
