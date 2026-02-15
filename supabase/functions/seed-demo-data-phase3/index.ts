@@ -5,6 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const NOW = new Date();
+const TOTAL_MONTHS = (NOW.getFullYear() - 2025) * 12 + NOW.getMonth() + 1;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,11 +54,10 @@ Deno.serve(async (req) => {
     const opportunities = await ids("opportunities");
     const userRoles = await ids("user_roles", "user_id");
 
-    // ============ 1. FIX OPPORTUNITIES (idempotent - updates are safe to re-run) ============
+    // ============ 1. FIX OPPORTUNITIES ============
     const contactIds = contacts.map(c => c.id);
     const spIds = salespeople.map(s => s.id);
     const leadIds = leads.map(l => l.id);
-    // Only update if still null
     const { data: nullOpps } = await sb.from("opportunities").select("id").eq("tenant_id", tenantId).is("contact_id", null).limit(200);
     if (nullOpps?.length && contactIds.length && spIds.length && leadIds.length) {
       for (let i = 0; i < nullOpps.length; i++) {
@@ -97,17 +99,19 @@ Deno.serve(async (req) => {
       } else { L(`3. SKIP - department_positions exist`); }
     }
 
-    // ============ 4. ATTENDANCE FOR REMAINING EMPLOYEES ============
+    // ============ 4. ATTENDANCE FOR REMAINING EMPLOYEES (through today) ============
     {
       const { data: coveredEmps } = await sb.from("attendance_records").select("employee_id").eq("tenant_id", tenantId);
       const coveredSet = new Set((coveredEmps ?? []).map(r => r.employee_id));
       const uncovered = employees.filter(e => !coveredSet.has(e.id));
       const attRows: any[] = [];
       const statuses: ("present" | "late" | "absent" | "remote")[] = ["present", "present", "present", "present", "late", "remote"];
+      const totalDays = Math.floor((NOW.getTime() - new Date(2025, 0, 1).getTime()) / 86400000);
       for (const emp of uncovered) {
-        for (let d = 0; d < 22; d++) { // ~1 month of workdays
-          const date = new Date(2025, 0, 6 + d + Math.floor(d / 5) * 2); // skip weekends roughly
+        for (let d = 0; d < Math.min(totalDays, 400); d++) {
+          const date = new Date(2025, 0, 6 + d + Math.floor(d / 5) * 2);
           if (date.getDay() === 0 || date.getDay() === 6) continue;
+          if (date > NOW) break;
           const st = statuses[Math.floor(Math.random() * statuses.length)];
           attRows.push({
             tenant_id: tenantId, employee_id: emp.id,
@@ -120,7 +124,6 @@ Deno.serve(async (req) => {
         }
       }
       if (attRows.length) {
-        // batch insert
         for (let i = 0; i < attRows.length; i += 100) {
           await sb.from("attendance_records").insert(attRows.slice(i, i + 100));
         }
@@ -157,7 +160,7 @@ Deno.serve(async (req) => {
       } else { L(`5. SKIP - bank_statement_lines exist`); }
     }
 
-    // ============ 6. FIXED ASSET DEPRECIATION ============
+    // ============ 6. FIXED ASSET DEPRECIATION (extended through today) ============
     {
       const { data: existDep } = await sb.from("fixed_asset_depreciation").select("id").eq("tenant_id", tenantId).limit(1);
       if (!existDep?.length) {
@@ -169,10 +172,12 @@ Deno.serve(async (req) => {
           const monthlyDep = (cost - salvage) / months;
           const startDate = new Date(fa.acquisition_date || "2024-01-01");
           let accum = 0;
-          for (let m = 0; m < Math.min(6, months); m++) {
+          const maxMonths = Math.min(TOTAL_MONTHS, months);
+          for (let m = 0; m < maxMonths; m++) {
             accum += monthlyDep;
             const period = new Date(startDate);
             period.setMonth(period.getMonth() + m + 1);
+            if (period > NOW) break;
             depRows.push({
               tenant_id: tenantId, asset_id: fa.id,
               period: period.toISOString().split("T")[0],
@@ -208,6 +213,7 @@ Deno.serve(async (req) => {
             balance -= princ;
             const dueDate = new Date(start);
             dueDate.setMonth(dueDate.getMonth() + m);
+            const isPaid = dueDate <= NOW && m <= 13;
             schedRows.push({
               tenant_id: tenantId, loan_id: loan.id, period_number: m,
               due_date: dueDate.toISOString().split("T")[0],
@@ -215,9 +221,9 @@ Deno.serve(async (req) => {
               interest_amount: Math.round(interest * 100) / 100,
               total_amount: Math.round(payment * 100) / 100,
               remaining_balance: Math.max(0, Math.round(balance * 100) / 100),
-              status: m <= 12 ? "paid" : "pending",
+              status: isPaid ? "paid" : "pending",
             });
-            if (m <= 12) {
+            if (isPaid) {
               payRows.push({
                 tenant_id: tenantId, loan_id: loan.id, period_number: m,
                 payment_date: dueDate.toISOString().split("T")[0],
@@ -240,7 +246,6 @@ Deno.serve(async (req) => {
     {
       const mpRows: any[] = [];
       for (const meeting of meetings) {
-        // Add 2 contacts + 1 employee as participants
         for (let i = 0; i < 2; i++) {
           const c = contacts[Math.floor(Math.random() * contacts.length)];
           mpRows.push({
@@ -260,11 +265,11 @@ Deno.serve(async (req) => {
       L(`8. Inserted ${error ? 'ERR: ' + error.message : mpRows.length} meeting_participants`);
     }
 
-    // ============ 9. PAYROLL PARAMETERS ============
+    // ============ 9. PAYROLL PARAMETERS (extended to 2026) ============
     {
       const ppRows = [{
         tenant_id: tenantId,
-        effective_from: "2025-01-01", effective_to: "2025-12-31",
+        effective_from: "2025-01-01", effective_to: "2026-12-31",
         nontaxable_amount: 25000, tax_rate: 10,
         pio_employee_rate: 14, health_employee_rate: 5.15, unemployment_employee_rate: 0.75,
         pio_employer_rate: 10, health_employer_rate: 5.15,
@@ -275,21 +280,24 @@ Deno.serve(async (req) => {
       L(`9. Inserted ${error ? 'ERR: ' + error.message : ppRows.length} payroll_parameters`);
     }
 
-    // ============ 10. INVENTORY COST LAYERS ============
+    // ============ 10. INVENTORY COST LAYERS (including 2026) ============
     {
       const iclRows: any[] = [];
       const topProducts = products.slice(0, 50);
       const wh = warehouses[0];
       if (wh) {
         for (const p of topProducts) {
-          for (let layer = 0; layer < 3; layer++) {
-            const date = new Date(2025, layer * 2, 1);
+          for (let m = 0; m < TOTAL_MONTHS; m += 2) {
+            const year = 2025 + Math.floor(m / 12);
+            const monthInYear = m % 12;
+            const date = new Date(year, monthInYear, 1);
+            if (date > NOW) break;
             iclRows.push({
               tenant_id: tenantId, product_id: p.id, warehouse_id: wh.id,
               layer_date: date.toISOString().split("T")[0],
               quantity_remaining: 10 + Math.floor(Math.random() * 90),
               unit_cost: Math.round((Number(p.default_sale_price || 100) * (0.5 + Math.random() * 0.3)) * 100) / 100,
-              reference: `GRN-${layer + 1}`,
+              reference: `GRN-${year}-${monthInYear + 1}`,
             });
           }
         }
@@ -319,8 +327,7 @@ Deno.serve(async (req) => {
         rpRows.push({
           price_list_id: listId, product_id: p.id,
           retail_price: Math.round(basePrice * 1.3 * 100) / 100,
-          markup_percent: 30,
-          valid_from: "2025-01-01",
+          markup_percent: 30, valid_from: "2025-01-01",
         });
       }
       for (let i = 0; i < rpRows.length; i += 100) {
@@ -342,7 +349,7 @@ Deno.serve(async (req) => {
         wplId = newWPL!.id;
       }
       const wpRows: any[] = [];
-      const webProducts = products.slice(0, 100); // 50% of products
+      const webProducts = products.slice(0, 100);
       for (const p of webProducts) {
         const basePrice = Number(p.default_sale_price || 100);
         wpRows.push({
@@ -363,8 +370,8 @@ Deno.serve(async (req) => {
         const amount = Number(oi.remaining_amount || 10000);
         oipRows.push({
           tenant_id: tenantId, open_item_id: oi.id,
-          amount: Math.round(amount * 0.5 * 100) / 100, // 50% partial payment
-          payment_date: "2025-06-15",
+          amount: Math.round(amount * 0.5 * 100) / 100,
+          payment_date: "2026-01-15",
           payment_type: "bank_transfer",
           reference: `PAY-${Math.floor(Math.random() * 99999)}`,
         });
@@ -382,8 +389,7 @@ Deno.serve(async (req) => {
           for (let a = 1; a <= 3; a++) {
             aisleRows.push({
               tenant_id: tenantId, zone_id: zone.id,
-              name: `Hodnik ${a}`, code: `A${a}`,
-              sort_order: a,
+              name: `Hodnik ${a}`, code: `A${a}`, sort_order: a,
             });
           }
         }
@@ -429,10 +435,8 @@ Deno.serve(async (req) => {
             task_type: taskTypes[t % taskTypes.length],
             status: statuses[Math.floor(Math.random() * statuses.length)],
             priority: Math.ceil(Math.random() * 5),
-            product_id: p.id,
-            quantity: 1 + Math.floor(Math.random() * 20),
-            from_bin_id: fromBin.id,
-            to_bin_id: toBin.id,
+            product_id: p.id, quantity: 1 + Math.floor(Math.random() * 20),
+            from_bin_id: fromBin.id, to_bin_id: toBin.id,
           });
         }
         const { error } = await sb.from("wms_tasks").insert(taskRows);
@@ -476,14 +480,15 @@ Deno.serve(async (req) => {
       } else { L(`17. SKIP`); }
     } catch (e: any) { L(`17. CATCH: ${e.message}`); }
 
-    // ============ 18. RETURN CASES + LINES ============
+    // ============ 18. RETURN CASES + LINES (with 2026 dates) ============
     try {
       const { data: existRC } = await sb.from("return_cases").select("id").eq("tenant_id", tenantId).limit(1);
       if (!existRC?.length && invoices.length) {
         const rcRows: any[] = [];
         const topInv = invoices.slice(0, 10);
         for (let i = 0; i < topInv.length; i++) {
-          rcRows.push({ tenant_id: tenantId, return_type: i < 7 ? "customer" : "supplier", source_type: "invoice", source_id: topInv[i].id, partner_id: topInv[i].partner_id, case_number: `RET-${String(i + 1).padStart(4, "0")}`, status: i < 5 ? "resolved" : "draft", opened_at: "2025-06-01", notes: "Demo" });
+          const openDate = i < 5 ? "2025-06-01" : "2026-01-15";
+          rcRows.push({ tenant_id: tenantId, return_type: i < 7 ? "customer" : "supplier", source_type: "invoice", source_id: topInv[i].id, partner_id: topInv[i].partner_id, case_number: `RET-${String(i + 1).padStart(4, "0")}`, status: i < 5 ? "resolved" : "draft", opened_at: openDate, notes: "Demo" });
         }
         const { data: rcData, error: rcErr } = await sb.from("return_cases").insert(rcRows).select("id");
         if (rcErr) { L(`18. ERR: ${rcErr.message}`); }
@@ -501,13 +506,14 @@ Deno.serve(async (req) => {
       } else { L(`18. SKIP`); }
     } catch (e: any) { L(`18. CATCH: ${e.message}`); }
 
-    // ============ 19. CREDIT NOTES ============
+    // ============ 19. CREDIT NOTES (with 2026 dates) ============
     try {
       const { data: existCN } = await sb.from("credit_notes").select("id").eq("tenant_id", tenantId).limit(1);
       if (!existCN?.length && invoices.length) {
         const cnRows: any[] = [];
         for (let i = 0; i < Math.min(10, invoices.length); i++) {
-          cnRows.push({ tenant_id: tenantId, invoice_id: invoices[i].id, credit_number: `CN-${String(i + 1).padStart(4, "0")}`, amount: Math.round(Number(invoices[i].total || 10000) * 0.1 * 100) / 100, currency: "RSD", status: i < 6 ? "issued" : "draft", issued_at: i < 6 ? "2025-07-01T00:00:00Z" : null, notes: "Knjizno odobrenje - demo" });
+          const issuedDate = i < 6 ? "2025-07-01T00:00:00Z" : "2026-01-20T00:00:00Z";
+          cnRows.push({ tenant_id: tenantId, invoice_id: invoices[i].id, credit_number: `CN-${String(i + 1).padStart(4, "0")}`, amount: Math.round(Number(invoices[i].total || 10000) * 0.1 * 100) / 100, currency: "RSD", status: i < 6 ? "issued" : "draft", issued_at: i < 6 ? issuedDate : null, notes: "Knjizno odobrenje - demo" });
         }
         const { error } = await sb.from("credit_notes").insert(cnRows);
         L(`19. Inserted ${error ? 'ERR: ' + error.message : cnRows.length} credit_notes`);

@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.seed-demo-data-phase3]
 verify_jwt = false
+
+[functions.daily-data-seed]
+verify_jwt = false
