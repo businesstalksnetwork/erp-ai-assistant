@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Layers } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 export default function InventoryCostLayers() {
   const { t } = useLanguage();
@@ -55,7 +56,7 @@ export default function InventoryCostLayers() {
   });
 
   const totalValue = filtered.reduce((s, l) => s + Number(l.quantity_remaining) * Number(l.unit_cost), 0);
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
 
   return (
     <div className="space-y-6">

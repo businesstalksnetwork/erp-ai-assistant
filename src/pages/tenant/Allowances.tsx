@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { fmtNum } from "@/lib/utils";
 
 export default function Allowances() {
   const { t } = useLanguage();
@@ -76,7 +77,7 @@ export default function Allowances() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2 });
+  
 
   return (
     <div className="space-y-6">

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Trash2, Calculator, Send } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 interface KalkulacijaItem {
   product_id: string;
@@ -133,7 +134,7 @@ export default function Kalkulacija() {
   };
 
   const filtered = kalkulacije.filter((k: any) => k.kalkulacija_number?.toLowerCase().includes(search.toLowerCase()));
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
 
   return (
     <div className="space-y-6">

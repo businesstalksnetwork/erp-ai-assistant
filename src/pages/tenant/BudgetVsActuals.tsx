@@ -16,6 +16,7 @@ import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { toast } from "sonner";
 import { Save, BarChart3, AlertTriangle } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 const currentYear = new Date().getFullYear();
 
@@ -224,9 +225,9 @@ export default function BudgetVsActuals() {
                         onChange={e => setEditingBudgets(prev => ({ ...prev, [r.id]: Number(e.target.value) }))}
                       />
                     </TableCell>
-                    <TableCell className="text-right font-medium">{r.actual.toLocaleString()}</TableCell>
-                    <TableCell className={`text-right ${r.variance >= 0 ? "text-accent" : "text-destructive"}`}>
-                      {r.variance.toLocaleString()}
+                    <TableCell className="text-right font-medium">{fmtNum(r.actual)}</TableCell>
+                     <TableCell className={`text-right ${r.variance >= 0 ? "text-accent" : "text-destructive"}`}>
+                       {fmtNum(r.variance)}
                     </TableCell>
                     <TableCell className="text-right text-xs">{r.variancePct.toFixed(0)}%</TableCell>
                     <TableCell>

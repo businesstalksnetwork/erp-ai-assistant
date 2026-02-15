@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, ArrowLeft, Save, Send } from "lucide-react";
 import { format } from "date-fns";
+import { fmtNum } from "@/lib/utils";
 
 interface InvoiceLine {
   id?: string;
@@ -363,7 +364,7 @@ export default function InvoiceForm() {
 
   const isReadOnly = status === "sent" || status === "paid" || status === "cancelled";
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -412,11 +413,11 @@ export default function InvoiceForm() {
                 <SelectTrigger><SelectValue placeholder={t("selectAdvanceInvoice")} /></SelectTrigger>
                 <SelectContent>
                   {advanceInvoices.map(ai => (
-                    <SelectItem key={ai.id} value={ai.id}>{ai.invoice_number} — {ai.partner_name} — {Number(ai.total).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</SelectItem>
+                    <SelectItem key={ai.id} value={ai.id}>{ai.invoice_number} — {ai.partner_name} — {fmtNum(Number(ai.total))}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {advanceAmountApplied.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>}
+              {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {fmtNum(advanceAmountApplied)}</p>}
             </div>
           )}
         </CardContent>

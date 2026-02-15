@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { Target, DollarSign, TrendingUp, Percent } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 export default function BreakEvenAnalysis() {
   const { locale } = useLanguage();
@@ -82,10 +83,10 @@ export default function BreakEvenAnalysis() {
   const breakEvenPoint = contributionMargin > 0 ? fc / contributionMargin : 0;
 
   const stats: StatItem[] = [
-    { label: sr ? "Ukupan prihod" : "Total Revenue", value: `${Math.round(rev).toLocaleString()}`, icon: DollarSign, color: "text-accent" },
-    { label: sr ? "Fiksni troškovi" : "Fixed Costs", value: `${Math.round(fc).toLocaleString()}`, icon: Target, color: "text-destructive" },
-    { label: sr ? "Varijabilni troškovi" : "Variable Costs", value: `${Math.round(vc).toLocaleString()}`, icon: TrendingUp, color: "text-warning" },
-    { label: sr ? "Tačka rentabilnosti" : "Break-Even Point", value: `${Math.round(breakEvenPoint).toLocaleString()} RSD`, icon: Percent, color: "text-primary" },
+    { label: sr ? "Ukupan prihod" : "Total Revenue", value: fmtNum(Math.round(rev)), icon: DollarSign, color: "text-accent" },
+    { label: sr ? "Fiksni troškovi" : "Fixed Costs", value: fmtNum(Math.round(fc)), icon: Target, color: "text-destructive" },
+    { label: sr ? "Varijabilni troškovi" : "Variable Costs", value: fmtNum(Math.round(vc)), icon: TrendingUp, color: "text-warning" },
+    { label: sr ? "Tačka rentabilnosti" : "Break-Even Point", value: `${fmtNum(Math.round(breakEvenPoint))} RSD`, icon: Percent, color: "text-primary" },
   ];
 
   // Chart data: from 0 to 2x revenue
@@ -121,7 +122,7 @@ export default function BreakEvenAnalysis() {
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="revenue" tick={{ fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                <Tooltip formatter={(v: number) => fmtNum(v)} />
                 <Legend />
                 <Line type="monotone" dataKey={sr ? "Prihod" : "Revenue"} stroke="hsl(160, 60%, 45%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey={sr ? "Ukupni troškovi" : "Total Costs"} stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={false} />

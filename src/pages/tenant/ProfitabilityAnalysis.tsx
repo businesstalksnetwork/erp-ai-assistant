@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Users, Package, Building, TrendingUp, DollarSign, Percent, ArrowDownUp } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import type { CsvColumn } from "@/lib/exportCsv";
+import { fmtNum } from "@/lib/utils";
 
 /* ── margin color helper ── */
 function marginColor(m: number) {
@@ -164,7 +165,7 @@ export default function ProfitabilityAnalysis() {
     ? <ExportButton data={productData} columns={prodCsvCols} filename="profitability_product" />
     : <ExportButton data={costCenterData} columns={ccCsvCols} filename="profitability_costcenter" />;
 
-  const fmt = (n: number) => n.toLocaleString();
+  const fmt = (n: number) => fmtNum(n);
 
   return (
     <div className="space-y-6">

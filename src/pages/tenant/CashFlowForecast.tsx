@@ -18,6 +18,7 @@ import {
   ReferenceLine, Area, ComposedChart,
 } from "recharts";
 import { TrendingUp, AlertTriangle, DollarSign, Landmark, CreditCard } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 const AR_BUCKET_PROBABILITIES = {
   current: 0.95,
@@ -202,7 +203,7 @@ export default function CashFlowForecast() {
               <Landmark className="h-3 w-3" />
               {sr ? "Stanje na računu" : "Bank Balance"}
             </p>
-            <p className="text-2xl font-bold">{(forecastInput?.bankBalance || 0).toLocaleString()} RSD</p>
+            <p className="text-2xl font-bold">{fmtNum(forecastInput?.bankBalance || 0)} RSD</p>
           </CardContent>
         </Card>
         <Card>
@@ -211,7 +212,7 @@ export default function CashFlowForecast() {
               <DollarSign className="h-3 w-3" />
               {sr ? "Neplaćena potraživanja" : "Outstanding AR"}
             </p>
-            <p className="text-2xl font-bold">{(forecastInput?.arTotal || 0).toLocaleString()} RSD</p>
+            <p className="text-2xl font-bold">{fmtNum(forecastInput?.arTotal || 0)} RSD</p>
           </CardContent>
         </Card>
         <Card>
@@ -220,13 +221,13 @@ export default function CashFlowForecast() {
               <CreditCard className="h-3 w-3" />
               {sr ? "Obaveze (AP)" : "Upcoming AP"}
             </p>
-            <p className="text-2xl font-bold">{(forecastInput?.apOutstanding || 0).toLocaleString()} RSD</p>
+            <p className="text-2xl font-bold">{fmtNum(forecastInput?.apOutstanding || 0)} RSD</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 space-y-1">
             <p className="text-xs text-muted-foreground uppercase">{sr ? "Mesečna rata kredita" : "Monthly Loan Payment"}</p>
-            <p className="text-2xl font-bold">{(forecastInput?.monthlyLoanPayment || 0).toLocaleString()} RSD</p>
+            <p className="text-2xl font-bold">{fmtNum(forecastInput?.monthlyLoanPayment || 0)} RSD</p>
           </CardContent>
         </Card>
         <Card>
@@ -254,7 +255,7 @@ export default function CashFlowForecast() {
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => v?.toLocaleString()} />
+                <Tooltip formatter={(v: number) => v != null ? fmtNum(v) : ""} />
                 <Legend />
                 {/* Cumulative cash area */}
                 <Area type="monotone" dataKey="cumulativeCash" name={sr ? "Kumulativni tok" : "Cumulative Cash"}
@@ -306,13 +307,13 @@ export default function CashFlowForecast() {
                     {row.month}
                     {row.forecast && <span className="ml-2 text-xs text-muted-foreground">({sr ? "prog." : "fc"})</span>}
                   </TableCell>
-                  <TableCell className="text-right">{row.inflow.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{row.outflow.toLocaleString()}</TableCell>
-                  <TableCell className={`text-right font-medium ${row.net < 0 ? "text-destructive" : ""}`}>
-                    {row.net.toLocaleString()}
+                  <TableCell className="text-right">{fmtNum(row.inflow)}</TableCell>
+                  <TableCell className="text-right">{fmtNum(row.outflow)}</TableCell>
+                   <TableCell className={`text-right font-medium ${row.net < 0 ? "text-destructive" : ""}`}>
+                     {fmtNum(row.net)}
                   </TableCell>
-                  <TableCell className={`text-right font-bold ${row.cumulativeCash < 0 ? "text-destructive" : ""}`}>
-                    {row.cumulativeCash.toLocaleString()}
+                   <TableCell className={`text-right font-bold ${row.cumulativeCash < 0 ? "text-destructive" : ""}`}>
+                     {fmtNum(row.cumulativeCash)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -327,8 +328,8 @@ export default function CashFlowForecast() {
           <TrendingUp className={`h-5 w-5 ${projectedCash < 0 ? "text-destructive" : "text-primary"}`} />
           <div>
             <p className="text-xs text-muted-foreground uppercase">{sr ? "Projektovani saldo za 3 meseca" : "Projected Cash in 3 Months"}</p>
-            <p className={`text-2xl font-bold ${projectedCash < 0 ? "text-destructive" : ""}`}>
-              {projectedCash.toLocaleString()} RSD
+             <p className={`text-2xl font-bold ${projectedCash < 0 ? "text-destructive" : ""}`}>
+               {fmtNum(projectedCash)} RSD
             </p>
           </div>
         </CardContent>

@@ -1,6 +1,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { fmtNum } from "@/lib/utils";
 
 interface Props {
   opportunities: Array<{ stage: string; value: number }>;
@@ -24,8 +25,7 @@ export function OpportunityPipelineChart({ opportunities }: Props) {
     color: STAGE_COLORS[s] || "hsl(var(--muted-foreground))",
   }));
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("sr-RS", { notation: "compact", maximumFractionDigits: 0 }).format(n);
+  const fmt = (n: number) => fmtNum(n);
 
   return (
     <Card>

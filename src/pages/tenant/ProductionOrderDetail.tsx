@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Package, ClipboardList, DollarSign, AlertTriangle } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 import { useState } from "react";
 
 export default function ProductionOrderDetail() {
@@ -158,7 +159,7 @@ export default function ProductionOrderDetail() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><DollarSign className="h-4 w-4" />{t("plannedCost")}</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{plannedCost.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold">{fmtNum(plannedCost)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -205,7 +206,7 @@ export default function ProductionOrderDetail() {
                       <TableCell className="text-right">{bl.quantity} × {order.quantity}</TableCell>
                       <TableCell className="text-right font-medium">{totalQty}</TableCell>
                       <TableCell className="text-right">{bl.products?.default_purchase_price || 0}</TableCell>
-                      <TableCell className="text-right font-medium">{cost.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right font-medium">{fmtNum(cost)}</TableCell>
                     </TableRow>
                   );
                 })}

@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Calculator, Eye, Send, FileDown } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 // POPDV sections per Serbian law
@@ -221,7 +222,7 @@ export default function PdvPeriods() {
     },
   });
 
-  const fmt = (n: number) => Number(n).toLocaleString("sr-RS", { minimumFractionDigits: 2 });
+  const fmt = (n: number) => fmtNum(Number(n));
 
   const statusBadge = (status: string) => {
     if (status === "calculated") return <Badge className="bg-blue-600">{t("pdvCalculated")}</Badge>;

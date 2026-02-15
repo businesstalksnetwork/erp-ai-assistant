@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { fmtNum } from "@/lib/utils";
 
 interface Props {
   tenantId: string;
@@ -50,7 +51,7 @@ export function TopCustomersChart({ tenantId }: Props) {
             <BarChart data={chartData} layout="vertical">
               <XAxis type="number" className="text-xs" />
               <YAxis dataKey="name" type="category" width={120} className="text-xs" />
-              <Tooltip />
+              <Tooltip formatter={(v: number) => fmtNum(v)} />
               <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name={t("total")} />
             </BarChart>
           </ResponsiveContainer>

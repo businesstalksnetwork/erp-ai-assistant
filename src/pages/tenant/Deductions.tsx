@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { fmtNum } from "@/lib/utils";
 
 const DEDUCTION_TYPES = ["credit", "alimony", "other"] as const;
 
@@ -57,7 +58,7 @@ export default function Deductions() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
   const typeLabel = (tp: string) => ({ credit: t("creditDeduction"), alimony: t("alimonyType"), other: t("other") }[tp] || tp);
 
   return (
