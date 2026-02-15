@@ -113,68 +113,53 @@ Deno.serve(async (req) => {
     // 0. CLEANUP existing data for this tenant (reverse FK order)
     // ═══════════════════════════════════════════════════
     // Force delete journal entries (bypasses posted-entry trigger)
-    await supabase.rpc("force_delete_journal_entries", { p_tenant_id: t });
+    const { error: rpcErr } = await supabase.rpc("force_delete_journal_entries", { p_tenant_id: t });
+    if (rpcErr) console.log("RPC force_delete err:", rpcErr.message);
     
-    // Delete invoice_lines via invoices
-    const { data: invIds } = await supabase.from("invoices").select("id").eq("tenant_id", t);
-    if (invIds && invIds.length > 0) {
-      const ids = invIds.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("invoice_lines").delete().in("invoice_id", ids.slice(i, i + 100));
-      }
-    }
-    
-    // Delete quote_lines via quotes
-    const { data: qIds } = await supabase.from("quotes").select("id").eq("tenant_id", t);
-    if (qIds && qIds.length > 0) {
-      const ids = qIds.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("quote_lines").delete().in("quote_id", ids.slice(i, i + 100));
-      }
-    }
-    
-    // Delete so_lines via sales_orders
-    const { data: soIds } = await supabase.from("sales_orders").select("id").eq("tenant_id", t);
-    if (soIds && soIds.length > 0) {
-      const ids = soIds.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("sales_order_lines").delete().in("sales_order_id", ids.slice(i, i + 100));
+    // Delete child rows via parent FK (no tenant_id on child)
+    const fkCleanup: Array<{parent: string, child: string, fk: string}> = [
+      { parent: "invoices", child: "invoice_lines", fk: "invoice_id" },
+      { parent: "quotes", child: "quote_lines", fk: "quote_id" },
+      { parent: "sales_orders", child: "sales_order_lines", fk: "sales_order_id" },
+      { parent: "purchase_orders", child: "purchase_order_lines", fk: "purchase_order_id" },
+      { parent: "goods_receipts", child: "goods_receipt_lines", fk: "goods_receipt_id" },
+      { parent: "bank_statements", child: "bank_statement_lines", fk: "statement_id" },
+      { parent: "bom_templates", child: "bom_lines", fk: "bom_template_id" },
+      { parent: "payroll_runs", child: "payroll_items", fk: "payroll_run_id" },
+      { parent: "production_orders", child: "production_consumption", fk: "production_order_id" },
+    ];
+    for (const { parent, child, fk } of fkCleanup) {
+      const { data: parentIds } = await supabase.from(parent).select("id").eq("tenant_id", t);
+      if (parentIds && parentIds.length > 0) {
+        const ids = parentIds.map((r: any) => r.id);
+        for (let i = 0; i < ids.length; i += 100) {
+          await supabase.from(child).delete().in(fk, ids.slice(i, i + 100));
+        }
       }
     }
 
-    // Delete po_lines via purchase_orders  
-    const { data: poIdsClean } = await supabase.from("purchase_orders").select("id").eq("tenant_id", t);
-    if (poIdsClean && poIdsClean.length > 0) {
-      const ids = poIdsClean.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("purchase_order_lines").delete().in("purchase_order_id", ids.slice(i, i + 100));
-      }
-    }
-    
-    // Delete gr_lines via goods_receipts
-    const { data: grIds } = await supabase.from("goods_receipts").select("id").eq("tenant_id", t);
-    if (grIds && grIds.length > 0) {
-      const ids = grIds.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("goods_receipt_lines").delete().in("goods_receipt_id", ids.slice(i, i + 100));
-      }
-    }
+    // Delete holidays with null tenant_id (national)
+    await supabase.from("holidays").delete().is("tenant_id", null);
 
-    // Delete bank_statement_lines via bank_statements
-    const { data: bsIds } = await supabase.from("bank_statements").select("id").eq("tenant_id", t);
-    if (bsIds && bsIds.length > 0) {
-      const ids = bsIds.map((r: any) => r.id);
-      for (let i = 0; i < ids.length; i += 100) {
-        await supabase.from("bank_statement_lines").delete().in("statement_id", ids.slice(i, i + 100));
-      }
-    }
-
-    // Now delete the parent tables with tenant_id
+    // Now delete the parent tables with tenant_id (order matters for FK deps)
     const cleanupTables = [
+      "pos_daily_reports",
+      "bom_templates",
+      "pdv_entries", "pdv_periods",
+      "payroll_runs",
+      "attendance_records", "leave_requests",
+      "overtime_hours", "insurance_records",
+      "allowances", "allowance_types",
+      "deductions",
+      "sales_targets", "salespeople", "sales_channels",
+      "exchange_rates", "currencies",
+      "position_templates", "meetings",
+      "fixed_assets",
       "open_items", "work_logs", "annual_leave_balances",
       "inventory_movements", "pos_transactions", "pos_sessions",
       "production_orders",
-      "quotes", "sales_orders", "purchase_orders", "goods_receipts",
+      "goods_receipts",  // before purchase_orders (FK dep)
+      "quotes", "sales_orders", "purchase_orders",
       "supplier_invoices", "fiscal_receipts", "invoices",
       "employee_contracts", "employee_salaries", "employees",
       "inventory_stock",
@@ -182,10 +167,11 @@ Deno.serve(async (req) => {
       "contact_company_assignments", "contacts",
       "company_category_assignments", "companies", "company_categories",
       "activities", "leads", "opportunities",
+      "loans",  // before partners (FK dep)
       "partners", "products",
       "fiscal_devices", "fiscal_periods",
       "departments", "locations",
-      "budgets", "cost_centers", "loans",
+      "budgets", "cost_centers",
       "bank_statements", "bank_accounts",
       "ar_aging_snapshots", "ap_aging_snapshots",
     ];
@@ -1241,6 +1227,549 @@ Deno.serve(async (req) => {
     await batchInsert(supabase, "ar_aging_snapshots", arSnapshots);
     await batchInsert(supabase, "ap_aging_snapshots", apSnapshots);
     log.push("✓ 12 AR + 12 AP aging snapshots");
+
+    // ═══════════════════════════════════════════════════
+    // 32. CURRENCIES (5)
+    // ═══════════════════════════════════════════════════
+    const currencyRows = [
+      { id: uuid(), tenant_id: t, code: "RSD", name: "Srpski dinar", symbol: "RSD", is_base: true, is_active: true },
+      { id: uuid(), tenant_id: t, code: "EUR", name: "Evro", symbol: "€", is_base: false, is_active: true },
+      { id: uuid(), tenant_id: t, code: "USD", name: "Američki dolar", symbol: "$", is_base: false, is_active: true },
+      { id: uuid(), tenant_id: t, code: "CHF", name: "Švajcarski franak", symbol: "CHF", is_base: false, is_active: true },
+      { id: uuid(), tenant_id: t, code: "GBP", name: "Britanska funta", symbol: "£", is_base: false, is_active: true },
+    ];
+    await batchInsert(supabase, "currencies", currencyRows);
+    log.push("✓ 5 currencies");
+
+    // ═══════════════════════════════════════════════════
+    // 33. EXCHANGE RATES (60 – monthly for 5 currencies)
+    // ═══════════════════════════════════════════════════
+    const exRates: any[] = [];
+    const baseRates: Record<string, number> = { EUR: 117.2, USD: 108.5, CHF: 121.0, GBP: 136.5 };
+    for (const [code, base] of Object.entries(baseRates)) {
+      for (let m = 0; m < 12; m++) {
+        const rd = new Date(2025, m, 15).toISOString().slice(0, 10);
+        exRates.push({
+          id: uuid(), tenant_id: t,
+          from_currency: code, to_currency: "RSD",
+          rate: Math.round((base + randAmount(-2, 2)) * 10000) / 10000,
+          rate_date: rd, source: "nbs",
+        });
+      }
+    }
+    await batchInsert(supabase, "exchange_rates", exRates);
+    log.push("✓ 48 exchange rates");
+
+    // ═══════════════════════════════════════════════════
+    // 34. HOLIDAYS (10 Serbian national holidays)
+    // ═══════════════════════════════════════════════════
+    const holidayRows = [
+      { name: "Nova godina", date: "2025-01-01" },
+      { name: "Nova godina 2", date: "2025-01-02" },
+      { name: "Božić", date: "2025-01-07" },
+      { name: "Sretenje", date: "2025-02-15" },
+      { name: "Sretenje 2", date: "2025-02-16" },
+      { name: "Praznik rada", date: "2025-05-01" },
+      { name: "Praznik rada 2", date: "2025-05-02" },
+      { name: "Dan primirja", date: "2025-11-11" },
+      { name: "Veliki petak", date: "2025-04-18" },
+      { name: "Uskrs ponedeljak", date: "2025-04-21" },
+    ].map(h => ({ id: uuid(), tenant_id: null as any, company_id: null, name: h.name, date: h.date, is_recurring: true }));
+    await batchInsert(supabase, "holidays", holidayRows);
+    log.push("✓ 10 holidays");
+
+    // ═══════════════════════════════════════════════════
+    // 35. POSITION TEMPLATES (10)
+    // ═══════════════════════════════════════════════════
+    const posTemplates = [
+      "Senior Developer", "Junior Developer", "Project Manager",
+      "System Administrator", "Sales Manager", "Accountant",
+      "Warehouse Operator", "QA Engineer", "DevOps Engineer", "Business Analyst",
+    ].map((name, i) => ({
+      id: uuid(), tenant_id: t, name, code: `POS-${String(i + 1).padStart(3, "0")}`,
+      is_active: true,
+    }));
+    await batchInsert(supabase, "position_templates", posTemplates);
+    log.push("✓ 10 position templates");
+
+    // ═══════════════════════════════════════════════════
+    // 36. SALESPEOPLE (5 from employees)
+    // ═══════════════════════════════════════════════════
+    const spIds: string[] = [];
+    const salespeople = empIds.slice(0, 5).map(empId => {
+      const id = uuid();
+      spIds.push(id);
+      const emp = employees.find((e: any) => e.id === empId)!;
+      return {
+        id, tenant_id: t, employee_id: empId,
+        first_name: emp.first_name, last_name: emp.last_name,
+        code: `SP-${String(spIds.length).padStart(3, "0")}`,
+        email: emp.email,
+        is_active: true, commission_rate: randAmount(3, 10),
+      };
+    });
+    await batchInsert(supabase, "salespeople", salespeople);
+    log.push("✓ 5 salespeople");
+
+    // ═══════════════════════════════════════════════════
+    // 37. SALES CHANNELS (4)
+    // ═══════════════════════════════════════════════════
+    const scIds: string[] = [];
+    const salesChannels = [
+      { name: "Direktna prodaja", type: "direct" },
+      { name: "Web prodavnica", type: "web" },
+      { name: "Partnerska mreža", type: "partner" },
+      { name: "Telefonska prodaja", type: "phone" },
+    ].map(sc => {
+      const id = uuid();
+      scIds.push(id);
+      return { id, tenant_id: t, name: sc.name, type: sc.type, is_active: true };
+    });
+    await batchInsert(supabase, "sales_channels", salesChannels);
+    log.push("✓ 4 sales channels");
+
+    // ═══════════════════════════════════════════════════
+    // 38. SALES TARGETS (60 – monthly per salesperson)
+    // ═══════════════════════════════════════════════════
+    const salesTargets: any[] = [];
+    for (const spId of spIds) {
+      for (let m = 1; m <= 12; m++) {
+        salesTargets.push({
+          id: uuid(), tenant_id: t,
+          salesperson_id: spId,
+          month: m, year: 2025,
+          target_amount: randAmount(500000, 2000000),
+          target_type: "revenue",
+        });
+      }
+    }
+    await batchInsert(supabase, "sales_targets", salesTargets);
+    log.push("✓ 60 sales targets");
+
+    // ═══════════════════════════════════════════════════
+    // 39. PDV PERIODS (12)
+    // ═══════════════════════════════════════════════════
+    const pdvPeriodIds: string[] = [];
+    const pdvPeriods = [];
+    for (let m = 0; m < 12; m++) {
+      const id = uuid();
+      pdvPeriodIds.push(id);
+      const start = new Date(2025, m, 1);
+      const end = new Date(2025, m + 1, 0);
+      pdvPeriods.push({
+        id, tenant_id: t,
+        period_name: `PDV ${String(m + 1).padStart(2, "0")}/2025`,
+        start_date: start.toISOString().slice(0, 10),
+        end_date: end.toISOString().slice(0, 10),
+        status: m < 10 ? "filed" : "open",
+      });
+    }
+    await batchInsert(supabase, "pdv_periods", pdvPeriods);
+    log.push("✓ 12 PDV periods");
+
+    // ═══════════════════════════════════════════════════
+    // 40. PDV ENTRIES (~300 from invoices + supplier invoices)
+    // ═══════════════════════════════════════════════════
+    const pdvEntries: any[] = [];
+    for (let i = 0; i < 2000; i += 7) {
+      const inv = invoices[i];
+      if (!inv) break;
+      const month = new Date(inv.invoice_date).getMonth();
+      pdvEntries.push({
+        id: uuid(), tenant_id: t,
+        pdv_period_id: pdvPeriodIds[Math.min(month, 11)],
+        document_type: "invoice",
+        document_number: inv.invoice_number,
+        document_date: inv.invoice_date,
+        partner_name: inv.partner_name,
+        partner_pib: inv.partner_pib,
+        base_amount: inv.subtotal,
+        vat_amount: inv.tax_amount,
+        vat_rate: 20,
+        direction: "output",
+      });
+    }
+    for (let i = 0; i < 500; i += 5) {
+      const si = suppInvoices[i];
+      if (!si) break;
+      const month = new Date(si.invoice_date).getMonth();
+      pdvEntries.push({
+        id: uuid(), tenant_id: t,
+        pdv_period_id: pdvPeriodIds[Math.min(month, 11)],
+        document_type: "supplier_invoice",
+        document_number: si.invoice_number,
+        document_date: si.invoice_date,
+        partner_name: si.supplier_name,
+        partner_pib: null,
+        base_amount: si.amount,
+        vat_amount: si.tax_amount,
+        vat_rate: 20,
+        direction: "input",
+      });
+    }
+    await batchInsert(supabase, "pdv_entries", pdvEntries);
+    log.push(`✓ ${pdvEntries.length} PDV entries`);
+
+    // ═══════════════════════════════════════════════════
+    // 41. PURCHASE ORDER LINES (~600)
+    // ═══════════════════════════════════════════════════
+    const poLines: any[] = [];
+    for (let i = 0; i < poIds.length; i++) {
+      const numLines = randInt(1, 3);
+      for (let li = 0; li < numLines; li++) {
+        const pi = randInt(0, 99);
+        const qty = randInt(5, 50);
+        const price = products[pi].default_purchase_price;
+        const lineTotal = Math.round(qty * price * 100) / 100;
+        poLines.push({
+          id: uuid(), purchase_order_id: poIds[i],
+          product_id: prodIds[pi], description: productNames[pi],
+          quantity: qty, unit_price: price, line_total: lineTotal,
+          sort_order: li + 1,
+        });
+      }
+    }
+    await batchInsert(supabase, "purchase_order_lines", poLines);
+    log.push(`✓ ${poLines.length} PO lines`);
+
+    // ═══════════════════════════════════════════════════
+    // 42. BOM TEMPLATES (20) + BOM LINES (80)
+    // ═══════════════════════════════════════════════════
+    const bomIds: string[] = [];
+    const bomTemplates: any[] = [];
+    const bomLines: any[] = [];
+    for (let i = 0; i < 20; i++) {
+      const id = uuid();
+      bomIds.push(id);
+      bomTemplates.push({
+        id, tenant_id: t,
+        product_id: prodIds[i], // IT hardware
+        name: `BOM - ${productNames[i]}`,
+        version: 1, is_active: true,
+        notes: `Sastavnica za ${productNames[i]}`,
+      });
+      const numMats = randInt(3, 5);
+      for (let li = 0; li < numMats; li++) {
+        bomLines.push({
+          id: uuid(), bom_template_id: id,
+          material_product_id: prodIds[randInt(20, 99)], // non-hardware products as materials
+          quantity: randAmount(1, 10),
+          unit: "kom", sort_order: li,
+        });
+      }
+    }
+    await batchInsert(supabase, "bom_templates", bomTemplates);
+    await batchInsert(supabase, "bom_lines", bomLines);
+    log.push(`✓ 20 BOM templates + ${bomLines.length} lines`);
+
+    // ═══════════════════════════════════════════════════
+    // 43. UPDATE production_orders with bom_template_id
+    // ═══════════════════════════════════════════════════
+    for (let i = 0; i < prodOrders.length; i++) {
+      const bomId = bomIds[i % bomIds.length];
+      await supabase.from("production_orders").update({ bom_template_id: bomId }).eq("id", prodOrders[i].id);
+    }
+    log.push("✓ 200 production orders linked to BOMs");
+
+    // ═══════════════════════════════════════════════════
+    // 44. PRODUCTION CONSUMPTION (~400)
+    // ═══════════════════════════════════════════════════
+    const prodConsumption: any[] = [];
+    for (let i = 0; i < prodOrders.length; i++) {
+      if (prodOrders[i].status === "planned") continue;
+      const numMats = randInt(1, 3);
+      for (let li = 0; li < numMats; li++) {
+        prodConsumption.push({
+          id: uuid(),
+          production_order_id: prodOrders[i].id,
+          product_id: prodIds[randInt(20, 99)],
+          quantity_consumed: randAmount(1, 20),
+          warehouse_id: pick(whIds),
+        });
+      }
+    }
+    await batchInsert(supabase, "production_consumption", prodConsumption);
+    log.push(`✓ ${prodConsumption.length} production consumption`);
+
+    // ═══════════════════════════════════════════════════
+    // 45. FIXED ASSETS (20)
+    // ═══════════════════════════════════════════════════
+    const assetNames = [
+      "Laptop Dell Latitude 5540", "Laptop Lenovo T14", "Server Dell R750", "UPS APC 1500VA",
+      "Kancelarijski nameštaj set", "Ergonomska stolica x10", "Projektor Epson", "Switch Cisco 2960",
+      "Klima uređaj Daikin", "Kombi vozilo Fiat Ducato", "Printer HP LaserJet", "Skener Epson DS-530",
+      "Rack kabinet 42U", "Softver SAP B1 licenca", "Desktop HP ProDesk x5", "Monitor Dell 27\" x10",
+      "NAS Synology", "Firewall FortiGate", "Telefonska centrala", "Alarmni sistem",
+    ];
+    const faRows: any[] = [];
+    const { data: assetAccounts } = await supabase
+      .from("chart_of_accounts").select("id").eq("tenant_id", t)
+      .eq("account_type", "asset").eq("is_active", true).limit(1);
+    const faAccountId = assetAccounts?.[0]?.id || null;
+    for (let i = 0; i < 20; i++) {
+      const cost = randAmount(50000, 2000000);
+      faRows.push({
+        id: uuid(), tenant_id: t,
+        name: assetNames[i],
+        description: `Osnovno sredstvo: ${assetNames[i]}`,
+        acquisition_date: `2025-${String(randInt(1, 12)).padStart(2, "0")}-${String(randInt(1, 28)).padStart(2, "0")}`,
+        acquisition_cost: cost,
+        useful_life_months: pick([36, 48, 60, 120]),
+        depreciation_method: "straight_line",
+        salvage_value: Math.round(cost * 0.1),
+        status: "active",
+        account_id: faAccountId,
+        legal_entity_id: le,
+      });
+    }
+    await batchInsert(supabase, "fixed_assets", faRows);
+    log.push("✓ 20 fixed assets");
+
+    // ═══════════════════════════════════════════════════
+    // 46. LEAVE REQUESTS (50)
+    // ═══════════════════════════════════════════════════
+    const leaveRequests: any[] = [];
+    for (let i = 0; i < 50; i++) {
+      const empId = pick(empIds);
+      const startMonth = randInt(1, 11);
+      const startDay = randInt(1, 25);
+      const days = randInt(1, 10);
+      const startDate = `2025-${String(startMonth).padStart(2, "0")}-${String(startDay).padStart(2, "0")}`;
+      const endD = new Date(2025, startMonth - 1, startDay + days);
+      leaveRequests.push({
+        id: uuid(), tenant_id: t, employee_id: empId,
+        leave_type: pick(["annual_leave", "annual_leave", "annual_leave", "sick_leave", "personal"]),
+        start_date: startDate,
+        end_date: endD.toISOString().slice(0, 10),
+        days_count: days,
+        reason: pick(["Godišnji odmor", "Porodični razlozi", "Bolovanje", "Lični razlozi", null]),
+        status: pick(["approved", "approved", "approved", "pending", "rejected"]),
+        vacation_year: 2025,
+      });
+    }
+    await batchInsert(supabase, "leave_requests", leaveRequests);
+    log.push("✓ 50 leave requests");
+
+    // ═══════════════════════════════════════════════════
+    // 47. ATTENDANCE RECORDS (~2500)
+    // ═══════════════════════════════════════════════════
+    const attendanceRows: any[] = [];
+    for (const empId of empIds.slice(0, 10)) {
+      for (let day = 0; day < 365; day++) {
+        const d = new Date(2025, 0, day + 1);
+        if (d.getDay() === 0 || d.getDay() === 6) continue;
+        if (d > new Date()) break;
+        const dateS = d.toISOString().slice(0, 10);
+        const checkIn = `${dateS}T0${randInt(7, 9)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
+        const checkOut = `${dateS}T${randInt(16, 18)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
+        attendanceRows.push({
+          id: uuid(), tenant_id: t, employee_id: empId,
+          date: dateS, check_in: checkIn, check_out: checkOut,
+          hours_worked: 8, status: "present",
+        });
+      }
+    }
+    await batchInsert(supabase, "attendance_records", attendanceRows);
+    log.push(`✓ ${attendanceRows.length} attendance records`);
+
+    // ═══════════════════════════════════════════════════
+    // 48. PAYROLL RUNS (12) + PAYROLL ITEMS (300)
+    // ═══════════════════════════════════════════════════
+    const payrollRuns: any[] = [];
+    const payrollItems: any[] = [];
+    for (let m = 1; m <= 12; m++) {
+      const prId = uuid();
+      let totalGross = 0, totalNet = 0, totalTax = 0, totalContrib = 0;
+      for (const empId of empIds) {
+        const contract = contracts.find((c: any) => c.employee_id === empId);
+        const gross = contract?.gross_salary || randInt(80000, 350000);
+        const taxBase = Math.round(gross * 0.85);
+        const incomeTax = Math.round(taxBase * 0.10);
+        const pension = Math.round(gross * 0.14);
+        const health = Math.round(gross * 0.0515);
+        const unemployment = Math.round(gross * 0.0075);
+        const net = gross - incomeTax - pension - health - unemployment;
+        const pensionEmp = Math.round(gross * 0.10);
+        const healthEmp = Math.round(gross * 0.0515);
+        const totalCost = gross + pensionEmp + healthEmp;
+        totalGross += gross; totalNet += net;
+        totalTax += incomeTax; totalContrib += pension + health + unemployment;
+        payrollItems.push({
+          id: uuid(), payroll_run_id: prId, employee_id: empId,
+          gross_salary: gross, taxable_base: taxBase,
+          income_tax: incomeTax, pension_contribution: pension,
+          health_contribution: health, unemployment_contribution: unemployment,
+          net_salary: net, total_cost: totalCost,
+          pension_employer: pensionEmp, health_employer: healthEmp,
+          working_days: 22, actual_working_days: randInt(18, 22),
+        });
+      }
+      payrollRuns.push({
+        id: prId, tenant_id: t,
+        period_month: m, period_year: 2025,
+        status: m < 11 ? "paid" : m === 11 ? "approved" : "draft",
+        total_gross: totalGross, total_net: totalNet,
+        total_taxes: totalTax, total_contributions: totalContrib,
+      });
+    }
+    await batchInsert(supabase, "payroll_runs", payrollRuns);
+    await batchInsert(supabase, "payroll_items", payrollItems);
+    log.push(`✓ 12 payroll runs + ${payrollItems.length} payroll items`);
+
+    // ═══════════════════════════════════════════════════
+    // 49. ALLOWANCE TYPES + ALLOWANCES (50)
+    // ═══════════════════════════════════════════════════
+    const atIds: string[] = [];
+    const allowanceTypes = [
+      { name: "Topli obrok", code: "MEAL" },
+      { name: "Prevoz", code: "TRANSPORT" },
+      { name: "Regres", code: "REGRES" },
+      { name: "Minuli rad", code: "SENIORITY" },
+      { name: "Terenski dodatak", code: "FIELD" },
+    ].map(at => {
+      const id = uuid();
+      atIds.push(id);
+      return { id, tenant_id: t, name: at.name, code: at.code, is_active: true };
+    });
+    await batchInsert(supabase, "allowance_types", allowanceTypes);
+    const allowances: any[] = [];
+    for (let i = 0; i < 50; i++) {
+      allowances.push({
+        id: uuid(), tenant_id: t,
+        employee_id: pick(empIds),
+        allowance_type_id: pick(atIds),
+        amount: randAmount(3000, 15000),
+        month: randInt(1, 12), year: 2025,
+      });
+    }
+    await batchInsert(supabase, "allowances", allowances);
+    log.push("✓ 5 allowance types + 50 allowances");
+
+    // ═══════════════════════════════════════════════════
+    // 50. DEDUCTIONS (30)
+    // ═══════════════════════════════════════════════════
+    const deductionRows: any[] = [];
+    for (let i = 0; i < 30; i++) {
+      const totalAmt = randAmount(50000, 500000);
+      deductionRows.push({
+        id: uuid(), tenant_id: t,
+        employee_id: pick(empIds),
+        type: pick(["loan", "loan", "advance", "union_fee", "other"]),
+        description: pick(["Kredit za stan", "Pozajmica", "Sindikalna članarina", "Alimentacija", "Administrativna zabrana"]),
+        total_amount: totalAmt,
+        paid_amount: randAmount(0, totalAmt * 0.7),
+        start_date: `2025-${String(randInt(1, 6)).padStart(2, "0")}-01`,
+        end_date: `2026-${String(randInt(1, 12)).padStart(2, "0")}-01`,
+        is_active: true,
+      });
+    }
+    await batchInsert(supabase, "deductions", deductionRows);
+    log.push("✓ 30 deductions");
+
+    // ═══════════════════════════════════════════════════
+    // 51. OVERTIME HOURS (40)
+    // ═══════════════════════════════════════════════════
+    const otRows: any[] = [];
+    for (let i = 0; i < 40; i++) {
+      otRows.push({
+        id: uuid(), tenant_id: t,
+        employee_id: pick(empIds),
+        year: 2025, month: randInt(1, 12),
+        hours: randInt(2, 20),
+        tracking_type: pick(["monthly", "monthly", "weekly"]),
+      });
+    }
+    await batchInsert(supabase, "overtime_hours", otRows);
+    log.push("✓ 40 overtime hours");
+
+    // ═══════════════════════════════════════════════════
+    // 52. INSURANCE RECORDS (25)
+    // ═══════════════════════════════════════════════════
+    const insRows: any[] = [];
+    for (let i = 0; i < empIds.length; i++) {
+      const emp = employees[i];
+      insRows.push({
+        id: uuid(), tenant_id: t,
+        employee_id: empIds[i],
+        first_name: emp.first_name,
+        last_name: emp.last_name,
+        jmbg: emp.jmbg,
+        lbo: String(randInt(10000000000, 99999999999)),
+        insurance_start: emp.start_date,
+        registration_date: emp.start_date,
+      });
+    }
+    await batchInsert(supabase, "insurance_records", insRows);
+    log.push("✓ 25 insurance records");
+
+    // ═══════════════════════════════════════════════════
+    // 53. CRM ACTIVITIES (200) + MEETINGS (30)
+    // ═══════════════════════════════════════════════════
+    const activityRows: any[] = [];
+    for (let i = 0; i < 200; i++) {
+      const dt = dateIn2025();
+      activityRows.push({
+        id: uuid(), tenant_id: t,
+        type: pick(["call", "email", "meeting", "note", "task"]),
+        description: pick([
+          "Razgovor o ponudi", "Follow-up email", "Prezentacija proizvoda",
+          "Dogovor o isporuci", "Reklamacija", "Ugovaranje sastanka",
+          "Slanje kataloga", "Tehnička podrška", "Demo poziv", "Pregovori o ceni",
+        ]),
+        company_id: pick(crmCompanyIds),
+        contact_id: pick(contactIds),
+        lead_id: i < 100 ? crmLeads[i]?.id || null : null,
+        opportunity_id: i < 100 ? opportunities[i]?.id || null : null,
+        created_at: dt,
+      });
+    }
+    await batchInsert(supabase, "activities", activityRows);
+    log.push("✓ 200 CRM activities");
+
+    const meetingRows: any[] = [];
+    for (let i = 0; i < 30; i++) {
+      const dt = dateIn2025();
+      meetingRows.push({
+        id: uuid(), tenant_id: t,
+        title: pick(["Sastanak sa klijentom", "Prezentacija ERP-a", "Pregovori o ugovoru", "Tehnički konsalting", "Kvartalni pregled"]),
+        description: "Poslovni sastanak",
+        scheduled_at: dt,
+        duration_minutes: pick([30, 60, 90, 120]),
+        location: pick(["Kancelarija BG", "Online", "Kod klijenta", "Konferencijska sala"]),
+        communication_channel: pick(["in_person", "video_call", "phone"]),
+        status: pick(["completed", "completed", "scheduled", "cancelled"]),
+      });
+    }
+    await batchInsert(supabase, "meetings", meetingRows);
+    log.push("✓ 30 meetings");
+
+    // ═══════════════════════════════════════════════════
+    // 54. POS DAILY REPORTS
+    // ═══════════════════════════════════════════════════
+    const posReports: any[] = [];
+    for (const sess of sessions) {
+      const sessionTxs = transactions.filter((tx: any) => tx.session_id === sess.id);
+      const totalSales = sessionTxs.reduce((s: number, tx: any) => s + tx.total, 0);
+      const cashSales = sessionTxs.filter((tx: any) => tx.payment_method === "cash").reduce((s: number, tx: any) => s + tx.total, 0);
+      const cardSales = totalSales - cashSales;
+      posReports.push({
+        id: uuid(), tenant_id: t,
+        session_id: sess.id,
+        location_id: sess.location_id,
+        fiscal_device_id: sess.fiscal_device_id,
+        report_date: sess.opened_at.slice(0, 10),
+        total_sales: Math.round(totalSales * 100) / 100,
+        net_sales: Math.round(totalSales * 100) / 100,
+        cash_total: Math.round(cashSales * 100) / 100,
+        card_total: Math.round(cardSales * 100) / 100,
+        other_total: 0,
+        total_refunds: 0,
+        transaction_count: sessionTxs.length,
+        refund_count: 0,
+      });
+    }
+    await batchInsert(supabase, "pos_daily_reports", posReports);
+    log.push(`✓ ${posReports.length} POS daily reports`);
 
     // ═══════════════════════════════════════════════════
     // DONE
