@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Send, BookOpen, DollarSign, FileDown, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { ExportButton } from "@/components/ExportButton";
+import { fmtNum } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -288,7 +289,7 @@ export default function Invoices() {
                 <TableCell>{inv.partner_name}</TableCell>
                 {legalEntities.length > 1 && <TableCell>{(inv as any).legal_entities?.name || "—"}</TableCell>}
                 <TableCell className="text-right font-mono">
-                  {Number(inv.total).toLocaleString("sr-RS", { minimumFractionDigits: 2 })} {inv.currency}
+                  {fmtNum(Number(inv.total))} {inv.currency}
                 </TableCell>
                 <TableCell>
                   <Badge className={statusColors[inv.status] || ""}>{t(inv.status as any)}</Badge>

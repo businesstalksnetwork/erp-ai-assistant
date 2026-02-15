@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Package, DollarSign, Warehouse } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const calcMargin = (price: number, base: number) => base > 0 ? (((price - base) / base) * 100).toFixed(1) + "%" : "—";
 
 export default function ProductDetail() {

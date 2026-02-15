@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, CheckCircle, Loader2, Play, X, Eye } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { fmtNum } from "@/lib/utils";
 
 export default function ProductionOrders() {
   const { t } = useLanguage();
@@ -356,7 +357,7 @@ export default function ProductionOrders() {
                 ))}
                 <div className="border-t pt-1 flex justify-between text-sm font-medium">
                   <span>{t("estimatedCost")}</span>
-                  <span>{bomMaterialSummary.reduce((sum: number, l: any) => sum + (l.quantity * form.quantity * (l.products?.default_purchase_price || 0)), 0).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span>
+                  <span>{fmtNum(bomMaterialSummary.reduce((sum: number, l: any) => sum + (l.quantity * form.quantity * (l.products?.default_purchase_price || 0)), 0))}</span>
                 </div>
               </div>
             )}

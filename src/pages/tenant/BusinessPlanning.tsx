@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, TrendingUp, DollarSign, Percent, Lightbulb } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 export default function BusinessPlanning() {
   const { locale } = useLanguage();
@@ -98,7 +99,7 @@ export default function BusinessPlanning() {
             </div>
             <Progress value={revProgress} className="h-3" />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{sr ? "Ostvareno" : "Actual"}: {Math.round(actuals?.revenue || 0).toLocaleString()} RSD</span>
+              <span>{sr ? "Ostvareno" : "Actual"}: {fmtNum(Math.round(actuals?.revenue || 0))} RSD</span>
               <span>{revProgress.toFixed(0)}%</span>
             </div>
           </CardContent>
@@ -111,7 +112,7 @@ export default function BusinessPlanning() {
             </div>
             <Progress value={profitProgress} className="h-3" />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{sr ? "Ostvareno" : "Actual"}: {Math.round(actuals?.profit || 0).toLocaleString()} RSD</span>
+              <span>{sr ? "Ostvareno" : "Actual"}: {fmtNum(Math.round(actuals?.profit || 0))} RSD</span>
               <span>{profitProgress.toFixed(0)}%</span>
             </div>
           </CardContent>
@@ -123,14 +124,14 @@ export default function BusinessPlanning() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase">{sr ? "Prihod YTD" : "Revenue YTD"}</p>
-            <p className="text-2xl font-bold mt-1">{Math.round(actuals?.revenue || 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold mt-1">{fmtNum(Math.round(actuals?.revenue || 0))}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase">{sr ? "Profit YTD" : "Profit YTD"}</p>
-            <p className={`text-2xl font-bold mt-1 ${(actuals?.profit || 0) >= 0 ? "text-accent" : "text-destructive"}`}>
-              {Math.round(actuals?.profit || 0).toLocaleString()}
+             <p className={`text-2xl font-bold mt-1 ${(actuals?.profit || 0) >= 0 ? "text-accent" : "text-destructive"}`}>
+               {fmtNum(Math.round(actuals?.profit || 0))}
             </p>
           </CardContent>
         </Card>
@@ -167,14 +168,14 @@ export default function BusinessPlanning() {
             <Card className="bg-muted/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{sr ? "Projekcija prihoda" : "Projected Revenue"}</p>
-                <p className="text-xl font-bold mt-1">{Math.round(scenarioRevenue).toLocaleString()} RSD</p>
+                <p className="text-xl font-bold mt-1">{fmtNum(Math.round(scenarioRevenue))} RSD</p>
               </CardContent>
             </Card>
             <Card className="bg-muted/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{sr ? "Projekcija profita" : "Projected Profit"}</p>
-                <p className={`text-xl font-bold mt-1 ${scenarioProfit >= 0 ? "text-accent" : "text-destructive"}`}>
-                  {Math.round(scenarioProfit).toLocaleString()} RSD
+                 <p className={`text-xl font-bold mt-1 ${scenarioProfit >= 0 ? "text-accent" : "text-destructive"}`}>
+                   {fmtNum(Math.round(scenarioProfit))} RSD
                 </p>
               </CardContent>
             </Card>

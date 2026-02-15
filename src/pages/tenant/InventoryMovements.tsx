@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { format } from "date-fns";
+import { fmtNum } from "@/lib/utils";
 
 const MOVEMENT_TYPES = ["in", "out", "adjustment", "transfer"];
 
@@ -41,7 +42,7 @@ export default function InventoryMovements() {
     return true;
   });
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  
 
   const typeColor = (type: string) => {
     switch (type) {

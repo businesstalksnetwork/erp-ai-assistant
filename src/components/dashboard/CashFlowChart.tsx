@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { subMonths, format, startOfMonth, endOfMonth } from "date-fns";
+import { fmtNum } from "@/lib/utils";
 
 interface Props {
   tenantId: string;
@@ -59,7 +60,7 @@ export function CashFlowChart({ tenantId }: Props) {
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="month" className="text-xs" />
             <YAxis className="text-xs" />
-            <Tooltip />
+            <Tooltip formatter={(v: number) => fmtNum(v)} />
             <Area type="monotone" dataKey="inflow" stroke="hsl(var(--accent))" fill="hsl(var(--accent) / 0.2)" name={t("inflow")} />
             <Area type="monotone" dataKey="net" stroke="hsl(var(--primary))" fill="url(#cfGrad)" name="Net" />
           </AreaChart>

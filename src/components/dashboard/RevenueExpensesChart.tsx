@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { subMonths, format, startOfMonth, endOfMonth } from "date-fns";
+import { fmtNum } from "@/lib/utils";
 
 interface Props {
   tenantId: string;
@@ -81,7 +82,7 @@ export function RevenueExpensesChart({ tenantId }: Props) {
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="month" className="text-xs" />
             <YAxis className="text-xs" />
-            <Tooltip />
+            <Tooltip formatter={(v: number) => fmtNum(v)} />
             <Legend />
             <Bar dataKey="revenue" name={t("revenue")} fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" name={t("expenses")} fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />

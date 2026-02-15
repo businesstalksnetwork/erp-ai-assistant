@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
+import { fmtNum } from "@/lib/utils";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
@@ -24,8 +25,6 @@ export default function TenantDashboard() {
   const { canAccess } = usePermissions();
   const navigate = useNavigate();
 
-  const fmtNum = (n: number) =>
-    n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Revenue
   const { data: revenue = 0 } = useQuery({

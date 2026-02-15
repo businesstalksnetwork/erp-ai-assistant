@@ -12,6 +12,7 @@ import { Printer } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { PrintButton } from "@/components/PrintButton";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
+import { fmtNum } from "@/lib/utils";
 
 export default function TrialBalance() {
   const { t } = useLanguage();
@@ -118,18 +119,18 @@ export default function TrialBalance() {
                   <TableCell className="font-mono">{r.account.code}</TableCell>
                   <TableCell>{r.account.name}</TableCell>
                   <TableCell>{t(r.account.account_type === "revenue" ? "revenueType" : r.account.account_type === "expense" ? "expenseType" : r.account.account_type)}</TableCell>
-                  <TableCell className="text-right">{r.debit.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{r.credit.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-medium">{(r.debit - r.credit).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{fmtNum(r.debit)}</TableCell>
+                  <TableCell className="text-right">{fmtNum(r.credit)}</TableCell>
+                  <TableCell className="text-right font-medium">{fmtNum(r.debit - r.credit)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
                 <TableCell colSpan={3} className="font-bold">{t("total")}</TableCell>
-                <TableCell className="text-right font-bold">{totalDebit.toLocaleString()}</TableCell>
-                <TableCell className="text-right font-bold">{totalCredit.toLocaleString()}</TableCell>
-                <TableCell className="text-right font-bold">{(totalDebit - totalCredit).toLocaleString()}</TableCell>
+                <TableCell className="text-right font-bold">{fmtNum(totalDebit)}</TableCell>
+                <TableCell className="text-right font-bold">{fmtNum(totalCredit)}</TableCell>
+                <TableCell className="text-right font-bold">{fmtNum(totalDebit - totalCredit)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>

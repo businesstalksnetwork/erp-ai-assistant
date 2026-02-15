@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingDown, DollarSign, Users, Truck, Landmark, Settings } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -97,10 +98,10 @@ export default function Expenses() {
   }, [categorized]);
 
   const stats: StatItem[] = [
-    { label: t("totalExpenses"), value: totals.total.toLocaleString("sr-RS") + " RSD", icon: TrendingDown, color: "text-destructive" },
-    { label: t("salaryExpenses"), value: totals.salaries.toLocaleString("sr-RS") + " RSD", icon: Users, color: "text-primary" },
-    { label: t("supplierExpenses"), value: totals.suppliers.toLocaleString("sr-RS") + " RSD", icon: Truck, color: "text-accent" },
-    { label: t("operatingExpenses"), value: totals.operating.toLocaleString("sr-RS") + " RSD", icon: Settings, color: "text-muted-foreground" },
+    { label: t("totalExpenses"), value: fmtNum(totals.total) + " RSD", icon: TrendingDown, color: "text-destructive" },
+    { label: t("salaryExpenses"), value: fmtNum(totals.salaries) + " RSD", icon: Users, color: "text-primary" },
+    { label: t("supplierExpenses"), value: fmtNum(totals.suppliers) + " RSD", icon: Truck, color: "text-accent" },
+    { label: t("operatingExpenses"), value: fmtNum(totals.operating) + " RSD", icon: Settings, color: "text-muted-foreground" },
   ];
 
   return (
@@ -146,7 +147,7 @@ export default function Expenses() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(v: number) => v.toLocaleString("sr-RS") + " RSD"} />
+                <Tooltip formatter={(v: number) => fmtNum(v) + " RSD"} />
                 <Legend />
                 <Bar dataKey="salaries" name={t("salaryExpenses")} fill="hsl(var(--primary))" stackId="a" />
                 <Bar dataKey="suppliers" name={t("supplierExpenses")} fill="hsl(var(--accent))" stackId="a" />
@@ -189,7 +190,7 @@ export default function Expenses() {
                     <TableCell>{line.description || line.journal_entry?.description || ""}</TableCell>
                     <TableCell>{line.account?.code} — {line.account?.name}</TableCell>
                     <TableCell>{t(line.category === "salaries" ? "salaryExpenses" : line.category === "suppliers" ? "supplierExpenses" : line.category === "depreciation" ? "runDepreciation" : "operatingExpenses")}</TableCell>
-                    <TableCell className="text-right font-medium">{Number(line.debit).toLocaleString("sr-RS")} RSD</TableCell>
+                    <TableCell className="text-right font-medium">{fmtNum(Number(line.debit))} RSD</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

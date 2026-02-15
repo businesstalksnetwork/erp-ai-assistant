@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { ArrowLeftRight } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 interface OffsetItem {
   id: string;
@@ -143,7 +144,7 @@ export default function Kompenzacija() {
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
 
   const updateItem = (list: OffsetItem[], setList: (v: OffsetItem[]) => void, idx: number, field: Partial<OffsetItem>) => {
     const updated = [...list];

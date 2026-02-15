@@ -15,6 +15,7 @@ import { Plus, Loader2, Calculator, Check, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { fmtNum } from "@/lib/utils";
 
 export default function Payroll() {
   const { t } = useLanguage();
@@ -42,7 +43,7 @@ export default function Payroll() {
     enabled: !!tenantId,
   });
 
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["payroll-runs", tenantId],

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Trash2, TrendingUp, TrendingDown, Send } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
 
 interface NivelacijaItem {
   product_id: string;
@@ -122,7 +123,7 @@ export default function Nivelacija() {
   };
 
   const filtered = nivelacije.filter((n: any) => n.nivelacija_number?.toLowerCase().includes(search.toLowerCase()));
-  const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
   const totalDiff = items.reduce((s, i) => s + (i.new_retail_price - i.old_retail_price) * i.quantity_on_hand, 0);
 
   return (
