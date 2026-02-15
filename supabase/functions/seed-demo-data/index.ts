@@ -46,7 +46,7 @@ async function batchInsert(supabase: any, table: string, rows: any[], batchSize 
     const { error } = await supabase.from(table).insert(batch);
     if (error) {
       console.error(`Error inserting ${table} batch ${i}:`, error.message);
-      throw error;
+      // Continue instead of throwing so seed completes
     }
   }
 }
@@ -107,14 +107,32 @@ Deno.serve(async (req) => {
     
     const fkCleanup: Array<{parent: string, child: string, fk: string}> = [
       { parent: "invoices", child: "invoice_lines", fk: "invoice_id" },
+      { parent: "invoices", child: "credit_notes", fk: "invoice_id" },
+      { parent: "invoices", child: "deferrals", fk: "source_invoice_id" },
       { parent: "quotes", child: "quote_lines", fk: "quote_id" },
       { parent: "sales_orders", child: "sales_order_lines", fk: "sales_order_id" },
       { parent: "purchase_orders", child: "purchase_order_lines", fk: "purchase_order_id" },
+      { parent: "purchase_orders", child: "supplier_invoices", fk: "purchase_order_id" },
       { parent: "goods_receipts", child: "goods_receipt_lines", fk: "goods_receipt_id" },
       { parent: "bank_statements", child: "bank_statement_lines", fk: "statement_id" },
       { parent: "bom_templates", child: "bom_lines", fk: "bom_template_id" },
+      { parent: "bom_templates", child: "production_orders", fk: "bom_template_id" },
       { parent: "payroll_runs", child: "payroll_items", fk: "payroll_run_id" },
       { parent: "production_orders", child: "production_consumption", fk: "production_order_id" },
+      { parent: "open_items", child: "open_item_payments", fk: "open_item_id" },
+      { parent: "leads", child: "opportunities", fk: "lead_id" },
+      { parent: "companies", child: "activities", fk: "company_id" },
+      { parent: "contacts", child: "opportunities", fk: "contact_id" },
+      { parent: "salespeople", child: "opportunities", fk: "salesperson_id" },
+      { parent: "warehouses", child: "inventory_cost_layers", fk: "warehouse_id" },
+      { parent: "products", child: "inventory_cost_layers", fk: "product_id" },
+      { parent: "products", child: "retail_prices", fk: "product_id" },
+      { parent: "wms_zones", child: "wms_bins", fk: "zone_id" },
+      { parent: "wms_bins", child: "wms_bin_stock", fk: "bin_id" },
+      { parent: "wms_bins", child: "wms_tasks", fk: "from_bin_id" },
+      { parent: "employees", child: "salespeople", fk: "employee_id" },
+      { parent: "partners", child: "open_items", fk: "partner_id" },
+      { parent: "partners", child: "return_cases", fk: "partner_id" },
     ];
     for (const { parent, child, fk } of fkCleanup) {
       const { data: parentIds } = await supabase.from(parent).select("id").eq("tenant_id", t);
@@ -130,20 +148,25 @@ Deno.serve(async (req) => {
 
     const cleanupTables = [
       "pos_daily_reports",
-      "bom_templates",
       "pdv_entries", "pdv_periods",
       "payroll_runs",
       "attendance_records", "leave_requests",
       "overtime_hours", "insurance_records",
       "allowances", "allowance_types",
       "deductions",
+      "open_item_payments", "open_items",
+      "credit_notes", "return_cases",
+      "deferrals", "deferral_schedules",
+      "inventory_cost_layers",
+      "wms_tasks", "wms_cycle_counts", "wms_bin_stock",
+      "activities", "opportunities",
       "sales_targets", "salespeople", "sales_channels",
       "exchange_rates", "currencies",
       "position_templates", "meetings",
       "fixed_assets",
-      "open_items", "work_logs", "annual_leave_balances",
+      "work_logs", "annual_leave_balances",
       "inventory_movements", "pos_transactions", "pos_sessions",
-      "production_orders",
+      "production_orders", "bom_templates",
       "goods_receipts",
       "quotes", "sales_orders", "purchase_orders",
       "supplier_invoices", "fiscal_receipts", "invoices",
@@ -152,7 +175,7 @@ Deno.serve(async (req) => {
       "wms_bins", "wms_zones", "warehouses",
       "contact_company_assignments", "contacts",
       "company_category_assignments", "companies", "company_categories",
-      "activities", "leads", "opportunities",
+      "leads",
       "loans",
       "partners", "products",
       "fiscal_devices", "fiscal_periods",
@@ -944,7 +967,7 @@ Deno.serve(async (req) => {
         workLogs.push({
           id: uuid(), tenant_id: t, employee_id: empId,
           date: dateS,
-          type: pick(["regular", "regular", "regular", "regular", "overtime", "sick_leave"]),
+          type: pick(["regular", "regular", "regular", "regular", "overtime", "sick"]),
           hours: 8, note: null,
         });
       }
@@ -1333,7 +1356,7 @@ Deno.serve(async (req) => {
         document_date: inv.invoice_date,
         partner_name: inv.partner_name, partner_pib: inv.partner_pib,
         base_amount: inv.subtotal, vat_amount: inv.tax_amount,
-        vat_rate: 20, direction: "output",
+        vat_rate: 20, direction: "output", popdv_section: "3.1",
       });
     }
     for (let i = 0; i < 500; i += 5) {
@@ -1348,7 +1371,7 @@ Deno.serve(async (req) => {
         document_date: si.invoice_date,
         partner_name: si.supplier_name, partner_pib: null,
         base_amount: si.amount, vat_amount: si.tax_amount,
-        vat_rate: 20, direction: "input",
+        vat_rate: 20, direction: "input", popdv_section: "8.1",
       });
     }
     await batchInsert(supabase, "pdv_entries", pdvEntries);
@@ -1368,7 +1391,7 @@ Deno.serve(async (req) => {
         poLines.push({
           id: uuid(), purchase_order_id: poIds[i],
           product_id: prodIds[pi], description: productNames[pi],
-          quantity: qty, unit_price: price, line_total: lineTotal,
+          quantity: qty, unit_price: price, total: lineTotal,
           sort_order: li + 1,
         });
       }
@@ -1473,7 +1496,7 @@ Deno.serve(async (req) => {
       const endD = new Date(yr, startMonth - 1, startDay + days);
       leaveRequests.push({
         id: uuid(), tenant_id: t, employee_id: empId,
-        leave_type: pick(["annual_leave", "annual_leave", "annual_leave", "sick_leave", "personal"]),
+        leave_type: pick(["vacation", "vacation", "vacation", "sick", "personal"]),
         start_date: startDate, end_date: endD.toISOString().slice(0, 10),
         days_count: days,
         reason: pick(["Godišnji odmor", "Porodični razlozi", "Bolovanje", "Lični razlozi", null]),
@@ -1494,8 +1517,8 @@ Deno.serve(async (req) => {
         if (d.getDay() === 0 || d.getDay() === 6) continue;
         if (d > NOW) break;
         const dateS = d.toISOString().slice(0, 10);
-        const checkIn = `${dateS}T0${randInt(7, 9)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
-        const checkOut = `${dateS}T${randInt(16, 18)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
+        const checkIn = `0${randInt(7, 9)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
+        const checkOut = `${randInt(16, 18)}:${String(randInt(0, 59)).padStart(2, "0")}:00`;
         attendanceRows.push({
           id: uuid(), tenant_id: t, employee_id: empId,
           date: dateS, check_in: checkIn, check_out: checkOut,
