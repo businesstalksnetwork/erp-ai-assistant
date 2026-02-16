@@ -1,36 +1,24 @@
 
 
-# Payroll PDF Export and AI Anomaly Warnings
+# Reorder Sidebar Navigation Groups
 
-## Feature 1: Individual Payslip PDF Download
+## What Changes
 
-The backend `generate-pdf` edge function already has a `payslip` type handler that generates a full "Platna Lista" PDF for individual employees. We just need to add a download button per employee row in the payroll items table.
+Reorder the collapsible navigation groups in `src/layouts/TenantLayout.tsx` (lines 374-409) to match the requested order:
 
-### Changes
+1. CRM (currently 1st -- stays)
+2. Prodaja / Sales (currently 2nd -- stays)
+3. POS (currently 9th -- moves up)
+4. Web Prodaja / Web Sales (currently 10th -- moves up)
+5. Magacin / Inventory (currently 4th -- moves down)
+6. Nabavka / Purchasing (currently 3rd -- moves down)
+7. Proizvodnja / Production (currently 5th -- moves down)
+8. Povrati / Returns (currently 12th -- moves up)
+9. Analize / Analytics (currently 7th -- moves down)
+10. Racunovodstvo / Accounting (currently 6th -- moves down)
+11. Ljudski Resursi / HR (currently 8th -- moves down)
+12. DMS / Documents (currently 11th -- stays near end)
 
-**`src/pages/tenant/Payroll.tsx`**
-- Import `DownloadPdfButton` component
-- Add a new column "Akcije" (Actions) to the payroll items table header
-- In each employee row, add a `DownloadPdfButton` with `type="payslip"` and `params={{ payroll_item_id: item.id }}`
-- Only show the button for runs with status "calculated", "approved", or "paid"
+## Technical Detail
 
-## Feature 2: AI Anomaly Detection on Payroll Page
-
-The `ai-insights` edge function already detects excessive overtime (>40h/month), leave balance warnings, and payroll cost anomalies. We just need to display the existing `AiModuleInsights` component on the Payroll page.
-
-### Changes
-
-**`src/pages/tenant/Payroll.tsx`**
-- Import `AiModuleInsights` from `@/components/shared/AiModuleInsights`
-- Add `{tenantId && <AiModuleInsights tenantId={tenantId} module="hr" />}` between the parameters card and the accordion list
-- This will automatically show warnings for excessive overtime, missing work log anomalies, low leave balances, and payroll cost spikes
-
-### Translation Keys
-
-**`src/i18n/translations.ts`**
-- Add `actions` key for the new table column header (en: "Actions", sr: "Akcije")
-
-## Technical Summary
-
-Both features leverage existing infrastructure -- the payslip PDF generator and the AI insights engine are already built. This is purely a UI wiring task with no backend changes needed.
-
+Single file change in `src/layouts/TenantLayout.tsx` -- rearrange the JSX blocks for the `CollapsibleNavGroup` components between lines 374-409. No logic changes, just reordering the render order.
