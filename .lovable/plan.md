@@ -1,21 +1,18 @@
 
+## Izmene u mobilnoj donjoj navigaciji
 
-# Plan: Mobile header logo fix + hamburger menu to "Vise" toggle
+### Fajl: `src/components/AppLayout.tsx`
 
-## Changes in `src/components/AppLayout.tsx`
+**Linija 73-78** - Promeniti `mobileBottomNavItems` niz:
+- Ukloniti KPO stavku
+- Dodati "Moj Profil" sa `User` ikonom i rutom `/profile` posle Podsetnika
 
-### 1. Mobile header - always use dark logo
-The current code uses `logoLightSidebar` in light mode, which has poor contrast on the white mobile header background. Change to always use `logoDark` in the mobile header (line 182), regardless of theme.
+Novi niz:
+```
+{ href: '/dashboard', label: 'Pocetna', icon: LayoutDashboard }
+{ href: '/invoices', label: 'Fakture', icon: FileText }
+{ href: '/reminders', label: 'Podsetnici', icon: Bell }
+{ href: '/profile', label: 'Profil', icon: User }
+```
 
-### 2. Remove hamburger menu from mobile header
-Remove the hamburger `Menu`/`X` button from the mobile header (lines 186-194). The header will only show logo + NotificationBell.
-
-### 3. "Vise" button toggles sidebar open/close
-Change the "Vise" button in the bottom nav (lines 414-420) from `onClick={() => setMobileMenuOpen(true)}` to `onClick={() => setMobileMenuOpen(!mobileMenuOpen)}` so pressing it again closes the sidebar.
-
-## Files changed
-
-| File | Change |
-|------|--------|
-| `src/components/AppLayout.tsx` | (1) Use `logoDark` always in mobile header, (2) remove hamburger button, (3) toggle sidebar on "Vise" press |
-
+Ikona `User` je vec importovana u fajlu. Nema drugih izmena.
