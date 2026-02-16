@@ -197,8 +197,8 @@ export default function Payroll() {
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <div className="flex items-center gap-4 w-full">
                     <span className="font-semibold">{monthName(run.period_month)} {run.period_year}</span>
-                    <Badge variant={statusColor(run.status)}>{run.status === "draft" ? t("draft") : run.status === "calculated" ? t("calculated") : run.status === "approved" ? t("approved") : t("paid")}</Badge>
-                    <div className="ml-auto flex items-center gap-2 mr-4 text-sm text-muted-foreground">
+                    <div className="ml-auto flex items-center gap-3 mr-4 text-sm text-muted-foreground">
+                      <Badge variant={statusColor(run.status)}>{run.status === "draft" ? t("draft") : run.status === "calculated" ? t("calculated") : run.status === "approved" ? t("approved") : t("paid")}</Badge>
                       <span>{t("totalGross")}: {fmtNum(Number(run.total_gross))}</span>
                       <span>|</span>
                       <span>{t("totalNet")}: {fmtNum(Number(run.total_net))}</span>
