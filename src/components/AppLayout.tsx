@@ -179,18 +179,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
         <Link to="/dashboard" className="transition-transform hover:scale-105">
-          <img src={theme === 'dark' ? logoDark : logoLightSidebar} alt="Paušal box" className="h-10" />
+          <img src={logoDark} alt="Paušal box" className="h-10" />
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="hover:bg-primary/10"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
         </div>
       </div>
       
@@ -412,7 +404,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
           <button
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium text-muted-foreground transition-colors"
           >
             <MoreHorizontal className="h-5 w-5" />
