@@ -12,7 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -432,46 +432,6 @@ export default function TenantLayout() {
                 icon={Settings}
               />
             )}
-            {/* User profile section */}
-            <div className="p-3 border-t border-sidebar-border">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-sidebar-accent transition-colors text-left">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                        {userInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-sidebar-foreground">{userName}</p>
-                      <p className="text-[10px] text-sidebar-foreground/40 uppercase tracking-wider">{userRole}</p>
-                    </div>
-                    <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40 shrink-0" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className="w-56">
-                  <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <User className="mr-2 h-4 w-4" />
-                    {t("myAccount")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocale(locale === "en" ? "sr" : "en")}>
-                    <Globe className="mr-2 h-4 w-4" />
-                    {locale === "en" ? "Srpski" : "English"}
-                  </DropdownMenuItem>
-                  {isSuperAdmin && (
-                    <DropdownMenuItem onClick={() => navigate("/super-admin/dashboard")}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t("superAdmin")}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("logout")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </SidebarFooter>
         </Sidebar>
 
