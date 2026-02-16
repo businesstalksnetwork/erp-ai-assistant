@@ -1,43 +1,39 @@
 
+# Add Context-Aware Suggested Questions to Quick Ask
 
-# Fix AI Analiza Not Loading in Sidebar
+## What Changes
+In the "Quick Ask" (Brzi Upit) section of the AI sidebar, instead of just showing "Pitajte o vasim podacima..." placeholder, display 3-4 clickable pre-built questions relevant to the current page. Clicking a question auto-sends it to the AI chat.
 
-## Root Cause
-In `AiContextSidebar.tsx` line ~156, the `AiAnalyticsNarrative` component receives `data={{}}` (an empty object). However, in `AiAnalyticsNarrative.tsx` line 26, the react-query has:
+## How It Works
+Add a route-to-questions map in `AiContextSidebar.tsx`. Based on `location.pathname`, the sidebar picks the right set of suggested questions. Each question renders as a small clickable chip/button. When clicked, it calls `send(question)` directly.
 
-```typescript
-enabled: !!tenantId && Object.keys(data).length > 0
-```
+### Example Questions by Page
 
-Since `Object.keys({}).length === 0`, the query is permanently disabled and the AI narrative never loads.
+| Route | Questions (SR / EN) |
+|-------|---------------------|
+| `/analytics/ratios` | "Koji su mi najslabiji finansijski pokazatelji?" / "Which ratios need attention?" |
+| `/analytics/ratios` | "Kako da poboljsam likvidnost?" / "How can I improve liquidity?" |
+| `/dashboard` | "Koji su danas najvazniji trendovi?" / "What are today's key trends?" |
+| `/analytics/cashflow-forecast` | "Da li cu imati problema sa likvidnoscu?" / "Will I face cash shortfalls?" |
+| `/analytics/budget` | "Gde najvise prekoracujem budzet?" / "Where am I most over budget?" |
+| `/inventory/*` | "Koji artikli imaju najsporiji obrt?" / "Which items have slowest turnover?" |
+| `/crm/*` | "Koji lidovi su najblizi konverziji?" / "Which leads are closest to conversion?" |
+| `/hr/*` | "Kakav je trend troskova plata?" / "What's the payroll cost trend?" |
+| `/production/*` | "Gde su uska grla u proizvodnji?" / "Where are production bottlenecks?" |
+| (fallback) | "Sumiraj trenutno stanje" / "Summarize current status" |
 
-## Fix
+### UI Design
+- Render as small outlined buttons/chips below the placeholder text
+- 3-4 questions max per page context
+- Each chip has a subtle sparkle or arrow icon
+- On click: set as input and auto-send
+- Once a conversation starts (messages.length > 0), hide the suggestions
 
-### File: `src/components/ai/AiContextSidebar.tsx`
-Change `data={{}}` to pass a minimal context payload so the query fires:
-```tsx
-data={{ context: narrativeCtx, timestamp: Date.now() }}
-```
-
-Alternatively (and more cleanly), update the `enabled` condition in `AiAnalyticsNarrative.tsx` to not require non-empty data, since the edge function already receives the `context_type` which is sufficient to generate analysis.
-
-### File: `src/components/ai/AiAnalyticsNarrative.tsx`
-Change the enabled condition from:
-```typescript
-enabled: !!tenantId && Object.keys(data).length > 0
-```
-to:
-```typescript
-enabled: !!tenantId
-```
-
-And update the queryKey to not stringify empty data (to avoid unnecessary refetches):
-```typescript
-queryKey: ["ai-narrative", tenantId, contextType]
-```
-
-## Both changes ensure the AI Analysis section in the sidebar actually triggers the API call and displays the narrative.
+### File Modified
+- `src/components/ai/AiContextSidebar.tsx` -- add suggested questions map and render chips in the Quick Ask section
 
 ### Technical Details
-- Two files modified: `AiContextSidebar.tsx` (pass meaningful data) and `AiAnalyticsNarrative.tsx` (relax enabled condition)
-- No new files or dependencies needed
+- New function `getSuggestedQuestions(path: string, sr: boolean): string[]` returns localized questions
+- Questions render inside the existing `{messages.length === 0 && ...}` block, replacing the plain placeholder
+- Each chip calls `send(question)` on click
+- Covers ~15 route prefixes with fallback for unknown pages
