@@ -226,24 +226,24 @@ export default function Documents() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder={t("dmsSearchPlaceholder")} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <Select value={filterStatus || "__all__"} onValueChange={v => setFilterStatus(v === "__all__" ? "" : v)}>
               <SelectTrigger className="w-40"><SelectValue placeholder={t("allStatuses")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t("allStatuses")}</SelectItem>
+                <SelectItem value="__all__">{t("allStatuses")}</SelectItem>
                 {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <Select value={filterCategory || "__all__"} onValueChange={v => setFilterCategory(v === "__all__" ? "" : v)}>
               <SelectTrigger className="w-48"><SelectValue placeholder={t("dmsAllCategories")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t("dmsAllCategories")}</SelectItem>
+                <SelectItem value="__all__">{t("dmsAllCategories")}</SelectItem>
                 {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name_sr}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filterConfidentiality} onValueChange={setFilterConfidentiality}>
+            <Select value={filterConfidentiality || "__all__"} onValueChange={v => setFilterConfidentiality(v === "__all__" ? "" : v)}>
               <SelectTrigger className="w-40"><SelectValue placeholder={t("dmsAllLevels")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t("dmsAllLevels")}</SelectItem>
+                <SelectItem value="__all__">{t("dmsAllLevels")}</SelectItem>
                 {confLevels.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name_sr}</SelectItem>)}
               </SelectContent>
             </Select>
