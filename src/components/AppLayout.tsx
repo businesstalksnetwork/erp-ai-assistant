@@ -17,7 +17,6 @@ import {
 import {
   LayoutDashboard,
   FileText,
-  FilePlus,
   BookOpen,
   Bell,
   Building2,
@@ -31,12 +30,13 @@ import {
   Sun,
   Calculator,
   ChevronDown,
-  ChevronRight,
   BarChart3,
   ListChecks,
   FileStack,
   Wallet,
   FolderOpen,
+  MoreHorizontal,
+  User,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +67,14 @@ const adminNavItems = [
   { href: '/analytics', label: 'Analitika', icon: BarChart3 },
   { href: '/payouts', label: 'Isplata', icon: Wallet },
   { href: '/admin', label: 'Admin Panel', icon: Shield },
+];
+
+// Mobile bottom nav items
+const mobileBottomNavItems = [
+  { href: '/dashboard', label: 'Početna', icon: LayoutDashboard },
+  { href: '/invoices', label: 'Fakture', icon: FileText },
+  { href: '/kpo', label: 'KPO', icon: BookOpen },
+  { href: '/reminders', label: 'Podsetnici', icon: Bell },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -142,8 +150,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isBookkeeper) {
       profileGroup.push(bookkeepingNavItem);
     }
-    
-    // Moj Profil je premešten u header dropdown
     
     const adminGroup = isAdmin ? adminNavItems : [];
     
@@ -362,7 +368,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => navigate('/profile')}>
-              <Users className="mr-2 h-4 w-4" />
+              <User className="mr-2 h-4 w-4" />
               Moj Profil
             </DropdownMenuItem>
             <DropdownMenuItem onClick={toggleTheme}>
@@ -377,12 +383,51 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </DropdownMenu>
       </header>
 
+      {/* Mobile Bottom Navigation */}
+      <nav
+        data-testid="mobile-bottom-nav"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe print:hidden"
+      >
+        <div className="flex items-center justify-around h-14">
+          {mobileBottomNavItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            const showBadge = item.href === '/reminders' && upcomingCount > 0;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium transition-colors relative',
+                  isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+                )}
+              >
+                <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
+                {item.label}
+                {showBadge && (
+                  <span className="absolute top-1 right-1/4 w-2 h-2 bg-destructive rounded-full" />
+                )}
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium text-muted-foreground transition-colors"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            Više
+          </button>
+        </div>
+      </nav>
+
       {/* Main Content */}
       <main className={cn(
         "lg:pl-64 print:pl-0 print:pt-0 print:p-0 print:m-0",
         "lg:pt-14",
         showSubscriptionBanner ? "pt-[108px]" : "pt-16",
-        showBookkeeperBanner && "pt-[108px]"
+        showBookkeeperBanner && "pt-[108px]",
+        "pb-16 lg:pb-0" // Add bottom padding for mobile bottom nav
       )}>
         <div className="p-4 lg:p-8 print:p-0 print:m-0">{children}</div>
       </main>
