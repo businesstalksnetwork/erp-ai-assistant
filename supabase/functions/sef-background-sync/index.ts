@@ -288,6 +288,10 @@ async function syncCompanyPurchaseInvoices(
         } catch (e) {}
       }
 
+      // Determine local_status based on sef_status
+      const localStatus = (status === 'Approved' || status === 'Rejected' || status === 'Cancelled') 
+        ? 'imported' : 'pending';
+
       invoicesForStorage.push({
         company_id: company.id,
         sef_invoice_id: invoiceId,
@@ -302,7 +306,7 @@ async function syncCompanyPurchaseInvoices(
         vat_amount: vatAmount || null,
         currency: currency || 'RSD',
         sef_status: status,
-        local_status: 'pending',
+        local_status: localStatus,
         fetched_at: new Date().toISOString(),
       });
     }

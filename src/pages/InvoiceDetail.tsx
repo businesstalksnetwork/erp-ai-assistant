@@ -414,9 +414,13 @@ export default function InvoiceDetail() {
   }];
 
   // Get document title based on type
+  const isStorno = invoice.total_amount < 0;
   const getDocumentTitle = () => {
     if (invoice.invoice_type === 'advance') return t('advance_title');
     if (invoice.is_proforma || invoice.invoice_type === 'proforma') return t('proforma_title');
+    if (isStorno) {
+      return invoice.client_type === 'foreign' ? 'CREDIT NOTE NO.' : 'STORNO FAKTURA BROJ';
+    }
     return t('invoice_title');
   };
 
