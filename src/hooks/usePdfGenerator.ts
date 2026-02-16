@@ -21,12 +21,6 @@ export async function generateInvoicePdf(
     throw new Error('Invoice element not found');
   }
 
-  // KRITIČNO: Privremeno ukloni dark mode da bi PDF bio svetao
-  const htmlElement = document.documentElement;
-  const wasDarkMode = htmlElement.classList.contains('dark');
-  if (wasDarkMode) {
-    htmlElement.classList.remove('dark');
-  }
 
   // Detekcija mobilnog uređaja
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
@@ -258,35 +252,6 @@ export async function generateInvoicePdf(
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
 
-    // Blago pojačanje kontrasta - bez agresivne binarizacije
-    const boostCanvasContrast = (targetCanvas: HTMLCanvasElement) => {
-      const ctx = targetCanvas.getContext('2d');
-      if (!ctx) return;
-
-      const { width, height } = targetCanvas;
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-
-      // Blago pojačanje kontrasta umesto agresivne binarizacije
-      const contrastFactor = 1.3; // Pojačan kontrast za čitljiviji PDF
-      const midpoint = 128;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const a = data[i + 3];
-        if (a === 0) continue;
-
-        // Primeni blago pojačanje kontrasta na svaki kanal
-        for (let c = 0; c < 3; c++) {
-          const value = data[i + c];
-          // Pojačaj kontrast oko srednje tačke
-          const adjusted = midpoint + (value - midpoint) * contrastFactor;
-          data[i + c] = Math.max(0, Math.min(255, Math.round(adjusted)));
-        }
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-    };
-
     // Na mobilnom koristi manji scale (1.5) da smanji memoriju
     const canvasScale = isMobile ? 1.5 : 2;
 
@@ -303,7 +268,6 @@ export async function generateInvoicePdf(
       scrollY: 0,
     });
 
-    boostCanvasContrast(canvas);
 
     // Kreiraj PDF - FIT TO PAGE (jedna strana) sa marginama
     const pdf = new jsPDF({
@@ -358,10 +322,5 @@ export async function generateInvoicePdf(
   } finally {
     // Ukloni offscreen wrapper
     document.body.removeChild(wrapper);
-
-    // KRITIČNO: Vrati dark mode ako je bio aktivan
-    if (wasDarkMode) {
-      htmlElement.classList.add('dark');
-    }
   }
 }
