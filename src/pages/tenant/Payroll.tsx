@@ -169,7 +169,7 @@ export default function Payroll() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("payroll")}</h1>
+        <h1 className="text-2xl font-bold">{t("payroll")}</h1>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
       </div>
 
@@ -263,7 +263,7 @@ export default function Payroll() {
                     ) : null}
 
                     {run.status !== "draft" && (
-                      <div className="grid grid-cols-4 gap-4 mt-4 text-sm">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm">
                         <div><span className="text-muted-foreground">{t("totalGross")}:</span> <strong>{fmtNum(Number(run.total_gross))}</strong></div>
                         <div><span className="text-muted-foreground">{t("totalTaxes")}:</span> <strong>{fmtNum(Number(run.total_taxes))}</strong></div>
                         <div><span className="text-muted-foreground">{t("totalContributions")}:</span> <strong>{fmtNum(Number(run.total_contributions))}</strong></div>
@@ -281,7 +281,7 @@ export default function Payroll() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("createPayrollRun")}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>{t("periodMonth")}</Label>
               <Input type="number" min={1} max={12} value={form.period_month} onChange={(e) => setForm({ ...form, period_month: Number(e.target.value) })} />

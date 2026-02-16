@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { subMonths, format, startOfMonth, endOfMonth } from "date-fns";
 import { fmtNum } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   tenantId: string;
@@ -12,6 +13,7 @@ interface Props {
 
 export function RevenueExpensesChart({ tenantId }: Props) {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
 
   const { data: chartData = [] } = useQuery({
     queryKey: ["dashboard-rev-exp-chart", tenantId],
@@ -22,7 +24,6 @@ export function RevenueExpensesChart({ tenantId }: Props) {
         return { start: startOfMonth(d), end: endOfMonth(d), label: format(d, "MMM yy") };
       });
 
-      // Get posted entries
       const { data: entries } = await supabase
         .from("journal_entries")
         .select("id, entry_date")
@@ -35,7 +36,6 @@ export function RevenueExpensesChart({ tenantId }: Props) {
 
       const entryIds = entries.map((e) => e.id);
 
-      // Get revenue and expense accounts
       const { data: revenueAccts } = await supabase
         .from("chart_of_accounts").select("id").eq("tenant_id", tenantId).eq("account_type", "revenue");
       const { data: expenseAccts } = await supabase
@@ -44,7 +44,6 @@ export function RevenueExpensesChart({ tenantId }: Props) {
       const revIds = new Set((revenueAccts || []).map((a) => a.id));
       const expIds = new Set((expenseAccts || []).map((a) => a.id));
 
-      // Get all lines
       const { data: lines } = await supabase
         .from("journal_lines")
         .select("journal_entry_id, account_id, debit, credit")
@@ -74,18 +73,18 @@ export function RevenueExpensesChart({ tenantId }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">{t("revenueVsExpenses")}</CardTitle>
+        <CardTitle className="text-base">{t("revenueVsExpenses")}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="month" className="text-xs" />
             <YAxis className="text-xs" />
-            <Tooltip formatter={(v: number) => fmtNum(v)} />
+            <Tooltip formatter={(v: number) => fmtNum(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
             <Legend />
-            <Bar dataKey="revenue" name={t("revenue")} fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" name={t("expenses")} fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" name={t("revenue")} fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" name={t("expenses")} fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

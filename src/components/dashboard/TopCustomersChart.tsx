@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { fmtNum } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   tenantId: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export function TopCustomersChart({ tenantId }: Props) {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
 
   const { data: chartData = [] } = useQuery({
     queryKey: ["dashboard-top-customers", tenantId],
@@ -47,12 +49,12 @@ export function TopCustomersChart({ tenantId }: Props) {
         {chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">{t("noResults")}</p>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={isMobile ? 220 : 260}>
             <BarChart data={chartData} layout="vertical">
               <XAxis type="number" className="text-xs" />
-              <YAxis dataKey="name" type="category" width={120} className="text-xs" />
-              <Tooltip formatter={(v: number) => fmtNum(v)} />
-              <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name={t("total")} />
+              <YAxis dataKey="name" type="category" width={isMobile ? 80 : 120} className="text-xs" />
+              <Tooltip formatter={(v: number) => fmtNum(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+              <Bar dataKey="total" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} name={t("total")} />
             </BarChart>
           </ResponsiveContainer>
         )}

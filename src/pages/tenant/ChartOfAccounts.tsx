@@ -143,7 +143,7 @@ export default function ChartOfAccounts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("chartOfAccounts")}</h1>
+        <h1 className="text-2xl font-bold">{t("chartOfAccounts")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -193,10 +193,10 @@ export default function ChartOfAccounts() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} — {t("account")}</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>{t("accountCode")}</Label>
                 <Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} required />

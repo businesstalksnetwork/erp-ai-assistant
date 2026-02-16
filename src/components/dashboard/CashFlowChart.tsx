@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { subMonths, format, startOfMonth, endOfMonth } from "date-fns";
 import { fmtNum } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   tenantId: string;
@@ -12,6 +13,7 @@ interface Props {
 
 export function CashFlowChart({ tenantId }: Props) {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
 
   const { data: chartData = [] } = useQuery({
     queryKey: ["dashboard-cashflow", tenantId],
@@ -34,7 +36,7 @@ export function CashFlowChart({ tenantId }: Props) {
           return d >= m.start && d <= m.end;
         });
         const inflow = monthInvoices.filter((i) => i.status === "paid").reduce((s, i) => s + Number(i.total), 0);
-        const outflow = monthInvoices.filter((i) => i.status !== "paid").reduce((s, i) => s + Number(i.total), 0) * 0.3; // approximate
+        const outflow = monthInvoices.filter((i) => i.status !== "paid").reduce((s, i) => s + Number(i.total), 0) * 0.3;
         return { month: m.label, inflow, outflow, net: inflow - outflow };
       });
       return result;
@@ -49,20 +51,20 @@ export function CashFlowChart({ tenantId }: Props) {
         <CardTitle className="text-base">{t("cashFlow") || "Cash Flow"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={isMobile ? 220 : 260}>
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="cfGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="month" className="text-xs" />
             <YAxis className="text-xs" />
-            <Tooltip formatter={(v: number) => fmtNum(v)} />
-            <Area type="monotone" dataKey="inflow" stroke="hsl(var(--accent))" fill="hsl(var(--accent) / 0.2)" name={t("inflow")} />
-            <Area type="monotone" dataKey="net" stroke="hsl(var(--primary))" fill="url(#cfGrad)" name="Net" />
+            <Tooltip formatter={(v: number) => fmtNum(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+            <Area type="monotone" dataKey="inflow" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3) / 0.2)" name={t("inflow")} />
+            <Area type="monotone" dataKey="net" stroke="hsl(var(--chart-1))" fill="url(#cfGrad)" name="Net" />
           </AreaChart>
         </ResponsiveContainer>
       </CardContent>
