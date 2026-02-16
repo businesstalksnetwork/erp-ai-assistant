@@ -1467,6 +1467,7 @@ export const translations = {
     nontaxableAmount: "Nontaxable Amount",
     minContributionBase: "Min Contribution Base",
     maxContributionBase: "Max Contribution Base",
+    payrollRunAlreadyExists: "A payroll run for this period already exists.",
     contributionBase: "Contribution Base",
     notSubmitted: "Not Submitted",
     ebolovanjeNotConfigured: "Not Configured",
@@ -3343,6 +3344,12 @@ export const translations = {
     supplierCostChange: "Promena troškova dobavljača",
     fxShock: "FX šok (EUR/RSD)",
     projectedPnl: "Projektovani P&L",
+    payrollParameters: "Parametri obračuna",
+    effectiveFrom: "Važi od",
+    nontaxableAmount: "Neoporezivi iznos",
+    minContributionBase: "Min. osnovica doprinosa",
+    maxContributionBase: "Maks. osnovica doprinosa",
+    payrollRunAlreadyExists: "Obračun za ovaj period već postoji.",
   },
 } as const;
 
