@@ -7,27 +7,27 @@ export interface StatItem {
   label: string;
   value: string | number;
   icon: LucideIcon;
-  trend?: number; // percentage change, positive = up
-  color?: string; // tailwind text color class using semantic tokens
-  sparklineData?: number[]; // last N data points for mini sparkline
+  trend?: number;
+  color?: string;
+  sparklineData?: number[];
 }
 
 interface StatsBarProps {
   stats: StatItem[];
 }
 
-function trendBorderColor(trend?: number): string {
-  if (trend === undefined || trend === 0) return "border-l-muted-foreground/20";
-  return trend > 0 ? "border-l-accent" : "border-l-destructive";
+function trendTopColor(trend?: number): string {
+  if (trend === undefined || trend === 0) return "border-t-muted-foreground/20";
+  return trend > 0 ? "border-t-accent" : "border-t-destructive";
 }
 
 export function StatsBar({ stats }: StatsBarProps) {
   return (
-    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => (
         <Card
           key={stat.label}
-          className={`overflow-hidden border-l-[3px] ${trendBorderColor(stat.trend)} transition-shadow hover:shadow-md`}
+          className={`overflow-hidden border-t-[3px] ${trendTopColor(stat.trend)} transition-all hover:shadow-md hover:-translate-y-0.5`}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -38,7 +38,7 @@ export function StatsBar({ stats }: StatsBarProps) {
             </div>
             <div className="mt-2 flex items-end justify-between gap-2">
               <div className="flex items-end gap-2 min-w-0">
-                <span className="text-2xl font-bold tracking-tight">{stat.value}</span>
+                <span className="text-2xl font-bold tracking-tight tabular-nums">{stat.value}</span>
                 {stat.trend !== undefined && stat.trend !== 0 && (
                   <span className={`flex items-center text-xs font-medium pb-0.5 ${stat.trend > 0 ? "text-accent" : "text-destructive"}`}>
                     {stat.trend > 0 ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
