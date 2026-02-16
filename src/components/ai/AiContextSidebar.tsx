@@ -11,6 +11,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAiStream } from "@/hooks/useAiStream";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
+import { SimpleMarkdown } from "@/components/ai/SimpleMarkdown";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -387,12 +388,12 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
                         <Bot className="h-3 w-3 text-primary" />
                       </div>
                     )}
-                    <div className={`max-w-[90%] rounded-md px-2 py-1.5 text-xs whitespace-pre-wrap ${
+                    <div className={`max-w-[90%] rounded-md px-2 py-1.5 text-xs ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground whitespace-pre-wrap"
                         : "bg-muted"
                     }`}>
-                      {msg.content}
+                      {msg.role === "assistant" ? <SimpleMarkdown content={msg.content} /> : msg.content}
                     </div>
                   </div>
                 ))}
