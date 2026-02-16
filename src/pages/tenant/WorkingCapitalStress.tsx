@@ -20,33 +20,31 @@ export default function WorkingCapitalStress() {
     queryKey: ["working-capital-stress", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
+      const nameMatch = (name: string, ...terms: string[]) =>
+        terms.some(t => name.toLowerCase().includes(t));
+
       // Fetch journal lines for asset/liability classification
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("debit, credit, chart_of_accounts:account_id(account_type, code), journal:journal_entry_id(status, tenant_id)")
+        .select("debit, credit, chart_of_accounts:account_id(account_type, code, name), journal:journal_entry_id(status, tenant_id)")
         .eq("journal.tenant_id", tenantId!) as any);
 
       let currentAssets = 0, currentLiabilities = 0, cash = 0, inventory = 0;
       for (const line of (lines as any[]) || []) {
         if (line.journal?.status !== "posted") continue;
-        const code = line.chart_of_accounts?.code || "";
         const type = line.chart_of_accounts?.account_type || "";
+        const name = line.chart_of_accounts?.name || "";
         const net = (Number(line.debit) || 0) - (Number(line.credit) || 0);
 
         if (type === "asset") {
-          if (code.startsWith("24") || code.startsWith("20") || code.startsWith("21")) {
+          currentAssets += net;
+          if (nameMatch(name, "cash", "bank", "gotovina", "banka")) {
             cash += net;
-            currentAssets += net;
-          } else if (code.startsWith("13") || code.startsWith("10") || code.startsWith("11") || code.startsWith("12")) {
+          } else if (nameMatch(name, "inventor", "zalih")) {
             inventory += net;
-            currentAssets += net;
-          } else if (code.startsWith("2")) {
-            currentAssets += net;
           }
         } else if (type === "liability") {
-          if (code.startsWith("4") || code.startsWith("27")) {
-            currentLiabilities += Math.abs(net);
-          }
+          currentLiabilities += Math.abs(net);
         }
       }
 

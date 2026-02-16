@@ -24,7 +24,7 @@ export default function InventoryHealth() {
       // Get inventory stock
       const { data: stock } = await (supabase
         .from("inventory_stock")
-        .select("id, product_id, warehouse_id, quantity, min_level")
+        .select("id, product_id, warehouse_id, quantity_on_hand, min_stock_level")
         .eq("tenant_id", tenantId!) as any);
 
       const { data: products } = await (supabase
@@ -57,7 +57,7 @@ export default function InventoryHealth() {
       // Aggregate by product
       const productStock = new Map<string, number>();
       for (const s of stock || []) {
-        productStock.set(s.product_id, (productStock.get(s.product_id) || 0) + (Number(s.quantity) || 0));
+        productStock.set(s.product_id, (productStock.get(s.product_id) || 0) + (Number(s.quantity_on_hand) || 0));
       }
 
       let totalValue = 0;
@@ -97,8 +97,11 @@ export default function InventoryHealth() {
 
       items.sort((a, b) => b.daysSinceMovement - a.daysSinceMovement);
 
-      // Simple turnover ratio: total COGS / avg inventory (simplified)
-      const turnoverRatio = totalValue > 0 ? (totalValue * 0.7 / totalValue).toFixed(1) : "0"; // placeholder
+      // Turnover ratio: total outbound value / average inventory value
+      const totalOutboundQty = Array.from(monthlyOutbound.values()).reduce((a, b) => a + b, 0);
+      const avgPrice = items.length > 0 ? items.reduce((s, i) => s + (i.qty > 0 ? i.value / i.qty : 0), 0) / items.length : 0;
+      const cogsEstimate = totalOutboundQty * avgPrice;
+      const turnoverRatio = totalValue > 0 ? (cogsEstimate / totalValue).toFixed(1) : "0";
 
       return {
         totalValue: Math.round(totalValue),
