@@ -101,16 +101,17 @@ export async function generateInvoicePdf(
     });
   });
 
-  // Exception: .bg-slate-800 elements also need white text (amount due section)
+  // Amount due section: convert to light theme for PDF
   clone.querySelectorAll('.bg-slate-800').forEach(el => {
     const htmlEl = el as HTMLElement;
-    htmlEl.style.setProperty('color', '#ffffff', 'important');
-    htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-    htmlEl.style.setProperty('background-color', '#1e293b', 'important');
+    htmlEl.style.setProperty('background-color', '#f1f5f9', 'important');
+    htmlEl.style.setProperty('border', '2px solid #1e293b', 'important');
+    htmlEl.style.setProperty('color', '#000000', 'important');
+    htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
     htmlEl.querySelectorAll('*').forEach(child => {
       const childEl = child as HTMLElement;
-      childEl.style.setProperty('color', '#ffffff', 'important');
-      childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+      childEl.style.setProperty('color', '#000000', 'important');
+      childEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
     });
   });
 
@@ -179,9 +180,7 @@ export async function generateInvoicePdf(
       -webkit-text-fill-color: #000000 !important;
     }
     .pdf-export .bg-primary,
-    .pdf-export .bg-primary *,
-    .pdf-export .bg-slate-800,
-    .pdf-export .bg-slate-800 * {
+    .pdf-export .bg-primary * {
       color: #ffffff !important;
       -webkit-text-fill-color: #ffffff !important;
     }
@@ -210,7 +209,7 @@ export async function generateInvoicePdf(
       onclone: (clonedDoc, clonedElement) => {
         // Inject override stylesheet into cloned document's head
         const overrideStyle = clonedDoc.createElement('style');
-        overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary *, .bg-slate-800, .bg-slate-800 * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
+        overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
         clonedDoc.head.appendChild(overrideStyle);
         // Also force inline styles on all cloned elements
         clonedElement.querySelectorAll('*').forEach(el => {
@@ -221,7 +220,7 @@ export async function generateInvoicePdf(
         clonedElement.style.setProperty('color', '#000000', 'important');
         clonedElement.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
         // Exception: keep white text on dark primary/slate backgrounds
-        clonedElement.querySelectorAll('.bg-primary, .bg-primary *, .bg-slate-800, .bg-slate-800 *').forEach(el => {
+        clonedElement.querySelectorAll('.bg-primary, .bg-primary *').forEach(el => {
           const htmlEl = el as HTMLElement;
           htmlEl.style.setProperty('color', '#ffffff', 'important');
           htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
