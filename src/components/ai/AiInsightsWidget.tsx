@@ -1,9 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2 } from "lucide-react";
+import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2, ChevronRight } from "lucide-react";
+
+const insightRouteMap: Record<string, string> = {
+  overdue_invoices: "/accounting/invoices",
+  large_invoices: "/accounting/invoices",
+  zero_stock: "/inventory/stock",
+  low_stock: "/inventory/stock",
+  draft_journals: "/accounting/journal",
+  payroll_anomaly: "/hr/payroll",
+  excessive_overtime: "/hr/overtime",
+  leave_balance_warning: "/hr/annual-leave",
+  stale_leads: "/crm/leads",
+  high_value_at_risk: "/crm/opportunities",
+  budget_variance: "/analytics/budget",
+  revenue_declining: "/analytics",
+  slow_moving: "/analytics/inventory-health",
+  reorder_suggestion: "/purchasing/orders",
+};
 
 interface Insight {
   insight_type: string;
@@ -25,6 +43,7 @@ const severityConfig = {
 
 export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
   const { t, locale } = useLanguage();
+  const navigate = useNavigate();
 
   const { data: insights, isLoading } = useQuery({
     queryKey: ["ai-insights", tenantId],
@@ -61,12 +80,21 @@ export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
             {locale === "sr" ? "Nema dostupnih uvida." : "No insights available."}
           </p>
         ) : (
-          <div className="space-y-3">
-            {insights.slice(0, 5).map((insight, i) => {
+          <div className="space-y-2">
+            {insights.map((insight, i) => {
               const config = severityConfig[insight.severity];
               const Icon = config.icon;
+              const route = insightRouteMap[insight.insight_type];
+              const isClickable = !!route;
               return (
-                <div key={i} className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                <button
+                  key={i}
+                  onClick={() => route && navigate(route)}
+                  disabled={!isClickable}
+                  className={`flex items-start gap-3 p-2 rounded-md w-full text-left transition-colors ${
+                    isClickable ? "hover:bg-muted/50 cursor-pointer" : "cursor-default"
+                  }`}
+                >
                   <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.color}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -77,7 +105,8 @@ export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
                   </div>
-                </div>
+                  {isClickable && <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground flex-shrink-0" />}
+                </button>
               );
             })}
           </div>

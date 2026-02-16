@@ -339,10 +339,10 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
                   <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2">
-                  <AiAnalyticsNarrative
+                <AiAnalyticsNarrative
                     tenantId={tenantId}
                     contextType={narrativeCtx as any}
-                    data={{}}
+                    data={{ _route: location.pathname, _module: module }}
                   />
                 </CollapsibleContent>
               </Collapsible>
