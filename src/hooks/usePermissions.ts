@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { rolePermissions, type ModuleGroup, type TenantRole } from "@/config/rolePermissions";
 
 /** Modules that are always accessible regardless of tenant_modules config */
-const ALWAYS_ON: ModuleGroup[] = ["dashboard", "settings"];
+const isAlwaysOn = (m: ModuleGroup): boolean =>
+  m === "dashboard" || m === "settings" || m.startsWith("settings-");
 
 export function usePermissions() {
   const { tenantId, role, isLoading: tenantLoading } = useTenant();
@@ -47,11 +48,11 @@ export function usePermissions() {
     // Super admins bypass tenant module checks
     if (isSuperAdmin) return true;
 
-    // Core modules always on
-    if (ALWAYS_ON.includes(module)) return true;
+    // Core modules always on (dashboard + all settings submodules)
+    if (isAlwaysOn(module)) return true;
 
-    // If we haven't loaded tenant modules yet, allow (avoid flash)
-    if (!enabledModuleKeys) return true;
+    // Pessimistic: deny until tenant modules have loaded (ProtectedRoute shows spinner)
+    if (!enabledModuleKeys) return false;
 
     // Check tenant has this module enabled
     return enabledModuleKeys.has(module);
