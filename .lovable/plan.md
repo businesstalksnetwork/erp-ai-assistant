@@ -1,248 +1,148 @@
 
 
-# Full Application Redesign -- Dark Professional Theme
+# Phase 2: Dashboard, High-Traffic Pages, and Responsive Upgrades
 
-## Vision
-Transform the ERP-AI application from a basic blue/green theme into a sleek, dark professional design inspired by Linear, Vercel, and modern SaaS tools. Every page becomes fully responsive across all devices with smart handling of long numbers and dense data.
+This continues the full redesign. Phase 1 established the color system, layouts, auth pages, and shared responsive components (`ResponsiveTable`, `MobileFilterBar`, `MobileActionMenu`). Phase 2 applies them across all major pages.
 
-## 1. New Color System (index.css)
+## Batch 1: Dashboard Redesign
 
-Replace the current light blue/green palette with a sophisticated dark-first design:
+### `src/components/dashboard/WelcomeHeader.tsx`
+- Reduce title to `text-xl`, add subtle gradient text effect on the name
+- Wrap in a responsive flex that stacks on mobile
 
-**Light mode (`:root`)**
-- Background: cool gray `210 11% 96%` (not pure white)
-- Cards: white `0 0% 100%`
-- Primary: deep indigo `234 89% 60%` (replaces generic blue)
-- Accent: emerald `160 84% 39%`
-- Destructive: rose `350 89% 60%`
-- Warning: amber `38 92% 50%`
-- Sidebar: near-black `224 30% 8%`
-- Muted foreground: proper gray hierarchy
-- Borders: subtle `214 12% 90%`
+### `src/pages/tenant/Dashboard.tsx`
+- KPI cards: add colored top border (`border-t-2 border-primary`, `border-accent`, `border-destructive`), reduce title to `text-2xl` on desktop / `text-lg` on mobile
+- KPI grid: change from `md:grid-cols-4` to `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`
+- Use `fmtNumCompact` for KPI values on mobile
+- Chart grids: `grid-cols-1 lg:grid-cols-2` instead of `md:grid-cols-2`
+- Pending actions + Quick actions: stack on mobile (`grid-cols-1 md:grid-cols-2`)
+- Quick actions: horizontal scroll on mobile
+- Export button: move into a "..." overflow on mobile
 
-**Dark mode (`.dark`)**
-- Background: true dark `224 24% 6%`
-- Cards: elevated dark `224 24% 10%`
-- Primary: brighter indigo `234 89% 66%`
-- Borders: subtle dark `224 15% 16%`
-- Sidebar: darker still `224 30% 4%`
+### Chart Components (all 4)
+- `RevenueExpensesChart.tsx`, `InvoiceStatusChart.tsx`, `CashFlowChart.tsx`, `TopCustomersChart.tsx`
+- Update bar/pie fill colors to use new palette variables (`hsl(var(--primary))`, `hsl(var(--chart-1))` through `--chart-5`)
+- Add `className="stroke-border"` to CartesianGrid
+- Tooltip: add dark background styling
+- Reduce chart height on mobile from 280 to 220
 
-## 2. Layout Restructure (TenantLayout.tsx)
+## Batch 2: Simple List Pages (Card mode on mobile)
 
-### Header redesign
-- Reduce height from `h-12` to `h-11`
-- Add subtle bottom shadow instead of hard border
-- Glassmorphism background: `bg-background/80 backdrop-blur-lg`
-- Move breadcrumbs below header into the main content area (less header clutter)
-- Compact user menu: avatar only on mobile, avatar + name on desktop
+These pages have simple rows with name/email/phone/status -- perfect for card layout on mobile.
 
-### Sidebar redesign
-- Increase width from default to `w-64` (more breathing room)
-- Add hover highlight with left-border accent on active items
-- Improve section headers: use smaller `text-[10px]` labels with left-border color coding
-- Add subtle gradient overlay at the bottom for scroll indication
-- Logo area: add a small icon/logo mark alongside "ERP-AI" text
-- On mobile: overlay sidebar with backdrop blur
+### Pages to update (all follow same pattern):
+1. **Products.tsx** -- Use `ResponsiveTable` with card mode, `MobileFilterBar` for search+actions
+2. **Employees.tsx** -- Use `ResponsiveTable` with card mode, primary=full_name
+3. **Companies.tsx** -- Use `ResponsiveTable` with card mode, primary=legal_name
+4. **Contacts.tsx** -- Use `ResponsiveTable` with card mode, primary=name
+5. **Leads.tsx** -- Use `ResponsiveTable` with card mode, primary=name
+6. **ChartOfAccounts.tsx** -- Use `ResponsiveTable` with card mode, primary=code+name
+7. **SalesOrders.tsx** -- Use `ResponsiveTable` with card mode, primary=order_number
+8. **PurchaseOrders.tsx** -- Use `ResponsiveTable` with card mode, primary=order_number
 
-### Main content area
-- Reduce default padding from `p-6` to `p-4 lg:p-6`
-- Add `max-w-screen-2xl mx-auto` container for ultra-wide screens
-- Breadcrumbs move into content area (first element)
+### Pattern for each page:
+- Replace raw `<Table>` with `<ResponsiveTable>` defining columns with `ResponsiveColumn<T>` interface
+- Replace header toolbar with `<MobileFilterBar>` wrapping search, filters, and action buttons
+- Replace inline row action buttons with `<MobileActionMenu>` on mobile
+- Page title: reduce from `text-3xl` to `text-2xl`
+- Wrap table in a `<Card>` if not already
 
-### AI Sidebar
-- Add a subtle left border separator
-- Collapse to a floating button on screens under 1280px
-- Proper overlay mode on tablet/mobile
+## Batch 3: Dense Data Pages (Scroll mode on mobile)
 
-## 3. Responsive Table System
+These pages have many numeric columns that need horizontal scroll.
 
-Create a new shared component `ResponsiveTable` that automatically handles different screen sizes:
+### Pages to update:
+1. **Invoices.tsx** -- `ResponsiveTable` with `mobileMode="scroll"`, all row actions in `MobileActionMenu`
+2. **JournalEntries.tsx** -- `ResponsiveTable` with `mobileMode="scroll"`
+3. **InventoryStock.tsx** -- `ResponsiveTable` with `mobileMode="scroll"` (10 columns with numbers)
+4. **InventoryMovements.tsx** -- `ResponsiveTable` with `mobileMode="scroll"`
+5. **Payroll.tsx** -- Already uses accordion, keep but make the inner items table scroll horizontally; wrap summary grid in responsive `grid-cols-2 sm:grid-cols-4`
+6. **GeneralLedger.tsx** -- `ResponsiveTable` with `mobileMode="scroll"`
+7. **TrialBalance.tsx** -- `ResponsiveTable` with `mobileMode="scroll"`
 
-**For simple lists (Products, Employees, Contacts, Partners, etc.):**
-- Desktop: normal table
-- Mobile (under 768px): card layout with stacked key-value pairs
-- Each card shows primary info (name, ID) prominently, secondary info smaller
+### Pattern for each page:
+- Use `mobileMode="scroll"` for `ResponsiveTable`
+- Numeric columns: use `fmtNumCompact` on mobile (via `useIsMobile` hook)
+- Hide less important columns on mobile via `hideOnMobile: true` (e.g., notes, reference)
+- Row actions: collapse into `MobileActionMenu`
 
-**For complex tables (Invoices, Journal Entries, Bank Statements, etc.):**
-- Desktop: normal table
-- Mobile: horizontal scroll with first column (ID/number) pinned
-- Long numbers: use `tabular-nums` font feature, `text-sm` on mobile, truncate with tooltip on very small screens
+## Batch 4: Special Pages
 
-### Long number handling
-- Add `font-variant-numeric: tabular-nums` globally for all numeric cells
-- On mobile, monetary values use abbreviated format (e.g., "1,23M" instead of "1.234.567,89") with full value on tap/hover
-- Add a `fmtNumCompact` utility alongside existing `fmtNum`
+### Opportunities.tsx (Kanban board)
+- Already uses card layout -- just make the kanban grid responsive: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5`
+- On mobile: stack stages vertically with collapsible sections
+- Adjust card padding and typography
 
-## 4. Login / Auth Pages Redesign
+### BalanceSheet.tsx, IncomeStatement.tsx
+- These are report pages -- wrap tables in responsive scroll containers
+- Reduce font sizes on mobile
 
-- Split-screen layout on desktop: left side = branded panel with gradient background, product name, tagline; right side = form
-- Mobile: single column with branded header above form
-- Form card: glass effect with subtle border
-- Add subtle animation on load (fade-in from bottom)
-- Gradient background on brand panel: indigo to dark purple
+## Batch 5: Form Dialogs Consistency
 
-## 5. Dashboard Redesign
+For ALL dialog forms across all pages:
+- `max-w-lg` dialogs: add `sm:max-w-lg` (full-width on mobile)
+- `max-w-2xl` dialogs: add `sm:max-w-2xl`
+- `grid-cols-2` form layouts: change to `grid-cols-1 sm:grid-cols-2`
+- `grid-cols-3` form layouts: change to `grid-cols-1 sm:grid-cols-3`
+- Number inputs: add `text-right` class
 
-### KPI Cards
-- Add glass-morphism cards with colored top borders (not left borders)
-- Icon in a soft-colored circle background
-- Add sparkline mini-charts to each KPI
-- Responsive: 1 column on mobile, 2 on tablet, 4 on desktop
+## Technical Details
 
-### Charts
-- Update all chart colors to match new palette
-- Add proper dark mode support for chart backgrounds, grid lines, tooltips
-- Chart tooltips: dark background with rounded corners
-- Responsive: stack charts vertically on mobile
+### Files Modified (in order):
 
-### Pending Actions + Quick Actions
-- Redesign as a horizontal scrollable strip of action cards on mobile
-- Desktop: keep grid but add hover effects
+**Dashboard (5 files):**
+1. `src/components/dashboard/WelcomeHeader.tsx`
+2. `src/pages/tenant/Dashboard.tsx`
+3. `src/components/dashboard/RevenueExpensesChart.tsx`
+4. `src/components/dashboard/InvoiceStatusChart.tsx`
+5. `src/components/dashboard/CashFlowChart.tsx`
+6. `src/components/dashboard/TopCustomersChart.tsx`
 
-## 6. PageHeader Component Update
+**Simple list pages (8 files):**
+7. `src/pages/tenant/Products.tsx`
+8. `src/pages/tenant/Employees.tsx`
+9. `src/pages/tenant/Companies.tsx`
+10. `src/pages/tenant/Contacts.tsx`
+11. `src/pages/tenant/Leads.tsx`
+12. `src/pages/tenant/ChartOfAccounts.tsx`
+13. `src/pages/tenant/SalesOrders.tsx`
+14. `src/pages/tenant/PurchaseOrders.tsx`
 
-- Larger, bolder typography
-- Icon in a gradient-colored circle
-- Actions wrap properly on mobile (full-width buttons)
-- Add subtle divider line below
+**Dense data pages (7 files):**
+15. `src/pages/tenant/Invoices.tsx`
+16. `src/pages/tenant/JournalEntries.tsx`
+17. `src/pages/tenant/InventoryStock.tsx`
+18. `src/pages/tenant/InventoryMovements.tsx`
+19. `src/pages/tenant/Payroll.tsx`
+20. `src/pages/tenant/GeneralLedger.tsx`
+21. `src/pages/tenant/TrialBalance.tsx`
 
-## 7. StatsBar Component Update
+**Special pages (3 files):**
+22. `src/pages/tenant/Opportunities.tsx`
+23. `src/pages/tenant/BalanceSheet.tsx`
+24. `src/pages/tenant/IncomeStatement.tsx`
 
-- Cards get top-border color accent (not left)
-- Slightly more padding
-- Responsive grid: `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`
-- Sparklines get proper dark mode colors
+### Key Implementation Patterns:
 
-## 8. All List Pages (130+ pages) -- Pattern Standardization
+**ResponsiveTable integration** (Products example):
+```tsx
+const columns: ResponsiveColumn<typeof products[0]>[] = [
+  { key: "name", label: t("name"), primary: true, render: (p) => <Link to={`/inventory/products/${p.id}`}>{p.name}</Link> },
+  { key: "sku", label: "SKU", render: (p) => p.sku || "---" },
+  { key: "price", label: t("salePrice"), align: "right", render: (p) => fmtNum(Number(p.default_sale_price)) },
+  { key: "status", label: t("status"), render: (p) => <Badge>...</Badge> },
+  { key: "actions", label: t("actions"), showInCard: false, render: (p) => <MobileActionMenu actions={[...]} /> },
+];
+```
 
-Every list page follows the same responsive pattern:
+**MobileFilterBar integration** (replacing raw search/filter rows):
+```tsx
+<MobileFilterBar
+  search={<SearchInput ... />}
+  filters={<><Select ... /><Checkbox ... /></>}
+  actions={<><ExportButton ... /><Button ... /></>}
+/>
+```
 
-### Search + Filter Bar
-- On desktop: horizontal row with search input + filter dropdowns + action buttons
-- On mobile: search full-width, filters collapse into a "Filters" dropdown button, action buttons in a "..." overflow menu
-
-### Table Area
-- Use the new ResponsiveTable component
-- Consistent loading skeletons
-- Empty states with illustration
-
-### Action Buttons in Rows
-- Desktop: inline button group
-- Mobile: overflow menu (three dots) that opens a dropdown
-
-## 9. Form Pages / Dialogs
-
-- Dialog max-width: `sm:max-w-lg` for simple forms, `sm:max-w-2xl` for complex
-- Form fields: consistent spacing `space-y-4`
-- Labels: above inputs (never inline on mobile)
-- Two-column layouts on desktop for forms with many fields, single column on mobile
-- Number inputs: right-aligned text
-
-## 10. Typography Scale
-
-- `text-xs` (12px): meta info, badges, timestamps
-- `text-sm` (14px): table cells, form labels, secondary text
-- `text-base` (16px): body text, card content
-- `text-lg` (18px): card titles, section headers
-- `text-xl` (20px): page sub-titles
-- `text-2xl` (24px): page titles (reduce from current)
-- `font-variant-numeric: tabular-nums` on all numeric displays
-
-## 11. Animation & Micro-interactions
-
-- Page transitions: fade-in with subtle upward slide (already exists, keep)
-- Card hover: slight lift with shadow increase
-- Button hover: subtle background transition (0.15s)
-- Sidebar item hover: left-accent-border slide-in
-- Loading: skeleton shimmer effect (already using Skeleton component)
-
-## 12. Print Styles
-
-- Already handled in index.css -- keep and verify works with new dark theme
-- Ensure print always uses light background regardless of theme
-
-## Files to Modify
-
-### Core (modify first -- everything else inherits)
-1. `src/index.css` -- new color variables
-2. `tailwind.config.ts` -- add warning/success color tokens, tabular-nums utility
-3. `src/layouts/TenantLayout.tsx` -- layout restructure
-4. `src/layouts/SuperAdminLayout.tsx` -- match new design
-5. `src/pages/Login.tsx` -- split-screen redesign
-6. `src/pages/Register.tsx` -- match login design
-7. `src/pages/ResetPassword.tsx` -- match login design
-
-### Shared Components (modify second -- used everywhere)
-8. `src/components/shared/PageHeader.tsx` -- updated styling
-9. `src/components/shared/StatsBar.tsx` -- top-border accent, responsive
-10. `src/components/shared/BiPageLayout.tsx` -- responsive container
-11. `src/components/ui/table.tsx` -- add responsive wrapper utility
-12. `src/lib/utils.ts` -- add `fmtNumCompact` utility
-
-### New Components
-13. `src/components/shared/ResponsiveTable.tsx` -- new responsive table wrapper
-14. `src/components/shared/MobileFilterBar.tsx` -- collapsible filters for mobile
-15. `src/components/shared/MobileActionMenu.tsx` -- overflow action menu
-
-### Dashboard
-16. `src/pages/tenant/Dashboard.tsx` -- redesigned layout
-17. `src/components/dashboard/WelcomeHeader.tsx` -- updated style
-18. All dashboard chart components -- updated colors
-
-### High-Traffic Pages (update patterns)
-19. `src/pages/tenant/Invoices.tsx` -- ResponsiveTable + filters
-20. `src/pages/tenant/Products.tsx` -- ResponsiveTable + card mode
-21. `src/pages/tenant/Employees.tsx` -- ResponsiveTable + card mode
-22. `src/pages/tenant/JournalEntries.tsx` -- ResponsiveTable + scroll
-23. `src/pages/tenant/Companies.tsx` -- ResponsiveTable + card mode
-24. `src/pages/tenant/Contacts.tsx` -- ResponsiveTable + card mode
-25. `src/pages/tenant/Leads.tsx` -- ResponsiveTable + card mode
-26. `src/pages/tenant/Opportunities.tsx` -- ResponsiveTable + card mode
-27. `src/pages/tenant/SalesOrders.tsx` -- ResponsiveTable
-28. `src/pages/tenant/PurchaseOrders.tsx` -- ResponsiveTable
-29. `src/pages/tenant/InventoryStock.tsx` -- ResponsiveTable
-30. `src/pages/tenant/Payroll.tsx` -- ResponsiveTable + scroll
-31. `src/pages/tenant/ChartOfAccounts.tsx` -- ResponsiveTable
-32. `src/pages/tenant/GeneralLedger.tsx` -- ResponsiveTable + scroll
-33. `src/pages/tenant/BalanceSheet.tsx` -- responsive
-34. `src/pages/tenant/IncomeStatement.tsx` -- responsive
-35. `src/pages/tenant/TrialBalance.tsx` -- ResponsiveTable + scroll
-
-### Analytics Pages
-36. `src/pages/tenant/AnalyticsDashboard.tsx` -- chart colors + responsive
-37. All analytics sub-pages -- responsive charts
-
-### Remaining Pages
-38-130+. All other tenant pages -- apply ResponsiveTable, updated filter bars, consistent spacing
-
-### AI Sidebar
-131. `src/components/ai/AiContextSidebar.tsx` -- responsive overlay mode
-132. `src/components/ai/AiAssistantPanel.tsx` -- match new theme
-
-## Implementation Order
-
-Since this is "everything at once," the implementation will proceed in this dependency order:
-
-1. **Color system + Tailwind config** (everything inherits from here)
-2. **Layout components** (TenantLayout, SuperAdminLayout)
-3. **Auth pages** (Login, Register, Reset)
-4. **Shared components** (PageHeader, StatsBar, ResponsiveTable, MobileFilterBar)
-5. **Dashboard**
-6. **High-traffic list pages** (Invoices, Products, Employees, etc.)
-7. **Accounting pages** (Journal, Ledger, Reports)
-8. **CRM pages** (Companies, Contacts, Leads, Opportunities)
-9. **Sales + Purchasing pages**
-10. **Inventory + WMS pages**
-11. **HR pages**
-12. **Production + Documents + POS pages**
-13. **Analytics pages** (chart colors)
-14. **Settings pages**
-15. **AI sidebar refinements**
-
-## Important Notes
-
-- Due to the scale (130+ pages), the implementation will be done in logical batches within this single plan
-- The shared components (ResponsiveTable, MobileFilterBar) are created first so all pages can adopt them
-- Color changes in `index.css` instantly affect the entire app
-- No external dependencies are needed -- everything uses existing Tailwind + Radix + Lucide
+Due to the large number of files (~24), implementation will be done in parallel batches where possible.
 
