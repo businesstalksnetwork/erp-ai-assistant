@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useReminders, Reminder } from '@/hooks/useReminders';
 import { startOfDay, startOfMonth, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
@@ -452,6 +452,24 @@ export default function Reminders() {
 
   // Active tab state for independent pagination
   const [activeTab, setActiveTab] = useState('currentMonth');
+  const tabsListRef = useRef<HTMLDivElement>(null);
+
+  // Scroll TabsList to start on mount
+  useEffect(() => {
+    if (tabsListRef.current) {
+      tabsListRef.current.scrollLeft = 0;
+    }
+  }, []);
+
+  // Scroll active tab into view on tab change
+  useEffect(() => {
+    const container = tabsListRef.current;
+    if (!container) return;
+    const activeEl = container.querySelector('[data-state="active"]') as HTMLElement | null;
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }
+  }, [activeTab]);
 
   // Get reminders for the active tab
   const getActiveTabReminders = () => {
@@ -1192,7 +1210,7 @@ export default function Reminders() {
       ) : (
         <div className="space-y-4">
           <Tabs defaultValue="currentMonth" value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); }} className="w-full">
-            <TabsList className="w-full flex flex-nowrap h-auto gap-1 p-1 overflow-x-auto scrollbar-hide">
+            <TabsList ref={tabsListRef} className="w-full flex flex-nowrap h-auto gap-1 p-1 overflow-x-auto scrollbar-hide">
             <TabsTrigger value="currentMonth" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <Calendar className="h-4 w-4 shrink-0" />
               <span className="sm:hidden">Mesec</span>
