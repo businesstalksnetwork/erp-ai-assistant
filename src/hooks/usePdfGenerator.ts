@@ -92,10 +92,20 @@ export async function generateInvoicePdf(
 
   // FORSIRATI MAKSIMALAN KONTRAST - čisto crna na beloj
   const solidText = '#000000';
-  const mutedText = isMobile ? '#000000' : '#222222';
+  const mutedText = '#000000';
   clone.style.backgroundColor = '#ffffff';
   clone.style.background = '#ffffff';
   clone.style.color = solidText;
+
+  // Forsirati font-weight za bold elemente da ne izgube debljinu pri rasterizaciji
+  clone.querySelectorAll('.font-semibold, .font-bold, .font-extrabold').forEach(el => {
+    const element = el as HTMLElement;
+    const cs = window.getComputedStyle(element);
+    const weight = parseInt(cs.fontWeight) || 400;
+    if (weight >= 600) {
+      element.style.fontWeight = '700';
+    }
+  });
 
   clone.querySelectorAll('*').forEach(el => {
     const element = el as HTMLElement;
@@ -165,15 +175,18 @@ export async function generateInvoicePdf(
       }
     }
     
-    // Eksplicitno postavi pozadinu za elemente sa bg-secondary, bg-muted, itd.
+    // Eksplicitno postavi pozadinu za elemente sa bg-muted, bg-card, bg-background
     if (
-      element.classList.contains('bg-secondary') ||
       element.classList.contains('bg-muted') ||
       element.classList.contains('bg-muted/50') ||
       element.classList.contains('bg-card') ||
       element.classList.contains('bg-background')
     ) {
-      element.style.backgroundColor = '#f8f9fa'; // Svetlo siva umesto tamne
+      element.style.backgroundColor = '#f8f9fa';
+    }
+    // bg-secondary: koristiti tamniju varijantu da ne bude "grayed out"
+    if (element.classList.contains('bg-secondary')) {
+      element.style.backgroundColor = '#e2e8f0';
     }
   });
 
@@ -255,7 +268,7 @@ export async function generateInvoicePdf(
       const data = imageData.data;
 
       // Blago pojačanje kontrasta umesto agresivne binarizacije
-      const contrastFactor = 1.15; // Blago povećanje kontrasta
+      const contrastFactor = 1.3; // Pojačan kontrast za čitljiviji PDF
       const midpoint = 128;
 
       for (let i = 0; i < data.length; i += 4) {

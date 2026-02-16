@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Building2, Loader2, Download, Mail, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Download, Mail, CheckCircle, Clock } from 'lucide-react';
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { SendInvoiceDialog } from '@/components/SendInvoiceDialog';
 import { QRCodeSVG } from 'qrcode.react';
@@ -469,23 +469,17 @@ export default function InvoiceDetail() {
             items={displayItems} 
             companyId={selectedCompany.id} 
           />
-          {isMobileDevice && (
-            <Button 
-              onClick={handleDownloadPDF} 
-              className="flex-1 sm:flex-none"
-              disabled={isGeneratingPDF}
-            >
-              {isGeneratingPDF ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              {isGeneratingPDF ? 'Generisanje...' : 'Sačuvaj PDF'}
-            </Button>
-          )}
-          <Button variant="outline" onClick={handlePrint} className="flex-1 sm:flex-none">
-            <Printer className="mr-2 h-4 w-4" />
-            {isMobileDevice ? 'Štampaj' : 'Preuzmi'}
+          <Button 
+            onClick={handleDownloadPDF} 
+            className="flex-1 sm:flex-none"
+            disabled={isGeneratingPDF}
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {isGeneratingPDF ? 'Generisanje...' : 'Preuzmi PDF'}
           </Button>
           <Button 
             variant="secondary" 
