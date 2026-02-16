@@ -1,53 +1,43 @@
 
-# Fix AI Copilot Sidebar: Collapse Toggle, Visibility, and Fixed Height
 
-## Issues
-1. No visible collapse/expand button when sidebar is closed -- once closed, users can't tell it exists
-2. Sidebar scrolls with page content instead of being fixed to viewport height
-3. When collapsed, there's no visual indicator or rail to reopen it
+# Fix AI Analiza Not Loading in Sidebar
 
-## Changes
+## Root Cause
+In `AiContextSidebar.tsx` line ~156, the `AiAnalyticsNarrative` component receives `data={{}}` (an empty object). However, in `AiAnalyticsNarrative.tsx` line 26, the react-query has:
 
-### 1. AiContextSidebar -- Fixed Height and Collapsed Rail (`src/components/ai/AiContextSidebar.tsx`)
-- Change the component to always render (remove `if (!open) return null`)
-- When collapsed: render a narrow 40px vertical rail with the Sparkles icon and a tooltip, clickable to expand
-- When expanded: show the full 280px panel as today
-- Use `h-full` with `overflow-hidden` on the outer container so it stays fixed to the screen height (not scrolling with page)
-- The inner content area uses `overflow-y-auto` for its own scrolling within the fixed panel
-- Add a collapse chevron button (`ChevronRight` icon) next to the X button in the header -- clicking it collapses to the rail instead of fully hiding
-
-### 2. TenantLayout -- Sticky Sidebar Container (`src/layouts/TenantLayout.tsx`)
-- The flex container wrapping `main` and the sidebar already uses `overflow-hidden` and `flex-1`
-- Ensure the sidebar container has `h-full` so it fills the viewport minus the header
-- Remove the toggle button from the header (the sidebar itself now handles expand/collapse via the rail)
-- Keep the `Sparkles` button in header as a fallback toggle only on mobile
-
-### Layout When Collapsed
-```
-[Left Sidebar | Main Content Area                    |rail]
-                                                      [*] <-- 40px rail with icon
+```typescript
+enabled: !!tenantId && Object.keys(data).length > 0
 ```
 
-### Layout When Expanded  
+Since `Object.keys({}).length === 0`, the query is permanently disabled and the AI narrative never loads.
+
+## Fix
+
+### File: `src/components/ai/AiContextSidebar.tsx`
+Change `data={{}}` to pass a minimal context payload so the query fires:
+```tsx
+data={{ context: narrativeCtx, timestamp: Date.now() }}
 ```
-[Left Sidebar | Main Content Area        | AI Copilot 280px]
-                                          [< ] collapse btn
+
+Alternatively (and more cleanly), update the `enabled` condition in `AiAnalyticsNarrative.tsx` to not require non-empty data, since the edge function already receives the `context_type` which is sufficient to generate analysis.
+
+### File: `src/components/ai/AiAnalyticsNarrative.tsx`
+Change the enabled condition from:
+```typescript
+enabled: !!tenantId && Object.keys(data).length > 0
+```
+to:
+```typescript
+enabled: !!tenantId
 ```
 
-## Technical Details
+And update the queryKey to not stringify empty data (to avoid unnecessary refetches):
+```typescript
+queryKey: ["ai-narrative", tenantId, contextType]
+```
 
-### AiContextSidebar changes:
-- Props: change `onClose` to `onToggle` (or keep both), add no-args toggle behavior
-- Collapsed state: `w-10 border-l bg-card/50 flex flex-col items-center py-3 gap-2`
-  - Sparkles icon button to expand
-  - Vertical text "AI" rotated (optional, keeps it minimal)
-- Expanded state: same as current but with `h-full overflow-hidden` on the aside, `overflow-y-auto` only on the ScrollArea
-- Transition: use `transition-all duration-200` for smooth width change
+## Both changes ensure the AI Analysis section in the sidebar actually triggers the API call and displays the narrative.
 
-### TenantLayout changes:
-- The sidebar wrapper div gets `sticky top-0 h-full` or simply relies on the flex layout since the parent is already `flex overflow-hidden` with fixed height
-- Pass `open` and `onToggle` to `AiContextSidebar` instead of `open` and `onClose`
-
-### Files Modified
-- `src/components/ai/AiContextSidebar.tsx` -- collapsed rail + fixed height
-- `src/layouts/TenantLayout.tsx` -- minor prop adjustment, ensure height constraints
+### Technical Details
+- Two files modified: `AiContextSidebar.tsx` (pass meaningful data) and `AiAnalyticsNarrative.tsx` (relax enabled condition)
+- No new files or dependencies needed
