@@ -210,7 +210,7 @@ export default function WmsSlotting() {
         actions={<Button onClick={() => setCreateDialog(true)}><Zap className="h-4 w-4 mr-1" />{t("runAnalysis")}</Button>} />
 
       {selectedScenario && improvement && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4" />{t("travelReduction")}</CardTitle></CardHeader>
             <CardContent className="text-2xl font-bold text-primary">{improvement.travel_reduction_pct || 0}%</CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><ArrowRightLeft className="h-4 w-4" />{t("proposedMoves")}</CardTitle></CardHeader>

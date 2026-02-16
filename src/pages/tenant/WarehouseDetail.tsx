@@ -108,7 +108,7 @@ export default function WarehouseDetail() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{warehouse.name}</h1>
+        <h1 className="text-2xl font-bold">{warehouse.name}</h1>
         <p className="text-muted-foreground">
           {warehouse.code ? `${warehouse.code} · ` : ""}{(warehouse as any).locations?.name || ""}
         </p>

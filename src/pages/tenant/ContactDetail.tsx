@@ -55,7 +55,7 @@ export default function ContactDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/contacts")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
-        <h1 className="text-3xl font-bold">{contact.first_name} {contact.last_name || ""}</h1>
+        <h1 className="text-2xl font-bold">{contact.first_name} {contact.last_name || ""}</h1>
         <Badge variant="secondary">{t(contact.type as any)}</Badge>
       </div>
 

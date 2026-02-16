@@ -214,7 +214,7 @@ export default function WmsTasks() {
       <PageHeader title={t("wmsTasks")} description={t("wmsTasksDesc")} icon={ClipboardCheck} />
 
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-5">
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("pending")}</p><div className="mt-2 flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /><span className="text-2xl font-bold">{pending}</span></div></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("wmsInProgress")}</p><div className="mt-2 flex items-center gap-2"><Loader2 className="h-4 w-4 text-primary" /><span className="text-2xl font-bold">{inProgress}</span></div></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("completedToday")}</p><div className="mt-2 flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /><span className="text-2xl font-bold">{completedToday}</span></div></CardContent></Card>
@@ -331,7 +331,7 @@ export default function WmsTasks() {
           <DialogHeader><DialogTitle>{execDialog?._exception ? t("reportException") : t("completeTask")}</DialogTitle></DialogHeader>
           {execDialog && (
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">#:</span> {execDialog.task_number}</div>
                 <div><span className="text-muted-foreground">{t("type")}:</span> {execDialog.task_type}</div>
                 <div><span className="text-muted-foreground">From:</span> {execDialog.from_bin?.code || "—"}</div>

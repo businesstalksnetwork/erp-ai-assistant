@@ -75,7 +75,7 @@ export default function SalesChannels() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("salesChannels")}</h1>
+        <h1 className="text-2xl font-bold">{t("salesChannels")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
       <div className="relative max-w-sm">

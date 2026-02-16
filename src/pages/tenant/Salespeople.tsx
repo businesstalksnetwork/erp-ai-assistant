@@ -97,11 +97,11 @@ export default function Salespeople() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("salespeople")}</h1>
+        <h1 className="text-2xl font-bold">{t("salespeople")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{salespeople.length}</p><p className="text-sm text-muted-foreground">{t("salespeople")}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><TrendingUp className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{activeCount}</p><p className="text-sm text-muted-foreground">{t("active")}</p></div></div></CardContent></Card>
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Store className="h-8 w-8 text-chart-2" /><div><p className="text-2xl font-bold">{inStoreCount}</p><p className="text-sm text-muted-foreground">{t("inStore")}</p></div></div></CardContent></Card>
@@ -170,7 +170,7 @@ export default function Salespeople() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? t("edit") : t("add")} {t("salesperson")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>{t("firstName")}</Label><Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
               <div><Label>{t("lastName")}</Label><Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
             </div>
@@ -196,7 +196,7 @@ export default function Salespeople() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
               <div><Label>{t("phone")}</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
             </div>

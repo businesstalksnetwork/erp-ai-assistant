@@ -291,7 +291,7 @@ export default function FixedAssets() {
               <Label>{t("description")}</Label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("acquisitionDate")}</Label>
                 <Input type="date" value={form.acquisition_date} onChange={(e) => setForm({ ...form, acquisition_date: e.target.value })} />
@@ -301,7 +301,7 @@ export default function FixedAssets() {
                 <Input type="number" value={form.acquisition_cost} onChange={(e) => setForm({ ...form, acquisition_cost: Number(e.target.value) })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("depreciationMethod")}</Label>
                 <Select value={form.depreciation_method} onValueChange={(v) => setForm({ ...form, depreciation_method: v })}>
@@ -317,7 +317,7 @@ export default function FixedAssets() {
                 <Input type="number" value={form.useful_life_months} onChange={(e) => setForm({ ...form, useful_life_months: Number(e.target.value) })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("salvageValue")}</Label>
                 <Input type="number" value={form.salvage_value} onChange={(e) => setForm({ ...form, salvage_value: Number(e.target.value) })} />
@@ -335,7 +335,7 @@ export default function FixedAssets() {
               </div>
             </div>
             {form.status === "disposed" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("disposalType")}</Label>
                   <Select value={form.disposal_type || "scrapped"} onValueChange={(v) => setForm({ ...form, disposal_type: v })}>

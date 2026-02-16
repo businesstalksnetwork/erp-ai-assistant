@@ -72,7 +72,7 @@ export default function OpportunityDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/opportunities")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
-        <h1 className="text-3xl font-bold">{opp.title}</h1>
+        <h1 className="text-2xl font-bold">{opp.title}</h1>
         <Badge variant={opp.stage === "closed_won" ? "default" : opp.stage === "closed_lost" ? "destructive" : "secondary"}>
           {t(opp.stage as any)}
         </Badge>

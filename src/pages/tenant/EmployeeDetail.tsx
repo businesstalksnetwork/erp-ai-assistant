@@ -299,7 +299,7 @@ export default function EmployeeDetail() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{employee.full_name}</h1>
+            <h1 className="text-2xl font-bold">{employee.full_name}</h1>
             <Badge variant={statusColor(status)}>
               {status === "active" ? t("active") : status === "archived" ? t("isArchived") : t("terminated")}
             </Badge>

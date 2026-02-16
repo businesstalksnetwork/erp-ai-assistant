@@ -61,7 +61,7 @@ export default function InventoryCostLayers() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("costLayers")}</h1>
+        <h1 className="text-2xl font-bold">{t("costLayers")}</h1>
         <Badge variant="outline" className="text-base px-3 py-1">
           {t("totalValue")}: {fmtNum(totalValue)} RSD
         </Badge>

@@ -89,7 +89,7 @@ export default function CompanyDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/companies")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
-        <h1 className="text-3xl font-bold">{company.display_name || company.legal_name}</h1>
+        <h1 className="text-2xl font-bold">{company.display_name || company.legal_name}</h1>
         <div className="flex gap-1">
           {company.company_category_assignments?.map((a: any) => (
             <Badge key={a.category_id} variant="outline" style={{ borderColor: a.company_categories?.color }}>

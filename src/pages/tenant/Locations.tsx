@@ -161,7 +161,7 @@ export default function Locations() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("locations")}</h1>
+        <h1 className="text-2xl font-bold">{t("locations")}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setTypesDialogOpen(true)}>
             <Settings2 className="h-4 w-4 mr-2" />{t("manageTypes")}
@@ -288,7 +288,7 @@ export default function Locations() {
           </DialogHeader>
           <div className="space-y-4">
             {/* Add/Edit type form */}
-            <div className="grid grid-cols-2 gap-3 p-4 border rounded-lg bg-muted/30">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border rounded-lg bg-muted/30">
               <div><Label>{t("name")}</Label><Input value={typeForm.name} onChange={e => setTypeForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Prodavnica" /></div>
               <div><Label>{t("code")}</Label><Input value={typeForm.code} onChange={e => setTypeForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. shop" /></div>
               <div className="flex items-center gap-2">

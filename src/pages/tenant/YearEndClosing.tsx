@@ -142,7 +142,7 @@ export default function YearEndClosing() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{t("yearEndClosing")}</h1>
+        <h1 className="text-2xl font-bold">{t("yearEndClosing")}</h1>
         <p className="text-muted-foreground mt-1">{t("yearEndClosingDesc")}</p>
       </div>
 

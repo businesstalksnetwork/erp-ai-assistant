@@ -105,7 +105,7 @@ export default function EventMonitor() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">{t("eventMonitor")}</h1>
+          <h1 className="text-2xl font-bold">{t("eventMonitor")}</h1>
         </div>
         <Button
           variant="outline"
