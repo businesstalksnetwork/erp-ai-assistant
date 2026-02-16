@@ -377,35 +377,35 @@ export default function TenantLayout() {
             {canAccess("sales") && (
               <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-amber-500" icon={ShoppingCart} />
             )}
-            {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" icon={Truck} />
-            )}
-            {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" icon={Package} />
-            )}
-            {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" icon={Factory} />
-            )}
-            {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" icon={Calculator} />
-            )}
-            {canAccess("analytics") && (
-              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} accentColor="bg-orange-500" icon={BarChart3} />
-            )}
-            {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" icon={UserCheck} />
-            )}
             {canAccess("pos") && (
               <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-500" icon={Monitor} />
             )}
             {canAccess("web") && (
               <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-500" icon={Globe} />
             )}
-            {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
+            {canAccess("inventory") && (
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" icon={Package} />
+            )}
+            {canAccess("purchasing") && (
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" icon={Truck} />
+            )}
+            {canAccess("production") && (
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" icon={Factory} />
             )}
             {canAccess("returns") && (
               <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-rose-400" icon={RotateCcw} />
+            )}
+            {canAccess("analytics") && (
+              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} accentColor="bg-orange-500" icon={BarChart3} />
+            )}
+            {canAccess("accounting") && (
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" icon={Calculator} />
+            )}
+            {canAccess("hr") && (
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" icon={UserCheck} />
+            )}
+            {canAccess("documents") && (
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
             )}
           </SidebarContent>
 
