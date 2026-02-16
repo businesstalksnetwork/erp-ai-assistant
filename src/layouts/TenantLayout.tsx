@@ -111,8 +111,18 @@ const analyticsNav: NavItem[] = [
   // Overview
   { key: "analyticsDashboard", url: "/analytics", icon: BarChart3, section: "analyticsOverview" },
   // Financial Health
-  { key: "financialRatios", url: "/analytics/ratios", icon: Activity, section: "financialHealth" },
+  { key: "workingCapitalStress", url: "/analytics/working-capital", icon: Activity, section: "financialHealth" },
+  { key: "financialRatios", url: "/analytics/ratios", icon: Activity },
   { key: "profitabilityAnalysis", url: "/analytics/profitability", icon: TrendingUp },
+  { key: "marginBridge", url: "/analytics/margin-bridge", icon: TrendingUp },
+  // Risk & Compliance
+  { key: "customerRiskScoring", url: "/analytics/customer-risk", icon: AlertTriangle, section: "riskCompliance" },
+  { key: "supplierDependency", url: "/analytics/supplier-risk", icon: Truck },
+  { key: "vatCashTrap", url: "/analytics/vat-trap", icon: AlertTriangle },
+  { key: "earlyWarningSystem", url: "/analytics/early-warning", icon: AlertTriangle },
+  // Operations
+  { key: "inventoryHealth", url: "/analytics/inventory-health", icon: Package, section: "operationsAnalytics" },
+  { key: "payrollBenchmark", url: "/analytics/payroll-benchmark", icon: Banknote },
   // Forecasting
   { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign, section: "forecasting" },
   { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
