@@ -29,6 +29,7 @@ interface Company {
 interface Invoice {
   id: string;
   invoice_number: string;
+  invoice_type: string | null;
   issue_date: string;
   service_date: string | null;
   client_name: string;
@@ -105,7 +106,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
   <cbc:DueDate>${dueDate}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:InvoiceTypeCode>${invoice.invoice_type === 'advance' ? '386' : '380'}</cbc:InvoiceTypeCode>
   <cbc:Note>${escapeXml(invoice.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.')}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
   

@@ -507,6 +507,10 @@ serve(async (req) => {
 
       invoices.push(invoice);
 
+      // Determine local_status based on sef_status
+      const localStatus = (status === 'Approved' || status === 'Rejected' || status === 'Cancelled' || status === 'Storno') 
+        ? 'imported' : 'pending';
+
       invoicesForStorage.push({
         company_id: companyId,
         sef_invoice_id: invoiceId,
@@ -523,7 +527,7 @@ serve(async (req) => {
         vat_amount: vatAmount || null,
         currency: currency || 'RSD',
         sef_status: status,
-        local_status: 'pending',
+        local_status: localStatus,
         ubl_xml: xmlData,
         fetched_at: new Date().toISOString(),
       });
@@ -543,6 +547,26 @@ serve(async (req) => {
         console.error('Error storing invoices:', upsertError);
       } else {
         console.log(`Upserted ${invoicesForStorage.length} sales invoices`);
+        
+        // Sync sef_status back to invoices table for linked invoices
+        for (const inv of invoicesForStorage) {
+          if (inv.sef_status && inv.sef_invoice_id) {
+            const statusLower = inv.sef_status.toLowerCase();
+            let invoiceSefStatus: string | null = null;
+            if (statusLower === 'approved') invoiceSefStatus = 'approved';
+            else if (statusLower === 'rejected') invoiceSefStatus = 'rejected';
+            else if (statusLower === 'cancelled' || statusLower === 'storno') invoiceSefStatus = 'cancelled';
+            
+            if (invoiceSefStatus) {
+              await supabase
+                .from('invoices')
+                .update({ sef_status: invoiceSefStatus })
+                .eq('company_id', companyId)
+                .eq('sef_invoice_id', inv.sef_invoice_id)
+                .in('sef_status', ['sent', 'pending']);
+            }
+          }
+        }
       }
     }
 
