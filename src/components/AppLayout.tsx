@@ -107,7 +107,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    const companyChanged = prevCompanyIdRef.current !== selectedCompany.id;
+    const companyChanged = prevCompanyIdRef.current !== null && prevCompanyIdRef.current !== selectedCompany.id;
     prevCompanyIdRef.current = selectedCompany.id;
     
     if (companyChanged && isViewingClientCompany && location.pathname !== '/dashboard') {
