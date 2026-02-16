@@ -14,6 +14,7 @@ import { Users, Package, Building, TrendingUp, DollarSign, Percent, ArrowDownUp 
 import { ExportButton } from "@/components/ExportButton";
 import type { CsvColumn } from "@/lib/exportCsv";
 import { fmtNum } from "@/lib/utils";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 /* ── margin color helper ── */
 function marginColor(m: number) {
@@ -192,6 +193,23 @@ export default function ProfitabilityAnalysis() {
           </Card>
         ))}
       </div>
+
+      {tenantId && kpi.totalRevenue > 0 && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="profitability"
+          data={{
+            totalRevenue: kpi.totalRevenue,
+            totalCogs: kpi.totalCogs,
+            grossProfit: kpi.grossProfit,
+            avgMargin: kpi.avgMargin,
+            topCustomers: customerData.slice(0, 5).map(c => ({ name: c.name, margin: c.margin, revenue: c.revenue })),
+            bottomCustomers: customerData.slice(-3).map(c => ({ name: c.name, margin: c.margin, revenue: c.revenue })),
+            topProducts: productData.slice(0, 5).map(p => ({ name: p.name, margin: p.margin, profit: p.profit })),
+            costCenterCount: costCenterData.length,
+          }}
+        />
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

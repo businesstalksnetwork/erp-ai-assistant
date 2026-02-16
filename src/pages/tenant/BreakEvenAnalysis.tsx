@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Target, DollarSign, TrendingUp, Percent } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 export default function BreakEvenAnalysis() {
   const { locale } = useLanguage();
@@ -133,6 +134,22 @@ export default function BreakEvenAnalysis() {
           )}
         </CardContent>
       </Card>
+
+      {tenantId && rev > 0 && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="breakeven"
+          data={{
+            revenue: Math.round(rev),
+            fixedCosts: Math.round(fc),
+            variableCosts: Math.round(vc),
+            contributionMargin: Number((contributionMargin * 100).toFixed(1)),
+            breakEvenPoint: Math.round(breakEvenPoint),
+            aboveBreakEven: rev > breakEvenPoint,
+            safetyMargin: breakEvenPoint > 0 ? Number(((rev - breakEvenPoint) / breakEvenPoint * 100).toFixed(1)) : 0,
+          }}
+        />
+      )}
 
       <Card>
         <CardHeader className="pb-2">

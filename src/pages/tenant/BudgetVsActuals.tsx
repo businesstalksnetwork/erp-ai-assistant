@@ -129,15 +129,18 @@ export default function BudgetVsActuals() {
   const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
   const totalActual = rows.reduce((s, r) => s + r.actual, 0);
 
-  const aiNarrativeData = overBudgetRows.length > 0 ? {
+  const aiNarrativeData = {
     overBudgetCount: overBudgetRows.length,
     totalBudget,
     totalActual,
+    totalVariance: totalBudget - totalActual,
+    variancePct: totalBudget > 0 ? Number(((totalBudget - totalActual) / totalBudget * 100).toFixed(1)) : 0,
     topOverBudget: overBudgetRows.slice(0, 5).map(r => ({
       code: r.code, name: sr && r.name_sr ? r.name_sr : r.name,
       budget: r.budget, actual: r.actual, variancePct: Math.round(r.variancePct),
     })),
-  } : {};
+    accountCount: rows.filter(r => r.budget > 0).length,
+  };
 
   return (
     <div className="space-y-6">
@@ -167,8 +170,8 @@ export default function BudgetVsActuals() {
         </Alert>
       )}
 
-      {tenantId && overBudgetRows.length > 0 && (
-        <AiAnalyticsNarrative tenantId={tenantId} contextType="dashboard" data={aiNarrativeData} />
+      {tenantId && totalBudget > 0 && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="budget" data={aiNarrativeData} />
       )}
 
       {chartData.length > 0 && (

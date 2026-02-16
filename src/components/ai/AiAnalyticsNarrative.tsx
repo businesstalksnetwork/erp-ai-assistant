@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 interface Props {
   tenantId: string;
-  contextType: "dashboard" | "ratios" | "cashflow" | "planning";
+  contextType: "dashboard" | "ratios" | "cashflow" | "planning" | "budget" | "breakeven" | "profitability" | "expenses";
   data: Record<string, unknown>;
 }
 
