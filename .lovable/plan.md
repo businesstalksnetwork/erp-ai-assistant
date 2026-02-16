@@ -1,41 +1,28 @@
 
 
-# Plan: Podsetnici - razumljiv tab navigation na mobilnom
+# Plan: Podsetnici tabovi - scroll na pocetak i default prikaz
 
 ## Problem
 
-Na mobilnom ekranu, TabsList prikazuje samo ikonice i brojeve (badge), bez ikakvog teksta. Korisnik vidi npr. kalendar ikonu i broj "4", trougao upozorenja i "0", ali ne zna sta koja ikonica znaci. Razlog: sav tekst je sakriven sa `hidden sm:inline` klasom.
+Na mobilnom, TabsList je scrollable ali pocetna pozicija scrolla moze biti pomerena udesno, tako da prvi tab "Mesec" (currentMonth) nije vidljiv. Korisnik vidi samo srednje/desne tabove.
 
 ## Resenje
 
-Zameniti trenutni `flex-wrap` TabsList sa horizontalnim scroll kontejnerom i prikazati skracene tekstualne labele na mobilnom umesto sakrivanja teksta.
+### Izmene u `src/pages/Reminders.tsx`
 
-### Izmene u `src/pages/Reminders.tsx` (linije 1195-1226)
+1. **Dodati `useRef` i `useEffect`** za TabsList kontejner koji ce na mount i pri promeni activeTab-a skrolovati aktivni tab u vidljivo podrucje.
 
-**TabsList**: Promeniti iz `flex flex-wrap` u `overflow-x-auto flex-nowrap` za horizontalni scroll.
+2. **Konkretno**:
+   - Kreirati `const tabsListRef = useRef<HTMLDivElement>(null)`
+   - Dodati `useEffect` koji na mount resetuje `scrollLeft = 0` da "Mesec" bude prvi vidljiv tab
+   - Dodati drugi `useEffect` koji pri promeni `activeTab` pronalazi aktivni `[data-state=active]` element i poziva `scrollIntoView({ inline: 'nearest', behavior: 'smooth' })` da se aktivni tab uvek vidi
+   - Proslediti ref na TabsList: zamenom TabsList sa `div` wrapperom koji drzi ref, ili direktno na TabsList koristeci `ref` prop (Radix TabsList prima ref)
 
-**Svaki TabsTrigger**: Umesto `hidden sm:inline` na tekstu, koristiti kratke labele vidljive na svim velicinama:
+3. **Osigurati da `defaultValue="currentMonth"`** ostaje i da je scroll pozicija 0 na pocetku
 
-| Tab | Trenutno (skriveno na mob) | Novo (mobilno) | Desktop |
-|-----|---------------------------|-----------------|---------|
-| currentMonth | Tekuci mesec | Mesec | Tekuci mesec |
-| nextThreeMonths | Naredna 3 meseca | 3 mes. | Naredna 3 meseca |
-| untilEndOfYear | Do kraja godine | Godina | Do kraja godine |
-| overdue | Istekli | Istekli | Istekli |
-| archived | Arhivirano | Arhiva | Arhivirano |
-| all | Svi | Svi | Svi |
-
-Konkretno za svaki trigger:
-- Ukloniti `hidden sm:inline` sa `<span>` elementa
-- Dodati dve verzije teksta: kratku za mobile (`sm:hidden`) i dugu za desktop (`hidden sm:inline`)
-- Smanjiti `min-w-[120px]` na `min-w-fit` za kompaktniji prikaz
-- Dodati `whitespace-nowrap` i `text-xs sm:text-sm` za velicinu fonta
-
-**TabsList wrapper**: Dodati `overflow-x-auto scrollbar-hide` i `flex-nowrap` umesto `flex-wrap` da tabovi budu u jednom redu sa horizontalnim scrollom.
-
-### Fajlovi koji se menjaju
+### Fajl koji se menja
 
 | Fajl | Izmena |
 |------|--------|
-| `src/pages/Reminders.tsx` | TabsList i TabsTrigger - vidljive kratke labele na mobilnom, horizontalni scroll |
+| `src/pages/Reminders.tsx` | Dodati ref na TabsList, useEffect za scroll na pocetak i scroll-into-view aktivnog taba |
 
