@@ -64,7 +64,7 @@ export default function Deductions() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("deductionsModule")}</h1>
+        <h1 className="text-2xl font-bold">{t("deductionsModule")}</h1>
         <Button onClick={() => { setEditId(null); setForm({ employee_id: "", type: "credit", description: "", total_amount: 0, start_date: new Date().toISOString().split("T")[0], end_date: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -110,7 +110,7 @@ export default function Deductions() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("type")}</Label>
                 <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
@@ -121,7 +121,7 @@ export default function Deductions() {
               <div className="grid gap-2"><Label>{t("total")}</Label><Input type="number" value={form.total_amount} onChange={e => setForm({ ...form, total_amount: +e.target.value })} /></div>
             </div>
             <div className="grid gap-2"><Label>{t("description")}</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("startDate")}</Label><Input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} /></div>
             </div>

@@ -48,7 +48,7 @@ export default function PositionTemplates() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("positionTemplates")}</h1>
+        <h1 className="text-2xl font-bold">{t("positionTemplates")}</h1>
         <Button onClick={() => { setEditId(null); setForm({ name: "", code: "", description: "", is_active: true }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -81,7 +81,7 @@ export default function PositionTemplates() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("positionTemplate")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("code")} *</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("name")} *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             </div>

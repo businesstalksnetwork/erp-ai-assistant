@@ -90,7 +90,7 @@ export default function FiscalPeriods() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("fiscalPeriods")}</h1>
+        <h1 className="text-2xl font-bold">{t("fiscalPeriods")}</h1>
         <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -142,7 +142,7 @@ export default function FiscalPeriods() {
           <DialogHeader><DialogTitle>{t("add")} — {t("fiscalPeriods")}</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); createMutation.mutate(); }} className="space-y-4">
             <div className="space-y-1"><Label>{t("name")}</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="2025" required /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1"><Label>{t("startDate")}</Label><Input type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} required /></div>
               <div className="space-y-1"><Label>{t("endDate")}</Label><Input type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} required /></div>
             </div>

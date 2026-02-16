@@ -48,7 +48,7 @@ export default function ExternalWorkers() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("engagedPersons")}</h1>
+        <h1 className="text-2xl font-bold">{t("engagedPersons")}</h1>
         <Button onClick={() => { setEditId(null); setForm({ first_name: "", last_name: "", jmbg: "", contract_expiry: "", is_active: true }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -83,11 +83,11 @@ export default function ExternalWorkers() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("engagedPerson")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("firstName")} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("lastName")} *</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("jmbg")} *</Label><Input value={form.jmbg} onChange={e => setForm({ ...form, jmbg: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("contractExpiry")}</Label><Input type="date" value={form.contract_expiry} onChange={e => setForm({ ...form, contract_expiry: e.target.value })} /></div>
             </div>

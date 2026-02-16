@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 
 export default function OvertimeHours() {
   const { t } = useLanguage();
@@ -57,11 +58,20 @@ export default function OvertimeHours() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "hours", label: t("hours"), align: "right", render: (r) => r.hours },
+    { key: "tracking", label: t("trackingType"), render: (r) => r.tracking_type === "monthly" ? t("monthlyTracking") : t("dailyTracking") },
+    { key: "actions", label: t("actions"), showInCard: false, render: (r) => (
+      <MobileActionMenu actions={[{ label: t("edit"), onClick: () => { setEditId(r.id); setForm({ employee_id: r.employee_id, year: r.year, month: r.month, hours: r.hours, tracking_type: r.tracking_type }); setOpen(true); } }]} />
+    )},
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("overtimeHours")}</h1>
-        <Button onClick={() => { setEditId(null); setForm({ employee_id: "", year: filterYear, month: filterMonth, hours: 0, tracking_type: "monthly" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <h1 className="text-2xl font-bold">{t("overtimeHours")}</h1>
+        <Button size="sm" onClick={() => { setEditId(null); setForm({ employee_id: "", year: filterYear, month: filterMonth, hours: 0, tracking_type: "monthly" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
       <div className="flex gap-4">
@@ -70,26 +80,11 @@ export default function OvertimeHours() {
       </div>
 
       <Card><CardContent className="p-0">
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>{t("employee")}</TableHead>
-            <TableHead>{t("hours")}</TableHead>
-            <TableHead>{t("trackingType")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={4} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-            : records.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-            : records.map((r: any) => (
-              <TableRow key={r.id}>
-                <TableCell>{r.employees?.full_name}</TableCell>
-                <TableCell>{r.hours}</TableCell>
-                <TableCell>{r.tracking_type === "monthly" ? t("monthlyTracking") : t("dailyTracking")}</TableCell>
-                <TableCell><Button size="sm" variant="ghost" onClick={() => { setEditId(r.id); setForm({ employee_id: r.employee_id, year: r.year, month: r.month, hours: r.hours, tracking_type: r.tracking_type }); setOpen(true); }}>{t("edit")}</Button></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {isLoading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <ResponsiveTable data={records} columns={columns} keyExtractor={(r) => r.id} />
+        )}
       </CardContent></Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -103,7 +98,7 @@ export default function OvertimeHours() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("year")}</Label><Input type="number" value={form.year} onChange={e => setForm({ ...form, year: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("periodMonth")}</Label><Input type="number" min={1} max={12} value={form.month} onChange={e => setForm({ ...form, month: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("hours")}</Label><Input type="number" step="0.5" value={form.hours} onChange={e => setForm({ ...form, hours: +e.target.value })} /></div>

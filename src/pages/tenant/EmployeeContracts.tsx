@@ -123,7 +123,7 @@ export default function EmployeeContracts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("contracts")}</h1>
+        <h1 className="text-2xl font-bold">{t("contracts")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addContract")}</Button>
       </div>
 
@@ -177,7 +177,7 @@ export default function EmployeeContracts() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("contractTypeLabel")}</Label>
                 <Select value={form.contract_type} onValueChange={(v) => setForm({ ...form, contract_type: v })}>
@@ -195,11 +195,11 @@ export default function EmployeeContracts() {
                 <Input type="number" value={form.working_hours_per_week} onChange={(e) => setForm({ ...form, working_hours_per_week: Number(e.target.value) })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("grossSalary")} *</Label><Input type="number" value={form.gross_salary} onChange={(e) => setForm({ ...form, gross_salary: Number(e.target.value) })} /></div>
               <div className="grid gap-2"><Label>{t("netSalary")}</Label><Input type="number" value={form.net_salary} onChange={(e) => setForm({ ...form, net_salary: Number(e.target.value) })} /></div>
               <div className="grid gap-2">

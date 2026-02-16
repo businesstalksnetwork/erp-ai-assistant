@@ -57,7 +57,7 @@ export default function EmployeeSalaries() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("salaryHistory")}</h1>
+        <h1 className="text-2xl font-bold">{t("salaryHistory")}</h1>
         <Button onClick={() => { setForm({ employee_id: "", amount: 0, salary_type: "monthly", amount_type: "gross", meal_allowance: 0, regres: 0, start_date: new Date().toISOString().split("T")[0] }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -101,24 +101,14 @@ export default function EmployeeSalaries() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("amount")} *</Label><Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: +e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("salaryType")}</Label>
-                <Select value={form.salary_type} onValueChange={v => setForm({ ...form, salary_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="monthly">{t("monthlyRate")}</SelectItem><SelectItem value="hourly">{t("hourlyRate")}</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("amountTypeLabel")}</Label>
-                <Select value={form.amount_type} onValueChange={v => setForm({ ...form, amount_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="gross">{t("gross")}</SelectItem><SelectItem value="net">{t("net")}</SelectItem></SelectContent>
-                </Select>
+...
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("mealAllowance")}</Label><Input type="number" value={form.meal_allowance} onChange={e => setForm({ ...form, meal_allowance: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("regres")}</Label><Input type="number" value={form.regres} onChange={e => setForm({ ...form, regres: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("startDate")}</Label><Input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} /></div>

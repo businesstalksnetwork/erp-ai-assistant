@@ -2,17 +2,18 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 
 export default function Attendance() {
   const { t } = useLanguage();
@@ -35,12 +36,7 @@ export default function Attendance() {
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["attendance", tenantId, dateFilter],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("attendance_records")
-        .select("*, employees(full_name)")
-        .eq("tenant_id", tenantId!)
-        .eq("date", dateFilter)
-        .order("created_at");
+      const { data } = await supabase.from("attendance_records").select("*, employees(full_name)").eq("tenant_id", tenantId!).eq("date", dateFilter).order("created_at");
       return data || [];
     },
     enabled: !!tenantId,
@@ -63,46 +59,33 @@ export default function Attendance() {
 
   const statusLabel = (s: string) => ({ present: t("present"), absent: t("absent"), sick: t("sickLeave"), vacation: t("vacation"), holiday: t("holiday"), remote: t("remote") }[s] || s);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "check_in", label: t("checkIn"), render: (r) => r.check_in || "—" },
+    { key: "check_out", label: t("checkOut"), render: (r) => r.check_out || "—" },
+    { key: "hours", label: t("hoursWorked"), align: "right", render: (r) => `${r.hours_worked}h` },
+    { key: "status", label: t("status"), render: (r) => <Badge variant={statusColor(r.status) as any}>{statusLabel(r.status)}</Badge> },
+    { key: "notes", label: t("notes"), hideOnMobile: true, render: (r) => <span className="text-muted-foreground text-sm">{r.notes || "—"}</span> },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("attendance")}</h1>
-        <div className="flex items-center gap-3">
-          <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />
-          <Button onClick={() => { setForm({ ...form, date: dateFilter, employee_id: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
-        </div>
+        <h1 className="text-2xl font-bold">{t("attendance")}</h1>
       </div>
+
+      <MobileFilterBar
+        filters={<Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />}
+        actions={<Button size="sm" onClick={() => { setForm({ ...form, date: dateFilter, employee_id: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>}
+      />
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("employee")}</TableHead>
-                <TableHead>{t("checkIn")}</TableHead>
-                <TableHead>{t("checkOut")}</TableHead>
-                <TableHead>{t("hoursWorked")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("notes")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : records.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : records.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.employees?.full_name}</TableCell>
-                  <TableCell>{r.check_in || "—"}</TableCell>
-                  <TableCell>{r.check_out || "—"}</TableCell>
-                  <TableCell>{r.hours_worked}h</TableCell>
-                  <TableCell><Badge variant={statusColor(r.status)}>{statusLabel(r.status)}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{r.notes || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <ResponsiveTable data={records} columns={columns} keyExtractor={(r) => r.id} />
+          )}
         </CardContent>
       </Card>
 
@@ -117,11 +100,11 @@ export default function Attendance() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("checkIn")}</Label><Input type="time" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("checkOut")}</Label><Input type="time" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("hoursWorked")}</Label><Input type="number" value={form.hours_worked} onChange={(e) => setForm({ ...form, hours_worked: Number(e.target.value) })} /></div>
               <div className="grid gap-2">
                 <Label>{t("status")}</Label>

@@ -85,7 +85,7 @@ export default function BankAccounts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("bankAccounts")}</h1>
+        <h1 className="text-2xl font-bold">{t("bankAccounts")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
       <div className="relative max-w-sm">
@@ -132,7 +132,7 @@ export default function BankAccounts() {
           <div className="grid gap-4 py-4">
             <div><Label>{t("bankName")}</Label><Input value={form.bank_name} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} /></div>
             <div><Label>{t("accountNumber")}</Label><Input value={form.account_number} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>{t("currency")}</Label><Input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} /></div>
               <div><Label>{t("legalEntity")}</Label>
                 <Select value={form.legal_entity_id || "none"} onValueChange={v => setForm(f => ({ ...f, legal_entity_id: v === "none" ? null : v }))}>

@@ -8,13 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Calendar, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 
 const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave", "paid_leave", "unpaid_leave", "maternity_leave", "holiday_work", "slava"] as const;
 
@@ -77,70 +79,60 @@ export default function WorkLogs() {
 
   const typeLabel = (tp: string) => t(tp as any) || tp;
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, render: (l) => l.employees?.full_name },
+    { key: "date", label: t("date"), render: (l) => l.date },
+    { key: "type", label: t("workLogType"), render: (l) => <Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge> },
+    { key: "hours", label: t("hours"), align: "right", render: (l) => l.hours },
+    { key: "note", label: t("notes"), hideOnMobile: true, render: (l) => <span className="max-w-[200px] truncate block">{l.note || "—"}</span> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (l) => (
+      <MobileActionMenu actions={[
+        { label: t("edit"), onClick: () => { setEditId(l.id); setForm({ employee_id: l.employee_id, date: l.date, type: l.type, hours: l.hours, note: l.note || "", vacation_year: l.vacation_year?.toString() || "" }); setOpen(true); } },
+      ]} />
+    )},
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("workLogs")}</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/hr/work-logs/bulk")}><Grid3X3 className="h-4 w-4 mr-2" />{t("bulkEntry")}</Button>
-          <Button variant="outline" onClick={() => navigate("/hr/work-logs/calendar")}><Calendar className="h-4 w-4 mr-2" />{t("workLogsCalendar")}</Button>
-          <Button onClick={() => { setEditId(null); setForm({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday", hours: 8, note: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
-        </div>
+        <h1 className="text-2xl font-bold">{t("workLogs")}</h1>
       </div>
 
-      <div className="flex gap-4">
-        <Select value={filterEmp} onValueChange={setFilterEmp}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all">{t("allTypes")}</SelectItem>
-            {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all">{t("allTypes")}</SelectItem>
-            {WORK_LOG_TYPES.map(tp => <SelectItem key={tp} value={tp}>{typeLabel(tp)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <MobileFilterBar
+        filters={
+          <>
+            <Select value={filterEmp} onValueChange={setFilterEmp}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">{t("allTypes")}</SelectItem>
+                {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">{t("allTypes")}</SelectItem>
+                {WORK_LOG_TYPES.map(tp => <SelectItem key={tp} value={tp}>{typeLabel(tp)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigate("/hr/work-logs/bulk")}><Grid3X3 className="h-4 w-4 mr-2" />{t("bulkEntry")}</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/hr/work-logs/calendar")}><Calendar className="h-4 w-4 mr-2" />{t("workLogsCalendar")}</Button>
+            <Button size="sm" onClick={() => { setEditId(null); setForm({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday", hours: 8, note: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+          </>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("employee")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("workLogType")}</TableHead>
-                <TableHead>{t("hours")}</TableHead>
-                <TableHead>{t("notes")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : filtered.map((l: any) => (
-                <TableRow key={l.id}>
-                  <TableCell>{l.employees?.full_name}</TableCell>
-                  <TableCell>{l.date}</TableCell>
-                  <TableCell><Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge></TableCell>
-                  <TableCell>{l.hours}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{l.note || "—"}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => {
-                      setEditId(l.id);
-                      setForm({ employee_id: l.employee_id, date: l.date, type: l.type, hours: l.hours, note: l.note || "", vacation_year: l.vacation_year?.toString() || "" });
-                      setOpen(true);
-                    }}>{t("edit")}</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <ResponsiveTable data={filtered} columns={columns} keyExtractor={(l) => l.id} />
+          )}
         </CardContent>
       </Card>
 
@@ -155,7 +147,7 @@ export default function WorkLogs() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("date")} *</Label><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("workLogType")}</Label>
@@ -165,7 +157,7 @@ export default function WorkLogs() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("hours")}</Label><Input type="number" step="0.5" value={form.hours} onChange={e => setForm({ ...form, hours: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("vacationYear")}</Label><Input type="number" placeholder="e.g. 2026" value={form.vacation_year} onChange={e => setForm({ ...form, vacation_year: e.target.value })} /></div>
             </div>
