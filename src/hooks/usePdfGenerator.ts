@@ -139,6 +139,38 @@ export async function generateInvoicePdf(
     await document.fonts.ready;
     await new Promise(resolve => setTimeout(resolve, 300));
 
+    // Force all text to dark and backgrounds to light in the clone
+    const allElements = wrapper.querySelectorAll('*');
+    allElements.forEach(el => {
+      const element = el as HTMLElement;
+      const computed = getComputedStyle(element);
+      
+      // Force text color: detect gray/light text and make it near-black
+      const colorMatch = computed.color.match(/\d+/g);
+      if (colorMatch) {
+        const r = parseInt(colorMatch[0]);
+        const g = parseInt(colorMatch[1]);
+        const b = parseInt(colorMatch[2]);
+        const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+        if (luminance > 120) {
+          element.style.color = '#1a1a1a';
+          element.style.setProperty('-webkit-text-fill-color', '#1a1a1a');
+        }
+      }
+      
+      // Force dark backgrounds to light
+      const bgMatch = computed.backgroundColor.match(/\d+/g);
+      if (bgMatch) {
+        const bgR = parseInt(bgMatch[0]);
+        const bgG = parseInt(bgMatch[1]);
+        const bgB = parseInt(bgMatch[2]);
+        const bgLuminance = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
+        if (bgLuminance < 128) {
+          element.style.backgroundColor = '#f5f5f5';
+        }
+      }
+    });
+
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
 
