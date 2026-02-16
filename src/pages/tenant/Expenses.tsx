@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingDown, DollarSign, Users, Truck, Landmark, Settings } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { format } from "date-fns";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 type ExpenseCategory = "all" | "salaries" | "suppliers" | "depreciation" | "operating";
@@ -134,6 +135,23 @@ export default function Expenses() {
           <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
       </div>
+
+      {tenantId && totals.total > 0 && (
+        <AiAnalyticsNarrative
+          tenantId={tenantId}
+          contextType="expenses"
+          data={{
+            totalExpenses: Math.round(totals.total),
+            salaries: Math.round(totals.salaries),
+            suppliers: Math.round(totals.suppliers),
+            depreciation: Math.round(totals.depreciation),
+            operating: Math.round(totals.operating),
+            salaryRatio: totals.total > 0 ? Number((totals.salaries / totals.total * 100).toFixed(1)) : 0,
+            supplierRatio: totals.total > 0 ? Number((totals.suppliers / totals.total * 100).toFixed(1)) : 0,
+            monthCount: monthlyData.length,
+          }}
+        />
+      )}
 
       {/* Monthly Chart */}
       {monthlyData.length > 0 && (

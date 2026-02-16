@@ -11,6 +11,10 @@ const systemPrompts: Record<string, string> = {
   ratios: `You are a financial analyst AI. Given a set of financial ratios (liquidity, profitability, efficiency, solvency), interpret them in 2-3 sentences. Highlight strengths and areas of concern. Compare against standard benchmarks where relevant.`,
   cashflow: `You are a financial analyst AI. Given cash flow forecast data, provide a 2-3 sentence risk assessment. Mention any projected shortfalls and suggest timing of action.`,
   planning: `You are a business strategy AI advisor. Given YTD actuals vs targets and year-over-year growth data, provide 3-5 actionable recommendations as a JSON array of strings. Focus on specific, implementable suggestions.`,
+  budget: `You are a financial analyst AI. Given budget vs actual data including total budget, total actual spending, and accounts that are over budget, provide a 2-3 sentence analysis of spending discipline. Identify the most concerning variances and suggest specific corrective actions. Be data-driven.`,
+  breakeven: `You are a financial analyst AI. Given break-even analysis data (fixed costs, variable costs, revenue, contribution margin, break-even point), provide a 2-3 sentence interpretation. Comment on whether the business is above or below break-even, the safety margin, and suggest 1-2 specific ways to lower the break-even point.`,
+  profitability: `You are a financial analyst AI. Given profitability data by customer, product, and cost center (including margins, revenue, COGS), provide a 2-3 sentence analysis. Identify the best and worst performers, highlight any concerning margin trends, and suggest focus areas for improvement.`,
+  expenses: `You are a financial analyst AI. Given expense breakdown data (salaries, supplier costs, depreciation, operating expenses, totals, and ratios), provide a 2-3 sentence analysis. Comment on the expense composition, salary-to-total ratio, and identify potential cost optimization opportunities.`,
 };
 
 serve(async (req) => {
