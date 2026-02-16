@@ -135,32 +135,36 @@ export async function generateInvoicePdf(
     document.documentElement.classList.remove('dark');
   }
 
+  // Inject stylesheet override so html2canvas picks up black text via getComputedStyle
+  const styleOverride = document.createElement('style');
+  styleOverride.textContent = `
+    .pdf-export, .pdf-export * {
+      color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
+    }
+    .pdf-export .bg-primary,
+    .pdf-export .bg-primary * {
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+  `;
+  document.head.appendChild(styleOverride);
+
   try {
     await document.fonts.ready;
     await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Force ALL text to black for PDF readability - no exceptions
-    const allElements = wrapper.querySelectorAll('*');
-    allElements.forEach(el => {
-      const element = el as HTMLElement;
-      element.style.color = '#000000';
-      element.style.setProperty('-webkit-text-fill-color', '#000000');
-      
-      // Force any dark/gray backgrounds to transparent
-      const computed = getComputedStyle(element);
-      const bgMatch = computed.backgroundColor.match(/\d+/g);
-      if (bgMatch) {
-        const bgR = parseInt(bgMatch[0]);
-        const bgG = parseInt(bgMatch[1]);
-        const bgB = parseInt(bgMatch[2]);
-        const bgLuminance = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-        if (bgLuminance < 200) {
-          element.style.backgroundColor = 'transparent';
-        }
+    styleOverride.textContent = `
+      .pdf-export, .pdf-export * {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
       }
-    });
-    // Force wrapper itself
-    wrapper.style.color = '#000000';
+      .pdf-export .bg-primary,
+      .pdf-export .bg-primary * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+      }
+    `;
+    document.head.appendChild(styleOverride);
 
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
@@ -222,6 +226,10 @@ export async function generateInvoicePdf(
     const fileName = `${docType}_${options.invoiceNumber.replace(/\//g, '-')}.pdf`;
     pdf.save(fileName);
   } finally {
+    // Remove style override
+    if (styleOverride.parentNode) {
+      document.head.removeChild(styleOverride);
+    }
     // Restore dark mode and remove overlay
     if (isDark) {
       document.documentElement.classList.add('dark');
