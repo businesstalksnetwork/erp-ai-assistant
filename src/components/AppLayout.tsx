@@ -73,8 +73,8 @@ const adminNavItems = [
 const mobileBottomNavItems = [
   { href: '/dashboard', label: 'Početna', icon: LayoutDashboard },
   { href: '/invoices', label: 'Fakture', icon: FileText },
-  { href: '/kpo', label: 'KPO', icon: BookOpen },
   { href: '/reminders', label: 'Podsetnici', icon: Bell },
+  { href: '/profile', label: 'Profil', icon: User },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
