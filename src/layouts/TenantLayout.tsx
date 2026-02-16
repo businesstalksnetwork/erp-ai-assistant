@@ -407,10 +407,6 @@ export default function TenantLayout() {
             {canAccess("documents") && (
               <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
             )}
-          </SidebarContent>
-
-          {/* User profile + Settings pinned to bottom */}
-          <SidebarFooter className="border-t border-sidebar-border p-0">
             {canAccess("settings") && (
               <CollapsibleNavGroup
                 label={t("settings")}
@@ -432,7 +428,7 @@ export default function TenantLayout() {
                 icon={Settings}
               />
             )}
-          </SidebarFooter>
+          </SidebarContent>
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
