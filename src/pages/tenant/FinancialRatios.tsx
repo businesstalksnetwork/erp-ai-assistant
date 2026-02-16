@@ -276,80 +276,114 @@ export default function FinancialRatios() {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>
-        <DialogContent className="sm:max-w-md">
-          {selectedCard && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
-                  <span>{selectedCard.label}</span>
-                  <Badge className={`text-xs ${getHealthColor(selectedCard.value, selectedCard.benchmark, selectedCard.higherIsBetter)}`}>
-                    {getHealthLabel(selectedCard.value, selectedCard.benchmark, selectedCard.higherIsBetter, sr)}
-                  </Badge>
-                </DialogTitle>
-                <DialogDescription>{selectedCard.description}</DialogDescription>
-              </DialogHeader>
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+          {selectedCard && (() => {
+            const healthColor = getHealthColor(selectedCard.value, selectedCard.benchmark, selectedCard.higherIsBetter);
+            const healthLabel = getHealthLabel(selectedCard.value, selectedCard.benchmark, selectedCard.higherIsBetter, sr);
+            const isGreen = selectedCard.higherIsBetter
+              ? selectedCard.value >= selectedCard.benchmark.green
+              : selectedCard.value <= selectedCard.benchmark.green;
+            const isYellow = selectedCard.higherIsBetter
+              ? selectedCard.value >= selectedCard.benchmark.yellow
+              : selectedCard.value <= selectedCard.benchmark.yellow;
+            const accentBorder = isGreen ? "border-green-500" : isYellow ? "border-yellow-500" : "border-destructive";
+            const accentBg = isGreen ? "bg-green-500/10" : isYellow ? "bg-yellow-500/10" : "bg-destructive/10";
 
-              <div className="space-y-4">
-                {/* Value */}
-                <div className="text-center">
-                  <span className="text-4xl font-bold">{formatRatio(selectedCard.value, selectedCard.format)}</span>
+            // Gauge position (0-100%)
+            const { green, yellow } = selectedCard.benchmark;
+            const rangeMax = selectedCard.higherIsBetter ? green * 2 : yellow * 2;
+            const clampedVal = Math.max(0, Math.min(selectedCard.value, rangeMax));
+            const gaugePercent = rangeMax > 0 ? (clampedVal / rangeMax) * 100 : 50;
+
+            return (
+              <>
+                {/* Header */}
+                <div className="px-6 pt-6 pb-4">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-3 text-lg">
+                      {selectedCard.label}
+                      <Badge className={`text-xs ${healthColor}`}>{healthLabel}</Badge>
+                    </DialogTitle>
+                    <DialogDescription className="mt-1">{selectedCard.description}</DialogDescription>
+                  </DialogHeader>
                 </div>
 
                 <Separator />
 
-                {/* Formula */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    {sr ? "Formula" : "Formula"}
-                  </p>
-                  <p className="text-sm font-mono bg-muted px-3 py-2 rounded-md">{selectedCard.formula}</p>
-                </div>
+                <div className="px-6 py-5 space-y-5">
+                  {/* Hero Value */}
+                  <div className="text-center py-2">
+                    <span className="text-5xl font-bold tracking-tight">{formatRatio(selectedCard.value, selectedCard.format)}</span>
+                    <p className="text-xs text-muted-foreground mt-1 uppercase tracking-widest">
+                      {selectedCard.format === "percent" ? "%" : selectedCard.format === "days" ? (sr ? "dana" : "days") : (sr ? "racio" : "ratio")}
+                    </p>
+                  </div>
 
-                {/* Components */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    {sr ? "Komponente" : "Components"}
-                  </p>
-                  <div className="space-y-1">
-                    {selectedCard.components.map(c => (
-                      <div key={c.label} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{c.label}</span>
-                        <span className="font-medium font-mono">{fmtNum(c.value)}</span>
+                  {/* Benchmark Gauge */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {sr ? "Benčmark" : "Benchmark"}
+                    </p>
+                    <div className="relative">
+                      <div className="h-3 w-full flex rounded-full overflow-hidden">
+                        {selectedCard.higherIsBetter ? (
+                          <>
+                            <div className="bg-destructive/70 h-full" style={{ width: "30%" }} />
+                            <div className="bg-yellow-500/70 h-full" style={{ width: "30%" }} />
+                            <div className="bg-green-500/70 h-full" style={{ width: "40%" }} />
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-green-500/70 h-full" style={{ width: "40%" }} />
+                            <div className="bg-yellow-500/70 h-full" style={{ width: "30%" }} />
+                            <div className="bg-destructive/70 h-full" style={{ width: "30%" }} />
+                          </>
+                        )}
                       </div>
-                    ))}
+                      {/* Marker */}
+                      <div
+                        className="absolute -top-1 w-0.5 h-5 bg-foreground rounded-full"
+                        style={{ left: `${Math.max(2, Math.min(98, gaugePercent))}%`, transform: "translateX(-50%)" }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{selectedCard.higherIsBetter ? (sr ? "Rizik" : "Risk") : (sr ? "Zdravo" : "Healthy")}</span>
+                      <span>{sr ? "Oprez" : "Caution"}</span>
+                      <span>{selectedCard.higherIsBetter ? (sr ? "Zdravo" : "Healthy") : (sr ? "Rizik" : "Risk")}</span>
+                    </div>
+                  </div>
+
+                  {/* Formula */}
+                  <div className={`rounded-md border-l-2 border-primary bg-primary/5 px-4 py-3`}>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      {sr ? "Formula" : "Formula"}
+                    </p>
+                    <p className="text-sm font-mono">{selectedCard.formula}</p>
+                  </div>
+
+                  {/* Components */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 pb-1 border-b">
+                      {sr ? "Komponente" : "Components"}
+                    </p>
+                    <div className="space-y-0.5">
+                      {selectedCard.components.map((c, idx) => (
+                        <div key={c.label} className={`flex justify-between items-center text-sm px-3 py-1.5 rounded ${idx % 2 === 0 ? "bg-muted/50" : ""}`}>
+                          <span className="text-muted-foreground">{c.label}</span>
+                          <span className="font-medium font-mono tabular-nums">{fmtNum(c.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Interpretation */}
+                  <div className={`rounded-md border-l-2 ${accentBorder} ${accentBg} px-4 py-3`}>
+                    <p className="text-sm leading-relaxed">{selectedCard.interpretation}</p>
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Benchmarks */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    {sr ? "Benčmarkovi" : "Benchmarks"}
-                  </p>
-                  <div className="flex gap-2 flex-wrap text-xs">
-                    <Badge variant="outline" className="border-accent text-accent-foreground">
-                      {selectedCard.higherIsBetter ? "≥" : "≤"} {selectedCard.benchmark.green} — {sr ? "Zdravo" : "Healthy"}
-                    </Badge>
-                    <Badge variant="outline" className="border-warning text-warning-foreground">
-                      {selectedCard.higherIsBetter
-                        ? `${selectedCard.benchmark.yellow}–${selectedCard.benchmark.green}`
-                        : `${selectedCard.benchmark.green}–${selectedCard.benchmark.yellow}`
-                      } — {sr ? "Oprez" : "Caution"}
-                    </Badge>
-                    <Badge variant="outline" className="border-destructive text-destructive-foreground">
-                      {selectedCard.higherIsBetter ? "<" : ">"} {selectedCard.benchmark.yellow} — {sr ? "Rizik" : "Risk"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Interpretation */}
-                <p className="text-sm text-muted-foreground italic">{selectedCard.interpretation}</p>
-              </div>
-            </>
-          )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
