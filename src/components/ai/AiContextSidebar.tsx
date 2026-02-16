@@ -40,6 +40,7 @@ function getModuleFromPath(path: string): string | undefined {
 type SuggestedQ = { sr: string; en: string };
 
 const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
+  // Analytics sub-pages
   { prefix: "/analytics/ratios", questions: [
     { sr: "Koji su mi najslabiji finansijski pokazatelji?", en: "Which ratios need attention?" },
     { sr: "Kako da poboljšam likvidnost?", en: "How can I improve liquidity?" },
@@ -63,7 +64,7 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   ]},
   { prefix: "/analytics/customer-risk", questions: [
     { sr: "Koji kupci su najrizičniji?", en: "Which customers are highest risk?" },
-    { sr: "Koliko imam prekoročenih potraživanja?", en: "How much in overdue receivables?" },
+    { sr: "Koliko imam prekоročenih potraživanja?", en: "How much in overdue receivables?" },
   ]},
   { prefix: "/analytics/inventory-health", questions: [
     { sr: "Koji artikli imaju najsporiji obrt?", en: "Which items have slowest turnover?" },
@@ -73,34 +74,135 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
     { sr: "Sumiraj ključne analitičke pokazatelje", en: "Summarize key analytics metrics" },
     { sr: "Gde su najveći rizici?", en: "Where are the biggest risks?" },
   ]},
-  { prefix: "/dashboard", questions: [
-    { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
-    { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
-    { sr: "Ima li anomalija koje treba proveriti?", en: "Any anomalies to check?" },
+  // CRM sub-pages
+  { prefix: "/crm/companies", questions: [
+    { sr: "Koji su najaktivniji kupci?", en: "Who are the most active customers?" },
+    { sr: "Koliko imam novih firmi ovog meseca?", en: "How many new companies this month?" },
   ]},
-  { prefix: "/inventory", questions: [
-    { sr: "Koji artikli imaju najsporiji obrt?", en: "Which items have slowest turnover?" },
-    { sr: "Da li imam kritično niske zalihe?", en: "Do I have critically low stock?" },
+  { prefix: "/crm/contacts", questions: [
+    { sr: "Koji kontakti nemaju aktivnost?", en: "Which contacts have no activity?" },
+    { sr: "Koliko imam kontakata bez firme?", en: "How many contacts without a company?" },
+  ]},
+  { prefix: "/crm/leads", questions: [
+    { sr: "Koji lidovi su najduže neaktivni?", en: "Which leads are stale longest?" },
+    { sr: "Kakva je konverzija po izvoru?", en: "What's conversion rate by source?" },
+  ]},
+  { prefix: "/crm/opportunities", questions: [
+    { sr: "Koje prilike su najbliže zatvaranju?", en: "Which deals are closest to closing?" },
+    { sr: "Kolika je prosečna vrednost prilike?", en: "What's the average deal value?" },
+  ]},
+  { prefix: "/crm/meetings", questions: [
+    { sr: "Koliko imam zakazanih sastanaka ove nedelje?", en: "How many meetings this week?" },
+    { sr: "Koji sastanci nemaju beleške?", en: "Which meetings have no notes?" },
   ]},
   { prefix: "/crm", questions: [
     { sr: "Koji lidovi su najbliži konverziji?", en: "Which leads are closest to conversion?" },
     { sr: "Kakav je trend win/loss racija?", en: "What's the win/loss ratio trend?" },
   ]},
-  { prefix: "/hr", questions: [
-    { sr: "Kakav je trend troškova plata?", en: "What's the payroll cost trend?" },
-    { sr: "Koliko imam otvorenih odsustvovanja?", en: "How many open leave requests?" },
+  // Sales sub-pages
+  { prefix: "/sales/quotes", questions: [
+    { sr: "Koliko ponuda čeka odobrenje?", en: "How many quotes pending approval?" },
+    { sr: "Koja ponuda ima najveću vrednost?", en: "Which quote has the highest value?" },
   ]},
-  { prefix: "/production", questions: [
-    { sr: "Gde su uska grla u proizvodnji?", en: "Where are production bottlenecks?" },
-    { sr: "Koji nalozi kasne?", en: "Which orders are behind schedule?" },
+  { prefix: "/sales/sales-orders", questions: [
+    { sr: "Koji nalozi kasne sa isporukom?", en: "Which orders are late on delivery?" },
+    { sr: "Kakav je trend naloga ovog meseca?", en: "What's the order trend this month?" },
   ]},
   { prefix: "/sales", questions: [
     { sr: "Koji su top kupci ovog meseca?", en: "Who are top customers this month?" },
     { sr: "Kakav je trend prodaje?", en: "What's the sales trend?" },
   ]},
+  // Purchasing
+  { prefix: "/purchasing/orders", questions: [
+    { sr: "Koje nabavke kasne?", en: "Which purchases are overdue?" },
+    { sr: "Ko su najveći dobavljači?", en: "Who are the top suppliers?" },
+  ]},
+  { prefix: "/purchasing", questions: [
+    { sr: "Koje nabavke kasne?", en: "Which purchases are overdue?" },
+    { sr: "Kakav je trend nabavnih cena?", en: "What's the procurement price trend?" },
+  ]},
+  // Accounting sub-pages
+  { prefix: "/accounting/invoices", questions: [
+    { sr: "Koliko faktura je neplaćeno?", en: "How many invoices are unpaid?" },
+    { sr: "Koji kupci najviše kasne?", en: "Which customers are most overdue?" },
+  ]},
+  { prefix: "/accounting/journal", questions: [
+    { sr: "Ima li neknjiženih stavki?", en: "Any unposted entries?" },
+    { sr: "Sumiraj poslednja knjiženja", en: "Summarize recent postings" },
+  ]},
   { prefix: "/accounting", questions: [
     { sr: "Ima li neusklađenih stavki?", en: "Are there unreconciled items?" },
     { sr: "Sumiraj stanje knjiženja", en: "Summarize posting status" },
+  ]},
+  // Inventory sub-pages
+  { prefix: "/inventory/products", questions: [
+    { sr: "Koji proizvodi imaju najmanji lager?", en: "Which products have lowest stock?" },
+    { sr: "Koliko artikala je bez cene?", en: "How many items have no price?" },
+  ]},
+  { prefix: "/inventory/stock", questions: [
+    { sr: "Koji magacini su najpuniji?", en: "Which warehouses are fullest?" },
+    { sr: "Ima li negativnih zaliha?", en: "Any negative stock levels?" },
+  ]},
+  { prefix: "/inventory", questions: [
+    { sr: "Koji artikli imaju najsporiji obrt?", en: "Which items have slowest turnover?" },
+    { sr: "Da li imam kritično niske zalihe?", en: "Do I have critically low stock?" },
+  ]},
+  // HR sub-pages
+  { prefix: "/hr/employees", questions: [
+    { sr: "Koliko zaposlenih imam po odeljenju?", en: "How many employees per department?" },
+    { sr: "Ko ima ugovor koji uskoro ističe?", en: "Who has contracts expiring soon?" },
+  ]},
+  { prefix: "/hr/payroll", questions: [
+    { sr: "Kakav je ukupan trošak plata?", en: "What's the total payroll cost?" },
+    { sr: "Ima li anomalija u obračunu?", en: "Any anomalies in payroll?" },
+  ]},
+  { prefix: "/hr", questions: [
+    { sr: "Kakav je trend troškova plata?", en: "What's the payroll cost trend?" },
+    { sr: "Koliko imam otvorenih odsustvovanja?", en: "How many open leave requests?" },
+  ]},
+  // Production sub-pages
+  { prefix: "/production/orders", questions: [
+    { sr: "Koji nalozi su u kašnjenju?", en: "Which orders are delayed?" },
+    { sr: "Koliko je iskorišćenost kapaciteta?", en: "What's the capacity utilization?" },
+  ]},
+  { prefix: "/production", questions: [
+    { sr: "Gde su uska grla u proizvodnji?", en: "Where are production bottlenecks?" },
+    { sr: "Koji nalozi kasne?", en: "Which orders are behind schedule?" },
+  ]},
+  // POS
+  { prefix: "/pos/terminal", questions: [
+    { sr: "Kolika je današnja prodaja?", en: "What's today's sales total?" },
+    { sr: "Koji artikli se najviše prodaju?", en: "Which items sell most?" },
+  ]},
+  { prefix: "/pos", questions: [
+    { sr: "Kolika je današnja prodaja?", en: "What's today's sales total?" },
+    { sr: "Koji artikli se najviše prodaju?", en: "Which items sell most?" },
+  ]},
+  // Documents
+  { prefix: "/documents", questions: [
+    { sr: "Koliko dokumenata čeka odobrenje?", en: "How many docs pending approval?" },
+    { sr: "Koji dokumenti uskoro ističu?", en: "Which docs expire soon?" },
+  ]},
+  // Returns
+  { prefix: "/returns", questions: [
+    { sr: "Koliko imam otvorenih reklamacija?", en: "How many open returns?" },
+    { sr: "Koji proizvodi imaju najviše povrata?", en: "Which products have most returns?" },
+  ]},
+  // Web
+  { prefix: "/web", questions: [
+    { sr: "Koliko imam online porudžbina?", en: "How many online orders?" },
+    { sr: "Kakav je trend web prodaje?", en: "What's the web sales trend?" },
+  ]},
+  // Settings
+  { prefix: "/settings", questions: [
+    { sr: "Koji korisnici su neaktivni?", en: "Which users are inactive?" },
+    { sr: "Ima li nedovršenih podešavanja?", en: "Any incomplete settings?" },
+  ]},
+  // Dashboard
+  { prefix: "/dashboard", questions: [
+    { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
+    { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
+    { sr: "Ima li anomalija koje treba proveriti?", en: "Any anomalies to check?" },
   ]},
 ];
 
