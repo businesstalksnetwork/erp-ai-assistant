@@ -153,6 +153,14 @@ import BudgetVsActuals from "@/pages/tenant/BudgetVsActuals";
 import BreakEvenAnalysis from "@/pages/tenant/BreakEvenAnalysis";
 import BusinessPlanning from "@/pages/tenant/BusinessPlanning";
 import Expenses from "@/pages/tenant/Expenses";
+import WorkingCapitalStress from "@/pages/tenant/WorkingCapitalStress";
+import CustomerRiskScoring from "@/pages/tenant/CustomerRiskScoring";
+import SupplierDependency from "@/pages/tenant/SupplierDependency";
+import MarginBridge from "@/pages/tenant/MarginBridge";
+import PayrollBenchmark from "@/pages/tenant/PayrollBenchmark";
+import VatCashTrap from "@/pages/tenant/VatCashTrap";
+import InventoryHealth from "@/pages/tenant/InventoryHealth";
+import EarlyWarningSystem from "@/pages/tenant/EarlyWarningSystem";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -317,6 +325,14 @@ const App = () => (
                 <Route path="analytics/budget" element={<ProtectedRoute requiredModule="analytics"><BudgetVsActuals /></ProtectedRoute>} />
                 <Route path="analytics/break-even" element={<ProtectedRoute requiredModule="analytics"><BreakEvenAnalysis /></ProtectedRoute>} />
                 <Route path="analytics/planning" element={<ProtectedRoute requiredModule="analytics"><BusinessPlanning /></ProtectedRoute>} />
+                <Route path="analytics/working-capital" element={<ProtectedRoute requiredModule="analytics"><WorkingCapitalStress /></ProtectedRoute>} />
+                <Route path="analytics/customer-risk" element={<ProtectedRoute requiredModule="analytics"><CustomerRiskScoring /></ProtectedRoute>} />
+                <Route path="analytics/supplier-risk" element={<ProtectedRoute requiredModule="analytics"><SupplierDependency /></ProtectedRoute>} />
+                <Route path="analytics/margin-bridge" element={<ProtectedRoute requiredModule="analytics"><MarginBridge /></ProtectedRoute>} />
+                <Route path="analytics/payroll-benchmark" element={<ProtectedRoute requiredModule="analytics"><PayrollBenchmark /></ProtectedRoute>} />
+                <Route path="analytics/vat-trap" element={<ProtectedRoute requiredModule="analytics"><VatCashTrap /></ProtectedRoute>} />
+                <Route path="analytics/inventory-health" element={<ProtectedRoute requiredModule="analytics"><InventoryHealth /></ProtectedRoute>} />
+                <Route path="analytics/early-warning" element={<ProtectedRoute requiredModule="analytics"><EarlyWarningSystem /></ProtectedRoute>} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

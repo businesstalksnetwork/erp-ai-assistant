@@ -23,6 +23,9 @@ export default function BusinessPlanning() {
   const [revenueTarget, setRevenueTarget] = useState(1000000);
   const [profitTarget, setProfitTarget] = useState(200000);
   const [growthScenario, setGrowthScenario] = useState([10]);
+  const [payrollInflation, setPayrollInflation] = useState([5]);
+  const [supplierCostChange, setSupplierCostChange] = useState([3]);
+  const [fxShock, setFxShock] = useState([0]);
 
   const { data: actuals, isLoading } = useQuery({
     queryKey: ["business-planning", tenantId],
@@ -65,9 +68,16 @@ export default function BusinessPlanning() {
     : 0;
 
   // Scenario modeling
-  const scenarioRevenue = (actuals?.revenue || 0) * (1 + growthScenario[0] / 100);
   const expenseRatio = actuals?.revenue && actuals.revenue > 0 ? actuals.expenses / actuals.revenue : 0.7;
-  const scenarioProfit = scenarioRevenue - scenarioRevenue * expenseRatio;
+  const scenarioRevenue = (actuals?.revenue || 0) * (1 + growthScenario[0] / 100);
+  const adjustedExpenseRatio = expenseRatio * (1 + supplierCostChange[0] / 200) * (1 + payrollInflation[0] / 200) * (1 + fxShock[0] / 300);
+  const scenarioProfit = scenarioRevenue - scenarioRevenue * adjustedExpenseRatio;
+
+  const applyPreset = (preset: "best" | "base" | "worst") => {
+    if (preset === "best") { setGrowthScenario([20]); setPayrollInflation([2]); setSupplierCostChange([-5]); setFxShock([-3]); }
+    else if (preset === "base") { setGrowthScenario([10]); setPayrollInflation([5]); setSupplierCostChange([3]); setFxShock([0]); }
+    else { setGrowthScenario([-10]); setPayrollInflation([10]); setSupplierCostChange([15]); setFxShock([10]); }
+  };
 
   // AI-style recommendations
   const recommendations = useMemo(() => {
@@ -161,9 +171,32 @@ export default function BusinessPlanning() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Label className="text-sm whitespace-nowrap">{sr ? "Rast prihoda:" : "Revenue growth:"} {growthScenario[0]}%</Label>
-            <Slider value={growthScenario} onValueChange={setGrowthScenario} min={-30} max={50} step={5} className="flex-1" />
+          {/* Presets */}
+          <div className="flex gap-2">
+            <span className="text-xs text-muted-foreground uppercase self-center mr-2">{sr ? "Presetovi:" : "Presets:"}</span>
+            {(["best", "base", "worst"] as const).map(p => (
+              <button key={p} onClick={() => applyPreset(p)} className="text-xs px-3 py-1 rounded-full border hover:bg-accent transition-colors">
+                {sr ? { best: "Najbolji", base: "Osnovni", worst: "Najgori" }[p] : { best: "Best", base: "Base", worst: "Worst" }[p]}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-center gap-4">
+              <Label className="text-sm whitespace-nowrap w-40">{sr ? "Rast prihoda:" : "Revenue growth:"} {growthScenario[0]}%</Label>
+              <Slider value={growthScenario} onValueChange={setGrowthScenario} min={-30} max={50} step={5} className="flex-1" />
+            </div>
+            <div className="flex items-center gap-4">
+              <Label className="text-sm whitespace-nowrap w-40">{sr ? "Inflacija zarada:" : "Payroll inflation:"} {payrollInflation[0]}%</Label>
+              <Slider value={payrollInflation} onValueChange={setPayrollInflation} min={0} max={30} step={1} className="flex-1" />
+            </div>
+            <div className="flex items-center gap-4">
+              <Label className="text-sm whitespace-nowrap w-40">{sr ? "Troškovi dobavljača:" : "Supplier costs:"} {supplierCostChange[0]}%</Label>
+              <Slider value={supplierCostChange} onValueChange={setSupplierCostChange} min={-20} max={30} step={1} className="flex-1" />
+            </div>
+            <div className="flex items-center gap-4">
+              <Label className="text-sm whitespace-nowrap w-40">{sr ? "FX šok (EUR):" : "FX shock (EUR):"} {fxShock[0]}%</Label>
+              <Slider value={fxShock} onValueChange={setFxShock} min={-15} max={20} step={1} className="flex-1" />
+            </div>
           </div>
           <div className="grid gap-3 grid-cols-2">
             <Card className="bg-muted/50">
