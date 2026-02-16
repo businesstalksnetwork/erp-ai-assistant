@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { fmtNum } from "@/lib/utils";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 
 export default function Payroll() {
   const { t } = useLanguage();
@@ -191,6 +193,9 @@ export default function Payroll() {
         </Card>
       )}
 
+      {/* AI Anomaly Detection */}
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="hr" />}
+
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : runs.length === 0 ? (
@@ -245,7 +250,8 @@ export default function Payroll() {
                             <TableHead className="text-right">PIO posl. {params ? `${Number(params.pio_employer_rate)}%` : "12%"}</TableHead>
                             <TableHead className="text-right">Zdrav. posl. {params ? `${Number(params.health_employer_rate)}%` : "5.15%"}</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
-                          </TableRow>
+                            <TableHead className="text-right">{t("actions")}</TableHead>
+                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {runItems.map((item: any) => (
@@ -260,7 +266,10 @@ export default function Payroll() {
                               <TableCell className="text-right">{fmtNum(Number(item.pension_employer || 0))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_employer || 0))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.total_cost))}</TableCell>
-                            </TableRow>
+                              <TableCell className="text-right">
+                                <DownloadPdfButton type="payslip" params={{ payroll_item_id: item.id }} />
+                              </TableCell>
+                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
