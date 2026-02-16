@@ -1,28 +1,21 @@
 
 
-# Plan: Podsetnici tabovi - scroll na pocetak i default prikaz
+# Plan: Mobile header logo fix + hamburger menu to "Vise" toggle
 
-## Problem
+## Changes in `src/components/AppLayout.tsx`
 
-Na mobilnom, TabsList je scrollable ali pocetna pozicija scrolla moze biti pomerena udesno, tako da prvi tab "Mesec" (currentMonth) nije vidljiv. Korisnik vidi samo srednje/desne tabove.
+### 1. Mobile header - always use dark logo
+The current code uses `logoLightSidebar` in light mode, which has poor contrast on the white mobile header background. Change to always use `logoDark` in the mobile header (line 182), regardless of theme.
 
-## Resenje
+### 2. Remove hamburger menu from mobile header
+Remove the hamburger `Menu`/`X` button from the mobile header (lines 186-194). The header will only show logo + NotificationBell.
 
-### Izmene u `src/pages/Reminders.tsx`
+### 3. "Vise" button toggles sidebar open/close
+Change the "Vise" button in the bottom nav (lines 414-420) from `onClick={() => setMobileMenuOpen(true)}` to `onClick={() => setMobileMenuOpen(!mobileMenuOpen)}` so pressing it again closes the sidebar.
 
-1. **Dodati `useRef` i `useEffect`** za TabsList kontejner koji ce na mount i pri promeni activeTab-a skrolovati aktivni tab u vidljivo podrucje.
+## Files changed
 
-2. **Konkretno**:
-   - Kreirati `const tabsListRef = useRef<HTMLDivElement>(null)`
-   - Dodati `useEffect` koji na mount resetuje `scrollLeft = 0` da "Mesec" bude prvi vidljiv tab
-   - Dodati drugi `useEffect` koji pri promeni `activeTab` pronalazi aktivni `[data-state=active]` element i poziva `scrollIntoView({ inline: 'nearest', behavior: 'smooth' })` da se aktivni tab uvek vidi
-   - Proslediti ref na TabsList: zamenom TabsList sa `div` wrapperom koji drzi ref, ili direktno na TabsList koristeci `ref` prop (Radix TabsList prima ref)
-
-3. **Osigurati da `defaultValue="currentMonth"`** ostaje i da je scroll pozicija 0 na pocetku
-
-### Fajl koji se menja
-
-| Fajl | Izmena |
+| File | Change |
 |------|--------|
-| `src/pages/Reminders.tsx` | Dodati ref na TabsList, useEffect za scroll na pocetak i scroll-into-view aktivnog taba |
+| `src/components/AppLayout.tsx` | (1) Use `logoDark` always in mobile header, (2) remove hamburger button, (3) toggle sidebar on "Vise" press |
 
