@@ -1,0 +1,1 @@
+ALTER TABLE service_catalog ADD COLUMN foreign_currency TEXT DEFAULT NULL;

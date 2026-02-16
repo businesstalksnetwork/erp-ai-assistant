@@ -10,6 +10,7 @@ export interface ServiceCatalogItem {
   item_type: "services" | "products";
   default_unit_price: number | null;
   default_foreign_price: number | null;
+  foreign_currency: string | null;
   unit: string | null;
   is_active: boolean;
   created_at: string;

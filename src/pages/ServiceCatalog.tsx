@@ -54,6 +54,7 @@ export default function ServiceCatalog() {
     item_type: "services" | "products";
     default_unit_price: number | null;
     default_foreign_price: number | null;
+    foreign_currency: string | null;
     unit: string;
     is_active: boolean;
   }) => {
@@ -224,7 +225,9 @@ export default function ServiceCatalog() {
                         {formatPrice(service.default_unit_price)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatPrice(service.default_foreign_price)}
+                        {service.default_foreign_price != null
+                          ? `${formatPrice(service.default_foreign_price)} ${service.foreign_currency || "EUR"}`
+                          : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={service.is_active ? "default" : "secondary"}>

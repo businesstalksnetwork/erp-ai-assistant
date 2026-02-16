@@ -30,6 +30,7 @@ interface ServiceCatalogDialogProps {
     item_type: "services" | "products";
     default_unit_price: number | null;
     default_foreign_price: number | null;
+    foreign_currency: string | null;
     unit: string;
     is_active: boolean;
   }) => void;
@@ -61,6 +62,7 @@ export function ServiceCatalogDialog({
   const [itemType, setItemType] = useState<"services" | "products">("services");
   const [defaultUnitPrice, setDefaultUnitPrice] = useState("");
   const [defaultForeignPrice, setDefaultForeignPrice] = useState("");
+  const [foreignCurrency, setForeignCurrency] = useState("EUR");
   const [unit, setUnit] = useState("kom");
   const [isActive, setIsActive] = useState(true);
 
@@ -71,6 +73,7 @@ export function ServiceCatalogDialog({
       setItemType(initialData.item_type);
       setDefaultUnitPrice(initialData.default_unit_price?.toString() || "");
       setDefaultForeignPrice(initialData.default_foreign_price?.toString() || "");
+      setForeignCurrency(initialData.foreign_currency || "EUR");
       setUnit(initialData.unit || "kom");
       setIsActive(initialData.is_active);
     } else {
@@ -79,6 +82,7 @@ export function ServiceCatalogDialog({
       setItemType("services");
       setDefaultUnitPrice("");
       setDefaultForeignPrice("");
+      setForeignCurrency("EUR");
       setUnit("kom");
       setIsActive(true);
     }
@@ -92,6 +96,7 @@ export function ServiceCatalogDialog({
       item_type: itemType,
       default_unit_price: defaultUnitPrice ? parseFloat(defaultUnitPrice) : null,
       default_foreign_price: defaultForeignPrice ? parseFloat(defaultForeignPrice) : null,
+      foreign_currency: defaultForeignPrice ? foreignCurrency : null,
       unit,
       is_active: isActive,
     });
@@ -180,16 +185,30 @@ export function ServiceCatalogDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="defaultForeignPrice">Cena (strana valuta)</Label>
-              <Input
-                id="defaultForeignPrice"
-                type="number"
-                step="0.01"
-                min="0"
-                value={defaultForeignPrice}
-                onChange={(e) => setDefaultForeignPrice(e.target.value)}
-                placeholder="0.00"
-              />
+              <Label htmlFor="defaultForeignPrice">Cena ({foreignCurrency})</Label>
+              <div className="flex gap-2">
+                <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
+                  <SelectTrigger className="w-[90px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="CHF">CHF</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="defaultForeignPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={defaultForeignPrice}
+                  onChange={(e) => setDefaultForeignPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="flex-1"
+                />
+              </div>
             </div>
           </div>
 
