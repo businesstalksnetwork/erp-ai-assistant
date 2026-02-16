@@ -446,7 +446,7 @@ export default function TenantLayout() {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col h-screen">
           <header className="h-12 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
