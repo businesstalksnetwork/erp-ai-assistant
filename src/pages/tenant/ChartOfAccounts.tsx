@@ -221,10 +221,10 @@ export default function ChartOfAccounts() {
             </div>
             <div className="space-y-1">
               <Label>{t("parentAccount")}</Label>
-              <Select value={form.parent_id} onValueChange={v => setForm(p => ({ ...p, parent_id: v }))}>
+              <Select value={form.parent_id || "__none__"} onValueChange={v => setForm(p => ({ ...p, parent_id: v === "__none__" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder={t("noParent")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t("noParent")}</SelectItem>
+                  <SelectItem value="__none__">{t("noParent")}</SelectItem>
                   {accounts.filter(a => a.id !== editId).map(a => (
                     <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
                   ))}
