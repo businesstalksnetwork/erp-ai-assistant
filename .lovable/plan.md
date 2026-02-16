@@ -1,18 +1,22 @@
 
-## Izmene u mobilnoj donjoj navigaciji
+# Plan: Logo vidljiv u oba moda na mobilnom headeru
+
+## Problem
+Mobilni header koristi `logoLight` (tamni logo) koji nije citljiv na tamnoj pozadini u dark modu.
+
+## Resenje
 
 ### Fajl: `src/components/AppLayout.tsx`
 
-**Linija 73-78** - Promeniti `mobileBottomNavItems` niz:
-- Ukloniti KPO stavku
-- Dodati "Moj Profil" sa `User` ikonom i rutom `/profile` posle Podsetnika
+Promeniti mobilni header da koristi logo na osnovu trenutne teme:
+- Light mode: `logoLight` (tamni logo na svetloj pozadini)
+- Dark mode: `logoDark` (svetli logo na tamnoj pozadini)
 
-Novi niz:
-```
-{ href: '/dashboard', label: 'Pocetna', icon: LayoutDashboard }
-{ href: '/invoices', label: 'Fakture', icon: FileText }
-{ href: '/reminders', label: 'Podsetnici', icon: Bell }
-{ href: '/profile', label: 'Profil', icon: User }
+Linija sa `<img src={logoLight}` u mobilnom headeru se menja u:
+```tsx
+<img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="h-10" />
 ```
 
-Ikona `User` je vec importovana u fajlu. Nema drugih izmena.
+`theme` je vec dostupan iz `useTheme()` hook-a koji se vec koristi u komponenti. `logoDark` je vec importovan.
+
+Jedna linija izmene, bez novih importa.
