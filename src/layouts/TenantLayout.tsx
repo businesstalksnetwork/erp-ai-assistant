@@ -338,7 +338,7 @@ export default function TenantLayout() {
             </button>
           </div>
 
-          <SidebarContent className="flex-1 overflow-y-auto py-1">
+          <SidebarContent className="flex-1 overflow-hidden py-1">
             {/* Dashboard */}
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
@@ -369,7 +369,7 @@ export default function TenantLayout() {
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <Separator className="mx-3 my-1 opacity-50" />
+            
 
             {canAccess("crm") && (
               <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" icon={Users} />
