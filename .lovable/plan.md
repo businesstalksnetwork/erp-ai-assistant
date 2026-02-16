@@ -1,191 +1,51 @@
 
+# Plan: Tri ispravke - PDF fakture, Download umesto Print, Profil u header dropdown
 
-# Plan: In-app notifikacije iz edge funkcije + Push notifikacije + Settings UI
+## 1. Ispravka "grayed out" faktura u PDF-u
 
-## Pregled
+Problem: PDF generator koristi `html2canvas` koji rasterizuje HTML u sliku. Tokom tog procesa, kod forsira kontrast i menja boje svih elemenata, ali logika za detekciju pozadinskih boja i teksta ponekad pogresno preboji elemente u svetlije nijanse - rezultat je "grayed out" izgled.
 
-Tri povezane stvari:
-1. Edge funkcija `send-notification-emails` treba da kreira i in-app notifikacije (u `notifications` tabeli) pored email-ova
-2. Izgraditi potpun push notification sistem (browser Push API + Service Worker)
-3. Dodati nove sekcije u Settings tab: "App notifikacije" i "Push notifikacije"
+Resenje: U `src/hooks/usePdfGenerator.ts`:
+- Povecati `contrastFactor` sa 1.15 na 1.3 za jasniji tekst
+- Promeniti `mutedText` boju sa `#222222` na `#000000` i na desktopu (trenutno je crna samo na mobilnom)
+- Forsirati `font-weight: bold` za sve `font-semibold` i `font-bold` elemente u klonu da ne izgube debljinu pri rasterizaciji
+- Ukloniti prebojavanje `bg-secondary` elemenata u svetliju sivu jer ih to cini jedva vidljivim - ostaviti originalnu boju ili koristiti tamniju varijantu
 
----
+## 2. Desktop: Download umesto Print
 
-## Deo 1: In-app notifikacije iz edge funkcije
+Problem: Na desktopu dugme kaze "Preuzmi" ali zapravo otvara print dijalog (`handlePrint()`). Na mobilnom postoji pravi PDF download. Treba ujednaciti - svuda koristiti download PDF.
 
-### Izmena: `supabase/functions/send-notification-emails/index.ts`
+Resenje: U `src/pages/InvoiceDetail.tsx` (linije 454-503):
+- Ukloniti uslovni prikaz za mobile-only download dugme (linije 472-485)
+- Promeniti dugme "Preuzmi/Stampaj" (linija 486-489) da poziva `handleDownloadPDF()` umesto `handlePrint()`
+- Ikonu promeniti sa `Printer` na `Download`
+- Tekst: "Preuzmi PDF" (ili "Sacuvaj PDF")
+- Opciono: Potpuno ukloniti `handlePrint` funkciju (linije 283-378) posto se vise nece koristiti
 
-Dodati helper `insertNotification` i pozvati ga na tri mesta:
+## 3. Moj Profil u header dropdown + Promeni lozinku u Profil
 
-**a) Podsetnici** (posle uspesnog email slanja, linija 86):
-- Tip: `reminder_due`
-- Naslov: `Podsetnik: {title}`
-- Poruka: `Rok: {due_date}` + iznos ako postoji
-- Link: `/reminders`
-- reference_id: reminder ID
+Problem: "Moj Profil" je trenutno link u sidebar-u. "Promeni lozinku" je u header dropdown-u. Korisnik zeli:
+- Dodati "Moj Profil" link u header user dropdown
+- Premestiti "Promeni lozinku" iz header dropdown-a u stranicu Profila (vec postoji u Security tabu)
+- Ukloniti "Moj Profil" iz sidebar profileGroup navigacije
 
-**b) Pretplata/trial** (posle logNotification, linija 109):
-- Tip: `subscription_expiring`
-- Naslov: `Pretplata istice za {d} dana` / `Trial istice za {d} dana`
-- Poruka: `Vasa pretplata istice {date}`
-- Link: `/profile`
+Resenje:
 
-**c) Limiti** (posle logNotification, linija 135):
-- Tip: `limit_warning`
-- Naslov: `Upozorenje: Limit {percent}%`
-- Poruka: `Dostigli ste {percent}% limita od 6M. Preostalo: {remaining}`
-- Link: `/dashboard`
+**`src/components/AppLayout.tsx`:**
+- U header dropdown (linija 364): Ukloniti `<ChangePasswordDialog asDropdownItem={true} />`
+- Dodati `<DropdownMenuItem>` sa linkom na `/profile` i ikonom `User` sa tekstom "Moj Profil"
+- U sidebar `profileGroup` (unutar `getFilteredNavItems`): Ukloniti `{ href: '/profile', label: 'Moj Profil', icon: Users }` iz niza
 
-### Izmena: `src/components/NotificationBell.tsx`
-
-Dodati ikone za nove tipove:
-- `reminder_due` - Clock ikona (narandzasta)
-- `subscription_expiring` - AlertTriangle ikona (crvena)
-- `limit_warning` - TrendingUp ikona (zuta)
+**`src/pages/Profile.tsx`:**
+- "Promeni lozinku" vec postoji u Security tabu (linija 736) - ostaje tu
+- Nema potrebe za dodatnim izmenama na Profile strani
 
 ---
 
-## Deo 2: Push Notification sistem
+## Tehnicki detalji - fajlovi koji se menjaju
 
-### Kako funkcionise
-- Browser Push API omogucava slanje notifikacija cak i kada aplikacija nije otvorena
-- Korisnik odobri dozvolu u browseru
-- Browser generise "push subscription" (endpoint + keys)
-- Subscription se cuva u bazi
-- Edge funkcija salje push notifikaciju preko Web Push protokola
-
-### Baza podataka - nova tabela `push_subscriptions`
-- `id` (UUID, PK)
-- `user_id` (UUID, NOT NULL)
-- `endpoint` (TEXT, NOT NULL) - browser push endpoint
-- `p256dh` (TEXT, NOT NULL) - public key
-- `auth` (TEXT, NOT NULL) - auth secret
-- `created_at` (TIMESTAMPTZ)
-
-RLS: korisnici mogu citati/brisati/kreirati svoje subscriptions (`user_id = auth.uid()`)
-
-### Profil tabela - nova kolona
-- `push_notifications_enabled` (BOOLEAN, default false) - da li korisnik zeli push notifikacije
-
-### VAPID kljucevi
-Push notifikacije zahtevaju VAPID (Voluntary Application Server Identification) kljuceve. Generisacemo par kljuceva:
-- Javni kljuc (VAPID public key) - koristi se u frontendu za subscribe
-- Privatni kljuc (VAPID private key) - cuva se kao secret u edge funkcijama
-
-### Service Worker: `public/sw.js`
-- Minimalan service worker koji slusa `push` event i prikazuje notifikaciju
-- Slusa `notificationclick` event za navigaciju na link iz notifikacije
-
-### Hook: `src/hooks/usePushNotifications.ts`
-- Proverava da li browser podrzava Push API
-- Proverava/zahteva dozvolu
-- Subscribe/unsubscribe logika
-- Cuva subscription u `push_subscriptions` tabeli
-
-### Edge funkcija: izmena `send-notification-emails`
-- Posle kreiranja in-app notifikacije, proveriti da li korisnik ima `push_notifications_enabled = true`
-- Ako da, poslati web push na sve registrovane subscription-e tog korisnika
-- Koristiti `web-push` biblioteku za slanje
-
----
-
-## Deo 3: Settings UI
-
-### Izmena: `src/pages/Profile.tsx` - Settings tab
-
-Posle Email notifikacije karte, dodati dve nove karte:
-
-**Karta: "App notifikacije" (ikona: Bell)**
-- Opis: "Notifikacije koje se prikazuju u aplikaciji (zvonce u headeru)"
-- Switch: Faktura pregledana - "Obavestenje kada klijent otvori fakturu" (uvek ukljuceno, ne moze se iskljuciti za sada jer nema zasebnu kontrolu - ovo je podrazumevano ponasanje)
-- Switch: Podsetnici - "Prikazi notifikaciju u aplikaciji za podsetnike"
-- Switch: Istek pretplate - "Prikazi notifikaciju u aplikaciji kada pretplata istice"
-- Switch: Upozorenja za limite - "Prikazi notifikaciju u aplikaciji za limite"
-
-Za ovo ce trebati nove kolone u profiles:
-- `app_notify_reminders` (BOOLEAN, default true)
-- `app_notify_subscription` (BOOLEAN, default true)
-- `app_notify_limits` (BOOLEAN, default true)
-
-Edge funkcija ce proveravati ove preference pre kreiranja notifikacije.
-
-**Karta: "Push notifikacije" (ikona: Smartphone)**
-- Opis: "Primajte notifikacije i kada aplikacija nije otvorena"
-- Status badge koji pokazuje da li je dozvola data u browseru
-- Glavni Switch: "Omoguci push notifikacije"
-  - Kada se ukljuci: trazi dozvolu browsera, registruje service worker, subscribuje se
-  - Kada se iskljuci: unsubscribuje se, brise iz baze
-- Dugme: "Posalji test notifikaciju" - za testiranje
-
----
-
-## Tehnicki detalji
-
-### SQL migracija
-```
--- Push subscriptions
-CREATE TABLE push_subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
-  endpoint TEXT NOT NULL,
-  p256dh TEXT NOT NULL,
-  auth TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, endpoint)
-);
-
-ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users manage own push subscriptions"
-  ON push_subscriptions FOR ALL
-  USING (user_id = auth.uid());
-
--- App notification preferences
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_reminders BOOLEAN DEFAULT true;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_subscription BOOLEAN DEFAULT true;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_limits BOOLEAN DEFAULT true;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_notifications_enabled BOOLEAN DEFAULT false;
-```
-
-### Service Worker (`public/sw.js`)
-```
-self.addEventListener('push', function(event) {
-  const data = event.data?.json() || {};
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'PausalBox', {
-      body: data.message,
-      icon: '/favicon.png',
-      data: { url: data.link }
-    })
-  );
-});
-
-self.addEventListener('notificationclick', function(event) {
-  event.notification.close();
-  if (event.notification.data?.url) {
-    event.waitUntil(clients.openWindow(event.notification.data.url));
-  }
-});
-```
-
-### VAPID kljucevi
-- Generisati VAPID key pair
-- Javni kljuc: hardkodiran u frontendu (env varijabla VITE_VAPID_PUBLIC_KEY)
-- Privatni kljuc: secret VAPID_PRIVATE_KEY u edge funkcijama
-- VAPID subject: `mailto:obavestenja@pausalbox.rs`
-
-### Edge funkcija izmene
-`send-notification-emails/index.ts`:
-1. Dodati `insertNotification` helper (uz proveru app_notify preference)
-2. Dodati `sendPushNotification` helper (uz proveru push_notifications_enabled)
-3. Posle svakog uspesnog email slanja pozvati oba helpera
-
-### Fajlovi koji se menjaju/kreiraju
-- `supabase/functions/send-notification-emails/index.ts` - in-app + push notifikacije
-- `src/components/NotificationBell.tsx` - nove ikone za tipove
-- `src/hooks/usePushNotifications.ts` - NOVO: push subscription logika
-- `src/pages/Profile.tsx` - nove Settings karte
-- `src/lib/auth.tsx` - nove kolone u ProfileData interfejs
-- `public/sw.js` - NOVO: service worker za push
-- SQL migracija za novu tabelu i kolone
-
+| Fajl | Izmena |
+|------|--------|
+| `src/hooks/usePdfGenerator.ts` | Pojacati kontrast, popraviti boje teksta |
+| `src/pages/InvoiceDetail.tsx` | Zamena Print dugmeta sa Download, uklanjanje handlePrint |
+| `src/components/AppLayout.tsx` | Moj Profil u dropdown, uklanjanje Promeni lozinku iz dropdown-a, uklanjanje Moj Profil iz sidebar-a |
