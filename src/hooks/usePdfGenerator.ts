@@ -214,6 +214,24 @@ export async function generateInvoicePdf(
       },
     });
 
+    // Post-process canvas: force all gray text to pure black
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+        if (saturation < 50 && lum > 20 && lum < 210) {
+          data[i] = 0;
+          data[i + 1] = 0;
+          data[i + 2] = 0;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
