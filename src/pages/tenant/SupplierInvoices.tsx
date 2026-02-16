@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,12 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, CheckCircle, CreditCard, AlertTriangle } from "lucide-react";
+import { Plus, Loader2, CheckCircle, CreditCard, AlertTriangle, FileInput } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUSES = ["draft", "received", "approved", "paid", "cancelled"] as const;
 
@@ -62,20 +63,17 @@ export default function SupplierInvoices() {
   const [form, setForm] = useState<SIForm>({ ...emptyForm, legal_entity_id: "" } as any);
   const { entities: legalEntities } = useLegalEntities();
 
-  // Auto-select legal entity if only one exists
   useEffect(() => {
     if (legalEntities.length === 1 && !(form as any).legal_entity_id) {
       setForm(f => ({ ...f, legal_entity_id: legalEntities[0].id } as any));
     }
   }, [legalEntities]);
 
-  // 3-way matching state
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
   const [matchDiscrepancies, setMatchDiscrepancies] = useState<Discrepancy[]>([]);
   const [pendingApproveInv, setPendingApproveInv] = useState<any>(null);
   const { checkApproval } = useApprovalCheck(tenantId, "supplier_invoice");
 
-  // Handle pre-fill from PurchaseOrders navigation
   useEffect(() => {
     const state = location.state as any;
     if (state?.fromPO) {
@@ -149,47 +147,31 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // 3-way matching check
   const performThreeWayMatch = async (inv: any): Promise<Discrepancy[]> => {
     if (!inv.purchase_order_id) return [];
-
     const [poLinesRes, grRes] = await Promise.all([
       supabase.from("purchase_order_lines").select("*, products(name)").eq("purchase_order_id", inv.purchase_order_id),
       supabase.from("goods_receipts").select("id").eq("purchase_order_id", inv.purchase_order_id).eq("status", "completed"),
     ]);
-
     const poLines = poLinesRes.data || [];
     const grIds = (grRes.data || []).map((g: any) => g.id);
-
     let grLines: any[] = [];
     if (grIds.length > 0) {
       const { data } = await supabase.from("goods_receipt_lines").select("product_id, quantity_received").in("goods_receipt_id", grIds);
       grLines = data || [];
     }
-
-    // Group GR lines by product
     const grByProduct: Record<string, number> = {};
-    grLines.forEach((gl: any) => {
-      grByProduct[gl.product_id] = (grByProduct[gl.product_id] || 0) + gl.quantity_received;
-    });
-
+    grLines.forEach((gl: any) => { grByProduct[gl.product_id] = (grByProduct[gl.product_id] || 0) + gl.quantity_received; });
     const discrepancies: Discrepancy[] = [];
     poLines.forEach((pol: any) => {
       const grQty = grByProduct[pol.product_id] || 0;
       if (pol.quantity !== grQty) {
-        discrepancies.push({
-          productName: pol.products?.name || pol.product_id,
-          poQty: pol.quantity,
-          grQty,
-          invoiceTotal: inv.total,
-        });
+        discrepancies.push({ productName: pol.products?.name || pol.product_id, poQty: pol.quantity, grQty, invoiceTotal: inv.total });
       }
     });
-
     return discrepancies;
   };
 
-  // Initiate approve with 3-way match
   const initiateApprove = async (inv: any) => {
     try {
       await checkApproval(inv.id, Number(inv.total || 0), async () => {
@@ -202,19 +184,9 @@ export default function SupplierInvoices() {
           approveMutation.mutate(inv);
         }
       });
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
-  // Compute match status for badge
-  const getMatchStatus = (inv: any): string => {
-    if (!inv.purchase_order_id) return "n/a";
-    // We use a simplified sync check - real status computed on render via cached data
-    return "pending";
-  };
-
-  // PRC 14.3: Approve → Debit 7000 (COGS) + Debit 4700 (Input VAT) / Credit 2100 (AP)
   const approveMutation = useMutation({
     mutationFn: async (inv: any) => {
       if (!tenantId) throw new Error("No tenant");
@@ -226,14 +198,11 @@ export default function SupplierInvoices() {
         lines.push({ accountCode: "4700", debit: inv.tax_amount, credit: 0, description: `Input VAT - ${inv.invoice_number}`, sortOrder: 1 });
       }
       lines.push({ accountCode: "2100", debit: 0, credit: inv.total, description: `AP - ${inv.invoice_number}`, sortOrder: 2 });
-
       await createCodeBasedJournalEntry({
         tenantId, userId: user?.id || null, entryDate,
         description: `Supplier Invoice ${inv.invoice_number} - Approval`,
-        reference: `SI-${inv.invoice_number}`,
-        lines,
+        reference: `SI-${inv.invoice_number}`, lines,
       });
-
       const { error } = await supabase.from("supplier_invoices").update({ status: "approved" }).eq("id", inv.id);
       if (error) throw error;
     },
@@ -246,7 +215,6 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // PRC 14.3: Pay → Debit 2100 (AP) / Credit 1000 (Cash/Bank)
   const markPaidMutation = useMutation({
     mutationFn: async (inv: any) => {
       if (!tenantId) throw new Error("No tenant");
@@ -260,7 +228,6 @@ export default function SupplierInvoices() {
           { accountCode: "1000", debit: 0, credit: inv.total, description: `Payment - ${inv.invoice_number}`, sortOrder: 1 },
         ],
       });
-
       const { error } = await supabase.from("supplier_invoices").update({ status: "paid" }).eq("id", inv.id);
       if (error) throw error;
     },
@@ -320,64 +287,51 @@ export default function SupplierInvoices() {
     setForm(updated);
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "invoice_number", label: t("invoiceNumber"), primary: true, render: (inv) => inv.invoice_number },
+    { key: "supplier", label: t("supplier"), render: (inv) => inv.partners?.name || inv.supplier_name || "—" },
+    { key: "purchase_order", label: t("purchaseOrder"), hideOnMobile: true, render: (inv) => inv.purchase_orders?.order_number || "—" },
+    { key: "invoice_date", label: t("invoiceDate"), hideOnMobile: true, render: (inv) => inv.invoice_date },
+    { key: "due_date", label: t("dueDate"), hideOnMobile: true, render: (inv) => inv.due_date || "—" },
+    { key: "total", label: t("total"), align: "right" as const, render: (inv) => fmt(inv.total, inv.currency) },
+    { key: "match", label: t("matchStatus" as any) || "Match", render: (inv) => <Badge variant={matchBadgeVariant(inv)}>{matchBadgeLabel(inv)}</Badge> },
+    { key: "status", label: t("status"), render: (inv) => <Badge variant={statusColor(inv.status) as any}>{t(inv.status as any) || inv.status}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (inv) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(inv); }}>{t("edit")}</Button>
+        {inv.status === "received" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); initiateApprove(inv); }} disabled={approveMutation.isPending}>
+            <CheckCircle className="h-3 w-3 mr-1" />{t("approveInvoice")}
+          </Button>
+        )}
+        {inv.status === "approved" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markPaidMutation.mutate(inv); }} disabled={markPaidMutation.isPending}>
+            <CreditCard className="h-3 w-3 mr-1" />{t("markAsPaidSupplier")}
+          </Button>
+        )}
+      </div>
+    )},
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("supplierInvoices")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSupplierInvoice")}</Button>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("invoiceNumber")}</TableHead>
-                <TableHead>{t("supplier")}</TableHead>
-                <TableHead>{t("purchaseOrder")}</TableHead>
-                <TableHead>{t("invoiceDate")}</TableHead>
-                <TableHead>{t("dueDate")}</TableHead>
-                <TableHead className="text-right">{t("total")}</TableHead>
-                <TableHead>{t("matchStatus" as any) || "Match"}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : invoices.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : invoices.map((inv: any) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium">{inv.invoice_number}</TableCell>
-                  <TableCell>{inv.partners?.name || inv.supplier_name || "—"}</TableCell>
-                  <TableCell>{inv.purchase_orders?.order_number || "—"}</TableCell>
-                  <TableCell>{inv.invoice_date}</TableCell>
-                  <TableCell>{inv.due_date || "—"}</TableCell>
-                  <TableCell className="text-right">{fmt(inv.total, inv.currency)}</TableCell>
-                  <TableCell><Badge variant={matchBadgeVariant(inv)}>{matchBadgeLabel(inv)}</Badge></TableCell>
-                  <TableCell><Badge variant={statusColor(inv.status) as any}>{t(inv.status as any) || inv.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(inv)}>{t("edit")}</Button>
-                      {inv.status === "received" && (
-                        <Button size="sm" variant="outline" onClick={() => initiateApprove(inv)} disabled={approveMutation.isPending}>
-                          <CheckCircle className="h-3 w-3 mr-1" />{t("approveInvoice")}
-                        </Button>
-                      )}
-                      {inv.status === "approved" && (
-                        <Button size="sm" variant="outline" onClick={() => markPaidMutation.mutate(inv)} disabled={markPaidMutation.isPending}>
-                          <CreditCard className="h-3 w-3 mr-1" />{t("markAsPaidSupplier")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={t("supplierInvoices")}
+        description={t("supplierInvoices")}
+        icon={FileInput}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSupplierInvoice")}</Button>}
+      />
+
+      <ResponsiveTable
+        data={invoices}
+        columns={columns}
+        keyExtractor={(inv) => inv.id}
+        emptyMessage={t("noResults")}
+      />
 
       {/* 3-Way Match Discrepancy Dialog */}
       <AlertDialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
@@ -436,16 +390,6 @@ export default function SupplierInvoices() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("purchaseOrder")}</Label>
-                <Select value={form.purchase_order_id || "__none"} onValueChange={(v) => { if (v !== "__none") linkPO(v); else setForm({ ...form, purchase_order_id: null }); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {purchaseOrders.map((po: any) => <SelectItem key={po.id} value={po.id}>{po.order_number}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
                 <Label>{t("supplier")}</Label>
                 <Select value={form.supplier_id || "__none"} onValueChange={(v) => { const s = suppliers.find((s: any) => s.id === v); setForm({ ...form, supplier_id: v === "__none" ? null : v, supplier_name: s?.name || form.supplier_name }); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -455,13 +399,35 @@ export default function SupplierInvoices() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-2">
+                <Label>{t("purchaseOrder")}</Label>
+                <Select value={form.purchase_order_id || "__none"} onValueChange={(v) => { if (v !== "__none") linkPO(v); else setForm({ ...form, purchase_order_id: null }); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {purchaseOrders.map((po: any) => <SelectItem key={po.id} value={po.id}>{po.order_number}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {legalEntities.length > 1 && (
+              <div className="grid gap-2">
+                <Label>{t("legalEntity")}</Label>
+                <Select value={(form as any).legal_entity_id || "__none"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none" ? "" : v } as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {legalEntities.map((le: any) => <SelectItem key={le.id} value={le.id}>{le.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("invoiceDate")}</Label><Input type="date" value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("dueDate")}</Label><Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2"><Label>{t("invoiceAmount")}</Label><Input type="number" value={form.amount} onChange={(e) => updateAmount("amount", +e.target.value)} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid gap-2"><Label>{t("amount")}</Label><Input type="number" value={form.amount} onChange={(e) => updateAmount("amount", +e.target.value)} /></div>
               <div className="grid gap-2"><Label>{t("taxAmount")}</Label><Input type="number" value={form.tax_amount} onChange={(e) => updateAmount("tax_amount", +e.target.value)} /></div>
               <div className="grid gap-2"><Label>{t("total")}</Label><Input type="number" value={form.total} disabled /></div>
             </div>
@@ -477,17 +443,6 @@ export default function SupplierInvoices() {
               </Select>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            {legalEntities.length > 0 && (
-              <div className="grid gap-2">
-                <Label>{t("legalEntity")}</Label>
-                <Select value={(form as any).legal_entity_id || ""} onValueChange={v => setForm({ ...form, legal_entity_id: v } as any)}>
-                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
-                  <SelectContent>
-                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>

@@ -7,15 +7,16 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const UOM_OPTIONS = ["pcs", "kg", "g", "l", "ml", "m", "cm", "m2", "m3", "h"];
 
@@ -52,11 +53,7 @@ export default function Products() {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .order("name");
+      const { data, error } = await supabase.from("products").select("*").eq("tenant_id", tenantId!).order("name");
       if (error) throw error;
       return data;
     },
@@ -66,12 +63,7 @@ export default function Products() {
   const { data: taxRates = [] } = useQuery({
     queryKey: ["tax-rates", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tax_rates")
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .order("rate", { ascending: false });
+      const { data, error } = await supabase.from("tax_rates").select("*").eq("tenant_id", tenantId!).eq("is_active", true).order("rate", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -89,11 +81,7 @@ export default function Products() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: t("success") });
-      setDialogOpen(false);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); toast({ title: t("success") }); setDialogOpen(false); },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
@@ -102,10 +90,7 @@ export default function Products() {
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: t("success") });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); toast({ title: t("success") }); },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
@@ -135,88 +120,75 @@ export default function Products() {
 
   const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, render: (p) => <Link to={`/inventory/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link> },
+    { key: "sku", label: "SKU", render: (p) => p.sku || "—" },
+    { key: "unit_of_measure", label: t("unitOfMeasure"), hideOnMobile: true, render: (p) => p.unit_of_measure },
+    { key: "costing_method", label: t("costingMethod"), hideOnMobile: true, render: (p) => <Badge variant="outline">{p.costing_method === "fifo" ? t("fifo") : t("weightedAverage")}</Badge> },
+    { key: "purchase_price", label: t("purchasePrice"), align: "right" as const, render: (p) => fmtNum(Number(p.default_purchase_price)) },
+    { key: "sale_price", label: t("salePrice"), align: "right" as const, render: (p) => fmtNum(Number(p.default_sale_price)) },
+    { key: "status", label: t("status"), render: (p) => <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? t("active") : t("inactive")}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, align: "right" as const, render: (p) => (
+      <div className="flex gap-1 justify-end">
+        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(p); }}><Pencil className="h-4 w-4" /></Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("confirm")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteMutation.mutate(p.id)}>{t("delete")}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("products")}</h1>
-        <div className="flex gap-2">
-          <ExportButton
-            data={filtered}
-            columns={[
-              { key: "name", label: t("name") },
-              { key: "sku", label: "SKU" },
-              { key: "unit_of_measure", label: t("unitOfMeasure") },
-              { key: "default_purchase_price", label: t("purchasePrice"), formatter: (v) => Number(v).toFixed(2) },
-              { key: "default_sale_price", label: t("salePrice"), formatter: (v) => Number(v).toFixed(2) },
-            ]}
-            filename="products"
-          />
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t("products")}
+        icon={Package}
+        actions={
+          <div className="flex gap-2">
+            <ExportButton
+              data={filtered}
+              columns={[
+                { key: "name", label: t("name") },
+                { key: "sku", label: "SKU" },
+                { key: "unit_of_measure", label: t("unitOfMeasure") },
+                { key: "default_purchase_price", label: t("purchasePrice"), formatter: (v) => Number(v).toFixed(2) },
+                { key: "default_sale_price", label: t("salePrice"), formatter: (v) => Number(v).toFixed(2) },
+              ]}
+              filename="products"
+            />
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+          </div>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <div className="relative w-full max-w-sm">
+      <MobileFilterBar
+        search={
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>{t("unitOfMeasure")}</TableHead>
-                <TableHead>{t("costingMethod")}</TableHead>
-                <TableHead className="text-right">{t("purchasePrice")}</TableHead>
-                <TableHead className="text-right">{t("salePrice")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium"><Link to={`/inventory/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link></TableCell>
-                  <TableCell>{p.sku || "—"}</TableCell>
-                  <TableCell>{p.unit_of_measure}</TableCell>
-                  <TableCell><Badge variant="outline">{p.costing_method === "fifo" ? t("fifo") : t("weightedAverage")}</Badge></TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(Number(p.default_purchase_price))}</TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(Number(p.default_sale_price))}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.is_active ? "default" : "secondary"}>
-                      {p.is_active ? t("active") : t("inactive")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t("confirm")}</AlertDialogTitle>
-                          <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate(p.id)}>{t("delete")}</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        }
+        filters={null}
+      />
+
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(p) => p.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">

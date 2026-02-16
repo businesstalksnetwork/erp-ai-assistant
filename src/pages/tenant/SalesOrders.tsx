@@ -2,19 +2,19 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, FileText } from "lucide-react";
+import { Plus, Loader2, FileText, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 
@@ -96,8 +96,6 @@ export default function SalesOrders() {
       if (editId) {
         const { error } = await supabase.from("sales_orders").update(payload).eq("id", editId);
         if (error) throw error;
-
-        // Stock reservation on status change
         const oldOrder = orders.find((o: any) => o.id === editId);
         const oldStatus = oldOrder?.status;
         if (oldStatus !== f.status) {
@@ -110,7 +108,6 @@ export default function SalesOrders() {
       } else {
         const { data: inserted, error } = await supabase.from("sales_orders").insert([payload]).select("id").single();
         if (error) throw error;
-        // If created as confirmed directly
         if (f.status === "confirmed" && inserted) {
           await emitStockEvent(inserted.id, "sales_order.confirmed");
         }
@@ -171,57 +168,45 @@ export default function SalesOrders() {
   const fmt = (n: number, cur: string) =>
     new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "order_number", label: t("orderNumber"), primary: true, render: (o) => o.order_number },
+    { key: "partner", label: t("partner"), render: (o) => o.partners?.name || o.partner_name || "—" },
+    { key: "salesperson", label: t("salesperson"), hideOnMobile: true, render: (o) => o.salespeople ? `${o.salespeople.first_name} ${o.salespeople.last_name}` : "—" },
+    { key: "quote", label: t("quote"), hideOnMobile: true, render: (o) => o.quotes?.quote_number || "—" },
+    { key: "order_date", label: t("orderDate"), render: (o) => o.order_date },
+    { key: "total", label: t("total"), align: "right" as const, render: (o) => fmt(o.total, o.currency) },
+    { key: "status", label: t("status"), render: (o) => <Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (o) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(o); }}>{t("edit")}</Button>
+        {(o.status === "confirmed" || o.status === "delivered") && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); createInvoice(o); }}>
+            <FileText className="h-3 w-3 mr-1" />{t("createInvoiceFromOrder")}
+          </Button>
+        )}
+      </div>
+    )},
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("salesOrders")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSalesOrder")}</Button>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("orderNumber")}</TableHead>
-                <TableHead>{t("partner")}</TableHead>
-                <TableHead>{t("salesperson")}</TableHead>
-                <TableHead>{t("quote")}</TableHead>
-                <TableHead>{t("orderDate")}</TableHead>
-                <TableHead className="text-right">{t("total")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : orders.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : orders.map((o: any) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.order_number}</TableCell>
-                  <TableCell>{o.partners?.name || o.partner_name || "—"}</TableCell>
-                  <TableCell>{o.salespeople ? `${o.salespeople.first_name} ${o.salespeople.last_name}` : "—"}</TableCell>
-                  <TableCell>{o.quotes?.quote_number || "—"}</TableCell>
-                  <TableCell>{o.order_date}</TableCell>
-                  <TableCell className="text-right">{fmt(o.total, o.currency)}</TableCell>
-                  <TableCell><Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button>
-                      {(o.status === "confirmed" || o.status === "delivered") && (
-                        <Button size="sm" variant="outline" onClick={() => createInvoice(o)}>
-                          <FileText className="h-3 w-3 mr-1" />{t("createInvoiceFromOrder")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={t("salesOrders")}
+        description={t("salesOrders")}
+        icon={ShoppingCart}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSalesOrder")}</Button>}
+      />
+
+      <ResponsiveTable
+        data={orders}
+        columns={columns}
+        keyExtractor={(o) => o.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">

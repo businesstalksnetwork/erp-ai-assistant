@@ -4,8 +4,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { useQuery } from "@tanstack/react-query";
 // @ts-ignore deep instantiation
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
+import { BiPageLayout } from "@/components/shared/BiPageLayout";
+import type { StatItem } from "@/components/shared/StatsBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
@@ -28,7 +28,6 @@ export default function AnalyticsDashboard() {
   const { tenantId } = useTenant();
   const sr = locale === "sr";
 
-  // Fetch journal lines grouped by month for profit trend
   const { data: monthlyData, isLoading } = useQuery({
     queryKey: ["analytics-monthly", tenantId],
     enabled: !!tenantId,
@@ -53,12 +52,12 @@ export default function AnalyticsDashboard() {
         const net = debit - credit;
 
         if (acctType === "revenue") {
-          const val = -net; // revenue normal balance is credit
+          const val = -net;
           totalRevenue += val;
           if (!monthly[monthKey]) monthly[monthKey] = { revenue: 0, expenses: 0 };
           monthly[monthKey].revenue += val;
         } else if (acctType === "expense") {
-          const val = net; // expense normal balance is debit
+          const val = net;
           totalExpenses += val;
           if (!monthly[monthKey]) monthly[monthKey] = { revenue: 0, expenses: 0 };
           monthly[monthKey].expenses += val;
@@ -75,8 +74,7 @@ export default function AnalyticsDashboard() {
         .sort(([a], [b]) => a.localeCompare(b))
         .slice(-12)
         .map(([month, vals]) => ({
-          month,
-          revenue: Math.round(vals.revenue),
+          month, revenue: Math.round(vals.revenue),
           expenses: Math.round(vals.expenses),
           profit: Math.round(vals.revenue - vals.expenses),
         }));
@@ -85,18 +83,12 @@ export default function AnalyticsDashboard() {
     },
   });
 
-  // Fetch invoices for DSO
   const { data: invoiceStats } = useQuery({
     queryKey: ["analytics-invoices", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("total, status, invoice_date, due_date, paid_at")
-        .eq("tenant_id", tenantId!);
-
+      const { data: invoices } = await supabase.from("invoices").select("total, status, invoice_date, due_date, paid_at").eq("tenant_id", tenantId!);
       if (!invoices || invoices.length === 0) return { dso: 0, totalAR: 0 };
-
       const paidInvoices = invoices.filter((i: any) => i.status === "paid" && i.paid_at);
       let totalDays = 0;
       for (const inv of paidInvoices as any[]) {
@@ -105,10 +97,7 @@ export default function AnalyticsDashboard() {
         totalDays += (paid - issued) / (1000 * 60 * 60 * 24);
       }
       const dso = paidInvoices.length > 0 ? Math.round(totalDays / paidInvoices.length) : 0;
-      const totalAR = invoices
-        .filter((i: any) => ["draft", "sent"].includes(i.status))
-        .reduce((s: number, i: any) => s + Number(i.total), 0);
-
+      const totalAR = invoices.filter((i: any) => ["draft", "sent"].includes(i.status)).reduce((s: number, i: any) => s + Number(i.total), 0);
       return { dso, totalAR };
     },
   });
@@ -125,10 +114,8 @@ export default function AnalyticsDashboard() {
     { label: sr ? "Dug/Kapital" : "Debt/Equity", value: debtToEquity.toFixed(2), icon: DollarSign, color: "text-destructive" },
   ];
 
-  // Expense breakdown by account type for pie chart
   const expenseBreakdown = useMemo(() => {
     if (!monthlyData?.monthly) return [];
-    // Simple breakdown: we'll show revenue vs expenses
     return [
       { name: sr ? "Prihodi" : "Revenue", value: Math.abs(totals?.revenue || 0) },
       { name: sr ? "Rashodi" : "Expenses", value: Math.abs(totals?.expenses || 0) },
@@ -136,19 +123,18 @@ export default function AnalyticsDashboard() {
   }, [monthlyData, sr, totals]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={sr ? "Analitički pregled" : "Analytics Dashboard"} />
-
-      {isLoading ? (
+    <BiPageLayout
+      title={sr ? "Analitički pregled" : "Analytics Dashboard"}
+      icon={BarChart3}
+      stats={isLoading ? undefined : stats}
+    >
+      {isLoading && (
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
         </div>
-      ) : (
-        <StatsBar stats={stats} />
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Profit Trend */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -174,7 +160,6 @@ export default function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        {/* Monthly Revenue vs Expenses */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -199,7 +184,6 @@ export default function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        {/* Revenue/Expense Split */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -221,7 +205,6 @@ export default function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        {/* Month-over-Month Growth */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -266,6 +249,6 @@ export default function AnalyticsDashboard() {
         />
       )}
       {tenantId && <AiModuleInsights tenantId={tenantId} module="analytics" />}
-    </div>
+    </BiPageLayout>
   );
 }

@@ -3,7 +3,6 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUSES = ["draft", "completed"] as const;
 
@@ -123,7 +124,6 @@ export default function GoodsReceipts() {
         );
         if (error) throw error;
       }
-      // If completed, adjust inventory, create cost layers, and create journal entry
       if (f.status === "completed" && f.warehouse_id) {
         let totalValue = 0;
         for (const line of validLines) {
@@ -133,33 +133,23 @@ export default function GoodsReceipts() {
               p_warehouse_id: f.warehouse_id, p_quantity: line.quantity_received,
               p_movement_type: "in", p_reference: `GRN-${f.receipt_number}`, p_notes: "Goods receipt",
             });
-            // Calculate value from product purchase price
             const prod = products.find((p: any) => p.id === line.product_id);
             const price = prod?.default_purchase_price || 0;
             totalValue += line.quantity_received * price;
-
-            // Create cost layer
             if (price > 0) {
               await supabase.from("inventory_cost_layers").insert({
-                tenant_id: tenantId!,
-                product_id: line.product_id,
-                warehouse_id: f.warehouse_id,
-                layer_date: new Date().toISOString().split("T")[0],
-                quantity_remaining: line.quantity_received,
-                unit_cost: price,
+                tenant_id: tenantId!, product_id: line.product_id,
+                warehouse_id: f.warehouse_id, layer_date: new Date().toISOString().split("T")[0],
+                quantity_remaining: line.quantity_received, unit_cost: price,
                 reference: `GRN-${f.receipt_number}`,
               });
             }
           }
         }
-
-        // Post GRN journal: Debit 1200 (Inventory) / Credit 2100 (AP)
         if (totalValue > 0) {
           const entryDate = new Date().toISOString().split("T")[0];
           await createCodeBasedJournalEntry({
-            tenantId: tenantId!,
-            userId: user?.id || null,
-            entryDate,
+            tenantId: tenantId!, userId: user?.id || null, entryDate,
             description: `Goods Receipt ${f.receipt_number}`,
             reference: `GRN-${f.receipt_number}`,
             lines: [
@@ -187,44 +177,34 @@ export default function GoodsReceipts() {
     setOpen(true);
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "receipt_number", label: t("receiptNumber"), primary: true, render: (r) => r.receipt_number },
+    { key: "purchase_order", label: t("purchaseOrder"), render: (r) => r.purchase_orders?.order_number || "—" },
+    { key: "warehouse", label: t("warehouse"), hideOnMobile: true, render: (r) => r.warehouses?.name || "—" },
+    { key: "date", label: t("date"), render: (r) => new Date(r.received_at).toLocaleDateString() },
+    { key: "status", label: t("status"), render: (r) => <Badge variant={r.status === "completed" ? "default" : "secondary"}>{t(r.status as any) || r.status}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (r) => <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>{t("edit")}</Button> },
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("goodsReceipts")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addGoodsReceipt")}</Button>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("receiptNumber")}</TableHead>
-                <TableHead>{t("purchaseOrder")}</TableHead>
-                <TableHead>{t("warehouse")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : receipts.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : receipts.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.receipt_number}</TableCell>
-                  <TableCell>{r.purchase_orders?.order_number || "—"}</TableCell>
-                  <TableCell>{r.warehouses?.name || "—"}</TableCell>
-                  <TableCell>{new Date(r.received_at).toLocaleDateString()}</TableCell>
-                  <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{t(r.status as any) || r.status}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(r)}>{t("edit")}</Button></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={t("goodsReceipts")}
+        description={t("goodsReceipts")}
+        icon={PackageCheck}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addGoodsReceipt")}</Button>}
+      />
+
+      <ResponsiveTable
+        data={receipts}
+        columns={columns}
+        keyExtractor={(r) => r.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

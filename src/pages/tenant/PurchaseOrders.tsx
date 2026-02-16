@@ -2,7 +2,6 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,11 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Trash2, Package, FileText } from "lucide-react";
+import { Plus, Loader2, Trash2, Package, FileText, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUSES = ["draft", "sent", "confirmed", "received", "cancelled"] as const;
 
@@ -73,13 +74,7 @@ export default function PurchaseOrders() {
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("partners")
-        .select("id, name")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .in("type", ["supplier", "both"])
-        .order("name");
+      const { data } = await supabase.from("partners").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).in("type", ["supplier", "both"]).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -133,38 +128,29 @@ export default function PurchaseOrders() {
       const { data: lines } = await supabase.from("purchase_order_lines").select("*").eq("purchase_order_id", o.id);
       const receiptNumber = `GRN-${Date.now().toString(36).toUpperCase()}`;
       const { data: grn, error: grnError } = await supabase.from("goods_receipts").insert([{
-        tenant_id: tenantId!,
-        receipt_number: receiptNumber,
-        purchase_order_id: o.id,
-        status: "draft",
+        tenant_id: tenantId!, receipt_number: receiptNumber, purchase_order_id: o.id, status: "draft",
       }]).select("id").single();
       if (grnError) throw grnError;
       if (lines && lines.length > 0) {
         const grnLines = lines.map(l => ({
-          goods_receipt_id: grn.id,
-          product_id: l.product_id,
-          quantity_ordered: l.quantity,
-          quantity_received: l.quantity,
+          goods_receipt_id: grn.id, product_id: l.product_id,
+          quantity_ordered: l.quantity, quantity_received: l.quantity,
         }));
         await supabase.from("goods_receipt_lines").insert(grnLines);
       }
       qc.invalidateQueries({ queryKey: ["goods-receipts"] });
       toast.success(t("conversionSuccess"));
       navigate("/purchasing/goods-receipts");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const createSupplierInvoice = (o: any) => {
     navigate("/purchasing/supplier-invoices", {
       state: {
         fromPO: {
-          purchase_order_id: o.id,
-          supplier_id: o.supplier_id,
+          purchase_order_id: o.id, supplier_id: o.supplier_id,
           supplier_name: o.partners?.name || o.supplier_name,
-          amount: o.total,
-          currency: o.currency,
+          amount: o.total, currency: o.currency,
         },
       },
     });
@@ -205,72 +191,62 @@ export default function PurchaseOrders() {
 
   const fmt = (n: number, cur: string) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "order_number", label: t("orderNumber"), primary: true, render: (o) => o.order_number },
+    { key: "supplier", label: t("supplier"), render: (o) => o.partners?.name || o.supplier_name || "—" },
+    { key: "order_date", label: t("orderDate"), render: (o) => o.order_date },
+    { key: "expected_date", label: t("expectedDate"), hideOnMobile: true, render: (o) => o.expected_date || "—" },
+    { key: "total", label: t("total"), align: "right" as const, render: (o) => fmt(o.total, o.currency) },
+    { key: "status", label: t("status"), render: (o) => <Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (o) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(o); }}>{t("edit")}</Button>
+        {(o.status === "confirmed" || o.status === "sent") && (
+          <>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); createGRN(o); }}>
+              <Package className="h-3 w-3 mr-1" />{t("createGRN")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); createSupplierInvoice(o); }}>
+              <FileText className="h-3 w-3 mr-1" />{t("createSupplierInvoice")}
+            </Button>
+          </>
+        )}
+        {o.status === "draft" && (
+          <Button size="sm" variant="outline" onClick={(e) => {
+            e.stopPropagation();
+            checkApproval(o.id, Number(o.total || 0), async () => {
+              const { error } = await supabase.from("purchase_orders").update({ status: "confirmed" }).eq("id", o.id);
+              if (error) { toast.error(error.message); return; }
+              qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+              toast.success(t("confirmed"));
+            });
+          }}>
+            {t("confirm")}
+          </Button>
+        )}
+      </div>
+    )},
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("purchaseOrders")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addPurchaseOrder")}</Button>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("orderNumber")}</TableHead>
-                <TableHead>{t("supplier")}</TableHead>
-                <TableHead>{t("orderDate")}</TableHead>
-                <TableHead>{t("expectedDate")}</TableHead>
-                <TableHead className="text-right">{t("total")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : orders.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : orders.map((o: any) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.order_number}</TableCell>
-                  <TableCell>{o.partners?.name || o.supplier_name || "—"}</TableCell>
-                  <TableCell>{o.order_date}</TableCell>
-                  <TableCell>{o.expected_date || "—"}</TableCell>
-                  <TableCell className="text-right">{fmt(o.total, o.currency)}</TableCell>
-                  <TableCell><Badge variant={statusColor(o.status) as any}>{t(o.status as any) || o.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>{t("edit")}</Button>
-                      {(o.status === "confirmed" || o.status === "sent") && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => createGRN(o)}>
-                            <Package className="h-3 w-3 mr-1" />{t("createGRN")}
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => createSupplierInvoice(o)}>
-                            <FileText className="h-3 w-3 mr-1" />{t("createSupplierInvoice")}
-                          </Button>
-                        </>
-                      )}
-                      {o.status === "draft" && (
-                        <Button size="sm" variant="outline" onClick={() => {
-                          checkApproval(o.id, Number(o.total || 0), async () => {
-                            const { error } = await supabase.from("purchase_orders").update({ status: "confirmed" }).eq("id", o.id);
-                            if (error) { toast.error(error.message); return; }
-                            qc.invalidateQueries({ queryKey: ["purchase-orders"] });
-                            toast.success(t("confirmed"));
-                          });
-                        }}>
-                          {t("confirm")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={t("purchaseOrders")}
+        description={t("purchaseOrders")}
+        icon={ClipboardList}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addPurchaseOrder")}</Button>}
+      />
+
+      <ResponsiveTable
+        data={orders}
+        columns={columns}
+        keyExtractor={(o) => o.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
