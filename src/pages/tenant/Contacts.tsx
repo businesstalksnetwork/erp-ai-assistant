@@ -2,19 +2,20 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Search } from "lucide-react";
+import { Plus, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const TYPES = ["customer", "supplier", "prospect"] as const;
 const SENIORITY = ["c_level", "executive", "senior_manager", "manager", "senior", "mid", "junior", "intern"] as const;
@@ -71,8 +72,7 @@ export default function Contacts() {
     mutationFn: async (f: ContactForm) => {
       const { company_id, job_title, ...contactData } = f;
       const payload = {
-        ...contactData,
-        tenant_id: tenantId!,
+        ...contactData, tenant_id: tenantId!,
         seniority_level: contactData.seniority_level || null,
         function_area: contactData.function_area || null,
       };
@@ -85,7 +85,6 @@ export default function Contacts() {
         if (error) throw error;
         contactId = data.id;
       }
-      // Link company if selected
       if (company_id && contactId) {
         if (editId) await supabase.from("contact_company_assignments").delete().eq("contact_id", editId);
         await supabase.from("contact_company_assignments").insert([{
@@ -117,69 +116,58 @@ export default function Contacts() {
     return `${c.first_name} ${c.last_name}`.toLowerCase().includes(s) || c.email?.toLowerCase().includes(s) || c.phone?.includes(s);
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, render: (c) => <span className="font-medium">{c.first_name} {c.last_name || ""}</span> },
+    { key: "email", label: t("email"), render: (c) => c.email || "—" },
+    { key: "phone", label: t("phone"), hideOnMobile: true, render: (c) => c.phone || "—" },
+    { key: "type", label: t("type"), render: (c) => <Badge variant="secondary">{t(c.type as any)}</Badge> },
+    { key: "company", label: t("company"), hideOnMobile: true, render: (c) => (
+      <>
+        {c.contact_company_assignments?.map((a: any) => (
+          <Badge key={a.company_id} variant="outline" className="cursor-pointer mr-1"
+            onClick={(e) => { e.stopPropagation(); navigate(`/crm/companies/${a.company_id}`); }}>
+            {a.companies?.display_name || a.companies?.legal_name}
+          </Badge>
+        ))}
+        {(!c.contact_company_assignments || c.contact_company_assignments.length === 0) && "—"}
+      </>
+    )},
+    { key: "actions", label: t("actions"), showInCard: false, render: (c) => (
+      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>{t("edit")}</Button>
+    )},
+  ];
+
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("contacts")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addContact")}</Button>
-      </div>
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <PageHeader
+        title={t("contacts")}
+        description={"Your contacts directory"}
+        icon={Users}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addContact")}</Button>}
+      />
 
-      <div className="flex gap-4 items-center">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allTypes")}</SelectItem>
-            {TYPES.map(ty => <SelectItem key={ty} value={ty}>{t(ty as any)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <MobileFilterBar
+        search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />}
+        filters={
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allTypes")}</SelectItem>
+              {TYPES.map(ty => <SelectItem key={ty} value={ty}>{t(ty as any)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        }
+      />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("email")}</TableHead>
-                <TableHead>{t("phone")}</TableHead>
-                <TableHead>{t("type")}</TableHead>
-                <TableHead>{t("company")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : filtered.map((c: any) => (
-                <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/crm/contacts/${c.id}`)}>
-                  <TableCell className="font-medium">{c.first_name} {c.last_name || ""}</TableCell>
-                  <TableCell>{c.email || "—"}</TableCell>
-                  <TableCell>{c.phone || "—"}</TableCell>
-                  <TableCell><Badge variant="secondary">{t(c.type as any)}</Badge></TableCell>
-                  <TableCell>
-                    {c.contact_company_assignments?.map((a: any) => (
-                      <Badge key={a.company_id} variant="outline" className="cursor-pointer mr-1"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/crm/companies/${a.company_id}`); }}>
-                        {a.companies?.display_name || a.companies?.legal_name}
-                      </Badge>
-                    ))}
-                    {(!c.contact_company_assignments || c.contact_company_assignments.length === 0) && "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>{t("edit")}</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(c) => c.id}
+        onRowClick={(c) => navigate(`/crm/contacts/${c.id}`)}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">

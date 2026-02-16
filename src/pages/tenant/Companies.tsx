@@ -2,11 +2,9 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +13,9 @@ import { Plus, Loader2, Search, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface CompanyForm {
   legal_name: string; display_name: string; pib: string; maticni_broj: string;
@@ -69,14 +70,12 @@ export default function Companies() {
       if (editId) {
         const { error } = await supabase.from("companies").update(payload).eq("id", editId);
         if (error) throw error;
-        // Update categories
         await supabase.from("company_category_assignments").delete().eq("company_id", editId);
       } else {
         const { data, error } = await supabase.from("companies").insert([payload]).select("id").single();
         if (error) throw error;
         companyId = data.id;
       }
-      // Insert category assignments
       if (selectedCats.length > 0 && companyId) {
         const assignments = selectedCats.map(catId => ({ company_id: companyId!, category_id: catId, tenant_id: tenantId! }));
         await supabase.from("company_category_assignments").insert(assignments);
@@ -88,7 +87,6 @@ export default function Companies() {
 
   const lookupPib = async () => {
     if (form.pib.length !== 9) { toast.error("PIB mora imati 9 cifara"); return; }
-    // Check duplicate
     const { data: existing } = await supabase.from("companies").select("id, legal_name").eq("tenant_id", tenantId!).eq("pib", form.pib);
     if (existing && existing.length > 0 && (!editId || existing[0].id !== editId)) {
       toast.error(`Kompanija sa PIB ${form.pib} već postoji: ${existing[0].legal_name}`);
@@ -139,73 +137,59 @@ export default function Companies() {
     return c.legal_name?.toLowerCase().includes(s) || c.pib?.includes(s) || c.city?.toLowerCase().includes(s);
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, render: (c) => (
+      <div className="flex items-center gap-2">
+        <Building2 className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{c.display_name || c.legal_name}</span>
+      </div>
+    )},
+    { key: "pib", label: t("pib"), render: (c) => c.pib || "—" },
+    { key: "city", label: t("city"), render: (c) => c.city || "—" },
+    { key: "email", label: t("email"), hideOnMobile: true, render: (c) => c.email || "—" },
+    { key: "categories", label: t("categories"), hideOnMobile: true, render: (c) => (
+      <div className="flex gap-1 flex-wrap">
+        {c.company_category_assignments?.map((a: any) => (
+          <Badge key={a.category_id} variant="outline" style={{ borderColor: a.company_categories?.color }}>
+            {a.company_categories?.name_sr || a.company_categories?.name}
+          </Badge>
+        ))}
+      </div>
+    )},
+    { key: "status", label: t("status"), render: (c) => <Badge variant={c.status === "active" ? "default" : "secondary"}>{t(c.status as any)}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (c) => (
+      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>{t("edit")}</Button>
+    )},
+  ];
+
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("companies")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addCompany")}</Button>
-      </div>
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <PageHeader
+        title={t("companies")}
+        description={"Company registry and CRM"}
+        icon={Building2}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addCompany")}</Button>}
+      />
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-      </div>
+      <MobileFilterBar
+        search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />}
+        filters={<></>}
+      />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("pib")}</TableHead>
-                <TableHead>{t("city")}</TableHead>
-                <TableHead>{t("email")}</TableHead>
-                <TableHead>{t("categories")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : filtered.map((c: any) => (
-                <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/crm/companies/${c.id}`)}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      {c.display_name || c.legal_name}
-                    </div>
-                  </TableCell>
-                  <TableCell>{c.pib || "—"}</TableCell>
-                  <TableCell>{c.city || "—"}</TableCell>
-                  <TableCell>{c.email || "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {c.company_category_assignments?.map((a: any) => (
-                        <Badge key={a.category_id} variant="outline" style={{ borderColor: a.company_categories?.color }}>
-                          {a.company_categories?.name_sr || a.company_categories?.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell><Badge variant={c.status === "active" ? "default" : "secondary"}>{t(c.status as any)}</Badge></TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>{t("edit")}</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(c) => c.id}
+        onRowClick={(c) => navigate(`/crm/companies/${c.id}`)}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editCompany") : t("addCompany")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            {/* PIB Lookup */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2 sm:col-span-2">
                 <Label>{t("pib")}</Label>
@@ -235,7 +219,6 @@ export default function Companies() {
               <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("postalCode")}</Label><Input value={form.postal_code} onChange={e => setForm({ ...form, postal_code: e.target.value })} /></div>
             </div>
-            {/* Categories */}
             <div className="grid gap-2">
               <Label>{t("categories")}</Label>
               <div className="flex flex-wrap gap-3">
