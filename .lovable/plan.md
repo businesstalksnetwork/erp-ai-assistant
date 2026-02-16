@@ -1,60 +1,49 @@
 
 
-# Plan: Force All PDF Text to Black
+# Plan: Force ALL PDF Text to Black (No Threshold)
 
-## Why Previous Fixes Still Show Gray
+## Problem
 
-Even with the `.dark` class removed (which IS working), the light theme itself uses gray for labels:
-- `text-muted-foreground` in light mode = `hsl(220, 10%, 46%)` = medium gray
-- `bg-secondary` = light beige/gray background
-- These are by design in light mode, but look bad on a PDF
-
-CSS variable inline overrides on the wrapper don't work because `html2canvas` does not reliably cascade CSS custom properties set as inline styles.
+The luminance detection (`> 120`) misses "medium gray" text. In light mode, `text-muted-foreground` = `hsl(220, 10%, 46%)` = ~rgb(106, 110, 126) with luminance ~111, which is BELOW the 120 threshold. So the gray labels (Issue Date, ISSUER, ITEMS, Description, etc.) are never caught.
 
 ## Solution
 
-After removing `.dark` class and before calling `html2canvas`, walk every element in the clone and force all text to be dark. This is the most reliable approach because inline `style.color` on each element is always respected by `html2canvas`.
+Stop using luminance detection entirely. On a PDF invoice, ALL text should be black. Force `color: #000000` on every single element inside the wrapper. No exceptions, no threshold logic.
 
 ## Technical Changes
 
 ### File: `src/hooks/usePdfGenerator.ts`
 
-After the `.dark` class is removed (line 135) and before the `html2canvas` call (line 147), add a DOM walk that forces all text colors to be dark:
+Replace the current element-by-element loop (lines 142-172) with a simpler version:
 
 ```typescript
-// After removing .dark, force all text in clone to be dark for PDF
+// Force ALL text to black for PDF readability - no exceptions
 const allElements = wrapper.querySelectorAll('*');
 allElements.forEach(el => {
   const element = el as HTMLElement;
+  element.style.color = '#000000';
+  element.style.setProperty('-webkit-text-fill-color', '#000000');
+  
+  // Force any dark backgrounds to white
   const computed = getComputedStyle(element);
-  const r = parseInt(computed.color.match(/\d+/g)?.[0] || '0');
-  const g = parseInt(computed.color.match(/\d+/g)?.[1] || '0');
-  const b = parseInt(computed.color.match(/\d+/g)?.[2] || '0');
-  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-  
-  // If text is lighter than ~50% gray, force it dark
-  if (luminance > 120) {
-    element.style.color = '#1a1a1a';
-    element.style.setProperty('-webkit-text-fill-color', '#1a1a1a');
-  }
-  
-  // Force backgrounds to be light
-  const bgR = parseInt(computed.backgroundColor.match(/\d+/g)?.[0] || '255');
-  const bgG = parseInt(computed.backgroundColor.match(/\d+/g)?.[1] || '255');
-  const bgB = parseInt(computed.backgroundColor.match(/\d+/g)?.[2] || '255');
-  const bgLuminance = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-  
-  if (bgLuminance < 128) {
-    element.style.backgroundColor = '#f5f5f5';
+  const bgMatch = computed.backgroundColor.match(/\d+/g);
+  if (bgMatch) {
+    const bgR = parseInt(bgMatch[0]);
+    const bgG = parseInt(bgMatch[1]);
+    const bgB = parseInt(bgMatch[2]);
+    const bgLuminance = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
+    if (bgLuminance < 200) {
+      element.style.backgroundColor = 'transparent';
+    }
   }
 });
+// Force wrapper itself
+wrapper.style.color = '#000000';
 ```
 
-This approach:
-- Reads **computed** styles (which reflect light mode since `.dark` is removed)
-- Detects any gray/light text and forces it to near-black
-- Detects any dark backgrounds and forces them light
-- Uses inline styles directly on each element, which `html2canvas` always respects
-- No reliance on CSS variables or class-based overrides
+Key differences from current code:
+- ALL text forced to black -- no luminance check, no threshold
+- Dark/gray backgrounds forced to transparent instead of `#f5f5f5` (which was causing the gray "AMOUNT DUE" box)
+- Simpler, fewer lines, fewer ways to fail
 
 No other files need changes.
