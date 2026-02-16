@@ -1,197 +1,191 @@
 
 
-# Plan: Trackable Invoice Links, In-App Notification System, and App Header
+# Plan: In-app notifikacije iz edge funkcije + Push notifikacije + Settings UI
 
-## Overview
-Three interconnected features: (1) Make invoice PDF links trackable so you know when a client opens/views the invoice, (2) Build a persistent in-app notification system stored in the database, (3) Redesign the app layout to include a top header bar with notifications bell and user profile section.
+## Pregled
+
+Tri povezane stvari:
+1. Edge funkcija `send-notification-emails` treba da kreira i in-app notifikacije (u `notifications` tabeli) pored email-ova
+2. Izgraditi potpun push notification sistem (browser Push API + Service Worker)
+3. Dodati nove sekcije u Settings tab: "App notifikacije" i "Push notifikacije"
 
 ---
 
-## Part 1: Trackable Invoice PDF Links
+## Deo 1: In-app notifikacije iz edge funkcije
 
-### How it works
-Instead of sending the direct PDF URL in the email, we send a tracking URL that goes through our backend function. When the client clicks the link, the function:
-1. Records the "view" event (timestamp, IP, user-agent)
-2. Redirects the client to the actual PDF URL
-3. Creates an in-app notification for the invoice owner: "Klijent je pogledao fakturu X"
+### Izmena: `supabase/functions/send-notification-emails/index.ts`
 
-### Database changes
+Dodati helper `insertNotification` i pozvati ga na tri mesta:
 
-**New table: `invoice_views`**
+**a) Podsetnici** (posle uspesnog email slanja, linija 86):
+- Tip: `reminder_due`
+- Naslov: `Podsetnik: {title}`
+- Poruka: `Rok: {due_date}` + iznos ako postoji
+- Link: `/reminders`
+- reference_id: reminder ID
+
+**b) Pretplata/trial** (posle logNotification, linija 109):
+- Tip: `subscription_expiring`
+- Naslov: `Pretplata istice za {d} dana` / `Trial istice za {d} dana`
+- Poruka: `Vasa pretplata istice {date}`
+- Link: `/profile`
+
+**c) Limiti** (posle logNotification, linija 135):
+- Tip: `limit_warning`
+- Naslov: `Upozorenje: Limit {percent}%`
+- Poruka: `Dostigli ste {percent}% limita od 6M. Preostalo: {remaining}`
+- Link: `/dashboard`
+
+### Izmena: `src/components/NotificationBell.tsx`
+
+Dodati ikone za nove tipove:
+- `reminder_due` - Clock ikona (narandzasta)
+- `subscription_expiring` - AlertTriangle ikona (crvena)
+- `limit_warning` - TrendingUp ikona (zuta)
+
+---
+
+## Deo 2: Push Notification sistem
+
+### Kako funkcionise
+- Browser Push API omogucava slanje notifikacija cak i kada aplikacija nije otvorena
+- Korisnik odobri dozvolu u browseru
+- Browser generise "push subscription" (endpoint + keys)
+- Subscription se cuva u bazi
+- Edge funkcija salje push notifikaciju preko Web Push protokola
+
+### Baza podataka - nova tabela `push_subscriptions`
 - `id` (UUID, PK)
-- `invoice_id` (UUID, FK to invoices)
-- `company_id` (UUID, FK to companies)
-- `email_log_id` (UUID, FK to invoice_email_log, nullable)
-- `tracking_token` (TEXT, UNIQUE) - random token for the tracking URL
-- `pdf_url` (TEXT) - the actual signed PDF URL
-- `pdf_url_expires_at` (TIMESTAMPTZ) - when the signed URL expires
-- `viewed_at` (TIMESTAMPTZ, nullable) - first view timestamp
-- `view_count` (INT, default 0) - total views
-- `last_viewed_at` (TIMESTAMPTZ, nullable)
-- `viewer_ip` (TEXT, nullable)
-- `viewer_user_agent` (TEXT, nullable)
-- `created_at` (TIMESTAMPTZ, default now())
+- `user_id` (UUID, NOT NULL)
+- `endpoint` (TEXT, NOT NULL) - browser push endpoint
+- `p256dh` (TEXT, NOT NULL) - public key
+- `auth` (TEXT, NOT NULL) - auth secret
+- `created_at` (TIMESTAMPTZ)
 
-RLS: No RLS needed since this table is accessed by edge functions with service role key. For frontend reads, add policy for authenticated users to read rows where `company_id` matches their companies.
+RLS: korisnici mogu citati/brisati/kreirati svoje subscriptions (`user_id = auth.uid()`)
 
-### New edge function: `track-invoice-view`
-- Accepts GET request with `?token=<tracking_token>`
-- Looks up the `invoice_views` record by token
-- Updates `viewed_at` (if first view), increments `view_count`, sets `last_viewed_at`
-- Creates a notification in the `notifications` table
-- Redirects (HTTP 302) to the actual PDF URL
-- If token expired or not found, shows a simple error page
+### Profil tabela - nova kolona
+- `push_notifications_enabled` (BOOLEAN, default false) - da li korisnik zeli push notifikacije
 
-### Changes to `send-invoice-email` edge function
-- After sending email successfully, create an `invoice_views` record with a random tracking token
-- Replace `{{pdf_url}}` in template data with the tracking URL: `https://<supabase-url>/functions/v1/track-invoice-view?token=<token>`
+### VAPID kljucevi
+Push notifikacije zahtevaju VAPID (Voluntary Application Server Identification) kljuceve. Generisacemo par kljuceva:
+- Javni kljuc (VAPID public key) - koristi se u frontendu za subscribe
+- Privatni kljuc (VAPID private key) - cuva se kao secret u edge funkcijama
 
----
+### Service Worker: `public/sw.js`
+- Minimalan service worker koji slusa `push` event i prikazuje notifikaciju
+- Slusa `notificationclick` event za navigaciju na link iz notifikacije
 
-## Part 2: In-App Notification System
+### Hook: `src/hooks/usePushNotifications.ts`
+- Proverava da li browser podrzava Push API
+- Proverava/zahteva dozvolu
+- Subscribe/unsubscribe logika
+- Cuva subscription u `push_subscriptions` tabeli
 
-### Database changes
-
-**New table: `notifications`**
-- `id` (UUID, PK)
-- `user_id` (UUID, references profiles.id)
-- `company_id` (UUID, nullable)
-- `type` (TEXT) - e.g. 'invoice_viewed', 'reminder_due', 'limit_warning', 'subscription_expiring'
-- `title` (TEXT)
-- `message` (TEXT)
-- `link` (TEXT, nullable) - where to navigate on click
-- `reference_id` (TEXT, nullable) - e.g. invoice ID
-- `is_read` (BOOLEAN, default false)
-- `created_at` (TIMESTAMPTZ, default now())
-
-RLS: Users can only read/update their own notifications (`user_id = auth.uid()`).
-
-### New hook: `useAppNotifications`
-- Fetches unread notifications count and list from the `notifications` table
-- Uses realtime subscription (via Supabase Realtime) to get instant updates when new notifications arrive
-- Provides `markAsRead(id)`, `markAllAsRead()`, and `dismissNotification(id)` functions
-
-### How notifications get created
-- **Invoice viewed**: The `track-invoice-view` edge function creates a notification for the invoice owner
-- Future: Other notification types can be added (reminders, limits, etc.)
+### Edge funkcija: izmena `send-notification-emails`
+- Posle kreiranja in-app notifikacije, proveriti da li korisnik ima `push_notifications_enabled = true`
+- Ako da, poslati web push na sve registrovane subscription-e tog korisnika
+- Koristiti `web-push` biblioteku za slanje
 
 ---
 
-## Part 3: App Header with Notifications and User Profile
+## Deo 3: Settings UI
 
-### Layout redesign
-Currently the app has only a sidebar. We'll add a fixed top header bar (on desktop) that contains:
+### Izmena: `src/pages/Profile.tsx` - Settings tab
 
-```
-[Page breadcrumb/title]                    [Bell icon + badge]  [User name + role + chevron]
-```
+Posle Email notifikacije karte, dodati dve nove karte:
 
-- **Left side**: Empty or page context (optional)
-- **Right side**: 
-  - Notification bell icon with unread count badge
-  - User profile section (like the screenshot): Name + Role, clicking opens dropdown with same options as current sidebar dropdown (change password, theme toggle, sign out)
+**Karta: "App notifikacije" (ikona: Bell)**
+- Opis: "Notifikacije koje se prikazuju u aplikaciji (zvonce u headeru)"
+- Switch: Faktura pregledana - "Obavestenje kada klijent otvori fakturu" (uvek ukljuceno, ne moze se iskljuciti za sada jer nema zasebnu kontrolu - ovo je podrazumevano ponasanje)
+- Switch: Podsetnici - "Prikazi notifikaciju u aplikaciji za podsetnike"
+- Switch: Istek pretplate - "Prikazi notifikaciju u aplikaciji kada pretplata istice"
+- Switch: Upozorenja za limite - "Prikazi notifikaciju u aplikaciji za limite"
 
-### Notification dropdown
-Clicking the bell opens a dropdown/popover showing:
-- List of recent notifications (last 20)
-- Each item shows: icon, title, message, time ago
-- Click on a notification marks it as read and navigates to the link
-- "Oznaci sve kao procitane" (Mark all as read) button at the top
-- Unread items have a blue dot indicator
+Za ovo ce trebati nove kolone u profiles:
+- `app_notify_reminders` (BOOLEAN, default true)
+- `app_notify_subscription` (BOOLEAN, default true)
+- `app_notify_limits` (BOOLEAN, default true)
 
-### Changes to `AppLayout.tsx`
-- Add a `<header>` element between sidebar and main content area
-- On desktop: fixed top bar starting at `left: 256px` (sidebar width)
-- On mobile: integrated into existing mobile header
-- Move user dropdown from sidebar bottom to the header right side
-- Keep sidebar navigation as-is (without the bottom user section)
+Edge funkcija ce proveravati ove preference pre kreiranja notifikacije.
 
-### Files involved
-- `src/components/AppLayout.tsx` - Add header, move user section
-- `src/components/NotificationBell.tsx` - New component for bell + dropdown
-- `src/hooks/useAppNotifications.ts` - New hook for notification data
+**Karta: "Push notifikacije" (ikona: Smartphone)**
+- Opis: "Primajte notifikacije i kada aplikacija nije otvorena"
+- Status badge koji pokazuje da li je dozvola data u browseru
+- Glavni Switch: "Omoguci push notifikacije"
+  - Kada se ukljuci: trazi dozvolu browsera, registruje service worker, subscribuje se
+  - Kada se iskljuci: unsubscribuje se, brise iz baze
+- Dugme: "Posalji test notifikaciju" - za testiranje
 
 ---
 
-## Technical Details
+## Tehnicki detalji
 
-### Database migration SQL
+### SQL migracija
 ```
--- Invoice view tracking
-CREATE TABLE invoice_views (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  invoice_id UUID REFERENCES invoices(id),
-  company_id UUID REFERENCES companies(id),
-  email_log_id UUID REFERENCES invoice_email_log(id),
-  tracking_token TEXT UNIQUE NOT NULL,
-  pdf_url TEXT NOT NULL,
-  pdf_url_expires_at TIMESTAMPTZ,
-  viewed_at TIMESTAMPTZ,
-  view_count INT DEFAULT 0,
-  last_viewed_at TIMESTAMPTZ,
-  viewer_ip TEXT,
-  viewer_user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- In-app notifications
-CREATE TABLE notifications (
+-- Push subscriptions
+CREATE TABLE push_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL,
-  company_id UUID,
-  type TEXT NOT NULL DEFAULT 'general',
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  link TEXT,
-  reference_id TEXT,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, endpoint)
 );
 
--- Enable realtime for notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- RLS
-ALTER TABLE invoice_views ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own company invoice views"
-  ON invoice_views FOR SELECT
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can read own notifications"
-  ON notifications FOR SELECT
+CREATE POLICY "Users manage own push subscriptions"
+  ON push_subscriptions FOR ALL
   USING (user_id = auth.uid());
 
-CREATE POLICY "Users can update own notifications"
-  ON notifications FOR UPDATE
-  USING (user_id = auth.uid());
+-- App notification preferences
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_reminders BOOLEAN DEFAULT true;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_subscription BOOLEAN DEFAULT true;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS app_notify_limits BOOLEAN DEFAULT true;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_notifications_enabled BOOLEAN DEFAULT false;
 ```
 
-### Edge function: `track-invoice-view`
-- GET handler that reads `token` query param
-- Looks up `invoice_views` by `tracking_token`
-- Updates view stats
-- Finds the invoice owner (via `invoices.company_id` -> `companies.user_id`)
-- Inserts a notification for that user
-- Returns HTTP 302 redirect to `pdf_url`
+### Service Worker (`public/sw.js`)
+```
+self.addEventListener('push', function(event) {
+  const data = event.data?.json() || {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'PausalBox', {
+      body: data.message,
+      icon: '/favicon.png',
+      data: { url: data.link }
+    })
+  );
+});
 
-### Changes to `send-invoice-email`
-- After successful email send and log insert, generate a `tracking_token` (crypto.randomUUID())
-- Insert into `invoice_views` with the token and original `pdfUrl`
-- Build tracking URL and use it as `pdf_url` in template data
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  if (event.notification.data?.url) {
+    event.waitUntil(clients.openWindow(event.notification.data.url));
+  }
+});
+```
 
-### New component: `NotificationBell`
-- Uses `useAppNotifications` hook
-- Renders Bell icon with badge count
-- Popover with scrollable notification list
-- Each notification: icon based on type, title, message, relative time
-- Click marks as read and navigates
+### VAPID kljucevi
+- Generisati VAPID key pair
+- Javni kljuc: hardkodiran u frontendu (env varijabla VITE_VAPID_PUBLIC_KEY)
+- Privatni kljuc: secret VAPID_PRIVATE_KEY u edge funkcijama
+- VAPID subject: `mailto:obavestenja@pausalbox.rs`
 
-### `AppLayout.tsx` changes
-- Add fixed header bar at top (h-14, bg-card, border-bottom)
-- Desktop: `left-64`, right-0, z-30
-- Contains: notification bell (right), user dropdown (far right)
-- User dropdown shows name + role like screenshot, with chevron
-- Remove user section from sidebar bottom
-- Adjust main content padding to account for header height
+### Edge funkcija izmene
+`send-notification-emails/index.ts`:
+1. Dodati `insertNotification` helper (uz proveru app_notify preference)
+2. Dodati `sendPushNotification` helper (uz proveru push_notifications_enabled)
+3. Posle svakog uspesnog email slanja pozvati oba helpera
+
+### Fajlovi koji se menjaju/kreiraju
+- `supabase/functions/send-notification-emails/index.ts` - in-app + push notifikacije
+- `src/components/NotificationBell.tsx` - nove ikone za tipove
+- `src/hooks/usePushNotifications.ts` - NOVO: push subscription logika
+- `src/pages/Profile.tsx` - nove Settings karte
+- `src/lib/auth.tsx` - nove kolone u ProfileData interfejs
+- `public/sw.js` - NOVO: service worker za push
+- SQL migracija za novu tabelu i kolone
+
