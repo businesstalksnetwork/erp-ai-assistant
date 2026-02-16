@@ -179,7 +179,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
         <Link to="/dashboard" className="transition-transform hover:scale-105">
-          <img src={logoDark} alt="Paušal box" className="h-10" />
+          <img src={logoLight} alt="Paušal box" className="h-10" />
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell />
