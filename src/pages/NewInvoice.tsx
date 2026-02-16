@@ -1429,11 +1429,11 @@ export default function NewInvoice() {
         </Card>
 
         {/* Submit */}
-        <div className="flex gap-4">
-          <Button type="button" variant="outline" onClick={() => { clearDraft(); navigate('/invoices'); }}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => { clearDraft(); navigate('/invoices'); }}>
             Otkaži
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto">
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
             Sačuvaj {formData.invoice_type === 'proforma' ? 'predračun' : formData.invoice_type === 'advance' ? 'avansnu fakturu' : 'fakturu'}

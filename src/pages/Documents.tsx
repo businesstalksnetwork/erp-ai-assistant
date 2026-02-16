@@ -248,8 +248,8 @@ export default function Documents() {
       </div>
 
       {/* Search + Actions Row */}
-      <div className="flex items-center gap-3 flex-wrap justify-between">
-        <div className="relative min-w-[200px] max-w-md flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Pretraži dokumente..."
@@ -258,12 +258,12 @@ export default function Documents() {
             className="pl-10"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setFolderDialogOpen(true)}>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setFolderDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Novi folder
           </Button>
-          <Button onClick={openUploadDialog}>
+          <Button className="flex-1 sm:flex-none" onClick={openUploadDialog}>
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
@@ -317,14 +317,15 @@ export default function Documents() {
                     : 'Nema dokumenata u ovom folderu.'}
                 </div>
               ) : (
-                <Table>
+              <div className="overflow-x-auto">
+              <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Ime fajla</TableHead>
-                      <TableHead>Folder</TableHead>
-                      <TableHead>Veličina</TableHead>
-                      <TableHead>Datum</TableHead>
-                      <TableHead className="w-[120px]">Akcije</TableHead>
+                      <TableHead className="hidden sm:table-cell">Folder</TableHead>
+                      <TableHead className="hidden sm:table-cell">Veličina</TableHead>
+                      <TableHead className="hidden sm:table-cell">Datum</TableHead>
+                      <TableHead className="w-[100px]">Akcije</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -340,13 +341,13 @@ export default function Documents() {
                               <span className="font-medium">{doc.name}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
                             {folder?.name || '-'}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
                             {formatFileSize(doc.file_size)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
                             {format(new Date(doc.created_at), 'dd.MM.yyyy', { locale: sr })}
                           </TableCell>
                           <TableCell>
@@ -407,6 +408,7 @@ export default function Documents() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
               )}
             </TabsContent>
           </Tabs>

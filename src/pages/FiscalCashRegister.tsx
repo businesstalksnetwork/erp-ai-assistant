@@ -159,7 +159,7 @@ export default function FiscalCashRegister() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupne prodaje</CardTitle>
@@ -206,22 +206,22 @@ export default function FiscalCashRegister() {
         <CardHeader>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Fiskalni podaci - {year}. godina</CardTitle>
-                <CardDescription>
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Fiskalni podaci - {year}. godina</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   {activeTab === 'summary' 
-                    ? 'Sumirani promet po danima (uključeno u KPO knjigu) - kliknite na status da označite sve račune za dan' 
+                    ? 'Sumirani promet po danima - kliknite na status da označite račune za dan' 
                     : 'Lista svih fiskalnih računa sa mogućnošću brisanja i označavanja plaćanja'}
                 </CardDescription>
               </div>
-              <TabsList>
+              <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:flex">
                 <TabsTrigger value="summary">
-                  <Calculator className="h-4 w-4 mr-2" />
-                  Dnevni zbir
+                  <Calculator className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">Dnevni zbir</span>
                 </TabsTrigger>
                 <TabsTrigger value="entries">
-                  <List className="h-4 w-4 mr-2" />
-                  Računi ({entries.length})
+                  <List className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="text-xs sm:text-sm">Računi ({entries.length})</span>
                 </TabsTrigger>
               </TabsList>
             </div>

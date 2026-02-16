@@ -342,31 +342,33 @@ export default function Index() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="grid grid-cols-3 bg-slate-100 font-semibold text-sm">
-                <div className="p-4 text-slate-700">Aspekt</div>
-                <div className="p-4 text-center text-red-500">Bez aplikacije</div>
-                <div className="p-4 text-center text-emerald-600">Sa aplikacijom</div>
+              <div className="overflow-x-auto">
+              <div className="grid grid-cols-3 bg-slate-100 font-semibold text-sm min-w-[500px]">
+                <div className="p-3 sm:p-4 text-slate-700">Aspekt</div>
+                <div className="p-3 sm:p-4 text-center text-red-500">Bez aplikacije</div>
+                <div className="p-3 sm:p-4 text-center text-emerald-600">Sa aplikacijom</div>
               </div>
               {comparison.map((item, index) => (
                 <motion.div 
                   key={item.aspect}
-                  className="grid grid-cols-3 border-t border-slate-200 bg-white"
+                  className="grid grid-cols-3 border-t border-slate-200 bg-white min-w-[500px]"
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <div className="p-4 font-medium text-slate-900">{item.aspect}</div>
-                  <div className="p-4 text-center text-slate-600 flex items-center justify-center gap-2">
-                    <X className="h-4 w-4 text-red-400" />
-                    <span className="text-sm">{item.before}</span>
+                  <div className="p-3 sm:p-4 font-medium text-slate-900 text-sm">{item.aspect}</div>
+                  <div className="p-3 sm:p-4 text-center text-slate-600 flex items-center justify-center gap-1 sm:gap-2">
+                    <X className="h-3 w-3 sm:h-4 sm:w-4 text-red-400 shrink-0" />
+                    <span className="text-xs sm:text-sm">{item.before}</span>
                   </div>
-                  <div className="p-4 text-center flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span className="text-sm font-medium text-emerald-600">{item.after}</span>
+                  <div className="p-3 sm:p-4 text-center flex items-center justify-center gap-1 sm:gap-2">
+                    <Check className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-500 shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-emerald-600">{item.after}</span>
                   </div>
                 </motion.div>
               ))}
+              </div>
             </motion.div>
           </div>
         </section>

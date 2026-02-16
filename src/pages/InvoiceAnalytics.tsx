@@ -224,7 +224,7 @@ export default function InvoiceAnalytics() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupan promet</CardTitle>
@@ -279,7 +279,7 @@ export default function InvoiceAnalytics() {
             {totals.total === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
                 <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
