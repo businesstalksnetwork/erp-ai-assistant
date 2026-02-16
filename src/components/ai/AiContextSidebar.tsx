@@ -4,7 +4,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Bot, Send, Loader2, Sparkles, X, MessageSquare } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Bot, Send, Loader2, Sparkles, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAiStream } from "@/hooks/useAiStream";
@@ -61,11 +62,11 @@ function getNarrativeContext(path: string): string | null {
 
 interface AiContextSidebarProps {
   open: boolean;
-  onClose: () => void;
+  onToggle: () => void;
 }
 
-export function AiContextSidebar({ open, onClose }: AiContextSidebarProps) {
-  const { t, locale } = useLanguage();
+export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
+  const { locale } = useLanguage();
   const { tenantId } = useTenant();
   const location = useLocation();
   const { messages, isLoading, send, clear } = useAiStream({ tenantId, locale });
@@ -95,22 +96,44 @@ export function AiContextSidebar({ open, onClose }: AiContextSidebarProps) {
     }
   };
 
-  if (!open) return null;
+  // Collapsed rail
+  if (!open) {
+    return (
+      <TooltipProvider>
+        <aside className="w-10 border-l bg-card/50 backdrop-blur-sm flex flex-col items-center py-3 gap-3 h-full shrink-0 print:hidden">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggle}>
+                <Sparkles className="h-4 w-4 text-primary" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{sr ? "Otvori AI Copilot" : "Open AI Copilot"}</p>
+            </TooltipContent>
+          </Tooltip>
+          <span className="text-[10px] font-bold text-muted-foreground tracking-widest [writing-mode:vertical-lr] rotate-180 select-none">
+            AI
+          </span>
+        </aside>
+      </TooltipProvider>
+    );
+  }
 
+  // Expanded panel
   return (
-    <aside className="w-[280px] xl:w-[300px] border-l bg-card/50 backdrop-blur-sm flex flex-col h-full shrink-0 print:hidden">
+    <aside className="w-[280px] xl:w-[300px] border-l bg-card/50 backdrop-blur-sm flex flex-col h-full shrink-0 print:hidden overflow-hidden">
       {/* Header */}
-      <div className="h-12 flex items-center justify-between px-3 border-b">
+      <div className="h-12 flex items-center justify-between px-3 border-b shrink-0">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" />
           <span>AI Copilot</span>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggle}>
+          <ChevronRight className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-3">
           {/* Module Insights */}
           {tenantId && module && (
@@ -157,7 +180,6 @@ export function AiContextSidebar({ open, onClose }: AiContextSidebarProps) {
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
               <div className="space-y-2">
-                {/* Messages */}
                 {messages.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-3">
                     {sr ? "Pitajte o vašim podacima..." : "Ask about your data..."}
@@ -201,7 +223,7 @@ export function AiContextSidebar({ open, onClose }: AiContextSidebarProps) {
       </ScrollArea>
 
       {/* Chat Input */}
-      <div className="border-t p-2 flex gap-1.5">
+      <div className="border-t p-2 flex gap-1.5 shrink-0">
         <Textarea
           value={input}
           onChange={e => setInput(e.target.value)}

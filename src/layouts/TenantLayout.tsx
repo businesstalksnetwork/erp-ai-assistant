@@ -454,15 +454,17 @@ export default function TenantLayout() {
               <Breadcrumbs />
             </div>
             <div className="flex items-center gap-1.5">
-              <Button
-                variant={aiSidebarOpen ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setAiSidebarOpen(prev => !prev)}
-                title="AI Copilot"
-              >
-                <Sparkles className="h-4 w-4" />
-              </Button>
+              {isMobile && (
+                <Button
+                  variant={aiSidebarOpen ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setAiSidebarOpen(prev => !prev)}
+                  title="AI Copilot"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              )}
               <TenantSelector />
               <NotificationBell />
               <Separator orientation="vertical" className="h-5" />
@@ -504,7 +506,7 @@ export default function TenantLayout() {
               <Outlet />
             </main>
             {!isMobile && (
-              <AiContextSidebar open={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
+              <AiContextSidebar open={aiSidebarOpen} onToggle={() => setAiSidebarOpen(prev => !prev)} />
             )}
           </div>
         </div>
