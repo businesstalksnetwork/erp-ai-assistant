@@ -1,76 +1,69 @@
 
 
-# Plan: Pre-Bake Black Text on Clone Before html2canvas
+# Plan: Post-Process Canvas Pixels to Force Black Text
 
-## Root Cause Analysis
+## Why Previous Attempts Failed
 
-After 4+ failed attempts, the pattern is clear: html2canvas 1.4.1 has its own internal CSS parser that does NOT reliably respect:
-- CSS custom properties (`var(--foreground)`)  
-- Modern space-separated HSL syntax (`hsl(222 47% 11%)`)
-- Stylesheet injections into `document.head`
-- Inline style overrides via `onclone` callback
+html2canvas v1.4.1 has an internal CSS parser that does not reliably respect inline `!important` overrides, CSS custom properties, or style injections. After 5+ attempts using CSS-level fixes (inline styles, stylesheet injection, `onclone` callbacks, dark class removal), the text remains gray. The library's rendering pipeline is a black box we cannot control.
 
-The library captures/computes styles in its own pipeline, and our post-hoc overrides are being ignored or processed incorrectly.
+## New Approach: Canvas Pixel Post-Processing
 
-## Solution
+Instead of fighting html2canvas's CSS parser, let it render whatever colors it wants. Then, AFTER it produces the canvas, we post-process every pixel:
 
-Pre-bake `color: #000000` as inline styles directly on the DOM elements BEFORE passing them to `html2canvas()`. Since we already clone the invoice element (`invoiceElement.cloneNode(true)`), we can modify the clone freely. html2canvas will see elements with `style="color: #000000 !important"` baked directly into the HTML -- there is nothing to resolve, parse, or override.
+- Gray pixels (not white, not colored) get forced to pure black
+- White pixels stay white (backgrounds)
+- Colored pixels stay colored (yellow badge, etc.)
+- Very dark pixels stay dark (already near-black)
+
+This is guaranteed to work because we operate on the final pixel data -- html2canvas has no say in it.
 
 ## Technical Changes
 
 ### File: `src/hooks/usePdfGenerator.ts`
 
-**After** cloning the invoice element and setting up basic styles (around line 80, before `wrapper.appendChild(clone)`), add a DOM walker that forces every single element's text to black:
+After `html2canvas()` returns the canvas and before `pdf.addImage()`, add pixel manipulation:
 
 ```typescript
-// PRE-BAKE: Force ALL text colors to black BEFORE html2canvas sees them
-// This is the most aggressive approach - colors are in the HTML itself
-const allCloneElements = clone.querySelectorAll('*');
-allCloneElements.forEach(el => {
-  const htmlEl = el as HTMLElement;
-  htmlEl.style.setProperty('color', '#000000', 'important');
-  htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
-});
-clone.style.setProperty('color', '#000000', 'important');
-clone.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+// Post-process canvas: force all gray text to pure black
+const ctx = canvas.getContext('2d');
+if (ctx) {
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
 
-// Exception: .bg-primary elements need white text
-clone.querySelectorAll('.bg-primary').forEach(el => {
-  const htmlEl = el as HTMLElement;
-  htmlEl.style.setProperty('color', '#ffffff', 'important');
-  htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-  htmlEl.style.setProperty('background-color', '#222222', 'important');
-  htmlEl.querySelectorAll('*').forEach(child => {
-    const childEl = child as HTMLElement;
-    childEl.style.setProperty('color', '#ffffff', 'important');
-    childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-  });
-});
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    const saturation = maxC - minC;
+
+    // Gray pixel (low saturation) that's not white and not already black
+    if (saturation < 50 && lum > 20 && lum < 210) {
+      data[i] = 0;       // R -> black
+      data[i + 1] = 0;   // G -> black
+      data[i + 2] = 0;   // B -> black
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
 ```
 
-This goes RIGHT BEFORE `wrapper.appendChild(clone)` (before line 81). Insert after the existing `print:hidden` block.
+The pixel classification logic:
+- `saturation < 50`: Only affect gray/neutral pixels (preserves yellow badge, colored elements)
+- `lum > 20`: Don't touch already-black or very dark pixels (preserves dark backgrounds)
+- `lum < 210`: Don't touch white/near-white pixels (preserves white backgrounds)
+- Everything in between is gray text/borders -- force to black
 
-**Keep all existing measures** (stylesheet injection, onclone callback, dark class removal) as layered redundancy.
+This preserves:
+- White backgrounds (lum > 210)
+- Dark primary background with white text (white text has lum > 210, bg has lum < 20)
+- Yellow/colored badges (saturation > 50)
+- Only gray pixels become black -- exactly what we want
 
-**Additionally**, in the `onclone` callback, also inject a `<style>` tag into the cloned document's `<head>`:
+### Keep all existing code
 
-```typescript
-onclone: (clonedDoc, clonedElement) => {
-  // Inject override stylesheet into cloned document
-  const overrideStyle = clonedDoc.createElement('style');
-  overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
-  clonedDoc.head.appendChild(overrideStyle);
-  
-  // Also force inline styles on all cloned elements
-  clonedElement.querySelectorAll('*').forEach(el => {
-    // ... existing code
-  });
-},
-```
-
-### Why This Will Finally Work
-
-Previous attempts failed because they tried to override colors AFTER html2canvas had already captured style data. This approach modifies the actual DOM elements BEFORE html2canvas ever touches them. The inline `style` attribute with `!important` is part of the HTML markup itself -- html2canvas cannot ignore it regardless of how its CSS parser works.
+All existing CSS overrides, dark class removal, and style injection remain as-is. They may partially help, and the canvas post-processing acts as the final guarantee.
 
 ### No other files need changes.
 
