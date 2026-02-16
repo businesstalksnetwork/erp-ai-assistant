@@ -37,6 +37,84 @@ function getModuleFromPath(path: string): string | undefined {
   return moduleMap[segments[0]] || segments[0];
 }
 
+type SuggestedQ = { sr: string; en: string };
+
+const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
+  { prefix: "/analytics/ratios", questions: [
+    { sr: "Koji su mi najslabiji finansijski pokazatelji?", en: "Which ratios need attention?" },
+    { sr: "Kako da poboljšam likvidnost?", en: "How can I improve liquidity?" },
+    { sr: "Uporedi pokazatelje sa prošlom godinom", en: "Compare ratios with last year" },
+  ]},
+  { prefix: "/analytics/cashflow-forecast", questions: [
+    { sr: "Da li ću imati problema sa likvidnošću?", en: "Will I face cash shortfalls?" },
+    { sr: "Koji su najveći dolazni prilivi?", en: "What are the largest expected inflows?" },
+  ]},
+  { prefix: "/analytics/budget", questions: [
+    { sr: "Gde najviše prekoračujem budžet?", en: "Where am I most over budget?" },
+    { sr: "Koji troškovi najbrže rastu?", en: "Which costs are growing fastest?" },
+  ]},
+  { prefix: "/analytics/profitability", questions: [
+    { sr: "Koji kupci donose najviše profita?", en: "Which customers are most profitable?" },
+    { sr: "Gde gubim maržu?", en: "Where am I losing margin?" },
+  ]},
+  { prefix: "/analytics/break-even", questions: [
+    { sr: "Koliko mi treba do tačke pokrića?", en: "How far am I from break-even?" },
+    { sr: "Šta ako povećam cene za 5%?", en: "What if I raise prices by 5%?" },
+  ]},
+  { prefix: "/analytics/customer-risk", questions: [
+    { sr: "Koji kupci su najrizičniji?", en: "Which customers are highest risk?" },
+    { sr: "Koliko imam prekoročenih potraživanja?", en: "How much in overdue receivables?" },
+  ]},
+  { prefix: "/analytics/inventory-health", questions: [
+    { sr: "Koji artikli imaju najsporiji obrt?", en: "Which items have slowest turnover?" },
+    { sr: "Koliko imam mrtvog lagera?", en: "How much dead stock do I have?" },
+  ]},
+  { prefix: "/analytics", questions: [
+    { sr: "Sumiraj ključne analitičke pokazatelje", en: "Summarize key analytics metrics" },
+    { sr: "Gde su najveći rizici?", en: "Where are the biggest risks?" },
+  ]},
+  { prefix: "/dashboard", questions: [
+    { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
+    { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
+    { sr: "Ima li anomalija koje treba proveriti?", en: "Any anomalies to check?" },
+  ]},
+  { prefix: "/inventory", questions: [
+    { sr: "Koji artikli imaju najsporiji obrt?", en: "Which items have slowest turnover?" },
+    { sr: "Da li imam kritično niske zalihe?", en: "Do I have critically low stock?" },
+  ]},
+  { prefix: "/crm", questions: [
+    { sr: "Koji lidovi su najbliži konverziji?", en: "Which leads are closest to conversion?" },
+    { sr: "Kakav je trend win/loss racija?", en: "What's the win/loss ratio trend?" },
+  ]},
+  { prefix: "/hr", questions: [
+    { sr: "Kakav je trend troškova plata?", en: "What's the payroll cost trend?" },
+    { sr: "Koliko imam otvorenih odsustvovanja?", en: "How many open leave requests?" },
+  ]},
+  { prefix: "/production", questions: [
+    { sr: "Gde su uska grla u proizvodnji?", en: "Where are production bottlenecks?" },
+    { sr: "Koji nalozi kasne?", en: "Which orders are behind schedule?" },
+  ]},
+  { prefix: "/sales", questions: [
+    { sr: "Koji su top kupci ovog meseca?", en: "Who are top customers this month?" },
+    { sr: "Kakav je trend prodaje?", en: "What's the sales trend?" },
+  ]},
+  { prefix: "/accounting", questions: [
+    { sr: "Ima li neusklađenih stavki?", en: "Are there unreconciled items?" },
+    { sr: "Sumiraj stanje knjiženja", en: "Summarize posting status" },
+  ]},
+];
+
+const FALLBACK_QUESTIONS: SuggestedQ[] = [
+  { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
+  { sr: "Ima li nešto što zahteva pažnju?", en: "Anything that needs attention?" },
+];
+
+function getSuggestedQuestions(path: string, sr: boolean): string[] {
+  const match = SUGGESTED_QUESTIONS.find(entry => path.startsWith(entry.prefix));
+  const qs = match ? match.questions : FALLBACK_QUESTIONS;
+  return qs.map(q => sr ? q.sr : q.en);
+}
+
 function getNarrativeContext(path: string): string | null {
   const contextMap: Record<string, string> = {
     "/analytics/working-capital": "working_capital",
@@ -181,9 +259,24 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
             <CollapsibleContent className="mt-2">
               <div className="space-y-2">
                 {messages.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-3">
-                    {sr ? "Pitajte o vašim podacima..." : "Ask about your data..."}
-                  </p>
+                  <div className="space-y-2 py-1">
+                    <p className="text-xs text-muted-foreground text-center">
+                      {sr ? "Pitajte o vašim podacima..." : "Ask about your data..."}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {getSuggestedQuestions(location.pathname, sr).map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => send(q)}
+                          disabled={isLoading}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+                        >
+                          <Sparkles className="h-2.5 w-2.5 text-primary shrink-0" />
+                          <span className="text-left">{q}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex gap-1.5 ${msg.role === "user" ? "justify-end" : ""}`}>
