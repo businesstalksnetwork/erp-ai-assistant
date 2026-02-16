@@ -153,18 +153,6 @@ export async function generateInvoicePdf(
   try {
     await document.fonts.ready;
     await new Promise(resolve => setTimeout(resolve, 300));
-    styleOverride.textContent = `
-      .pdf-export, .pdf-export * {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-      }
-      .pdf-export .bg-primary,
-      .pdf-export .bg-primary * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-      }
-    `;
-    document.head.appendChild(styleOverride);
 
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
@@ -181,6 +169,22 @@ export async function generateInvoicePdf(
       height: actualHeight,
       scrollX: 0,
       scrollY: 0,
+      onclone: (_clonedDoc, clonedElement) => {
+        // Force ALL text to black in the cloned document html2canvas uses
+        clonedElement.querySelectorAll('*').forEach(el => {
+          const htmlEl = el as HTMLElement;
+          htmlEl.style.setProperty('color', '#000000', 'important');
+          htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+        });
+        clonedElement.style.setProperty('color', '#000000', 'important');
+        clonedElement.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+        // Exception: keep white text on dark primary backgrounds
+        clonedElement.querySelectorAll('.bg-primary, .bg-primary *').forEach(el => {
+          const htmlEl = el as HTMLElement;
+          htmlEl.style.setProperty('color', '#ffffff', 'important');
+          htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+        });
+      },
     });
 
     const pdf = new jsPDF({
