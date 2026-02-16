@@ -1,62 +1,76 @@
 
 
-# Plan: Fix PDF Gray Text Using html2canvas `onclone` Callback
+# Plan: Pre-Bake Black Text on Clone Before html2canvas
 
-## Root Cause (for real this time)
+## Root Cause Analysis
 
-html2canvas clones elements into an internal iframe for rendering. Our stylesheet injections and CSS rules in `index.css` may not fully transfer or be parsed correctly by html2canvas's internal CSS engine. This is a known limitation of html2canvas with CSS custom properties (like Tailwind's `hsl(var(--muted-foreground))`).
+After 4+ failed attempts, the pattern is clear: html2canvas 1.4.1 has its own internal CSS parser that does NOT reliably respect:
+- CSS custom properties (`var(--foreground)`)  
+- Modern space-separated HSL syntax (`hsl(222 47% 11%)`)
+- Stylesheet injections into `document.head`
+- Inline style overrides via `onclone` callback
+
+The library captures/computes styles in its own pipeline, and our post-hoc overrides are being ignored or processed incorrectly.
 
 ## Solution
 
-Use html2canvas's built-in `onclone` callback to force styles directly on the cloned elements INSIDE html2canvas's rendering pipeline. Using `element.style.setProperty('color', '#000000', 'important')` sets inline `!important` which is the highest possible CSS specificity and cannot be overridden by any stylesheet rule.
+Pre-bake `color: #000000` as inline styles directly on the DOM elements BEFORE passing them to `html2canvas()`. Since we already clone the invoice element (`invoiceElement.cloneNode(true)`), we can modify the clone freely. html2canvas will see elements with `style="color: #000000 !important"` baked directly into the HTML -- there is nothing to resolve, parse, or override.
 
 ## Technical Changes
 
 ### File: `src/hooks/usePdfGenerator.ts`
 
-1. Remove the duplicate stylesheet injection inside the `try` block (lines 156-167) -- it's a bug that re-appends the same element.
-
-2. Add `onclone` callback to the `html2canvas()` call that walks every element in the clone and forces black text with inline `!important`:
+**After** cloning the invoice element and setting up basic styles (around line 80, before `wrapper.appendChild(clone)`), add a DOM walker that forces every single element's text to black:
 
 ```typescript
-const canvas = await html2canvas(wrapper, {
-  scale: canvasScale,
-  useCORS: true,
-  backgroundColor: '#ffffff',
-  logging: false,
-  windowWidth: 794,
-  windowHeight: actualHeight,
-  height: actualHeight,
-  scrollX: 0,
-  scrollY: 0,
-  onclone: (_clonedDoc, clonedElement) => {
-    // Force ALL text to black in the cloned document html2canvas uses
-    clonedElement.querySelectorAll('*').forEach(el => {
-      const htmlEl = el as HTMLElement;
-      htmlEl.style.setProperty('color', '#000000', 'important');
-      htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
-    });
-    clonedElement.style.setProperty('color', '#000000', 'important');
-    // Exception: keep white text on dark primary backgrounds
-    clonedElement.querySelectorAll('.bg-primary, .bg-primary *').forEach(el => {
-      const htmlEl = el as HTMLElement;
-      htmlEl.style.setProperty('color', '#ffffff', 'important');
-      htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-    });
-  },
+// PRE-BAKE: Force ALL text colors to black BEFORE html2canvas sees them
+// This is the most aggressive approach - colors are in the HTML itself
+const allCloneElements = clone.querySelectorAll('*');
+allCloneElements.forEach(el => {
+  const htmlEl = el as HTMLElement;
+  htmlEl.style.setProperty('color', '#000000', 'important');
+  htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+});
+clone.style.setProperty('color', '#000000', 'important');
+clone.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+
+// Exception: .bg-primary elements need white text
+clone.querySelectorAll('.bg-primary').forEach(el => {
+  const htmlEl = el as HTMLElement;
+  htmlEl.style.setProperty('color', '#ffffff', 'important');
+  htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+  htmlEl.style.setProperty('background-color', '#222222', 'important');
+  htmlEl.querySelectorAll('*').forEach(child => {
+    const childEl = child as HTMLElement;
+    childEl.style.setProperty('color', '#ffffff', 'important');
+    childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+  });
 });
 ```
 
-Why this works:
-- `onclone` runs on the exact elements html2canvas will render -- no iframe/cloning disconnect
-- `style.setProperty('color', '#000000', 'important')` is inline + `!important` = highest possible CSS priority
-- No CSS variable resolution needed -- raw hex values set directly
-- `.bg-primary` exception preserves white text on the "AMOUNT DUE" header
+This goes RIGHT BEFORE `wrapper.appendChild(clone)` (before line 81). Insert after the existing `print:hidden` block.
 
-### Keep existing code:
-- The `.dark` class removal and overlay -- still needed for proper light-mode variable resolution
-- The stylesheet override in `<head>` -- keep as belt-and-suspenders backup
-- Image base64 conversion, table border fixes, etc. -- all untouched
+**Keep all existing measures** (stylesheet injection, onclone callback, dark class removal) as layered redundancy.
 
-No other files need changes.
+**Additionally**, in the `onclone` callback, also inject a `<style>` tag into the cloned document's `<head>`:
+
+```typescript
+onclone: (clonedDoc, clonedElement) => {
+  // Inject override stylesheet into cloned document
+  const overrideStyle = clonedDoc.createElement('style');
+  overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
+  clonedDoc.head.appendChild(overrideStyle);
+  
+  // Also force inline styles on all cloned elements
+  clonedElement.querySelectorAll('*').forEach(el => {
+    // ... existing code
+  });
+},
+```
+
+### Why This Will Finally Work
+
+Previous attempts failed because they tried to override colors AFTER html2canvas had already captured style data. This approach modifies the actual DOM elements BEFORE html2canvas ever touches them. The inline `style` attribute with `!important` is part of the HTML markup itself -- html2canvas cannot ignore it regardless of how its CSS parser works.
+
+### No other files need changes.
 
