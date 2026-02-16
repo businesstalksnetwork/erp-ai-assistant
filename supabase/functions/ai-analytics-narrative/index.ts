@@ -69,7 +69,7 @@ serve(async (req) => {
 
     const userMessage = context_type === "planning"
       ? `Here is the business data:\n${JSON.stringify(data, null, 2)}\n\nProvide 3-5 actionable recommendations as a JSON array of strings.`
-      : `Here are the financial metrics:\n${JSON.stringify(data, null, 2)}\n\nProvide your analysis.`;
+      : `Here are the financial metrics:\n${JSON.stringify(data, null, 2)}\n\nRespond with a JSON object: { "narrative": "2-3 sentence analysis", "recommendations": ["action 1", "action 2", "action 3"] }. The recommendations should be specific, actionable steps the user can take to improve.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -108,10 +108,25 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content || "";
 
-    // For planning context, try to parse recommendations array
+    // Try to parse as JSON with narrative + recommendations
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.narrative || parsed.recommendations) {
+          return new Response(JSON.stringify({
+            narrative: parsed.narrative || "",
+            recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    } catch { /* fall through */ }
+
+    // For planning context, try to extract JSON array
     if (context_type === "planning") {
       try {
-        // Try to extract JSON array from the response
         const match = content.match(/\[[\s\S]*?\]/);
         if (match) {
           const recommendations = JSON.parse(match[0]);
@@ -119,10 +134,10 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-      } catch { /* fall through to narrative */ }
+      } catch { /* fall through */ }
     }
 
-    return new Response(JSON.stringify({ narrative: content }), {
+    return new Response(JSON.stringify({ narrative: content, recommendations: [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

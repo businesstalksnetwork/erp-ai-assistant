@@ -53,35 +53,35 @@ export function AiAnalyticsNarrative({ tenantId, contextType, data }: Props) {
     return null; // Silently fail - AI narrative is optional enhancement
   }
 
-  const isPlanning = contextType === "planning" && result?.recommendations?.length;
+  const hasRecs = result?.recommendations && result.recommendations.length > 0;
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          {isPlanning ? (
-            <Lightbulb className="h-4 w-4 text-warning" />
-          ) : (
-            <Brain className="h-4 w-4 text-primary" />
-          )}
-          {isPlanning
-            ? (sr ? "AI preporuke" : "AI Recommendations")
-            : (sr ? "AI analiza" : "AI Analysis")}
+          <Brain className="h-4 w-4 text-primary" />
+          {sr ? "AI analiza" : "AI Analysis"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-3">
         {result?.narrative && (
           <p className="text-sm text-foreground/80 leading-relaxed">{result.narrative}</p>
         )}
-        {result?.recommendations && result.recommendations.length > 0 && (
-          <ul className="space-y-1.5">
-            {result.recommendations.map((rec, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <span className="text-warning mt-0.5 flex-shrink-0">●</span>
-                <span>{rec}</span>
-              </li>
-            ))}
-          </ul>
+        {hasRecs && (
+          <>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Lightbulb className="h-3.5 w-3.5 text-primary" />
+              {sr ? "Preporučene akcije" : "Recommended Actions"}
+            </p>
+            <ul className="space-y-1.5">
+              {result!.recommendations!.map((rec, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5 flex-shrink-0">●</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </CardContent>
     </Card>

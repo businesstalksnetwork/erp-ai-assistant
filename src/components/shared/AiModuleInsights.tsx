@@ -1,9 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2, ChevronRight } from "lucide-react";
+
+const insightRouteMap: Record<string, string> = {
+  overdue_invoices: "/accounting/invoices",
+  large_invoices: "/accounting/invoices",
+  zero_stock: "/inventory/stock",
+  low_stock: "/inventory/stock",
+  draft_journals: "/accounting/journal",
+  payroll_anomaly: "/hr/payroll",
+  excessive_overtime: "/hr/overtime",
+  leave_balance_warning: "/hr/annual-leave",
+  stale_leads: "/crm/leads",
+  high_value_at_risk: "/crm/opportunities",
+  budget_variance: "/analytics/budget",
+  revenue_declining: "/analytics",
+  slow_moving: "/analytics/inventory-health",
+  reorder_suggestion: "/purchasing/orders",
+};
 
 interface Insight {
   insight_type: string;
@@ -26,6 +44,7 @@ const severityConfig = {
 
 export function AiModuleInsights({ tenantId, module, compact }: Props) {
   const { t, locale } = useLanguage();
+  const navigate = useNavigate();
 
   const { data: insights, isLoading } = useQuery({
     queryKey: ["ai-insights", tenantId, module],
@@ -52,7 +71,43 @@ export function AiModuleInsights({ tenantId, module, compact }: Props) {
 
   if (!insights?.length) return null;
 
-  const items = compact ? insights.slice(0, 2) : insights.slice(0, 5);
+  // Show all insights, no slicing
+  const content = (
+    <div className="space-y-1.5">
+      {insights.map((insight, i) => {
+        const config = severityConfig[insight.severity];
+        const Icon = config.icon;
+        const route = insightRouteMap[insight.insight_type];
+        const isClickable = !!route;
+
+        return (
+          <button
+            key={i}
+            onClick={() => route && navigate(route)}
+            disabled={!isClickable}
+            className={`flex items-start gap-2 text-xs w-full text-left rounded-md px-1.5 py-1 transition-colors ${
+              isClickable ? "hover:bg-muted/60 cursor-pointer" : "cursor-default"
+            }`}
+          >
+            <Icon className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${config.color}`} />
+            <div className="flex-1 min-w-0">
+              <span className="font-medium">{insight.title}</span>
+              {!compact && <p className="text-muted-foreground mt-0.5">{insight.description}</p>}
+            </div>
+            {isClickable && <ChevronRight className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <ScrollArea className="max-h-[260px]">
+        {content}
+      </ScrollArea>
+    );
+  }
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
@@ -62,20 +117,8 @@ export function AiModuleInsights({ tenantId, module, compact }: Props) {
           {t("aiInsights")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {items.map((insight, i) => {
-          const config = severityConfig[insight.severity];
-          const Icon = config.icon;
-          return (
-            <div key={i} className="flex items-start gap-2 text-xs">
-              <Icon className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${config.color}`} />
-              <div className="flex-1 min-w-0">
-                <span className="font-medium">{insight.title}</span>
-                {!compact && <p className="text-muted-foreground mt-0.5">{insight.description}</p>}
-              </div>
-            </div>
-          );
-        })}
+      <CardContent>
+        {content}
       </CardContent>
     </Card>
   );
