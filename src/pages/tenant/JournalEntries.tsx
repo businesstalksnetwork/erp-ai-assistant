@@ -92,31 +92,25 @@ export default function JournalEntries() {
       if (Math.abs(totalDebit - totalCredit) > 0.001) throw new Error(t("journalMustBalance"));
       if (lines.some(l => !l.account_id)) throw new Error(t("selectAccount"));
 
-      const { data: entry, error: entryError } = await supabase
-        .from("journal_entries")
-        .insert({
-          tenant_id: tenantId!,
-          entry_number: form.entry_number,
-          entry_date: form.entry_date,
-          description: form.description || null,
-          reference: form.reference || null,
-          created_by: user?.id,
-          legal_entity_id: form.legal_entity_id || null,
-        })
-        .select("id")
-        .single();
-      if (entryError) throw entryError;
-
       const linePayloads = lines.filter(l => l.account_id).map((l, i) => ({
-        journal_entry_id: entry.id,
         account_id: l.account_id,
         description: l.description || null,
         debit: Number(l.debit) || 0,
         credit: Number(l.credit) || 0,
         sort_order: i,
       }));
-      const { error: linesError } = await supabase.from("journal_lines").insert(linePayloads);
-      if (linesError) throw linesError;
+
+      // Atomic RPC: creates header + lines in a single transaction
+      const { error } = await supabase.rpc("create_journal_entry_with_lines" as any, {
+        p_tenant_id: tenantId!,
+        p_entry_number: form.entry_number,
+        p_entry_date: form.entry_date,
+        p_description: form.description || null,
+        p_reference: form.reference || null,
+        p_legal_entity_id: form.legal_entity_id || null,
+        p_lines: linePayloads,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal-entries"] });
@@ -156,56 +150,11 @@ export default function JournalEntries() {
 
   const stornoMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Fetch original entry and lines
-      const original = entries.find(e => e.id === id);
-      if (!original || original.status !== "posted") throw new Error("Only posted entries can be reversed");
-
-      const { data: originalLines } = await supabase
-        .from("journal_lines")
-        .select("*")
-        .eq("journal_entry_id", id)
-        .order("sort_order");
-
-      if (!originalLines?.length) throw new Error("No lines found");
-
-      const stornoNumber = `STORNO-${original.entry_number}`;
-
-      // Create storno entry
-      const { data: stornoEntry, error: seError } = await supabase
-        .from("journal_entries")
-        .insert({
-          tenant_id: tenantId!,
-          entry_number: stornoNumber,
-          entry_date: new Date().toISOString().split("T")[0],
-          description: `${t("stornoOf")}: ${original.entry_number} — ${original.description || ""}`,
-          reference: original.reference,
-          status: "posted",
-          posted_at: new Date().toISOString(),
-          posted_by: user?.id,
-          created_by: user?.id,
-          storno_of_id: id,
-          is_storno: true,
-          source: "auto_storno",
-        })
-        .select("id")
-        .single();
-      if (seError) throw seError;
-
-      // Create reversed lines (swap debit/credit)
-      const stornoLines = originalLines.map((l, i) => ({
-        journal_entry_id: stornoEntry.id,
-        account_id: l.account_id,
-        description: `${t("storno")}: ${l.description || ""}`,
-        debit: Number(l.credit),
-        credit: Number(l.debit),
-        sort_order: i,
-      }));
-
-      const { error: linesError } = await supabase.from("journal_lines").insert(stornoLines);
-      if (linesError) throw linesError;
-
-      // Update original entry with storno_by_id
-      await supabase.from("journal_entries").update({ storno_by_id: stornoEntry.id, status: "reversed" }).eq("id", id);
+      // Atomic storno RPC: creates reversed entry + lines in a single transaction
+      const { error } = await supabase.rpc("storno_journal_entry" as any, {
+        p_journal_entry_id: id,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal-entries"] });

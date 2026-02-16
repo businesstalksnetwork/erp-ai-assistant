@@ -51,15 +51,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const id = ++fetchIdRef.current;
 
     const fetchRoles = async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
+      try {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
 
-      // Only apply if this is still the latest fetch (prevents race conditions)
-      if (id === fetchIdRef.current) {
-        setRoles(data?.map((r) => r.role) ?? []);
-        setLoading(false);
+        // Only apply if this is still the latest fetch (prevents race conditions)
+        if (id === fetchIdRef.current) {
+          setRoles(data?.map((r) => r.role) ?? []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user roles:", err);
+        if (id === fetchIdRef.current) {
+          setRoles([]);
+        }
+      } finally {
+        if (id === fetchIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 

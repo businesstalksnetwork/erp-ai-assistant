@@ -44,10 +44,11 @@ async function sendAdminNotification(
   supabase: any, tenant_id: string, date: string
 ) {
   const { data: admins } = await supabase
-    .from("user_roles")
+    .from("tenant_members")
     .select("user_id")
     .eq("tenant_id", tenant_id)
-    .eq("role", "admin");
+    .eq("role", "admin")
+    .eq("status", "active");
 
   if (!admins?.length) return;
 
@@ -130,8 +131,9 @@ Deno.serve(async (req) => {
       // empty body for cron calls
     }
 
-    const { tenant_id } = body;
-    const targetDate = await getLastWorkingDay(supabase);
+    const { tenant_id, date: requestedDate } = body;
+    // Honor the date parameter if provided; otherwise fall back to last working day
+    const targetDate = requestedDate || await getLastWorkingDay(supabase);
 
     // CRON MODE: no tenant_id — import for all tenants with currencies
     if (!tenant_id) {

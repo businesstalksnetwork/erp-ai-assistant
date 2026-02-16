@@ -10326,6 +10326,18 @@ export type Database = {
         Args: { p_transfer_id: string }
         Returns: undefined
       }
+      create_journal_entry_with_lines: {
+        Args: {
+          p_description?: string
+          p_entry_date: string
+          p_entry_number: string
+          p_legal_entity_id?: string
+          p_lines?: Json
+          p_reference?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }
         Returns: string
@@ -10375,7 +10387,7 @@ export type Database = {
       post_nivelacija: { Args: { p_nivelacija_id: string }; Returns: string }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
-        Returns: undefined
+        Returns: string
       }
       process_pos_sale: {
         Args: { p_tenant_id: string; p_transaction_id: string }
@@ -10404,6 +10416,10 @@ export type Database = {
       seed_tenant_tax_rates: {
         Args: { _tenant_id: string }
         Returns: undefined
+      }
+      storno_journal_entry: {
+        Args: { p_journal_entry_id: string }
+        Returns: string
       }
     }
     Enums: {

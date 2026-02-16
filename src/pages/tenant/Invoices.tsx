@@ -106,19 +106,23 @@ export default function Invoices() {
       // Generate unique SEF request ID for idempotency
       const sefRequestId = crypto.randomUUID();
 
-      // Update status to sent and store SEF request ID
+      // Fix: normalize warehouse — "__none__" is truthy but not a valid UUID
+      const warehouseId = selectedWarehouse && selectedWarehouse !== "__none__" ? selectedWarehouse : null;
+
+      // RPC-first: create journal entry + inventory movements before changing status
+      // If RPC fails, invoice stays "draft" — no inconsistent state
+      const { error: rpcError } = await supabase.rpc("process_invoice_post", {
+        p_invoice_id: invoiceId,
+        p_default_warehouse_id: warehouseId,
+      });
+      if (rpcError) throw rpcError;
+
+      // Only update status after successful RPC
       const { error: updateError } = await supabase
         .from("invoices")
         .update({ status: "sent", sef_request_id: sefRequestId })
         .eq("id", invoiceId);
       if (updateError) throw updateError;
-
-      // Create journal entry + inventory movements via RPC
-      const { error: rpcError } = await supabase.rpc("process_invoice_post", {
-        p_invoice_id: invoiceId,
-        p_default_warehouse_id: selectedWarehouse || null,
-      });
-      if (rpcError) throw rpcError;
 
       // Auto-submit to SEF (non-blocking, Model B: post first, SEF follow-up)
       try {
@@ -142,16 +146,19 @@ export default function Invoices() {
   // Mark as paid: update status + create payment journal entry
   const markPaidMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
+      // RPC-first: create payment journal entry before marking as paid
+      // If RPC fails, invoice stays "sent" — no inconsistent state
+      const { error: rpcError } = await supabase.rpc("create_journal_from_invoice", {
+        p_invoice_id: invoiceId,
+      });
+      if (rpcError) throw rpcError;
+
+      // Only update status after successful RPC
       const { error: updateError } = await supabase
         .from("invoices")
         .update({ status: "paid" })
         .eq("id", invoiceId);
       if (updateError) throw updateError;
-
-      const { error: rpcError } = await supabase.rpc("create_journal_from_invoice", {
-        p_invoice_id: invoiceId,
-      });
-      if (rpcError) throw rpcError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
