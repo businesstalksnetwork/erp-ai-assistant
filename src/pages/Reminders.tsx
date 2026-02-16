@@ -1192,35 +1192,39 @@ export default function Reminders() {
       ) : (
         <div className="space-y-4">
           <Tabs defaultValue="currentMonth" value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); }} className="w-full">
-            <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="currentMonth" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+            <TabsList className="w-full flex flex-nowrap h-auto gap-1 p-1 overflow-x-auto scrollbar-hide">
+            <TabsTrigger value="currentMonth" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <Calendar className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline text-sm">Tekući mesec</span>
+              <span className="sm:hidden">Mesec</span>
+              <span className="hidden sm:inline">Tekući mesec</span>
               <Badge variant="secondary" className="ml-1">{categorizedReminders.currentMonth.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="nextThreeMonths" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+            <TabsTrigger value="nextThreeMonths" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <CalendarDays className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline text-sm">Naredna 3 meseca</span>
+              <span className="sm:hidden">3 mes.</span>
+              <span className="hidden sm:inline">Naredna 3 meseca</span>
               <Badge variant="secondary" className="ml-1">{categorizedReminders.nextThreeMonths.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="untilEndOfYear" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+            <TabsTrigger value="untilEndOfYear" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <CalendarRange className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline text-sm">Do kraja godine</span>
+              <span className="sm:hidden">Godina</span>
+              <span className="hidden sm:inline">Do kraja godine</span>
               <Badge variant="secondary" className="ml-1">{categorizedReminders.untilEndOfYear.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="overdue" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2 data-[state=active]:text-destructive">
+            <TabsTrigger value="overdue" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm data-[state=active]:text-destructive">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline text-sm">Istekli</span>
+              <span>Istekli</span>
               <Badge variant="destructive" className="ml-1">{categorizedReminders.overdue.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="archived" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+            <TabsTrigger value="archived" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
-              <span className="hidden sm:inline text-sm">Arhivirano</span>
+              <span className="sm:hidden">Arhiva</span>
+              <span className="hidden sm:inline">Arhivirano</span>
               <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">{completedReminders.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="all" className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-2 py-2">
+            <TabsTrigger value="all" className="min-w-fit flex items-center justify-center gap-1 px-2 py-2 whitespace-nowrap text-xs sm:text-sm">
               <List className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline text-sm">Svi</span>
+              <span>Svi</span>
               <Badge variant="secondary" className="ml-1">{categorizedReminders.all.length}</Badge>
             </TabsTrigger>
           </TabsList>
