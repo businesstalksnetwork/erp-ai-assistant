@@ -338,7 +338,7 @@ export default function TenantLayout() {
             </button>
           </div>
 
-          <SidebarContent className="flex-1 overflow-hidden py-1">
+          <SidebarContent className="flex-1 overflow-y-auto custom-scrollbar py-1">
             {/* Dashboard */}
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
