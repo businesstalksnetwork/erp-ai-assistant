@@ -1491,6 +1491,7 @@ export type Database = {
           default_foreign_price: number | null
           default_unit_price: number | null
           description: string | null
+          foreign_currency: string | null
           id: string
           is_active: boolean | null
           item_type: Database["public"]["Enums"]["invoice_item_type"]
@@ -1504,6 +1505,7 @@ export type Database = {
           default_foreign_price?: number | null
           default_unit_price?: number | null
           description?: string | null
+          foreign_currency?: string | null
           id?: string
           is_active?: boolean | null
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
@@ -1517,6 +1519,7 @@ export type Database = {
           default_foreign_price?: number | null
           default_unit_price?: number | null
           description?: string | null
+          foreign_currency?: string | null
           id?: string
           is_active?: boolean | null
           item_type?: Database["public"]["Enums"]["invoice_item_type"]
