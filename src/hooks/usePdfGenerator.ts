@@ -39,6 +39,33 @@ export async function generateInvoicePdf(
   wrapper.style.padding = '40px 16px 20px 16px'; // POVEĆAN GORNJI PADDING ZA DATUME
   wrapper.className = 'pdf-export';
 
+  // Force light theme CSS variables as inline styles
+  // html2canvas reads computed styles, so CSS !important rules are ignored
+  // Inline CSS variables override dark theme inheritance
+  wrapper.style.setProperty('--background', '40 33% 98%');
+  wrapper.style.setProperty('--foreground', '222 47% 11%');
+  wrapper.style.setProperty('--card', '0 0% 100%');
+  wrapper.style.setProperty('--card-foreground', '222 47% 11%');
+  wrapper.style.setProperty('--popover', '0 0% 100%');
+  wrapper.style.setProperty('--popover-foreground', '222 47% 11%');
+  wrapper.style.setProperty('--primary', '45 93% 47%');
+  wrapper.style.setProperty('--primary-foreground', '222 47% 11%');
+  wrapper.style.setProperty('--secondary', '40 20% 94%');
+  wrapper.style.setProperty('--secondary-foreground', '222 47% 20%');
+  wrapper.style.setProperty('--muted', '40 20% 94%');
+  wrapper.style.setProperty('--muted-foreground', '220 10% 46%');
+  wrapper.style.setProperty('--accent', '45 93% 47%');
+  wrapper.style.setProperty('--accent-foreground', '222 47% 11%');
+  wrapper.style.setProperty('--destructive', '0 84% 60%');
+  wrapper.style.setProperty('--destructive-foreground', '0 0% 100%');
+  wrapper.style.setProperty('--border', '40 20% 90%');
+  wrapper.style.setProperty('--input', '40 20% 90%');
+  wrapper.style.setProperty('--ring', '45 93% 47%');
+  wrapper.style.setProperty('--warning', '38 92% 50%');
+  wrapper.style.setProperty('--warning-foreground', '222 47% 11%');
+  wrapper.style.setProperty('--success', '160 84% 39%');
+  wrapper.style.setProperty('--success-foreground', '0 0% 100%');
+
   // Kloniraj sadržaj fakture
   const clone = invoiceElement.cloneNode(true) as HTMLElement;
 
