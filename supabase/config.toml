@@ -92,3 +92,6 @@ verify_jwt = true
 
 [functions.track-invoice-view]
 verify_jwt = false
+
+[functions.get-vapid-public-key]
+verify_jwt = false
