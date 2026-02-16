@@ -1298,6 +1298,9 @@ export type Database = {
           account_type: string
           agency_name: string | null
           agency_pib: string | null
+          app_notify_limits: boolean | null
+          app_notify_reminders: boolean | null
+          app_notify_subscription: boolean | null
           block_reason: string | null
           bookkeeper_address: string | null
           bookkeeper_bank_account: string | null
@@ -1321,6 +1324,7 @@ export type Database = {
           partner_discount_percent: number | null
           partner_id: string | null
           pib: string | null
+          push_notifications_enabled: boolean | null
           status: Database["public"]["Enums"]["approval_status"]
           subscription_end: string | null
           updated_at: string
@@ -1329,6 +1333,9 @@ export type Database = {
           account_type?: string
           agency_name?: string | null
           agency_pib?: string | null
+          app_notify_limits?: boolean | null
+          app_notify_reminders?: boolean | null
+          app_notify_subscription?: boolean | null
           block_reason?: string | null
           bookkeeper_address?: string | null
           bookkeeper_bank_account?: string | null
@@ -1352,6 +1359,7 @@ export type Database = {
           partner_discount_percent?: number | null
           partner_id?: string | null
           pib?: string | null
+          push_notifications_enabled?: boolean | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
           updated_at?: string
@@ -1360,6 +1368,9 @@ export type Database = {
           account_type?: string
           agency_name?: string | null
           agency_pib?: string | null
+          app_notify_limits?: boolean | null
+          app_notify_reminders?: boolean | null
+          app_notify_subscription?: boolean | null
           block_reason?: string | null
           bookkeeper_address?: string | null
           bookkeeper_bank_account?: string | null
@@ -1383,6 +1394,7 @@ export type Database = {
           partner_discount_percent?: number | null
           partner_id?: string | null
           pib?: string | null
+          push_notifications_enabled?: boolean | null
           status?: Database["public"]["Enums"]["approval_status"]
           subscription_end?: string | null
           updated_at?: string
@@ -1403,6 +1415,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       sef_invoices: {
         Row: {
