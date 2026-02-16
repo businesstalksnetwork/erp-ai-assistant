@@ -21,8 +21,6 @@ export async function generateInvoicePdf(
     throw new Error('Invoice element not found');
   }
 
-
-  // Detekcija mobilnog uređaja
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
 
   // Kreiraj offscreen wrapper sa fiksnom A4 širinom
@@ -30,46 +28,18 @@ export async function generateInvoicePdf(
   wrapper.style.position = 'absolute';
   wrapper.style.left = '-9999px';
   wrapper.style.top = '0';
-  wrapper.style.width = '794px'; // A4 širina na 96dpi
-  wrapper.style.minHeight = '1123px'; // A4 visina na 96dpi
+  wrapper.style.width = '794px';
+  wrapper.style.minHeight = '1123px';
   wrapper.style.height = 'auto';
   wrapper.style.overflow = 'visible';
   wrapper.style.background = '#ffffff';
   wrapper.style.backgroundColor = '#ffffff';
-  wrapper.style.padding = '40px 16px 20px 16px'; // POVEĆAN GORNJI PADDING ZA DATUME
+  wrapper.style.padding = '40px 16px 20px 16px';
   wrapper.className = 'pdf-export';
-
-  // Force light theme CSS variables as inline styles
-  // html2canvas reads computed styles, so CSS !important rules are ignored
-  // Inline CSS variables override dark theme inheritance
-  wrapper.style.setProperty('--background', '40 33% 98%');
-  wrapper.style.setProperty('--foreground', '222 47% 11%');
-  wrapper.style.setProperty('--card', '0 0% 100%');
-  wrapper.style.setProperty('--card-foreground', '222 47% 11%');
-  wrapper.style.setProperty('--popover', '0 0% 100%');
-  wrapper.style.setProperty('--popover-foreground', '222 47% 11%');
-  wrapper.style.setProperty('--primary', '45 93% 47%');
-  wrapper.style.setProperty('--primary-foreground', '222 47% 11%');
-  wrapper.style.setProperty('--secondary', '40 20% 94%');
-  wrapper.style.setProperty('--secondary-foreground', '222 47% 20%');
-  wrapper.style.setProperty('--muted', '40 20% 94%');
-  wrapper.style.setProperty('--muted-foreground', '220 10% 46%');
-  wrapper.style.setProperty('--accent', '45 93% 47%');
-  wrapper.style.setProperty('--accent-foreground', '222 47% 11%');
-  wrapper.style.setProperty('--destructive', '0 84% 60%');
-  wrapper.style.setProperty('--destructive-foreground', '0 0% 100%');
-  wrapper.style.setProperty('--border', '40 20% 90%');
-  wrapper.style.setProperty('--input', '40 20% 90%');
-  wrapper.style.setProperty('--ring', '45 93% 47%');
-  wrapper.style.setProperty('--warning', '38 92% 50%');
-  wrapper.style.setProperty('--warning-foreground', '222 47% 11%');
-  wrapper.style.setProperty('--success', '160 84% 39%');
-  wrapper.style.setProperty('--success-foreground', '0 0% 100%');
 
   // Kloniraj sadržaj fakture
   const clone = invoiceElement.cloneNode(true) as HTMLElement;
 
-  // Osiguraj da clone ima sve potrebne stilove za pun prikaz
   clone.style.width = '100%';
   clone.style.height = 'auto';
   clone.style.minHeight = 'auto';
@@ -79,179 +49,62 @@ export async function generateInvoicePdf(
   clone.style.breakInside = 'avoid';
   clone.style.pageBreakInside = 'avoid';
 
-  // Pronađi Card komponentu i forsiraj break-inside: avoid
+  // Card break-inside fix
   const cardElement = clone.querySelector('.rounded-lg');
   if (cardElement) {
     (cardElement as HTMLElement).style.breakInside = 'avoid';
     (cardElement as HTMLElement).style.pageBreakInside = 'avoid';
-
     const header = cardElement.querySelector('[class*="border-b"]');
     if (header) {
       (header as HTMLElement).style.breakAfter = 'avoid';
       (header as HTMLElement).style.pageBreakAfter = 'avoid';
     }
   }
-  
-  // FIX: Osiguraj kompletan okvir tabele STAVKE
+
+  // Fix table borders
   clone.querySelectorAll('table').forEach(table => {
     (table as HTMLElement).style.borderCollapse = 'collapse';
   });
   clone.querySelectorAll('.border, [class*="border-"]').forEach(el => {
     const element = el as HTMLElement;
-    const cs = window.getComputedStyle(element);
-    // Osiguraj da border postoji i da je vidljiv
     if (element.classList.contains('rounded-lg') && element.querySelector('table')) {
       element.style.border = '1px solid #d1d5db';
       element.style.overflow = 'hidden';
     }
   });
 
-  // Sakrij print:hidden elemente u klonu
+  // Sakrij print:hidden elemente
   clone.querySelectorAll('.print\\:hidden').forEach(el => {
     (el as HTMLElement).style.display = 'none';
-  });
-
-  // FORSIRATI MAKSIMALAN KONTRAST - čisto crna na beloj
-  const solidText = '#000000';
-  const mutedText = '#000000';
-  clone.style.backgroundColor = '#ffffff';
-  clone.style.background = '#ffffff';
-  clone.style.color = solidText;
-
-  // Forsirati font-weight za bold elemente da ne izgube debljinu pri rasterizaciji
-  clone.querySelectorAll('.font-semibold, .font-bold, .font-extrabold').forEach(el => {
-    const element = el as HTMLElement;
-    const cs = window.getComputedStyle(element);
-    const weight = parseInt(cs.fontWeight) || 400;
-    if (weight >= 600) {
-      element.style.fontWeight = '700';
-    }
-  });
-
-  clone.querySelectorAll('*').forEach(el => {
-    const element = el as HTMLElement;
-    const computedStyle = window.getComputedStyle(element);
-
-    // Ukloni sve što može da "izbleđuje" prikaz
-    element.style.opacity = '1';
-    element.style.filter = 'none';
-    element.style.textShadow = 'none';
-    (element.style as any).webkitFontSmoothing = 'antialiased';
-
-    // Ako element ima border, učini ga tamnijim
-    if (computedStyle.borderWidth !== '0px' && computedStyle.borderStyle !== 'none') {
-      element.style.borderColor = '#888888';
-    }
-
-    // SPECIJALNI SLUČAJ: Tamni blokovi (ZA PLAĆANJE sekcija) - SADA BELA POZADINA SA CRNIM TEKSTOM
-    const isDarkBlock = element.classList.contains('bg-slate-800') || 
-                        element.classList.contains('bg-slate-900') ||
-                        element.classList.contains('bg-gray-800') ||
-                        element.classList.contains('bg-gray-900') ||
-                        element.classList.contains('bg-primary');
-    
-    const isInsideDarkBlock = element.closest('.bg-slate-800, .bg-slate-900, .bg-gray-800, .bg-gray-900, .bg-primary');
-    
-    if (isDarkBlock) {
-      // Pretvori u belu pozadinu sa crnom ivicom za PDF
-      element.style.backgroundColor = '#ffffff';
-      element.style.border = '2px solid #1e293b';
-      element.style.color = '#000000';
-      element.style.webkitTextFillColor = '#000000';
-      return; // Prekini dalje procesiranje za ovaj element
-    }
-    
-    if (isInsideDarkBlock) {
-      // Elementi unutar tog bloka - crni tekst
-      element.style.color = '#000000';
-      element.style.webkitTextFillColor = '#000000';
-      if (element.classList.contains('text-slate-200') || element.classList.contains('text-slate-300')) {
-        element.style.color = '#4a5568'; // Tamnija siva za labelu
-        element.style.webkitTextFillColor = '#4a5568';
-      }
-      return; // Prekini dalje procesiranje za ovaj element
-    }
-
-    // Default: čisto crn tekst za ostale elemente
-    element.style.color = solidText;
-    element.style.webkitTextFillColor = solidText;
-
-    // Muted varijante: tamno siva (ali i dalje čitljiva)
-    if (
-      element.classList.contains('text-muted-foreground') ||
-      element.classList.contains('text-gray-500') ||
-      element.classList.contains('text-gray-600') ||
-      element.classList.contains('text-gray-700')
-    ) {
-      element.style.color = mutedText;
-      element.style.webkitTextFillColor = mutedText;
-    }
-
-    // Bela pozadina za sve kartice i kontejnere (osim tamnih blokova)
-    if (computedStyle.backgroundColor !== 'transparent' && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-      const bg = computedStyle.backgroundColor;
-      // Zadržaj samo bele/svetle pozadine
-      if (!bg.includes('255, 255, 255') && !bg.includes('rgb(255')) {
-        element.style.backgroundColor = '#ffffff';
-      }
-    }
-    
-    // Eksplicitno postavi pozadinu za elemente sa bg-muted, bg-card, bg-background
-    if (
-      element.classList.contains('bg-muted') ||
-      element.classList.contains('bg-muted/50') ||
-      element.classList.contains('bg-card') ||
-      element.classList.contains('bg-background')
-    ) {
-      element.style.backgroundColor = '#f8f9fa';
-    }
-    // bg-secondary: koristiti tamniju varijantu da ne bude "grayed out"
-    if (element.classList.contains('bg-secondary')) {
-      element.style.backgroundColor = '#e2e8f0';
-    }
   });
 
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
 
-  // KRITIČNO: Konvertuj eksterne slike u base64 pomoću edge funkcije
-  // Ovo potpuno zaobilazi CORS probleme jer edge funkcija ima direktan pristup DO Spaces
+  // Konvertuj DO Spaces slike u base64
   const convertImageToBase64ViaEdgeFunction = async (imgUrl: string): Promise<string | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('storage-get-base64', {
         body: { url: imgUrl },
       });
-      
-      if (error || !data?.success) {
-        console.warn('Edge function conversion failed:', error || data?.error);
-        return null;
-      }
-      
+      if (error || !data?.success) return null;
       return data.dataUrl;
     } catch (e) {
-      console.warn('Edge function call failed:', e);
       return null;
     }
   };
 
   const images = Array.from(wrapper.querySelectorAll('img'));
   await Promise.all(images.map(async (img) => {
-    // Ako je slika već data URL, preskoči
     if (img.src.startsWith('data:')) return;
-    
-    // Proveri da li je slika sa DO Spaces
     const isDoSpaces = img.src.includes('digitaloceanspaces.com');
-    
     if (isDoSpaces) {
-      // Za DO Spaces slike, koristi edge funkciju za konverziju
       const base64 = await convertImageToBase64ViaEdgeFunction(img.src);
       if (base64) {
         img.src = base64;
-        // Sačekaj da se nova slika učita
         await new Promise(resolve => {
-          if (img.complete && img.naturalHeight > 0) {
-            resolve(null);
-          } else {
+          if (img.complete && img.naturalHeight > 0) resolve(null);
+          else {
             img.onload = () => resolve(null);
             img.onerror = () => resolve(null);
             setTimeout(() => resolve(null), 1000);
@@ -259,7 +112,6 @@ export async function generateInvoicePdf(
         });
       }
     } else {
-      // Za ostale slike, samo sačekaj učitavanje
       if (!img.complete) {
         await new Promise(resolve => {
           img.onload = () => resolve(null);
@@ -270,19 +122,28 @@ export async function generateInvoicePdf(
     }
   }));
 
+  // NUCLEAR FIX: Temporarily remove .dark class with visual overlay
+  const isDark = document.documentElement.classList.contains('dark');
+  let overlay: HTMLDivElement | null = null;
+
+  if (isDark) {
+    // Create overlay to prevent visual flash
+    overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0f1729;z-index:99999;pointer-events:none;';
+    document.body.appendChild(overlay);
+    // Remove dark class so html2canvas computes light-mode styles
+    document.documentElement.classList.remove('dark');
+  }
+
   try {
-    // Čekaj fontove i stabilizaciju
     await document.fonts.ready;
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Izmeri stvarnu visinu sadržaja nakon renderovanja
     const actualHeight = wrapper.scrollHeight;
     wrapper.style.height = actualHeight + 'px';
 
-    // Na mobilnom koristi manji scale (1.5) da smanji memoriju
     const canvasScale = isMobile ? 1.5 : 2;
 
-    // Renderuj offscreen wrapper sa dinamičkom visinom
     const canvas = await html2canvas(wrapper, {
       scale: canvasScale,
       useCORS: true,
@@ -295,8 +156,6 @@ export async function generateInvoicePdf(
       scrollY: 0,
     });
 
-
-    // Kreiraj PDF - FIT TO PAGE (jedna strana) sa marginama
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -305,8 +164,6 @@ export async function generateInvoicePdf(
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-
-    // Margine za sigurnost
     const margin = 5;
     const usableWidth = pdfWidth - (margin * 2);
     const usableHeight = pdfHeight - (margin * 2);
@@ -314,18 +171,15 @@ export async function generateInvoicePdf(
     let finalWidth = usableWidth;
     let finalHeight = (canvas.height * usableWidth) / canvas.width;
 
-    // Ako je previsoko, skaliraj da stane na jednu stranu
     if (finalHeight > usableHeight) {
       const scale = (usableHeight / finalHeight) * 0.98;
       finalWidth = usableWidth * scale;
       finalHeight = usableHeight * 0.98;
     }
 
-    // Centriraj horizontalno i vertikalno
     const xOffset = (pdfWidth - finalWidth) / 2;
     const yOffset = (pdfHeight - finalHeight) / 2;
 
-    // Na mobilnom koristi JPEG (manja memorija), na desktopu PNG
     const imageFormat = isMobile ? 'JPEG' : 'PNG';
     const imageData = isMobile
       ? canvas.toDataURL('image/jpeg', 0.92)
@@ -337,17 +191,21 @@ export async function generateInvoicePdf(
       return pdf.output('blob');
     }
 
-    // Ime fajla bazirano na broju fakture
     const docType = options.invoiceType === 'proforma'
       ? 'Predracun'
       : options.invoiceType === 'advance'
         ? 'Avans'
         : 'Faktura';
     const fileName = `${docType}_${options.invoiceNumber.replace(/\//g, '-')}.pdf`;
-
     pdf.save(fileName);
   } finally {
-    // Ukloni offscreen wrapper
+    // Restore dark mode and remove overlay
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      if (overlay && overlay.parentNode) {
+        document.body.removeChild(overlay);
+      }
+    }
     document.body.removeChild(wrapper);
   }
 }
