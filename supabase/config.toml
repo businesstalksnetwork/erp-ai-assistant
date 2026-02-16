@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.storage-get-base64]
 verify_jwt = true
+
+[functions.track-invoice-view]
+verify_jwt = false
