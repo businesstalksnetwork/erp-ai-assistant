@@ -116,10 +116,11 @@ export default function YearEndClosing() {
   const closingMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPeriodId || !tenantId) throw new Error("Select a period");
+      // p_user_id kept for backward compat; server uses auth.uid() internally
       const { data, error } = await supabase.rpc("perform_year_end_closing", {
         p_tenant_id: tenantId,
         p_fiscal_period_id: selectedPeriodId,
-        p_user_id: user?.id || null,
+        p_user_id: null,
       });
       if (error) throw error;
       return data;
