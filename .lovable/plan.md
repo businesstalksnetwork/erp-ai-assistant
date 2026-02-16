@@ -1,69 +1,60 @@
 
 
-# Plan: Post-Process Canvas Pixels to Force Black Text
+# Fix: Amount Disappearing Behind Black Box in PDF
 
-## Why Previous Attempts Failed
+## Root Cause
 
-html2canvas v1.4.1 has an internal CSS parser that does not reliably respect inline `!important` overrides, CSS custom properties, or style injections. After 5+ attempts using CSS-level fixes (inline styles, stylesheet injection, `onclone` callbacks, dark class removal), the text remains gray. The library's rendering pipeline is a black box we cannot control.
+The invoice's "Amount Due" section uses `bg-slate-800 text-white` and `text-slate-300` classes -- NOT `bg-primary`. The pre-baking code forces ALL text to `color: #000000` but only exempts `.bg-primary` elements. Result: white text on the dark amount section becomes black text on a dark background = invisible.
 
-## New Approach: Canvas Pixel Post-Processing
+Additionally, the canvas pixel post-processor turns the `bg-slate-800` background (luminance ~40) to pure black, AND forces any remaining gray text to black too. Double whammy.
 
-Instead of fighting html2canvas's CSS parser, let it render whatever colors it wants. Then, AFTER it produces the canvas, we post-process every pixel:
-
-- Gray pixels (not white, not colored) get forced to pure black
-- White pixels stay white (backgrounds)
-- Colored pixels stay colored (yellow badge, etc.)
-- Very dark pixels stay dark (already near-black)
-
-This is guaranteed to work because we operate on the final pixel data -- html2canvas has no say in it.
-
-## Technical Changes
+## Fix
 
 ### File: `src/hooks/usePdfGenerator.ts`
 
-After `html2canvas()` returns the canvas and before `pdf.addImage()`, add pixel manipulation:
+**1. Add exception for `bg-slate-800` in the pre-baking block (alongside existing `.bg-primary` exception):**
+
+After the existing `.bg-primary` exception block (~line 93), add an identical exception for `.bg-slate-800`:
 
 ```typescript
-// Post-process canvas: force all gray text to pure black
-const ctx = canvas.getContext('2d');
-if (ctx) {
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
+// Exception: .bg-slate-800 elements also need white text (amount due section)
+clone.querySelectorAll('.bg-slate-800').forEach(el => {
+  const htmlEl = el as HTMLElement;
+  htmlEl.style.setProperty('color', '#ffffff', 'important');
+  htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+  htmlEl.style.setProperty('background-color', '#1e293b', 'important');
+  htmlEl.querySelectorAll('*').forEach(child => {
+    const childEl = child as HTMLElement;
+    childEl.style.setProperty('color', '#ffffff', 'important');
+    childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+  });
+});
+```
 
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    const maxC = Math.max(r, g, b);
-    const minC = Math.min(r, g, b);
-    const saturation = maxC - minC;
+**2. Add exception in `onclone` callback stylesheet and inline style loop:**
 
-    // Gray pixel (low saturation) that's not white and not already black
-    if (saturation < 50 && lum > 20 && lum < 210) {
-      data[i] = 0;       // R -> black
-      data[i + 1] = 0;   // G -> black
-      data[i + 2] = 0;   // B -> black
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
+Update the injected stylesheet to also cover `.bg-slate-800`:
+```css
+.bg-primary, .bg-primary *, .bg-slate-800, .bg-slate-800 * { 
+  color: #ffffff !important; 
+  -webkit-text-fill-color: #ffffff !important; 
 }
 ```
 
-The pixel classification logic:
-- `saturation < 50`: Only affect gray/neutral pixels (preserves yellow badge, colored elements)
-- `lum > 20`: Don't touch already-black or very dark pixels (preserves dark backgrounds)
-- `lum < 210`: Don't touch white/near-white pixels (preserves white backgrounds)
-- Everything in between is gray text/borders -- force to black
+And add matching inline overrides in the `onclone` element walker.
 
-This preserves:
-- White backgrounds (lum > 210)
-- Dark primary background with white text (white text has lum > 210, bg has lum < 20)
-- Yellow/colored badges (saturation > 50)
-- Only gray pixels become black -- exactly what we want
+**3. Update the canvas pixel post-processor to skip dark background pixels:**
 
-### Keep all existing code
+Change the luminance lower bound from `lum > 20` to `lum > 80`. This preserves dark backgrounds like `bg-slate-800` (lum ~40) from being turned to pure black, while still catching all gray text (which typically has lum 100-200).
 
-All existing CSS overrides, dark class removal, and style injection remain as-is. They may partially help, and the canvas post-processing acts as the final guarantee.
+```typescript
+if (saturation < 50 && lum > 80 && lum < 210) {
+```
 
-### No other files need changes.
+## Summary of Changes
+
+All changes are in one file: `src/hooks/usePdfGenerator.ts`
+- Add `.bg-slate-800` exception in pre-baking (mirrors `.bg-primary` exception)
+- Add `.bg-slate-800` exception in `onclone` callback
+- Raise pixel post-processor lower luminance threshold from 20 to 80
 
