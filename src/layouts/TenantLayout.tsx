@@ -407,28 +407,71 @@ export default function TenantLayout() {
             {canAccess("documents") && (
               <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
             )}
-            {canAccess("settings") && (
-              <CollapsibleNavGroup
-                label={t("settings")}
-                items={settingsNav.filter((item) => {
-                  if (item.url === "/settings") return true;
-                  if (item.url === "/settings/users") return canAccess("settings-users");
-                  if (item.url === "/settings/approvals") return canAccess("settings-approvals");
-                  if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
-                  if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
-                  if (item.url === "/settings/currencies") return canAccess("settings-currencies");
-                  if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
-                  if (item.url === "/settings/events") return canAccess("settings-events");
-                  if (item.url === "/settings/integrations") return canAccess("settings-integrations");
-                  return true;
-                })}
-                currentPath={currentPath}
-                t={t}
-                accentColor="bg-slate-400"
-                icon={Settings}
-              />
-            )}
           </SidebarContent>
+
+          {canAccess("settings") && (
+            <SidebarFooter className="border-t border-sidebar-border p-0">
+              <SidebarGroup className="py-0 flex flex-col-reverse">
+                <Collapsible defaultOpen={settingsNav.some((item) => currentPath.startsWith(item.url))}>
+                  <CollapsibleContent className="max-h-[40vh] overflow-y-auto">
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {settingsNav.filter((item) => {
+                          if (item.url === "/settings") return true;
+                          if (item.url === "/settings/users") return canAccess("settings-users");
+                          if (item.url === "/settings/approvals") return canAccess("settings-approvals");
+                          if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
+                          if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
+                          if (item.url === "/settings/currencies") return canAccess("settings-currencies");
+                          if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
+                          if (item.url === "/settings/events") return canAccess("settings-events");
+                          if (item.url === "/settings/integrations") return canAccess("settings-integrations");
+                          return true;
+                        }).map((item) => {
+                          const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                          return (
+                            <React.Fragment key={item.key}>
+                              {item.section && (
+                                <li className="px-3 pt-3 pb-1">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                                    {t(item.section as any)}
+                                  </span>
+                                </li>
+                              )}
+                              <SidebarMenuItem>
+                                <SidebarMenuButton asChild>
+                                  <NavLink
+                                    to={item.url}
+                                    className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-all border-l-2 border-transparent ${
+                                      itemActive
+                                        ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                                        : "hover:bg-sidebar-accent"
+                                    }`}
+                                    activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                                  >
+                                    <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : "opacity-60"}`} />
+                                    <span className="truncate">{t(item.key as any)}</span>
+                                    {itemActive && <ChevronRight className="h-3 w-3 ml-auto opacity-50" />}
+                                  </NavLink>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            </React.Fragment>
+                          );
+                        })}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+                    <span className="flex items-center gap-2">
+                      <Settings className="h-3.5 w-3.5 text-slate-400" />
+                      {t("settings")}
+                    </span>
+                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                </Collapsible>
+              </SidebarGroup>
+            </SidebarFooter>
+          )}
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
