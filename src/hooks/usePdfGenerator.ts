@@ -179,7 +179,9 @@ export async function generateInvoicePdf(
       -webkit-text-fill-color: #000000 !important;
     }
     .pdf-export .bg-primary,
-    .pdf-export .bg-primary * {
+    .pdf-export .bg-primary *,
+    .pdf-export .bg-slate-800,
+    .pdf-export .bg-slate-800 * {
       color: #ffffff !important;
       -webkit-text-fill-color: #ffffff !important;
     }
