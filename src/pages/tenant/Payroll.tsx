@@ -81,7 +81,13 @@ export default function Payroll() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-runs"] }); setOpen(false); toast.success(t("success")); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (e.message.includes("payroll_runs_tenant_id_period_month_period_year_key")) {
+        toast.error(t("payrollRunAlreadyExists"));
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
 
   const calculateMutation = useMutation({
