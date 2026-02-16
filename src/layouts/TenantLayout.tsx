@@ -8,7 +8,6 @@ import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { TenantSelector } from "@/components/TenantSelector";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
@@ -31,7 +30,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -63,20 +61,16 @@ const mainNav: NavItem[] = [
 ];
 
 const inventoryNav: NavItem[] = [
-  // Core Inventory
   { key: "products", url: "/inventory/products", icon: Package, section: "coreInventory" },
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
   { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },
-  // Internal Logistics
   { key: "internalOrders", url: "/inventory/internal-orders", icon: ClipboardCheck, section: "internalLogistics" },
   { key: "internalTransfers", url: "/inventory/internal-transfers", icon: Truck },
   { key: "internalReceipts", url: "/inventory/internal-receipts", icon: FileInput },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
-  // Pricing Operations
   { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator, section: "pricingOperations" },
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
-  // WMS
   { key: "wmsDashboard", url: "/inventory/wms/dashboard", icon: LayoutDashboard, section: "wms" },
   { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
@@ -87,22 +81,18 @@ const inventoryNav: NavItem[] = [
 ];
 
 const accountingNav: NavItem[] = [
-  // Bookkeeping
   { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen, section: "bookkeeping" },
   { key: "journalEntries", url: "/accounting/journal", icon: Calculator },
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
-  // Invoicing & Payments
   { key: "invoices", url: "/accounting/invoices", icon: Receipt, section: "invoicingPayments" },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "expensesOverview", url: "/accounting/expenses", icon: TrendingDown },
   { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
-  // Assets & Accruals
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark, section: "assetsAccruals" },
   { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
   { key: "loans", url: "/accounting/loans", icon: Coins },
   { key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign },
-  // Tax & Closing
   { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText, section: "taxClosing" },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
@@ -110,33 +100,25 @@ const accountingNav: NavItem[] = [
 ];
 
 const analyticsNav: NavItem[] = [
-  // Overview
   { key: "analyticsDashboard", url: "/analytics", icon: BarChart3, section: "analyticsOverview" },
-  // Financial Health
   { key: "workingCapitalStress", url: "/analytics/working-capital", icon: Activity, section: "financialHealth" },
   { key: "financialRatios", url: "/analytics/ratios", icon: Activity },
   { key: "profitabilityAnalysis", url: "/analytics/profitability", icon: TrendingUp },
   { key: "marginBridge", url: "/analytics/margin-bridge", icon: TrendingUp },
-  // Risk & Compliance
   { key: "customerRiskScoring", url: "/analytics/customer-risk", icon: AlertTriangle, section: "riskCompliance" },
   { key: "supplierDependency", url: "/analytics/supplier-risk", icon: Truck },
   { key: "vatCashTrap", url: "/analytics/vat-trap", icon: AlertTriangle },
   { key: "earlyWarningSystem", url: "/analytics/early-warning", icon: AlertTriangle },
-  // Operations
   { key: "inventoryHealth", url: "/analytics/inventory-health", icon: Package, section: "operationsAnalytics" },
   { key: "payrollBenchmark", url: "/analytics/payroll-benchmark", icon: Banknote },
-  // Forecasting
   { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign, section: "forecasting" },
   { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
-  // Strategic Planning
   { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator, section: "strategicPlanning" },
   { key: "businessPlanning", url: "/analytics/planning", icon: Briefcase },
 ];
 
 const crmNav: NavItem[] = [
-  // Overview
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
-  // Records
   { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
@@ -146,10 +128,8 @@ const crmNav: NavItem[] = [
 ];
 
 const salesNav: NavItem[] = [
-  // Documents
   { key: "quotes", url: "/sales/quotes", icon: FileCheck, section: "salesDocuments" },
   { key: "salesOrders", url: "/sales/sales-orders", icon: ShoppingCart },
-  // Performance & Pricing
   { key: "salesChannels", url: "/sales/sales-channels", icon: Grid3X3, section: "performancePricing" },
   { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
   { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
@@ -172,26 +152,21 @@ const returnsNav: NavItem[] = [
 ];
 
 const hrNav: NavItem[] = [
-  // Organization
   { key: "employees", url: "/hr/employees", icon: UserCheck, section: "organization" },
   { key: "contracts", url: "/hr/contracts", icon: FileSignature },
   { key: "departments", url: "/hr/departments", icon: Building },
   { key: "positionTemplates", url: "/hr/position-templates", icon: Briefcase },
-  // Working Time
   { key: "workLogs", url: "/hr/work-logs", icon: Clock, section: "workingTime" },
   { key: "overtimeHours", url: "/hr/overtime", icon: Timer },
   { key: "nightWork", url: "/hr/night-work", icon: Moon },
   { key: "attendance", url: "/hr/attendance", icon: Clock },
-  // Leave
   { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff, section: "leave" },
   { key: "holidays", url: "/hr/holidays", icon: Calendar },
   { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
-  // Compensation
   { key: "deductionsModule", url: "/hr/deductions", icon: Coins, section: "compensation" },
   { key: "allowance", url: "/hr/allowances", icon: Banknote },
   { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
-  // Other
   { key: "externalWorkers", url: "/hr/external-workers", icon: Users, section: "other" },
   { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
@@ -199,10 +174,8 @@ const hrNav: NavItem[] = [
 ];
 
 const productionNav: NavItem[] = [
-  // Existing
   { key: "bomTemplates", url: "/production/bom", icon: Layers, section: "existingSection" },
   { key: "productionOrders", url: "/production/orders", icon: Factory },
-  // AI Planning
   { key: "aiPlanningDashboard", url: "/production/ai-planning", icon: Brain, section: "aiPlanningSection" },
   { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays },
   { key: "bottleneckPrediction", url: "/production/ai-planning/bottlenecks", icon: AlertTriangle },
@@ -211,11 +184,9 @@ const productionNav: NavItem[] = [
 ];
 
 const documentsNav: NavItem[] = [
-  // Registry
   { key: "dmsRegistry", url: "/documents", icon: FolderOpen, section: "registry" },
   { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
-  // Management
   { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
   { key: "dmsBrowser", url: "/documents/browser", icon: Search },
   { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
@@ -223,24 +194,19 @@ const documentsNav: NavItem[] = [
 ];
 
 const posNav: NavItem[] = [
-  // Terminal
   { key: "posTerminal", url: "/pos/terminal", icon: Monitor, section: "terminal" },
-  // Administration
   { key: "posSessions", url: "/pos/sessions", icon: CreditCard, section: "administration" },
   { key: "fiscalDevices", url: "/pos/fiscal-devices", icon: Receipt },
   { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
 ];
 
 const settingsNav: NavItem[] = [
-  // General
   { key: "companySettings", url: "/settings", icon: Settings, section: "settingsGeneral" },
   { key: "taxRates", url: "/settings/tax-rates", icon: Percent },
   { key: "currencies", url: "/settings/currencies", icon: DollarSign },
-  // Access & Control
   { key: "users", url: "/settings/users", icon: Users, section: "accessControl" },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
-  // System
   { key: "integrations", url: "/settings/integrations", icon: Plug, section: "system" },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
@@ -266,7 +232,7 @@ function CollapsibleNavGroup({
   return (
     <SidebarGroup className="py-0">
       <Collapsible defaultOpen={isActive}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-semibold text-sidebar-foreground/60 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
           <span className="flex items-center gap-2">
             {Icon && <Icon className={`h-3.5 w-3.5 ${accentColor ? accentColor.replace('bg-', 'text-') : ''}`} />}
             {!Icon && accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
@@ -281,7 +247,7 @@ function CollapsibleNavGroup({
                 <React.Fragment key={item.key}>
                   {item.section && (
                     <li className="px-3 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
                         {t(item.section as any)}
                       </span>
                     </li>
@@ -290,10 +256,10 @@ function CollapsibleNavGroup({
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors border-l-2 border-transparent"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium border-l-primary"
                       >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        <item.icon className="h-4 w-4 flex-shrink-0 opacity-70" />
                         <span className="truncate">{t(item.key as any)}</span>
                       </NavLink>
                     </SidebarMenuButton>
@@ -318,7 +284,6 @@ export default function TenantLayout() {
   const isMobile = useIsMobile();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
 
-  // Auto-open on desktop, closed on mobile
   useEffect(() => {
     setAiSidebarOpen(!isMobile);
   }, []);
@@ -341,17 +306,22 @@ export default function TenantLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r border-sidebar-border">
+        <Sidebar className="border-r border-sidebar-border w-64">
           {/* Logo + Search trigger */}
           <div className="p-4 border-b border-sidebar-border space-y-3">
-            <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-sidebar-primary" />
+              </div>
+              <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+            </div>
             <button
               onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1.5 text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent transition-colors"
+              className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1.5 text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent transition-colors"
             >
               <Search className="h-3.5 w-3.5" />
               <span className="flex-1 text-left">{t("search")}</span>
-              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-sidebar-border bg-sidebar-background px-1.5 text-[10px] font-medium text-sidebar-foreground/50">
+              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-sidebar-border bg-sidebar-background px-1.5 text-[10px] font-medium text-sidebar-foreground/40">
                 <Command className="h-2.5 w-2.5" />K
               </kbd>
             </button>
@@ -368,8 +338,8 @@ export default function TenantLayout() {
                         <NavLink
                           to={item.url}
                           end
-                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors border-l-2 border-transparent"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium border-l-primary"
                         >
                           <item.icon className="h-4 w-4 flex-shrink-0" />
                           <span>{t(item.key as any)}</span>
@@ -442,15 +412,14 @@ export default function TenantLayout() {
                 icon={Settings}
               />
             )}
-
           </SidebarFooter>
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
-          <header className="h-12 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+          <header className="h-11 border-b border-border/50 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
-              <Separator orientation="vertical" className="h-5" />
+              <Separator orientation="vertical" className="h-4" />
               <Breadcrumbs />
             </div>
             <div className="flex items-center gap-1.5">
@@ -467,10 +436,10 @@ export default function TenantLayout() {
               )}
               <TenantSelector />
               <NotificationBell />
-              <Separator orientation="vertical" className="h-5" />
+              <Separator orientation="vertical" className="h-4" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-accent transition-colors">
+                  <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted transition-colors">
                     <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
                       {userInitials}
                     </div>
@@ -502,8 +471,10 @@ export default function TenantLayout() {
             </div>
           </header>
           <div className="flex-1 flex overflow-hidden">
-            <main className="flex-1 p-6 overflow-auto animate-in fade-in duration-300">
-              <Outlet />
+            <main className="flex-1 p-4 lg:p-6 overflow-auto animate-in fade-in duration-300">
+              <div className="max-w-screen-2xl mx-auto">
+                <Outlet />
+              </div>
             </main>
             {!isMobile && (
               <AiContextSidebar open={aiSidebarOpen} onToggle={() => setAiSidebarOpen(prev => !prev)} />

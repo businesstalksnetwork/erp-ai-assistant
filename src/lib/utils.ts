@@ -7,3 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 export const fmtNum = (n: number) =>
   n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Compact number format for mobile: 1.234.567 → "1,23M" */
+export const fmtNumCompact = (n: number): string => {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1_000_000_000) return `${sign}${(n / 1_000_000_000).toLocaleString("sr-RS", { maximumFractionDigits: 1 })}B`;
+  if (abs >= 1_000_000) return `${sign}${(n / 1_000_000).toLocaleString("sr-RS", { maximumFractionDigits: 1 })}M`;
+  if (abs >= 10_000) return `${sign}${(n / 1_000).toLocaleString("sr-RS", { maximumFractionDigits: 0 })}K`;
+  return fmtNum(n);
+};
