@@ -1,43 +1,30 @@
 
+# Better Format AI Assistant Responses (Markdown Rendering)
 
-# Fix AI Chat 401 Unauthorized Error
+## Problem
+The AI assistant returns markdown-formatted responses (with `###`, `**bold**`, `*` lists, etc.) but they are displayed as raw text using `whitespace-pre-wrap`. This makes responses hard to read.
 
-## Root Cause
-The `useAiStream` hook sends the Supabase **anon key** as the Authorization header:
-```
-Authorization: Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}
-```
+## Solution
+Add a lightweight inline markdown renderer component that converts common markdown patterns to styled HTML. No external library needed -- just a small helper function that handles:
 
-But the edge function calls `getUser()` which requires the **user's session JWT token**. The anon key is not a valid user token, so authentication fails with 401.
+- `### Heading` -> bold section titles
+- `**bold**` -> `<strong>`
+- `* item` / `- item` -> bullet list items
+- Numbered lists (`1. item`) -> numbered items  
+- Line breaks preserved naturally
 
-## Fix
+## File Modified
+- `src/components/ai/AiContextSidebar.tsx`
 
-### File: `src/hooks/useAiStream.ts`
-- Import the Supabase client to get the current user's session token
-- Before making the fetch call, retrieve the session via `supabase.auth.getSession()`
-- Use the session's `access_token` in the Authorization header instead of the anon key
-- Add the `apikey` header with the anon key (required by Supabase edge functions)
+## Changes
 
-### Changes:
-```typescript
-import { supabase } from "@/integrations/supabase/client";
+1. Add a `SimpleMarkdown` component that takes a content string and renders it with basic formatting:
+   - Split content by lines
+   - Detect headings (`###`, `##`, `#`) and render as bold text with appropriate sizing
+   - Detect list items (`* `, `- `, `1. `) and render with bullet/number styling
+   - Apply inline bold (`**text**`) replacement within all text
+   - Wrap everything in a styled container with proper spacing
 
-// Inside the send function, before fetch:
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) {
-  // show error: user not logged in
-  return;
-}
+2. Replace the plain `{msg.content}` render for assistant messages with `<SimpleMarkdown content={msg.content} />`
 
-// In fetch headers:
-headers: {
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${session.access_token}`,
-  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-}
-```
-
-This ensures the edge function receives a valid user JWT for authentication, while the `apikey` header satisfies the Supabase gateway routing.
-
-## Files Modified
-- `src/hooks/useAiStream.ts` -- use user session token instead of anon key
+3. Remove `whitespace-pre-wrap` from assistant message bubbles (the markdown component handles spacing)
