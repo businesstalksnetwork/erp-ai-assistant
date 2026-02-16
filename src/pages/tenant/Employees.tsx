@@ -155,7 +155,7 @@ export default function Employees() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("employees")}</h1>
+        <h1 className="text-2xl font-bold">{t("employees")}</h1>
         <div className="flex gap-2 items-center">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={showArchived} onCheckedChange={(v) => setShowArchived(!!v)} />
@@ -209,15 +209,15 @@ export default function Employees() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editEmployee") : t("addEmployee")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("firstName")} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("lastName")} *</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("phone")}</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("jmbg")}</Label><Input value={form.jmbg} onChange={e => setForm({ ...form, jmbg: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("position")}</Label>
@@ -243,11 +243,11 @@ export default function Employees() {
                 <Input value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("department")}</Label>
                 <Select value={form.department_id || "__none"} onValueChange={v => setForm({ ...form, department_id: v === "__none" ? null : v })}>
@@ -269,7 +269,7 @@ export default function Employees() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("employmentType")}</Label>
                 <Select value={form.employment_type} onValueChange={v => setForm({ ...form, employment_type: v as EmploymentType })}>
@@ -283,12 +283,12 @@ export default function Employees() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("hireDate")}</Label><Input type="date" value={form.hire_date} onChange={e => setForm({ ...form, hire_date: e.target.value, start_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("terminationDate")}</Label><Input type="date" value={form.termination_date} onChange={e => setForm({ ...form, termination_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("earlyTerminationDate")}</Label><Input type="date" value={form.early_termination_date} onChange={e => setForm({ ...form, early_termination_date: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("annualLeaveDays")}</Label><Input type="number" value={form.annual_leave_days} onChange={e => setForm({ ...form, annual_leave_days: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("slavaDate")}</Label><Input type="date" value={form.slava_date} onChange={e => setForm({ ...form, slava_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("dailyWorkHoursLabel")}</Label><Input type="number" step="0.5" value={form.daily_work_hours} onChange={e => setForm({ ...form, daily_work_hours: +e.target.value })} /></div>

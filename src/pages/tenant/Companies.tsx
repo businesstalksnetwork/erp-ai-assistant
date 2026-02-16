@@ -142,7 +142,7 @@ export default function Companies() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("companies")}</h1>
+        <h1 className="text-2xl font-bold">{t("companies")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addCompany")}</Button>
       </div>
 
@@ -206,8 +206,8 @@ export default function Companies() {
           <DialogHeader><DialogTitle>{editId ? t("editCompany") : t("addCompany")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             {/* PIB Lookup */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2 col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid gap-2 sm:col-span-2">
                 <Label>{t("pib")}</Label>
                 <div className="flex gap-2">
                   <Input value={form.pib} onChange={e => setForm({ ...form, pib: e.target.value.replace(/\D/g, "").slice(0, 9) })} placeholder="9 cifara" />
@@ -221,16 +221,16 @@ export default function Companies() {
                 <Input value={form.maticni_broj} onChange={e => setForm({ ...form, maticni_broj: e.target.value.replace(/\D/g, "").slice(0, 8) })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("legalName")} *</Label><Input value={form.legal_name} onChange={e => setForm({ ...form, legal_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("displayName")}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("phone")}</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
             </div>
             <div className="grid gap-2"><Label>{t("website")}</Label><Input value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} /></div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("postalCode")}</Label><Input value={form.postal_code} onChange={e => setForm({ ...form, postal_code: e.target.value })} /></div>

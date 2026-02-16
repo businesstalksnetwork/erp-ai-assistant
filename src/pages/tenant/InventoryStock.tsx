@@ -118,7 +118,7 @@ export default function InventoryStock() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("stockOverview")}</h1>
+        <h1 className="text-2xl font-bold">{t("stockOverview")}</h1>
         <ExportButton
           data={filtered.map((s) => ({
             product: (s.products as any)?.name || "",

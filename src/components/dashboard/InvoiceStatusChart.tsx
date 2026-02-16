@@ -3,20 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   tenantId: string;
 }
 
 const COLORS = [
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--accent))",
-  "hsl(var(--primary))",
-  "hsl(var(--destructive))",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
 ];
 
 export function InvoiceStatusChart({ tenantId }: Props) {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
 
   const statusLabels: Record<string, string> = {
     draft: t("draft"),
@@ -52,20 +54,20 @@ export function InvoiceStatusChart({ tenantId }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">{t("invoiceStatusDistribution")}</CardTitle>
+        <CardTitle className="text-base">{t("invoiceStatusDistribution")}</CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">{t("noResults")}</p>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
             <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value">
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={isMobile ? 80 : 100} paddingAngle={4} dataKey="value">
                 {chartData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>

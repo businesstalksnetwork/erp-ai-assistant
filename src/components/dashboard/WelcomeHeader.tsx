@@ -18,9 +18,9 @@ export function WelcomeHeader() {
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {greeting}, {name}
-          <Sparkles className="inline-block ml-2 h-5 w-5 text-primary" />
+        <h1 className="text-xl font-bold tracking-tight">
+          {greeting}, <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{name}</span>
+          <Sparkles className="inline-block ml-2 h-4 w-4 text-primary" />
         </h1>
         <p className="text-sm text-muted-foreground capitalize">{today}</p>
       </div>

@@ -115,7 +115,7 @@ export default function Opportunities() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("opportunities")}</h1>
+        <h1 className="text-2xl font-bold">{t("opportunities")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addOpportunity")}</Button>
       </div>
 
@@ -123,7 +123,7 @@ export default function Opportunities() {
         <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
         /* Kanban board */
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {grouped.map(g => (
             <div key={g.stage} className="space-y-3">
               <div className="flex items-center justify-between">
@@ -157,12 +157,12 @@ export default function Opportunities() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editOpportunity") : t("addOpportunity")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("title")} *</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
             <div className="grid gap-2"><Label>{t("description")}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("contactPerson")}</Label>
                 <Select value={form.contact_id || "__none"} onValueChange={v => setForm({ ...form, contact_id: v === "__none" ? null : v })}>
@@ -181,7 +181,7 @@ export default function Opportunities() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("value")} *</Label><Input type="number" value={form.value} onChange={e => setForm({ ...form, value: Number(e.target.value) })} /></div>
               <div className="grid gap-2">
                 <Label>{t("currency")}</Label>

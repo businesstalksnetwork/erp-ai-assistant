@@ -208,7 +208,7 @@ export default function PurchaseOrders() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("purchaseOrders")}</h1>
+        <h1 className="text-2xl font-bold">{t("purchaseOrders")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addPurchaseOrder")}</Button>
       </div>
       <Card>
@@ -273,10 +273,10 @@ export default function PurchaseOrders() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editPurchaseOrder") : t("addPurchaseOrder")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("orderNumber")} *</Label><Input value={form.order_number} onChange={(e) => setForm({ ...form, order_number: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("supplier")}</Label>
@@ -298,7 +298,7 @@ export default function PurchaseOrders() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("orderDate")}</Label><Input type="date" value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("expectedDate")}</Label><Input type="date" value={form.expected_date} onChange={(e) => setForm({ ...form, expected_date: e.target.value })} /></div>
               <div className="grid gap-2">

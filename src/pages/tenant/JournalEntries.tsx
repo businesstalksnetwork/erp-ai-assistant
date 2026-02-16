@@ -202,7 +202,7 @@ export default function JournalEntries() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("journalEntries")}</h1>
+        <h1 className="text-2xl font-bold">{t("journalEntries")}</h1>
         <div className="flex gap-2">
           <ExportButton
             data={filtered}
@@ -291,14 +291,14 @@ export default function JournalEntries() {
 
       {/* Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("add")} — {t("journalEntries")}</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); createMutation.mutate(); }} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1"><Label>{t("entryNumber")}</Label><Input value={form.entry_number} onChange={e => setForm(p => ({ ...p, entry_number: e.target.value }))} required /></div>
               <div className="space-y-1"><Label>{t("entryDate")}</Label><Input type="date" value={form.entry_date} onChange={e => setForm(p => ({ ...p, entry_date: e.target.value }))} required /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1"><Label>{t("description")}</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
               <div className="space-y-1"><Label>{t("reference")}</Label><Input value={form.reference} onChange={e => setForm(p => ({ ...p, reference: e.target.value }))} /></div>
             </div>

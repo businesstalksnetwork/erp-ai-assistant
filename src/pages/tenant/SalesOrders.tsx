@@ -174,7 +174,7 @@ export default function SalesOrders() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("salesOrders")}</h1>
+        <h1 className="text-2xl font-bold">{t("salesOrders")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSalesOrder")}</Button>
       </div>
       <Card>
@@ -224,10 +224,10 @@ export default function SalesOrders() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editSalesOrder") : t("addSalesOrder")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("orderNumber")} *</Label><Input value={form.order_number} onChange={(e) => setForm({ ...form, order_number: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("status")}</Label>
@@ -239,7 +239,7 @@ export default function SalesOrders() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("partner")}</Label>
                 <Select value={form.partner_id || "__none"} onValueChange={(v) => { const p = partners.find((p: any) => p.id === v); setForm({ ...form, partner_id: v === "__none" ? null : v, partner_name: p?.name || form.partner_name }); }}>
@@ -261,7 +261,7 @@ export default function SalesOrders() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("orderDate")}</Label><Input type="date" value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("currency")}</Label>

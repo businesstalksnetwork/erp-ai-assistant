@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
-import { fmtNum } from "@/lib/utils";
+import { fmtNum, fmtNumCompact } from "@/lib/utils";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
@@ -17,6 +18,7 @@ import { ModuleHealthSummary } from "@/components/dashboard/ModuleHealthSummary"
 import { FiscalReceiptStatusWidget } from "@/components/dashboard/FiscalReceiptStatusWidget";
 import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
+import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 import { addDays } from "date-fns";
 
 export default function TenantDashboard() {
@@ -24,7 +26,7 @@ export default function TenantDashboard() {
   const { tenantId } = useTenant();
   const { canAccess } = usePermissions();
   const navigate = useNavigate();
-
+  const isMobile = useIsMobile();
 
   // Revenue
   const { data: revenue = 0 } = useQuery({
@@ -136,62 +138,71 @@ export default function TenantDashboard() {
   });
 
   const profit = revenue - expenses;
+  const fmt = isMobile ? fmtNumCompact : fmtNum;
 
   const kpis = [
-    { label: t("revenue"), value: `${fmtNum(revenue)} RSD`, icon: TrendingUp, color: "text-accent" },
-    { label: t("expenses"), value: `${fmtNum(expenses)} RSD`, icon: TrendingDown, color: "text-destructive" },
-    { label: t("profit"), value: `${fmtNum(profit)} RSD`, icon: DollarSign, color: "text-primary" },
-    { label: t("cashBalance"), value: `${fmtNum(cashBalance)} RSD`, icon: Wallet, color: "text-primary" },
+    { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-accent" },
+    { label: t("expenses"), value: `${fmt(expenses)} RSD`, icon: TrendingDown, borderColor: "border-destructive" },
+    { label: t("profit"), value: `${fmt(profit)} RSD`, icon: DollarSign, borderColor: "border-primary" },
+    { label: t("cashBalance"), value: `${fmt(cashBalance)} RSD`, icon: Wallet, borderColor: "border-primary" },
   ];
+
+  const exportAction = () => {
+    exportToCsv(
+      [{ metric: t("revenue"), value: revenue }, { metric: t("expenses"), value: expenses }, { metric: t("profit"), value: profit }, { metric: t("cashBalance"), value: cashBalance }],
+      [{ key: "metric", label: "Metric" }, { key: "value", label: "Value", formatter: (v) => Number(v).toFixed(2) }],
+      "dashboard_summary"
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Welcome header */}
       <div className="flex items-center justify-between">
         <WelcomeHeader />
-        <Button variant="outline" size="sm" onClick={() => {
-          exportToCsv(
-            [{ metric: t("revenue"), value: revenue }, { metric: t("expenses"), value: expenses }, { metric: t("profit"), value: profit }, { metric: t("cashBalance"), value: cashBalance }],
-            [{ key: "metric", label: "Metric" }, { key: "value", label: "Value", formatter: (v) => Number(v).toFixed(2) }],
-            "dashboard_summary"
-          );
-        }}>
-          <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
-        </Button>
+        {isMobile ? (
+          <MobileActionMenu actions={[{ label: t("exportCsv"), onClick: exportAction }]} />
+        ) : (
+          <Button variant="outline" size="sm" onClick={exportAction}>
+            <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
+          </Button>
+        )}
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className="hover:shadow-md transition-shadow">
+          <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor} hover:shadow-md transition-shadow`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                <kpi.icon className="h-4 w-4 text-foreground" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{kpi.value}</div>
+              <div className="text-2xl lg:text-2xl text-lg font-bold tabular-nums">{kpi.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Fiscal Receipt Status - prominent position */}
+      {/* Fiscal Receipt Status */}
       {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
 
-      {/* AI Insights - prominent */}
+      {/* AI Insights */}
       {tenantId && <AiInsightsWidget tenantId={tenantId} />}
 
       {/* Charts Row 1 */}
       {tenantId && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <RevenueExpensesChart tenantId={tenantId} />
           <InvoiceStatusChart tenantId={tenantId} />
         </div>
       )}
 
-      {/* Charts Row 2 - new charts */}
+      {/* Charts Row 2 */}
       {tenantId && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <CashFlowChart tenantId={tenantId} />
           <TopCustomersChart tenantId={tenantId} />
         </div>
@@ -200,11 +211,10 @@ export default function TenantDashboard() {
       {/* Module Health */}
       {tenantId && <ModuleHealthSummary tenantId={tenantId} />}
 
-
       {/* Pending Actions + Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-lg">{t("pendingActions")}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("pendingActions")}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {draftCount > 0 && (
               <div className="flex items-center justify-between">
@@ -257,23 +267,25 @@ export default function TenantDashboard() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg">{t("quickActions")}</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            {canAccess("accounting") && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => navigate("/accounting/invoices/new")}>
-                  <FileText className="h-4 w-4 mr-2" /> {t("newInvoice")}
+          <CardHeader><CardTitle className="text-base">{t("quickActions")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className={`flex gap-3 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
+              {canAccess("accounting") && (
+                <>
+                  <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/accounting/invoices/new")}>
+                    <FileText className="h-4 w-4 mr-2" /> {t("newInvoice")}
+                  </Button>
+                  <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/accounting/journal")}>
+                    <Calculator className="h-4 w-4 mr-2" /> {t("newJournalEntry")}
+                  </Button>
+                </>
+              )}
+              {canAccess("crm") && (
+                <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/crm/leads")}>
+                  <TrendingUp className="h-4 w-4 mr-2" /> {t("addLead")}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate("/accounting/journal")}>
-                  <Calculator className="h-4 w-4 mr-2" /> {t("newJournalEntry")}
-                </Button>
-              </>
-            )}
-            {canAccess("crm") && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/crm/leads")}>
-                <TrendingUp className="h-4 w-4 mr-2" /> {t("addLead")}
-              </Button>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
