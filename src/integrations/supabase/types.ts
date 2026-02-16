@@ -837,6 +837,83 @@ export type Database = {
           },
         ]
       }
+      invoice_views: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          email_log_id: string | null
+          id: string
+          invoice_id: string | null
+          last_viewed_at: string | null
+          pdf_url: string
+          pdf_url_expires_at: string | null
+          tracking_token: string
+          view_count: number | null
+          viewed_at: string | null
+          viewer_ip: string | null
+          viewer_user_agent: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          email_log_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_viewed_at?: string | null
+          pdf_url: string
+          pdf_url_expires_at?: string | null
+          tracking_token: string
+          view_count?: number | null
+          viewed_at?: string | null
+          viewer_ip?: string | null
+          viewer_user_agent?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          email_log_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_viewed_at?: string | null
+          pdf_url?: string
+          pdf_url_expires_at?: string | null
+          tracking_token?: string
+          view_count?: number | null
+          viewed_at?: string | null
+          viewer_ip?: string | null
+          viewer_user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_views_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_views_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_views_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_email_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_views_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           advance_status: string | null
@@ -1065,6 +1142,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string
+          reference_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message: string
+          reference_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string
+          reference_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       partners: {
         Row: {

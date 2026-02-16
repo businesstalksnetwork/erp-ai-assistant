@@ -152,6 +152,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Prepare signature HTML
     const signatureHtml = signature ? `<div style="margin-top: 16px; white-space: pre-wrap;">${signature}</div>` : '';
 
+    // Generate tracking URL
+    const trackingToken = crypto.randomUUID();
+    const trackingUrl = `${supabaseUrl}/functions/v1/track-invoice-view?token=${trackingToken}`;
+
     const templateData = {
       invoice_number: invoice.invoice_number,
       company_name: company.name,
@@ -159,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
       issue_date: formatDate(invoice.issue_date, language),
       payment_deadline: invoice.payment_deadline ? formatDate(invoice.payment_deadline, language) : '-',
       total_amount: displayAmount,
-      pdf_url: pdfUrl,
+      pdf_url: trackingUrl,
       signature: signatureHtml,
     };
 
@@ -202,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Email sent successfully, ID:", emailResponse.data?.id);
 
     // Log the email in database
-    const { error: logError } = await supabase
+    const { data: emailLog, error: logError } = await supabase
       .from('invoice_email_log')
       .insert({
         invoice_id: invoiceId,
@@ -210,11 +214,26 @@ const handler = async (req: Request): Promise<Response> => {
         sent_to: recipientEmail,
         language: language,
         status: 'sent',
-      });
+      })
+      .select('id')
+      .single();
 
     if (logError) {
       console.error("Failed to log email:", logError);
-      // Don't throw - email was sent successfully
+    }
+
+    // Create trackable view record using the same token from the URL
+    try {
+      await supabase.from('invoice_views').insert({
+        invoice_id: invoiceId,
+        company_id: invoice.company_id,
+        email_log_id: emailLog?.id || null,
+        tracking_token: trackingToken,
+        pdf_url: pdfUrl,
+      });
+      console.log("Tracking record created with token:", trackingToken);
+    } catch (trackErr) {
+      console.error("Failed to create tracking record:", trackErr);
     }
 
     return new Response(
