@@ -1,4 +1,4 @@
-import { Bell, Eye, FileText, CheckCheck } from 'lucide-react';
+import { Bell, Eye, FileText, CheckCheck, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppNotifications, AppNotification } from '@/hooks/useAppNotifications';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,6 +12,12 @@ function getNotificationIcon(type: string) {
   switch (type) {
     case 'invoice_viewed':
       return <Eye className="h-4 w-4 text-primary" />;
+    case 'reminder_due':
+      return <Clock className="h-4 w-4 text-orange-500" />;
+    case 'subscription_expiring':
+      return <AlertTriangle className="h-4 w-4 text-destructive" />;
+    case 'limit_warning':
+      return <TrendingUp className="h-4 w-4 text-yellow-500" />;
     default:
       return <FileText className="h-4 w-4 text-muted-foreground" />;
   }

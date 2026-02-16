@@ -33,6 +33,11 @@ interface Profile {
   bookkeeper_address: string | null;
   // Email verification at application level
   email_verified: boolean;
+  // App notification preferences
+  app_notify_reminders: boolean;
+  app_notify_subscription: boolean;
+  app_notify_limits: boolean;
+  push_notifications_enabled: boolean;
 }
 
 interface AuthContextType {
@@ -104,6 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           bookkeeper_bank_account: (profileData as any).bookkeeper_bank_account ?? null,
           bookkeeper_address: (profileData as any).bookkeeper_address ?? null,
           email_verified: (profileData as any).email_verified ?? false,
+          app_notify_reminders: (profileData as any).app_notify_reminders ?? true,
+          app_notify_subscription: (profileData as any).app_notify_subscription ?? true,
+          app_notify_limits: (profileData as any).app_notify_limits ?? true,
+          push_notifications_enabled: (profileData as any).push_notifications_enabled ?? false,
         } as Profile);
       }
 

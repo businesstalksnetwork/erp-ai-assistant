@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-context';
 import { useBookkeeperReferrals } from '@/hooks/useBookkeeperReferrals';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,7 +36,9 @@ import {
   Building2,
   Save,
   Link as LinkIcon,
-  User
+  User,
+  Smartphone,
+  Send
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -128,6 +131,7 @@ const paymentRecipient = {
 export default function Profile() {
   const { profile, isBookkeeper, isAdmin, subscriptionDaysLeft, isSubscriptionExpiring, isSubscriptionExpired, user, refreshProfile, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { isSupported: pushSupported, permission: pushPermission, isSubscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe, sendTestNotification } = usePushNotifications();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
@@ -910,6 +914,153 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* App Notifications Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                App notifikacije
+              </CardTitle>
+              <CardDescription>
+                Notifikacije koje se prikazuju u aplikaciji (zvonce u headeru)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Faktura pregledana</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Obaveštenje kada klijent otvori fakturu
+                  </p>
+                </div>
+                <Switch checked={true} disabled />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Podsetnici</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prikaži notifikaciju u aplikaciji za podsetnike
+                  </p>
+                </div>
+                <Switch
+                  checked={(profile as any)?.app_notify_reminders ?? true}
+                  onCheckedChange={(checked) => updateEmailPreference('app_notify_reminders', checked)}
+                  disabled={updatingEmail === 'app_notify_reminders'}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Istek pretplate</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prikaži notifikaciju u aplikaciji kada pretplata ističe
+                  </p>
+                </div>
+                <Switch
+                  checked={(profile as any)?.app_notify_subscription ?? true}
+                  onCheckedChange={(checked) => updateEmailPreference('app_notify_subscription', checked)}
+                  disabled={updatingEmail === 'app_notify_subscription'}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Upozorenja za limite</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Prikaži notifikaciju u aplikaciji za limite
+                  </p>
+                </div>
+                <Switch
+                  checked={(profile as any)?.app_notify_limits ?? true}
+                  onCheckedChange={(checked) => updateEmailPreference('app_notify_limits', checked)}
+                  disabled={updatingEmail === 'app_notify_limits'}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Push Notifications Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Push notifikacije
+              </CardTitle>
+              <CardDescription>
+                Primajte notifikacije i kada aplikacija nije otvorena
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!pushSupported ? (
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="font-medium">Browser ne podržava push notifikacije</p>
+                    <p className="text-sm text-muted-foreground">
+                      Koristite moderan browser (Chrome, Firefox, Edge) za ovu funkciju.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm text-muted-foreground">Status dozvole:</span>
+                    <Badge variant={pushPermission === 'granted' ? 'default' : pushPermission === 'denied' ? 'destructive' : 'secondary'}>
+                      {pushPermission === 'granted' ? 'Dozvoljeno' : pushPermission === 'denied' ? 'Odbijeno' : 'Nije zatraženo'}
+                    </Badge>
+                  </div>
+
+                  {pushPermission === 'denied' && (
+                    <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-lg">
+                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                      <p className="text-sm text-destructive">
+                        Notifikacije su blokirane u browseru. Otvorite podešavanja sajta u browseru i dozvolite notifikacije.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Omogući push notifikacije</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Primajte obaveštenja na desktop čak i kada je PausalBox zatvoren
+                      </p>
+                    </div>
+                    <Switch
+                      checked={pushSubscribed}
+                      onCheckedChange={async (checked) => {
+                        if (checked) {
+                          await pushSubscribe();
+                        } else {
+                          await pushUnsubscribe();
+                        }
+                      }}
+                      disabled={pushLoading || pushPermission === 'denied'}
+                    />
+                  </div>
+
+                  {pushSubscribed && (
+                    <>
+                      <Separator />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={sendTestNotification}
+                      >
+                        <Send className="h-4 w-4" />
+                        Pošalji test notifikaciju
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
