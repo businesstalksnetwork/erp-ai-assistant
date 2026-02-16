@@ -1,58 +1,39 @@
 
+# Improve Financial Ratio Detail Dialog Design
 
-# Make Financial Ratio Cards Clickable with Detail Dialogs
+## Problems Identified
+- Benchmark badges are hard to read (colored outlines with no fill, small text)
+- Components section lacks visual separation between rows
+- Overall dialog feels cramped with inconsistent spacing
+- The large number in the center lacks context/unit label
+- Formula box styling is plain
+- Interpretation text at the bottom is easy to miss
 
-## Current State
-The ratio cards are static -- they show just the value and a health badge. No interactivity.
+## Redesign
 
-## Proposed Enhancement
-Each card becomes clickable (with hover cursor and subtle hover effect). Clicking opens a Dialog/Sheet showing:
+### Dialog Layout Improvements
+1. **Header**: Title left-aligned with health badge as a filled pill (not outline), description below in normal weight
+2. **Hero value**: Larger font (5xl), centered, with format label underneath (e.g., "ratio", "%", "days")
+3. **Formula section**: Styled as a highlighted card with a subtle background and left border accent
+4. **Components section**: Table-like layout with alternating row backgrounds for readability, proper alignment
+5. **Benchmarks section**: Replace outline badges with a horizontal gauge/bar showing three zones (green/yellow/red) with a marker for the current value -- much more intuitive than three separate badges
+6. **Interpretation**: Highlighted box with colored left border matching health status (green/yellow/red)
 
-1. **Formula explanation** -- e.g., "Current Ratio = Current Assets / Current Liabilities"
-2. **Component breakdown** -- show the numerator and denominator values used in the calculation (e.g., "Current Assets: 1,245,000 / Current Liabilities: 179,400")
-3. **Benchmark context** -- "Industry benchmark: >1.5 (healthy), 1.0-1.5 (caution), <1.0 (risk)"
-4. **Interpretation text** -- a short sentence like "Your current ratio of 6.94 indicates strong short-term liquidity."
+### Benchmark Visual Gauge
+Instead of three small badges, render a simple 3-segment horizontal bar:
+```
+[=====GREEN=====|===YELLOW===|===RED===]
+                        ^
+                      6.94
+```
+This is done with a simple div-based bar (3 colored segments) and a positioned marker. Much more readable than text badges.
 
-## Technical Approach
-
-### Data Changes
-Extend the `RatioCard` interface with new fields:
-- `formula: string` -- e.g., "Current Assets / Current Liabilities"
-- `components: { label: string; value: number }[]` -- the raw numbers
-- `description: string` -- what this ratio measures
-- `interpretation: string` -- dynamic text based on value vs benchmarks
-
-These fields are populated from the already-computed variables (`currentAssets`, `currentLiabilities`, etc.) -- no new DB queries needed. The raw component values will be returned alongside the ratios from the existing `useQuery`.
-
-### UI Changes
-- Wrap each `Card` in a clickable div with `cursor-pointer` and hover scale effect
-- Use a `Dialog` (already available from radix) to show the detail panel
-- Track `selectedCard` state to control which dialog is open
+### Specific CSS/Layout Changes
+- Dialog max width: `sm:max-w-lg` (slightly wider for breathing room)
+- Add `p-1` gap between component rows with `rounded bg-muted/50` on alternating rows
+- Formula in a `bg-primary/5 border-l-2 border-primary` styled block
+- Interpretation in a `bg-accent/10 border-l-2 border-accent` (or warning/destructive based on health) block
+- Larger section headers with bottom border instead of just uppercase text
 
 ### File Modified
-Only `src/pages/tenant/FinancialRatios.tsx` -- single file change. No new files, no routing changes.
-
-### Detail Dialog Content Layout
-```
-+------------------------------------------+
-|  CURRENT RATIO                    [x]    |
-|------------------------------------------|
-|  6.94              ● Healthy             |
-|                                          |
-|  Formula:                                |
-|  Current Assets / Current Liabilities    |
-|                                          |
-|  Components:                             |
-|  Current Assets      1,245,000.00        |
-|  Current Liabilities   179,400.00        |
-|                                          |
-|  Benchmarks:                             |
-|  > 1.5  Healthy  |  1.0-1.5  Caution    |
-|  < 1.0  Risk                             |
-|                                          |
-|  Your ratio of 6.94 indicates strong     |
-|  short-term liquidity -- well above      |
-|  industry standard.                      |
-+------------------------------------------+
-```
-
+`src/pages/tenant/FinancialRatios.tsx` -- dialog section only (lines 277-354), no structural changes to data or cards
