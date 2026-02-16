@@ -101,6 +101,19 @@ export async function generateInvoicePdf(
     });
   });
 
+  // Exception: .bg-slate-800 elements also need white text (amount due section)
+  clone.querySelectorAll('.bg-slate-800').forEach(el => {
+    const htmlEl = el as HTMLElement;
+    htmlEl.style.setProperty('color', '#ffffff', 'important');
+    htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+    htmlEl.style.setProperty('background-color', '#1e293b', 'important');
+    htmlEl.querySelectorAll('*').forEach(child => {
+      const childEl = child as HTMLElement;
+      childEl.style.setProperty('color', '#ffffff', 'important');
+      childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+    });
+  });
+
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
 
@@ -195,7 +208,7 @@ export async function generateInvoicePdf(
       onclone: (clonedDoc, clonedElement) => {
         // Inject override stylesheet into cloned document's head
         const overrideStyle = clonedDoc.createElement('style');
-        overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
+        overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary *, .bg-slate-800, .bg-slate-800 * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
         clonedDoc.head.appendChild(overrideStyle);
         // Also force inline styles on all cloned elements
         clonedElement.querySelectorAll('*').forEach(el => {
@@ -205,8 +218,8 @@ export async function generateInvoicePdf(
         });
         clonedElement.style.setProperty('color', '#000000', 'important');
         clonedElement.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
-        // Exception: keep white text on dark primary backgrounds
-        clonedElement.querySelectorAll('.bg-primary, .bg-primary *').forEach(el => {
+        // Exception: keep white text on dark primary/slate backgrounds
+        clonedElement.querySelectorAll('.bg-primary, .bg-primary *, .bg-slate-800, .bg-slate-800 *').forEach(el => {
           const htmlEl = el as HTMLElement;
           htmlEl.style.setProperty('color', '#ffffff', 'important');
           htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
@@ -223,7 +236,7 @@ export async function generateInvoicePdf(
         const r = data[i], g = data[i + 1], b = data[i + 2];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
         const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-        if (saturation < 50 && lum > 20 && lum < 210) {
+        if (saturation < 50 && lum > 80 && lum < 210) {
           data[i] = 0;
           data[i + 1] = 0;
           data[i + 2] = 0;
