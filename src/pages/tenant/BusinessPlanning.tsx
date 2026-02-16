@@ -30,7 +30,7 @@ export default function BusinessPlanning() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("debit, credit, accounts:account_id(account_type), journal:journal_entry_id(status, entry_date, tenant_id)") as any)
+        .select("debit, credit, chart_of_accounts:account_id(account_type), journal:journal_entry_id(status, entry_date, tenant_id)") as any)
         .eq("journal.tenant_id", tenantId!);
 
       const year = new Date().getFullYear();
@@ -43,11 +43,11 @@ export default function BusinessPlanning() {
         const debit = Number(line.debit) || 0;
         const credit = Number(line.credit) || 0;
 
-        if (line.accounts?.account_type === "revenue") {
+        if (line.chart_of_accounts?.account_type === "revenue") {
           const val = credit - debit; // revenue normal balance is credit
           if (lineYear === year) revenue += val;
           else if (lineYear === year - 1) prevRevenue += val;
-        } else if (line.accounts?.account_type === "expense") {
+        } else if (line.chart_of_accounts?.account_type === "expense") {
           const val = debit - credit; // expense normal balance is debit
           if (lineYear === year) expenses += val;
           else if (lineYear === year - 1) prevExpenses += val;
