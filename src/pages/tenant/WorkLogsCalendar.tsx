@@ -61,7 +61,7 @@ export default function WorkLogsCalendar() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("workLogsCalendar")}</h1>
+        <h1 className="text-2xl font-bold">{t("workLogsCalendar")}</h1>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-semibold min-w-[150px] text-center">{format(currentMonth, "MMMM yyyy")}</span>

@@ -47,7 +47,7 @@ export default function InsuranceRecords() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("insuranceRecords")}</h1>
+        <h1 className="text-2xl font-bold">{t("insuranceRecords")}</h1>
         <Button onClick={() => { setEditId(null); setForm({ first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
@@ -84,16 +84,16 @@ export default function InsuranceRecords() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("insuranceRecord")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("firstName")} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("middleName")}</Label><Input value={form.middle_name} onChange={e => setForm({ ...form, middle_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("lastName")} *</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("jmbg")} *</Label><Input value={form.jmbg} onChange={e => setForm({ ...form, jmbg: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("lbo")}</Label><Input value={form.lbo} onChange={e => setForm({ ...form, lbo: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("insuranceStart")} *</Label><Input type="date" value={form.insurance_start} onChange={e => setForm({ ...form, insurance_start: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("insuranceEnd")}</Label><Input type="date" value={form.insurance_end} onChange={e => setForm({ ...form, insurance_end: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("registrationDate")}</Label><Input type="date" value={form.registration_date} onChange={e => setForm({ ...form, registration_date: e.target.value })} /></div>

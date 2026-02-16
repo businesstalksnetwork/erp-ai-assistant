@@ -103,7 +103,7 @@ export default function HrReports() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("hrReports")}</h1>
+        <h1 className="text-2xl font-bold">{t("hrReports")}</h1>
         <ExportButton data={monthlyReport} columns={exportColumns} filename="hr-monthly-report" />
       </div>
 
@@ -213,7 +213,7 @@ export default function HrReports() {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card><CardHeader><CardTitle className="text-sm">{t("employees")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{employees.length}</div></CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">{t("totalHours")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{monthlyReport.reduce((a, b) => a + b.total, 0)}</div></CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">{t("overtimeHours")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{monthlyReport.reduce((a, b) => a + b.overtime, 0)}</div></CardContent></Card>

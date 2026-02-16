@@ -318,7 +318,7 @@ export default function Loans() {
               <Label>{t("description")}</Label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("principal")}</Label>
                 <Input type="number" value={form.principal} onChange={(e) => setForm({ ...form, principal: Number(e.target.value) })} />
@@ -328,7 +328,7 @@ export default function Loans() {
                 <Input type="number" step="0.01" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: Number(e.target.value) })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("termMonths")}</Label>
                 <Input type="number" value={form.term_months} onChange={(e) => setForm({ ...form, term_months: Number(e.target.value) })} />
@@ -338,7 +338,7 @@ export default function Loans() {
                 <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("currency")}</Label>
                 <Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />

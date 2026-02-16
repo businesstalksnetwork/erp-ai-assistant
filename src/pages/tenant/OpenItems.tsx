@@ -130,7 +130,7 @@ export default function OpenItems() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("openItems")}</h1>
+        <h1 className="text-2xl font-bold">{t("openItems")}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
             <RefreshCw className="h-4 w-4 mr-2" />{t("syncOpenItems")}
@@ -153,7 +153,7 @@ export default function OpenItems() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("totalReceivable")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(totalReceivable)} RSD</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("totalPayable")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(totalPayable)} RSD</p></CardContent></Card>
       </div>

@@ -69,7 +69,7 @@ export default function AnnualLeaveBalances() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("annualLeaveBalance")}</h1>
+        <h1 className="text-2xl font-bold">{t("annualLeaveBalance")}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => recalcMutation.mutate()} disabled={recalcMutation.isPending || balances.length === 0}>
             <RefreshCw className="h-4 w-4 mr-2" />{t("recalculate")}
@@ -129,7 +129,7 @@ export default function AnnualLeaveBalances() {
                 <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("year")}</Label><Input type="number" value={form.year} onChange={e => setForm({ ...form, year: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("entitledDays")}</Label><Input type="number" value={form.entitled_days} onChange={e => setForm({ ...form, entitled_days: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("carriedOverDays")}</Label><Input type="number" value={form.carried_over_days} onChange={e => setForm({ ...form, carried_over_days: +e.target.value })} /></div>

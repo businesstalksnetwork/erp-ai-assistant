@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { differenceInCalendarDays } from "date-fns";
+import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function LeaveRequests() {
   const { t } = useLanguage();
@@ -38,11 +38,7 @@ export default function LeaveRequests() {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["leave-requests", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("leave_requests")
-        .select("*, employees(full_name)")
-        .eq("tenant_id", tenantId!)
-        .order("created_at", { ascending: false });
+      const { data } = await supabase.from("leave_requests").select("*, employees(full_name)").eq("tenant_id", tenantId!).order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!tenantId,
@@ -60,9 +56,7 @@ export default function LeaveRequests() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: LeaveStatus }) => {
-      const { error } = await supabase.from("leave_requests").update({
-        status, approved_by: user?.id, approved_at: new Date().toISOString(),
-      }).eq("id", id);
+      const { error } = await supabase.from("leave_requests").update({ status, approved_by: user?.id, approved_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["leave-requests"] }); toast.success(t("success")); },
@@ -72,52 +66,35 @@ export default function LeaveRequests() {
   const statusColor = (s: string) => ({ pending: "secondary", approved: "default", rejected: "destructive", cancelled: "outline" }[s] || "secondary") as any;
   const leaveLabel = (lt: string) => ({ vacation: t("vacation"), sick: t("sickLeave"), personal: t("personalLeave"), maternity: t("maternity"), paternity: t("paternity"), unpaid: t("unpaidLeave") }[lt] || lt);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "type", label: t("leaveType"), render: (r) => leaveLabel(r.leave_type) },
+    { key: "start", label: t("startDate"), render: (r) => r.start_date },
+    { key: "end", label: t("endDate"), hideOnMobile: true, render: (r) => r.end_date },
+    { key: "days", label: t("daysCount"), align: "right", render: (r) => r.days_count },
+    { key: "status", label: t("status"), render: (r) => <Badge variant={statusColor(r.status)}>{r.status === "pending" ? t("pending") : r.status === "approved" ? t("approved") : t("rejected")}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (r) => r.status === "pending" ? (
+      <div className="flex gap-1">
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved" })}><Check className="h-4 w-4 text-primary" /></Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}><X className="h-4 w-4 text-destructive" /></Button>
+      </div>
+    ) : null },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("leaveRequests")}</h1>
-        <Button onClick={() => { setForm({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <h1 className="text-2xl font-bold">{t("leaveRequests")}</h1>
+        <Button size="sm" onClick={() => { setForm({ employee_id: "", leave_type: "vacation", start_date: "", end_date: "", reason: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("employee")}</TableHead>
-                <TableHead>{t("leaveType")}</TableHead>
-                <TableHead>{t("startDate")}</TableHead>
-                <TableHead>{t("endDate")}</TableHead>
-                <TableHead>{t("daysCount")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : requests.map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.employees?.full_name}</TableCell>
-                  <TableCell>{leaveLabel(r.leave_type)}</TableCell>
-                  <TableCell>{r.start_date}</TableCell>
-                  <TableCell>{r.end_date}</TableCell>
-                  <TableCell>{r.days_count}</TableCell>
-                  <TableCell><Badge variant={statusColor(r.status)}>{r.status === "pending" ? t("pending") : r.status === "approved" ? t("approved") : t("rejected")}</Badge></TableCell>
-                  <TableCell>
-                    {r.status === "pending" && (
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved" })}><Check className="h-4 w-4 text-primary" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}><X className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <ResponsiveTable data={requests} columns={columns} keyExtractor={(r) => r.id} />
+          )}
         </CardContent>
       </Card>
 
@@ -146,7 +123,7 @@ export default function LeaveRequests() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("endDate")} *</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
             </div>
