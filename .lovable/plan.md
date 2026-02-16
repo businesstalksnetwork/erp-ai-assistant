@@ -1,22 +1,20 @@
 
-# Plan: Logo vidljiv u oba moda na mobilnom headeru
 
-## Problem
-Mobilni header koristi `logoLight` (tamni logo) koji nije citljiv na tamnoj pozadini u dark modu.
+# Plan: Prikazivanje naziva samo za izabranu stavku u donjem meniju
 
-## Resenje
+## Opis
+Na mobilnom donjem meniju, nazivi stavki ce biti vidljivi samo za trenutno aktivnu (izabranu) stavku. Neaktivne stavke ce prikazivati samo ikonu.
+
+## Izmene
 
 ### Fajl: `src/components/AppLayout.tsx`
 
-Promeniti mobilni header da koristi logo na osnovu trenutne teme:
-- Light mode: `logoLight` (tamni logo na svetloj pozadini)
-- Dark mode: `logoDark` (svetli logo na tamnoj pozadini)
-
-Linija sa `<img src={logoLight}` u mobilnom headeru se menja u:
+**Stavke navigacije (linije 398-399)**: Umesto da se `item.label` uvek prikazuje, prikazivace se samo kada je `isActive`:
 ```tsx
-<img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="h-10" />
+<item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
+{isActive && <span>{item.label}</span>}
 ```
 
-`theme` je vec dostupan iz `useTheme()` hook-a koji se vec koristi u komponenti. `logoDark` je vec importovan.
+**"Vise" dugme (linija 411)**: Ukloniti tekst "Vise" posto se ono nikada ne smatra aktivnim - prikazivace samo ikonu, konzistentno sa neaktivnim stavkama.
 
-Jedna linija izmene, bez novih importa.
+Jedna mala izmena, bez novih importa ili fajlova.
