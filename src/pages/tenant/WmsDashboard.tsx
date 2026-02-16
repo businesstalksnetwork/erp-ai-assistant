@@ -98,7 +98,7 @@ export default function WmsDashboard() {
       <PageHeader title={t("wmsDashboard")} description={t("wmsDashboardDesc")} icon={LayoutDashboard} />
 
       {/* KPI Cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("totalBins")}</p><p className="mt-2 text-2xl font-bold">{totalBins}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("occupiedBins")}</p><p className="mt-2 text-2xl font-bold">{occupiedBins}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground uppercase">{t("utilizationPercent")}</p><p className="mt-2 text-2xl font-bold">{utilization}%</p></CardContent></Card>

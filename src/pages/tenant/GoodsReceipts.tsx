@@ -190,7 +190,7 @@ export default function GoodsReceipts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("goodsReceipts")}</h1>
+        <h1 className="text-2xl font-bold">{t("goodsReceipts")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addGoodsReceipt")}</Button>
       </div>
       <Card>
@@ -230,7 +230,7 @@ export default function GoodsReceipts() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editGoodsReceipt") : t("addGoodsReceipt")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("receiptNumber")} *</Label><Input value={form.receipt_number} onChange={(e) => setForm({ ...form, receipt_number: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("status")}</Label>
@@ -242,7 +242,7 @@ export default function GoodsReceipts() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("purchaseOrder")}</Label>
                 <Select value={form.purchase_order_id || "__none"} onValueChange={(v) => { if (v !== "__none") loadPOLines(v); else setForm({ ...form, purchase_order_id: null }); }}>

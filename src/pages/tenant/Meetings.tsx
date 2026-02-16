@@ -112,12 +112,12 @@ export default function Meetings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("meetings")}</h1>
+        <h1 className="text-2xl font-bold">{t("meetings")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addMeeting")}</Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">{t("today")}</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{today.length}</div></CardContent>
@@ -193,11 +193,11 @@ export default function Meetings() {
           <DialogHeader><DialogTitle>{editId ? t("editMeeting") : t("addMeeting")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("title")} *</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("date")} *</Label><Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("duration")} (min)</Label><Input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("channel")}</Label>
                 <Select value={form.communication_channel} onValueChange={v => setForm({ ...form, communication_channel: v })}>

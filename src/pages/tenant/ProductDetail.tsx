@@ -103,7 +103,7 @@ export default function ProductDetail() {
           <Link to="/inventory/products"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">{product.name}</h1>
+          <h1 className="text-2xl font-bold">{product.name}</h1>
           {product.name_sr && <p className="text-muted-foreground">{product.name_sr}</p>}
         </div>
         <div className="flex gap-2">

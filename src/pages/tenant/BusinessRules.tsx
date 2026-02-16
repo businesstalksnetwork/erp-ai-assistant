@@ -138,7 +138,7 @@ export default function BusinessRules() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("businessRules")}</h1>
+        <h1 className="text-2xl font-bold">{t("businessRules")}</h1>
         <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending}>
           {mutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("saving")}</> : t("save")}
         </Button>

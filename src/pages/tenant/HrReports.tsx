@@ -214,9 +214,9 @@ export default function HrReports() {
 
         <TabsContent value="analytics">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card><CardHeader><CardTitle className="text-sm">{t("employees")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{employees.length}</div></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">{t("totalHours")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{monthlyReport.reduce((a, b) => a + b.total, 0)}</div></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">{t("overtimeHours")}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{monthlyReport.reduce((a, b) => a + b.overtime, 0)}</div></CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">{t("employees")}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{employees.length}</div></CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">{t("totalHours")}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{monthlyReport.reduce((a, b) => a + b.total, 0)}</div></CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">{t("overtimeHours")}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{monthlyReport.reduce((a, b) => a + b.overtime, 0)}</div></CardContent></Card>
           </div>
         </TabsContent>
       </Tabs>

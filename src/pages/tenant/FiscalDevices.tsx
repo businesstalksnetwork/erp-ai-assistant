@@ -118,7 +118,7 @@ export default function FiscalDevices() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("fiscalDevices")}</h1>
+        <h1 className="text-2xl font-bold">{t("fiscalDevices")}</h1>
         <div className="flex gap-2">
           {offlineReceipts.length > 0 && (
             <Button variant="outline" onClick={handleRetryOffline} disabled={retrying}>

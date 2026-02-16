@@ -129,7 +129,7 @@ export default function Nivelacija() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("nivelacija")}</h1>
+        <h1 className="text-2xl font-bold">{t("nivelacija")}</h1>
         <Button onClick={() => { setDialogOpen(true); setItems([{ product_id: "", old_retail_price: 0, new_retail_price: 0, quantity_on_hand: 0 }]); setForm({ warehouse_id: "", notes: "" }); }}>
           <Plus className="h-4 w-4 mr-2" />{t("add")}
         </Button>

@@ -139,7 +139,7 @@ export default function Kalkulacija() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("kalkulacija")}</h1>
+        <h1 className="text-2xl font-bold">{t("kalkulacija")}</h1>
         <Button onClick={() => { setDialogOpen(true); setItems([{ product_id: "", quantity: 1, purchase_price: 0, markup_percent: 20, pdv_rate: 20, retail_price: 0 }]); setForm({ warehouse_id: "", notes: "" }); }}>
           <Plus className="h-4 w-4 mr-2" />{t("add")}
         </Button>

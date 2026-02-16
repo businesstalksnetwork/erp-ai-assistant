@@ -162,7 +162,7 @@ export default function Quotes() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t("quotes")}</h1>
+        <h1 className="text-2xl font-bold">{t("quotes")}</h1>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addQuote")}</Button>
       </div>
       <Card>
@@ -217,7 +217,7 @@ export default function Quotes() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editQuote") : t("addQuote")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("quoteNumber")} *</Label><Input value={form.quote_number} onChange={(e) => setForm({ ...form, quote_number: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("status")}</Label>
@@ -229,7 +229,7 @@ export default function Quotes() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("partner")}</Label>
                 <Select value={form.partner_id || "__none"} onValueChange={(v) => { const p = partners.find((p: any) => p.id === v); setForm({ ...form, partner_id: v === "__none" ? null : v, partner_name: p?.name || form.partner_name }); }}>
@@ -251,7 +251,7 @@ export default function Quotes() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("quoteDate")}</Label><Input type="date" value={form.quote_date} onChange={(e) => setForm({ ...form, quote_date: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("validUntil")}</Label><Input type="date" value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} /></div>
               <div className="grid gap-2">
