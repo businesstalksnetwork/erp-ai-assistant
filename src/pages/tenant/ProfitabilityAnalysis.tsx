@@ -41,7 +41,7 @@ export default function ProfitabilityAnalysis() {
     queryFn: async () => {
       const { data: lines } = await (supabase
         .from("invoice_lines")
-        .select("description, quantity, unit_price, total, product_id, product:product_id(default_purchase_price), invoice:invoice_id(partner_name, status, tenant_id)")
+        .select("description, quantity, unit_price, line_total, product_id, product:product_id(default_purchase_price), invoice:invoice_id(partner_name, status, tenant_id)")
         .eq("invoice.tenant_id", tenantId!) as any);
 
       if (!lines) return { byCustomer: [] as CustRow[], byProduct: [] as ProdRow[] };
@@ -51,7 +51,7 @@ export default function ProfitabilityAnalysis() {
 
       for (const line of lines as any[]) {
         if (!["paid", "sent", "posted"].includes(line.invoice?.status)) continue;
-        const revenue = Number(line.total) || 0;
+        const revenue = Number(line.line_total) || 0;
         const qty = Number(line.quantity) || 0;
         const purchasePrice = Number(line.product?.default_purchase_price) || 0;
         const cogs = qty * purchasePrice;
