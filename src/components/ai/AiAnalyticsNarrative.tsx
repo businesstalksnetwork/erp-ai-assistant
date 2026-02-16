@@ -16,7 +16,7 @@ export function AiAnalyticsNarrative({ tenantId, contextType, data }: Props) {
   const sr = locale === "sr";
 
   const { data: result, isLoading, error } = useQuery({
-    queryKey: ["ai-narrative", tenantId, contextType, JSON.stringify(data)],
+    queryKey: ["ai-narrative", tenantId, contextType],
     queryFn: async () => {
       const { data: resp, error } = await supabase.functions.invoke("ai-analytics-narrative", {
         body: { tenant_id: tenantId, context_type: contextType, data, language: locale },
@@ -32,7 +32,7 @@ export function AiAnalyticsNarrative({ tenantId, contextType, data }: Props) {
       }
       return resp as { narrative?: string; recommendations?: string[] };
     },
-    enabled: !!tenantId && Object.keys(data).length > 0,
+    enabled: !!tenantId,
     staleTime: 1000 * 60 * 10, // 10 min cache
     refetchOnWindowFocus: false,
     retry: false,
