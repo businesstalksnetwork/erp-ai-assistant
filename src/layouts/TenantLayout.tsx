@@ -12,6 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -45,6 +46,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -232,7 +234,7 @@ function CollapsibleNavGroup({
   return (
     <SidebarGroup className="py-0">
       <Collapsible defaultOpen={isActive}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
           <span className="flex items-center gap-2">
             {Icon && <Icon className={`h-3.5 w-3.5 ${accentColor ? accentColor.replace('bg-', 'text-') : ''}`} />}
             {!Icon && accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
@@ -243,29 +245,37 @@ function CollapsibleNavGroup({
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <React.Fragment key={item.key}>
-                  {item.section && (
-                    <li className="px-3 pt-3 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-                        {t(item.section as any)}
-                      </span>
-                    </li>
-                  )}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors border-l-2 border-transparent"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium border-l-primary"
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0 opacity-70" />
-                        <span className="truncate">{t(item.key as any)}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </React.Fragment>
-              ))}
+              {items.map((item) => {
+                const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                return (
+                  <React.Fragment key={item.key}>
+                    {item.section && (
+                      <li className="px-3 pt-3 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                          {t(item.section as any)}
+                        </span>
+                      </li>
+                    )}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-all border-l-2 border-transparent ${
+                            itemActive
+                              ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                              : "hover:bg-sidebar-accent"
+                          }`}
+                          activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                        >
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : "opacity-60"}`} />
+                          <span className="truncate">{t(item.key as any)}</span>
+                          {itemActive && <ChevronRight className="h-3 w-3 ml-auto opacity-50" />}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </React.Fragment>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
@@ -302,6 +312,7 @@ export default function TenantLayout() {
   })();
 
   const userName = user?.user_metadata?.full_name || user?.email || "";
+  const userRole = user?.user_metadata?.role || "user";
 
   return (
     <SidebarProvider>
@@ -310,14 +321,14 @@ export default function TenantLayout() {
           {/* Logo + Search trigger */}
           <div className="p-4 border-b border-sidebar-border space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-sidebar-primary" />
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center shadow-sm">
+                <Sparkles className="h-4 w-4 text-primary" />
               </div>
               <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
             </div>
             <button
               onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1.5 text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent transition-colors"
+              className="flex w-full items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-1.5 text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:border-sidebar-foreground/20 transition-all"
             >
               <Search className="h-3.5 w-3.5" />
               <span className="flex-1 text-left">{t("search")}</span>
@@ -327,29 +338,38 @@ export default function TenantLayout() {
             </button>
           </div>
 
-          <SidebarContent className="flex-1 overflow-y-auto">
+          <SidebarContent className="flex-1 overflow-y-auto py-1">
             {/* Dashboard */}
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {mainNav.map((item) => (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          end
-                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors border-l-2 border-transparent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium border-l-primary"
-                        >
-                          <item.icon className="h-4 w-4 flex-shrink-0" />
-                          <span>{t(item.key as any)}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {mainNav.map((item) => {
+                    const itemActive = currentPath === item.url;
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.url}
+                            end
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all border-l-2 border-transparent ${
+                              itemActive
+                                ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                                : "hover:bg-sidebar-accent"
+                            }`}
+                            activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                          >
+                            <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : ""}`} />
+                            <span>{t(item.key as any)}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            <Separator className="mx-3 my-1 opacity-50" />
 
             {canAccess("crm") && (
               <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" icon={Users} />
@@ -389,7 +409,7 @@ export default function TenantLayout() {
             )}
           </SidebarContent>
 
-          {/* Settings pinned to bottom */}
+          {/* User profile + Settings pinned to bottom */}
           <SidebarFooter className="border-t border-sidebar-border p-0">
             {canAccess("settings") && (
               <CollapsibleNavGroup
@@ -412,11 +432,51 @@ export default function TenantLayout() {
                 icon={Settings}
               />
             )}
+            {/* User profile section */}
+            <div className="p-3 border-t border-sidebar-border">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-3 w-full rounded-lg px-2 py-2 hover:bg-sidebar-accent transition-colors text-left">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate text-sidebar-foreground">{userName}</p>
+                      <p className="text-[10px] text-sidebar-foreground/40 uppercase tracking-wider">{userRole}</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="mr-2 h-4 w-4" />
+                    {t("myAccount")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocale(locale === "en" ? "sr" : "en")}>
+                    <Globe className="mr-2 h-4 w-4" />
+                    {locale === "en" ? "Srpski" : "English"}
+                  </DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/super-admin/dashboard")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      {t("superAdmin")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t("logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </SidebarFooter>
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
-          <header className="h-11 border-b border-border/50 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg sticky top-0 z-10 shadow-sm">
+          <header className="h-11 border-b border-border/50 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg sticky top-0 z-10 shadow-[0_1px_3px_0_hsl(var(--foreground)/0.04)]">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-4" />

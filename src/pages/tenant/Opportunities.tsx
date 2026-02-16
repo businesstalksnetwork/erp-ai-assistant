@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const STAGES = ["qualification", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
 
@@ -113,16 +114,17 @@ export default function Opportunities() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("opportunities")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addOpportunity")}</Button>
-      </div>
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <PageHeader
+        title={t("opportunities")}
+        description={"Sales pipeline and deal tracking"}
+        icon={TrendingUp}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addOpportunity")}</Button>}
+      />
 
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
-        /* Kanban board */
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {grouped.map(g => (
             <div key={g.stage} className="space-y-3">

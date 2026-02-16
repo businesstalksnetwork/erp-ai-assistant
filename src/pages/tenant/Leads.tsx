@@ -2,19 +2,21 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, ArrowRight, Search } from "lucide-react";
+import { Plus, Loader2, ArrowRight, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { MobileActionMenu, type ActionItem } from "@/components/shared/MobileActionMenu";
 
 interface LeadForm {
   first_name: string; last_name: string; email: string; phone: string;
@@ -75,22 +77,17 @@ export default function Leads() {
 
   const convertMutation = useMutation({
     mutationFn: async (lead: any) => {
-      // Create contact from lead
       const { data: contact, error: contactErr } = await supabase.from("contacts").insert([{
         tenant_id: tenantId!, first_name: lead.first_name || lead.name, last_name: lead.last_name || "",
         email: lead.email || null, phone: lead.phone || null, type: "prospect", company_name: lead.company || null,
       }]).select("id").single();
       if (contactErr) throw contactErr;
-
-      // Create opportunity
       const { error: oppErr } = await supabase.from("opportunities").insert([{
         tenant_id: tenantId!, title: `${lead.first_name || lead.name} ${lead.last_name || ""}`.trim(),
         lead_id: lead.id, contact_id: contact.id, value: 0, currency: "RSD", probability: 50, stage: "qualification",
         notes: lead.notes || "",
       }]);
       if (oppErr) throw oppErr;
-
-      // Mark lead as converted + link contact
       await supabase.from("leads").update({ status: "converted", contact_id: contact.id }).eq("id", lead.id);
     },
     onSuccess: () => {
@@ -128,79 +125,56 @@ export default function Leads() {
     return name.includes(s) || l.email?.toLowerCase().includes(s) || l.company?.toLowerCase().includes(s);
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, render: (l) => <span className="font-medium">{l.first_name || l.name} {l.last_name || ""}</span> },
+    { key: "company", label: t("company"), render: (l) => l.company || "—" },
+    { key: "email", label: t("email"), hideOnMobile: true, render: (l) => l.email || "—" },
+    { key: "phone", label: t("phone"), hideOnMobile: true, render: (l) => l.phone || "—" },
+    { key: "source", label: t("leadSource"), hideOnMobile: true, render: (l) => t(l.source as any) || l.source },
+    { key: "status", label: t("status"), render: (l) => <Badge variant={statusColor(l.status) as any} className="text-xs">{t(l.status as any)}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (l) => {
+      const actions: ActionItem[] = [
+        { label: t("edit"), onClick: () => openEdit(l) },
+      ];
+      if (l.status !== "converted" && l.status !== "lost") {
+        actions.push({ label: t("convertToOpportunity"), icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertMutation.mutate(l) });
+      }
+      return <MobileActionMenu actions={actions} />;
+    }},
+  ];
+
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("leads")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addLead")}</Button>
-      </div>
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <PageHeader
+        title={t("leads")}
+        description={"Track and convert your sales leads"}
+        icon={Target}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addLead")}</Button>}
+      />
 
-      <div className="flex gap-4 items-center">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <MobileFilterBar
+        search={
           <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allStatuses")}</SelectItem>
-            {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+        }
+        filters={
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allStatuses")}</SelectItem>
+              {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        }
+      />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("company")}</TableHead>
-                <TableHead>{t("email")}</TableHead>
-                <TableHead>{t("phone")}</TableHead>
-                <TableHead>{t("leadSource")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : filtered.map((l: any) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-medium">{l.first_name || l.name} {l.last_name || ""}</TableCell>
-                  <TableCell>{l.company || "—"}</TableCell>
-                  <TableCell>{l.email || "—"}</TableCell>
-                  <TableCell>{l.phone || "—"}</TableCell>
-                  <TableCell>{t(l.source as any) || l.source}</TableCell>
-                  <TableCell>
-                    <Select value={l.status} onValueChange={v => statusMutation.mutate({ id: l.id, status: v })}>
-                      <SelectTrigger className="w-32 h-7">
-                        <Badge variant={statusColor(l.status) as any} className="text-xs">{t(l.status as any)}</Badge>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(l)}>{t("edit")}</Button>
-                      {l.status !== "converted" && l.status !== "lost" && (
-                        <Button size="sm" variant="outline" onClick={() => convertMutation.mutate(l)} disabled={convertMutation.isPending}>
-                          <ArrowRight className="h-3 w-3 mr-1" />{t("convertToOpportunity")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(l) => l.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">

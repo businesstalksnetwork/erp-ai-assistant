@@ -14,8 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, CheckCircle, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, RotateCcw, Calculator } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { MobileActionMenu, type ActionItem } from "@/components/shared/MobileActionMenu";
 
 interface JournalLine {
   id?: string;
@@ -43,7 +47,6 @@ export default function JournalEntries() {
   const [form, setForm] = useState({ entry_number: "", entry_date: new Date().toISOString().split("T")[0], description: "", reference: "", legal_entity_id: "" });
   const [lines, setLines] = useState<JournalLine[]>([{ ...emptyLine }, { ...emptyLine }]);
 
-  // Auto-select legal entity if only one exists
   useEffect(() => {
     if (legalEntities.length === 1 && !form.legal_entity_id) {
       setForm(p => ({ ...p, legal_entity_id: legalEntities[0].id }));
@@ -91,33 +94,18 @@ export default function JournalEntries() {
       const totalCredit = lines.reduce((s, l) => s + Number(l.credit), 0);
       if (Math.abs(totalDebit - totalCredit) > 0.001) throw new Error(t("journalMustBalance"));
       if (lines.some(l => !l.account_id)) throw new Error(t("selectAccount"));
-
       const linePayloads = lines.filter(l => l.account_id).map((l, i) => ({
-        account_id: l.account_id,
-        description: l.description || null,
-        debit: Number(l.debit) || 0,
-        credit: Number(l.credit) || 0,
-        sort_order: i,
+        account_id: l.account_id, description: l.description || null,
+        debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, sort_order: i,
       }));
-
-      // Atomic RPC: creates header + lines in a single transaction
       const { error } = await supabase.rpc("create_journal_entry_with_lines" as any, {
-        p_tenant_id: tenantId!,
-        p_entry_number: form.entry_number,
-        p_entry_date: form.entry_date,
-        p_description: form.description || null,
-        p_reference: form.reference || null,
-        p_legal_entity_id: form.legal_entity_id || null,
-        p_lines: linePayloads,
+        p_tenant_id: tenantId!, p_entry_number: form.entry_number, p_entry_date: form.entry_date,
+        p_description: form.description || null, p_reference: form.reference || null,
+        p_legal_entity_id: form.legal_entity_id || null, p_lines: linePayloads,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["journal-entries"] });
-      toast({ title: t("success") });
-      setDialogOpen(false);
-      resetForm();
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("success") }); setDialogOpen(false); resetForm(); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
@@ -126,40 +114,27 @@ export default function JournalEntries() {
       const { error } = await supabase.from("journal_entries").update({ status: "posted", posted_at: new Date().toISOString(), posted_by: user?.id }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["journal-entries"] });
-      toast({ title: t("entryPostedSuccess") });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("entryPostedSuccess") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Check if entry is posted — block deletion
       const entry = entries.find(e => e.id === id);
       if (entry?.status === "posted") throw new Error(t("cannotDeletePosted"));
       const { error } = await supabase.from("journal_entries").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["journal-entries"] });
-      toast({ title: t("success") });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const stornoMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Atomic storno RPC: creates reversed entry + lines in a single transaction
-      const { error } = await supabase.rpc("storno_journal_entry" as any, {
-        p_journal_entry_id: id,
-      });
+      const { error } = await supabase.rpc("storno_journal_entry" as any, { p_journal_entry_id: id });
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["journal-entries"] });
-      toast({ title: t("stornoCreated") });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("stornoCreated") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
@@ -197,97 +172,75 @@ export default function JournalEntries() {
     e.description?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "entry_number", label: t("entryNumber"), primary: true, render: (e) => <span className="font-mono">{e.entry_number}</span> },
+    { key: "entry_date", label: t("entryDate"), render: (e) => e.entry_date },
+    { key: "description", label: t("description"), hideOnMobile: true, render: (e) => e.description || "—" },
+    { key: "reference", label: t("reference"), hideOnMobile: true, render: (e) => e.reference || "—" },
+    ...(legalEntities.length > 1 ? [{ key: "legal_entity", label: t("legalEntity"), hideOnMobile: true, render: (e: any) => e.legal_entities?.name || "—" } as ResponsiveColumn<any>] : []),
+    { key: "status", label: t("status"), render: (e) => statusBadge(e.status) },
+    { key: "actions", label: t("actions"), align: "right" as const, showInCard: false, render: (e) => {
+      const actions: ActionItem[] = [
+        { label: t("view"), icon: <Eye className="h-4 w-4" />, onClick: () => viewEntryDetails(e) },
+      ];
+      if (e.status === "posted" && !(e as any).is_storno && !(e as any).storno_by_id) {
+        actions.push({ label: t("storno"), icon: <RotateCcw className="h-4 w-4" />, onClick: () => stornoMutation.mutate(e.id) });
+      }
+      if (e.status === "draft") {
+        actions.push({ label: t("postEntry"), icon: <CheckCircle className="h-4 w-4" />, onClick: () => postMutation.mutate(e.id) });
+        actions.push({ label: t("delete"), icon: <Trash2 className="h-4 w-4" />, onClick: () => deleteMutation.mutate(e.id), variant: "destructive" });
+      }
+      return <MobileActionMenu actions={actions} />;
+    }},
+  ];
+
   if (isLoading) return <p>{t("loading")}</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("journalEntries")}</h1>
-        <div className="flex gap-2">
-          <ExportButton
-            data={filtered}
-            columns={[
-              { key: "entry_number", label: t("entryNumber") },
-              { key: "entry_date", label: t("entryDate") },
-              { key: "description", label: t("description") },
-              { key: "reference", label: t("reference") },
-              { key: "status", label: t("status") },
-            ]}
-            filename="journal_entries"
-          />
-          <Button onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
-        </div>
-      </div>
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <PageHeader
+        title={t("journalEntries")}
+        description={"Double-entry bookkeeping journal"}
+        icon={Calculator}
+        actions={
+          <div className="flex gap-2">
+            <ExportButton
+              data={filtered}
+              columns={[
+                { key: "entry_number", label: t("entryNumber") },
+                { key: "entry_date", label: t("entryDate") },
+                { key: "description", label: t("description") },
+                { key: "reference", label: t("reference") },
+                { key: "status", label: t("status") },
+              ]}
+              filename="journal_entries"
+            />
+            <Button onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+          </div>
+        }
+      />
 
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        {legalEntities.length > 1 && (
-          <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
-              {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      <MobileFilterBar
+        search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />}
+        filters={
+          legalEntities.length > 1 ? (
+            <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+              <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+                {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          ) : <></>
+        }
+      />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("entryNumber")}</TableHead>
-              <TableHead>{t("entryDate")}</TableHead>
-              <TableHead>{t("description")}</TableHead>
-              <TableHead>{t("reference")}</TableHead>
-              {legalEntities.length > 1 && <TableHead>{t("legalEntity")}</TableHead>}
-              <TableHead>{t("status")}</TableHead>
-              <TableHead className="text-right">{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={legalEntities.length > 1 ? 7 : 6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-            ) : filtered.map(e => (
-              <TableRow key={e.id}>
-                <TableCell className="font-mono">{e.entry_number}</TableCell>
-                <TableCell>{e.entry_date}</TableCell>
-                <TableCell>{e.description || "—"}</TableCell>
-                <TableCell>{e.reference || "—"}</TableCell>
-                {legalEntities.length > 1 && <TableCell>{(e as any).legal_entities?.name || "—"}</TableCell>}
-                <TableCell>{statusBadge(e.status)}</TableCell>
-                <TableCell className="text-right space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => viewEntryDetails(e)}><Eye className="h-4 w-4" /></Button>
-                  {e.status === "posted" && !(e as any).is_storno && !(e as any).storno_by_id && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" title={t("storno")}><RotateCcw className="h-4 w-4" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>{t("stornoEntry")}</AlertDialogTitle><AlertDialogDescription>{t("stornoConfirm")}</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel>{t("cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => stornoMutation.mutate(e.id)}>{t("storno")}</AlertDialogAction></AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  {e.status === "draft" && (
-                    <>
-                      <Button variant="ghost" size="icon" onClick={() => postMutation.mutate(e.id)} title={t("postEntry")}><CheckCircle className="h-4 w-4" /></Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>{t("confirm")}</AlertDialogTitle><AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>{t("cancel")}</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(e.id)}>{t("delete")}</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(e) => e.id}
+        emptyMessage={t("noResults")}
+      />
 
       {/* Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -313,7 +266,6 @@ export default function JournalEntries() {
                 </Select>
               </div>
             )}
-
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">{t("journalEntries")}</Label>
@@ -353,13 +305,13 @@ export default function JournalEntries() {
                       <TableCell colSpan={2} className="text-right">{t("totalDebit")} / {t("totalCredit")}</TableCell>
                       <TableCell className="text-right">{totalDebit.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{totalCredit.toFixed(2)}</TableCell>
-                      <TableCell><Badge variant={isBalanced ? "default" : "destructive"}>{isBalanced ? t("balanced") : t("unbalanced")}</Badge></TableCell>
+                      <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>
               </div>
+              {!isBalanced && <p className="text-sm text-destructive">{t("journalMustBalance")}</p>}
             </div>
-
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
               <Button type="submit" disabled={createMutation.isPending || !isBalanced}>{t("save")}</Button>
@@ -370,37 +322,35 @@ export default function JournalEntries() {
 
       {/* View dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{viewEntry?.entry_number} — {viewEntry?.description || t("journalEntries")}</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>{viewEntry?.entry_number}</DialogTitle></DialogHeader>
           {viewEntry && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">{t("entryDate")}:</span> {viewEntry.entry_date}</div>
-                <div><span className="text-muted-foreground">{t("reference")}:</span> {viewEntry.reference || "—"}</div>
                 <div><span className="text-muted-foreground">{t("status")}:</span> {statusBadge(viewEntry.status)}</div>
+                <div><span className="text-muted-foreground">{t("description")}:</span> {viewEntry.description || "—"}</div>
+                <div><span className="text-muted-foreground">{t("reference")}:</span> {viewEntry.reference || "—"}</div>
               </div>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("account")}</TableHead>
-                      <TableHead>{t("description")}</TableHead>
-                      <TableHead className="text-right">{t("debit")}</TableHead>
-                      <TableHead className="text-right">{t("credit")}</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("account")}</TableHead>
+                    <TableHead>{t("description")}</TableHead>
+                    <TableHead className="text-right">{t("debit")}</TableHead>
+                    <TableHead className="text-right">{t("credit")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {viewEntry.lines?.map((l: any) => (
+                    <TableRow key={l.id}>
+                      <TableCell>{l.chart_of_accounts?.code} — {l.chart_of_accounts?.name}</TableCell>
+                      <TableCell>{l.description || "—"}</TableCell>
+                      <TableCell className="text-right">{Number(l.debit) > 0 ? Number(l.debit).toFixed(2) : ""}</TableCell>
+                      <TableCell className="text-right">{Number(l.credit) > 0 ? Number(l.credit).toFixed(2) : ""}</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {viewEntry.lines?.map((l: any) => (
-                      <TableRow key={l.id}>
-                        <TableCell className="font-mono">{l.chart_of_accounts?.code} — {l.chart_of_accounts?.name}</TableCell>
-                        <TableCell>{l.description || "—"}</TableCell>
-                        <TableCell className="text-right">{Number(l.debit) > 0 ? Number(l.debit).toFixed(2) : "—"}</TableCell>
-                        <TableCell className="text-right">{Number(l.credit) > 0 ? Number(l.credit).toFixed(2) : "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}</TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>
