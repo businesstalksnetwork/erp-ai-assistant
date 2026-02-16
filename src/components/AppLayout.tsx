@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import { BlockedUserScreen } from '@/components/BlockedUserScreen';
 import { BookkeeperProfileBanner } from '@/components/BookkeeperProfileBanner';
@@ -144,7 +143,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       profileGroup.push(bookkeepingNavItem);
     }
     
-    profileGroup.push({ href: '/profile', label: 'Moj Profil', icon: Users });
+    // Moj Profil je premešten u header dropdown
     
     const adminGroup = isAdmin ? adminNavItems : [];
     
@@ -362,7 +361,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <ChangePasswordDialog asDropdownItem={true} />
+            <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <Users className="mr-2 h-4 w-4" />
+              Moj Profil
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={toggleTheme}>
               {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
               {theme === 'light' ? 'Tamna tema' : 'Svetla tema'}
