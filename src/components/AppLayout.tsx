@@ -396,7 +396,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
-                {item.label}
+                {isActive && <span>{item.label}</span>}
                 {showBadge && (
                   <span className="absolute top-1 right-1/4 w-2 h-2 bg-destructive rounded-full" />
                 )}
@@ -408,7 +408,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium text-muted-foreground transition-colors"
           >
             <MoreHorizontal className="h-5 w-5" />
-            Više
           </button>
         </div>
       </nav>
