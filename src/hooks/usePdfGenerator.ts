@@ -78,6 +78,29 @@ export async function generateInvoicePdf(
     (el as HTMLElement).style.display = 'none';
   });
 
+  // PRE-BAKE: Force ALL text colors to black BEFORE html2canvas sees them
+  const allCloneElements = clone.querySelectorAll('*');
+  allCloneElements.forEach(el => {
+    const htmlEl = el as HTMLElement;
+    htmlEl.style.setProperty('color', '#000000', 'important');
+    htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+  });
+  clone.style.setProperty('color', '#000000', 'important');
+  clone.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
+
+  // Exception: .bg-primary elements need white text
+  clone.querySelectorAll('.bg-primary').forEach(el => {
+    const htmlEl = el as HTMLElement;
+    htmlEl.style.setProperty('color', '#ffffff', 'important');
+    htmlEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+    htmlEl.style.setProperty('background-color', '#222222', 'important');
+    htmlEl.querySelectorAll('*').forEach(child => {
+      const childEl = child as HTMLElement;
+      childEl.style.setProperty('color', '#ffffff', 'important');
+      childEl.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+    });
+  });
+
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
 
@@ -169,8 +192,12 @@ export async function generateInvoicePdf(
       height: actualHeight,
       scrollX: 0,
       scrollY: 0,
-      onclone: (_clonedDoc, clonedElement) => {
-        // Force ALL text to black in the cloned document html2canvas uses
+      onclone: (clonedDoc, clonedElement) => {
+        // Inject override stylesheet into cloned document's head
+        const overrideStyle = clonedDoc.createElement('style');
+        overrideStyle.textContent = '* { color: #000000 !important; -webkit-text-fill-color: #000000 !important; } .bg-primary, .bg-primary * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }';
+        clonedDoc.head.appendChild(overrideStyle);
+        // Also force inline styles on all cloned elements
         clonedElement.querySelectorAll('*').forEach(el => {
           const htmlEl = el as HTMLElement;
           htmlEl.style.setProperty('color', '#000000', 'important');
