@@ -279,7 +279,14 @@ export default function EmployeeDetail() {
   const empTypeLabel = (t_: string) => ({ full_time: t("fullTime"), part_time: t("partTime"), contract: t("contractType"), intern: t("intern") }[t_] || t_);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-  if (!employee) return <div className="text-center py-12 text-muted-foreground">{t("noResults")}</div>;
+  if (!employee) return (
+    <div className="text-center py-12 space-y-4">
+      <p className="text-muted-foreground">{t("noResults")}</p>
+      <Button variant="outline" onClick={() => navigate("/hr/employees")}>
+        <ArrowLeft className="h-4 w-4 mr-2" />{t("employees")}
+      </Button>
+    </div>
+  );
 
   const status = getStatus();
 
