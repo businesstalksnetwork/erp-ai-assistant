@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { TenantSelector } from "@/components/TenantSelector";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -44,7 +46,7 @@ import {
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
-  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown,
+  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -313,6 +315,13 @@ export default function TenantLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
+  const isMobile = useIsMobile();
+  const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
+
+  // Auto-open on desktop, closed on mobile
+  useEffect(() => {
+    setAiSidebarOpen(!isMobile);
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -445,6 +454,15 @@ export default function TenantLayout() {
               <Breadcrumbs />
             </div>
             <div className="flex items-center gap-1.5">
+              <Button
+                variant={aiSidebarOpen ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setAiSidebarOpen(prev => !prev)}
+                title="AI Copilot"
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
               <TenantSelector />
               <NotificationBell />
               <Separator orientation="vertical" className="h-5" />
@@ -481,12 +499,17 @@ export default function TenantLayout() {
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto animate-in fade-in duration-300">
-            <Outlet />
-          </main>
+          <div className="flex-1 flex overflow-hidden">
+            <main className="flex-1 p-6 overflow-auto animate-in fade-in duration-300">
+              <Outlet />
+            </main>
+            {!isMobile && (
+              <AiContextSidebar open={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
+            )}
+          </div>
         </div>
         <GlobalSearch />
-        <AiAssistantPanel />
+        {isMobile && <AiAssistantPanel />}
       </div>
     </SidebarProvider>
   );
