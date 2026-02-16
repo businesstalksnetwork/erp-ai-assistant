@@ -1,57 +1,45 @@
 
 
-# Plan: Fix Gray Text in PDF Once and For All
+# Plan: Fix PDF Gray Text -- The Nuclear Fix
 
-## Root Cause
+## Root Cause (Why Previous Fixes Failed)
 
-When we removed the `dark` class toggle from `document.documentElement` (to fix the theme flash), we created a new problem: `html2canvas` reads **computed styles** from the DOM, and since the document is still in dark mode, CSS variables like `--foreground`, `--card-foreground`, `--muted-foreground` resolve to dark theme values (light gray text on dark backgrounds). 
+The issue has three layers, and previous fixes only addressed one at a time:
 
-The `.pdf-export` CSS rules in `index.css` use `!important` but `html2canvas` does NOT process CSS rules - it reads the final computed pixel values. So the CSS overrides are completely ignored by the renderer.
+1. **CSS Variable overrides** (last fix) -- these work for elements using `hsl(var(--foreground))`, but NOT for elements with explicit Tailwind `dark:` variants like `dark:text-gray-300`, `dark:bg-slate-800`.
 
-The inline style overrides in the JS code try to fix colors element-by-element, but they miss elements that use CSS variable-based classes (like `text-foreground`, `text-card-foreground`) because the code only checks for specific class names like `text-gray-500`.
+2. **Inline style overrides** (element-by-element loop) -- the code sets `element.style.color = '#000000'` on cloned elements, BUT `html2canvas` re-reads `getComputedStyle()` at render time from the live DOM where the `.dark` class on `<html>` still activates dark-variant CSS rules. The inline styles set BEFORE the clone is in the DOM may not persist correctly for all properties.
 
-## Solution
+3. **The `.dark` class on `<html>`** remains active throughout the entire process, so every CSS rule with `.dark` prefix still applies to the cloned content.
 
-Override ALL CSS custom properties as inline styles directly on the wrapper element. Since inline CSS variables have highest specificity, `html2canvas` will compute all colors using light theme values automatically - no need for element-by-element hacks.
+## Solution: Dark Class Removal with Visual Overlay
+
+Temporarily remove the `.dark` class from `<html>` during `html2canvas` rendering, but prevent the user from seeing any theme flash by adding a full-screen dark overlay first.
 
 ## Technical Changes
 
 ### File: `src/hooks/usePdfGenerator.ts`
 
-After creating the wrapper element (line 40, after `wrapper.className = 'pdf-export'`), add inline CSS variable overrides for all theme variables to force light mode values:
+**Before calling `html2canvas`** (around line 273):
 
-```typescript
-// Force light theme CSS variables as inline styles
-// html2canvas reads computed styles, so CSS !important rules are ignored
-// Inline CSS variables override dark theme inheritance
-wrapper.style.setProperty('--background', '40 33% 98%');
-wrapper.style.setProperty('--foreground', '222 47% 11%');
-wrapper.style.setProperty('--card', '0 0% 100%');
-wrapper.style.setProperty('--card-foreground', '222 47% 11%');
-wrapper.style.setProperty('--popover', '0 0% 100%');
-wrapper.style.setProperty('--popover-foreground', '222 47% 11%');
-wrapper.style.setProperty('--primary', '45 93% 47%');
-wrapper.style.setProperty('--primary-foreground', '222 47% 11%');
-wrapper.style.setProperty('--secondary', '40 20% 94%');
-wrapper.style.setProperty('--secondary-foreground', '222 47% 20%');
-wrapper.style.setProperty('--muted', '40 20% 94%');
-wrapper.style.setProperty('--muted-foreground', '220 10% 46%');
-wrapper.style.setProperty('--accent', '45 93% 47%');
-wrapper.style.setProperty('--accent-foreground', '222 47% 11%');
-wrapper.style.setProperty('--destructive', '0 84% 60%');
-wrapper.style.setProperty('--destructive-foreground', '0 0% 100%');
-wrapper.style.setProperty('--border', '40 20% 90%');
-wrapper.style.setProperty('--input', '40 20% 90%');
-wrapper.style.setProperty('--ring', '45 93% 47%');
-```
+1. Check if dark mode is active (`document.documentElement.classList.contains('dark')`)
+2. If yes, create a fixed overlay `div` covering the entire viewport with the current dark background color (`#0f1729`), z-index 99999
+3. Append the overlay to `document.body`
+4. Remove `.dark` class from `document.documentElement`
+5. Call `html2canvas` (the wrapper and clone now inherit light-mode styles natively)
+6. In the `finally` block, re-add `.dark` class and remove the overlay
 
-This single change makes ALL elements inside the wrapper automatically resolve to light theme colors, because Tailwind classes like `text-foreground`, `bg-card`, `text-muted-foreground` all reference these CSS variables. No per-element hacking needed.
+This is the same approach used before (removing `.dark`), but with the overlay preventing any visual flash. The user sees a solid dark screen for ~0.5s while the PDF generates, then everything returns to normal.
 
-The existing element-by-element style overrides (lines 87-185) can remain as an extra safety net but will no longer be the primary mechanism.
+**Also**: Remove the element-by-element color override loop (lines 131-212) and the CSS variable inline overrides (lines 42-67) since they are no longer needed -- the DOM will natively be in light mode during rendering.
 
-This approach:
-- Does NOT touch the live DOM theme (no flash)
-- Forces light values at the CSS variable level (all text renders black/dark)
-- Works with `html2canvas` because inline variables affect computed styles
-- Requires no changes to any other file
+### Summary of changes in `usePdfGenerator.ts`:
+- Remove CSS variable `setProperty` calls (lines 42-67) -- no longer needed
+- Remove the `querySelectorAll('*')` color override loop (lines 131-212) -- no longer needed  
+- Keep table border fixes and print:hidden logic
+- Add overlay creation before `html2canvas`
+- Add `.dark` class removal before `html2canvas`
+- Add `.dark` class restoration and overlay removal in `finally` block
+
+No other files need changes.
 
