@@ -67,16 +67,20 @@ export default function VatCashTrap() {
       const totalGap = totalLiability - totalCollected;
 
       // Get bank balance estimate
+      const nameMatch = (n: string, ...terms: string[]) =>
+        terms.some(t => n.toLowerCase().includes(t));
+
       const { data: bankLines } = await (supabase
         .from("journal_lines")
-        .select("debit, credit, chart_of_accounts:account_id(code), journal:journal_entry_id(status, tenant_id)")
+        .select("debit, credit, chart_of_accounts:account_id(account_type, name), journal:journal_entry_id(status, tenant_id)")
         .eq("journal.tenant_id", tenantId!) as any);
 
       let bankBalance = 0;
       for (const line of (bankLines as any[]) || []) {
         if (line.journal?.status !== "posted") continue;
-        const code = line.chart_of_accounts?.code || "";
-        if (code.startsWith("24") || code.startsWith("20")) {
+        const type = line.chart_of_accounts?.account_type || "";
+        const name = line.chart_of_accounts?.name || "";
+        if (type === "asset" && nameMatch(name, "cash", "bank", "gotovina", "banka")) {
           bankBalance += (Number(line.debit) || 0) - (Number(line.credit) || 0);
         }
       }

@@ -23,8 +23,11 @@ export default function MarginBridge() {
       const year = new Date().getFullYear();
       const { data: lines } = await (supabase
         .from("journal_lines")
-        .select("debit, credit, chart_of_accounts:account_id(account_type, code, is_variable_cost), journal:journal_entry_id(status, entry_date, tenant_id)")
+        .select("debit, credit, chart_of_accounts:account_id(account_type, code, name, is_variable_cost), journal:journal_entry_id(status, entry_date, tenant_id)")
         .eq("journal.tenant_id", tenantId!) as any);
+
+      const nameMatch = (name: string, ...terms: string[]) =>
+        terms.some(t => name.toLowerCase().includes(t));
 
       let revenue = 0, cogs = 0, opex = 0, depreciation = 0;
 
@@ -33,8 +36,8 @@ export default function MarginBridge() {
         const d = line.journal.entry_date || "";
         if (parseInt(d.substring(0, 4)) !== year) continue;
 
-        const code = line.chart_of_accounts?.code || "";
         const type = line.chart_of_accounts?.account_type || "";
+        const name = line.chart_of_accounts?.name || "";
         const debit = Number(line.debit) || 0;
         const credit = Number(line.credit) || 0;
 
@@ -42,10 +45,9 @@ export default function MarginBridge() {
           revenue += credit - debit;
         } else if (type === "expense") {
           const val = debit - credit;
-          // Serbian kontni okvir: 54x = depreciation, 50x-51x = material/COGS
-          if (code.startsWith("54")) {
+          if (nameMatch(name, "depreciation", "amortizacija")) {
             depreciation += val;
-          } else if (code.startsWith("50") || code.startsWith("51") || line.chart_of_accounts?.is_variable_cost) {
+          } else if (line.chart_of_accounts?.is_variable_cost) {
             cogs += val;
           } else {
             opex += val;
