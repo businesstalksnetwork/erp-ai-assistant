@@ -31,7 +31,8 @@ export async function checkFiscalPeriodOpen(tenantId: string, entryDate: string)
 
 /**
  * Creates a journal entry with multiple lines using deterministic account codes.
- * Checks fiscal period before posting.
+ * Uses the atomic create_journal_entry_with_lines RPC to ensure header + lines
+ * are inserted in a single transaction. No partial "posted" entries can occur.
  */
 export async function createCodeBasedJournalEntry(params: {
   tenantId: string;
@@ -48,55 +49,37 @@ export async function createCodeBasedJournalEntry(params: {
     sortOrder: number;
   }>;
 }) {
-  const { tenantId, userId, entryDate, description, reference, legalEntityId, lines } = params;
+  const { tenantId, entryDate, description, reference, legalEntityId, lines } = params;
 
-  // Check fiscal period
-  const fiscalPeriodId = await checkFiscalPeriodOpen(tenantId, entryDate);
-
-  // Resolve account codes to IDs
+  // Resolve account codes to IDs (read-only, safe client-side)
   const resolvedLines = await Promise.all(
     lines.map(async (line) => {
       const account = await findAccountByCode(tenantId, line.accountCode);
       if (!account) throw new Error(`Account ${line.accountCode} not found in chart of accounts`);
-      return { ...line, accountId: account.id };
+      return {
+        account_id: account.id,
+        debit: line.debit,
+        credit: line.credit,
+        description: line.description,
+        sort_order: line.sortOrder,
+      };
     })
   );
 
-  // Generate entry number (Serbian accounts: classes 0-9 per Pravilnik 89/2020)
+  // Generate entry number
   const entryNumber = `JE-${Date.now().toString(36).toUpperCase()}`;
 
-  // Create journal entry
-  const { data: je, error: jeError } = await supabase
-    .from("journal_entries")
-    .insert([{
-      tenant_id: tenantId,
-      entry_number: entryNumber,
-      entry_date: entryDate,
-      description,
-      reference,
-      status: "posted",
-      fiscal_period_id: fiscalPeriodId || null,
-      posted_at: new Date().toISOString(),
-      posted_by: userId,
-      created_by: userId,
-      legal_entity_id: legalEntityId || null,
-    }])
-    .select("id")
-    .single();
-  if (jeError) throw jeError;
+  // Call atomic RPC — handles balance check, fiscal period check, and insert in one transaction
+  const { data, error } = await supabase.rpc("create_journal_entry_with_lines", {
+    p_tenant_id: tenantId,
+    p_entry_number: entryNumber,
+    p_entry_date: entryDate,
+    p_description: description,
+    p_reference: reference,
+    p_legal_entity_id: legalEntityId || null,
+    p_lines: JSON.stringify(resolvedLines),
+  });
 
-  // Create journal lines
-  const journalLines = resolvedLines.map((line) => ({
-    journal_entry_id: je.id,
-    account_id: line.accountId,
-    debit: line.debit,
-    credit: line.credit,
-    description: line.description,
-    sort_order: line.sortOrder,
-  }));
-
-  const { error: linesError } = await supabase.from("journal_lines").insert(journalLines);
-  if (linesError) throw linesError;
-
-  return je.id;
+  if (error) throw error;
+  return data as string;
 }
