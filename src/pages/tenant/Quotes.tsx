@@ -2,19 +2,19 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, ArrowRight } from "lucide-react";
+import { Plus, Loader2, ArrowRight, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
 
@@ -125,7 +125,6 @@ export default function Quotes() {
         notes: q.notes || "",
       }]);
       if (soError) throw soError;
-      // Mark quote as accepted if not already
       if (q.status !== "accepted") {
         await supabase.from("quotes").update({ status: "accepted" }).eq("id", q.id);
       }
@@ -159,59 +158,45 @@ export default function Quotes() {
   const fmt = (n: number, cur: string) =>
     new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "quote_number", label: t("quoteNumber"), primary: true, render: (q) => q.quote_number },
+    { key: "partner", label: t("partner"), render: (q) => q.partners?.name || q.partner_name || "—" },
+    { key: "salesperson", label: t("salesperson"), hideOnMobile: true, render: (q) => q.salespeople ? `${q.salespeople.first_name} ${q.salespeople.last_name}` : "—" },
+    { key: "opportunity", label: t("opportunity"), hideOnMobile: true, render: (q) => q.opportunities?.title || "—" },
+    { key: "quote_date", label: t("quoteDate"), render: (q) => q.quote_date },
+    { key: "total", label: t("total"), align: "right" as const, render: (q) => fmt(q.total, q.currency) },
+    { key: "status", label: t("status"), render: (q) => <Badge variant={statusColor(q.status) as any}>{t(q.status as any) || q.status}</Badge> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (q) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>{t("edit")}</Button>
+        {q.status === "accepted" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); convertToSOmutation.mutate(q); }} disabled={convertToSOmutation.isPending}>
+            <ArrowRight className="h-3 w-3 mr-1" />{t("convertToSalesOrder")}
+          </Button>
+        )}
+      </div>
+    )},
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("quotes")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addQuote")}</Button>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("quoteNumber")}</TableHead>
-                <TableHead>{t("partner")}</TableHead>
-                <TableHead>{t("salesperson")}</TableHead>
-                <TableHead>{t("opportunity")}</TableHead>
-                <TableHead>{t("quoteDate")}</TableHead>
-                <TableHead>{t("validUntil")}</TableHead>
-                <TableHead className="text-right">{t("total")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : quotes.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              ) : quotes.map((q: any) => (
-                <TableRow key={q.id}>
-                  <TableCell className="font-medium">{q.quote_number}</TableCell>
-                  <TableCell>{q.partners?.name || q.partner_name || "—"}</TableCell>
-                  <TableCell>{q.salespeople ? `${q.salespeople.first_name} ${q.salespeople.last_name}` : "—"}</TableCell>
-                  <TableCell>{q.opportunities?.title || "—"}</TableCell>
-                  <TableCell>{q.quote_date}</TableCell>
-                  <TableCell>{q.valid_until || "—"}</TableCell>
-                  <TableCell className="text-right">{fmt(q.total, q.currency)}</TableCell>
-                  <TableCell><Badge variant={statusColor(q.status) as any}>{t(q.status as any) || q.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(q)}>{t("edit")}</Button>
-                      {q.status === "accepted" && (
-                        <Button size="sm" variant="outline" onClick={() => convertToSOmutation.mutate(q)} disabled={convertToSOmutation.isPending}>
-                          <ArrowRight className="h-3 w-3 mr-1" />{t("convertToSalesOrder")}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={t("quotes")}
+        description={t("quotes")}
+        icon={FileText}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addQuote")}</Button>}
+      />
+
+      <ResponsiveTable
+        data={quotes}
+        columns={columns}
+        keyExtractor={(q) => q.id}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

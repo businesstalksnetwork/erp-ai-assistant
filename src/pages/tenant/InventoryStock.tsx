@@ -7,17 +7,18 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Search, AlertTriangle, Plus, Minus } from "lucide-react";
+import { Search, AlertTriangle, Warehouse } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function InventoryStock() {
   const { t } = useLanguage();
@@ -35,11 +36,7 @@ export default function InventoryStock() {
   const { data: stock = [] } = useQuery({
     queryKey: ["inventory-stock", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_stock")
-        .select("*, products(name, sku, unit_of_measure), warehouses(name)")
-        .eq("tenant_id", tenantId!)
-        .order("updated_at", { ascending: false });
+      const { data, error } = await supabase.from("inventory_stock").select("*, products(name, sku, unit_of_measure), warehouses(name)").eq("tenant_id", tenantId!).order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -49,11 +46,7 @@ export default function InventoryStock() {
   const { data: costLayers = [] } = useQuery({
     queryKey: ["cost-layers-for-stock", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_cost_layers")
-        .select("product_id, warehouse_id, quantity_remaining, unit_cost")
-        .eq("tenant_id", tenantId!)
-        .gt("quantity_remaining", 0);
+      const { data, error } = await supabase.from("inventory_cost_layers").select("product_id, warehouse_id, quantity_remaining, unit_cost").eq("tenant_id", tenantId!).gt("quantity_remaining", 0);
       if (error) throw error;
       return data;
     },
@@ -74,14 +67,10 @@ export default function InventoryStock() {
     mutationFn: async () => {
       if (!adjustDialog || adjustQty === 0) return;
       const { error } = await supabase.rpc("adjust_inventory_stock", {
-        p_tenant_id: tenantId!,
-        p_product_id: adjustDialog.productId,
-        p_warehouse_id: adjustDialog.warehouseId,
-        p_quantity: adjustQty,
-        p_movement_type: "adjustment",
-        p_notes: adjustNotes || null,
-        p_created_by: user?.id || null,
-        p_reference: null,
+        p_tenant_id: tenantId!, p_product_id: adjustDialog.productId,
+        p_warehouse_id: adjustDialog.warehouseId, p_quantity: adjustQty,
+        p_movement_type: "adjustment", p_notes: adjustNotes || null,
+        p_created_by: user?.id || null, p_reference: null,
       });
       if (error) throw error;
     },
@@ -89,9 +78,7 @@ export default function InventoryStock() {
       qc.invalidateQueries({ queryKey: ["inventory-stock"] });
       qc.invalidateQueries({ queryKey: ["inventory-movements"] });
       toast({ title: t("success") });
-      setAdjustDialog(null);
-      setAdjustQty(0);
-      setAdjustNotes("");
+      setAdjustDialog(null); setAdjustQty(0); setAdjustNotes("");
     },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
@@ -115,32 +102,63 @@ export default function InventoryStock() {
     return totalQty > 0 ? totalVal / totalQty : 0;
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "product", label: t("product"), primary: true, render: (s) => (s.products as any)?.name },
+    { key: "sku", label: "SKU", hideOnMobile: true, render: (s) => (s.products as any)?.sku || "—" },
+    { key: "warehouse", label: t("warehouse"), render: (s) => (
+      <a href={`/inventory/warehouses/${s.warehouse_id}`} className="text-primary hover:underline">{(s.warehouses as any)?.name}</a>
+    )},
+    { key: "on_hand", label: t("onHand"), align: "right" as const, render: (s) => fmtNum(Number(s.quantity_on_hand)) },
+    { key: "reserved", label: t("reserved"), align: "right" as const, hideOnMobile: true, render: (s) => fmtNum(Number(s.quantity_reserved)) },
+    { key: "available", label: t("available"), align: "right" as const, hideOnMobile: true, render: (s) => fmtNum(Number(s.quantity_on_hand) - Number(s.quantity_reserved)) },
+    { key: "min_level", label: t("minLevel"), align: "right" as const, hideOnMobile: true, render: (s) => {
+      const onHand = Number(s.quantity_on_hand);
+      const minLevel = Number(s.min_stock_level);
+      const isLow = minLevel > 0 && onHand < minLevel;
+      return isLow ? <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> {fmtNum(minLevel)}</Badge> : fmtNum(minLevel);
+    }},
+    { key: "avg_cost", label: t("avgCost"), align: "right" as const, hideOnMobile: true, render: (s) => {
+      const avgCost = getAvgCost(s.product_id, s.warehouse_id);
+      return avgCost > 0 ? fmtNum(avgCost) : "—";
+    }},
+    { key: "total_value", label: t("totalValue"), align: "right" as const, hideOnMobile: true, render: (s) => {
+      const avgCost = getAvgCost(s.product_id, s.warehouse_id);
+      const totalVal = Number(s.quantity_on_hand) * avgCost;
+      return totalVal > 0 ? fmtNum(totalVal) : "—";
+    }},
+    { key: "actions", label: t("actions"), showInCard: false, align: "right" as const, render: (s) => (
+      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setAdjustDialog({
+        stockId: s.id, productId: s.product_id, warehouseId: s.warehouse_id,
+        productName: (s.products as any)?.name || "",
+      }); }}>
+        {t("adjust")}
+      </Button>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("stockOverview")}</h1>
-        <ExportButton
-          data={filtered.map((s) => ({
-            product: (s.products as any)?.name || "",
-            sku: (s.products as any)?.sku || "",
-            warehouse: (s.warehouses as any)?.name || "",
-            on_hand: Number(s.quantity_on_hand),
-            reserved: Number(s.quantity_reserved),
-            available: Number(s.quantity_on_hand) - Number(s.quantity_reserved),
-            min_level: Number(s.min_stock_level),
-          }))}
-          columns={[
-            { key: "product", label: t("product") },
-            { key: "sku", label: "SKU" },
-            { key: "warehouse", label: t("warehouse") },
-            { key: "on_hand", label: t("onHand") },
-            { key: "reserved", label: t("reserved") },
-            { key: "available", label: t("available") },
-            { key: "min_level", label: t("minLevel") },
-          ]}
-          filename="inventory_stock"
-        />
-      </div>
+      <PageHeader
+        title={t("stockOverview")}
+        icon={Warehouse}
+        actions={
+          <ExportButton
+            data={filtered.map((s) => ({
+              product: (s.products as any)?.name || "", sku: (s.products as any)?.sku || "",
+              warehouse: (s.warehouses as any)?.name || "", on_hand: Number(s.quantity_on_hand),
+              reserved: Number(s.quantity_reserved), available: Number(s.quantity_on_hand) - Number(s.quantity_reserved),
+              min_level: Number(s.min_stock_level),
+            }))}
+            columns={[
+              { key: "product", label: t("product") }, { key: "sku", label: "SKU" },
+              { key: "warehouse", label: t("warehouse") }, { key: "on_hand", label: t("onHand") },
+              { key: "reserved", label: t("reserved") }, { key: "available", label: t("available") },
+              { key: "min_level", label: t("minLevel") },
+            ]}
+            filename="inventory_stock"
+          />
+        }
+      />
 
       {tenantId && <AiModuleInsights tenantId={tenantId} module="inventory" />}
 
@@ -153,31 +171,26 @@ export default function InventoryStock() {
         const zeroStockItems = filtered.filter(s => Number(s.quantity_on_hand) <= 0);
         if (lowStockItems.length === 0 && zeroStockItems.length === 0) return null;
         return (
-          <AiAnalyticsNarrative
-            tenantId={tenantId}
-            contextType="dashboard"
-            data={{
-              lowStockCount: lowStockItems.length,
-              zeroStockCount: zeroStockItems.length,
-              totalSKUs: stock.length,
-              topLowStock: lowStockItems.slice(0, 5).map(s => ({
-                name: (s.products as any)?.name,
-                sku: (s.products as any)?.sku,
-                onHand: Number(s.quantity_on_hand),
-                minLevel: Number(s.min_stock_level),
-              })),
-            }}
-          />
+          <AiAnalyticsNarrative tenantId={tenantId} contextType="dashboard" data={{
+            lowStockCount: lowStockItems.length, zeroStockCount: zeroStockItems.length,
+            totalSKUs: stock.length,
+            topLowStock: lowStockItems.slice(0, 5).map(s => ({
+              name: (s.products as any)?.name, sku: (s.products as any)?.sku,
+              onHand: Number(s.quantity_on_hand), minLevel: Number(s.min_stock_level),
+            })),
+          }} />
         );
       })()}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-            </div>
+      <MobileFilterBar
+        search={
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+        }
+        filters={
+          <>
             <div className="w-48">
               <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -191,83 +204,24 @@ export default function InventoryStock() {
               <Checkbox id="low-stock" checked={lowStockOnly} onCheckedChange={(v) => setLowStockOnly(!!v)} />
               <label htmlFor="low-stock" className="text-sm">{t("lowStockOnly")}</label>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("product")}</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>{t("warehouse")}</TableHead>
-                <TableHead className="text-right">{t("onHand")}</TableHead>
-                <TableHead className="text-right">{t("reserved")}</TableHead>
-                <TableHead className="text-right">{t("available")}</TableHead>
-                <TableHead className="text-right">{t("minLevel")}</TableHead>
-                <TableHead className="text-right">{t("avgCost")}</TableHead>
-                <TableHead className="text-right">{t("totalValue")}</TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((s) => {
-                const onHand = Number(s.quantity_on_hand);
-                const reserved = Number(s.quantity_reserved);
-                const available = onHand - reserved;
-                const minLevel = Number(s.min_stock_level);
-                const isLow = minLevel > 0 && onHand < minLevel;
-                const avgCost = getAvgCost(s.product_id, s.warehouse_id);
-                const totalVal = onHand * avgCost;
-                return (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{(s.products as any)?.name}</TableCell>
-                    <TableCell>{(s.products as any)?.sku || "—"}</TableCell>
-                    <TableCell>
-                      <a href={`/inventory/warehouses/${s.warehouse_id}`} className="text-primary hover:underline">
-                        {(s.warehouses as any)?.name}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{fmtNum(onHand)}</TableCell>
-                    <TableCell className="text-right font-mono">{fmtNum(reserved)}</TableCell>
-                    <TableCell className="text-right font-mono">{fmtNum(available)}</TableCell>
-                    <TableCell className="text-right">
-                      {isLow ? (
-                        <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> {fmtNum(minLevel)}</Badge>
-                      ) : fmtNum(minLevel)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{avgCost > 0 ? fmtNum(avgCost) : "—"}</TableCell>
-                    <TableCell className="text-right font-mono">{totalVal > 0 ? fmtNum(totalVal) : "—"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => setAdjustDialog({
-                        stockId: s.id, productId: s.product_id, warehouseId: s.warehouse_id,
-                        productName: (s.products as any)?.name || "",
-                      })}>
-                        {t("adjust")}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
+
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(s) => s.id}
+        mobileMode="scroll"
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={!!adjustDialog} onOpenChange={() => setAdjustDialog(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("adjustStock")} — {adjustDialog?.productName}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div>
-              <Label>{t("quantity")} ({t("adjustmentHint")})</Label>
-              <Input type="number" value={adjustQty} onChange={(e) => setAdjustQty(Number(e.target.value))} />
-            </div>
-            <div>
-              <Label>{t("notes")}</Label>
-              <Input value={adjustNotes} onChange={(e) => setAdjustNotes(e.target.value)} />
-            </div>
+            <div><Label>{t("quantity")} ({t("adjustmentHint")})</Label><Input type="number" value={adjustQty} onChange={(e) => setAdjustQty(Number(e.target.value))} /></div>
+            <div><Label>{t("notes")}</Label><Input value={adjustNotes} onChange={(e) => setAdjustNotes(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdjustDialog(null)}>{t("cancel")}</Button>

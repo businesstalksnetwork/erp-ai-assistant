@@ -6,13 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, TrendingUp, Users, Building2, Loader2, ArrowRight, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { StatsBar } from "@/components/shared/StatsBar";
 import { LeadFunnelChart } from "@/components/crm/LeadFunnelChart";
 import { OpportunityPipelineChart } from "@/components/crm/OpportunityPipelineChart";
 import { WinLossChart } from "@/components/crm/WinLossChart";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { BiPageLayout } from "@/components/shared/BiPageLayout";
 import { Badge } from "@/components/ui/badge";
 
 export default function CrmDashboard() {
@@ -56,7 +55,6 @@ export default function CrmDashboard() {
     enabled: !!tenantId,
   });
 
-  // Top Komercijalisti query
   const { data: wholesaleSP = [] } = useQuery({
     queryKey: ["crm-wholesale-sp", tenantId],
     queryFn: async () => {
@@ -76,7 +74,6 @@ export default function CrmDashboard() {
   const lostOpps = opps.filter((o: any) => o.stage === "closed_lost");
   const winRate = wonOpps.length + lostOpps.length > 0 ? Math.round((wonOpps.length / (wonOpps.length + lostOpps.length)) * 100) : 0;
 
-  // Compute top komercijalisti by pipeline value
   const topKom = wholesaleSP.map((sp: any) => {
     const spOpps = openOpps.filter((o: any) => o.salesperson_id === sp.id);
     const pipeline = spOpps.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
@@ -93,18 +90,16 @@ export default function CrmDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={`${t("crm")} — ${t("dashboard")}`} icon={Target} />
-
-      <StatsBar
-        stats={[
-          { label: t("totalContacts"), value: contactsCount, icon: Users, color: "text-primary" },
-          { label: t("totalLeads"), value: totalLeads, icon: Target, color: "text-accent" },
-          { label: t("pipelineValue"), value: fmt(pipelineValue), icon: TrendingUp, color: "text-primary" },
-          { label: t("winRate"), value: `${winRate}%`, icon: Building2, color: "text-accent" },
-        ]}
-      />
-
+    <BiPageLayout
+      title={`${t("crm")} — ${t("dashboard")}`}
+      icon={Target}
+      stats={[
+        { label: t("totalContacts"), value: contactsCount, icon: Users, color: "text-primary" },
+        { label: t("totalLeads"), value: totalLeads, icon: Target, color: "text-accent" },
+        { label: t("pipelineValue"), value: fmt(pipelineValue), icon: TrendingUp, color: "text-primary" },
+        { label: t("winRate"), value: `${winRate}%`, icon: Building2, color: "text-accent" },
+      ]}
+    >
       {tenantId && <AiModuleInsights tenantId={tenantId} module="crm" />}
 
       {tenantId && (
@@ -112,14 +107,9 @@ export default function CrmDashboard() {
           tenantId={tenantId}
           contextType="planning"
           data={{
-            totalLeads,
-            convertedLeads,
-            conversionRate,
-            pipelineValue,
-            openDeals: openOpps.length,
-            winRate,
-            wonCount: wonOpps.length,
-            lostCount: lostOpps.length,
+            totalLeads, convertedLeads, conversionRate, pipelineValue,
+            openDeals: openOpps.length, winRate,
+            wonCount: wonOpps.length, lostCount: lostOpps.length,
             topKomCount: topKom.length,
           }}
         />
@@ -133,7 +123,6 @@ export default function CrmDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <WinLossChart opportunities={opps as any} />
 
-        {/* Top Komercijalisti Widget */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -163,7 +152,6 @@ export default function CrmDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <Card>
           <CardHeader><CardTitle className="text-base">{t("quickActions")}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -180,6 +168,6 @@ export default function CrmDashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </BiPageLayout>
   );
 }

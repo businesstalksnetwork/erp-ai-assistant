@@ -8,6 +8,7 @@ import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,30 +112,33 @@ export default function Expenses() {
 
       <StatsBar stats={stats} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="w-48">
-          <Label>{t("expenseCategory")}</Label>
-          <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allStatuses")}</SelectItem>
-              <SelectItem value="salaries">{t("salaryExpenses")}</SelectItem>
-              <SelectItem value="suppliers">{t("supplierExpenses")}</SelectItem>
-              <SelectItem value="depreciation">{t("runDepreciation")}</SelectItem>
-              <SelectItem value="operating">{t("operatingExpenses")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>{t("startDate")}</Label>
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        </div>
-        <div>
-          <Label>{t("endDate")}</Label>
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        </div>
-      </div>
+      <MobileFilterBar
+        filters={
+          <>
+            <div className="w-48">
+              <Label>{t("expenseCategory")}</Label>
+              <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                  <SelectItem value="salaries">{t("salaryExpenses")}</SelectItem>
+                  <SelectItem value="suppliers">{t("supplierExpenses")}</SelectItem>
+                  <SelectItem value="depreciation">{t("runDepreciation")}</SelectItem>
+                  <SelectItem value="operating">{t("operatingExpenses")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("startDate")}</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t("endDate")}</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+          </>
+        }
+      />
 
       {tenantId && totals.total > 0 && (
         <AiAnalyticsNarrative

@@ -2,20 +2,21 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Users } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 
@@ -152,58 +153,60 @@ export default function Employees() {
   const statusColor = (s: string) => s === "active" ? "default" : s === "archived" ? "outline" : "destructive";
   const empTypeLabel = (t_: string) => ({ full_time: t("fullTime"), part_time: t("partTime"), contract: t("contractType"), intern: t("intern") }[t_] || t_);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "full_name", label: t("fullName"), primary: true, render: (emp) => emp.full_name },
+    { key: "position", label: t("position"), render: (emp) => emp.position || "—" },
+    { key: "department", label: t("department"), render: (emp) => emp.departments?.name || "—" },
+    { key: "location", label: t("location"), hideOnMobile: true, render: (emp) => emp.locations?.name || "—" },
+    { key: "employment_type", label: t("employmentType"), hideOnMobile: true, render: (emp) => empTypeLabel(emp.employment_type) },
+    { key: "hire_date", label: t("hireDate"), render: (emp) => emp.hire_date || emp.start_date },
+    { key: "status", label: t("status"), render: (emp) => {
+      const status = getStatus(emp);
+      return <Badge variant={statusColor(status)}>{status === "active" ? t("active") : status === "archived" ? t("isArchived") : t("terminated")}</Badge>;
+    }},
+    { key: "actions", label: t("actions"), showInCard: false, render: (emp) => (
+      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}>{t("edit")}</Button>
+    )},
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("employees")}</h1>
-        <div className="flex gap-2 items-center">
+      <PageHeader
+        title={t("employees")}
+        icon={Users}
+        actions={
+          <div className="flex gap-2 items-center">
+            <ExportButton data={employees} columns={[
+              { key: "full_name", label: t("fullName") }, { key: "email", label: t("email") },
+              { key: "phone", label: t("phone") }, { key: "position", label: t("position") },
+              { key: "departments.name", label: t("department") }, { key: "locations.name", label: t("location") },
+              { key: "employment_type", label: t("employmentType") }, { key: "start_date", label: t("startDate") },
+            ]} filename="employees" />
+            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
+          </div>
+        }
+      />
+
+      <MobileFilterBar
+        filters={
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={showArchived} onCheckedChange={(v) => setShowArchived(!!v)} />
             {t("includeArchived")}
           </label>
-          <ExportButton data={employees} columns={[
-            { key: "full_name", label: t("fullName") }, { key: "email", label: t("email") },
-            { key: "phone", label: t("phone") }, { key: "position", label: t("position") },
-            { key: "departments.name", label: t("department") }, { key: "locations.name", label: t("location") },
-            { key: "employment_type", label: t("employmentType") }, { key: "start_date", label: t("startDate") },
-          ]} filename="employees" />
-          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
-        </div>
-      </div>
+        }
+      />
 
-      <Card><CardContent className="p-0">
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>{t("fullName")}</TableHead>
-            <TableHead>{t("position")}</TableHead>
-            <TableHead>{t("department")}</TableHead>
-            <TableHead>{t("location")}</TableHead>
-            <TableHead>{t("employmentType")}</TableHead>
-            <TableHead>{t("hireDate")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={8} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-            : employees.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-            : employees.map((emp: any) => {
-              const status = getStatus(emp);
-              return (
-                <TableRow key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/hr/employees/${emp.id}`)}>
-                  <TableCell className="font-medium">{emp.full_name}</TableCell>
-                  <TableCell>{emp.position || "—"}</TableCell>
-                  <TableCell>{emp.departments?.name || "—"}</TableCell>
-                  <TableCell>{emp.locations?.name || "—"}</TableCell>
-                  <TableCell>{empTypeLabel(emp.employment_type)}</TableCell>
-                  <TableCell>{emp.hire_date || emp.start_date}</TableCell>
-                  <TableCell><Badge variant={statusColor(status)}>{status === "active" ? t("active") : status === "archived" ? t("isArchived") : t("terminated")}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}>{t("edit")}</Button></TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent></Card>
+      <ResponsiveTable
+        data={employees}
+        columns={columns}
+        keyExtractor={(emp) => emp.id}
+        onRowClick={(emp) => navigate(`/hr/employees/${emp.id}`)}
+        emptyMessage={t("noResults")}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
