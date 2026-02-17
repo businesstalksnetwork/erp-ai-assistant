@@ -204,7 +204,7 @@ export default function InvoiceAnalytics() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Analitika</h1>
@@ -279,11 +279,11 @@ export default function InvoiceAnalytics() {
             {totals.total === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
-                <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full min-w-0">
+                <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
-                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" />
+                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={40} />
                   <ChartTooltip
                     content={<ChartTooltipContent />}
                     formatter={(value: number) => formatCurrency(value)}
@@ -316,7 +316,7 @@ export default function InvoiceAnalytics() {
             {paymentDistributionData.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <div className="h-[300px] w-full flex items-center justify-center">
+              <div className="h-[300px] w-full min-w-0 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
@@ -338,7 +338,7 @@ export default function InvoiceAnalytics() {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="flex justify-center gap-6 mt-4">
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-4">
               {paymentDistributionData.map(item => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
