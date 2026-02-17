@@ -206,7 +206,7 @@ export default function InvoiceAnalytics() {
   }
 
   return (
-    <div className="space-y-6 overflow-x-hidden">
+    <div className="space-y-6 overflow-x-hidden px-1">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Analitika</h1>
@@ -282,23 +282,23 @@ export default function InvoiceAnalytics() {
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
                 <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
-                  <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                  <LineChart data={monthlyData} margin={isMobile ? { top: 5, right: 5, left: -20, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: 9 }} />
-                    <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={45} />
+                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: isMobile ? 8 : 12 }} />
+                    <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 35 : 45} />
                     <ChartTooltip
                       content={<ChartTooltipContent />}
                       formatter={(value: number) => formatCurrency(value)}
                     />
-                    <Legend />
+                    {!isMobile && <Legend />}
                     <Line
                       type="monotone"
                       dataKey="promet"
                       name="Promet"
                       stroke="hsl(var(--chart-1))"
                       strokeWidth={2}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
+                      dot={{ r: isMobile ? 2 : 4 }}
+                      activeDot={{ r: isMobile ? 4 : 6 }}
                     />
                   </LineChart>
                </ChartContainer>
@@ -345,7 +345,7 @@ export default function InvoiceAnalytics() {
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    {item.name}: {formatCurrency(item.value)}
+                    {item.name}: {isMobile ? formatShortCurrency(item.value) : formatCurrency(item.value)}
                   </span>
                 </div>
               ))}
