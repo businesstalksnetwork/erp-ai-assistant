@@ -1,36 +1,34 @@
 
 
-# Fix: Mobile Sidebar Scrolling and Bottom Bar Overlap
+# Remove Admin and Expire Subscription for pbcconsulting021@gmail.com
 
-## Problem
+## What will be done
 
-On smaller mobile phones, the sidebar content extends below the visible area and cannot be scrolled. Additionally, the bottom items are hidden behind the fixed bottom navigation bar.
+Two database operations on user `pbcconsulting021@gmail.com` (ID: `8410de73-1e08-472a-b317-071052530b51`):
 
-## Changes
+1. **Remove admin role** -- Delete the row from `user_roles` table
+2. **Expire subscription** -- Set `subscription_end` to yesterday (`2026-02-16`) so the account appears expired
 
-### File: `src/components/AppLayout.tsx`
+## Result
 
-**1. Add bottom padding to sidebar on mobile** so content doesn't hide behind the bottom nav bar:
+After these changes, logging in as this user will show the expired subscription experience:
+- Redirected to Profile page
+- All other routes blocked
+- Subscription banner showing expiration
 
-Update the sidebar's inner container (line 218) to include bottom padding on mobile:
+## Reverting later
 
-```typescript
-<div className="flex flex-col h-full overflow-y-auto overscroll-contain pb-16 lg:pb-0">
+To restore admin access and subscription:
+```text
+INSERT INTO user_roles (user_id, role) VALUES ('8410de73-...', 'admin');
+UPDATE profiles SET subscription_end = '2099-12-31' WHERE email = 'pbcconsulting021@gmail.com';
 ```
 
-This adds `pb-16` (64px) on mobile to match the bottom bar height, and `lg:pb-0` removes it on desktop where there's no bottom bar.
+## Technical Details
 
-**2. Ensure the sidebar height accounts for the bottom bar on mobile:**
+SQL migration with two statements:
+1. `DELETE FROM user_roles WHERE user_id = '8410de73-1e08-472a-b317-071052530b51' AND role = 'admin';`
+2. `UPDATE profiles SET subscription_end = '2026-02-16' WHERE id = '8410de73-1e08-472a-b317-071052530b51';`
 
-Update the sidebar `<aside>` element (line 214) to use `h-[100dvh]` instead of `h-screen-safe` for more reliable dynamic viewport height, ensuring the sidebar fills the available screen:
-
-```typescript
-'fixed top-0 left-0 z-50 h-[100dvh] w-64 bg-sidebar text-sidebar-foreground ...'
-```
-
-## Summary
-
-- One file: `src/components/AppLayout.tsx`
-- Add `pb-16 lg:pb-0` to the sidebar's inner scrollable container so nav items are not hidden behind the bottom bar
-- Use `h-[100dvh]` for reliable full-height on all mobile browsers
+No code file changes needed.
 
