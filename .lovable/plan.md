@@ -1,44 +1,37 @@
 
+# Mobile-Optimize Limit Detail Dialogs (6M & 8M)
 
-# UI Improvements: Profile Tabs, Companies Header, Bookkeeper Section, Invoice Detail Top
+## Problems
+From the screenshots, on mobile the limit detail dialogs have several readability issues:
+1. Chart is too tall for mobile, wasting space
+2. Y-axis labels (6.9M, 4.0M etc.) are cramped with the chart area
+3. X-axis month labels overlap each other
+4. Tooltip can get cut off at edges
+5. The monthly table columns are tight and require horizontal scroll
+6. Overall padding/spacing is too generous for small screens
 
-## 1. Profile Page - Show tab names on mobile
+## Solution
 
-Currently, tab labels are hidden on mobile (`hidden sm:inline`), showing only icons. Change to always show tab names so users know which tab is selected.
+### File: `src/components/LimitDetailDialog.tsx`
 
-### File: `src/pages/Profile.tsx` (lines 325-348)
-- Remove `hidden sm:inline` from all `<span>` elements inside `TabsTrigger` so tab names are always visible on all screen sizes.
+**Chart adjustments for mobile:**
+- Reduce chart height from fixed `280` to responsive: `200` on mobile, `280` on desktop (use `useIsMobile` hook)
+- Reduce Y-axis width from `50` to `40` on mobile
+- Reduce font sizes on axes from `11` to `9` on mobile
+- Reduce chart margins on mobile
+- Hide ReferenceLine labels on mobile (they overlap the chart area) -- just keep the lines visible
 
-## 2. Profile Page - Make content wider
+**Dialog adjustments for mobile:**
+- Use `Drawer` on mobile instead of `Dialog` for full-width bottom sheet (or simply make DialogContent full-width on mobile with `sm:max-w-2xl w-full`)
+- Reduce padding in the dialog content on mobile
+- Make the table text even smaller on mobile (`text-[10px]`)
+- Use shorter column headers on mobile (e.g., "Fakt." instead of "Fakture")
 
-Currently uses `container mx-auto` which constrains width.
-
-### File: `src/pages/Profile.tsx` (line 315)
-- Change `container mx-auto py-6` to a wider layout, e.g., `max-w-5xl mx-auto py-6 px-4` to give more breathing room.
-
-## 3. Companies Page - Hide "Dodaj kompaniju" button when a company exists (single company scenario)
-
-Currently the button always shows if `canAddCompany` is true. Hide it when user already has a company and `maxCompanies` is 1 (single company limit).
-
-### File: `src/pages/Companies.tsx` (line 1232)
-- Change the condition from `canAddCompany` to `canAddCompany && (myCompanies.length === 0 || hasMultipleCompanies)` so the button is hidden when a single company already exists and the user's limit is 1.
-
-## 4. Companies Page - Redesign "Pozovi knjigovodju" section
-
-The current bookkeeper tab has a redundant layout with both a status card and a separate action card. Simplify into a cleaner, more compact design.
-
-### File: `src/pages/Companies.tsx` (lines 792-912)
-- Merge the status indicator and action into a single clean card
-- When no bookkeeper: show a simple message with an inline invite button (no separate bordered row)
-- When pending/accepted: show status with action buttons directly, without nested cards
-- Remove the extra bordered `div` wrapping the action area
-
-## 5. Invoice Detail - Redesign top action bar on mobile
-
-From the screenshot, on mobile the buttons stack awkwardly. Reorganize for better mobile UX.
-
-### File: `src/pages/InvoiceDetail.tsx` (lines 449-498)
-- On mobile: place "Vrati se nazad" button on top, then action buttons below in a cleaner row
-- Make buttons stack vertically on mobile with consistent full-width styling
-- Ensure "Preuzmi PDF" and "Posalji klijentu" are prominent, "Napravi sablon" is secondary
-
+**Specific changes:**
+1. Import `useIsMobile` hook
+2. Use conditional chart height: `isMobile ? 200 : 280`
+3. Use conditional Y-axis width: `isMobile ? 35 : 50`
+4. Use conditional axis font size: `isMobile ? 9 : 11`
+5. Hide ReferenceLine label text on mobile (set value to empty string)
+6. Reduce XAxis tick angle on mobile to `-45` with `dy={8}` to prevent overlap
+7. Table: use `text-[10px]` on mobile, shorter header labels
