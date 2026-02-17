@@ -211,11 +211,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-50 h-screen-safe w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0 print:hidden',
+          'fixed top-0 left-0 z-50 h-[100dvh] w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0 print:hidden',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex flex-col h-full overflow-y-auto overscroll-contain">
+        <div className="flex flex-col h-full overflow-y-auto overscroll-contain pb-16 lg:pb-0">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
             <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
