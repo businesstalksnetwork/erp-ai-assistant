@@ -57,6 +57,7 @@ import { sr } from 'date-fns/locale';
 import { ExtendSubscriptionDialog } from '@/components/ExtendSubscriptionDialog';
 import { BlockUserDialog } from '@/components/BlockUserDialog';
 import { PartnerDialog } from '@/components/PartnerDialog';
+import { BulkEmailDialog } from '@/components/BulkEmailDialog';
 import { usePartners, Partner } from '@/hooks/usePartners';
 import { useAuth } from '@/lib/auth';
 
@@ -1720,69 +1721,49 @@ export default function AdminPanel() {
         isLoading={createPartner.isPending || updatePartner.isPending}
       />
 
-      {/* Bulk Email Confirm Dialog */}
-      <AlertDialog open={bulkEmailConfirmOpen} onOpenChange={setBulkEmailConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pošalji email</AlertDialogTitle>
-            <AlertDialogDescription>
-              Da li ste sigurni da želite da pošaljete email na {filteredUsers.length} korisnika kojima je istekao trial period?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Otkaži</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isSendingBulkEmail}
-              onClick={async (e) => {
-                e.preventDefault();
-                setIsSendingBulkEmail(true);
-                try {
-                  await supabase.auth.refreshSession();
-                  const { data: sessionData } = await supabase.auth.getSession();
-                  const accessToken = sessionData.session?.access_token;
+      {/* Bulk Email Selection Dialog */}
+      <BulkEmailDialog
+        open={bulkEmailConfirmOpen}
+        onOpenChange={setBulkEmailConfirmOpen}
+        users={filteredUsers.map(u => ({ id: u.id, email: u.email, full_name: u.full_name }))}
+        isSending={isSendingBulkEmail}
+        onSend={async (selectedUsers) => {
+          setIsSendingBulkEmail(true);
+          try {
+            await supabase.auth.refreshSession();
+            const { data: sessionData } = await supabase.auth.getSession();
+            const accessToken = sessionData.session?.access_token;
 
-                  const recipients = filteredUsers.map(u => ({
-                    email: u.email,
-                    full_name: u.full_name,
-                  }));
+            const recipients = selectedUsers.map(u => ({
+              email: u.email,
+              full_name: u.full_name,
+            }));
 
-                  const { data, error } = await supabase.functions.invoke('send-admin-bulk-email', {
-                    body: { recipients, templateKey: 'trial_expired_admin' },
-                    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-                  });
+            const { data, error } = await supabase.functions.invoke('send-admin-bulk-email', {
+              body: { recipients, templateKey: 'trial_expired_admin' },
+              headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            });
 
-                  if (error) throw error;
-                  if (data?.error) throw new Error(data.error);
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
 
-                  toast({
-                    title: 'Emailovi poslati',
-                    description: `Poslato: ${data.sent}. Preskočeno: ${data.skipped || 0}. Greške: ${data.errors}.`,
-                  });
-                } catch (err: any) {
-                  console.error('Bulk email error:', err);
-                  toast({
-                    title: 'Greška pri slanju',
-                    description: err.message || 'Nepoznata greška',
-                    variant: 'destructive',
-                  });
-                } finally {
-                  setIsSendingBulkEmail(false);
-                  setBulkEmailConfirmOpen(false);
-                }
-              }}
-            >
-              {isSendingBulkEmail ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Šalje se...
-                </>
-              ) : (
-                'Pošalji'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            toast({
+              title: 'Emailovi poslati',
+              description: `Poslato: ${data.sent}. Preskočeno: ${data.skipped || 0}. Greške: ${data.errors}.`,
+            });
+          } catch (err: any) {
+            console.error('Bulk email error:', err);
+            toast({
+              title: 'Greška pri slanju',
+              description: err.message || 'Nepoznata greška',
+              variant: 'destructive',
+            });
+          } finally {
+            setIsSendingBulkEmail(false);
+            setBulkEmailConfirmOpen(false);
+          }
+        }}
+      />
     </div>
     </TooltipProvider>
   );
