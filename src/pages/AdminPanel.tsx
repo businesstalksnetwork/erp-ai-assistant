@@ -1756,7 +1756,7 @@ export default function AdminPanel() {
 
                   toast({
                     title: 'Emailovi poslati',
-                    description: `Uspešno poslato: ${data.sent}. Greške: ${data.errors}.`,
+                    description: `Poslato: ${data.sent}. Preskočeno: ${data.skipped || 0}. Greške: ${data.errors}.`,
                   });
                 } catch (err: any) {
                   console.error('Bulk email error:', err);
