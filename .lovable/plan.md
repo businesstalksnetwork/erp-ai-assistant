@@ -1,36 +1,66 @@
 
-# Fix Resend Rate Limiting in Bulk Email Function
+# Prevent Duplicate Bulk Emails + Fix Logging
 
 ## Problem
 
-The `send-admin-bulk-email` edge function sends emails in a tight `for` loop with no delay between requests. Resend's free/standard tier allows only **2 requests per second**. When sending to 11 recipients, 7 out of 11 failed with `429 rate_limit_exceeded`.
+Two issues prevent deduplication:
+1. **Logging is broken**: `company_id` is `NOT NULL` with a foreign key constraint, so inserting with a dummy UUID fails silently. No bulk email sends are ever recorded.
+2. **No dedup check**: The function sends to everyone in the list regardless of prior sends.
 
-## Solution
-
-Add a 600ms delay between each email send in the loop. This keeps the rate safely under 2 requests/second (roughly 1.6/sec). Also add retry logic: if a 429 is received, wait 1.5 seconds and retry once.
+Since some users were already emailed last week (manually or via the automated `trial_expiring` notifications), we need to check both `admin_bulk_*` logs AND the existing `trial_expiring_1d` notifications (which indicate the trial already expired).
 
 ## Changes
 
-### `supabase/functions/send-admin-bulk-email/index.ts`
+### 1. Database Migration: Make `company_id` nullable
 
-1. Add a helper `sleep` function at the top
-2. After each successful or failed send, add `await sleep(600)` to space out requests
-3. On 429 errors specifically, retry once after a 1.5s wait before marking as failed
-
-```typescript
-// Add at top of file
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-// In the loop, after the resend.emails.send call and logging:
-// Add delay between sends
-await sleep(600);
-
-// On 429 error, retry once:
-if (emailRes.error?.statusCode === 429) {
-  console.log(`Rate limited for ${recipient.email}, retrying after 1.5s...`);
-  await sleep(1500);
-  // retry send...
-}
+```sql
+ALTER TABLE email_notification_log ALTER COLUMN company_id DROP NOT NULL;
 ```
 
-This single file change ensures all bulk emails go through without hitting rate limits. The edge function will be automatically redeployed.
+This allows logging admin bulk emails that aren't tied to a specific company.
+
+### 2. Edge Function: `send-admin-bulk-email/index.ts`
+
+- **Fix logging**: Use `null` for `company_id` instead of the dummy UUID
+- **Add deduplication**: Before the send loop, query `email_notification_log` for:
+  - Any `admin_bulk_{templateKey}` entries (previous bulk sends)
+  - Any `trial_expiring_1d` entries (the automated "your trial expired" email -- these users already know)
+- Build a Set of already-notified emails, filter them out
+- Return `skipped` count in the response
+
+### 3. Frontend: `AdminPanel.tsx`
+
+- Update the toast to show skipped count: "Poslato: X. Preskoceno: Y. Greske: Z."
+
+## Technical Details
+
+### Edge function deduplication logic
+
+```typescript
+const notificationType = "admin_bulk_" + templateKey;
+
+// Fetch emails already sent for this bulk template OR via trial_expiring_1d
+const { data: alreadySent } = await supabase
+  .from("email_notification_log")
+  .select("email_to")
+  .or(`notification_type.eq.${notificationType},notification_type.eq.trial_expiring_1d`);
+
+const sentSet = new Set((alreadySent || []).map(r => r.email_to));
+const toSend = recipients.filter(r => !sentSet.has(r.email));
+const skipped = recipients.length - toSend.length;
+
+// Loop only over toSend
+// Log with company_id: null
+```
+
+### AdminPanel.tsx toast update
+
+```typescript
+description: `Poslato: ${data.sent}. Preskočeno: ${data.skipped || 0}. Greške: ${data.errors}.`
+```
+
+## Files Modified
+
+- **Migration**: Make `company_id` nullable on `email_notification_log`
+- **`supabase/functions/send-admin-bulk-email/index.ts`**: Add dedup + fix logging
+- **`src/pages/AdminPanel.tsx`**: Show skipped count in toast
