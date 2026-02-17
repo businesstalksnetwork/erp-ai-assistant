@@ -206,7 +206,7 @@ export default function InvoiceAnalytics() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Analitika</h1>
@@ -309,7 +309,7 @@ export default function InvoiceAnalytics() {
         </Card>
 
         {/* Payment Status Pie Chart */}
-        <Card className="overflow-hidden">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PieChartIcon className="h-5 w-5" />
@@ -320,15 +320,15 @@ export default function InvoiceAnalytics() {
             {paymentDistributionData.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <div className="h-[300px] w-full min-w-0 flex items-center justify-center">
+              <div className="h-[250px] sm:h-[300px] w-full min-w-0 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
                       data={paymentDistributionData}
-                      cx={isMobile ? "45%" : "50%"}
+                      cx={isMobile ? "40%" : "50%"}
                       cy="50%"
-                      innerRadius={isMobile ? 45 : 60}
-                      outerRadius={isMobile ? 70 : 100}
+                      innerRadius={isMobile ? 40 : 60}
+                      outerRadius={isMobile ? 65 : 100}
                       paddingAngle={5}
                       dataKey="value"
                       label={isMobile ? ({ percent }: any) => `${(percent * 100).toFixed(0)}%` : ({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -373,7 +373,7 @@ export default function InvoiceAnalytics() {
               <div className="space-y-4">
                 {topPartnersByRevenue.map((partner, index) => (
                   <div key={partner.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
                       <Badge
                         variant="outline"
                         className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
@@ -410,7 +410,7 @@ export default function InvoiceAnalytics() {
               <div className="space-y-4">
                 {topPartnersByUnpaid.map((partner, index) => (
                   <div key={partner.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
                       <Badge
                         variant="destructive"
                         className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
