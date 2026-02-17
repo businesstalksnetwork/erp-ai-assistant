@@ -281,27 +281,29 @@ export default function InvoiceAnalytics() {
             {totals.total === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full min-w-0">
-                <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: isMobile ? 9 : 12 }} />
-                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 35 : 45} />
-                  <ChartTooltip
-                    content={<ChartTooltipContent />}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="promet"
-                    name="Promet"
-                    stroke="hsl(var(--chart-1))"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ChartContainer>
+              <div className="overflow-x-auto -mx-2 px-2">
+                <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] min-w-[500px] w-full">
+                  <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={45} />
+                    <ChartTooltip
+                      content={<ChartTooltipContent />}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="promet"
+                      name="Promet"
+                      stroke="hsl(var(--chart-1))"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -340,11 +342,11 @@ export default function InvoiceAnalytics() {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-4">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4">
               {paymentDistributionData.map(item => (
                 <div key={item.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-sm text-muted-foreground">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     {item.name}: {formatCurrency(item.value)}
                   </span>
                 </div>
