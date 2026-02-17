@@ -1,19 +1,23 @@
 
 
-# Fix: ScrollArea Not Scrolling in Bulk Email Dialog
+# Fix Scroll and Add Sorting by Last Contact Date
 
-## Problem
-
-The dialog shows 10 out of 11 users with no visible scroll. The 11th user is cut off at the bottom because the `ScrollArea` height constraint isn't working properly with the table layout.
+## Problems
+1. The ScrollArea still doesn't scroll -- all 11 rows are visible but the dialog extends beyond the viewport
+2. No ability to sort by "Poslednji kontakt" column
 
 ## Solution
 
-Reduce the `max-h` on the `ScrollArea` to force scrolling when there are many rows, and ensure the dialog content layout properly constrains the scrollable area.
-
-## Technical Details
-
 ### File: `src/components/BulkEmailDialog.tsx`
 
-- Change `max-h-[50vh]` to `max-h-[45vh]` on the `ScrollArea` to ensure scroll kicks in earlier
-- Add `overflow-hidden` to the `DialogContent` flex container to prevent content from overflowing instead of scrolling
+**Fix scroll**: Replace the Radix `ScrollArea` with a plain `div` using `overflow-y-auto` and a fixed `max-h`. The Radix ScrollArea has issues with table layouts where it doesn't properly constrain the content height.
+
+**Add sorting**: Add a clickable "Poslednji kontakt" header that toggles between ascending/descending sort order. Default sort: most recently contacted first (descending). Users without contact dates sort to the bottom.
+
+### Changes
+- Replace `<ScrollArea>` with `<div className="overflow-y-auto max-h-[45vh] border rounded-md">`
+- Add `sortOrder` state (`'asc' | 'desc'`) defaulting to `'desc'`
+- Make the "Poslednji kontakt" table header clickable with a sort icon (ArrowUpDown from lucide)
+- Sort the users list using `useMemo` based on `lastContactMap` values and current sort order
+- Users with no contact date always appear at the bottom regardless of sort direction
 
