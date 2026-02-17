@@ -1,23 +1,18 @@
 
 
-# Fix Scroll and Add Sorting by Last Contact Date
+# Make Button and Search Input the Same Height
 
-## Problems
-1. The ScrollArea still doesn't scroll -- all 11 rows are visible but the dialog extends beyond the viewport
-2. No ability to sort by "Poslednji kontakt" column
+## Problem
+
+The "Novi podsetnik" button uses `size="sm"` which gives it `h-9`, while the search Input has the default height of `h-10`. They appear mismatched.
 
 ## Solution
 
-### File: `src/components/BulkEmailDialog.tsx`
+Change the button from `size="sm"` to the default size (which is `h-10`), matching the Input height. This makes both elements visually aligned.
 
-**Fix scroll**: Replace the Radix `ScrollArea` with a plain `div` using `overflow-y-auto` and a fixed `max-h`. The Radix ScrollArea has issues with table layouts where it doesn't properly constrain the content height.
+## Technical Details
 
-**Add sorting**: Add a clickable "Poslednji kontakt" header that toggles between ascending/descending sort order. Default sort: most recently contacted first (descending). Users without contact dates sort to the bottom.
+### File: `src/pages/Reminders.tsx` (line 856)
 
-### Changes
-- Replace `<ScrollArea>` with `<div className="overflow-y-auto max-h-[45vh] border rounded-md">`
-- Add `sortOrder` state (`'asc' | 'desc'`) defaulting to `'desc'`
-- Make the "Poslednji kontakt" table header clickable with a sort icon (ArrowUpDown from lucide)
-- Sort the users list using `useMemo` based on `lastContactMap` values and current sort order
-- Users with no contact date always appear at the bottom regardless of sort direction
+- Remove `size="sm"` from the "Novi podsetnik" Button so it uses the default size (`h-10`), matching the search Input height.
 
