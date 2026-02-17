@@ -1,68 +1,41 @@
 
 
-# Fix CORS Headers on All Edge Functions
+# Fix Analytics Page - Cards & Charts Fully Visible on Mobile
 
-## Problem
+## Problems (from screenshots)
 
-The user on `pausalbox.aiknjigovodja.rs` sees an infinite loading spinner. The root cause: **27 out of 32 edge functions have incomplete CORS headers**. The newer Supabase JS client (`@supabase/supabase-js@2.89`) sends additional headers (`x-supabase-client-platform`, `x-supabase-client-platform-version`, `x-supabase-client-runtime`, `x-supabase-client-runtime-version`) in every request. When these headers are not listed in the `Access-Control-Allow-Headers` response, the browser blocks the CORS preflight and the request fails silently -- resulting in a loading spinner that never resolves.
+1. **Line chart cut off at August** -- only 8 of 12 months visible. The `overflow-x-hidden` on the parent clips the chart's right side.
+2. **Y-axis labels show just "k"** -- the `width={35}` is too narrow to render labels like "400k", so the number gets cut off and only "k" is visible.
+3. **Summary cards not same height** -- the three cards (Ukupan promet, Naplaceno, Nenaplaceno) have varying heights because content length differs.
+4. **Pie chart legend partially clipped** at the bottom of its card.
 
-Only 5 functions currently have the correct headers: `verify-email`, `delete-user`, `send-verification-email`, `validate-pib`, `get-vapid-public-key`.
+## Solution (single file: `src/pages/InvoiceAnalytics.tsx`)
 
-## Solution
+### 1. Line chart: show all 12 months
+- Change XAxis `interval` from `0` (force all labels) to `1` on mobile (show every other month: Jan, Mar, Maj, Jul, Sep, Nov). This halves the label count and gives the chart room to render all data points.
+- Increase YAxis `width` back to `40` on mobile so labels like "400k" fit.
+- Adjust left margin from `-20` to `-10` so the Y-axis labels aren't clipped.
 
-Update the `corsHeaders` object in all 27 remaining edge functions to include the full set of allowed headers:
+### 2. Cards equal height
+- Add `h-full` to each summary Card so the grid equalizes their heights.
 
-```
-authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version
-```
+### 3. Pie chart: fully visible
+- Reduce pie chart container height on mobile from `h-[250px]` to `h-[220px]` to leave room for the legend below.
+- Reduce outer radius from `65` to `60` on mobile.
 
-## Files to Update (27 functions)
+### 4. Page container
+- Keep `overflow-x-hidden px-1` as-is (already added in previous fix).
 
-1. `supabase/functions/apr-lookup/index.ts`
-2. `supabase/functions/nbs-exchange-rate/index.ts`
-3. `supabase/functions/parse-pausalni-pdf/index.ts`
-4. `supabase/functions/sef-accept-reject-invoice/index.ts`
-5. `supabase/functions/sef-background-sync/index.ts`
-6. `supabase/functions/sef-cancel-sales-invoice/index.ts`
-7. `supabase/functions/sef-continue-sync/index.ts`
-8. `supabase/functions/sef-enrich-invoices/index.ts`
-9. `supabase/functions/sef-fetch-invoices/index.ts`
-10. `supabase/functions/sef-fetch-purchase-invoices/index.ts`
-11. `supabase/functions/sef-fetch-sales-invoices/index.ts`
-12. `supabase/functions/sef-get-invoice-xml/index.ts`
-13. `supabase/functions/sef-long-sync/index.ts` (has partial -- missing some headers, has `x-cron-token`)
-14. `supabase/functions/sef-registry-auto-update/index.ts`
-15. `supabase/functions/sef-registry-import/index.ts`
-16. `supabase/functions/sef-send-invoice/index.ts`
-17. `supabase/functions/send-admin-bulk-email/index.ts`
-18. `supabase/functions/send-invoice-email/index.ts`
-19. `supabase/functions/send-notification-emails/index.ts`
-20. `supabase/functions/storage-cleanup/index.ts`
-21. `supabase/functions/storage-delete/index.ts`
-22. `supabase/functions/storage-download/index.ts`
-23. `supabase/functions/storage-fix-logos/index.ts`
-24. `supabase/functions/storage-get-base64/index.ts`
-25. `supabase/functions/storage-migrate/index.ts`
-26. `supabase/functions/storage-upload/index.ts`
-27. `supabase/functions/track-invoice-view/index.ts`
+## Technical Details
 
-## What Changes Per File
+All changes are in `src/pages/InvoiceAnalytics.tsx`:
 
-Each file has a single line change -- the `Access-Control-Allow-Headers` value changes from:
-
-```
-'authorization, x-client-info, apikey, content-type'
-```
-
-to:
-
-```
-'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version'
-```
-
-For `sef-long-sync`, the existing `x-cron-token` will be preserved in addition to the new headers.
-
-## Impact
-
-After deploying, all edge function calls from `pausalbox.aiknjigovodja.rs` (or any domain) will pass CORS preflight correctly. The user `rajicmont@gmail.com` and any other users accessing via the custom domain should no longer see infinite loading.
+| Line | Change |
+|------|--------|
+| 230 | Add `h-full` to each of the 3 summary `Card` components |
+| 285 | Change mobile left margin from `-20` to `-10` |
+| 287 | Change XAxis `interval` from `{0}` to `{isMobile ? 1 : 0}` |
+| 288 | Change YAxis mobile width from `35` to `40` |
+| 321 | Change mobile pie container height from `h-[250px]` to `h-[220px]` |
+| 328-329 | Reduce mobile innerRadius to `35`, outerRadius to `58` |
 
