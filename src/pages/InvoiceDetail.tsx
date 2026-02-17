@@ -509,14 +509,13 @@ export default function InvoiceDetail() {
           <CardContent className="py-2 px-4">
             <div className="space-y-2">
               {emailHistory.slice(0, 3).map((log) => (
-                <div key={log.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
+                <div key={log.id} className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm">
                     {log.status === 'sent' ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                      <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
                     ) : (
-                      <Clock className="h-3.5 w-3.5 text-amber-600" />
+                      <Clock className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
                     )}
-                    <span className="text-muted-foreground">
+                    <span className="text-muted-foreground text-xs sm:text-sm">
                       {new Date(log.sent_at).toLocaleDateString('sr-RS', { 
                         day: '2-digit', 
                         month: '2-digit', 
@@ -525,11 +524,10 @@ export default function InvoiceDetail() {
                         minute: '2-digit'
                       })}
                     </span>
-                    <span className="truncate max-w-[200px]">{log.sent_to}</span>
+                    <span className="truncate max-w-[140px] sm:max-w-[200px] text-xs sm:text-sm">{log.sent_to}</span>
                     <Badge variant="outline" className="text-xs">
                       {log.language === 'en' ? '🇬🇧 EN' : '🇷🇸 SR'}
                     </Badge>
-                  </div>
                 </div>
               ))}
             </div>
@@ -583,7 +581,7 @@ export default function InvoiceDetail() {
           <Separator />
 
           {/* Parties */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Issuer */}
             <div>
               <p className="text-sm text-muted-foreground mb-2">{t('issuer')}</p>
@@ -634,29 +632,29 @@ export default function InvoiceDetail() {
           {/* Items */}
           <div>
             <p className="text-sm text-muted-foreground mb-3">{t('items')}</p>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full min-w-[480px]">
                 <thead className="bg-secondary">
                   <tr>
-                    <th className="text-left p-3 text-sm font-medium">{t('description')}</th>
-                    <th className="text-right p-3 text-sm font-medium w-24">{t('quantity')}</th>
-                    <th className="text-right p-3 text-sm font-medium w-32">{t('price')}</th>
-                    <th className="text-right p-3 text-sm font-medium w-36">{t('total')}</th>
+                    <th className="text-left p-2 sm:p-3 text-sm font-medium">{t('description')}</th>
+                    <th className="text-right p-2 sm:p-3 text-sm font-medium w-16 sm:w-24">{t('quantity')}</th>
+                    <th className="text-right p-2 sm:p-3 text-sm font-medium w-24 sm:w-32">{t('price')}</th>
+                    <th className="text-right p-2 sm:p-3 text-sm font-medium w-28 sm:w-36">{t('total')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayItems.map((item, index) => (
                     <tr key={item.id} className={index % 2 === 1 ? 'bg-muted/50' : ''}>
-                      <td className="p-3">{item.description}</td>
-                      <td className="p-3 text-right font-mono">{item.quantity}</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-2 sm:p-3">{item.description}</td>
+                      <td className="p-2 sm:p-3 text-right font-mono">{item.quantity}</td>
+                      <td className="p-2 sm:p-3 text-right font-mono">
                         {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.exchange_rate ? (
                           formatForeignCurrency(item.unit_price / invoice.exchange_rate, invoice.foreign_currency)
                         ) : (
                           formatCurrency(item.unit_price)
                         )}
                       </td>
-                      <td className="p-3 text-right font-mono font-semibold">
+                      <td className="p-2 sm:p-3 text-right font-mono font-semibold">
                         {invoice.client_type === 'foreign' && invoice.foreign_currency && invoice.exchange_rate ? (
                           formatForeignCurrency(item.total_amount / invoice.exchange_rate, invoice.foreign_currency)
                         ) : (
@@ -681,7 +679,7 @@ export default function InvoiceDetail() {
           )}
 
           {/* Total with Advance */}
-          <div className="flex justify-between items-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             {/* IPS QR kod - now includes proforma invoices */}
             {shouldShowQR && (() => {
               const cleanReference = invoice.invoice_number.replace(/\D/g, '');
@@ -717,7 +715,7 @@ export default function InvoiceDetail() {
               );
             })()}
             
-            <div className="min-w-[280px] space-y-2">
+            <div className="w-full sm:min-w-[280px] sm:w-auto space-y-2">
               {linkedAdvance ? (
                 <>
                   <div className="flex justify-between text-lg">
