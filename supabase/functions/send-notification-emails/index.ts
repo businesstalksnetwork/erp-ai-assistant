@@ -187,6 +187,12 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: profile } = await supabase.from('profiles').select('id, email, full_name, email_reminder_7_days_before, email_reminder_day_before, email_reminder_on_due_date, email_limit_6m_warning, email_limit_8m_warning, email_subscription_warnings, subscription_end, is_trial, account_type, app_notify_reminders, app_notify_subscription, app_notify_limits, push_notifications_enabled').eq('id', company.user_id).single();
       if (!profile) continue;
 
+      // Skip users with expired subscriptions (except bookkeepers)
+      if (profile.account_type !== 'bookkeeper' && profile.subscription_end) {
+        const subEnd = new Date(profile.subscription_end);
+        if (subEnd.getTime() < today.getTime()) continue;
+      }
+
       // Reminders
       const { data: reminders } = await supabase.from('payment_reminders').select('id, title, due_date, amount').eq('company_id', company.id).eq('is_completed', false).in('due_date', [todayStr, tomorrowStr, in7DaysStr]);
       

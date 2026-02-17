@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useReminders } from './useReminders';
 import { useLimits, LimitsData } from './useLimits';
+import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 
 const LIMIT_WARNING_THRESHOLD_80 = 80; // percent - first warning
@@ -15,6 +16,8 @@ function formatCurrency(amount: number): string {
 }
 
 export function useNotifications(companyId: string | null) {
+  const { isSubscriptionExpired, isAdmin, isBookkeeper } = useAuth();
+  const skipNotifications = isSubscriptionExpired && !isAdmin && !isBookkeeper;
   const { upcomingReminders } = useReminders(companyId);
   const { limits } = useLimits(companyId);
   const notifiedIds = useRef<Set<string>>(new Set());
@@ -53,7 +56,7 @@ export function useNotifications(companyId: string | null) {
 
   // Check and show limit notifications
   useEffect(() => {
-    if (!companyId || !limits) return;
+    if (!companyId || !limits || skipNotifications) return;
 
     const showLimitNotification = (title: string, body: string, key: 'limit6M_80' | 'limit6M_90' | 'limit8M_80' | 'limit8M_90') => {
       if (limitNotifiedRef.current[key]) return;
@@ -133,6 +136,7 @@ export function useNotifications(companyId: string | null) {
 
   // Show notifications for upcoming reminders
   useEffect(() => {
+    if (skipNotifications) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') {
       return;
     }

@@ -122,6 +122,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Build dynamic navigation based on company settings
   const getFilteredNavItems = () => {
+    const maxCompanies = profile?.max_companies ?? 1;
+    const companyLabel = myCompanies.length > 1 || maxCompanies > 1 
+      ? 'Moje Kompanije' 
+      : 'Moja Kompanija';
+
+    // Expired users only see company management
+    if (isSubscriptionExpired && !isAdmin && !isBookkeeper) {
+      return {
+        main: [],
+        profileGroup: [{ href: '/companies', label: companyLabel, icon: Building2 }],
+        adminGroup: [],
+      };
+    }
+
     const items = [...mainNavItems];
     
     const kpoIndex = items.findIndex(i => i.href === '/kpo');
@@ -138,11 +152,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
     
     items.splice(insertPosition, 0, ...conditionalItems);
-    
-    const maxCompanies = profile?.max_companies ?? 1;
-    const companyLabel = myCompanies.length > 1 || maxCompanies > 1 
-      ? 'Moje Kompanije' 
-      : 'Moja Kompanija';
     
     const profileGroup = [];
     profileGroup.push({ href: '/companies', label: companyLabel, icon: Building2 });
@@ -224,7 +233,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Company Selector */}
-          {companies.length > 0 && (
+          {companies.length > 0 && !(isSubscriptionExpired && !isAdmin && !isBookkeeper) && (
             <div className="p-4 border-b border-sidebar-border">
               {isViewingClientCompany && (
                 <div className="mb-2 px-2 py-1 bg-primary/10 rounded text-xs text-primary font-medium">
@@ -241,7 +250,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Bookkeeper quick access */}
-          {isBookkeeper && (
+          {isBookkeeper && !(isSubscriptionExpired) && (
             <div className="px-4 pt-4 pb-2">
               <Link
                 to="/bookkeeper"
@@ -381,7 +390,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe print:hidden"
       >
         <div className="flex items-center justify-around h-14">
-          {mobileBottomNavItems.map((item) => {
+          {((isSubscriptionExpired && !isAdmin && !isBookkeeper)
+            ? [{ href: '/profile', label: 'Profil', icon: User }]
+            : mobileBottomNavItems
+          ).map((item) => {
             const isActive = location.pathname === item.href;
             const showBadge = item.href === '/reminders' && upcomingCount > 0;
             return (
