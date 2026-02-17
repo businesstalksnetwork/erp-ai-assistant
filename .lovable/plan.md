@@ -1,50 +1,35 @@
 
 
-# Bulk Email Selection Dialog with Last Contact Info
+# Fix: Show Last Contact Dates in Bulk Email Dialog
 
-## Overview
+## Problem
 
-Replace the current simple "Are you sure?" confirmation dialog with a full dialog showing a table of all expired trial users. Each row will have a checkbox for selection and a column showing when the user was last contacted regarding subscription. You can select/deselect individual users before sending.
+The "Poslednji kontakt" column shows "—" for all users even though contact data exists in the database. This is because the `email_notification_log` table has an RLS policy that only lets users see their own logs (`user_id = auth.uid()`). The automated trial expiration emails were logged with the system's user ID, not the admin's, so the admin's client-side query returns no matching rows.
 
-## What you will see
+## Solution
 
-- Clicking "Posalji mail svima" opens a larger dialog with a scrollable table
-- Table columns: Checkbox, Ime, Email, Poslednji kontakt (last subscription-related email date)
-- "Selektuj sve" / "Deselektuj sve" toggle at the top
-- Users who were already contacted show the date in the "Poslednji kontakt" column
-- Send button shows count of selected users
-- Deduplication still happens server-side as a safety net
+Add an RLS policy that allows admin users to read all rows in `email_notification_log`.
 
-## Technical Details
+## Changes
 
-### New component: `src/components/BulkEmailDialog.tsx`
-
-A Dialog component that:
-1. Receives the list of `filteredUsers` as props
-2. On open, fetches `email_notification_log` for all subscription-related notification types (`admin_bulk_%`, `trial_expiring_%`) grouped by `email_to` with `MAX(created_at)` to get last contact date
-3. Renders a scrollable table with checkboxes, user info, and last contact date
-4. Has select all / deselect all functionality
-5. On "Posalji", calls the existing edge function with only the selected recipients
-
-### Changes to `src/pages/AdminPanel.tsx`
-
-- Import and use the new `BulkEmailDialog` component
-- Remove the old `AlertDialog` for bulk email confirmation
-- Pass `filteredUsers`, open state, and the send handler to the new component
-
-### Data query for last contact
+### 1. Database Migration: Add admin read policy
 
 ```sql
-SELECT email_to, MAX(created_at) as last_contacted
-FROM email_notification_log
-WHERE notification_type LIKE 'admin_bulk_%' 
-   OR notification_type LIKE 'trial_expiring_%'
-GROUP BY email_to
+CREATE POLICY "Admins can view all email logs"
+ON email_notification_log
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_roles.user_id = auth.uid()
+    AND user_roles.role = 'admin'
+  )
+);
 ```
 
-This query runs client-side when the dialog opens, matching each user's email to their last contact date.
+This allows users with the `admin` role to see all email notification logs, including automated trial expiration entries. Non-admin users still only see their own logs.
 
 ### Files
 
-- **Create**: `src/components/BulkEmailDialog.tsx` -- new dialog component with selection table
-- **Edit**: `src/pages/AdminPanel.tsx` -- replace AlertDialog with the new BulkEmailDialog, remove old bulk email dialog code
+- **Migration only** -- no code changes needed. The `BulkEmailDialog` query already works correctly; it just needs permission to see the data.
+
