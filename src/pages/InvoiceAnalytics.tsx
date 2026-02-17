@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useFiscalEntries } from '@/hooks/useFiscalEntries';
@@ -28,6 +29,7 @@ const formatShortCurrency = (amount: number) => {
 };
 
 export default function InvoiceAnalytics() {
+  const isMobile = useIsMobile();
   const { selectedCompany } = useSelectedCompany();
   const { invoices, isLoading } = useInvoices(selectedCompany?.id || null);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
@@ -282,8 +284,8 @@ export default function InvoiceAnalytics() {
               <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full min-w-0">
                 <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={40} />
+                  <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: isMobile ? 9 : 12 }} />
+                  <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 35 : 45} />
                   <ChartTooltip
                     content={<ChartTooltipContent />}
                     formatter={(value: number) => formatCurrency(value)}
@@ -323,11 +325,11 @@ export default function InvoiceAnalytics() {
                       data={paymentDistributionData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={isMobile ? 45 : 60}
+                      outerRadius={isMobile ? 75 : 100}
                       paddingAngle={5}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={isMobile ? ({ percent }: any) => `${(percent * 100).toFixed(0)}%` : ({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
                       {paymentDistributionData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
