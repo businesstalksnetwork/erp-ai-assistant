@@ -282,7 +282,7 @@ export default function InvoiceAnalytics() {
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
                 <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
-                  <LineChart data={monthlyData} margin={isMobile ? { top: 5, right: 5, left: -10, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 5 }}>
+                  <LineChart data={monthlyData} margin={isMobile ? { top: 5, right: 10, left: 5, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="name" className="text-xs" interval={isMobile ? 1 : 0} tick={{ fontSize: isMobile ? 8 : 12 }} />
                     <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 40 : 45} />
@@ -311,7 +311,7 @@ export default function InvoiceAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PieChartIcon className="h-5 w-5" />
-              Naplaćeno / Nenaplaćeno
+              <span className="text-sm sm:text-base">Naplaćeno / Nenaplaćeno</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -371,7 +371,7 @@ export default function InvoiceAnalytics() {
               <div className="space-y-4">
                 {topPartnersByRevenue.map((partner, index) => (
                   <div key={partner.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
+                    <div className="flex items-center gap-3 min-w-0 max-w-[50%]">
                       <Badge
                         variant="outline"
                         className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
@@ -408,7 +408,7 @@ export default function InvoiceAnalytics() {
               <div className="space-y-4">
                 {topPartnersByUnpaid.map((partner, index) => (
                   <div key={partner.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
+                    <div className="flex items-center gap-3 min-w-0 max-w-[50%]">
                       <Badge
                         variant="destructive"
                         className="w-6 h-6 flex items-center justify-center rounded-full shrink-0"
