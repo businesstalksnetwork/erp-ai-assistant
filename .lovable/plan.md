@@ -1,47 +1,39 @@
 
 
-# Fix Cut-off Charts & Admin Panel Scroll
+# Fix Analytics Charts on Mobile
 
-## Problems
-1. **Line chart**: Only shows Jan-Aug, months Sep-Dec are cut off on the right side
-2. **Pie chart**: Label text "Nenaplaćeno" is truncated to "Nenaplaće" because it overflows the container
-3. **Admin panel**: Has unwanted horizontal scrollbar on mobile
+## Problems identified from screenshots
+1. **Line chart Y-axis is garbled** -- values show in wrong order (300k, 300k, 400k, 200k instead of increasing). This is caused by the chart being too compressed horizontally with `width={35}` on YAxis
+2. **Line chart months cut off** -- only shows Jan through Aug, Sep-Dec missing
+3. **Pie chart legend cut off** -- "Nenaplaćen..." text truncated on right side
+
+## Root cause
+The `ChartContainer` component from shadcn/ui already wraps content in a `ResponsiveContainer`. The line chart inside it is too constrained, causing the Y-axis to overlap and months to be cut off.
 
 ## Solution
 
 ### File: `src/pages/InvoiceAnalytics.tsx`
 
-**Line chart fix (around line 282-301):**
-- The `ChartContainer` constrains the chart but the 12 month labels overflow. Add `interval={0}` to XAxis to force showing all ticks
-- Reduce XAxis font size on mobile and angle labels slightly to fit all 12 months
-- Add `tick={{ fontSize: 10 }}` to XAxis
+**1. Line chart -- make it horizontally scrollable on mobile instead of compressing:**
+- Wrap the ChartContainer in an `overflow-x-auto` div
+- Give the chart a `min-w-[500px]` so all 12 months are always visible
+- Remove the aggressive width reduction on YAxis (back to `width={45}`)
+- This approach lets users scroll the chart horizontally on mobile rather than seeing a broken compressed version
 
-**Pie chart fix (around line 322-335):**
-- Reduce `outerRadius` from `100` to `80` on mobile to leave room for labels
-- Use shorter label format: show just percentage, not full name (move names to the legend below which already exists)
-- Or use `labelLine={false}` and position labels inside
-- Best approach: use `useIsMobile` to conditionally reduce radii and simplify labels on mobile
+**2. Pie chart legend -- prevent text truncation:**
+- Change the legend layout from horizontal `flex` row to vertical stack on mobile: `flex-col sm:flex-row`
+- Ensure the full text "Nenaplaćeno: XXX RSD" is visible
+- Reduce font size on mobile: `text-xs sm:text-sm`
 
-**Specific changes:**
-1. Import `useIsMobile` hook
-2. Line chart: add `interval={0}` to XAxis, reduce tick font size to 10
-3. Pie chart: reduce `innerRadius` to `45`/`outerRadius` to `75` on mobile, shorten label to just percentage on mobile
+### Technical details
 
-### File: `src/pages/AdminPanel.tsx`
+```
+Line chart section (~line 284):
+- Wrap ChartContainer in: <div className="overflow-x-auto -mx-2 px-2">
+- Change ChartContainer className to: "h-[250px] sm:h-[300px] min-w-[500px] w-full"
+- YAxis width back to 45
 
-**Admin panel scroll fix (line 808):**
-- Change `<div className="space-y-6 animate-fade-in">` to `<div className="space-y-6 animate-fade-in overflow-x-hidden">`
-- This prevents any wide tables or content from causing horizontal scroll on the entire page
-
-## Technical Details
-
-```text
-InvoiceAnalytics.tsx changes:
-  - Import useIsMobile
-  - XAxis: add interval={0}, tick={{ fontSize: isMobile ? 9 : 12 }}
-  - Pie: outerRadius={isMobile ? 75 : 100}, innerRadius={isMobile ? 45 : 60}
-  - Pie label: on mobile show only percentage, on desktop show name+percentage
-
-AdminPanel.tsx changes:
-  - Line 808: add overflow-x-hidden to root div
+Pie chart legend (~line 343):
+- Change flex classes to: "flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4"
+- Change span text size: "text-xs sm:text-sm text-muted-foreground"
 ```
