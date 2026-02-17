@@ -853,7 +853,7 @@ export default function Reminders() {
         <div className="flex gap-2">
           <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-              <Button size="sm" className="flex-1 sm:flex-none">
+              <Button className="flex-1 sm:flex-none">
                 <Plus className="mr-2 h-4 w-4" />
                 Novi podsetnik
               </Button>
