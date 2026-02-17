@@ -312,7 +312,7 @@ export default function Profile() {
   const status = getSubscriptionStatus();
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="max-w-5xl mx-auto py-6 px-4 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Moj Profil</h1>
         <p className="text-muted-foreground">
@@ -324,26 +324,26 @@ export default function Profile() {
         <TabsList className="w-full flex overflow-x-auto scrollbar-hide gap-1 justify-start sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible">
           <TabsTrigger value="subscription" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Pretplata</span>
+            <span>Pretplata</span>
           </TabsTrigger>
           {isBookkeeper && (
             <TabsTrigger value="company" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Kompanija</span>
+              <span>Kompanija</span>
             </TabsTrigger>
           )}
           <TabsTrigger value="security" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Bezbednost</span>
+            <span>Bezbednost</span>
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
             <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Podešavanja</span>
+            <span>Podešavanja</span>
           </TabsTrigger>
           {isBookkeeper && (
             <TabsTrigger value="earnings" className="flex items-center gap-1.5 min-w-fit shrink-0 text-xs sm:text-sm px-2.5 sm:px-3">
               <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">Zarada</span>
+              <span>Zarada</span>
             </TabsTrigger>
           )}
         </TabsList>

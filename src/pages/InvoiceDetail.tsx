@@ -446,12 +446,37 @@ export default function InvoiceDetail() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto print-invoice print:m-0 print:max-w-none print:w-full print:space-y-2 print:h-auto print:min-h-0 print:overflow-visible">
-      <div className="flex items-center justify-between print:hidden">
-        <Button variant="ghost" onClick={() => navigate('/invoices')}>
+      <div className="print:hidden space-y-3">
+        <Button variant="ghost" onClick={() => navigate('/invoices')} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Vrati se nazad
         </Button>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={handleDownloadPDF} 
+            className="w-full sm:w-auto"
+            disabled={isGeneratingPDF}
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {isGeneratingPDF ? 'Generisanje...' : 'Preuzmi PDF'}
+          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => setSendDialogOpen(true)} 
+            className="w-full sm:w-auto"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Pošalji klijentu
+            {emailHistory.length > 0 && (
+              <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-700 border-green-300">
+                {emailHistory.length}
+              </Badge>
+            )}
+          </Button>
           <CreateTemplateDialog 
             invoice={{
               id: invoice.id,
@@ -469,31 +494,6 @@ export default function InvoiceDetail() {
             items={displayItems} 
             companyId={selectedCompany.id} 
           />
-          <Button 
-            onClick={handleDownloadPDF} 
-            className="flex-1 sm:flex-none"
-            disabled={isGeneratingPDF}
-          >
-            {isGeneratingPDF ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            {isGeneratingPDF ? 'Generisanje...' : 'Preuzmi PDF'}
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={() => setSendDialogOpen(true)} 
-            className="flex-1 sm:flex-none"
-          >
-            <Mail className="mr-2 h-4 w-4" />
-            Pošalji klijentu
-            {emailHistory.length > 0 && (
-              <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-700 border-green-300">
-                {emailHistory.length}
-              </Badge>
-            )}
-          </Button>
         </div>
       </div>
 

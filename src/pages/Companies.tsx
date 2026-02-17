@@ -801,108 +801,82 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
                 Dodelite knjigovođu koji će imati pristup podacima ove kompanije
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                {company.bookkeeper_email && company.bookkeeper_status === 'accepted' ? (
-                  <>
+            <CardContent className="space-y-4">
+              {company.bookkeeper_email && company.bookkeeper_status === 'accepted' ? (
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
                     <UserCheck className="h-5 w-5 text-green-600" />
                     <div>
                       <p className="font-medium text-green-600">Povezan</p>
                       <p className="text-sm text-muted-foreground">{company.bookkeeper_email}</p>
                     </div>
-                  </>
-                ) : company.bookkeeper_email && company.bookkeeper_status === 'pending' ? (
-                  <>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-destructive">
+                        Ukloni pristup
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Ukloniti pristup knjigovođi?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {company.bookkeeper_email} više neće moći da pristupa podacima ove kompanije.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Ne</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => removeBookkeeper.mutate(company.id)}>
+                          Da, ukloni
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ) : company.bookkeeper_email && company.bookkeeper_status === 'pending' ? (
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
                     <Clock className="h-5 w-5 text-amber-600" />
                     <div>
                       <p className="font-medium text-amber-600">Pozivnica poslata</p>
                       <p className="text-sm text-muted-foreground">Čeka se odgovor: {company.bookkeeper_email}</p>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Nije dodeljen</p>
-                      <p className="text-sm text-muted-foreground">Pozovite knjigovođu putem email adrese</p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">
-                      {company.bookkeeper_email ? 'Upravljanje pristupom' : 'Pozovi knjigovođu'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {company.bookkeeper_email 
-                        ? 'Možete otkazati poziv ili ukloniti pristup'
-                        : 'Pošaljite pozivnicu na email adresu knjigovođe'}
-                    </p>
                   </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline">Otkaži poziv</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Otkazati pozivnicu?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Pozivnica za {company.bookkeeper_email} će biti otkazana.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Ne</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => cancelInvitation.mutate(company.id)}>
+                          Da, otkaži
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  {company.bookkeeper_email && company.bookkeeper_status === 'pending' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="outline">Otkaži poziv</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Otkazati pozivnicu?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Pozivnica za {company.bookkeeper_email} će biti otkazana.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Ne</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => cancelInvitation.mutate(company.id)}>
-                            Da, otkaži
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  
-                  {company.bookkeeper_email && company.bookkeeper_status === 'accepted' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="text-destructive">
-                          Ukloni pristup
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Ukloniti pristup knjigovođi?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {company.bookkeeper_email} više neće moći da pristupa podacima ove kompanije.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Ne</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => removeBookkeeper.mutate(company.id)}>
-                            Da, ukloni
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  
-                  {(!company.bookkeeper_email || company.bookkeeper_status === 'rejected') && (
-                    <Button size="sm" onClick={() => {
-                      setBookkeeperEmail('');
-                      setIsBookkeeperDialogOpen(true);
-                    }}>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Pozovi knjigovođu
-                    </Button>
-                  )}
+              ) : (
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Nije dodeljen knjigovođa</p>
+                  </div>
+                  <Button size="sm" onClick={() => {
+                    setBookkeeperEmail('');
+                    setIsBookkeeperDialogOpen(true);
+                  }}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Pozovi
+                  </Button>
                 </div>
-              </div>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 Knjigovođa će moći da pregleda fakture, KPO knjigu i druge finansijske podatke ove kompanije.
@@ -1229,7 +1203,7 @@ export default function Companies() {
             )}
           </p>
         </div>
-        {canAddCompany && (
+        {canAddCompany && (myCompanies.length === 0 || hasMultipleCompanies) && (
           <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
               <Button>
