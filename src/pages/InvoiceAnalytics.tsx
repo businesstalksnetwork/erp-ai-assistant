@@ -227,7 +227,7 @@ export default function InvoiceAnalytics() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card>
+        <Card className="h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ukupan promet</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -240,7 +240,7 @@ export default function InvoiceAnalytics() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Naplaćeno</CardTitle>
             <TrendingUp className="h-4 w-4 text-chart-2" />
@@ -253,7 +253,7 @@ export default function InvoiceAnalytics() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Nenaplaćeno</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
@@ -282,10 +282,10 @@ export default function InvoiceAnalytics() {
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
                 <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
-                  <LineChart data={monthlyData} margin={isMobile ? { top: 5, right: 5, left: -20, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 5 }}>
+                  <LineChart data={monthlyData} margin={isMobile ? { top: 5, right: 5, left: -10, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: isMobile ? 8 : 12 }} />
-                    <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 35 : 45} />
+                    <XAxis dataKey="name" className="text-xs" interval={isMobile ? 1 : 0} tick={{ fontSize: isMobile ? 8 : 12 }} />
+                    <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={isMobile ? 40 : 45} />
                     <ChartTooltip
                       content={<ChartTooltipContent />}
                       formatter={(value: number) => formatCurrency(value)}
@@ -318,15 +318,15 @@ export default function InvoiceAnalytics() {
             {paymentDistributionData.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <div className="h-[250px] sm:h-[300px] w-full min-w-0 flex items-center justify-center">
+              <div className="h-[220px] sm:h-[300px] w-full min-w-0 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
                     <Pie
                       data={paymentDistributionData}
                       cx={isMobile ? "40%" : "50%"}
                       cy="50%"
-                      innerRadius={isMobile ? 40 : 60}
-                      outerRadius={isMobile ? 65 : 100}
+                      innerRadius={isMobile ? 35 : 60}
+                      outerRadius={isMobile ? 58 : 100}
                       paddingAngle={5}
                       dataKey="value"
                       label={isMobile ? ({ percent }: any) => `${(percent * 100).toFixed(0)}%` : ({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
