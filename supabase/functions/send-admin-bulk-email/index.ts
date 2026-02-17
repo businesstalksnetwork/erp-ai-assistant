@@ -79,7 +79,19 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log(`Sending bulk email to ${recipients.length} recipients, template: ${templateKey}`);
+    const notificationType = "admin_bulk_" + templateKey;
+
+    // Deduplication: check who already received this email or automated trial_expiring_1d
+    const { data: alreadySent } = await supabase
+      .from("email_notification_log")
+      .select("email_to")
+      .or(`notification_type.eq.${notificationType},notification_type.eq.trial_expiring_1d`);
+
+    const sentSet = new Set((alreadySent || []).map((r: any) => r.email_to));
+    const toSend = recipients.filter(r => !sentSet.has(r.email));
+    const skipped = recipients.length - toSend.length;
+
+    console.log(`Bulk email: ${recipients.length} total, ${skipped} skipped, ${toSend.length} to send, template: ${templateKey}`);
 
     // Load template from database
     const { data: template } = await supabase
@@ -96,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
     let errors = 0;
     const errorDetails: string[] = [];
 
-    for (const recipient of recipients) {
+    for (const recipient of toSend) {
       try {
         const data = {
           full_name: recipient.full_name || recipient.email,
@@ -143,11 +155,11 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
 
-        // Log the notification - use a dummy company_id since this is admin-triggered
+        // Log the notification
         await supabase.from("email_notification_log").insert({
-          company_id: "00000000-0000-0000-0000-000000000000",
+          company_id: null,
           user_id: callingUser.id,
-          notification_type: "admin_bulk_" + templateKey,
+          notification_type: notificationType,
           email_to: recipient.email,
           subject,
         });
@@ -165,7 +177,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Bulk email complete: ${sent} sent, ${errors} errors`);
 
     return new Response(
-      JSON.stringify({ success: true, sent, errors, errorDetails }),
+      JSON.stringify({ success: true, sent, errors, skipped, errorDetails }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }

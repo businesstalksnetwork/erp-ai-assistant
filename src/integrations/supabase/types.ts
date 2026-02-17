@@ -402,7 +402,7 @@ export type Database = {
       }
       email_notification_log: {
         Row: {
-          company_id: string
+          company_id: string | null
           created_at: string
           email_to: string
           id: string
@@ -414,7 +414,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          company_id: string
+          company_id?: string | null
           created_at?: string
           email_to: string
           id?: string
@@ -426,7 +426,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          company_id?: string
+          company_id?: string | null
           created_at?: string
           email_to?: string
           id?: string
