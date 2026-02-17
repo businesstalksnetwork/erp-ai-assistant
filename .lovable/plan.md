@@ -1,32 +1,48 @@
 
 
-# Fix Analytics Charts - Root Cause Found
+# Fix Analytics Page - Complete Mobile Overhaul
 
-## The Real Problem
+## Root Cause
 
-Line 209 of `InvoiceAnalytics.tsx` has `overflow-x-hidden` on the page's root container. This clips EVERYTHING -- the line chart's horizontal scroll doesn't work (months cut off), and the pie chart labels get chopped on the right side.
+Removing `overflow-x-hidden` from the page root caused the entire page to scroll horizontally. The `min-w-[600px]` on the line chart pushes the viewport wider, breaking ALL content below it (pie chart shifted, tables overflowing, dark background visible).
 
 ## Solution
 
 ### File: `src/pages/InvoiceAnalytics.tsx`
 
-**1. Remove `overflow-x-hidden` from root div (line 209)**
-Change `<div className="space-y-6 overflow-x-hidden">` to `<div className="space-y-6">`. The individual chart sections already handle their own overflow.
+**1. Add `overflow-x-hidden` BACK to root div (line 209)**
 
-**2. Pie chart: prevent label overflow without clipping**
-The pie chart's percentage labels extend beyond the container on the right. Fix by:
-- Shifting the pie center from `cx="50%"` to `cx="45%"` on mobile to give labels room on the right
-- Reducing outer radius further on mobile (from 75 to 70) so labels stay within bounds
-- Adding `overflow-hidden` only on the pie chart Card, not the whole page
+This prevents the entire page from scrolling horizontally. The line chart's internal `overflow-x-auto` wrapper will still allow horizontal scrolling within the chart card only.
 
-**3. Line chart: already correct**
-The `overflow-x-auto` wrapper with `min-w-[600px]` will work correctly once the parent `overflow-x-hidden` is removed. Users can scroll horizontally to see all 12 months.
+**2. Line chart (lines 284-306) -- already correct**
 
-### Technical summary
+The `overflow-x-auto` wrapper with `min-w-[600px]` works perfectly inside an `overflow-x-hidden` parent. Users scroll only the chart area, not the whole page.
 
-```text
-Line 209: Remove overflow-x-hidden from root div
-Line 328: cx={isMobile ? "45%" : "50%"}
-Line 331: outerRadius={isMobile ? 70 : 100}
-Line 312: Add overflow-hidden to pie chart Card
+**3. Pie chart (lines 312-356) -- fix label clipping**
+
+The pie chart labels ("Naplaceno 56%") extend beyond the card boundary, which gets clipped by `overflow-hidden`. Fix:
+- Remove `overflow-hidden` from the Card
+- On mobile: show only percentage in labels (no text), reduce outerRadius to 65, shift cx to "40%"
+- This keeps labels inside the card bounds without clipping
+- Reduce the chart container height on mobile from 300px to 250px to eliminate the huge white space
+
+**4. Top 5 tables (lines 360-431) -- fix amount truncation**
+
+The amounts ("1.097.559 RSD") get cut off because the flex row doesn't constrain the partner name enough. Fix:
+- Add `max-w-[55%]` to the name container so the amount always has room
+- Keep `truncate` on partner name text
+- This ensures amounts are always fully visible
+
+### Technical changes
+
+```
+Line 209: <div className="space-y-6 overflow-x-hidden">
+
+Line 312: Remove overflow-hidden from Card (back to just <Card>)
+Line 323: h-[250px] sm:h-[300px] (reduce mobile height)
+Line 328: cx={isMobile ? "40%" : "50%"}
+Line 331: outerRadius={isMobile ? 65 : 100}
+
+Line 376: <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
+Line 413: <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
 ```
