@@ -1,41 +1,39 @@
 
 
-# Fix Analytics Page - Cards & Charts Fully Visible on Mobile
+# Fix Analytics Page Mobile Layout - Complete Overhaul
 
-## Problems (from screenshots)
+## Problems Identified (from live testing)
 
-1. **Line chart cut off at August** -- only 8 of 12 months visible. The `overflow-x-hidden` on the parent clips the chart's right side.
-2. **Y-axis labels show just "k"** -- the `width={35}` is too narrow to render labels like "400k", so the number gets cut off and only "k" is visible.
-3. **Summary cards not same height** -- the three cards (Ukupan promet, Naplaceno, Nenaplaceno) have varying heights because content length differs.
-4. **Pie chart legend partially clipped** at the bottom of its card.
+1. **Y-axis labels cut off**: Shows "00k" instead of "700k" -- the negative left margin (-10) clips the label text
+2. **Line chart cut off on right**: Only months Jan through Jul visible, Sep/Nov missing entirely
+3. **Partner revenue amounts truncated**: Numbers like "1.1M" and "132k" cut off on right edge
+4. **Pie chart title truncated**: "Naplaceno / Nenaplacen" cuts off the last letter
+
+## Root Cause
+
+The combination of `overflow-x-hidden` on the parent container, negative left margin on the chart, and insufficient Y-axis width causes the chart to clip on both left (labels) and right (data points).
 
 ## Solution (single file: `src/pages/InvoiceAnalytics.tsx`)
 
-### 1. Line chart: show all 12 months
-- Change XAxis `interval` from `0` (force all labels) to `1` on mobile (show every other month: Jan, Mar, Maj, Jul, Sep, Nov). This halves the label count and gives the chart room to render all data points.
-- Increase YAxis `width` back to `40` on mobile so labels like "400k" fit.
-- Adjust left margin from `-20` to `-10` so the Y-axis labels aren't clipped.
+### 1. Fix Y-axis and line chart visibility
+- Remove negative left margin entirely (change from `-10` to `5`)
+- Keep YAxis width at `40` (sufficient once margin isn't clipping)
+- Change right margin from `5` to `10` to ensure last months render
+- These changes ensure all 12 months of data and all Y-axis labels are fully visible
 
-### 2. Cards equal height
-- Add `h-full` to each summary Card so the grid equalizes their heights.
+### 2. Fix partner amounts truncation
+- Change partner name container from `max-w-[55%]` to `max-w-[50%]` to give more room for amounts
+- Ensure amounts always use `formatShortCurrency` on mobile (already in place)
 
-### 3. Pie chart: fully visible
-- Reduce pie chart container height on mobile from `h-[250px]` to `h-[220px]` to leave room for the legend below.
-- Reduce outer radius from `65` to `60` on mobile.
+### 3. Fix pie chart title
+- Add `text-sm` class to pie chart CardTitle on mobile to prevent text overflow
+- Wrap with `truncate` is not needed since the text should fit at smaller size
 
-### 4. Page container
-- Keep `overflow-x-hidden px-1` as-is (already added in previous fix).
+## Technical Changes
 
-## Technical Details
-
-All changes are in `src/pages/InvoiceAnalytics.tsx`:
-
-| Line | Change |
-|------|--------|
-| 230 | Add `h-full` to each of the 3 summary `Card` components |
-| 285 | Change mobile left margin from `-20` to `-10` |
-| 287 | Change XAxis `interval` from `{0}` to `{isMobile ? 1 : 0}` |
-| 288 | Change YAxis mobile width from `35` to `40` |
-| 321 | Change mobile pie container height from `h-[250px]` to `h-[220px]` |
-| 328-329 | Reduce mobile innerRadius to `35`, outerRadius to `58` |
+| Area | Line(s) | Change |
+|------|---------|--------|
+| Line chart margins | 285 | Mobile left margin: `-10` to `5`, right: `5` to `10` |
+| Partner revenue max-width | 374, 411 | `max-w-[55%]` to `max-w-[50%]` |
+| Pie chart title | 312 | Add responsive text size class |
 
