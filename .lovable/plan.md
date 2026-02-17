@@ -1,56 +1,36 @@
 
 
-# Fix: Black Box in Amount Section - Switch to Light Background for PDF
+# Fix: Mobile Sidebar Scrolling and Bottom Bar Overlap
 
-## Root Cause
+## Problem
 
-All previous attempts tried to preserve the dark `bg-slate-800` background with white text during PDF generation. Despite 4 layers of CSS exceptions (pre-baking, stylesheet override, onclone callback, pixel post-processor), html2canvas still renders black text on the dark background, creating an unreadable black box.
-
-The pixel post-processor then compounds the issue by potentially modifying edge pixels.
-
-## New Approach
-
-Stop fighting html2canvas. Instead, restyle the amount section to use a **light background with dark text** in the PDF clone -- just like everything else on the page. This eliminates the entire dark-bg/white-text problem.
+On smaller mobile phones, the sidebar content extends below the visible area and cannot be scrolled. Additionally, the bottom items are hidden behind the fixed bottom navigation bar.
 
 ## Changes
 
-### File: `src/hooks/usePdfGenerator.ts`
+### File: `src/components/AppLayout.tsx`
 
-**1. Change the `.bg-slate-800` pre-baking exception** (lines 104-115) to use a light background with a visible border instead of preserving the dark theme:
+**1. Add bottom padding to sidebar on mobile** so content doesn't hide behind the bottom nav bar:
+
+Update the sidebar's inner container (line 218) to include bottom padding on mobile:
 
 ```typescript
-// Amount due section: convert to light theme for PDF
-clone.querySelectorAll('.bg-slate-800').forEach(el => {
-  const htmlEl = el as HTMLElement;
-  htmlEl.style.setProperty('background-color', '#f1f5f9', 'important');
-  htmlEl.style.setProperty('border', '2px solid #1e293b', 'important');
-  htmlEl.style.setProperty('color', '#000000', 'important');
-  htmlEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
-  htmlEl.querySelectorAll('*').forEach(child => {
-    const childEl = child as HTMLElement;
-    childEl.style.setProperty('color', '#000000', 'important');
-    childEl.style.setProperty('-webkit-text-fill-color', '#000000', 'important');
-  });
-});
+<div className="flex flex-col h-full overflow-y-auto overscroll-contain pb-16 lg:pb-0">
 ```
 
-**2. Remove `.bg-slate-800` from the white-text exceptions** in:
-- The `styleOverride` stylesheet (lines 181-186) -- remove the `.bg-slate-800` lines since those elements now use black text on light bg
-- The `onclone` callback stylesheet (line 213) -- remove `.bg-slate-800` references
-- The `onclone` inline style loop (line 224) -- remove `.bg-slate-800` from the white-text selector
+This adds `pb-16` (64px) on mobile to match the bottom bar height, and `lg:pb-0` removes it on desktop where there's no bottom bar.
 
-**3. No changes to the pixel post-processor** -- with light backgrounds, it works correctly (light bg pixels have lum > 210, text is already black).
+**2. Ensure the sidebar height accounts for the bottom bar on mobile:**
 
-## Why This Works
+Update the sidebar `<aside>` element (line 214) to use `h-[100dvh]` instead of `h-screen-safe` for more reliable dynamic viewport height, ensuring the sidebar fills the available screen:
 
-- Light background (#f1f5f9, luminance ~244) is above the post-processor's upper threshold (210), so it stays untouched
-- Black text matches the global black-text override -- no exceptions needed, no CSS battles
-- A dark border (2px solid #1e293b) keeps the section visually distinct
-- The on-screen invoice remains unchanged (dark slate background with white text)
+```typescript
+'fixed top-0 left-0 z-50 h-[100dvh] w-64 bg-sidebar text-sidebar-foreground ...'
+```
 
 ## Summary
 
-One file changed: `src/hooks/usePdfGenerator.ts`
-- Convert `.bg-slate-800` from dark-bg/white-text to light-bg/dark-text/dark-border in the PDF clone
-- Remove now-unnecessary white-text exceptions for `.bg-slate-800` from stylesheet and onclone
+- One file: `src/components/AppLayout.tsx`
+- Add `pb-16 lg:pb-0` to the sidebar's inner scrollable container so nav items are not hidden behind the bottom bar
+- Use `h-[100dvh]` for reliable full-height on all mobile browsers
 
