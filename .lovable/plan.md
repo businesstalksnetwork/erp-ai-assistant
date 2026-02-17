@@ -1,23 +1,36 @@
 
-# Restore Admin + Subscription for pbcconsulting021@gmail.com
+# Fix Resend Rate Limiting in Bulk Email Function
 
-## What will be done
+## Problem
 
-Two database operations on user ID `8410de73-1e08-472a-b317-071052530b51`:
+The `send-admin-bulk-email` edge function sends emails in a tight `for` loop with no delay between requests. Resend's free/standard tier allows only **2 requests per second**. When sending to 11 recipients, 7 out of 11 failed with `429 rate_limit_exceeded`.
 
-1. **Restore admin role** -- Insert back into `user_roles` table with role `admin`
-2. **Restore subscription** -- Set `subscription_end` to `2099-12-31`
+## Solution
 
-## Technical Details
+Add a 600ms delay between each email send in the loop. This keeps the rate safely under 2 requests/second (roughly 1.6/sec). Also add retry logic: if a 429 is received, wait 1.5 seconds and retry once.
 
-```sql
-INSERT INTO user_roles (user_id, role) 
-VALUES ('8410de73-1e08-472a-b317-071052530b51', 'admin') 
-ON CONFLICT (user_id, role) DO NOTHING;
+## Changes
 
-UPDATE profiles 
-SET subscription_end = '2099-12-31' 
-WHERE id = '8410de73-1e08-472a-b317-071052530b51';
+### `supabase/functions/send-admin-bulk-email/index.ts`
+
+1. Add a helper `sleep` function at the top
+2. After each successful or failed send, add `await sleep(600)` to space out requests
+3. On 429 errors specifically, retry once after a 1.5s wait before marking as failed
+
+```typescript
+// Add at top of file
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// In the loop, after the resend.emails.send call and logging:
+// Add delay between sends
+await sleep(600);
+
+// On 429 error, retry once:
+if (emailRes.error?.statusCode === 429) {
+  console.log(`Rate limited for ${recipient.email}, retrying after 1.5s...`);
+  await sleep(1500);
+  // retry send...
+}
 ```
 
-No code changes needed. After this, log out and back in to see full admin access restored.
+This single file change ensures all bulk emails go through without hitting rate limits. The edge function will be automatically redeployed.
