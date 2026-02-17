@@ -805,7 +805,7 @@ export default function AdminPanel() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Shield className="h-6 w-6" />
