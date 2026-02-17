@@ -281,11 +281,10 @@ export default function InvoiceAnalytics() {
             {totals.total === 0 ? (
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
-              <div className="overflow-x-auto -mx-2 px-2">
-                <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] min-w-[600px] w-full">
+                <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] w-full">
                   <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: 9 }} />
                     <YAxis tickFormatter={value => formatShortCurrency(value)} className="text-xs" width={45} />
                     <ChartTooltip
                       content={<ChartTooltipContent />}
@@ -302,8 +301,7 @@ export default function InvoiceAnalytics() {
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
-                </ChartContainer>
-              </div>
+               </ChartContainer>
             )}
           </CardContent>
         </Card>
@@ -342,7 +340,7 @@ export default function InvoiceAnalytics() {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4 pb-2">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4 pb-4">
               {paymentDistributionData.map(item => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
@@ -387,7 +385,7 @@ export default function InvoiceAnalytics() {
                         <span className="font-medium truncate">{partner.name}</span>
                       </div>
                     </div>
-                    <span className="font-semibold shrink-0 ml-2 text-sm sm:text-base">{formatCurrency(partner.total)}</span>
+                    <span className="font-semibold shrink-0 ml-2 text-sm sm:text-base">{isMobile ? formatShortCurrency(partner.total) : formatCurrency(partner.total)}</span>
                   </div>
                 ))}
               </div>
@@ -420,7 +418,7 @@ export default function InvoiceAnalytics() {
                       <span className="font-medium truncate">{partner.name}</span>
                     </div>
                     <span className="font-semibold text-destructive shrink-0 ml-2 text-sm sm:text-base">
-                      {formatCurrency(partner.unpaid)}
+                      {isMobile ? formatShortCurrency(partner.unpaid) : formatCurrency(partner.unpaid)}
                     </span>
                   </div>
                 ))}
