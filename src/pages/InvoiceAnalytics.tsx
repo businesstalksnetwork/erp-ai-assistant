@@ -206,7 +206,7 @@ export default function InvoiceAnalytics() {
   }
 
   return (
-    <div className="space-y-6 overflow-x-hidden">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Analitika</h1>
@@ -309,7 +309,7 @@ export default function InvoiceAnalytics() {
         </Card>
 
         {/* Payment Status Pie Chart */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PieChartIcon className="h-5 w-5" />
@@ -325,10 +325,10 @@ export default function InvoiceAnalytics() {
                   <RechartsPieChart>
                     <Pie
                       data={paymentDistributionData}
-                      cx="50%"
+                      cx={isMobile ? "45%" : "50%"}
                       cy="50%"
                       innerRadius={isMobile ? 45 : 60}
-                      outerRadius={isMobile ? 75 : 100}
+                      outerRadius={isMobile ? 70 : 100}
                       paddingAngle={5}
                       dataKey="value"
                       label={isMobile ? ({ percent }: any) => `${(percent * 100).toFixed(0)}%` : ({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
