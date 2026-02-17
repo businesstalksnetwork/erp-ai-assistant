@@ -4,8 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Mail } from 'lucide-react';
+import { Loader2, Mail, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { sr } from 'date-fns/locale';
 
@@ -27,6 +26,7 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastContactMap, setLastContactMap] = useState<Map<string, string>>(new Map());
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Select all by default when dialog opens
   useEffect(() => {
@@ -65,6 +65,21 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
     }
   };
 
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const dateA = lastContactMap.get(a.email);
+      const dateB = lastContactMap.get(b.email);
+
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+
+      const timeA = new Date(dateA).getTime();
+      const timeB = new Date(dateB).getTime();
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+  }, [users, lastContactMap, sortOrder]);
+
   const allSelected = selectedIds.size === users.length;
   const noneSelected = selectedIds.size === 0;
 
@@ -97,6 +112,8 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
     onSend(selectedUsers);
   };
 
+  const SortIcon = sortOrder === 'desc' ? ArrowDown : ArrowUp;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
@@ -116,18 +133,26 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
           </span>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[45vh] border rounded-md">
+        <div className="flex-1 min-h-0 overflow-y-auto max-h-[45vh] border rounded-md">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10"></TableHead>
                 <TableHead>Ime</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Poslednji kontakt</TableHead>
+                <TableHead>
+                  <button
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                  >
+                    Poslednji kontakt
+                    <SortIcon className="h-3 w-3" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map(user => {
+              {sortedUsers.map(user => {
                 const lastContact = lastContactMap.get(user.email);
                 return (
                   <TableRow key={user.id}>
@@ -159,7 +184,7 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
               })}
             </TableBody>
           </Table>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>
