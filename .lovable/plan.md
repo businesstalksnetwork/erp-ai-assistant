@@ -1,35 +1,19 @@
 
 
-# Fix: Show Last Contact Dates in Bulk Email Dialog
+# Fix: ScrollArea Not Scrolling in Bulk Email Dialog
 
 ## Problem
 
-The "Poslednji kontakt" column shows "—" for all users even though contact data exists in the database. This is because the `email_notification_log` table has an RLS policy that only lets users see their own logs (`user_id = auth.uid()`). The automated trial expiration emails were logged with the system's user ID, not the admin's, so the admin's client-side query returns no matching rows.
+The dialog shows 10 out of 11 users with no visible scroll. The 11th user is cut off at the bottom because the `ScrollArea` height constraint isn't working properly with the table layout.
 
 ## Solution
 
-Add an RLS policy that allows admin users to read all rows in `email_notification_log`.
+Reduce the `max-h` on the `ScrollArea` to force scrolling when there are many rows, and ensure the dialog content layout properly constrains the scrollable area.
 
-## Changes
+## Technical Details
 
-### 1. Database Migration: Add admin read policy
+### File: `src/components/BulkEmailDialog.tsx`
 
-```sql
-CREATE POLICY "Admins can view all email logs"
-ON email_notification_log
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role = 'admin'
-  )
-);
-```
-
-This allows users with the `admin` role to see all email notification logs, including automated trial expiration entries. Non-admin users still only see their own logs.
-
-### Files
-
-- **Migration only** -- no code changes needed. The `BulkEmailDialog` query already works correctly; it just needs permission to see the data.
+- Change `max-h-[50vh]` to `max-h-[45vh]` on the `ScrollArea` to ensure scroll kicks in earlier
+- Add `overflow-hidden` to the `DialogContent` flex container to prevent content from overflowing instead of scrolling
 
