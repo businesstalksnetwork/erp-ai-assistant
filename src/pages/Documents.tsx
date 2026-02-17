@@ -227,7 +227,7 @@ export default function Documents() {
 
   if (!selectedCompany) {
     return (
-      <div className="p-6">
+      <div>
         <Card>
           <CardContent className="p-12 text-center text-muted-foreground">
             Izaberite kompaniju da biste videli dokumentaciju.
@@ -240,7 +240,7 @@ export default function Documents() {
   const displayedDocs = filteredDocuments();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <FolderOpen className="h-8 w-8 text-primary" />
