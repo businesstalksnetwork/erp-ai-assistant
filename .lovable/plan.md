@@ -1,29 +1,32 @@
 
-# Fix Invoice Preview Mobile Layout
 
-## Problems (from screenshots)
-1. Items table columns overflow -- "Ukupno" column is cut off on the right
-2. "ZA PLAĆANJE" dark box overflows past the card edge
-3. QR code and total amount are side-by-side (`flex justify-between`) which doesn't fit on mobile
-4. Email history row is too tight -- email address truncated and badge cramped
+# Wider Layouts + Mobile Chart Fix
 
-## Solution
+## 1. Documents page - Remove extra padding to match Clients
 
-### File: `src/pages/InvoiceDetail.tsx`
+The Documents page wraps content in `<div className="p-6 space-y-6">` but the AppLayout already adds `p-4 lg:p-8`. This double padding makes it narrower than Clients. 
 
-**1. Items table (lines 637-670)** -- Make the table horizontally scrollable on mobile:
-- Wrap the table in `overflow-x-auto` div
-- Reduce cell padding on mobile: `p-3` to `p-2` on small screens
-- Reduce fixed column widths on mobile
+### File: `src/pages/Documents.tsx`
+- Line 243: Change `p-6 space-y-6` to `space-y-4 sm:space-y-6` (remove the extra p-6)
+- Line 230 (no company state): Change `p-6` to remove padding
 
-**2. QR + Total section (lines 684-790)** -- Stack vertically on mobile:
-- Change `flex justify-between items-end gap-4` to `flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4`
-- Remove `min-w-[280px]` on mobile: change to `sm:min-w-[280px] w-full`
-- This ensures QR code appears above the total on small screens
+## 2. Service Catalog page - Same fix
 
-**3. Email history (lines 512-533)** -- Improve mobile layout:
-- Change the inner row from horizontal to wrapping: add `flex-wrap` or stack on mobile
-- Increase `max-w-[200px]` truncation or make it responsive
+### File: `src/pages/ServiceCatalog.tsx`
+- Line 117: Change `p-6 space-y-6` to `space-y-4 sm:space-y-6`
+- Line 106 (no company state): Change `p-6` to remove padding
 
-**4. Issuer/Recipient grid (line 586)** -- Stack on mobile:
-- Change `grid grid-cols-2 gap-6` to `grid grid-cols-1 sm:grid-cols-2 gap-6` so issuer and recipient stack vertically on narrow screens
+## 3. Invoice Analytics - Fix chart overflow on mobile
+
+The charts overflow the screen on mobile. The main issues:
+- LineChart has `margin={{ left: 20, right: 30 }}` which pushes content wider
+- The `lg:grid-cols-2` grid puts charts side-by-side only on large screens (good), but charts themselves overflow on small screens
+- The wrapper `space-y-6` root div needs `overflow-x-hidden`
+
+### File: `src/pages/InvoiceAnalytics.tsx`
+- Line 207: Add `overflow-x-hidden` to root div: `space-y-6 overflow-x-hidden`
+- Line 283: Reduce chart margins on mobile -- change `margin={{ top: 20, right: 30, left: 20, bottom: 5 }}` to `margin={{ top: 10, right: 10, left: 0, bottom: 5 }}`
+- Line 282: The ChartContainer is fine with `w-full`, but ensure `min-w-0` is added to prevent flex overflow
+- Line 286: Reduce YAxis width -- add `width={40}` to YAxis
+- Line 319: Add `min-w-0` to the pie chart wrapper div
+- Line 341: Make the legend items wrap on mobile -- add `flex-wrap` to the legend div
