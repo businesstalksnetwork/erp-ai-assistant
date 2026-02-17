@@ -282,7 +282,7 @@ export default function InvoiceAnalytics() {
               <p className="text-muted-foreground text-sm">Nema podataka za izabrani period</p>
             ) : (
               <div className="overflow-x-auto -mx-2 px-2">
-                <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] min-w-[500px] w-full">
+                <ChartContainer config={chartConfig} className="h-[250px] sm:h-[300px] min-w-[600px] w-full">
                   <LineChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="name" className="text-xs" interval={0} tick={{ fontSize: 11 }} />
@@ -342,7 +342,7 @@ export default function InvoiceAnalytics() {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4 pb-2">
               {paymentDistributionData.map(item => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
@@ -361,8 +361,8 @@ export default function InvoiceAnalytics() {
         {/* Top 5 by Revenue */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Users className="h-5 w-5 shrink-0" />
               Top 5 partnera po prometu
             </CardTitle>
           </CardHeader>
@@ -387,7 +387,7 @@ export default function InvoiceAnalytics() {
                         <span className="font-medium truncate">{partner.name}</span>
                       </div>
                     </div>
-                    <span className="font-semibold shrink-0">{formatCurrency(partner.total)}</span>
+                    <span className="font-semibold shrink-0 ml-2 text-sm sm:text-base">{formatCurrency(partner.total)}</span>
                   </div>
                 ))}
               </div>
@@ -398,8 +398,8 @@ export default function InvoiceAnalytics() {
         {/* Top 5 by Unpaid */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-destructive" />
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingDown className="h-5 w-5 text-destructive shrink-0" />
               Top 5 partnera po nenaplaćenom
             </CardTitle>
           </CardHeader>
@@ -419,7 +419,7 @@ export default function InvoiceAnalytics() {
                       </Badge>
                       <span className="font-medium truncate">{partner.name}</span>
                     </div>
-                    <span className="font-semibold text-destructive shrink-0">
+                    <span className="font-semibold text-destructive shrink-0 ml-2 text-sm sm:text-base">
                       {formatCurrency(partner.unpaid)}
                     </span>
                   </div>
