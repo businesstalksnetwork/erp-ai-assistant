@@ -23,6 +23,7 @@ import {
 } from 'recharts';
 import { useLimitChartData, MonthlyChartData } from '@/hooks/useLimitChartData';
 import { LimitsData } from '@/hooks/useLimits';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 function formatCurrencyShort(amount: number): string {
   if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -106,6 +107,7 @@ export default function LimitDetailDialog({
   kpoEntries,
 }: LimitDetailDialogProps) {
   const chartData = useLimitChartData(limitType, invoices, dailySummaries, kpoEntries);
+  const isMobile = useIsMobile();
 
   const limit = limitType === '6m' ? limit6M : limit8M;
   const percent = limitType === '6m' ? limits.limit6MPercent : limits.limit8MPercent;
@@ -147,7 +149,7 @@ export default function LimitDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div
@@ -185,8 +187,8 @@ export default function LimitDetailDialog({
 
         {/* Chart */}
         <div className="mt-2">
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 200 : 280}>
+            <AreaChart data={chartData} margin={isMobile ? { top: 5, right: 5, left: -10, bottom: 20 } : { top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="cumulativeGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -212,17 +214,21 @@ export default function LimitDetailDialog({
               />
               <XAxis
                 dataKey="monthLabel"
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={false}
+                angle={isMobile ? -45 : 0}
+                dy={isMobile ? 8 : 0}
+                textAnchor={isMobile ? 'end' : 'middle'}
+                interval={0}
               />
               <YAxis
                 domain={[0, yMax]}
                 tickFormatter={(v) => formatCurrencyShort(v)}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: isMobile ? 9 : 11, fill: 'hsl(var(--muted-foreground))' }}
                 axisLine={false}
                 tickLine={false}
-                width={50}
+                width={isMobile ? 35 : 50}
               />
               <Tooltip content={<CustomTooltip />} />
 
@@ -232,7 +238,7 @@ export default function LimitDetailDialog({
                 stroke="hsl(var(--warning))"
                 strokeDasharray="6 4"
                 strokeWidth={1.5}
-                label={{
+                label={isMobile ? undefined : {
                   value: '80%',
                   position: 'right',
                   fill: 'hsl(var(--warning))',
@@ -245,7 +251,7 @@ export default function LimitDetailDialog({
                 stroke="hsl(var(--destructive))"
                 strokeDasharray="6 4"
                 strokeWidth={2}
-                label={{
+                label={isMobile ? undefined : {
                   value: formatCurrencyShort(limit),
                   position: 'right',
                   fill: 'hsl(var(--destructive))',
@@ -356,17 +362,17 @@ export default function LimitDetailDialog({
           <p className="text-sm font-medium mb-2">Pregled po mesecima</p>
           <div className="rounded-lg border overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+               <table className={cn('w-full', isMobile ? 'text-[10px]' : 'text-xs')}>
                 <thead>
                   <tr className="bg-muted/50">
-                    <th className="text-left p-2 font-medium text-muted-foreground">Mesec</th>
-                    <th className="text-right p-2 font-medium text-muted-foreground">Fakture</th>
-                    <th className="text-right p-2 font-medium text-muted-foreground">Fiskalna</th>
+                    <th className="text-left p-1.5 sm:p-2 font-medium text-muted-foreground">Mesec</th>
+                    <th className="text-right p-1.5 sm:p-2 font-medium text-muted-foreground">{isMobile ? 'Fakt.' : 'Fakture'}</th>
+                    <th className="text-right p-1.5 sm:p-2 font-medium text-muted-foreground">{isMobile ? 'Fisk.' : 'Fiskalna'}</th>
                     {limitType === '8m' && (
-                      <th className="text-right p-2 font-medium text-muted-foreground">KPO</th>
+                      <th className="text-right p-1.5 sm:p-2 font-medium text-muted-foreground">KPO</th>
                     )}
-                    <th className="text-right p-2 font-medium text-muted-foreground">Ukupno</th>
-                    <th className="text-right p-2 font-medium text-muted-foreground">Kumulativ</th>
+                    <th className="text-right p-1.5 sm:p-2 font-medium text-muted-foreground">{isMobile ? 'Ukup.' : 'Ukupno'}</th>
+                    <th className="text-right p-1.5 sm:p-2 font-medium text-muted-foreground">{isMobile ? 'Kum.' : 'Kumulativ'}</th>
                   </tr>
                 </thead>
                 <tbody>
