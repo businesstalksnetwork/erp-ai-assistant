@@ -1,32 +1,47 @@
 
 
-# Wider Layouts + Mobile Chart Fix
+# Fix Cut-off Charts & Admin Panel Scroll
 
-## 1. Documents page - Remove extra padding to match Clients
+## Problems
+1. **Line chart**: Only shows Jan-Aug, months Sep-Dec are cut off on the right side
+2. **Pie chart**: Label text "Nenaplaćeno" is truncated to "Nenaplaće" because it overflows the container
+3. **Admin panel**: Has unwanted horizontal scrollbar on mobile
 
-The Documents page wraps content in `<div className="p-6 space-y-6">` but the AppLayout already adds `p-4 lg:p-8`. This double padding makes it narrower than Clients. 
-
-### File: `src/pages/Documents.tsx`
-- Line 243: Change `p-6 space-y-6` to `space-y-4 sm:space-y-6` (remove the extra p-6)
-- Line 230 (no company state): Change `p-6` to remove padding
-
-## 2. Service Catalog page - Same fix
-
-### File: `src/pages/ServiceCatalog.tsx`
-- Line 117: Change `p-6 space-y-6` to `space-y-4 sm:space-y-6`
-- Line 106 (no company state): Change `p-6` to remove padding
-
-## 3. Invoice Analytics - Fix chart overflow on mobile
-
-The charts overflow the screen on mobile. The main issues:
-- LineChart has `margin={{ left: 20, right: 30 }}` which pushes content wider
-- The `lg:grid-cols-2` grid puts charts side-by-side only on large screens (good), but charts themselves overflow on small screens
-- The wrapper `space-y-6` root div needs `overflow-x-hidden`
+## Solution
 
 ### File: `src/pages/InvoiceAnalytics.tsx`
-- Line 207: Add `overflow-x-hidden` to root div: `space-y-6 overflow-x-hidden`
-- Line 283: Reduce chart margins on mobile -- change `margin={{ top: 20, right: 30, left: 20, bottom: 5 }}` to `margin={{ top: 10, right: 10, left: 0, bottom: 5 }}`
-- Line 282: The ChartContainer is fine with `w-full`, but ensure `min-w-0` is added to prevent flex overflow
-- Line 286: Reduce YAxis width -- add `width={40}` to YAxis
-- Line 319: Add `min-w-0` to the pie chart wrapper div
-- Line 341: Make the legend items wrap on mobile -- add `flex-wrap` to the legend div
+
+**Line chart fix (around line 282-301):**
+- The `ChartContainer` constrains the chart but the 12 month labels overflow. Add `interval={0}` to XAxis to force showing all ticks
+- Reduce XAxis font size on mobile and angle labels slightly to fit all 12 months
+- Add `tick={{ fontSize: 10 }}` to XAxis
+
+**Pie chart fix (around line 322-335):**
+- Reduce `outerRadius` from `100` to `80` on mobile to leave room for labels
+- Use shorter label format: show just percentage, not full name (move names to the legend below which already exists)
+- Or use `labelLine={false}` and position labels inside
+- Best approach: use `useIsMobile` to conditionally reduce radii and simplify labels on mobile
+
+**Specific changes:**
+1. Import `useIsMobile` hook
+2. Line chart: add `interval={0}` to XAxis, reduce tick font size to 10
+3. Pie chart: reduce `innerRadius` to `45`/`outerRadius` to `75` on mobile, shorten label to just percentage on mobile
+
+### File: `src/pages/AdminPanel.tsx`
+
+**Admin panel scroll fix (line 808):**
+- Change `<div className="space-y-6 animate-fade-in">` to `<div className="space-y-6 animate-fade-in overflow-x-hidden">`
+- This prevents any wide tables or content from causing horizontal scroll on the entire page
+
+## Technical Details
+
+```text
+InvoiceAnalytics.tsx changes:
+  - Import useIsMobile
+  - XAxis: add interval={0}, tick={{ fontSize: isMobile ? 9 : 12 }}
+  - Pie: outerRadius={isMobile ? 75 : 100}, innerRadius={isMobile ? 45 : 60}
+  - Pie label: on mobile show only percentage, on desktop show name+percentage
+
+AdminPanel.tsx changes:
+  - Line 808: add overflow-x-hidden to root div
+```
