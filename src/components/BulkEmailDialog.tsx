@@ -99,7 +99,7 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Pošalji email - odaberi primaoce</DialogTitle>
           <DialogDescription>
@@ -116,7 +116,7 @@ export function BulkEmailDialog({ open, onOpenChange, users, onSend, isSending }
           </span>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 max-h-[50vh] border rounded-md">
+        <ScrollArea className="flex-1 min-h-0 max-h-[45vh] border rounded-md">
           <Table>
             <TableHeader>
               <TableRow>
