@@ -1,66 +1,50 @@
 
-# Prevent Duplicate Bulk Emails + Fix Logging
 
-## Problem
+# Bulk Email Selection Dialog with Last Contact Info
 
-Two issues prevent deduplication:
-1. **Logging is broken**: `company_id` is `NOT NULL` with a foreign key constraint, so inserting with a dummy UUID fails silently. No bulk email sends are ever recorded.
-2. **No dedup check**: The function sends to everyone in the list regardless of prior sends.
+## Overview
 
-Since some users were already emailed last week (manually or via the automated `trial_expiring` notifications), we need to check both `admin_bulk_*` logs AND the existing `trial_expiring_1d` notifications (which indicate the trial already expired).
+Replace the current simple "Are you sure?" confirmation dialog with a full dialog showing a table of all expired trial users. Each row will have a checkbox for selection and a column showing when the user was last contacted regarding subscription. You can select/deselect individual users before sending.
 
-## Changes
+## What you will see
 
-### 1. Database Migration: Make `company_id` nullable
-
-```sql
-ALTER TABLE email_notification_log ALTER COLUMN company_id DROP NOT NULL;
-```
-
-This allows logging admin bulk emails that aren't tied to a specific company.
-
-### 2. Edge Function: `send-admin-bulk-email/index.ts`
-
-- **Fix logging**: Use `null` for `company_id` instead of the dummy UUID
-- **Add deduplication**: Before the send loop, query `email_notification_log` for:
-  - Any `admin_bulk_{templateKey}` entries (previous bulk sends)
-  - Any `trial_expiring_1d` entries (the automated "your trial expired" email -- these users already know)
-- Build a Set of already-notified emails, filter them out
-- Return `skipped` count in the response
-
-### 3. Frontend: `AdminPanel.tsx`
-
-- Update the toast to show skipped count: "Poslato: X. Preskoceno: Y. Greske: Z."
+- Clicking "Posalji mail svima" opens a larger dialog with a scrollable table
+- Table columns: Checkbox, Ime, Email, Poslednji kontakt (last subscription-related email date)
+- "Selektuj sve" / "Deselektuj sve" toggle at the top
+- Users who were already contacted show the date in the "Poslednji kontakt" column
+- Send button shows count of selected users
+- Deduplication still happens server-side as a safety net
 
 ## Technical Details
 
-### Edge function deduplication logic
+### New component: `src/components/BulkEmailDialog.tsx`
 
-```typescript
-const notificationType = "admin_bulk_" + templateKey;
+A Dialog component that:
+1. Receives the list of `filteredUsers` as props
+2. On open, fetches `email_notification_log` for all subscription-related notification types (`admin_bulk_%`, `trial_expiring_%`) grouped by `email_to` with `MAX(created_at)` to get last contact date
+3. Renders a scrollable table with checkboxes, user info, and last contact date
+4. Has select all / deselect all functionality
+5. On "Posalji", calls the existing edge function with only the selected recipients
 
-// Fetch emails already sent for this bulk template OR via trial_expiring_1d
-const { data: alreadySent } = await supabase
-  .from("email_notification_log")
-  .select("email_to")
-  .or(`notification_type.eq.${notificationType},notification_type.eq.trial_expiring_1d`);
+### Changes to `src/pages/AdminPanel.tsx`
 
-const sentSet = new Set((alreadySent || []).map(r => r.email_to));
-const toSend = recipients.filter(r => !sentSet.has(r.email));
-const skipped = recipients.length - toSend.length;
+- Import and use the new `BulkEmailDialog` component
+- Remove the old `AlertDialog` for bulk email confirmation
+- Pass `filteredUsers`, open state, and the send handler to the new component
 
-// Loop only over toSend
-// Log with company_id: null
+### Data query for last contact
+
+```sql
+SELECT email_to, MAX(created_at) as last_contacted
+FROM email_notification_log
+WHERE notification_type LIKE 'admin_bulk_%' 
+   OR notification_type LIKE 'trial_expiring_%'
+GROUP BY email_to
 ```
 
-### AdminPanel.tsx toast update
+This query runs client-side when the dialog opens, matching each user's email to their last contact date.
 
-```typescript
-description: `Poslato: ${data.sent}. Preskočeno: ${data.skipped || 0}. Greške: ${data.errors}.`
-```
+### Files
 
-## Files Modified
-
-- **Migration**: Make `company_id` nullable on `email_notification_log`
-- **`supabase/functions/send-admin-bulk-email/index.ts`**: Add dedup + fix logging
-- **`src/pages/AdminPanel.tsx`**: Show skipped count in toast
+- **Create**: `src/components/BulkEmailDialog.tsx` -- new dialog component with selection table
+- **Edit**: `src/pages/AdminPanel.tsx` -- replace AlertDialog with the new BulkEmailDialog, remove old bulk email dialog code
