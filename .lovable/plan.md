@@ -1,37 +1,29 @@
 
-# Mobile-Optimize Limit Detail Dialogs (6M & 8M)
+# Fix Invoice Preview Mobile Layout
 
-## Problems
-From the screenshots, on mobile the limit detail dialogs have several readability issues:
-1. Chart is too tall for mobile, wasting space
-2. Y-axis labels (6.9M, 4.0M etc.) are cramped with the chart area
-3. X-axis month labels overlap each other
-4. Tooltip can get cut off at edges
-5. The monthly table columns are tight and require horizontal scroll
-6. Overall padding/spacing is too generous for small screens
+## Problems (from screenshots)
+1. Items table columns overflow -- "Ukupno" column is cut off on the right
+2. "ZA PLAĆANJE" dark box overflows past the card edge
+3. QR code and total amount are side-by-side (`flex justify-between`) which doesn't fit on mobile
+4. Email history row is too tight -- email address truncated and badge cramped
 
 ## Solution
 
-### File: `src/components/LimitDetailDialog.tsx`
+### File: `src/pages/InvoiceDetail.tsx`
 
-**Chart adjustments for mobile:**
-- Reduce chart height from fixed `280` to responsive: `200` on mobile, `280` on desktop (use `useIsMobile` hook)
-- Reduce Y-axis width from `50` to `40` on mobile
-- Reduce font sizes on axes from `11` to `9` on mobile
-- Reduce chart margins on mobile
-- Hide ReferenceLine labels on mobile (they overlap the chart area) -- just keep the lines visible
+**1. Items table (lines 637-670)** -- Make the table horizontally scrollable on mobile:
+- Wrap the table in `overflow-x-auto` div
+- Reduce cell padding on mobile: `p-3` to `p-2` on small screens
+- Reduce fixed column widths on mobile
 
-**Dialog adjustments for mobile:**
-- Use `Drawer` on mobile instead of `Dialog` for full-width bottom sheet (or simply make DialogContent full-width on mobile with `sm:max-w-2xl w-full`)
-- Reduce padding in the dialog content on mobile
-- Make the table text even smaller on mobile (`text-[10px]`)
-- Use shorter column headers on mobile (e.g., "Fakt." instead of "Fakture")
+**2. QR + Total section (lines 684-790)** -- Stack vertically on mobile:
+- Change `flex justify-between items-end gap-4` to `flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4`
+- Remove `min-w-[280px]` on mobile: change to `sm:min-w-[280px] w-full`
+- This ensures QR code appears above the total on small screens
 
-**Specific changes:**
-1. Import `useIsMobile` hook
-2. Use conditional chart height: `isMobile ? 200 : 280`
-3. Use conditional Y-axis width: `isMobile ? 35 : 50`
-4. Use conditional axis font size: `isMobile ? 9 : 11`
-5. Hide ReferenceLine label text on mobile (set value to empty string)
-6. Reduce XAxis tick angle on mobile to `-45` with `dy={8}` to prevent overlap
-7. Table: use `text-[10px]` on mobile, shorter header labels
+**3. Email history (lines 512-533)** -- Improve mobile layout:
+- Change the inner row from horizontal to wrapping: add `flex-wrap` or stack on mobile
+- Increase `max-w-[200px]` truncation or make it responsive
+
+**4. Issuer/Recipient grid (line 586)** -- Stack on mobile:
+- Change `grid grid-cols-2 gap-6` to `grid grid-cols-1 sm:grid-cols-2 gap-6` so issuer and recipient stack vertically on narrow screens
