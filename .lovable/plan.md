@@ -1,39 +1,44 @@
 
+# Fix Analytics Charts and Tables on Mobile
 
-# Fix Analytics Charts on Mobile
-
-## Problems identified from screenshots
-1. **Line chart Y-axis is garbled** -- values show in wrong order (300k, 300k, 400k, 200k instead of increasing). This is caused by the chart being too compressed horizontally with `width={35}` on YAxis
-2. **Line chart months cut off** -- only shows Jan through Aug, Sep-Dec missing
-3. **Pie chart legend cut off** -- "Nenaplaćen..." text truncated on right side
-
-## Root cause
-The `ChartContainer` component from shadcn/ui already wraps content in a `ResponsiveContainer`. The line chart inside it is too constrained, causing the Y-axis to overlap and months to be cut off.
+## Problems
+1. Line chart still only shows ~7 months (Jan-Jul), remaining months cut off despite `min-w-[500px]`
+2. Top 5 partner tables: names and currency amounts overflow/truncate on mobile
+3. Pie chart legend: second item (Nenaplaceno) cut off at bottom
 
 ## Solution
 
 ### File: `src/pages/InvoiceAnalytics.tsx`
 
-**1. Line chart -- make it horizontally scrollable on mobile instead of compressing:**
-- Wrap the ChartContainer in an `overflow-x-auto` div
-- Give the chart a `min-w-[500px]` so all 12 months are always visible
-- Remove the aggressive width reduction on YAxis (back to `width={45}`)
-- This approach lets users scroll the chart horizontally on mobile rather than seeing a broken compressed version
+**1. Line chart -- increase minimum width**
+The `min-w-[500px]` is not enough for 12 months with Y-axis labels. Increase to `min-w-[600px]` to ensure all months render. The `overflow-x-auto` wrapper already enables horizontal scrolling.
 
-**2. Pie chart legend -- prevent text truncation:**
-- Change the legend layout from horizontal `flex` row to vertical stack on mobile: `flex-col sm:flex-row`
-- Ensure the full text "Nenaplaćeno: XXX RSD" is visible
-- Reduce font size on mobile: `text-xs sm:text-sm`
+- Line 285: Change `min-w-[500px]` to `min-w-[600px]`
 
-### Technical details
+**2. Top 5 partner tables -- fix overflow on mobile**
+
+Revenue list (lines 375-391):
+- Add `gap-2` between name and amount, keep `min-w-0` on name container
+- Add `ml-2 text-sm` to the amount `span` to prevent it from being pushed off screen
+
+Unpaid list (lines 412-425):
+- Same treatment: add `ml-2 text-sm` to the destructive amount span
+
+Both card titles (lines 364, 401):
+- Add `text-base sm:text-lg` to `CardTitle` to prevent title truncation on mobile
+
+**3. Pie chart legend visibility**
+The legend `flex-col` layout is fine but ensure both items are visible. Add `pb-2` to give bottom breathing room.
+
+- Line 345: Add `pb-2` to the legend container
+
+### Technical summary
 
 ```
-Line chart section (~line 284):
-- Wrap ChartContainer in: <div className="overflow-x-auto -mx-2 px-2">
-- Change ChartContainer className to: "h-[250px] sm:h-[300px] min-w-[500px] w-full"
-- YAxis width back to 45
-
-Pie chart legend (~line 343):
-- Change flex classes to: "flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-6 mt-4"
-- Change span text size: "text-xs sm:text-sm text-muted-foreground"
+Line 285: min-w-[500px] -> min-w-[600px]
+Line 364: CardTitle add text-base sm:text-lg
+Line 390: amount span add "ml-2 text-sm sm:text-base"
+Line 401: CardTitle add text-base sm:text-lg  
+Line 422: destructive amount span add "ml-2 text-sm sm:text-base"
+Line 345: legend div add pb-2
 ```
