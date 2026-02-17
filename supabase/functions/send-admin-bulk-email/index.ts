@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,10 +117,30 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
         if (emailRes.error) {
-          console.error(`Failed to send to ${recipient.email}:`, emailRes.error);
-          errors++;
-          errorDetails.push(`${recipient.email}: ${emailRes.error.message}`);
-          continue;
+          // If rate limited, retry once after 1.5s
+          if ((emailRes.error as any).statusCode === 429) {
+            console.log(`Rate limited for ${recipient.email}, retrying after 1.5s...`);
+            await sleep(1500);
+            const retryRes = await resend.emails.send({
+              from: "PausalBox <obavestenja@pausalbox.rs>",
+              to: [recipient.email],
+              subject,
+              html,
+            });
+            if (retryRes.error) {
+              console.error(`Retry failed for ${recipient.email}:`, retryRes.error);
+              errors++;
+              errorDetails.push(`${recipient.email}: ${retryRes.error.message}`);
+              await sleep(600);
+              continue;
+            }
+          } else {
+            console.error(`Failed to send to ${recipient.email}:`, emailRes.error);
+            errors++;
+            errorDetails.push(`${recipient.email}: ${emailRes.error.message}`);
+            await sleep(600);
+            continue;
+          }
         }
 
         // Log the notification - use a dummy company_id since this is admin-triggered
@@ -133,6 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         sent++;
         console.log(`Sent to ${recipient.email}`);
+        await sleep(600);
       } catch (err) {
         console.error(`Error sending to ${recipient.email}:`, err);
         errors++;
