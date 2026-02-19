@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode } fro
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getProductionUrl } from '@/lib/domain';
+import { toast } from 'sonner';
 
 interface Profile {
   id: string;
@@ -81,6 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
   const fetchingRef = useRef(false);
+  const sessionExpiredToastRef = useRef(false);
+
+  const showSessionExpiredToast = () => {
+    if (!sessionExpiredToastRef.current) {
+      sessionExpiredToastRef.current = true;
+      toast.error('Vaša sesija je istekla, molimo prijavite se ponovo', {
+        duration: 6000,
+      });
+    }
+  };
 
   const fetchProfile = async (userId: string) => {
     // Prevent duplicate concurrent calls
@@ -146,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         // When token refresh fails, actively sign out to wipe the stale token from localStorage
         if ((event as string) === 'TOKEN_REFRESH_FAILED') {
+          showSessionExpiredToast();
           supabase.auth.signOut();
           localStorage.removeItem('pausalbox_login_at');
           setProfile(null);
@@ -162,6 +174,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!localStorage.getItem('pausalbox_login_at')) {
             localStorage.setItem('pausalbox_login_at', String(Date.now()));
           }
+          // Reset the toast deduplication ref so it can fire again on next expiry
+          sessionExpiredToastRef.current = false;
         }
 
         // Clear login timestamp on explicit sign-out
@@ -202,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const twentyFourHours = 24 * 60 * 60 * 1000;
       if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
         // More than 24 hours since login — force sign out
+        showSessionExpiredToast();
         localStorage.removeItem('pausalbox_login_at');
         await supabase.auth.signOut();
         setLoading(false);
@@ -217,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.refreshSession();
         if (error) {
           // Refresh failed — wipe the stale token immediately, don't wait for an event
+          showSessionExpiredToast();
           localStorage.removeItem('pausalbox_login_at');
           await supabase.auth.signOut();
           setLoading(false);
@@ -233,6 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const loginAt = localStorage.getItem('pausalbox_login_at');
         const twentyFourHours = 24 * 60 * 60 * 1000;
         if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
+          showSessionExpiredToast();
           localStorage.removeItem('pausalbox_login_at');
           supabase.auth.signOut();
           return;
