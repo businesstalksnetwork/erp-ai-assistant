@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.import-legacy-contacts]
 verify_jwt = false
+
+[functions.analyze-legacy-zip]
+verify_jwt = false
+
+[functions.import-legacy-zip]
+verify_jwt = false
