@@ -128,6 +128,7 @@ import InternalOrders from "@/pages/tenant/InternalOrders";
 import InternalTransfers from "@/pages/tenant/InternalTransfers";
 import InternalGoodsReceipts from "@/pages/tenant/InternalGoodsReceipts";
 import WarehouseDetail from "@/pages/tenant/WarehouseDetail";
+import LegacyImport from "@/pages/tenant/LegacyImport";
 import Kalkulacija from "@/pages/tenant/Kalkulacija";
 import Nivelacija from "@/pages/tenant/Nivelacija";
 import WmsZones from "@/pages/tenant/WmsZones";
@@ -206,6 +207,7 @@ const App = () => (
                 <Route path="settings/posting-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PostingRules /></ProtectedRoute>} />
                 <Route path="settings/accounting-architecture" element={<ProtectedRoute requiredModule="settings"><AccountingArchitecture /></ProtectedRoute>} />
                 <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><BusinessRules /></ProtectedRoute>} />
+                <Route path="settings/legacy-import" element={<ProtectedRoute requiredModule="settings"><LegacyImport /></ProtectedRoute>} />
                 <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule="accounting"><ChartOfAccounts /></ProtectedRoute>} />
                 <Route path="accounting/journal" element={<ProtectedRoute requiredModule="accounting"><JournalEntries /></ProtectedRoute>} />
                 <Route path="accounting/invoices" element={<ProtectedRoute requiredModule="accounting"><Invoices /></ProtectedRoute>} />
