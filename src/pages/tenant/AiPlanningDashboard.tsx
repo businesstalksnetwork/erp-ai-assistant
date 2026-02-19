@@ -225,7 +225,7 @@ export default function AiPlanningDashboard() {
                 );
               })}
               {(!data.insights || data.insights.length === 0) && (
-                <p className="text-sm text-muted-foreground">{locale === "sr" ? "Nema uvida za prikaz." : "No insights to display."}</p>
+                <p className="text-sm text-muted-foreground">{t("noInsightsToDisplay")}</p>
               )}
             </CardContent>
           </Card>

@@ -238,7 +238,7 @@ export default function WmsReceiving() {
                   <SelectContent>{warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>{locale === "sr" ? "Broj nabavke" : "PO Number"} ({t("optional")})</Label>
+              <div><Label>{t("poNumberLabel")} ({t("optional")})</Label>
                 <Input value={poNumber} onChange={e => setPoNumber(e.target.value)} placeholder="PO-001" />
               </div>
               <div><Label>{t("supplierReference")} ({t("optional")})</Label>
@@ -259,7 +259,7 @@ export default function WmsReceiving() {
             </div>
 
             <div className="border rounded-md p-3 space-y-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{locale === "sr" ? "Dodaj stavku" : "Add Line"}</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addLine")}</p>
               <div className="flex gap-2 items-end flex-wrap">
                 <div className="flex-1 min-w-[160px]"><Label className="text-xs">{t("product")}</Label>
                   <Select value={lineProduct} onValueChange={setLineProduct}>

@@ -86,7 +86,7 @@ export default function Companies() {
   });
 
   const lookupPib = async () => {
-    if (form.pib.length !== 9) { toast.error("PIB mora imati 9 cifara"); return; }
+    if (form.pib.length !== 9) { toast.error(t("pibMustBe9Digits")); return; }
     const { data: existing } = await supabase.from("companies").select("id, legal_name").eq("tenant_id", tenantId!).eq("pib", form.pib);
     if (existing && existing.length > 0 && (!editId || existing[0].id !== editId)) {
       toast.error(`Kompanija sa PIB ${form.pib} već postoji: ${existing[0].legal_name}`);
@@ -107,12 +107,12 @@ export default function Companies() {
           postal_code: d.postal_code || prev.postal_code,
           country: d.country || prev.country,
         }));
-        toast.success("Podaci pronađeni");
+        toast.success(t("pibDataFound"));
       } else {
-        toast.info("PIB nije pronađen u registru");
+        toast.info(t("pibNotFound"));
       }
     } catch {
-      toast.error("Greška pri pretrazi PIB-a");
+      toast.error(t("pibLookupError"));
     } finally {
       setPibLooking(false);
     }

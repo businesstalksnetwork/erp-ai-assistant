@@ -93,9 +93,9 @@ export default function AiPlanningSchedule() {
       if (error) throw error;
       setResult(data as ScheduleResult);
       setAccepted(new Set()); setRejected(new Set());
-      toast.success(locale === "sr" ? "Raspored generisan" : "Schedule generated");
+      toast.success(t("scheduleGenerated"));
     } catch {
-      toast.error(locale === "sr" ? "Greška" : "Error generating schedule");
+      toast.error(t("scheduleGenerationError"));
     } finally { setLoading(false); }
   };
 
@@ -109,7 +109,7 @@ export default function AiPlanningSchedule() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["production-orders-schedule"] });
-      toast.success(locale === "sr" ? "Raspored primenjen" : "Schedule applied");
+      toast.success(t("scheduleApplied"));
       setResult(null); setAccepted(new Set());
     },
   });
