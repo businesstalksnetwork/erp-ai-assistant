@@ -65,7 +65,8 @@ const TARGET_TABLES = [
   "journal_entries", "chart_of_accounts", "bank_statements",
   "goods_receipts", "retail_prices", "locations", "cost_centers",
   "departments", "payroll_runs", "employee_contracts", "tax_rates",
-  "fixed_assets", "inventory_movements", "leads",
+  "fixed_assets", "inventory_movements", "leads", "opportunities",
+  "legal_entities", "currencies", "overtime_hours",
 ];
 
 const CONFIDENCE_COLORS: Record<Confidence, string> = {
@@ -371,8 +372,15 @@ export default function LegacyImport() {
         autoSkip: f.autoSkip || f.isEmpty,
         skipReason: f.skipReason,
         requiresParent: f.requiresParent,
-        // Auto-accept exact/high confidence non-empty, non-autoSkip files
-        accepted: (f.confidence === "exact" || f.confidence === "high") && !f.isEmpty && !f.autoSkip,
+        // BUG FIX (Bug 7): auto-accept ALL exact/high confidence, non-empty, non-skip files.
+        // Previously this worked but the "skip" target files were leaking through because
+        // autoSkip was not being set properly for exact-confidence skip entries.
+        // Now we explicitly exclude targetTable==="skip" to prevent them from being accepted.
+        accepted: (f.confidence === "exact" || f.confidence === "high")
+          && !f.isEmpty
+          && !f.autoSkip
+          && f.suggestedTarget !== "skip"
+          && f.suggestedTarget !== null,
       }));
 
       setFiles(analyzed);

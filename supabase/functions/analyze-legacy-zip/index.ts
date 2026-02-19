@@ -173,23 +173,26 @@ const DBO_TABLE_LOOKUP: Record<string, {
   "Company":                 { target: "legal_entities", confidence: "exact", label: "Exact: Uniprom Company.csv — col[1]=name, col[3]=address, col[6]=pib, col[7]=maticni_broj (1 row only)", dedupField: "name" },
   "CompanyOffice":           { target: "locations",      confidence: "exact", label: "Exact: Uniprom CompanyOffice.csv — col[1]=name, col[3]=address (1 row only)", dedupField: "name" },
   "Currency":                { target: "currencies",     confidence: "exact", label: "Exact: Uniprom Currency.csv — col[1]=name, col[2]=ISO_code (4 currencies: RSD, EUR, USD, CHF)", dedupField: "code" },
-  "CurrencyRates":           { target: "skip",           confidence: "exact", label: "Exchange rates — auto-skip (5 rows, use NBS integration instead)", skipReason: "Use NBS exchange rates integration instead of importing legacy rates" },
+  // BUG FIX: removed duplicate CurrencyRates entry (was defined twice, last definition wins in JS)
+  "CurrencyISO":             { target: "currencies",     confidence: "exact", label: "Exact: CurrencyISO.csv — ISO 4217 authoritative list. col[1]=code, col[2]=name, col[3]=symbol. Importer filters to RSD/EUR/USD/CHF/GBP only.", dedupField: "code" },
+  "CurrencyRates":           { target: "skip",           confidence: "exact", label: "CurrencyRates — auto-skip: use NBS integration instead", skipReason: "Use NBS exchange rates integration; join with CurrencyISO for FK resolution" },
   "Tax":                     { target: "tax_rates",      confidence: "exact", label: "Exact: Uniprom Tax.csv — col[1]=name, col[2]=PDV_code, col[3]=rate (multiply ×100 to get percentage e.g. 0.20→20%)", dedupField: "name" },
   "Employee":                { target: "employees",      confidence: "exact", label: "Exact: Uniprom Employee.csv — col[0]=legacy_id, col[1]=first_name, col[2]=last_name, col[4]=jmbg (dedup key), col[9]=dept_legacy_id (45 employees)", dedupField: "email" },
-  "Opportunity":             { target: "leads",          confidence: "exact", label: "Exact: Uniprom Opportunity.csv — 2 rows mapped to leads (CRM opportunities)", dedupField: "id" },
+  // BUG FIX: Opportunity maps to opportunities, not leads
+  "Opportunity":             { target: "opportunities",  confidence: "exact", label: "Exact: Uniprom Opportunity.csv — 2 rows, maps to opportunities table (CRM)", dedupField: "id" },
+  // BUG FIX: Project maps to opportunities (314 rows confirmed in mapping doc)
+  "Project":                 { target: "opportunities",  confidence: "exact", label: "Exact: Uniprom Project.csv — 314 rows of CRM projects → opportunities table. col[0]=legacy_id, col[1]=name, col[3]=start_date, col[4]=end_date, col[9]=status_id, col[7]=partner_id", dedupField: "id" },
   "ElektroMontazeri":        { target: "leads",          confidence: "high",  label: "Uniprom ElektroMontazeri — 246 rows of electrical installer CRM segment → leads table", dedupField: "id" },
-  "Investitori":             { target: "skip",           confidence: "exact", label: "Investitori — auto-skip (P2 priority CRM segment, investors)", skipReason: "P2 priority CRM segment (investors) — no import target" },
-  "Projektanti":             { target: "skip",           confidence: "exact", label: "Projektanti — auto-skip (P2 priority CRM segment, designers)", skipReason: "P2 priority CRM segment (designers) — no import target" },
+  "Investitori":             { target: "partners",       confidence: "high",  label: "Investitori — 254 rows, investors partner segment → partners table", dedupField: "pib" },
+  "Projektanti":             { target: "partners",       confidence: "high",  label: "Projektanti — designer partner segment → partners table", dedupField: "pib" },
   "Trgovci":                 { target: "skip",           confidence: "exact", label: "Trgovci — auto-skip (P2 priority CRM segment, traders)", skipReason: "P2 priority CRM segment (traders) — no import target" },
   "Bank":                    { target: "skip",           confidence: "exact", label: "Bank lookup — auto-skip (3 rows reference table)", skipReason: "Bank reference lookup table (3 rows only)" },
-  "CurrencyISO":             { target: "currencies",        confidence: "exact", label: "Exact: CurrencyISO.csv — ISO 4217 authoritative list. col[1]=code, col[2]=name, col[3]=symbol. Importer filters to RSD/EUR/USD/CHF/GBP only.", dedupField: "code" },
-  "CurrencyRates":           { target: "skip",              confidence: "exact", label: "CurrencyRates — auto-skip: JOIN with CurrencyISO needed for FK resolution; use NBS integration instead", skipReason: "Use NBS exchange rates integration; join with CurrencyISO for FK resolution" },
-  "Department":              { target: "departments",       confidence: "exact", label: "Exact: Uniprom Department.csv — col[0]=legacy_id, col[1]=name, col[3]=code (12 departments)", dedupField: "name" },
-  "Warehouse":               { target: "warehouses",        confidence: "exact", label: "Exact: Uniprom Warehouse.csv — col[0]=legacy_id, col[1]=code, col[2]=name", dedupField: "name" },
-  "Product":                 { target: "products",          confidence: "high",  label: "Product = products (English table name)", dedupField: "sku" },
-  "EmployeeContract":        { target: "employee_contracts",confidence: "exact", label: "Exact: Uniprom EmployeeContract.csv — col[0]=legacy_id, col[1]=employee_legacy_id (FK), col[3]=start_date, col[4]=end_date, col[5]=gross_salary, col[6]=contract_type. Requires Employee imported first.", requiresParent: "employees", dedupField: "id" },
-  "EmployeeOvertime":        { target: "overtime_hours",    confidence: "exact", label: "Exact: Uniprom EmployeeOvertime.csv — col[0]=legacy_id, col[1]=employee_legacy_id (FK), col[2]=year, col[3]=month, col[4]=hours. Requires Employee imported first.", requiresParent: "employees", dedupField: "id" },
-  "ItemUnitOfMeasure":       { target: "skip",              confidence: "exact", label: "ItemUnitOfMeasure — auto-skip: UoM lookup (JOIN used by Item importer for unit_of_measure field)", skipReason: "UoM lookup — values inlined into products during Item import" },
+  "Department":              { target: "departments",    confidence: "exact", label: "Exact: Uniprom Department.csv — col[0]=legacy_id, col[1]=name, col[3]=code (12 departments)", dedupField: "name" },
+  "Warehouse":               { target: "warehouses",     confidence: "exact", label: "Exact: Uniprom Warehouse.csv — col[0]=legacy_id, col[1]=code, col[2]=name", dedupField: "name" },
+  "Product":                 { target: "products",       confidence: "high",  label: "Product = products (English table name)", dedupField: "sku" },
+  "EmployeeContract":        { target: "employee_contracts", confidence: "exact", label: "Exact: Uniprom EmployeeContract.csv — col[0]=legacy_id, col[1]=employee_legacy_id (FK), col[3]=start_date, col[4]=end_date, col[5]=gross_salary, col[6]=contract_type. Requires Employee imported first.", requiresParent: "employees", dedupField: "id" },
+  "EmployeeOvertime":        { target: "overtime_hours", confidence: "exact", label: "Exact: Uniprom EmployeeOvertime.csv — col[0]=legacy_id, col[1]=employee_legacy_id (FK), col[2]=year, col[3]=month, col[4]=hours. Requires Employee imported first.", requiresParent: "employees", dedupField: "id" },
+  "ItemUnitOfMeasure":       { target: "skip",           confidence: "exact", label: "ItemUnitOfMeasure — auto-skip: UoM lookup (JOIN used by Item importer for unit_of_measure field)", skipReason: "UoM lookup — values inlined into products during Item import" },
 
   // ── AUTO-SKIP: Legacy permission/ACL tables ───────────────────────────────
   "AppObjectsRolesRights":   { target: "skip", confidence: "exact", label: "Legacy role permissions — auto-skip",     skipReason: "Legacy ACL table (not imported)" },
@@ -252,9 +255,10 @@ const DBO_TABLE_LOOKUP: Record<string, {
   "User":                        { target: "skip", confidence: "exact", label: "Legacy user accounts — auto-skip (SECURITY)",                        skipReason: "Legacy users with password hashes — never import" },
   "Role":                        { target: "skip", confidence: "exact", label: "Legacy user roles — auto-skip",                                      skipReason: "Legacy role table (not imported)" },
 
-  // ── FactorOne ERP — Project management (no system table) ─────────────────
-  "Project":                     { target: "skip", confidence: "exact", label: "Projects (CRM) — auto-skip",                                         skipReason: "No project import target in system" },
-  "ProjectStage":                { target: "skip", confidence: "exact", label: "Project stages — auto-skip",                                          skipReason: "No project import target in system" },
+  // ── FactorOne ERP — Project management → opportunities ───────────────────
+  // BUG FIX: Project now maps to opportunities (handled in English-named table block above)
+  // This duplicate entry would override the correct one — so we only keep ProjectStage as skip.
+  "ProjectStage":                { target: "skip", confidence: "exact", label: "Project stages — auto-skip",                                          skipReason: "No project stage import target in system" },
 
   // ── FactorOne ERP — Geo/reference lookups (skip) ─────────────────────────
   "Country":                     { target: "skip", confidence: "exact", label: "Country lookup — auto-skip",                                          skipReason: "Geo lookup table (247 countries)" },
