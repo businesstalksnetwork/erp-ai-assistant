@@ -175,16 +175,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Do NOT call fetchProfile here — onAuthStateChange fires on initial session too
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Proactively validate session on initial load — catches stale tokens that
+    // don't always trigger TOKEN_REFRESH_FAILED (bfcache, multi-tab rotation, long background)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
-        // No session at all — clear loading immediately
         setLoading(false);
+        return;
       }
-      // If session exists, onAuthStateChange will handle it
+
+      // If access token is expired or about to expire (< 60 seconds left), force refresh now
+      const expiresAt = session.expires_at ?? 0;
+      const nowSecs = Math.floor(Date.now() / 1000);
+      const isExpiredOrExpiring = expiresAt - nowSecs < 60;
+
+      if (isExpiredOrExpiring) {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) {
+          // Refresh failed — wipe the stale token immediately, don't wait for an event
+          await supabase.auth.signOut();
+          setLoading(false);
+        }
+        // If refresh succeeded, onAuthStateChange handles the new session
+      }
+      // If token is still valid, onAuthStateChange handles it normally
     });
 
-    return () => subscription.unsubscribe();
+    // Re-validate session whenever the user returns to this tab after being away
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) {
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+            setIsAdmin(false);
+            setProfileLoading(false);
+            fetchingRef.current = false;
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const signUp = async (
