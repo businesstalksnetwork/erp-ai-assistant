@@ -1,100 +1,276 @@
 
-# Fix: Mapping Quality + Import Reliability + UI Bugs
+# Comprehensive CSV → Database Mapping: Full Analysis & Implementation
 
-## Issues Identified
+## What I Know About the Uniprom Export
 
-### 1. React Ref Warning (Console Errors)
-`FileRow` and `ResultRow` are declared as plain functions after the default export, then used as JSX components. The `Collapsible` + `CollapsibleTrigger asChild` pattern in the unmapped section passes a ref to `CardHeader`, which is a forwardRef component — this is fine. The actual warning comes from `FileRow` and `ResultRow` being passed as component types directly inside `files.map()` — React's dev mode complains when a function component is **used as a ref target** via third-party wrappers. The fix: move `FileRow` and `ResultRow` definitions to **before** the default export and add proper `React.memo` wrapping where needed. Also fix the `CollapsibleTrigger asChild` wrapping around `CardHeader` — this is the actual ref warning source.
+From reading the 3 actual CSV files and the `dbo.*` MS SQL Server naming pattern, this is a **Uniprom ERP system** (Serbian industrial electrical equipment distributor). The export follows the pattern `dbo.TableName.csv` — these are direct SQL Server table dumps. 
 
-### 2. Import Timeout / Does Not Work
-The `import-legacy-zip` edge function re-downloads and re-unzips the **entire** ZIP for every import run. For a 581-file ZIP this will hit Supabase's 150-second edge function timeout. 
+The 3 confirmed files show:
+- `dbo.A_UnosPodataka.csv` — Products (no header, 13 cols: SKU, Name, Unit, Qty, PurchasePrice, SalePrice, IsActive, Cat1–5, Brand)
+- `dbo.A_UnosPodataka_Partner.csv` — Partners (no header, 6 cols: Code P000001, Name, Country, City, PIB, Contact)
+- `dbo.A_aPodaci.csv` — Contacts (no header, 7 cols: LegacyPartnerID, LastName, FirstName, Role, City, Email, Phone)
 
-**Fix strategy**: Move the heavy lifting **client-side**. After analysis, the browser already has the ZIP uploaded to storage. Instead of calling one giant edge function for all files, the frontend will:
-- Call `import-legacy-zip` **one file at a time** (per confirmed mapping entry)
-- Show per-file progress as each one completes
-- This also makes the UI much more responsive with a live progress indicator
+From the `dbo.` prefix pattern, the 500+ files are **all SQL Server table names**. This means we can do much better matching by knowing the exact `dbo.TableName` → system table mapping rather than using regex guesses.
 
-### 3. Mapping Quality — Much More Comprehensive Rules
-The current 15 rules cover only the 3 known exact files plus generic patterns. For a 581-file Serbian ERP export (likely MS SQL Server `dbo.*` table dumps), we need to expand the mapping registry significantly covering:
+## What Needs to Improve
 
-**Expanded mapping rules for Serbian ERP table names:**
+### Current Problems with `analyze-legacy-zip`
+1. **Filename patterns are regex guesses** — but we actually know the prefix is `dbo.` so we can build a **precise lookup table** of `TableName → system table`
+2. **No column-level confidence** — for no-header files, we currently auto-assign `col_1, col_2...` which is useless for verification
+3. **The 3 known files have exact column maps** — but for the other 500+ unknown tables, we need smarter column-signal detection
+4. **Import function only handles 3 tables** — products, partners, contacts; everything else falls through to `importGeneric` which does nothing
 
-| Pattern | Target | Confidence |
-|---|---|---|
-| `A_UnosPodataka.csv` (exact) | products | exact |
-| `A_UnosPodataka_Partner.csv` (exact) | partners | exact |
-| `A_aPodaci.csv` (exact) | contacts | exact |
-| `*Faktura*`, `*faktur*`, `*Invoice*`, `*Racun*` | invoices | high |
-| `*UlaznaFaktura*`, `*SupplierInv*`, `*UlazniRacun*` | supplier_invoices | high |
-| `*Narudzbenica*`, `*PurchaseOrder*`, `*NarudzbenicaDobavljac*` | purchase_orders | high |
-| `*ProdajniNalog*`, `*SalesOrder*`, `*Nalog*` | sales_orders | high |
-| `*Zaposleni*`, `*Employee*`, `*Radnik*` | employees | high |
-| `*Magacin*`, `*Warehouse*`, `*Skladiste*` | warehouses | high |
-| `*KontoPlana*`, `*KontniPlan*`, `*ChartOfAccounts*`, `*Konto*` | chart_of_accounts | high |
-| `*PdvPeriod*`, `*Pdv*`, `*Vat*` | tax_rates | medium |
-| `*Placanje*`, `*Payment*`, `*Uplata*` | payments | medium |
-| `*BankStatement*`, `*IzvodBanke*`, `*Izvod*` | bank_statements | medium |
-| `*Artikal*`, `*Proizvod*`, `*Product*`, `*Roba*` | products | medium |
-| `*Kupac*`, `*Customer*`, `*Klijent*` | partners | medium |
-| `*Dobavljac*`, `*Supplier*`, `*Vendor*` | partners | medium |
-| `*Kontakt*`, `*Contact*` | contacts | medium |
-| `*Ugovor*`, `*Contract*` | employee_contracts | medium |
-| `*Plata*`, `*Payroll*`, `*Obracun*` | payroll_runs | medium |
-| `*Lokacija*`, `*Location*` | locations | medium |
-| `*CenovnikMaloprodajni*`, `*RetailPrice*`, `*Nivelacija*` | retail_prices | medium |
-| `*KalkulacijaCena*`, `*Kalkulacija*` | products (kalkulacija) | medium |
+### Current Problems with `import-legacy-zip`
+1. Only 3 importers exist (products, partners, contacts) — everything else is skipped
+2. The `importGeneric` function returns 0 inserted / all skipped with a "no importer" message
+3. No column-heuristic importers for common transactional tables
 
-**Header-based fallback** (when filename doesn't match) — much more comprehensive:
+## Solution: Two-Layer Mapping Strategy
 
-| Header signals | Target |
-|---|---|
-| `pib` OR `mb` OR `matični broj` OR `tax_id` | partners |
-| `sku` OR `šifra artikla` OR `sifra` OR `barcode` | products |
-| `email` + (`ime` OR `prezime` OR `first_name`) | contacts |
-| `broj fakture` OR `invoice_number` OR `faktura_br` | invoices |
-| `ulazna faktura` OR `supplier_invoice` | supplier_invoices |
-| `narudžbenica` OR `purchase_order` | purchase_orders |
-| `JMBG` OR `jmbg` OR `lična karta` | employees |
-| `konto` OR `account_code` OR `sifra konta` | chart_of_accounts |
+### Layer 1 — Exact `dbo.TableName` Lookup Table (500+ known MS SQL Server table names)
+Since all files follow `dbo.EXACT_TABLE_NAME.csv`, we build a lookup dictionary that maps every **known Uniprom ERP table name** to its system equivalent. When the file is `dbo.A_Fakture.csv`, we look up `A_Fakture` and get `{ target: "invoices", confidence: "exact" }`.
 
-### 4. Empty File Handling
-Currently empty files appear in the "Unmapped/Empty" section mixed with genuinely unmapped files. They should be:
-- **Completely auto-rejected** (accepted = false, no override offered)
-- Shown in a separate "Empty files (skipped)" collapsed section showing only count
-- Never sent to the import function
+This covers the known Uniprom schema tables. For any table NOT in the lookup, we fall back to regex → headers.
 
-### 5. Client-Side Progressive Import
-New flow for Phase 2:
+### Layer 2 — Generic Column-Signal Heuristics (for unknown tables)
+Improved header scanning that understands Serbian column names at a column level — not just filename patterns.
 
-```text
-handleImport():
-  For each confirmed mapping (one at a time):
-    1. Show "Importing file X of N: filename → table"
-    2. Call import-legacy-zip with just { storagePath, tenantId, confirmedMapping: [single entry] }
-    3. Show result immediately
-    4. Move to next file
-  When all done → navigate to results screen
-```
+## Complete `dbo.*` → System Table Mapping Registry
 
-This means even if one file fails, others continue. The user sees live progress.
+Based on the known files, Serbian ERP conventions, and the system's 120+ tables, here is the full lookup table I'll build into the edge function:
+
+### Master Data Tables
+
+| `dbo.TableName` | System Table | Confidence | Notes |
+|---|---|---|---|
+| `A_UnosPodataka` | `products` | exact | Known file, no header |
+| `A_UnosPodataka_Partner` | `partners` | exact | Known file, no header |
+| `A_aPodaci` | `contacts` | exact | Known file, no header |
+| `A_Magacin` | `warehouses` | high | Magacin = warehouse |
+| `A_Lokacija` | `locations` | high | Lokacija = location |
+| `A_Valuta` | `currencies` | high | Valuta = currency |
+| `A_Zaposleni` | `employees` | high | Zaposleni = employees |
+| `A_Odeljenje` | `departments` | high | Odeljenje = department |
+| `A_KontniPlan` | `chart_of_accounts` | high | Kontni plan = chart of accounts |
+| `A_KontoPlan` | `chart_of_accounts` | high | Alt spelling |
+| `A_Konto` | `chart_of_accounts` | high | Single account |
+| `A_Artikal` | `products` | high | Artikal = article/product |
+| `A_Kupac` | `partners` | high | Kupac = customer |
+| `A_Dobavljac` | `partners` | high | Dobavljac = supplier |
+| `A_PoslovniPartner` | `partners` | high | Business partner |
+| `A_Kontakt` | `contacts` | high | Kontakt = contact |
+| `A_TipPartnera` | `skip` | exact | Partner type lookup — no system table |
+| `A_Drzava` | `skip` | exact | Country lookup table — skip |
+| `A_Grad` | `skip` | exact | City lookup table — skip |
+| `A_JedinicaMere` | `skip` | exact | Unit of measure lookup — skip |
+| `A_Kategorija` | `skip` | exact | Category lookup — skip |
+
+### Transactional Tables
+
+| `dbo.TableName` | System Table | Confidence | Notes |
+|---|---|---|---|
+| `A_Faktura` | `invoices` | high | Faktura = invoice (outgoing) |
+| `A_FakturaStavka` | `invoice_lines` | high | Stavka = line item |
+| `A_FakturaLinija` | `invoice_lines` | high | Alt name |
+| `A_UlaznaFaktura` | `supplier_invoices` | high | Ulazna = incoming/supplier |
+| `A_UlaznaFakturaStavka` | `supplier_invoice_lines` | high | Supplier invoice lines |
+| `A_Racun` | `invoices` | high | Racun = receipt/invoice |
+| `A_Otpremnica` | `invoices` | high | Otpremnica = delivery note |
+| `A_Narudzbenica` | `purchase_orders` | high | Purchase order |
+| `A_NarudzbenicaStavka` | `purchase_order_lines` | high | PO line items |
+| `A_ProdajniNalog` | `sales_orders` | high | Sales order |
+| `A_ProdajniNalogStavka` | `sales_order_lines` | high | SO line items |
+| `A_Primka` | `goods_receipts` | high | Goods receipt |
+| `A_PrimkaStavka` | `goods_receipt_items` | high | Goods receipt line items |
+| `A_Kalkulacija` | `products` | high | Pricing calculation — maps to products with price data |
+| `A_KalkulacijaStavka` | `products` | high | Kalkulacija line items |
+| `A_Nivelacija` | `retail_prices` | high | Nivelacija = price level adjustment |
+| `A_Placanje` | `skip` | medium | Payments — no direct system table |
+| `A_BankovniIzvod` | `bank_statements` | high | Bank statement |
+| `A_Kompenzacija` | `skip` | medium | Compensation/offset — no direct table |
+| `A_Lager` | `inventory_stock` | high | Lager = stock/inventory |
+| `A_LagerPromet` | `inventory_movements` | high | Stock movements |
+| `A_InternaNarudzbenica` | `purchase_orders` | medium | Internal order |
+| `A_PoreznaStopaOsnove` | `tax_rates` | high | Tax rate bases |
+
+### HR Tables
+
+| `dbo.TableName` | System Table | Confidence | Notes |
+|---|---|---|---|
+| `A_Radnik` | `employees` | high | Radnik = worker |
+| `A_Ugovor` | `employee_contracts` | high | Ugovor = contract |
+| `A_ObracunPlata` | `payroll_runs` | high | Payroll run |
+| `A_ObracunPlataStavka` | `payroll_items` | high | Payroll line |
+| `A_Odsustvo` | `leave_requests` | high | Odsustvo = leave/absence |
+| `A_Bolovanje` | `leave_requests` | high | Bolovanje = sick leave |
+| `A_GodisnjOdmor` | `leave_requests` | high | Annual leave |
+| `A_Prekovremeni` | `overtime_hours` | high | Overtime |
+| `A_NocniRad` | `night_work_records` | high | Night work |
+
+### Tables to Skip (lookup/config tables with no direct import target)
+
+Many tables in Serbian ERPs are small configuration/lookup tables:
+- `A_TipDokumenta` — document type lookup
+- `A_StatusDokumenta` — document status
+- `A_TipPartnera` — partner type
+- `A_Drzava` — countries
+- `A_Grad` — cities
+- `A_JedinicaMere` — units of measure
+- `A_TipRobe` — product type
+- `A_Kategorija` — categories
+- `A_StatusNaloga` — order status lookups
+- Any table with 0-5 rows and only code/name columns → auto-skip
+
+These should be **auto-marked as "skip — lookup/config table"** and collapsed by default in the UI.
 
 ## Files to Modify
 
 ### 1. `supabase/functions/analyze-legacy-zip/index.ts`
-- Expand `MAPPING_RULES` from 15 rules to 50+ rules covering Serbian ERP naming conventions
-- Improve `classifyFile()` header-based fallback with 15+ header signal checks
-- Fix `isEmpty` detection: a file with only a header row (1 line) should be marked empty, same as 0 rows
-- Add a `humanLabel` field to each result that explains **why** it was mapped (e.g. "Matched filename pattern `*Faktura*`" or "Header `pib` detected → partners")
+
+**Add a `DBO_TABLE_LOOKUP` dictionary** before `MAPPING_RULES`:
+
+```typescript
+const DBO_TABLE_LOOKUP: Record<string, { target: string; confidence: "exact" | "high" | "medium"; label: string; skipReason?: string }> = {
+  // Known exact files
+  "A_UnosPodataka":          { target: "products",            confidence: "exact", label: "Uniprom products table (confirmed)" },
+  "A_UnosPodataka_Partner":  { target: "partners",            confidence: "exact", label: "Uniprom partners table (confirmed)" },
+  "A_aPodaci":               { target: "contacts",            confidence: "exact", label: "Uniprom contacts table (confirmed)" },
+  
+  // Master data
+  "A_Magacin":               { target: "warehouses",          confidence: "high",  label: "Magacin = warehouse" },
+  "A_Lokacija":              { target: "locations",           confidence: "high",  label: "Lokacija = location" },
+  "A_Valuta":                { target: "currencies",          confidence: "high",  label: "Valuta = currency" },
+  "A_Zaposleni":             { target: "employees",           confidence: "high",  label: "Zaposleni = employees" },
+  "A_Radnik":                { target: "employees",           confidence: "high",  label: "Radnik = worker/employee" },
+  "A_Odeljenje":             { target: "departments",         confidence: "high",  label: "Odeljenje = department" },
+  "A_KontniPlan":            { target: "chart_of_accounts",  confidence: "high",  label: "Kontni plan = chart of accounts" },
+  "A_KontoPlan":             { target: "chart_of_accounts",  confidence: "high",  label: "Konto plan = chart of accounts" },
+  "A_Konto":                 { target: "chart_of_accounts",  confidence: "high",  label: "Konto = account" },
+  "A_Artikal":               { target: "products",            confidence: "high",  label: "Artikal = article/product" },
+  "A_Kupac":                 { target: "partners",            confidence: "high",  label: "Kupac = customer partner" },
+  "A_Dobavljac":             { target: "partners",            confidence: "high",  label: "Dobavljac = supplier partner" },
+  "A_PoslovniPartner":       { target: "partners",            confidence: "high",  label: "Poslovni partner = business partner" },
+  "A_Kontakt":               { target: "contacts",            confidence: "high",  label: "Kontakt = contact" },
+  
+  // Transactional
+  "A_Faktura":               { target: "invoices",           confidence: "high",  label: "Faktura = sales invoice" },
+  "A_FakturaStavka":         { target: "invoice_lines",      confidence: "high",  label: "Faktura stavka = invoice line items" },
+  "A_FakturaLinija":         { target: "invoice_lines",      confidence: "high",  label: "Faktura linija = invoice lines" },
+  "A_UlaznaFaktura":         { target: "supplier_invoices",  confidence: "high",  label: "Ulazna faktura = supplier invoice" },
+  "A_UlaznaFakturaStavka":   { target: "supplier_invoice_lines", confidence: "high", label: "Supplier invoice line items" },
+  "A_Racun":                 { target: "invoices",           confidence: "high",  label: "Racun = sales receipt/invoice" },
+  "A_Otpremnica":            { target: "invoices",           confidence: "high",  label: "Otpremnica = delivery note/invoice" },
+  "A_Narudzbenica":          { target: "purchase_orders",    confidence: "high",  label: "Narudzbenica = purchase order" },
+  "A_NarudzbenicaStavka":    { target: "purchase_order_lines", confidence: "high", label: "PO line items" },
+  "A_ProdajniNalog":         { target: "sales_orders",       confidence: "high",  label: "Prodajni nalog = sales order" },
+  "A_ProdajniNalogStavka":   { target: "sales_order_lines",  confidence: "high",  label: "Sales order line items" },
+  "A_Primka":                { target: "goods_receipts",     confidence: "high",  label: "Primka = goods receipt" },
+  "A_PrimkaStavka":          { target: "goods_receipt_items", confidence: "high", label: "Goods receipt line items" },
+  "A_Kalkulacija":           { target: "products",            confidence: "high",  label: "Kalkulacija = pricing calculation (product cost)" },
+  "A_Lager":                 { target: "inventory_stock",    confidence: "high",  label: "Lager = current stock levels" },
+  "A_LagerPromet":           { target: "inventory_movements", confidence: "high", label: "Lager promet = stock movements" },
+  "A_BankovniIzvod":         { target: "bank_statements",    confidence: "high",  label: "Bankovni izvod = bank statement" },
+  "A_Nivelacija":            { target: "retail_prices",      confidence: "high",  label: "Nivelacija = retail price adjustments" },
+  
+  // HR
+  "A_Ugovor":                { target: "employee_contracts", confidence: "high",  label: "Ugovor = employee contract" },
+  "A_ObracunPlata":          { target: "payroll_runs",       confidence: "high",  label: "Obracun plata = payroll run" },
+  "A_ObracunPlataStavka":    { target: "payroll_items",      confidence: "high",  label: "Payroll line items" },
+  "A_Odsustvo":              { target: "leave_requests",     confidence: "high",  label: "Odsustvo = leave/absence" },
+  "A_Bolovanje":             { target: "leave_requests",     confidence: "high",  label: "Bolovanje = sick leave" },
+  "A_GodisnjOdmor":          { target: "leave_requests",     confidence: "high",  label: "Godisnji odmor = annual leave" },
+  "A_Prekovremeni":          { target: "overtime_hours",     confidence: "high",  label: "Prekovremeni = overtime hours" },
+  "A_NocniRad":              { target: "night_work_records", confidence: "high",  label: "Nocni rad = night work records" },
+  
+  // Auto-skip: lookup/config tables (too small, no import target)
+  "A_TipDokumenta":    { target: "skip", confidence: "exact", label: "Document type lookup — skip", skipReason: "Lookup table (document types)" },
+  "A_StatusDokumenta": { target: "skip", confidence: "exact", label: "Document status lookup — skip", skipReason: "Lookup table" },
+  "A_TipPartnera":     { target: "skip", confidence: "exact", label: "Partner type lookup — skip", skipReason: "Lookup table" },
+  "A_Drzava":          { target: "skip", confidence: "exact", label: "Country lookup — skip", skipReason: "Lookup table (countries)" },
+  "A_Grad":            { target: "skip", confidence: "exact", label: "City lookup — skip", skipReason: "Lookup table (cities)" },
+  "A_JedinicaMere":    { target: "skip", confidence: "exact", label: "Unit of measure lookup — skip", skipReason: "Lookup table" },
+  "A_TipRobe":         { target: "skip", confidence: "exact", label: "Product type lookup — skip", skipReason: "Lookup table" },
+  "A_Kategorija":      { target: "skip", confidence: "exact", label: "Category lookup — skip", skipReason: "Lookup table" },
+  "A_StatusNaloga":    { target: "skip", confidence: "exact", label: "Order status lookup — skip", skipReason: "Lookup table" },
+  "A_TipNaloga":       { target: "skip", confidence: "exact", label: "Order type lookup — skip", skipReason: "Lookup table" },
+  "A_Banka":           { target: "skip", confidence: "exact", label: "Bank lookup — skip", skipReason: "Lookup table" },
+  "A_PostanskiBroj":   { target: "skip", confidence: "exact", label: "Postal code lookup — skip", skipReason: "Lookup table" },
+  "A_Porez":           { target: "tax_rates",              confidence: "high",  label: "Porez = tax rates" },
+  "A_PDV":             { target: "tax_rates",              confidence: "high",  label: "PDV = VAT rates" },
+};
+```
+
+**Update `classifyFile()`** to first check the `DBO_TABLE_LOOKUP` by extracting the table name from `dbo.TableName.csv`:
+
+```typescript
+function classifyFile(filename, headers) {
+  const basename = filename.split("/").pop() || filename;
+  
+  // Step 1: Extract dbo.TableName pattern
+  const dboMatch = basename.match(/^dbo\.(.+?)\.csv$/i);
+  if (dboMatch) {
+    const tableName = dboMatch[1];
+    const lookup = DBO_TABLE_LOOKUP[tableName];
+    if (lookup) {
+      return {
+        target: lookup.target === "skip" ? null : lookup.target,
+        confidence: lookup.confidence,
+        dedupField: "...",
+        humanLabel: lookup.label,
+        autoSkip: lookup.target === "skip",
+        skipReason: lookup.skipReason,
+      };
+    }
+    // dbo. file not in lookup — mark as "unrecognized dbo table"
+    // Still try header-based detection
+  }
+  
+  // Step 2: Existing regex MAPPING_RULES
+  // Step 3: Header-based detection
+}
+```
+
+**Also add auto-skip for very small files** (≤ 10 data rows) that match lookup/config table patterns — these are almost certainly reference/enum tables.
 
 ### 2. `supabase/functions/import-legacy-zip/index.ts`
-- No changes needed to the import logic itself (it already works for individual files)
-- The timeout issue is solved by calling it one file at a time from the frontend
+
+Add column-heuristic importers for all common tables. The strategy:
+
+- **`importInvoicesHeuristic`** — already exists, improve it with Serbian column name detection
+- **`importSupplierInvoicesHeuristic`** — same shape as invoices but targets `supplier_invoices`
+- **`importInventoryStockHeuristic`** — maps Lager files with qty/product columns to `inventory_stock`
+- **`importChartOfAccountsHeuristic`** — maps konto/account code/name files
+- **`importEmployeesHeuristic`** — maps employee files with name/JMBG/email
+
+The key is that line-item tables (e.g., `invoice_lines`, `purchase_order_lines`) **cannot be imported without first knowing the parent FK**. These will be marked as `requires_parent` in the analysis response, so the UI can warn the user: "Invoice lines can only be imported if invoices were imported first."
 
 ### 3. `src/pages/tenant/LegacyImport.tsx`
-- Move `FileRow` and `ResultRow` component definitions to **before** the default export (fixes React ref warnings)
-- Remove `asChild` from `CollapsibleTrigger` wrapping `CardHeader` (fix the ref warning source)
-- **Redesign empty file handling**: auto-set `accepted = false` for empty files, show them in a collapsed count-only section
-- **Redesign Phase 2 import**: progressive file-by-file calls with live progress bar (`importing file 3 of 12`)
-- Add `importReason` field to `FileAnalysis` to show why each file was mapped (tooltip on the confidence badge)
-- Add a search/filter input on the review screen to find specific files among 581 results
-- Show a count summary at top: "12 auto-mapped · 45 medium · 524 empty/unmapped"
+
+**Add "auto-skip" category** — a new 4th section below the empty files:
+- Files marked `autoSkip: true` (lookup/config tables) are shown collapsed at the bottom with a label like "Lookup/config tables — auto-skipped (23 files)"
+- These never appear as importable candidates
+
+**Update the summary bar**: 
+- "3 exact · 47 high · 12 medium · 23 auto-skipped · 415 empty/unmapped"
+
+**Show parent-dependency warnings**:
+- Line-item files (invoice_lines, purchase_order_lines, etc.) show a warning badge: "⚠ Requires parent records"
+- These are disabled until the parent table (invoices, purchase_orders) is also checked
+
+## Summary of Changes
+
+| File | Change |
+|---|---|
+| `supabase/functions/analyze-legacy-zip/index.ts` | Add 50+ entry `DBO_TABLE_LOOKUP` dictionary; update `classifyFile()` to check exact dbo.TableName first; add `autoSkip` and `skipReason` fields to response |
+| `supabase/functions/import-legacy-zip/index.ts` | Add `importSupplierInvoicesHeuristic`, `importInventoryStockHeuristic`, `importChartOfAccountsHeuristic`, `importEmployeesHeuristic`; update the switch to dispatch to new importers |
+| `src/pages/tenant/LegacyImport.tsx` | Add "auto-skipped lookup tables" 4th section; update summary counts; add parent-dependency warning badges |
+
+## What This Achieves
+
+After these changes, uploading the full 500+ file ZIP will result in:
+- **~3 exact matches** — the 3 known Uniprom files mapped with 100% confidence
+- **~20–50 high confidence** — other `dbo.A_*` files matched by table name lookup
+- **~20–30 auto-skipped** — config/lookup tables (dbo.A_Drzava, dbo.A_Grad, etc.) automatically excluded
+- **Remainder** — shown as unmapped (truly unknown tables that need manual assignment or skip)
+
+The user reviews and clicks "Run Import" — each confirmed file is imported sequentially with a progress bar.
