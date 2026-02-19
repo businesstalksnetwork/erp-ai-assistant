@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTenant } from "@/hooks/useTenant";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ const DECISION_COLORS: Record<string, "default" | "secondary" | "destructive" | 
 
 export default function AiAuditLog() {
   const { tenantId } = useTenant();
+  const { t } = useLanguage();
   const [moduleFilter, setModuleFilter] = useState("all");
   const [decisionFilter, setDecisionFilter] = useState("all");
 
@@ -45,22 +47,22 @@ export default function AiAuditLog() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI Revizijski dnevnik"
+        title={t("aiAuditLogTitle")}
         icon={ShieldCheck}
-        description="Pregled svih AI akcija za regulatornu usklađenost (PRD Sekcija 11.2)"
+        description={t("aiAuditLogDesc")}
       />
 
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="text-base">AI akcije ({logs.length})</CardTitle>
+            <CardTitle className="text-base">{t("aiActions")} ({logs.length})</CardTitle>
             <div className="flex gap-2">
               <Select value={moduleFilter} onValueChange={setModuleFilter}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Modul" />
+                  <SelectValue placeholder={t("allModules")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Svi moduli</SelectItem>
+                  <SelectItem value="all">{t("allModules")}</SelectItem>
                   {modules.map((m: any) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
@@ -68,14 +70,14 @@ export default function AiAuditLog() {
               </Select>
               <Select value={decisionFilter} onValueChange={setDecisionFilter}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Odluka" />
+                  <SelectValue placeholder={t("allDecisions")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Sve odluke</SelectItem>
-                  <SelectItem value="approved">Odobreno</SelectItem>
-                  <SelectItem value="rejected">Odbijeno</SelectItem>
-                  <SelectItem value="modified">Izmenjeno</SelectItem>
-                  <SelectItem value="auto">Automatski</SelectItem>
+                  <SelectItem value="all">{t("allDecisions")}</SelectItem>
+                  <SelectItem value="approved">{t("approved")}</SelectItem>
+                  <SelectItem value="rejected">{t("rejected")}</SelectItem>
+                  <SelectItem value="modified">{t("modified")}</SelectItem>
+                  <SelectItem value="auto">{t("auto")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -83,24 +85,24 @@ export default function AiAuditLog() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Učitavanje...</p>
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
           ) : logs.length === 0 ? (
             <div className="text-center py-12">
               <ShieldCheck className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">Nema zabeleženih AI akcija.</p>
-              <p className="text-muted-foreground text-xs mt-1">AI akcije će se automatski beleži kada koristite AI funkcionalnosti.</p>
+              <p className="text-muted-foreground text-sm">{t("noAiActions")}</p>
+              <p className="text-muted-foreground text-xs mt-1">{t("noAiActionsHint")}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Vreme</TableHead>
-                  <TableHead>Modul</TableHead>
-                  <TableHead>Tip akcije</TableHead>
-                  <TableHead>Odluka</TableHead>
-                  <TableHead>Poverenje</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Obrazloženje</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("modules")}</TableHead>
+                  <TableHead>{t("actionType")}</TableHead>
+                  <TableHead>{t("allDecisions")}</TableHead>
+                  <TableHead>{t("confidence")}</TableHead>
+                  <TableHead>{t("modelVersion")}</TableHead>
+                  <TableHead>{t("reasoning")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

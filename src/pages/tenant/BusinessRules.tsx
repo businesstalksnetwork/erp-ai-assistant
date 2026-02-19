@@ -44,12 +44,12 @@ const DEFAULT_SETTINGS: TenantSettings = {
   auto_post_invoices: false,
 };
 
-const MONTHS = [
-  { value: 1, label: "January" },
-  { value: 4, label: "April" },
-  { value: 7, label: "July" },
-  { value: 10, label: "October" },
-];
+const MONTH_KEYS = [
+  { value: 1, key: "monthJanuary" },
+  { value: 4, key: "monthApril" },
+  { value: 7, key: "monthJuly" },
+  { value: 10, key: "monthOctober" },
+] as const;
 
 export default function BusinessRules() {
   const { t } = useLanguage();
@@ -220,8 +220,8 @@ export default function BusinessRules() {
             <Select value={String(form.fiscal_year_start_month)} onValueChange={(v) => update("fiscal_year_start_month", Number(v))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                {MONTH_KEYS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>{t(m.key)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
