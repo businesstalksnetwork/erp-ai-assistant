@@ -1,105 +1,168 @@
 
-# Two Separate Problems — Analytics Missing
+# ZIP Mapping Based on the CSV → ERP-AI Mapping Document
 
-## Problem 1: Uniprom tenant has no `analytics` module enabled
+## What the Document Specifies
 
-Looking at the database, Uniprom has these modules enabled:
-`accounting, crm, documents, hr, inventory, pos, production, purchasing, returns, sales, web`
+The document (CSV_to_ERP_AI_Mapping.docx) is an 18-page, highly detailed guide for importing UNIPROM FactorOne legacy data. It defines:
 
-**`analytics` is completely missing from this list.**
+1. Exact column-position mappings for each CSV file (no headers — first row is data)
+2. Multi-file JOIN strategies (Partners from 3 CSVs, Products from 2 CSVs)
+3. Document type splitting (DocumentHeader → invoices / sales_orders / purchase_orders / goods_receipts)
+4. Import order respecting FK dependencies
+5. Deduplication keys (PIB for partners, SKU for products, email for contacts)
 
-In `TenantLayout.tsx` line 398–400, the Analytics sidebar section is wrapped in:
-```tsx
-{canAccess("analytics") && (
-  <CollapsibleNavGroup ... />
-)}
+## Current Gaps vs. Document
+
+The existing `analyze-legacy-zip` edge function already has a strong `DBO_TABLE_LOOKUP`, but it's **missing all the specific Uniprom FactorOne English-named tables** the document describes:
+
+| Missing Table | Document Target | Notes |
+|---|---|---|
+| `dbo.Partner` | `partners` | col[0]=legacy_id, col[1]=name, col[17]=active |
+| `dbo.PartnerLocation` | `partners` (address enrichment) | col[22]=partner_id JOIN key |
+| `dbo.A_UnosPodataka_Partner` | `partners` (PIB enrichment) | Already exists with "exact" confidence ✓ |
+| `dbo.Company` | `legal_entities` | 1 row only |
+| `dbo.CompanyOffice` | `locations` | 1 row only |
+| `dbo.Warehouse` | `warehouses` | col[1]=code, col[2]=name |
+| `dbo.Department` | `departments` | 12 rows |
+| `dbo.Currency` | `currencies` | col[2]=ISO code |
+| `dbo.CurrencyRates` | (exchange_rates) | 5 rows |
+| `dbo.Tax` | `tax_rates` | col[3]=rate (multiply by 100) |
+| `dbo.Employee` | `employees` | col[1]=first_name, col[2]=last_name, col[4]=jmbg |
+| `dbo.PartnerContact` | `contacts` | col[1]=last_name, col[2]=first_name, col[10]=email |
+| `dbo.Opportunity` | `leads` | 2 rows |
+| `dbo.Bank` | skip | Reference table |
+| `dbo.DocumentList` | skip | Reference table |
+| `dbo.BookkeepingBookType` | skip | Already in lookup ✓ |
+| `dbo.Dobavljaci` | `partners` (was: skip due to binary) | Doc says 254 rows of supplier segment |
+| `dbo.Investitori` | skip | CRM segment, P2 priority |
+| `dbo.Projektanti` | skip | CRM segment, P2 priority |
+| `dbo.Trgovci` | skip | CRM segment, P2 priority |
+| `dbo.ElektroMontazeri` | `leads` | 246 rows, P2 |
+
+Most critically, `dbo.DocumentHeader` exists in the lookup but maps to `invoices` generically. The document defines **17 document types** that should split into different tables.
+
+## Changes Required
+
+### File 1: `supabase/functions/analyze-legacy-zip/index.ts`
+
+Add all missing Uniprom FactorOne tables to `DBO_TABLE_LOOKUP` with the exact column mappings documented:
+
+```
+// New entries to add to DBO_TABLE_LOOKUP:
+"Partner":          { target: "partners",       confidence: "exact", label: "Exact: Uniprom Partner.csv — col[0]=legacy_id, col[1]=name, col[17]=active", dedupField: "pib" }
+"PartnerLocation":  { target: "partners",       confidence: "exact", label: "Exact: address enrichment for partners — col[22]=partner_legacy_id JOIN key, col[1]=full_name, col[7]=partner_code", dedupField: "pib" }
+"PartnerContact":   { target: "contacts",       confidence: "exact", label: "Exact: Uniprom PartnerContact — col[1]=last_name, col[2]=first_name, col[10]=email, col[12]=partner_legacy_id", dedupField: "email" }
+"Company":          { target: "legal_entities", confidence: "exact", label: "Exact: Uniprom Company.csv — col[1]=name, col[3]=address, col[6]=pib, col[7]=maticni_broj (1 row)", dedupField: "name" }
+"CompanyOffice":    { target: "locations",      confidence: "exact", label: "Exact: Uniprom CompanyOffice.csv — col[1]=name, col[3]=address (1 row)", dedupField: "name" }
+"Currency":         { target: "currencies",     confidence: "exact", label: "Exact: Uniprom Currency.csv — col[1]=name, col[2]=ISO_code (4 currencies)", dedupField: "code" }
+"CurrencyRates":    { target: "skip",           confidence: "exact", label: "Exchange rates ref — auto-skip (5 rows, set via NBS integration)", skipReason: "Use NBS exchange rates integration instead" }
+"Tax":              { target: "tax_rates",      confidence: "exact", label: "Exact: Uniprom Tax.csv — col[1]=name, col[2]=PDV_code, col[3]=rate (multiply x100)", dedupField: "name" }
+"Employee":         { target: "employees",      confidence: "exact", label: "Exact: Uniprom Employee.csv — col[1]=first_name, col[2]=last_name, col[4]=jmbg, col[9]=dept_legacy_id (45 employees)", dedupField: "email" }
+"Opportunity":      { target: "leads",          confidence: "exact", label: "Exact: Uniprom Opportunity.csv — 2 rows mapped to leads", dedupField: "id" }
+"ElektroMontazeri": { target: "leads",          confidence: "high",  label: "Uniprom ElektroMontazeri — 246 rows, electrical installer CRM segment → leads", dedupField: "id" }
+"Investitori":      { target: "skip",           confidence: "exact", label: "Investitori — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (investors)" }
+"Projektanti":      { target: "skip",           confidence: "exact", label: "Projektanti — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (designers)" }
+"Trgovci":          { target: "skip",           confidence: "exact", label: "Trgovci — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (traders)" }
+"Bank":             { target: "skip",           confidence: "exact", label: "Bank lookup — auto-skip (3 rows reference table)", skipReason: "Bank reference lookup (3 rows)" }
 ```
 
-Since `analytics` is not in Uniprom's `tenant_modules`, `canAccess("analytics")` returns `false` → the entire Analytics nav group is invisible.
+Also update `DocumentHeader` to reflect the document type splitting knowledge in its label:
 
-**Fix:** Enable the `analytics` module for Uniprom tenant via a SQL migration that inserts the missing row into `tenant_modules`.
-
-## Problem 2: Super Admin sidebar has no "Analytics" page link
-
-The `superAdminNav` array in `src/layouts/SuperAdminLayout.tsx` (lines 30–37) only contains:
-- dashboard → `/super-admin/dashboard`
-- tenants → `/super-admin/tenants`
-- modules → `/super-admin/modules`
-- users → `/super-admin/users`
-- monitoring → `/super-admin/monitoring`
-- integrations → `/super-admin/integrations`
-
-There is no "Analytics" entry. However, looking at `App.tsx` lines 184–193, there is also **no super-admin analytics route registered** — so we need to both add the nav item AND potentially create a super-admin analytics page, OR link to the tenant analytics page.
-
-The most practical fix is to add a link in the super admin sidebar that navigates to the platform monitoring page (which has analytics-like data), OR add a dedicated super-admin analytics overview. Looking at the existing `PlatformMonitoring` page, it already covers system-level analytics.
-
-The cleanest solution: **Add an "Analytics" nav item in the Super Admin sidebar that links to an existing analytics overview.** Since super admins also have access to the tenant app (via the "ERP Dashboard" button in the header), we add a link to `/analytics` in the super admin header or sidebar.
-
-## Implementation Plan
-
-### Fix 1 — Enable `analytics` module for Uniprom (Database Migration)
-
-Create migration file: `supabase/migrations/[timestamp]_enable_analytics_uniprom.sql`
-
-```sql
-INSERT INTO tenant_modules (tenant_id, module_id, is_enabled)
-SELECT 
-  t.id,
-  md.id,
-  true
-FROM tenants t
-CROSS JOIN module_definitions md
-WHERE t.name = 'Uniprom'
-  AND md.key = 'analytics'
-  AND NOT EXISTS (
-    SELECT 1 FROM tenant_modules tm 
-    WHERE tm.tenant_id = t.id AND tm.module_id = md.id
-  );
+```
+"DocumentHeader": { 
+  target: "invoices",    
+  confidence: "high",  
+  label: "DocumentHeader = universal document — splits by type: IRPDV/RPDV/FAV→invoices, PO/PN→sales_orders, NAR→purchase_orders, UPDV/U10→goods_receipts. WARNING: multi-line CSV format requires custom parsing.", 
+  dedupField: "invoice_number" 
+}
 ```
 
-This will make Analytics appear in Uniprom's sidebar immediately after the page reloads (the `usePermissions` hook re-fetches on tenant change).
-
-### Fix 2 — Add "Analytics" link to Super Admin sidebar
-
-In `src/layouts/SuperAdminLayout.tsx`, add a `BarChart3` import and a new entry to `superAdminNav`:
-
-```tsx
-import { LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3 } from "lucide-react";
-
-const superAdminNav = [
-  { key: "dashboard" as const, url: "/super-admin/dashboard", icon: LayoutDashboard },
-  { key: "tenants" as const, url: "/super-admin/tenants", icon: Building2 },
-  { key: "modules" as const, url: "/super-admin/modules", icon: Puzzle },
-  { key: "users" as const, url: "/super-admin/users", icon: Users },
-  { key: "monitoring" as const, url: "/super-admin/monitoring", icon: Activity },
-  { key: "integrations" as const, url: "/super-admin/integrations", icon: Plug },
-  { key: "analytics" as const, url: "/super-admin/analytics", icon: BarChart3 },  // NEW
-];
+And mark `DocumentLine` as importable (not auto-skip) since the document says it should be imported as `invoice_lines`:
+```
+"DocumentLine": { target: "invoices", confidence: "medium", label: "DocumentLine = line items for DocumentHeader — maps to invoice_lines after DocumentHeader import", requiresParent: "invoices", dedupField: "id" }
 ```
 
-Then add a new route in `App.tsx`:
-```tsx
-<Route path="analytics" element={<SuperAdminAnalytics />} />
-```
+### File 2: `supabase/functions/import-legacy-zip/index.ts`
 
-And create a new page `src/pages/super-admin/Analytics.tsx` — a platform-wide analytics overview showing:
-- Total revenue across all tenants (from `invoices` table, grouped by tenant)
-- Module adoption rates (how many tenants use each module)
-- Active tenant activity (last login, recent audit log entries)
-- System-wide KPIs: total invoices, total journal entries, total employees across platform
+The existing ZIP import function needs to be updated to handle the specific column positions documented for each Uniprom file. Currently the import functions use generic column detection. We need to add a **Uniprom-specific column mapping registry** that the import function consults when it recognizes a known filename:
 
-### Files to Change
+The document's exact column mappings per file:
+
+**partners (from A_UnosPodataka_Partner.csv)** — already has a dedicated edge function, keep as is.
+
+**partners (from Partner.csv)** — new mapping:
+- col[0] → legacy_id
+- col[1] → name (fallback if no PartnerLocation)
+- col[17] → is_active (1=active)
+
+**contacts (from PartnerContact.csv)**:
+- col[0] → legacy_id
+- col[1] → last_name
+- col[2] → first_name
+- col[6] → phone
+- col[10] → email
+- col[12] → partner_legacy_id (for company_name lookup)
+
+**products (from Item.csv)**:
+- col[0] → legacy_id
+- col[1] → name
+- col[2] → sku (JOIN key to A_UnosPodataka)
+- col[33] → is_active
+- col[34] → product_type (1=goods)
+
+**employees (from Employee.csv)**:
+- col[0] → legacy_id
+- col[1] → first_name
+- col[2] → last_name
+- col[4] → jmbg (dedup key)
+- col[9] → department_legacy_id
+
+**departments (from Department.csv)**:
+- col[0] → legacy_id
+- col[1] → name
+- col[3] → code
+
+**currencies (from Currency.csv)**:
+- col[1] → name
+- col[2] → code (ISO)
+
+**tax_rates (from Tax.csv)**:
+- col[1] → name
+- col[3] → rate (× 100 for percentage)
+
+**legal_entities (from Company.csv)**:
+- col[1] → name
+- col[3] → address
+- col[6] → pib
+- col[7] → maticni_broj
+
+**warehouses (from Warehouse.csv)**:
+- col[1] → code
+- col[2] → name
+
+### File 3: New edge function `supabase/functions/import-legacy-zip/index.ts`
+
+Update the existing import-legacy-zip function to include a `UNIPROM_COLUMN_MAP` registry keyed by filename (without the `dbo.` prefix and `.csv` suffix). The import function already handles generic CSV → target table mapping. We add a lookup that, when a recognized Uniprom filename is detected, applies the exact column positions from the document instead of generic header detection.
+
+## Implementation Summary
+
+### What changes in `analyze-legacy-zip/index.ts`:
+- Add 14 new entries to `DBO_TABLE_LOOKUP` for the specific Uniprom FactorOne files
+- Update `DocumentHeader` label to include document type splitting information
+- Change `DocumentLine` from auto-skip to importable (as invoice lines, requiresParent)
+- Total: ~40 lines added to the lookup table
+
+### What changes in `import-legacy-zip/index.ts`:
+- Add a `UNIPROM_COLUMN_MAP` object with exact column positions for each Uniprom file
+- Modify the `importFile()` function to check this map first before falling back to generic detection
+- Add Uniprom-specific transformations: rate × 100 for Tax.csv, active flag for Partner.csv, name splitting for PartnerContact.csv
+
+### No UI changes needed
+The `LegacyImport.tsx` page already handles the analyze → review → import flow correctly. Once the edge functions return proper mappings, the review screen will show the correct target tables and confidence levels for all 45+ Uniprom CSV files.
+
+## Files to Modify
 
 | File | Change |
 |---|---|
-| `supabase/migrations/[ts]_enable_analytics_uniprom.sql` | Enable `analytics` module for Uniprom |
-| `src/layouts/SuperAdminLayout.tsx` | Add `analytics` entry to `superAdminNav` + import `BarChart3` |
-| `src/App.tsx` | Import new page + add `/super-admin/analytics` route |
-| `src/pages/super-admin/Analytics.tsx` | New page — platform-wide analytics overview |
-
-### What the Super Admin Analytics Page Will Show
-
-- **Platform Summary Cards**: Total tenants, total active users, total modules enabled
-- **Module Adoption Chart**: Bar chart of how many tenants have each module enabled
-- **Tenant Activity Table**: Each tenant, last activity date, number of journal entries, invoice count
-- **Top Tenants by Volume**: Sorted by invoice/transaction count
+| `supabase/functions/analyze-legacy-zip/index.ts` | Add 14 missing Uniprom file entries to DBO_TABLE_LOOKUP; update DocumentHeader/DocumentLine labels |
+| `supabase/functions/import-legacy-zip/index.ts` | Add UNIPROM_COLUMN_MAP with exact column positions per the document; apply in importFile() |
