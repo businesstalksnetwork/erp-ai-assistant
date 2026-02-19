@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -27,6 +27,7 @@ export default function TenantSettings() {
         { label: t("taxRates"), icon: Percent, to: "/settings/tax-rates" },
         { label: t("postingRules"), icon: BookOpen, to: "/settings/posting-rules" },
         { label: t("accountingArchitecture"), icon: GitBranch, to: "/settings/accounting-architecture" },
+        { label: "Parametri zarada", icon: Calculator, to: "/settings/payroll-parameters" },
       ],
     },
     {
@@ -38,6 +39,7 @@ export default function TenantSettings() {
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
         { label: "Legacy Import", icon: Upload, to: "/settings/legacy-import" },
+        { label: "AI Revizijski dnevnik", icon: ShieldCheck, to: "/settings/ai-audit-log" },
       ],
     },
   ];
