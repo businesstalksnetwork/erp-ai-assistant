@@ -120,7 +120,6 @@ function getUnipromTableName(filename: string): string | null {
 // ──────────────────────────────────────────────────────────────────────────────
 async function buildCityLookup(zip: JSZip): Promise<Map<string, string>> {
   const cityMap = new Map<string, string>();
-  // Find dbo.City.csv in the ZIP
   const cityEntry = Object.entries(zip.files).find(
     ([name]) => name.toLowerCase().endsWith("dbo.city.csv")
   );
@@ -130,16 +129,26 @@ async function buildCityLookup(zip: JSZip): Promise<Map<string, string>> {
   }
   const csvText = await (cityEntry[1] as any).async("string");
   const sanitized = sanitizeCSVText(csvText);
-  const lines = reconstructLogicalRows(sanitized);
+  // Only split by newline — do NOT use reconstructLogicalRows (too expensive for 100K+ lines)
+  const lines = sanitized.split(/\r\n|\r|\n/);
+  const MAX_CITY_ENTRIES = 20000; // Cap to prevent CPU exhaustion
+  let count = 0;
   for (const line of lines) {
-    const cols = parseCSVLine(line);
-    const id = cols[0]?.trim();
-    const name = cols[1]?.trim();
+    if (!line || line.length === 0) continue;
+    // Fast manual parse: just grab first two comma-separated fields
+    const firstComma = line.indexOf(",");
+    if (firstComma < 0) continue;
+    const id = line.substring(0, firstComma).trim();
+    const rest = line.substring(firstComma + 1);
+    const secondComma = rest.indexOf(",");
+    const name = (secondComma >= 0 ? rest.substring(0, secondComma) : rest).trim();
     if (id && name) {
       cityMap.set(id, name);
+      count++;
+      if (count >= MAX_CITY_ENTRIES) break;
     }
   }
-  console.log(`[buildCityLookup] Built city lookup with ${cityMap.size} entries`);
+  console.log(`[buildCityLookup] Built city lookup with ${cityMap.size} entries (capped at ${MAX_CITY_ENTRIES})`);
   return cityMap;
 }
 
@@ -183,12 +192,14 @@ async function flushBatch(
     return { inserted: batch.length, errors: [] };
   }
 
-  // Batch failed — retry row by row to isolate bad rows
-  console.warn(`[${tag}] Batch ${batchNum} FAILED (${batch.length} rows): ${batchResult.error.message} — retrying row-by-row`);
+  // Batch failed — retry row by row to isolate bad rows (capped to prevent CPU exhaustion)
+  const MAX_ROW_RETRIES = 5;
+  console.warn(`[${tag}] Batch ${batchNum} FAILED (${batch.length} rows): ${batchResult.error.message} — retrying first ${MAX_ROW_RETRIES} rows only`);
   let inserted = 0;
   const errors: { rowIndex: number; reason: string }[] = [];
 
-  for (let i = 0; i < batch.length; i++) {
+  const retryCount = Math.min(batch.length, MAX_ROW_RETRIES);
+  for (let i = 0; i < retryCount; i++) {
     const row = batch[i];
     const rowResult = upsertConflict
       ? await supabase.from(table).upsert([row], { onConflict: upsertConflict, ignoreDuplicates: true })
@@ -200,7 +211,10 @@ async function flushBatch(
       inserted++;
     }
   }
-  console.log(`[${tag}] Batch ${batchNum} row-by-row: ${inserted} inserted, ${errors.length} errors`);
+  if (batch.length > MAX_ROW_RETRIES) {
+    errors.push({ rowIndex: MAX_ROW_RETRIES, reason: `Remaining ${batch.length - MAX_ROW_RETRIES} rows skipped (same error pattern)` });
+  }
+  console.log(`[${tag}] Batch ${batchNum} row-by-row: ${inserted} inserted, ${errors.length} errors (${batch.length - retryCount} skipped)`);
   return { inserted, errors };
 }
 
@@ -1444,19 +1458,19 @@ async function importInvoicesHeuristic(
       totalInserted += res.inserted;
       allErrors.push(...res.errors);
     }
-    // Purchase orders
+    // Purchase orders — no unique constraint exists, use plain insert (no onConflict)
     for (let i = 0; i < poBatch.length; i += BATCH_SIZE) {
       batchNum++;
       const slice = poBatch.slice(i, i + BATCH_SIZE);
-      const res = await flushBatch(supabase, "purchase_orders", slice, "tenant_id,order_number", tag, batchNum);
+      const res = await flushBatch(supabase, "purchase_orders", slice, null, tag, batchNum);
       totalInserted += res.inserted;
       allErrors.push(...res.errors);
     }
-    // Quotes
+    // Quotes — no unique constraint exists, use plain insert (no onConflict)
     for (let i = 0; i < quoteBatch.length; i += BATCH_SIZE) {
       batchNum++;
       const slice = quoteBatch.slice(i, i + BATCH_SIZE);
-      const res = await flushBatch(supabase, "quotes", slice, "tenant_id,quote_number", tag, batchNum);
+      const res = await flushBatch(supabase, "quotes", slice, null, tag, batchNum);
       totalInserted += res.inserted;
       allErrors.push(...res.errors);
     }
