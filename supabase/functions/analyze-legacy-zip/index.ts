@@ -164,6 +164,46 @@ const DBO_TABLE_LOOKUP: Record<string, {
   "A_Prava":           { target: "skip", confidence: "exact", label: "Permissions — auto-skip",             skipReason: "Legacy permissions (not imported)" },
   "A_Log":             { target: "skip", confidence: "exact", label: "System log — auto-skip",              skipReason: "Audit log (not imported)" },
   "A_Sesija":          { target: "skip", confidence: "exact", label: "Session log — auto-skip",             skipReason: "Legacy session table" },
+
+  // ── ENGLISH-NAMED TABLES (newer Uniprom schema) ───────────────────────────
+  "Item":                    { target: "products",    confidence: "high",  label: "Item = product catalog (English table name)", dedupField: "sku" },
+  "Partner":                 { target: "partners",    confidence: "high",  label: "Partner = business partner (English table name)", dedupField: "pib" },
+  "PartnerContact":          { target: "contacts",    confidence: "high",  label: "PartnerContact = contact persons linked to partners", dedupField: "email" },
+  "PartnerLocation":         { target: "locations",   confidence: "high",  label: "PartnerLocation = partner delivery/billing addresses", dedupField: "name" },
+  "Department":              { target: "departments", confidence: "high",  label: "Department = department (English table name)", dedupField: "name" },
+  "CurrencyISO":             { target: "currencies",  confidence: "high",  label: "CurrencyISO = ISO 4217 currency list", dedupField: "code" },
+  "Employee":                { target: "employees",   confidence: "high",  label: "Employee = employees (English table name)", dedupField: "email" },
+  "Product":                 { target: "products",    confidence: "high",  label: "Product = products (English table name)", dedupField: "sku" },
+  "Warehouse":               { target: "warehouses",  confidence: "high",  label: "Warehouse = warehouses (English table name)", dedupField: "name" },
+
+  // ── AUTO-SKIP: Legacy permission/ACL tables ───────────────────────────────
+  "AppObjectsRolesRights":   { target: "skip", confidence: "exact", label: "Legacy role permissions — auto-skip",     skipReason: "Legacy ACL table (not imported)" },
+  "AppObjectsUserRights":    { target: "skip", confidence: "exact", label: "Legacy user permissions — auto-skip",     skipReason: "Legacy ACL table (not imported)" },
+
+  // ── AUTO-SKIP: Geo lookup tables ──────────────────────────────────────────
+  "City":                    { target: "skip", confidence: "exact", label: "Global city lookup — auto-skip",          skipReason: "Geo lookup table (102k rows, not imported)" },
+
+  // ── AUTO-SKIP: FK junction tables ────────────────────────────────────────
+  "ItemGroups":              { target: "skip", confidence: "exact", label: "Product-group junction table — auto-skip", skipReason: "FK junction table only" },
+  "ProjectPartner":          { target: "skip", confidence: "exact", label: "Project-partner FK junction — auto-skip",  skipReason: "FK junction table only" },
+  "PartnerContactParticipants":              { target: "skip", confidence: "exact", label: "Contact participants junction — auto-skip",      skipReason: "FK junction table, corrupt binary data" },
+  "PartnerContactInteraction":               { target: "skip", confidence: "exact", label: "HTML email interaction log — auto-skip",         skipReason: "Contains raw HTML content, not importable" },
+  "PartnerContactInteractionParticipants":   { target: "skip", confidence: "exact", label: "Interaction participants — auto-skip",            skipReason: "FK junction with corrupt binary data" },
+  "PartnerInteractionTemplates":             { target: "skip", confidence: "exact", label: "HTML email templates — auto-skip",               skipReason: "Contains raw HTML content, not importable" },
+
+  // ── AUTO-SKIP: Production order config (no system table) ──────────────────
+  "ProductionOrderProperty":     { target: "skip", confidence: "exact", label: "Production order properties — auto-skip",     skipReason: "Production config, no import target" },
+  "ProductionOrderPropertyMeta": { target: "skip", confidence: "exact", label: "Production order property metadata — auto-skip", skipReason: "Production config metadata" },
+
+  // ── AUTO-SKIP: Small lookup/enum tables ──────────────────────────────────
+  "PurchaseOrderStatus":             { target: "skip", confidence: "exact", label: "PO status lookup — auto-skip",              skipReason: "Lookup table (10 rows)" },
+  "EmployeePresenceLegislationType": { target: "skip", confidence: "exact", label: "Presence legislation types — auto-skip",   skipReason: "Lookup table (22 rows)" },
+  "EmployeePresenceType":            { target: "skip", confidence: "exact", label: "Presence type lookup — auto-skip",          skipReason: "Lookup table (14 rows)" },
+  "EmployeeForeignQualification":    { target: "skip", confidence: "exact", label: "Employee qualification junction — auto-skip", skipReason: "FK junction table" },
+  "EmployeeQualification":           { target: "skip", confidence: "exact", label: "Qualification lookup — auto-skip",          skipReason: "Lookup table (117 rows of qualification types)" },
+
+  // ── AUTO-SKIP: Corrupt/binary data ───────────────────────────────────────
+  "Dobavljaci":              { target: "skip", confidence: "exact", label: "Corrupt binary data — auto-skip",          skipReason: "Binary data export (all null bytes, unreadable)" },
 };
 
 interface MappingRule {
@@ -266,6 +306,21 @@ function classifyFile(filename: string, headers: string[], rowCount: number): {
   requiresParent?: string;
 } {
   const basename = filename.split("/").pop() || filename;
+
+  // ── STEP 0: Null-byte corruption detection ────────────────────────────────
+  // SQL Server binary/blob columns exported as CSV produce rows full of \u0000.
+  // If >50% of header cells contain null bytes, the file is unreadable.
+  const nullByteRatio = headers.filter(h => h.includes('\u0000') || h === '\u0000').length / Math.max(headers.length, 1);
+  if (nullByteRatio > 0.5) {
+    return {
+      target: null,
+      confidence: "none",
+      dedupField: "",
+      humanLabel: "Binary/corrupt data detected (null bytes in CSV cells)",
+      autoSkip: true,
+      skipReason: "Binary data detected — SQL Server blob columns exported as CSV (unreadable)",
+    };
+  }
 
   // ── STEP 1: Exact dbo.TableName lookup ────────────────────────────────────
   const dboMatch = basename.match(/^dbo\.(.+?)\.csv$/i);
