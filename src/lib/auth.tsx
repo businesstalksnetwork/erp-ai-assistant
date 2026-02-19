@@ -147,12 +147,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // When token refresh fails, actively sign out to wipe the stale token from localStorage
         if ((event as string) === 'TOKEN_REFRESH_FAILED') {
           supabase.auth.signOut();
+          localStorage.removeItem('pausalbox_login_at');
           setProfile(null);
           setIsAdmin(false);
           setProfileLoading(false);
           fetchingRef.current = false;
           setLoading(false);
           return;
+        }
+
+        // Store login timestamp when user freshly signs in
+        if (event === 'SIGNED_IN' && session) {
+          // Only set login_at if it doesn't exist yet (first login, not token refresh)
+          if (!localStorage.getItem('pausalbox_login_at')) {
+            localStorage.setItem('pausalbox_login_at', String(Date.now()));
+          }
+        }
+
+        // Clear login timestamp on explicit sign-out
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('pausalbox_login_at');
         }
 
         setSession(session);
@@ -183,6 +197,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Enforce 24-hour login requirement: check stored login timestamp
+      const loginAt = localStorage.getItem('pausalbox_login_at');
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
+        // More than 24 hours since login — force sign out
+        localStorage.removeItem('pausalbox_login_at');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
       // If access token is expired or about to expire (< 60 seconds left), force refresh now
       const expiresAt = session.expires_at ?? 0;
       const nowSecs = Math.floor(Date.now() / 1000);
@@ -192,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.refreshSession();
         if (error) {
           // Refresh failed — wipe the stale token immediately, don't wait for an event
+          localStorage.removeItem('pausalbox_login_at');
           await supabase.auth.signOut();
           setLoading(false);
         }
@@ -203,6 +229,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Re-validate session whenever the user returns to this tab after being away
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        // Check 24-hour limit on tab focus
+        const loginAt = localStorage.getItem('pausalbox_login_at');
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
+          localStorage.removeItem('pausalbox_login_at');
+          supabase.auth.signOut();
+          return;
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (!session) {
             setUser(null);
@@ -271,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem('pausalbox_selected_company_id');
+    localStorage.removeItem('pausalbox_login_at');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
