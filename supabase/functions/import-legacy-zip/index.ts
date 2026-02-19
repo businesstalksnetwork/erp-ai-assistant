@@ -40,38 +40,72 @@ function parseCSV(text: string): { headers: string[]; rows: string[][] } {
 // Per-table importers — each receives the CSV text and tenant_id, returns stats
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Column map — derived from actual Uniprom CSV files:
+//
+// dbo.A_UnosPodataka.csv (Products, NO header row):
+//   [0] SKU/sifra  [1] Name  [2] Unit  [3] qty_on_hand  [4] purchase_price
+//   [5] sale_price  [6] is_active(1/0)  [7] cat1  [8] cat2  [9] cat3
+//   [10] cat4  [11] cat5  [12] brand/supplier
+//
+// dbo.A_UnosPodataka_Partner.csv (Partners, NO header row):
+//   [0] partner_code(P000001)  [1] name  [2] country  [3] city
+//   [4] pib(may be empty)  [5] contact_person
+//
+// dbo.A_aPodaci.csv (Contacts, NO header row):
+//   [0] legacy_partner_id  [1] last_name_or_company  [2] first_name
+//   [3] role/empty  [4] city  [5] email  [6] phone
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function importProducts(csvText: string, tenantId: string, supabase: any) {
   const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
 
+  // Detect if first line looks like a header (non-numeric first column)
+  const firstCols = parseCSVLine(lines[0] || "");
+  const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0])) && firstCols[0].length > 0;
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
   const { data: existingSkus } = await supabase
-    .from("products")
-    .select("sku")
-    .eq("tenant_id", tenantId);
+    .from("products").select("sku").eq("tenant_id", tenantId);
   const skuSet = new Set((existingSkus || []).map((r: any) => r.sku));
 
   let inserted = 0; let skipped = 0; const errors: string[] = [];
   const batch: any[] = [];
 
-  for (const line of lines) {
+  for (const line of dataLines) {
     const cols = parseCSVLine(line);
     if (cols.length < 2) continue;
-    const sku = cols[0] || null;
-    const name = cols[1] || "";
+
+    // col[0] = SKU, col[1] = Name, col[2] = Unit
+    // col[3] = qty_on_hand, col[4] = purchase_price, col[5] = sale_price
+    // col[6] = is_active, col[7..11] = category hierarchy, col[12] = brand
+    const sku = cols[0]?.trim() || null;
+    const name = cols[1]?.trim() || "";
     if (!name) continue;
     if (sku && skuSet.has(sku)) { skipped++; continue; }
     if (sku) skuSet.add(sku);
 
-    const unitOfMeasure = cols[2] || "kom";
+    const unitOfMeasure = cols[2]?.trim() || "kom";
+    const qtyOnHand = parseFloat(cols[3]) || 0;
     const purchasePrice = parseFloat(cols[4]) || 0;
     const salePrice = parseFloat(cols[5]) || 0;
-    const isActive = (cols[6] || "1") !== "0";
-    const categories = [cols[7], cols[8], cols[9], cols[10], cols[11]].filter(Boolean).filter((c) => c.trim().length > 0);
+    const isActive = (cols[6]?.trim() || "1") !== "0";
+    const categories = [cols[7], cols[8], cols[9], cols[10], cols[11]]
+      .map((c) => c?.trim()).filter(Boolean);
+    const brand = cols[12]?.trim() || null;
 
     batch.push({
-      tenant_id: tenantId, sku, name, unit_of_measure: unitOfMeasure,
-      default_purchase_price: purchasePrice, purchase_price: purchasePrice,
-      default_sale_price: salePrice, default_retail_price: salePrice,
-      is_active: isActive, description: categories.join(" > ") || null,
+      tenant_id: tenantId,
+      sku,
+      name,
+      unit_of_measure: unitOfMeasure,
+      purchase_price: purchasePrice,
+      default_purchase_price: purchasePrice,
+      default_sale_price: salePrice,
+      default_retail_price: salePrice,
+      is_active: isActive,
+      description: [brand ? `Brand: ${brand}` : null, categories.length ? categories.join(" > ") : null]
+        .filter(Boolean).join(" | ") || null,
     });
 
     if (batch.length >= BATCH_SIZE) {
@@ -84,11 +118,47 @@ async function importProducts(csvText: string, tenantId: string, supabase: any) 
     const { error } = await supabase.from("products").insert(batch);
     if (error) errors.push(error.message); else inserted += batch.length;
   }
+
+  // Also seed inventory stock records for items with qty > 0
+  // (best-effort: use first warehouse for this tenant)
+  try {
+    const { data: whs } = await supabase.from("warehouses").select("id").eq("tenant_id", tenantId).limit(1);
+    if (whs && whs.length > 0) {
+      const warehouseId = whs[0].id;
+      // fetch freshly inserted products with qty > 0
+      const skuArr = dataLines.map((l) => parseCSVLine(l)[0]?.trim()).filter(Boolean);
+      const { data: prods } = await supabase.from("products")
+        .select("id, sku").eq("tenant_id", tenantId).in("sku", skuArr.slice(0, 1000));
+      if (prods && prods.length > 0) {
+        const skuToId = Object.fromEntries(prods.map((p: any) => [p.sku, p.id]));
+        const stockBatch: any[] = [];
+        for (const line of dataLines) {
+          const cols = parseCSVLine(line);
+          const sku = cols[0]?.trim();
+          const qty = parseFloat(cols[3]) || 0;
+          const pid = skuToId[sku];
+          if (pid && qty > 0) {
+            stockBatch.push({ tenant_id: tenantId, product_id: pid, warehouse_id: warehouseId, quantity_on_hand: qty });
+          }
+        }
+        if (stockBatch.length > 0) {
+          await supabase.from("inventory_stock").upsert(stockBatch, { onConflict: "product_id,warehouse_id" });
+        }
+      }
+    }
+  } catch (_) { /* stock seeding is best-effort */ }
+
   return { inserted, skipped, errors };
 }
 
 async function importPartners(csvText: string, tenantId: string, supabase: any) {
   const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
+
+  // Detect header: first column of A_UnosPodataka_Partner.csv starts with "P000001" (numeric-ish)
+  // If first col is "partner_code" or "kod" or similar text — skip it
+  const firstCols = parseCSVLine(lines[0] || "");
+  const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0])) && !firstCols[0].startsWith("P0");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
 
   const { data: existingPartners } = await supabase.from("partners").select("pib, name").eq("tenant_id", tenantId);
   const pibSet = new Set((existingPartners || []).filter((r: any) => r.pib).map((r: any) => r.pib));
@@ -97,16 +167,23 @@ async function importPartners(csvText: string, tenantId: string, supabase: any) 
   let inserted = 0; let skipped = 0; const errors: string[] = [];
   const batch: any[] = [];
 
-  for (const line of lines) {
+  for (const line of dataLines) {
     const cols = parseCSVLine(line);
     if (cols.length < 2) continue;
-    const partnerCode = cols[0] || null;
-    const name = cols[1] || "";
+
+    // col[0] = partner_code (P000001)
+    // col[1] = name
+    // col[2] = country
+    // col[3] = city
+    // col[4] = pib (tax ID, may be empty)
+    // col[5] = contact_person
+    const partnerCode = cols[0]?.trim() || null;
+    const name = cols[1]?.trim() || "";
     if (!name) continue;
-    const country = cols[2] || "Serbia";
-    const city = cols[3] || null;
-    const pib = cols[4] || null;
-    const contactPerson = cols[5] || null;
+    const country = cols[2]?.trim() || "Serbia";
+    const city = cols[3]?.trim() || null;
+    const pib = cols[4]?.trim() || null;
+    const contactPerson = cols[5]?.trim() || null;
 
     if (pib && pibSet.has(pib)) { skipped++; continue; }
     if (!pib && nameSet.has(name.toLowerCase())) { skipped++; continue; }
@@ -114,9 +191,15 @@ async function importPartners(csvText: string, tenantId: string, supabase: any) 
     nameSet.add(name.toLowerCase());
 
     batch.push({
-      tenant_id: tenantId, name, city, country, pib: pib || null,
-      contact_person: contactPerson, type: "customer",
-      notes: partnerCode ? `Legacy code: ${partnerCode}` : null, is_active: true,
+      tenant_id: tenantId,
+      name,
+      city,
+      country,
+      pib: pib || null,
+      contact_person: contactPerson,
+      type: "customer",
+      is_active: true,
+      notes: partnerCode ? `Legacy code: ${partnerCode}` : null,
     });
 
     if (batch.length >= BATCH_SIZE) {
@@ -135,34 +218,69 @@ async function importPartners(csvText: string, tenantId: string, supabase: any) 
 async function importContacts(csvText: string, tenantId: string, supabase: any) {
   const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
 
-  const { data: existingContacts } = await supabase.from("contacts").select("email").eq("tenant_id", tenantId).not("email", "is", null);
-  const emailSet = new Set((existingContacts || []).map((r: any) => r.email?.toLowerCase()));
+  // dbo.A_aPodaci.csv — NO header row
+  // col[0] = legacy_partner_id (numeric, links to partner)
+  // col[1] = last_name (or company name if person has no last name)
+  // col[2] = first_name (may be empty for company contacts)
+  // col[3] = role/function (often empty)
+  // col[4] = city
+  // col[5] = email
+  // col[6] = phone
+  const firstCols = parseCSVLine(lines[0] || "");
+  const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0]));
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  const { data: existingContacts } = await supabase.from("contacts").select("email, first_name, last_name").eq("tenant_id", tenantId);
+  const emailSet = new Set((existingContacts || []).filter((r: any) => r.email).map((r: any) => r.email?.toLowerCase()));
+  // Dedup by name combination too (for contacts without email)
+  const nameSet = new Set((existingContacts || []).map((r: any) => `${r.first_name}|${r.last_name}`.toLowerCase()));
 
   let inserted = 0; let skipped = 0; const errors: string[] = [];
   const batch: any[] = [];
 
-  for (const line of lines) {
+  for (const line of dataLines) {
     const cols = parseCSVLine(line);
     if (cols.length < 2) continue;
-    const legacyPartnerId = cols[0] || null;
-    const firstName = cols[1] || "";
-    const lastName = cols[2] || null;
-    const city = cols[4] || null;
-    const email = cols[5] || null;
-    const phone = cols[6] || null;
-    if (!firstName) continue;
+
+    const legacyPartnerId = cols[0]?.trim() || null;
+    const lastName = cols[1]?.trim() || null;    // col[1] = last name
+    const firstName = cols[2]?.trim() || null;   // col[2] = first name
+    const role = cols[3]?.trim() || null;         // col[3] = role (often empty)
+    const rawCity = cols[4]?.trim() || null;
+    const email = cols[5]?.trim() || null;
+    const phone = cols[6]?.trim() || null;
+
+    // Contacts file sometimes has company name in col[1] with no first name
+    // In that case treat col[1] as first_name (company name as contact)
+    const effectiveFirst = firstName || lastName || "";
+    const effectiveLast = firstName ? lastName : null;
+
+    if (!effectiveFirst) continue;
+
     if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
+    const nameKey = `${effectiveFirst}|${effectiveLast}`.toLowerCase();
+    if (!email && nameSet.has(nameKey)) { skipped++; continue; }
     if (email) emailSet.add(email.toLowerCase());
+    nameSet.add(nameKey);
+
+    // City cleanup: SRBIJA means Serbia (no city), or real city name
+    const city = (rawCity && rawCity.toUpperCase() !== "SRBIJA") ? rawCity : null;
+    const country = (!rawCity || rawCity.toUpperCase() === "SRBIJA") ? "Serbia" : null;
 
     batch.push({
-      tenant_id: tenantId, first_name: firstName, last_name: lastName,
-      email: email || null, phone: phone || null,
-      city: city === "SRBIJA" ? null : city,
-      country: city === "SRBIJA" ? "Serbia" : null,
-      notes: legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null, type: "contact",
+      tenant_id: tenantId,
+      first_name: effectiveFirst,
+      last_name: effectiveLast,
+      email: email || null,
+      phone: phone || null,
+      city,
+      country,
+      function_area: role || null,
+      notes: legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
+      type: "contact",
     });
 
-    if (batch.length >= 200) {
+    if (batch.length >= BATCH_SIZE) {
       const { error } = await supabase.from("contacts").insert(batch);
       if (error) errors.push(error.message); else inserted += batch.length;
       batch.length = 0;
