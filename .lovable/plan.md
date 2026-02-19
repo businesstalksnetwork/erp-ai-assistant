@@ -1,23 +1,50 @@
 
+# Create Uniprom Organization + .bak File Assessment
 
-# Fix Settings ("Podesavanja") Sidebar Expand Bug
+## Task 1: Create Uniprom Tenant
 
-## Problem
+The `create-tenant` edge function is already built and handles the full setup flow. I will call it directly from the Supabase dashboard or via the curl tool to create the organization with the following data:
 
-The Settings menu is placed inside `SidebarFooter`, which is pinned to the bottom of the sidebar. When you click to expand it, the collapsible content tries to grow upward but the trigger button stays fixed in place, causing the menu options to overlap or shift incorrectly.
+- **Tenant name:** Uniprom
+- **Slug:** uniprom
+- **Plan:** enterprise (can be adjusted)
+- **Admin email:** bogdan.ciric023@gmail.com
+- **Admin password:** Uniprom2024!
+- **Legal entity:** Uniprom
 
-## Solution
+The function will automatically:
+1. Create the tenant row
+2. Create a legal entity record
+3. Create the auth user with email confirmed
+4. Create profile + assign admin role
+5. Add tenant membership
+6. Enable all modules based on plan
 
-Move the Settings group from `SidebarFooter` into the main `SidebarContent` area (after DMS). This way, when Settings expands, it scrolls naturally within the sidebar's scrollable content area -- just like every other menu group.
+This requires no code changes -- just calling the edge function as super-admin.
 
-The `SidebarFooter` will be removed since it no longer has content.
+## Task 2: .bak File
 
-## Technical Detail
+A `.bak` file is a **Microsoft SQL Server binary backup**. It is a proprietary binary format that cannot be opened as a text file or parsed by standard tools.
 
-**File: `src/layouts/TenantLayout.tsx`**
+**What we CAN try:**
+- Use the document parser tool to inspect the file after you upload it -- it will attempt OCR and text extraction
+- Extract any readable text strings (table names, column names, data fragments) from the binary content
+- Use those fragments to understand the data schema and map it to the ERP structure
 
-1. Move the Settings `CollapsibleNavGroup` block (lines 414-434) into `SidebarContent`, placing it after the Documents (DMS) group (after line 409)
-2. Remove the now-empty `SidebarFooter` wrapper (lines 413-435)
+**Limitations:**
+- Without SQL Server to restore the backup, we cannot get clean structured data
+- The file needs to be under 20MB to upload here
+- If it's larger, you would need to restore it to a SQL Server instance, export as CSV or SQL dump, and upload those instead
 
-This is a simple cut-and-paste of ~20 lines with no logic changes. The Settings section becomes the last item in the scrollable sidebar, expanding and collapsing naturally like all other groups.
+**Recommended approach if .bak is too large or unreadable:**
+1. Restore it on a SQL Server instance (or use Azure Data Studio / SSMS)
+2. Export each table as CSV
+3. Upload the CSVs here and I can map/import the data into Supabase
 
+**Next step:** Please upload the .bak file (max 20MB) and I'll attempt to inspect it.
+
+## Technical Summary
+
+- No code changes needed for tenant creation -- pure data operation via the existing edge function
+- The .bak inspection will be attempted after file upload
+- If the .bak contains recognizable ERP data (customers, products, invoices), I can build an import migration to load it into the correct Supabase tables
