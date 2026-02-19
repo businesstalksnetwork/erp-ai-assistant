@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -12,34 +12,44 @@ export default function TenantSettings() {
 
   const sections = [
     {
-      title: t("organization" as any) || "Organization",
+      title: t("organization"),
       links: [
         { label: t("legalEntities"), icon: Building2, to: "/settings/legal-entities" },
         { label: t("locations"), icon: MapPin, to: "/settings/locations" },
         { label: t("warehouses"), icon: Warehouse, to: "/settings/warehouses" },
         { label: t("costCenters"), icon: CircleDollarSign, to: "/settings/cost-centers" },
+        { label: t("currencies"), icon: DollarSign, to: "/settings/currencies" },
       ],
     },
     {
-      title: t("finance" as any) || "Finance",
+      title: t("finance"),
       links: [
         { label: t("bankAccounts"), icon: Landmark, to: "/settings/bank-accounts" },
         { label: t("taxRates"), icon: Percent, to: "/settings/tax-rates" },
         { label: t("postingRules"), icon: BookOpen, to: "/settings/posting-rules" },
         { label: t("accountingArchitecture"), icon: GitBranch, to: "/settings/accounting-architecture" },
-        { label: "Parametri zarada", icon: Calculator, to: "/settings/payroll-parameters" },
+        { label: t("payrollParamsTitle"), icon: Calculator, to: "/settings/payroll-parameters" },
       ],
     },
     {
-      title: t("operations" as any) || "Operations",
+      title: t("operations"),
       links: [
         { label: t("users"), icon: Users, to: "/settings/users" },
-        { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
         { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
+        { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
-        { label: "Legacy Import", icon: Upload, to: "/settings/legacy-import" },
-        { label: "AI Revizijski dnevnik", icon: ShieldCheck, to: "/settings/ai-audit-log" },
+      ],
+    },
+    {
+      title: t("auditData"),
+      links: [
+        { label: t("approvalWorkflows"), icon: GitPullRequest, to: "/settings/approval-workflows" },
+        { label: t("pendingApprovals"), icon: CheckSquare, to: "/settings/pending-approvals" },
+        { label: t("auditLog"), icon: Activity, to: "/settings/audit-log" },
+        { label: t("aiAuditLog"), icon: ShieldCheck, to: "/settings/ai-audit-log" },
+        { label: t("eventMonitor"), icon: Clock, to: "/settings/event-monitor" },
+        { label: t("legacyImport"), icon: Upload, to: "/settings/legacy-import" },
       ],
     },
   ];

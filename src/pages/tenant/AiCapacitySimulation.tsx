@@ -63,9 +63,9 @@ export default function AiCapacitySimulation() {
       });
       if (error) throw error;
       setResult(data as SimResult);
-      toast.success(locale === "sr" ? "Simulacija završena" : "Simulation complete");
+      toast.success(t("simulationComplete"));
     } catch {
-      toast.error(locale === "sr" ? "Greška" : "Simulation error");
+      toast.error(t("simulationError"));
     } finally { setLoading(false); }
   };
 
@@ -77,7 +77,7 @@ export default function AiCapacitySimulation() {
       result,
     }]);
     setScenarioName("");
-    toast.success(locale === "sr" ? "Scenario sačuvan" : "Scenario saved");
+    toast.success(t("scenarioSaved"));
   };
 
   const clearAll = () => { setResult(null); setShifts(1); setPriorityBoost(""); setDelayDays(0); setOvertimeHours(0); setOutsourcePct(0); setMaintenanceDays(0); setDemandChangePct(0); };

@@ -1772,6 +1772,28 @@ export const translations = {
     auditData: "Audit & Data",
     aiAuditLog: "AI Audit Log",
     legacyImport: "Legacy Import",
+
+    // PIB lookup (Companies.tsx)
+    pibMustBe9Digits: "PIB must be 9 digits",
+    pibDataFound: "Data found",
+    pibNotFound: "PIB not found in registry",
+    pibLookupError: "Error searching PIB",
+
+    // WMS (CycleCounts + Receiving)
+    noVariancesToReconcile: "No variances to reconcile",
+    approveAdjustmentHint: "Approving will adjust bin stock quantities to match counted values.",
+    poNumberLabel: "PO Number",
+
+    // AI Planning toasts
+    scheduleGenerated: "Schedule generated",
+    scheduleGenerationError: "Error generating schedule",
+    scheduleApplied: "Schedule applied",
+    simulationComplete: "Simulation complete",
+    simulationError: "Simulation error",
+    scenarioSaved: "Scenario saved",
+
+    // AI Planning Dashboard
+    noInsightsToDisplay: "No insights to display.",
   },
   sr: {
     // Auth
@@ -3498,6 +3520,34 @@ export const translations = {
     auditData: "Revizija i podaci",
     aiAuditLog: "AI Revizijski dnevnik",
     legacyImport: "Legacy import",
+
+    // AI Audit Log page (missing SR keys)
+    modelVersion: "Model",
+    reasoning: "Obrazloženje",
+    modified: "Izmenjeno",
+    auto: "Automatski",
+
+    // PIB lookup (Companies.tsx)
+    pibMustBe9Digits: "PIB mora imati 9 cifara",
+    pibDataFound: "Podaci pronađeni",
+    pibNotFound: "PIB nije pronađen u registru",
+    pibLookupError: "Greška pri pretrazi PIB-a",
+
+    // WMS (CycleCounts + Receiving)
+    noVariancesToReconcile: "Nema razlika za usklađivanje",
+    approveAdjustmentHint: "Odobravanjem ćete prilagoditi zalihe na lokacijama prema prebrojanim količinama.",
+    poNumberLabel: "Broj nabavke",
+
+    // AI Planning toasts
+    scheduleGenerated: "Raspored generisan",
+    scheduleGenerationError: "Greška pri generisanju rasporeda",
+    scheduleApplied: "Raspored primenjen",
+    simulationComplete: "Simulacija završena",
+    simulationError: "Greška pri simulaciji",
+    scenarioSaved: "Scenario sačuvan",
+
+    // AI Planning Dashboard
+    noInsightsToDisplay: "Nema uvida za prikaz.",
   },
 } as const;
 

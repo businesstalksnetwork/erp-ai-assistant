@@ -298,9 +298,9 @@ export default function WmsCycleCounts() {
               </div>
             ))}
             {countLines.filter((l: any) => l.status === "counted" && l.variance !== 0).length === 0 && (
-              <p className="text-center text-muted-foreground text-sm">{locale === "sr" ? "Nema razlika za uskladjivanje" : "No variances to reconcile"}</p>
+              <p className="text-center text-muted-foreground text-sm">{t("noVariancesToReconcile")}</p>
             )}
-            <p className="text-xs text-muted-foreground">{locale === "sr" ? "Odobravanjem ćete prilagoditi zalihe na lokacijama prema prebrojanim količinama." : "Approving will adjust bin stock quantities to match counted values."}</p>
+            <p className="text-xs text-muted-foreground">{t("approveAdjustmentHint")}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReconcileDialog(false)}>{t("cancel")}</Button>
