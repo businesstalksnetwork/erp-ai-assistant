@@ -1,90 +1,65 @@
 
-# Root Cause: Stale Sessions Not Triggering TOKEN_REFRESH_FAILED
+# Fix: Revoke Stale Sessions + Enforce 24-Hour Login Requirement
 
-## What the Data Shows
+## Current State
 
-Both affected users have sessions created in January:
-- `milenko23cabric`: session from Jan 22, token chain has been refreshing normally (revoked→new chain) — likely working now
-- `rajicmont`: session from Jan 13, **last refreshed Feb 18** — the refresh token in their browser localStorage is from a revoked chain
+From the database analysis:
 
-The `TOKEN_REFRESH_FAILED` handler we added previously is the right approach, but there is a gap: **the Supabase JS client does not always fire `TOKEN_REFRESH_FAILED`** in scenarios where:
-1. The tab has been in the background for a very long time
-2. The user has the app open in multiple tabs (one tab refreshes the token, invalidating the other tab's token — a "refresh token rotation" conflict)
-3. The page was restored from browser cache (bfcache) with a stale client state
+| Session Status | Sessions | Users |
+|---|---|---|
+| NEVER refreshed | 21 | 13 |
+| Stale > 7 days | 17 | 17 |
+| Stale 3-7 days | 6 | 6 |
+| Stale 1-3 days | 2 | 2 |
+| Active (< 1 day) | 10 | 9 |
 
-## The Real Fix: Proactive Token Validation on App Load
+The 13 users with sessions that have NEVER been refreshed (including users like `tihomir.azzure@gmail.com`, `doseze@yahoo.com`, `dragana@blink-blink.co.rs` etc.) are the next group that will hit the infinite spinner when they return to the app.
 
-Instead of *only* reacting to `TOKEN_REFRESH_FAILED`, we need to **proactively validate the session is still fresh** when `getSession()` returns a session. If the access token is expired or close to expiring, force a refresh upfront. If that fails, clear the stale token immediately.
+## Two-Part Fix
 
-### Changes to `src/lib/auth.tsx`
+### Part 1: Delete All Stale Sessions from the Database (one-time cleanup)
 
-**1. Force token refresh on initial load**
+Run a SQL command via the backend to delete all sessions that have not been refreshed for more than 24 hours. This forces every affected user to log in fresh the next time they open the app. Their stale localStorage tokens will then correctly get a 400 error → trigger our existing `TOKEN_REFRESH_FAILED` handler → clean redirect to login page.
 
-In the `getSession()` callback, when a session exists, call `supabase.auth.refreshSession()` to proactively renew the token. If it fails, call `signOut()` immediately to clear the stale localStorage entry:
-
-```typescript
-supabase.auth.getSession().then(async ({ data: { session } }) => {
-  if (!session) {
-    setLoading(false);
-    return;
-  }
-  
-  // Check if access token is expired or about to expire (< 60 seconds left)
-  const expiresAt = session.expires_at ?? 0;
-  const nowSecs = Math.floor(Date.now() / 1000);
-  const isExpiredOrExpiring = expiresAt - nowSecs < 60;
-  
-  if (isExpiredOrExpiring) {
-    // Proactively refresh — if this fails, TOKEN_REFRESH_FAILED fires
-    // If that also doesn't fire, the onAuthStateChange null-session branch handles it
-    const { error } = await supabase.auth.refreshSession();
-    if (error) {
-      // Force clear the stale token — don't wait for the event
-      await supabase.auth.signOut();
-      setLoading(false);
-    }
-    // onAuthStateChange will handle the new session if refresh succeeded
-  }
-  // If token is valid, onAuthStateChange handles it normally
-});
+```sql
+-- Delete all sessions not refreshed in the last 24 hours
+-- (sessions with NULL refreshed_at that are older than 24h are also deleted)
+DELETE FROM auth.sessions
+WHERE 
+  (refreshed_at IS NULL AND created_at < NOW() - INTERVAL '24 hours')
+  OR (refreshed_at IS NOT NULL AND refreshed_at < NOW() - INTERVAL '24 hours');
 ```
 
-**2. Add a "visibilitychange" listener to re-validate on tab focus**
+This is a one-time fix. After this, every user with a stale session will be forced to log in again. The existing app-side fixes (TOKEN_REFRESH_FAILED handler, proactive refresh on load) will cleanly redirect them to the login page instead of showing a spinner.
 
-When a user comes back to a tab after hours/days away, the app is still running but with a stale/dead token. We need to detect this and re-validate:
+### Part 2: Enforce 24-Hour Session Lifetime Going Forward
 
-```typescript
-const handleVisibilityChange = () => {
-  if (document.visibilityState === 'visible' && user) {
-    // Re-validate session when tab becomes visible again
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        // Session gone — clear state
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setIsAdmin(false);
-        setProfileLoading(false);
-      }
-    });
-  }
-};
+The Supabase Auth project has a **JWT expiry** setting that controls how long an access token lives (default: 3600 seconds = 1 hour). But the session itself (the refresh token) can live much longer if users keep the app open.
 
-document.addEventListener('visibilitychange', handleVisibilityChange);
-// cleanup in useEffect return
-```
+To enforce 24-hour sessions going forward, there are two levers:
 
-## Summary of File Changes
+**Option A — Reduce refresh token reuse interval (recommended):** Set `refresh_token_reuse_interval` to 0 and `jwt_expiry` to 86400 (24 hours). This means the access token is valid for 24 hours and will attempt to refresh after that — if the user is inactive for more than 24 hours, their session expires.
+
+**Option B — Client-side enforcement:** Store a `login_at` timestamp in `localStorage` when the user signs in. On each app load, check if more than 24 hours have passed since login. If yes, call `signOut()` and redirect to login.
+
+Option B is implemented in `src/lib/auth.tsx` because it does not require changing Supabase server settings (which may not be accessible):
+
+In the `onAuthStateChange` handler, when a new session is received with a `SIGNED_IN` event, store `Date.now()` to `localStorage` as `pausalbox_login_at`. Then in the `getSession()` check at startup, compare against this timestamp — if more than 24 hours have passed, call `signOut()`.
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/auth.tsx` | Proactive token refresh check on initial `getSession()` call; add `visibilitychange` listener to re-validate session when user returns to a backgrounded tab |
+| Backend (SQL) | Delete all sessions not refreshed in 24+ hours (one-time cleanup via SQL query) |
+| `src/lib/auth.tsx` | Add 24-hour client-side session enforcement: store login timestamp on `SIGNED_IN`, check on startup and tab focus |
 
-## Why This Solves the Problem
+## Implementation Steps
 
-The two affected users are stuck because:
-1. Their browser has an old/invalid refresh token in localStorage
-2. When they open the app, `getSession()` returns a session object (from localStorage) but the token is expired
-3. The auto-refresh either hasn't fired yet or fails silently without triggering `TOKEN_REFRESH_FAILED`
+1. **Run SQL cleanup** (via database query tool) to delete all stale sessions immediately — this fixes all currently affected users
+2. **Update `src/lib/auth.tsx`** to enforce 24-hour session limit client-side going forward
 
-By proactively calling `refreshSession()` at startup (and on tab focus), we catch this failure point explicitly and clear the stale data immediately — rather than waiting for an event that may never arrive.
+## What Users Will Experience
+
+- Users with stale sessions: next time they open the app, they will see the login page (clean redirect, no spinner)
+- Active users: no interruption — their sessions are still valid
+- Going forward: after 24 hours of inactivity, any user will be redirected to login automatically
