@@ -1698,6 +1698,80 @@ export const translations = {
     supplierCostChange: "Supplier Cost Change",
     fxShock: "FX Rate Shock (EUR/RSD)",
     projectedPnl: "Projected P&L",
+
+    // Month names (Business Rules)
+    monthJanuary: "January",
+    monthApril: "April",
+    monthJuly: "July",
+    monthOctober: "October",
+
+    // Payroll Parameters page
+    payrollParamsTitle: "Payroll Calculation Parameters",
+    payrollParamsDesc: "Tax rates and bases for payroll calculation (updated by law)",
+    currentActiveParams: "Current Active Parameters",
+    activeFrom: "Active from",
+    validForAllPayrolls: "Valid for all payrolls from",
+    paramHistory: "Parameter History",
+    newParamSet: "New Parameter Set",
+    addNewParams: "Add new parameters (effective from date)",
+    payrollTaxRate: "Income Tax (%)",
+    nontaxableAmountLabel: "Non-taxable Amount (RSD)",
+    pioEmployee: "PIO Employee (%)",
+    pioEmployer: "PIO Employer (%)",
+    healthEmployee: "Health Employee (%)",
+    healthEmployer: "Health Employer (%)",
+    unemploymentRate: "Unemployment (%)",
+    minBase: "Min. Contribution Base (RSD)",
+    maxBase: "Max. Contribution Base (RSD)",
+    noSavedParams: "No saved parameters.",
+    paramsSaved: "Parameters saved",
+    paramsSavedDesc: "New parameter set is active from the selected date.",
+    activeParam: "Active",
+
+    // AI Audit Log page
+    aiAuditLogTitle: "AI Audit Log",
+    aiAuditLogDesc: "Review all AI actions for regulatory compliance",
+    aiActions: "AI Actions",
+    allModules: "All Modules",
+    allDecisions: "All Decisions",
+    actionType: "Action Type",
+    confidence: "Confidence",
+    modelVersion: "Model",
+    reasoning: "Reasoning",
+    modified: "Modified",
+    auto: "Automatic",
+    noAiActions: "No AI actions recorded.",
+    noAiActionsHint: "AI actions will be automatically logged when you use AI features.",
+
+    // Cashflow Forecast Widget
+    cashflowForecastTitle: "Cash Flow Forecast",
+    cashflowForecastSubtitle: "Based on open invoices and supplier payables",
+    days0to30: "0–30 days",
+    days31to60: "31–60 days",
+    days61to90: "61–90 days",
+    inflowLabel: "Inflows",
+    outflowLabel: "Outflows",
+    netCashflow: "Net",
+    cashflowDisclaimer: "* RSD. Amounts projected based on payment due dates of open items.",
+
+    // Compliance Deadline Widget
+    complianceDeadlinesTitle: "Regulatory Deadlines",
+    complianceDeadlinesSubtitle: "Upcoming compliance obligations",
+    pdvDeadlineLabel: "VAT Return (PP-PDV)",
+    sefDeadlineLabel: "SEF Evidence",
+    pppDeadlineLabel: "PPP-PD (Payroll Tax)",
+    pioContribLabel: "PIO/ZZO Contributions",
+    sefDeadlineDetail: "Due: 12th of month",
+    pppDeadlineDetail: "By 15th of month for prior month",
+    contribDeadlineDetail: "By 15th of month",
+    allPdvSubmitted: "All periods submitted",
+    deadlineSubmitted: "Submitted",
+    deadlineLate: "Late",
+
+    // Settings section headings
+    auditData: "Audit & Data",
+    aiAuditLog: "AI Audit Log",
+    legacyImport: "Legacy Import",
   },
   sr: {
     // Auth
@@ -3354,6 +3428,76 @@ export const translations = {
     // Posting Rules
     postingRuleCatalog: "Katalog pravila knjiženja",
     postingRules: "Pravila knjiženja",
+
+    // Month names (Business Rules)
+    monthJanuary: "Januar",
+    monthApril: "April",
+    monthJuly: "Jul",
+    monthOctober: "Oktobar",
+
+    // Payroll Parameters page
+    payrollParamsTitle: "Parametri obračuna zarada",
+    payrollParamsDesc: "Poreske stope i osnovice za obračun zarada (ažuriraju se po zakonu)",
+    currentActiveParams: "Trenutno aktivni parametri",
+    activeFrom: "Aktivan od",
+    validForAllPayrolls: "Važi za sve obračune od",
+    paramHistory: "Istorija parametara",
+    newParamSet: "Novi set parametara",
+    addNewParams: "Dodaj nove parametre (važe od datuma)",
+    payrollTaxRate: "Porez na zarade (%)",
+    nontaxableAmountLabel: "Neoporezivi iznos (RSD)",
+    pioEmployee: "PIO zaposleni (%)",
+    pioEmployer: "PIO poslodavac (%)",
+    healthEmployee: "Zdravstvo zaposleni (%)",
+    healthEmployer: "Zdravstvo poslodavac (%)",
+    unemploymentRate: "Nezaposlenost (%)",
+    minBase: "Min. osnovica (RSD)",
+    maxBase: "Maks. osnovica (RSD)",
+    noSavedParams: "Nema sačuvanih parametara.",
+    paramsSaved: "Parametri sačuvani",
+    paramsSavedDesc: "Novi set parametara je aktivan od izabranog datuma.",
+    activeParam: "Aktivan",
+
+    // AI Audit Log page
+    aiAuditLogTitle: "AI Revizijski dnevnik",
+    aiAuditLogDesc: "Pregled svih AI akcija za regulatornu usklađenost",
+    aiActions: "AI akcije",
+    allModules: "Svi moduli",
+    allDecisions: "Sve odluke",
+    actionType: "Tip akcije",
+    confidence: "Poverenje",
+    noAiActions: "Nema zabeleženih AI akcija.",
+    noAiActionsHint: "AI akcije će se automatski beležiti kada koristite AI funkcionalnosti.",
+
+    // Cashflow Forecast Widget
+    cashflowForecastTitle: "Prognoza novčanih tokova",
+    cashflowForecastSubtitle: "Na osnovu otvorenih faktura i obaveza prema dobavljačima",
+    days0to30: "0–30 dana",
+    days31to60: "31–60 dana",
+    days61to90: "61–90 dana",
+    inflowLabel: "Prihodi",
+    outflowLabel: "Rashodi",
+    netCashflow: "Neto",
+    cashflowDisclaimer: "* RSD. Prikazani iznosi su projektovani na osnovu rokova plaćanja otvorenih stavki.",
+
+    // Compliance Deadline Widget
+    complianceDeadlinesTitle: "Zakonski rokovi",
+    complianceDeadlinesSubtitle: "Predstojeće regulatorne obaveze",
+    pdvDeadlineLabel: "PDV prijava (PP-PDV)",
+    sefDeadlineLabel: "SEF evidencija",
+    pppDeadlineLabel: "PPP-PD (porez na zarade)",
+    pioContribLabel: "Doprinosi PIO/ZZO",
+    sefDeadlineDetail: "Rok: 12. u mesecu",
+    pppDeadlineDetail: "Do 15. u mesecu za prethodni mesec",
+    contribDeadlineDetail: "Do 15. u mesecu",
+    allPdvSubmitted: "Svi periodi podneti",
+    deadlineSubmitted: "Podneto",
+    deadlineLate: "Kasni",
+
+    // Settings section headings
+    auditData: "Revizija i podaci",
+    aiAuditLog: "AI Revizijski dnevnik",
+    legacyImport: "Legacy import",
   },
 } as const;
 

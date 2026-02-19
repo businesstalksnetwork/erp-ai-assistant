@@ -79,11 +79,11 @@ export default function PayrollParameters() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Parametri sačuvani", description: "Novi set parametara je aktivan od izabranog datuma." });
+      toast({ title: t("paramsSaved"), description: t("paramsSavedDesc") });
       qc.invalidateQueries({ queryKey: ["payroll-parameters"] });
       setShowForm(false);
     },
-    onError: (e: any) => toast({ title: "Greška", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const current = params[0];
@@ -94,9 +94,9 @@ export default function PayrollParameters() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Parametri obračuna zarada"
+        title={t("payrollParamsTitle")}
         icon={Calculator}
-        description="Poreske stope i osnivice za obračun zarada (ažuriraju se po zakonu)"
+        description={t("payrollParamsDesc")}
       />
 
       {/* Current effective parameters */}
@@ -104,26 +104,26 @@ export default function PayrollParameters() {
         <Card className="border-primary/30">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Trenutno aktivni parametri</CardTitle>
+              <CardTitle className="text-base">{t("currentActiveParams")}</CardTitle>
               <Badge variant="default" className="flex items-center gap-1">
                 <CheckCircle className="h-3 w-3" />
-                Aktivan od {format(new Date(current.effective_from), "dd.MM.yyyy")}
+                {t("activeFrom")} {format(new Date(current.effective_from), "dd.MM.yyyy")}
               </Badge>
             </div>
-            <CardDescription>Važi za sve obračune od {format(new Date(current.effective_from), "dd.MM.yyyy")}</CardDescription>
+            <CardDescription>{t("validForAllPayrolls")} {format(new Date(current.effective_from), "dd.MM.yyyy")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {[
-                { label: "Porez na zarade", value: fmtPct(current.tax_rate) },
-                { label: "Neoporezivi iznos", value: fmtRSD(current.nontaxable_amount) },
-                { label: "PIO zaposleni", value: fmtPct(current.pio_employee_rate) },
-                { label: "PIO poslodavac", value: fmtPct(current.pio_employer_rate) },
-                { label: "Zdravstvo zaposleni", value: fmtPct(current.health_employee_rate) },
-                { label: "Zdravstvo poslodavac", value: fmtPct(current.health_employer_rate) },
-                { label: "Nezaposlenost", value: fmtPct(current.unemployment_employee_rate) },
-                { label: "Min. osnovica", value: fmtRSD(current.min_contribution_base) },
-                { label: "Max. osnovica", value: fmtRSD(current.max_contribution_base) },
+                { label: t("payrollTaxRate"), value: fmtPct(current.tax_rate) },
+                { label: t("nontaxableAmountLabel"), value: fmtRSD(current.nontaxable_amount) },
+                { label: t("pioEmployee"), value: fmtPct(current.pio_employee_rate) },
+                { label: t("pioEmployer"), value: fmtPct(current.pio_employer_rate) },
+                { label: t("healthEmployee"), value: fmtPct(current.health_employee_rate) },
+                { label: t("healthEmployer"), value: fmtPct(current.health_employer_rate) },
+                { label: t("unemploymentRate"), value: fmtPct(current.unemployment_employee_rate) },
+                { label: t("minBase"), value: fmtRSD(current.min_contribution_base) },
+                { label: t("maxBase"), value: fmtRSD(current.max_contribution_base) },
               ].map((item) => (
                 <div key={item.label} className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -139,85 +139,85 @@ export default function PayrollParameters() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Istorija parametara</CardTitle>
+            <CardTitle className="text-base">{t("paramHistory")}</CardTitle>
             <Button size="sm" onClick={() => setShowForm(!showForm)}>
               <Plus className="h-4 w-4 mr-2" />
-              Novi set parametara
+              {t("newParamSet")}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {showForm && (
             <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-4">
-              <h3 className="font-medium text-sm">Dodaj nove parametre (važe od datuma)</h3>
+              <h3 className="font-medium text-sm">{t("addNewParams")}</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div>
-                  <Label className="text-xs">Važi od</Label>
+                  <Label className="text-xs">{t("activeFrom")}</Label>
                   <Input type="date" value={form.effective_from} onChange={e => setForm(f => ({ ...f, effective_from: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Porez na zarade (%)</Label>
+                  <Label className="text-xs">{t("payrollTaxRate")}</Label>
                   <Input type="number" step="0.01" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Neoporezivi iznos (RSD)</Label>
+                  <Label className="text-xs">{t("nontaxableAmountLabel")}</Label>
                   <Input type="number" value={form.nontaxable_amount} onChange={e => setForm(f => ({ ...f, nontaxable_amount: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">PIO zaposleni (%)</Label>
+                  <Label className="text-xs">{t("pioEmployee")}</Label>
                   <Input type="number" step="0.01" value={form.pio_employee_rate} onChange={e => setForm(f => ({ ...f, pio_employee_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">PIO poslodavac (%)</Label>
+                  <Label className="text-xs">{t("pioEmployer")}</Label>
                   <Input type="number" step="0.01" value={form.pio_employer_rate} onChange={e => setForm(f => ({ ...f, pio_employer_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Zdravstvo zaposleni (%)</Label>
+                  <Label className="text-xs">{t("healthEmployee")}</Label>
                   <Input type="number" step="0.01" value={form.health_employee_rate} onChange={e => setForm(f => ({ ...f, health_employee_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Zdravstvo poslodavac (%)</Label>
+                  <Label className="text-xs">{t("healthEmployer")}</Label>
                   <Input type="number" step="0.01" value={form.health_employer_rate} onChange={e => setForm(f => ({ ...f, health_employer_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Nezaposlenost (%)</Label>
+                  <Label className="text-xs">{t("unemploymentRate")}</Label>
                   <Input type="number" step="0.01" value={form.unemployment_employee_rate} onChange={e => setForm(f => ({ ...f, unemployment_employee_rate: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Min. osnovica (RSD)</Label>
+                  <Label className="text-xs">{t("minBase")}</Label>
                   <Input type="number" value={form.min_contribution_base} onChange={e => setForm(f => ({ ...f, min_contribution_base: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Max. osnovica (RSD)</Label>
+                  <Label className="text-xs">{t("maxBase")}</Label>
                   <Input type="number" value={form.max_contribution_base} onChange={e => setForm(f => ({ ...f, max_contribution_base: e.target.value }))} />
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? "Čuvanje..." : "Sačuvaj"}
+                  {saveMutation.isPending ? t("saving") : t("save")}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>Otkaži</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>{t("cancel")}</Button>
               </div>
             </div>
           )}
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Učitavanje...</p>
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
           ) : params.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nema sačuvanih parametara.</p>
+            <p className="text-sm text-muted-foreground">{t("noSavedParams")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Važi od</TableHead>
-                  <TableHead>Porez</TableHead>
-                  <TableHead>Neoporezivi</TableHead>
-                  <TableHead>PIO zap.</TableHead>
-                  <TableHead>PIO posl.</TableHead>
-                  <TableHead>Zdravstvo zap.</TableHead>
-                  <TableHead>Zdravstvo posl.</TableHead>
-                  <TableHead>Min. osnov.</TableHead>
-                  <TableHead>Max. osnov.</TableHead>
+                  <TableHead>{t("activeFrom")}</TableHead>
+                  <TableHead>{t("payrollTaxRate")}</TableHead>
+                  <TableHead>{t("nontaxableAmountLabel")}</TableHead>
+                  <TableHead>{t("pioEmployee")}</TableHead>
+                  <TableHead>{t("pioEmployer")}</TableHead>
+                  <TableHead>{t("healthEmployee")}</TableHead>
+                  <TableHead>{t("healthEmployer")}</TableHead>
+                  <TableHead>{t("minBase")}</TableHead>
+                  <TableHead>{t("maxBase")}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -234,7 +234,7 @@ export default function PayrollParameters() {
                     <TableCell className="tabular-nums">{fmtRSD(p.min_contribution_base)}</TableCell>
                     <TableCell className="tabular-nums">{fmtRSD(p.max_contribution_base)}</TableCell>
                     <TableCell>
-                      {i === 0 && <Badge variant="default">Aktivan</Badge>}
+                      {i === 0 && <Badge variant="default">{t("activeParam")}</Badge>}
                     </TableCell>
                   </TableRow>
                 ))}
