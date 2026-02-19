@@ -36,6 +36,9 @@ interface FileAnalysis {
   dedupField: string;
   humanLabel: string;
   isEmpty: boolean;
+  autoSkip?: boolean;
+  skipReason?: string;
+  requiresParent?: string;
   parseError?: string;
   // UI state
   accepted: boolean;
@@ -365,8 +368,11 @@ export default function LegacyImport() {
       const analyzed: FileAnalysis[] = (data.files || []).map((f: any) => ({
         ...f,
         humanLabel: f.humanLabel || "",
-        // Auto-accept exact/high confidence non-empty files; never accept empty files
-        accepted: (f.confidence === "exact" || f.confidence === "high") && !f.isEmpty,
+        autoSkip: f.autoSkip || f.isEmpty,
+        skipReason: f.skipReason,
+        requiresParent: f.requiresParent,
+        // Auto-accept exact/high confidence non-empty, non-autoSkip files
+        accepted: (f.confidence === "exact" || f.confidence === "high") && !f.isEmpty && !f.autoSkip,
       }));
 
       setFiles(analyzed);
@@ -468,13 +474,15 @@ export default function LegacyImport() {
   }, []);
 
   // Categorize files
+  const autoSkippedFiles = files.filter((f) => f.autoSkip && !f.isEmpty);
   const emptyFiles = files.filter((f) => f.isEmpty);
-  const nonEmptyFiles = files.filter((f) => !f.isEmpty);
+  const nonEmptyFiles = files.filter((f) => !f.isEmpty && !f.autoSkip);
   const mappedFiles = nonEmptyFiles.filter((f) => f.suggestedTarget || f.overrideTarget);
   const unmappedFiles = nonEmptyFiles.filter((f) => !f.suggestedTarget && !f.overrideTarget);
-  const acceptedCount = files.filter((f) => f.accepted && !f.isEmpty).length;
+  const acceptedCount = files.filter((f) => f.accepted && !f.isEmpty && !f.autoSkip).length;
 
-  const autoMappedCount = mappedFiles.filter((f) => f.confidence === "exact" || f.confidence === "high").length;
+  const exactCount = mappedFiles.filter((f) => f.confidence === "exact").length;
+  const highCount = mappedFiles.filter((f) => f.confidence === "high").length;
   const mediumCount = mappedFiles.filter((f) => f.confidence === "medium").length;
 
   // Search filter for mapped files
@@ -592,10 +600,10 @@ export default function LegacyImport() {
             <CardContent className="py-4 flex flex-wrap gap-4 items-center justify-between">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm items-center">
                 <span className="font-medium text-foreground">{files.length} CSV files found</span>
-                <span className="text-primary font-medium">{autoMappedCount} auto-mapped</span>
-                <span className="text-yellow-700/80">{mediumCount} medium confidence</span>
+                <span className="text-primary font-medium">{exactCount} exact · {highCount} high</span>
+                <span className="text-warning">{mediumCount} medium</span>
+                <span className="text-muted-foreground">{autoSkippedFiles.length + emptyFiles.length} auto-skipped</span>
                 <span className="text-muted-foreground">{unmappedFiles.length} unmapped</span>
-                <span className="text-muted-foreground">{emptyFiles.length} empty (auto-skipped)</span>
               </div>
               <Button variant="outline" size="sm" onClick={resetAll}>
                 <RefreshCw className="h-4 w-4 mr-1" /> Upload different ZIP
@@ -672,16 +680,38 @@ export default function LegacyImport() {
             </Collapsible>
           )}
 
+          {/* Auto-skipped lookup/config tables */}
+          {autoSkippedFiles.length > 0 && !q && (
+            <Collapsible open={emptyOpen} onOpenChange={setEmptyOpen}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex items-center justify-between text-sm text-muted-foreground px-1 py-1 hover:text-foreground transition-colors cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <SkipForward className="h-4 w-4" />
+                    {autoSkippedFiles.length} lookup/config tables — auto-skipped
+                  </span>
+                  {emptyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-1 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 space-y-0.5 max-h-48 overflow-y-auto">
+                  {autoSkippedFiles.map((f) => (
+                    <p key={f.filename} className="font-mono">{f.filename} <span className="opacity-60">— {f.skipReason}</span></p>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
           {/* Empty files — always auto-skipped, just show a count */}
           {emptyFiles.length > 0 && !q && (
-            <Collapsible open={emptyOpen} onOpenChange={setEmptyOpen}>
+            <Collapsible>
               <CollapsibleTrigger className="w-full">
                 <div className="flex items-center justify-between text-sm text-muted-foreground px-1 py-1 hover:text-foreground transition-colors cursor-pointer">
                   <span className="flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
                     {emptyFiles.length} empty files — automatically skipped
                   </span>
-                  {emptyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  <ChevronDown className="h-3 w-3" />
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
