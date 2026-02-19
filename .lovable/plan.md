@@ -1,142 +1,269 @@
 
-# Settings — Complete Gap Analysis & Upgrade Plan
+# Complete Translation Audit — Gap Analysis & Fix Plan
 
-## Current State Summary
+## Summary of Issues Found
 
-After reviewing all Settings-related pages, routes, and the sidebar navigation, here is a full inventory of what exists, what's broken/incomplete, and what's missing entirely.
-
----
-
-## GAP 1: Settings Hub Page — Missing Important Sections
-
-The `/settings` hub card grid is missing several pages that already exist and have routes registered:
-
-**Currently shown in the Settings hub:**
-- Organization: Legal Entities, Locations, Warehouses, Cost Centers
-- Finance: Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
-- Operations: Users, API Configuration (Integrations), Business Rules, Sales Channels, Web Sales (conditional), Legacy Import, AI Audit Log
-
-**Already built but NOT linked from the Settings hub:**
-- `Currencies` → `/settings/currencies` (full page exists, route exists, sidebar has it — but NOT in hub)
-- `Approval Workflows` → `/settings/approvals` (full page exists, route exists, sidebar has it — but NOT in hub)
-- `Pending Approvals` → `/settings/pending-approvals` (full page exists — but NOT in hub)
-- `Audit Log` → `/settings/audit-log` (full page exists — but NOT in hub)
-- `Event Monitor` → `/settings/events` (full page exists — but NOT in hub)
-- `Departments` → `/hr/departments` (exists but technically a settings-level concept)
-
-**Action:** Add 5 missing cards to the Settings hub under appropriate sections.
+After reviewing all 3,361 lines of `translations.ts` and scanning all affected component files, here are the exact translation gaps:
 
 ---
 
-## GAP 2: Sidebar Settings Nav — Missing Items
+## GAP 1: `BusinessRules.tsx` — Month Names Hardcoded in English
 
-The `settingsNav` in `TenantLayout.tsx` (lines 205–215) only shows 9 items:
-- companySettings, taxRates, currencies, users, approvalWorkflows, pendingApprovalsPage, integrations, auditLog, eventMonitor
+**File:** `src/pages/tenant/BusinessRules.tsx`, lines 47–52
 
-**Missing from sidebar settings nav** (routes and pages exist):
-- `Payroll Parameters` → `/settings/payroll-parameters` — just added via PRD upgrade but NOT in sidebar
-- `AI Audit Log` → `/settings/ai-audit-log` — just added via PRD upgrade but NOT in sidebar
-- `Legacy Import` → `/settings/legacy-import` — exists but NOT in sidebar
-- `Business Rules` → `/settings/business-rules` — exists but NOT in sidebar
-- `Posting Rules` → `/settings/posting-rules` — exists but NOT in sidebar
+The `MONTHS` array is hardcoded as English strings and is NOT translated through the `t()` system:
 
-**Action:** Add 5 missing items to `settingsNav` in `TenantLayout.tsx`.
+```js
+const MONTHS = [
+  { value: 1, label: "January" },   // should be "Januar"
+  { value: 4, label: "April" },      // should be "April"
+  { value: 7, label: "July" },       // should be "Jul"
+  { value: 10, label: "October" },   // should be "Oktobar"
+];
+```
 
----
+This is exactly what the screenshot shows — the month dropdown shows "January", "April", "July", "October" even in Serbian mode.
 
-## GAP 3: PostingRules Page — Empty Because of Missing Tenant Scope in DB Query
-
-Looking at `PostingRules.tsx` line 33-36, it queries `posting_rule_catalog` filtered by `tenant_id`. However, based on the screenshot the user shared (which shows an empty/broken state), the `posting_rule_catalog` table likely has no records because it's never seeded per-tenant. The page itself is structurally complete but has no data.
-
-**Action:** Add a migration that seeds default `posting_rule_catalog` entries for all existing tenants (same as what gets seeded on new tenant creation). Also add a "Seed Defaults" button to the PostingRules page UI.
+**Fix:** Add translation keys `monthJanuary`, `monthApril`, `monthJuly`, `monthOctober` in both EN and SR, and replace the hardcoded labels with `t()` calls inside the component.
 
 ---
 
-## GAP 4: Settings Hub — Inconsistent Grouping
+## GAP 2: `PayrollParameters.tsx` — Entire Page is Hardcoded Serbian
 
-The current Settings hub groups items as "Organization", "Finance", "Operations". Several items are in wrong groups or the groupings are confusing:
-- "Posting Rules" is in Finance but it's really a finance/accounting bridge — ok
-- "Legacy Import" is in Operations but feels like a one-time utility — it belongs in a new "Data" section
-- There's no "Compliance & Audit" section for Audit Log, AI Audit Log, Event Monitor
+**File:** `src/pages/tenant/PayrollParameters.tsx`
 
-**Action:** Reorganize into 4 clear sections:
-1. **Organization** — Legal Entities, Locations, Warehouses, Cost Centers, Currencies
-2. **Finance** — Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
-3. **Operations** — Users, Approval Workflows, Business Rules, Sales Channels, Web Sales, Integrations
-4. **Audit & Data** — Audit Log, AI Audit Log, Event Monitor, Legacy Import
+This page uses **zero** `t()` calls. All strings are hardcoded in Serbian only:
+- `"Parametri obračuna zarada"` (page title)
+- `"Poreske stope i osnivice za obračun zarada (ažuriraju se po zakonu)"` (description)
+- `"Trenutno aktivni parametri"` (card title)
+- `"Aktivan od"`, `"Važi za sve obračune od"` (active badge/description)
+- All parameter labels: `"Porez na zarade"`, `"Neoporezivi iznos"`, `"PIO zaposleni"`, etc.
+- `"Istorija parametara"`, `"Novi set parametara"` (history section)
+- `"Dodaj nove parametre (važe od datuma)"` (form title)
+- All form field labels in the add-new section
+- Table headers: `"Važi od"`, `"Porez"`, `"Neoporezivi"`, `"PIO zap."`, etc.
+- Success/error toasts: `"Parametri sačuvani"`, `"Greška"`
 
----
-
-## GAP 5: Missing Translations
-
-The Settings hub uses `t("organization")`, `t("finance")`, `t("operations")` but these keys may not exist in translations (they use `as any` casting as a workaround). The new section headings also need translations.
-
-**Action:** Add missing translation keys for settings section headings in both English and Serbian.
+**Fix:** Add ~20 translation keys for payroll parameter UI, and refactor all hardcoded strings to use `t()`.
 
 ---
 
-## Implementation Plan
+## GAP 3: `AiAuditLog.tsx` — Entire Page is Hardcoded Serbian
 
-### Files to Modify
+**File:** `src/pages/tenant/AiAuditLog.tsx`
 
-| File | Change |
+This page also uses **zero** `t()` calls:
+- `"AI Revizijski dnevnik"` (page title)
+- `"Pregled svih AI akcija za regulatornu usklađenost (PRD Sekcija 11.2)"` (description)
+- `"AI akcije ({logs.length})"` (card title)
+- `"Modul"`, `"Odluka"` (filter placeholders)
+- `"Svi moduli"`, `"Sve odluke"` (filter defaults)
+- `"Odobreno"`, `"Odbijeno"`, `"Izmenjeno"`, `"Automatski"` (decision filter options)
+- Table headers: `"Vreme"`, `"Modul"`, `"Tip akcije"`, `"Odluka"`, `"Poverenje"`, `"Model"`, `"Obrazloženje"`
+- `"Učitavanje..."` (loading state)
+- `"Nema zabeleženih AI akcija."`, `"AI akcije će se automatski beleži kada koristite AI funkcionalnosti."` (empty state)
+
+**Fix:** Add ~15 translation keys for AI audit log UI, and refactor all hardcoded strings to use `t()`.
+
+---
+
+## GAP 4: `CashflowForecastWidget.tsx` — Hardcoded Serbian Labels
+
+**File:** `src/components/dashboard/CashflowForecastWidget.tsx`
+
+Hardcoded Serbian strings:
+- `"Prognoza novčanih tokova"` (card title)
+- `"Na osnovu otvorenih faktura i obaveza prema dobavljačima"` (subtitle)
+- Period labels: `"0–30 dana"`, `"31–60 dana"`, `"61–90 dana"`
+- `"↑ Prihodi"`, `"↓ Rashodi"`, `"Neto"` (row labels)
+- `"* RSD. Prikazani iznosi su projektovani na osnovu rokova plaćanja otvorenih stavki."` (footnote)
+
+**Fix:** Add ~8 translation keys for cashflow widget, and refactor to use `t()`.
+
+---
+
+## GAP 5: `ComplianceDeadlineWidget.tsx` — Hardcoded Serbian Labels
+
+**File:** `src/components/dashboard/ComplianceDeadlineWidget.tsx`
+
+Hardcoded Serbian strings:
+- `"Zakonski rokovi"` (card title)
+- `"Predstojeće regulatorne obaveze"` (subtitle)
+- Deadline labels: `"PDV prijava (PP-PDV)"`, `"SEF evidencija"`, `"PPP-PD (porez na zarade)"`, `"Doprinosi PIO/ZZO"`
+- Detail strings: `"Rok: 12. u mesecu"`, `"Do 15. u mesecu za prethodni mesec"`, `"Do 15. u mesecu"`, etc.
+- `"Svi periodi podneti"`, `"Period {name} nije podnet"` (dynamic strings)
+- Badge labels: `"Podneto"`, `"Kasni"`
+
+**Fix:** Add ~12 translation keys for compliance widget, and refactor to use `t()`.
+
+---
+
+## GAP 6: Missing Translation Keys in `translations.ts` (Both Locales)
+
+The following translation keys exist in **EN but are MISSING from SR** section (or are identical to EN — i.e., untranslated):
+
+After comparing EN keys (lines 2–1701) vs SR keys (lines 1702–3357), the following are confirmed missing or need to be added to the SR section:
+
+1. `aiAuditLog` — missing in SR (key exists in EN but no SR equivalent noted in the sr block)
+2. `legacyImport` — missing in SR 
+3. `auditData` (new Settings section heading) — missing in both
+4. `cashflowForecast` / `cashflowForecastTitle` — new keys needed
+5. `complianceDeadlines` — new key needed
+6. Month names for Business Rules
+
+---
+
+## Files to Modify
+
+| File | Action |
 |---|---|
-| `src/pages/tenant/Settings.tsx` | Add 5 missing page cards, reorganize into 4 sections |
-| `src/layouts/TenantLayout.tsx` | Add 5 missing items to `settingsNav` |
-| `src/i18n/translations.ts` | Add missing translation keys for settings sections |
-| `src/pages/tenant/PostingRules.tsx` | Add "Seed Defaults" button for empty state |
-| `supabase/migrations/` | Seed `posting_rule_catalog` for existing tenants |
+| `src/i18n/translations.ts` | Add ~55 missing translation keys to both EN and SR sections |
+| `src/pages/tenant/BusinessRules.tsx` | Replace hardcoded month labels with `t()` calls |
+| `src/pages/tenant/PayrollParameters.tsx` | Replace all hardcoded Serbian strings with `t()` calls |
+| `src/pages/tenant/AiAuditLog.tsx` | Replace all hardcoded Serbian strings with `t()` calls |
+| `src/components/dashboard/CashflowForecastWidget.tsx` | Replace hardcoded Serbian strings with `t()` + `useLanguage()` |
+| `src/components/dashboard/ComplianceDeadlineWidget.tsx` | Replace hardcoded Serbian strings with `t()` + `useLanguage()` |
 
-### Details
+---
 
-**Settings.tsx** — New 4-section layout:
+## New Translation Keys to Add
+
+### English (EN) additions:
 ```
-Organization (5 cards):
-  Legal Entities, Locations, Warehouses, Cost Centers, Currencies [NEW]
+// Month names (for Business Rules fiscal year start selector)
+monthJanuary: "January"
+monthApril: "April"
+monthJuly: "July"
+monthOctober: "October"
 
-Finance (5 cards):
-  Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
+// Payroll Parameters page
+currentActiveParams: "Current Active Parameters"
+activeFrom: "Active from"
+paramHistory: "Parameter History"
+newParamSet: "New Parameter Set"
+addNewParams: "Add new parameters (effective from date)"
+payrollTaxRate: "Income Tax Rate (%)"
+pioEmployee: "PIO Employee (%)"
+pioEmployer: "PIO Employer (%)"
+healthEmployee: "Health Employee (%)"
+healthEmployer: "Health Employer (%)"
+unemploymentRate: "Unemployment (%)"
+minBase: "Min. Contribution Base (RSD)"
+maxBase: "Max. Contribution Base (RSD)"
+noSavedParams: "No saved parameters."
+paramsSaved: "Parameters saved"
+paramsSavedDesc: "New parameter set is active from the selected date."
+activeParam: "Active"
 
-Operations (5 cards):
-  Users, Approval Workflows [NEW], Business Rules, Sales Channels, Integrations
+// AI Audit Log page
+aiAuditLogTitle: "AI Audit Log"
+aiAuditLogDesc: "Review all AI actions for regulatory compliance"
+aiActions: "AI Actions"
+allModules: "All Modules"
+allDecisions: "All Decisions"
+actionType: "Action Type"
+confidence: "Confidence"
+modelVersion: "Model"
+reasoning: "Reasoning"
+modified: "Modified"
+auto: "Automatic"
+noAiActions: "No AI actions recorded."
+noAiActionsHint: "AI actions will be automatically logged when you use AI features."
 
-Audit & Data (5 cards):
-  Audit Log [NEW], AI Audit Log, Event Monitor [NEW], Legacy Import, Pending Approvals [NEW]
+// Cashflow Forecast Widget
+cashflowForecastTitle: "Cash Flow Forecast"
+cashflowForecastSubtitle: "Based on open invoices and supplier payables"
+days0to30: "0–30 days"
+days31to60: "31–60 days"
+days61to90: "61–90 days"
+netCashflow: "Net"
+cashflowDisclaimer: "* RSD. Amounts projected based on payment due dates of open items."
+
+// Compliance Deadline Widget
+complianceDeadlinesTitle: "Regulatory Deadlines"
+complianceDeadlinesSubtitle: "Upcoming compliance obligations"
+pdvDeadlineLabel: "VAT Return (PP-PDV)"
+sefDeadlineLabel: "SEF Evidence"
+pppDeadlineLabel: "PPP-PD (Payroll Tax)"
+pioContribLabel: "PIO/ZZO Contributions"
+sefDeadlineDetail: "Due: 12th of month"
+pppDeadlineDetail: "By 15th of month for prior month"
+contribDeadlineDetail: "By 15th of month"
+allPdvSubmitted: "All periods submitted"
+pdvPeriodNotSubmitted: "Period {name} not submitted"
+deadlineSubmitted: "Submitted"
+deadlineLate: "Late"
+
+// Settings section headings
+auditData: "Audit & Data"
 ```
 
-**TenantLayout.tsx settingsNav** — Add these 5 entries:
-- `{ key: "payrollParameters", url: "/settings/payroll-parameters", icon: Calculator }`
-- `{ key: "aiAuditLog", url: "/settings/ai-audit-log", icon: ShieldCheck }`
-- `{ key: "legacyImport", url: "/settings/legacy-import", icon: Upload }`
-- `{ key: "businessRules", url: "/settings/business-rules", icon: FileText }`
-- `{ key: "postingRules", url: "/settings/posting-rules", icon: BookOpen }`
-
-**translations.ts** — Add keys:
-- `organization`, `finance`, `operations`, `auditData` (section headings)
-- `payrollParameters`, `aiAuditLog`, `legacyImport`, `pendingApprovalsPage`, `auditLog`, `eventMonitor` (if missing)
-
-**PostingRules.tsx** — When no rules exist, show a "Seed Default Rules" button that calls a Supabase function or inserts default rules.
-
-**Migration** — Seed `posting_rule_catalog` rows for all tenants that have 0 rules:
-```sql
-INSERT INTO posting_rule_catalog (tenant_id, rule_code, description, debit_account_code, credit_account_code)
-SELECT t.id, r.rule_code, r.description, r.debit_account_code, r.credit_account_code
-FROM tenants t
-CROSS JOIN (VALUES
-  ('pos_cash_receipt', 'POS Cash Receipt', '2430', NULL),
-  ('pos_card_receipt', 'POS Card Receipt', '2431', NULL),
-  ('pos_revenue', 'POS Revenue', NULL, '6010'),
-  ('pos_output_vat', 'POS Output VAT', NULL, '2470'),
-  ('pos_cogs', 'POS COGS', '5010', NULL),
-  ('invoice_ar', 'Invoice AR', '2040', NULL),
-  ('invoice_revenue', 'Invoice Revenue', NULL, '6000'),
-  ('invoice_output_vat', 'Invoice Output VAT', NULL, '4700'),
-  ('payroll_gross_exp', 'Payroll Gross Expense', '5400', NULL),
-  ('payroll_net_payable', 'Payroll Net Payable', NULL, '2720'),
-  ('payroll_tax', 'Payroll Tax Payable', NULL, '4810'),
-  ('payroll_bank', 'Payroll Bank Payment', '2720', '2431')
-) AS r(rule_code, description, debit_account_code, credit_account_code)
-WHERE NOT EXISTS (
-  SELECT 1 FROM posting_rule_catalog prc WHERE prc.tenant_id = t.id
-);
+### Serbian (SR) additions (same keys, Serbian values):
 ```
+monthJanuary: "Januar"
+monthApril: "April"
+monthJuly: "Jul"
+monthOctober: "Oktobar"
+currentActiveParams: "Trenutno aktivni parametri"
+activeFrom: "Aktivan od"
+paramHistory: "Istorija parametara"
+newParamSet: "Novi set parametara"
+addNewParams: "Dodaj nove parametre (važe od datuma)"
+payrollTaxRate: "Porez na zarade (%)"
+pioEmployee: "PIO zaposleni (%)"
+pioEmployer: "PIO poslodavac (%)"
+healthEmployee: "Zdravstvo zaposleni (%)"
+healthEmployer: "Zdravstvo poslodavac (%)"
+unemploymentRate: "Nezaposlenost (%)"
+minBase: "Min. osnovica (RSD)"
+maxBase: "Maks. osnovica (RSD)"
+noSavedParams: "Nema sačuvanih parametara."
+paramsSaved: "Parametri sačuvani"
+paramsSavedDesc: "Novi set parametara je aktivan od izabranog datuma."
+activeParam: "Aktivan"
+aiAuditLogTitle: "AI Revizijski dnevnik"
+aiAuditLogDesc: "Pregled svih AI akcija za regulatornu usklađenost"
+aiActions: "AI akcije"
+allModules: "Svi moduli"
+allDecisions: "Sve odluke"
+actionType: "Tip akcije"
+confidence: "Poverenje"
+modelVersion: "Model"
+reasoning: "Obrazloženje"
+modified: "Izmenjeno"
+auto: "Automatski"
+noAiActions: "Nema zabeleženih AI akcija."
+noAiActionsHint: "AI akcije će se automatski beležiti kada koristite AI funkcionalnosti."
+cashflowForecastTitle: "Prognoza novčanih tokova"
+cashflowForecastSubtitle: "Na osnovu otvorenih faktura i obaveza prema dobavljačima"
+days0to30: "0–30 dana"
+days31to60: "31–60 dana"
+days61to90: "61–90 dana"
+netCashflow: "Neto"
+cashflowDisclaimer: "* RSD. Prikazani iznosi su projektovani na osnovu rokova plaćanja otvorenih stavki."
+complianceDeadlinesTitle: "Zakonski rokovi"
+complianceDeadlinesSubtitle: "Predstojeće regulatorne obaveze"
+pdvDeadlineLabel: "PDV prijava (PP-PDV)"
+sefDeadlineLabel: "SEF evidencija"
+pppDeadlineLabel: "PPP-PD (porez na zarade)"
+pioContribLabel: "Doprinosi PIO/ZZO"
+sefDeadlineDetail: "Rok: 12. u mesecu"
+pppDeadlineDetail: "Do 15. u mesecu za prethodni mesec"
+contribDeadlineDetail: "Do 15. u mesecu"
+allPdvSubmitted: "Svi periodi podneti"
+pdvPeriodNotSubmitted: "Period {name} nije podnet"
+deadlineSubmitted: "Podneto"
+deadlineLate: "Kasni"
+auditData: "Revizija i podaci"
+```
+
+---
+
+## Implementation Order
+
+1. **`translations.ts`** — Add all ~55 new keys to both EN and SR sections
+2. **`BusinessRules.tsx`** — Replace `MONTHS` array labels with `t("monthJanuary")` etc.
+3. **`PayrollParameters.tsx`** — Replace all ~20 hardcoded strings with `t()` calls; add `useLanguage()` hook
+4. **`AiAuditLog.tsx`** — Replace all ~15 hardcoded strings with `t()` calls
+5. **`CashflowForecastWidget.tsx`** — Add `useLanguage()` hook and replace ~8 hardcoded strings
+6. **`ComplianceDeadlineWidget.tsx`** — Add `useLanguage()` hook and replace ~12 hardcoded strings + dynamic detail strings
