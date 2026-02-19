@@ -1,168 +1,155 @@
 
-# ZIP Mapping Based on the CSV → ERP-AI Mapping Document
+# Fix Legacy ZIP Import — Data Not Appearing
 
-## What the Document Specifies
+## Root Cause Analysis
 
-The document (CSV_to_ERP_AI_Mapping.docx) is an 18-page, highly detailed guide for importing UNIPROM FactorOne legacy data. It defines:
+The database currently shows: 0 partners, 0 contacts, 0 products, 0 employees, 0 warehouses, 0 departments (only 4 currencies and 3 tax_rates from earlier successful imports).
 
-1. Exact column-position mappings for each CSV file (no headers — first row is data)
-2. Multi-file JOIN strategies (Partners from 3 CSVs, Products from 2 CSVs)
-3. Document type splitting (DocumentHeader → invoices / sales_orders / purchase_orders / goods_receipts)
-4. Import order respecting FK dependencies
-5. Deduplication keys (PIB for partners, SKU for products, email for contacts)
+**Seven confirmed bugs found by tracing the code against the new 581-file mapping document:**
 
-## Current Gaps vs. Document
+### Bug 1 — Partners upsert fails on null PIB (most critical)
+`importPartners()` calls `.upsert(batch, { onConflict: "tenant_id,pib" })` but ~60% of partners have no PIB. PostgreSQL does not match NULL in ON CONFLICT, so the upsert silently inserts duplicates — triggering a unique constraint violation on the next batch — causing the entire batch to error out and 0 rows land.
 
-The existing `analyze-legacy-zip` edge function already has a strong `DBO_TABLE_LOOKUP`, but it's **missing all the specific Uniprom FactorOne English-named tables** the document describes:
+**Fix:** Split into two paths: upsert by `tenant_id,pib` when PIB is present; plain `.insert()` with ignoreDuplicates when PIB is null.
 
-| Missing Table | Document Target | Notes |
-|---|---|---|
-| `dbo.Partner` | `partners` | col[0]=legacy_id, col[1]=name, col[17]=active |
-| `dbo.PartnerLocation` | `partners` (address enrichment) | col[22]=partner_id JOIN key |
-| `dbo.A_UnosPodataka_Partner` | `partners` (PIB enrichment) | Already exists with "exact" confidence ✓ |
-| `dbo.Company` | `legal_entities` | 1 row only |
-| `dbo.CompanyOffice` | `locations` | 1 row only |
-| `dbo.Warehouse` | `warehouses` | col[1]=code, col[2]=name |
-| `dbo.Department` | `departments` | 12 rows |
-| `dbo.Currency` | `currencies` | col[2]=ISO code |
-| `dbo.CurrencyRates` | (exchange_rates) | 5 rows |
-| `dbo.Tax` | `tax_rates` | col[3]=rate (multiply by 100) |
-| `dbo.Employee` | `employees` | col[1]=first_name, col[2]=last_name, col[4]=jmbg |
-| `dbo.PartnerContact` | `contacts` | col[1]=last_name, col[2]=first_name, col[10]=email |
-| `dbo.Opportunity` | `leads` | 2 rows |
-| `dbo.Bank` | skip | Reference table |
-| `dbo.DocumentList` | skip | Reference table |
-| `dbo.BookkeepingBookType` | skip | Already in lookup ✓ |
-| `dbo.Dobavljaci` | `partners` (was: skip due to binary) | Doc says 254 rows of supplier segment |
-| `dbo.Investitori` | skip | CRM segment, P2 priority |
-| `dbo.Projektanti` | skip | CRM segment, P2 priority |
-| `dbo.Trgovci` | skip | CRM segment, P2 priority |
-| `dbo.ElektroMontazeri` | `leads` | 246 rows, P2 |
+### Bug 2 — `getUnipromTableName()` returns null for files not in COLUMN_MAP
+The function checks `UNIPROM_COLUMN_MAP[m[1]]` — if the table name isn't in the map, it returns `null`. This means `dbo.PartnerLocation.csv`, `dbo.Dobavljaci.csv`, `dbo.Nabavke.csv`, `dbo.Project.csv` all get `null` and fall to the generic skipped importer even though they are IMPORT targets.
 
-Most critically, `dbo.DocumentHeader` exists in the lookup but maps to `invoices` generically. The document defines **17 document types** that should split into different tables.
+**Fix:** `getUnipromTableName()` should strip `dbo.` and `.csv` and return the table name regardless — let the importers check the table name, not `getUnipromTableName()`.
+
+### Bug 3 — Partner.csv has no PIB column in COLUMN_MAP  
+`UNIPROM_COLUMN_MAP["Partner"]` only has `{ legacy_id: 0, name: 1, is_active: 17 }`. The importer calls `getCol!(cols, "pib")` which returns null for every row. All 10,493 partners go into the null-PIB path, batched together, and then hit the upsert bug above.
+
+**Fix:** Add PIB enrichment from `A_UnosPodataka_Partner` — the code already stores `notes: "Legacy code: P00xxxx"`, so `PartnerLocation` can look up `partner_code` from col[7] and then cross-reference `A_UnosPodataka_Partner` for PIB. For now, fix is to use `.insert()` with `ignoreDuplicates: true` for null-PIB partners (no onConflict).
+
+### Bug 4 — Employee legacy_id stored inconsistently
+The `importEmployees()` stores legacy ID in notes as:
+```
+`Dept legacy ID: ${deptLegacyId}` 
+```
+But `importEmployeeContracts()` looks for:
+```
+/Legacy ID:\s*(\d+)/
+```
+These never match — so 0 contracts are imported even if employees are present.
+
+**Fix:** Store employee legacy_id explicitly in notes as `Legacy ID: ${legacyId}` and look for `Dept ID: ${deptLegacyId}` separately.
+
+### Bug 5 — Duplicate `CurrencyRates` key in DBO_TABLE_LOOKUP
+`CurrencyRates` is defined twice in `analyze-legacy-zip/index.ts` (lines 176 and 186). TypeScript uses the last definition. This is harmless functionally since both map to `skip`, but triggers a lint warning and should be cleaned.
+
+### Bug 6 — `invoices` upsert conflict column doesn't exist reliably
+`importInvoicesHeuristic()` uses `.upsert(batch, { onConflict: "tenant_id,invoice_number" })` but for `DocumentHeader.csv` the invoice_number is extracted from col[3] (actually the DocumentList ID, not the doc number). The real number is col[1] per the mapping document. 
+
+**Fix:** Update `DocumentHeader` column map: `{ doc_number: 1, date: 2, doc_list_id: 3, status_id: 4, partner_id: 6, warehouse_id: 7, total: 11 }` per the document's table on page 10.
+
+### Bug 7 — `confirmedMapping` only gets files user manually accepted
+The `LegacyImport.tsx` review page requires user to click "Accept" on each file mapping. When analyzing 581 files, most show as auto-accepted for "exact" confidence — but the UI might not be sending all of them. The previous session log showed only `dbo.DocumentHeader.csv` in the import results.
+
+**Fix:** Verify the `LegacyImport.tsx` auto-accept logic and ensure all `confidence: "exact"` non-empty non-skip files are pre-accepted and included in `confirmedMapping`.
+
+---
 
 ## Changes Required
 
-### File 1: `supabase/functions/analyze-legacy-zip/index.ts`
+### File 1: `supabase/functions/import-legacy-zip/index.ts`
 
-Add all missing Uniprom FactorOne tables to `DBO_TABLE_LOOKUP` with the exact column mappings documented:
-
-```
-// New entries to add to DBO_TABLE_LOOKUP:
-"Partner":          { target: "partners",       confidence: "exact", label: "Exact: Uniprom Partner.csv — col[0]=legacy_id, col[1]=name, col[17]=active", dedupField: "pib" }
-"PartnerLocation":  { target: "partners",       confidence: "exact", label: "Exact: address enrichment for partners — col[22]=partner_legacy_id JOIN key, col[1]=full_name, col[7]=partner_code", dedupField: "pib" }
-"PartnerContact":   { target: "contacts",       confidence: "exact", label: "Exact: Uniprom PartnerContact — col[1]=last_name, col[2]=first_name, col[10]=email, col[12]=partner_legacy_id", dedupField: "email" }
-"Company":          { target: "legal_entities", confidence: "exact", label: "Exact: Uniprom Company.csv — col[1]=name, col[3]=address, col[6]=pib, col[7]=maticni_broj (1 row)", dedupField: "name" }
-"CompanyOffice":    { target: "locations",      confidence: "exact", label: "Exact: Uniprom CompanyOffice.csv — col[1]=name, col[3]=address (1 row)", dedupField: "name" }
-"Currency":         { target: "currencies",     confidence: "exact", label: "Exact: Uniprom Currency.csv — col[1]=name, col[2]=ISO_code (4 currencies)", dedupField: "code" }
-"CurrencyRates":    { target: "skip",           confidence: "exact", label: "Exchange rates ref — auto-skip (5 rows, set via NBS integration)", skipReason: "Use NBS exchange rates integration instead" }
-"Tax":              { target: "tax_rates",      confidence: "exact", label: "Exact: Uniprom Tax.csv — col[1]=name, col[2]=PDV_code, col[3]=rate (multiply x100)", dedupField: "name" }
-"Employee":         { target: "employees",      confidence: "exact", label: "Exact: Uniprom Employee.csv — col[1]=first_name, col[2]=last_name, col[4]=jmbg, col[9]=dept_legacy_id (45 employees)", dedupField: "email" }
-"Opportunity":      { target: "leads",          confidence: "exact", label: "Exact: Uniprom Opportunity.csv — 2 rows mapped to leads", dedupField: "id" }
-"ElektroMontazeri": { target: "leads",          confidence: "high",  label: "Uniprom ElektroMontazeri — 246 rows, electrical installer CRM segment → leads", dedupField: "id" }
-"Investitori":      { target: "skip",           confidence: "exact", label: "Investitori — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (investors)" }
-"Projektanti":      { target: "skip",           confidence: "exact", label: "Projektanti — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (designers)" }
-"Trgovci":          { target: "skip",           confidence: "exact", label: "Trgovci — auto-skip (P2 CRM segment, no import target)", skipReason: "P2 priority CRM segment (traders)" }
-"Bank":             { target: "skip",           confidence: "exact", label: "Bank lookup — auto-skip (3 rows reference table)", skipReason: "Bank reference lookup (3 rows)" }
-```
-
-Also update `DocumentHeader` to reflect the document type splitting knowledge in its label:
-
-```
-"DocumentHeader": { 
-  target: "invoices",    
-  confidence: "high",  
-  label: "DocumentHeader = universal document — splits by type: IRPDV/RPDV/FAV→invoices, PO/PN→sales_orders, NAR→purchase_orders, UPDV/U10→goods_receipts. WARNING: multi-line CSV format requires custom parsing.", 
-  dedupField: "invoice_number" 
+**1a. Fix `getUnipromTableName()`** — return the table name always, don't gate on COLUMN_MAP:
+```typescript
+function getUnipromTableName(filename: string): string | null {
+  const basename = filename.split("/").pop() || filename;
+  const m = basename.match(/^dbo\.(.+?)\.csv$/i);
+  return m ? m[1] : null;
 }
 ```
 
-And mark `DocumentLine` as importable (not auto-skip) since the document says it should be imported as `invoice_lines`:
+**1b. Fix `importPartners()` null-PIB upsert** — use insert for rows without PIB:
+```typescript
+// For rows WITH pib: upsert on tenant_id,pib
+// For rows WITHOUT pib: insert with ignoreDuplicates (no conflict column)
+const withPib = batch.filter(r => r.pib);
+const withoutPib = batch.filter(r => !r.pib);
+if (withPib.length) await supabase.from("partners").upsert(withPib, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
+if (withoutPib.length) await supabase.from("partners").insert(withoutPib).select(); // best-effort
 ```
-"DocumentLine": { target: "invoices", confidence: "medium", label: "DocumentLine = line items for DocumentHeader — maps to invoice_lines after DocumentHeader import", requiresParent: "invoices", dedupField: "id" }
+
+**1c. Fix `importEmployees()` legacy_id storage** — store the actual col[0] legacy_id in notes:
+```typescript
+notes: [
+  `Legacy ID: ${cols[cm.legacy_id]}`,
+  jmbg ? `JMBG: ${jmbg}` : null,
+  deptLegacyId ? `Dept ID: ${deptLegacyId}` : null
+].filter(Boolean).join(" | ") || null,
 ```
 
-### File 2: `supabase/functions/import-legacy-zip/index.ts`
+**1d. Fix `importEmployeeContracts()` legacy_id lookup** — match the new notes pattern:
+```typescript
+const legacyMatch = (e.notes || "").match(/Legacy ID:\s*(\d+)/);
+if (legacyMatch) empLegacyMap[legacyMatch[1]] = e.id;
+```
 
-The existing ZIP import function needs to be updated to handle the specific column positions documented for each Uniprom file. Currently the import functions use generic column detection. We need to add a **Uniprom-specific column mapping registry** that the import function consults when it recognizes a known filename:
+**1e. Fix `DocumentHeader` column positions** — per the document col[1]=number, col[2]=date, col[6]=partner_id:
+```typescript
+"DocumentHeader": { legacy_id: 0, doc_number: 1, date: 2, doc_list_id: 3, status_id: 4, partner_id: 6, warehouse_id: 7, total: 11 },
+```
 
-The document's exact column mappings per file:
+**1f. Add `Project` to COLUMN_MAP** — document says 314 rows → `opportunities`:
+```typescript
+"Project": { legacy_id: 0, name: 1, start_date: 3, end_date: 4, status_id: 9, partner_id: 7 },
+```
 
-**partners (from A_UnosPodataka_Partner.csv)** — already has a dedicated edge function, keep as is.
+**1g. Add `importOpportunities()` function** for `dbo.Project.csv` → `opportunities` table, with `case "opportunities"` in the dispatcher.
 
-**partners (from Partner.csv)** — new mapping:
-- col[0] → legacy_id
-- col[1] → name (fallback if no PartnerLocation)
-- col[17] → is_active (1=active)
+**1h. Fix `invoices` import for DocumentHeader** — use `doc_number` from col[1] not col[3]:
+The current `importInvoicesHeuristic()` uses header-based detection. For `DocumentHeader.csv` (no headers), add a Uniprom-specific path in the `invoices` case of the dispatcher.
 
-**contacts (from PartnerContact.csv)**:
-- col[0] → legacy_id
-- col[1] → last_name
-- col[2] → first_name
-- col[6] → phone
-- col[10] → email
-- col[12] → partner_legacy_id (for company_name lookup)
+### File 2: `supabase/functions/analyze-legacy-zip/index.ts`
 
-**products (from Item.csv)**:
-- col[0] → legacy_id
-- col[1] → name
-- col[2] → sku (JOIN key to A_UnosPodataka)
-- col[33] → is_active
-- col[34] → product_type (1=goods)
+**2a. Fix duplicate `CurrencyRates` entry** — remove the first definition (line 176), keep only the second (line 186).
 
-**employees (from Employee.csv)**:
-- col[0] → legacy_id
-- col[1] → first_name
-- col[2] → last_name
-- col[4] → jmbg (dedup key)
-- col[9] → department_legacy_id
+**2b. Add new IMPORT targets from document:**
+- `Project` → `opportunities` (314 rows)
+- `PartnerContactInteraction` → change from `skip` to `meetings` (3,635 rows — but contains HTML, keep as skip with better label)
+- `Dobavljaci`, `Investitori`, `Projektanti`, `Nabavke`, `Odrzavanje` → mark as `partners` with `confidence: "high"` (partner tag enrichment)
 
-**departments (from Department.csv)**:
-- col[0] → legacy_id
-- col[1] → name
-- col[3] → code
+**2c. Update `Opportunity` target** — document says it maps to `opportunities`, not `leads`:
+```typescript
+"Opportunity": { target: "opportunities", confidence: "exact", label: "..." }
+```
 
-**currencies (from Currency.csv)**:
-- col[1] → name
-- col[2] → code (ISO)
+### File 3: `src/pages/tenant/LegacyImport.tsx`
 
-**tax_rates (from Tax.csv)**:
-- col[1] → name
-- col[3] → rate (× 100 for percentage)
+**3a. Fix auto-accept logic** — ensure all `confidence: "exact"` files that are:
+- Not empty (`rowCount > 0`)  
+- Not auto-skipped (`targetTable !== "skip"`)
 
-**legal_entities (from Company.csv)**:
-- col[1] → name
-- col[3] → address
-- col[6] → pib
-- col[7] → maticni_broj
+...are automatically included in `confirmedMapping` with `accepted: true` when the user clicks "Start Import", without requiring manual per-file approval.
 
-**warehouses (from Warehouse.csv)**:
-- col[1] → code
-- col[2] → name
+---
 
-### File 3: New edge function `supabase/functions/import-legacy-zip/index.ts`
-
-Update the existing import-legacy-zip function to include a `UNIPROM_COLUMN_MAP` registry keyed by filename (without the `dbo.` prefix and `.csv` suffix). The import function already handles generic CSV → target table mapping. We add a lookup that, when a recognized Uniprom filename is detected, applies the exact column positions from the document instead of generic header detection.
-
-## Implementation Summary
-
-### What changes in `analyze-legacy-zip/index.ts`:
-- Add 14 new entries to `DBO_TABLE_LOOKUP` for the specific Uniprom FactorOne files
-- Update `DocumentHeader` label to include document type splitting information
-- Change `DocumentLine` from auto-skip to importable (as invoice lines, requiresParent)
-- Total: ~40 lines added to the lookup table
-
-### What changes in `import-legacy-zip/index.ts`:
-- Add a `UNIPROM_COLUMN_MAP` object with exact column positions for each Uniprom file
-- Modify the `importFile()` function to check this map first before falling back to generic detection
-- Add Uniprom-specific transformations: rate × 100 for Tax.csv, active flag for Partner.csv, name splitting for PartnerContact.csv
-
-### No UI changes needed
-The `LegacyImport.tsx` page already handles the analyze → review → import flow correctly. Once the edge functions return proper mappings, the review screen will show the correct target tables and confidence levels for all 45+ Uniprom CSV files.
+## Import Order (respecting FK dependencies)
+The document confirms this order for the 25 IMPORT files:
+1. `dbo.Company.csv` → legal_entities
+2. `dbo.Currency.csv` → currencies  
+3. `dbo.Tax.csv` → tax_rates
+4. `dbo.Department.csv` → departments
+5. `dbo.Warehouse.csv` → warehouses
+6. `dbo.Item.csv` → products (3,739 rows)
+7. `dbo.A_UnosPodataka.csv` → products ENRICH (prices + stock)
+8. `dbo.Partner.csv` → partners (10,493 rows)
+9. `dbo.A_UnosPodataka_Partner.csv` → partners ENRICH (PIB)
+10. `dbo.PartnerLocation.csv` → partners ENRICH (addresses)
+11. `dbo.PartnerContact.csv` → contacts (11,587 rows)
+12. `dbo.Employee.csv` → employees (45 rows)
+13. `dbo.Project.csv` → opportunities (314 rows)
+14. `dbo.Opportunity.csv` → opportunities (2 rows)
+15. `dbo.DocumentHeader.csv` → invoices/sales_orders/etc (848 rows)
+16. `dbo.DocumentLine.csv` → invoice_lines (384 rows)
 
 ## Files to Modify
 
-| File | Change |
+| File | Changes |
 |---|---|
-| `supabase/functions/analyze-legacy-zip/index.ts` | Add 14 missing Uniprom file entries to DBO_TABLE_LOOKUP; update DocumentHeader/DocumentLine labels |
-| `supabase/functions/import-legacy-zip/index.ts` | Add UNIPROM_COLUMN_MAP with exact column positions per the document; apply in importFile() |
+| `supabase/functions/import-legacy-zip/index.ts` | Fix getUnipromTableName, fix null-PIB upsert, fix employee legacy_id storage, fix contract lookup, fix DocumentHeader columns, add opportunities importer |
+| `supabase/functions/analyze-legacy-zip/index.ts` | Remove duplicate CurrencyRates, fix Opportunity target, add Project mapping |
+| `src/pages/tenant/LegacyImport.tsx` | Fix auto-accept to include all exact-confidence non-empty importable files |
