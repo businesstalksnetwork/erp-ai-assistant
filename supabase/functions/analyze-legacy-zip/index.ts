@@ -165,16 +165,27 @@ const DBO_TABLE_LOOKUP: Record<string, {
   "A_Log":             { target: "skip", confidence: "exact", label: "System log — auto-skip",              skipReason: "Audit log (not imported)" },
   "A_Sesija":          { target: "skip", confidence: "exact", label: "Session log — auto-skip",             skipReason: "Legacy session table" },
 
-  // ── ENGLISH-NAMED TABLES (newer Uniprom schema) ───────────────────────────
-  "Item":                    { target: "products",    confidence: "high",  label: "Item = product catalog (English table name)", dedupField: "sku" },
-  "Partner":                 { target: "partners",    confidence: "high",  label: "Partner = business partner (English table name)", dedupField: "pib" },
-  "PartnerContact":          { target: "contacts",    confidence: "high",  label: "PartnerContact = contact persons linked to partners", dedupField: "email" },
-  "PartnerLocation":         { target: "locations",   confidence: "high",  label: "PartnerLocation = partner delivery/billing addresses", dedupField: "name" },
-  "Department":              { target: "departments", confidence: "high",  label: "Department = department (English table name)", dedupField: "name" },
-  "CurrencyISO":             { target: "currencies",  confidence: "high",  label: "CurrencyISO = ISO 4217 currency list", dedupField: "code" },
-  "Employee":                { target: "employees",   confidence: "high",  label: "Employee = employees (English table name)", dedupField: "email" },
-  "Product":                 { target: "products",    confidence: "high",  label: "Product = products (English table name)", dedupField: "sku" },
-  "Warehouse":               { target: "warehouses",  confidence: "high",  label: "Warehouse = warehouses (English table name)", dedupField: "name" },
+  // ── ENGLISH-NAMED TABLES (Uniprom FactorOne — exact column positions per mapping doc) ──
+  "Item":                    { target: "products",       confidence: "exact", label: "Exact: Uniprom Item.csv — col[0]=legacy_id, col[1]=name, col[2]=sku (JOIN key), col[33]=is_active, col[34]=product_type (1=goods)", dedupField: "sku" },
+  "Partner":                 { target: "partners",       confidence: "exact", label: "Exact: Uniprom Partner.csv — col[0]=legacy_id, col[1]=name, col[17]=is_active (1=active). JOIN with PartnerLocation for addresses.", dedupField: "pib" },
+  "PartnerLocation":         { target: "partners",       confidence: "exact", label: "Exact: Address enrichment for partners — col[22]=partner_legacy_id (JOIN key), col[1]=full_name, col[7]=partner_code. Enriches Partner rows.", dedupField: "pib" },
+  "PartnerContact":          { target: "contacts",       confidence: "exact", label: "Exact: Uniprom PartnerContact — col[0]=legacy_id, col[1]=last_name, col[2]=first_name, col[6]=phone, col[10]=email, col[12]=partner_legacy_id", dedupField: "email" },
+  "Company":                 { target: "legal_entities", confidence: "exact", label: "Exact: Uniprom Company.csv — col[1]=name, col[3]=address, col[6]=pib, col[7]=maticni_broj (1 row only)", dedupField: "name" },
+  "CompanyOffice":           { target: "locations",      confidence: "exact", label: "Exact: Uniprom CompanyOffice.csv — col[1]=name, col[3]=address (1 row only)", dedupField: "name" },
+  "Currency":                { target: "currencies",     confidence: "exact", label: "Exact: Uniprom Currency.csv — col[1]=name, col[2]=ISO_code (4 currencies: RSD, EUR, USD, CHF)", dedupField: "code" },
+  "CurrencyRates":           { target: "skip",           confidence: "exact", label: "Exchange rates — auto-skip (5 rows, use NBS integration instead)", skipReason: "Use NBS exchange rates integration instead of importing legacy rates" },
+  "Tax":                     { target: "tax_rates",      confidence: "exact", label: "Exact: Uniprom Tax.csv — col[1]=name, col[2]=PDV_code, col[3]=rate (multiply ×100 to get percentage e.g. 0.20→20%)", dedupField: "name" },
+  "Employee":                { target: "employees",      confidence: "exact", label: "Exact: Uniprom Employee.csv — col[0]=legacy_id, col[1]=first_name, col[2]=last_name, col[4]=jmbg (dedup key), col[9]=dept_legacy_id (45 employees)", dedupField: "email" },
+  "Opportunity":             { target: "leads",          confidence: "exact", label: "Exact: Uniprom Opportunity.csv — 2 rows mapped to leads (CRM opportunities)", dedupField: "id" },
+  "ElektroMontazeri":        { target: "leads",          confidence: "high",  label: "Uniprom ElektroMontazeri — 246 rows of electrical installer CRM segment → leads table", dedupField: "id" },
+  "Investitori":             { target: "skip",           confidence: "exact", label: "Investitori — auto-skip (P2 priority CRM segment, investors)", skipReason: "P2 priority CRM segment (investors) — no import target" },
+  "Projektanti":             { target: "skip",           confidence: "exact", label: "Projektanti — auto-skip (P2 priority CRM segment, designers)", skipReason: "P2 priority CRM segment (designers) — no import target" },
+  "Trgovci":                 { target: "skip",           confidence: "exact", label: "Trgovci — auto-skip (P2 priority CRM segment, traders)", skipReason: "P2 priority CRM segment (traders) — no import target" },
+  "Bank":                    { target: "skip",           confidence: "exact", label: "Bank lookup — auto-skip (3 rows reference table)", skipReason: "Bank reference lookup table (3 rows only)" },
+  "CurrencyISO":             { target: "currencies",     confidence: "high",  label: "CurrencyISO = ISO 4217 currency list", dedupField: "code" },
+  "Department":              { target: "departments",    confidence: "exact", label: "Exact: Uniprom Department.csv — col[0]=legacy_id, col[1]=name, col[3]=code (12 departments)", dedupField: "name" },
+  "Warehouse":               { target: "warehouses",     confidence: "exact", label: "Exact: Uniprom Warehouse.csv — col[0]=legacy_id, col[1]=code, col[2]=name", dedupField: "name" },
+  "Product":                 { target: "products",       confidence: "high",  label: "Product = products (English table name)", dedupField: "sku" },
 
   // ── AUTO-SKIP: Legacy permission/ACL tables ───────────────────────────────
   "AppObjectsRolesRights":   { target: "skip", confidence: "exact", label: "Legacy role permissions — auto-skip",     skipReason: "Legacy ACL table (not imported)" },
@@ -203,13 +214,13 @@ const DBO_TABLE_LOOKUP: Record<string, {
   "EmployeeQualification":           { target: "skip", confidence: "exact", label: "Qualification lookup — auto-skip",          skipReason: "Lookup table (117 rows of qualification types)" },
 
   // ── AUTO-SKIP: Corrupt/binary data ───────────────────────────────────────
-  "Dobavljaci":              { target: "skip", confidence: "exact", label: "Corrupt binary data — auto-skip",          skipReason: "Binary data export (all null bytes, unreadable)" },
+  "Dobavljaci":              { target: "partners",   confidence: "high",  label: "Dobavljaci = supplier partner segment — 254 rows, maps to partners with type='supplier'. Verify encoding before import.", dedupField: "pib" },
 
   // ── FactorOne ERP — Document framework (importable) ──────────────────────
-  "DocumentHeader":              { target: "invoices",    confidence: "high",  label: "DocumentHeader = universal document header (invoices/orders)", dedupField: "invoice_number" },
+  "DocumentHeader":              { target: "invoices",    confidence: "high",  label: "DocumentHeader = universal document header — splits by doc type: IRPDV/RPDV/FAV→invoices, PO/PN→sales_orders, NAR→purchase_orders, UPDV/U10→goods_receipts. col[3]=doc_type_code, col[5]=doc_number, col[6]=date, col[7]=partner_id, col[11]=total. WARNING: multi-line CSV format requires custom parsing.", dedupField: "invoice_number" },
 
   // ── FactorOne ERP — Document framework config/audit (skip) ───────────────
-  "DocumentLine":                { target: "skip", confidence: "exact", label: "DocumentLine = line items (requires DocumentHeader FK) — auto-skip",  skipReason: "Line items require parent document import first" },
+  "DocumentLine":                { target: "invoices",    confidence: "medium", label: "DocumentLine = line items for DocumentHeader — col[1]=header_id (FK), col[3]=product_id, col[4]=qty, col[5]=unit_price, col[6]=discount. Maps to invoice_lines after DocumentHeader import.", requiresParent: "invoices", dedupField: "id" },
   "DocumentHeaderHistory":       { target: "skip", confidence: "exact", label: "DocumentHeaderHistory = document audit history — auto-skip",           skipReason: "Audit log (not imported)" },
   "DocumentLineHistory":         { target: "skip", confidence: "exact", label: "DocumentLineHistory = line audit history — auto-skip",                 skipReason: "Audit log (not imported)" },
   "DocumentHeaderAttachment":    { target: "skip", confidence: "exact", label: "DocumentHeaderAttachment = PDF attachment paths — auto-skip",          skipReason: "File attachment index (not imported)" },
