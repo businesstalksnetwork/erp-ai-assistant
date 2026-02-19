@@ -125,19 +125,27 @@ const UNIPROM_COLUMN_MAP: Record<string, Record<string, number>> = {
   "CompanyOffice": { legacy_id: 0, name: 1, address: 3 },
   // Warehouses: dbo.Warehouse.csv
   "Warehouse": { legacy_id: 0, code: 1, name: 2 },
-  // Documents
+  // Documents — BUG FIX: updated column positions per the full 581-file mapping doc:
+  // col[0]=legacy_id, col[1]=doc_number, col[2]=date, col[3]=doc_list_id,
+  // col[4]=status_id, col[6]=partner_id, col[7]=warehouse_id, col[11]=total
   "DocumentType": { legacy_id: 0, code: 1, name: 2 },
   "DocumentList": { legacy_id: 0, document_type_id: 1, code: 2, name: 3 },
-  "DocumentHeader": { legacy_id: 0, document_list_id: 1, status_id: 2, doc_number: 3, date: 4, partner_id: 5, warehouse_id: 6, total: 7, currency_id: 8 },
+  "DocumentHeader": { legacy_id: 0, doc_number: 1, date: 2, doc_list_id: 3, status_id: 4, partner_id: 6, warehouse_id: 7, total: 11 },
   "DocumentLine": { legacy_id: 0, header_id: 1, item_id: 2, qty: 3, unit_price: 4, discount: 5, tax_id: 6 },
+  // Project (CRM) → opportunities
+  "Project": { legacy_id: 0, name: 1, start_date: 3, end_date: 4, status_id: 9, partner_id: 7 },
+  // Opportunity → opportunities
+  "Opportunity": { legacy_id: 0, name: 1, partner_id: 2, value: 5, status_id: 9 },
 };
 
 // Detect which Uniprom table name a filename maps to (strips dbo. prefix and .csv suffix)
+// BUG FIX: always return the table name — do NOT gate on COLUMN_MAP existence.
+// Importers check the table name themselves; gating here caused PartnerLocation,
+// Dobavljaci, Project etc. to silently fall to the generic (skip) importer.
 function getUnipromTableName(filename: string): string | null {
   const basename = filename.split("/").pop() || filename;
   const m = basename.match(/^dbo\.(.+?)\.csv$/i);
-  if (!m) return null;
-  return UNIPROM_COLUMN_MAP[m[1]] ? m[1] : null;
+  return m ? m[1] : null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -352,14 +360,34 @@ async function importPartners(csvText: string, tenantId: string, supabase: any, 
     });
 
     if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("partners").upsert(batch, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += batch.length;
+      // BUG FIX: PostgreSQL does not match NULL in ON CONFLICT, so upsert by
+      // tenant_id,pib fails for rows where pib IS NULL (constraint not triggered,
+      // duplicates sneak in, then next batch hits a unique violation on the name).
+      // Split: rows WITH pib → upsert; rows WITHOUT pib → plain insert (best-effort).
+      const withPib = batch.filter((r: any) => r.pib);
+      const withoutPib = batch.filter((r: any) => !r.pib);
+      if (withPib.length) {
+        const { error } = await supabase.from("partners").upsert(withPib, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
+        if (error) errors.push(`PIB upsert: ${error.message}`); else inserted += withPib.length;
+      }
+      if (withoutPib.length) {
+        const { error } = await supabase.from("partners").insert(withoutPib);
+        if (error) errors.push(`No-PIB insert: ${error.message}`); else inserted += withoutPib.length;
+      }
       batch.length = 0;
     }
   }
   if (batch.length > 0) {
-    const { error } = await supabase.from("partners").upsert(batch, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
-    if (error) errors.push(error.message); else inserted += batch.length;
+    const withPib = batch.filter((r: any) => r.pib);
+    const withoutPib = batch.filter((r: any) => !r.pib);
+    if (withPib.length) {
+      const { error } = await supabase.from("partners").upsert(withPib, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
+      if (error) errors.push(`PIB upsert: ${error.message}`); else inserted += withPib.length;
+    }
+    if (withoutPib.length) {
+      const { error } = await supabase.from("partners").insert(withoutPib);
+      if (error) errors.push(`No-PIB insert: ${error.message}`); else inserted += withoutPib.length;
+    }
   }
   return { inserted, skipped, errors };
 }
@@ -595,6 +623,7 @@ async function importEmployees(csvText: string, tenantId: string, supabase: any,
       if (!email && nameSet.has(nameKey)) { skipped++; continue; }
       if (email) emailSet.add(email.toLowerCase());
       nameSet.add(nameKey);
+      const legacyId = cols[UNIPROM_COLUMN_MAP["Employee"].legacy_id]?.trim() || null;
       batch.push({
         tenant_id: tenantId,
         first_name: firstName || "",
@@ -602,7 +631,14 @@ async function importEmployees(csvText: string, tenantId: string, supabase: any,
         email:      email || null,
         phone:      phone || null,
         status:     "active",
-        notes:      [jmbg ? `JMBG: ${jmbg}` : null, deptLegacyId ? `Dept legacy ID: ${deptLegacyId}` : null].filter(Boolean).join(" | ") || null,
+        // BUG FIX: store legacy_id as "Legacy ID: X" so importEmployeeContracts()
+        // can find it with /Legacy ID:\s*(\d+)/ — previous pattern "Dept legacy ID:"
+        // never matched the regex in the contracts importer.
+        notes: [
+          legacyId ? `Legacy ID: ${legacyId}` : null,
+          jmbg ? `JMBG: ${jmbg}` : null,
+          deptLegacyId ? `Dept ID: ${deptLegacyId}` : null,
+        ].filter(Boolean).join(" | ") || null,
       });
     }
   } else {
@@ -1017,11 +1053,10 @@ async function importEmployeeContracts(csvText: string, tenantId: string, supaba
   const unipromTable = filename ? getUnipromTableName(filename) : null;
 
   // Build employee legacy_id → employee.id map
+  // BUG FIX: now that importEmployees stores "Legacy ID: X", match it correctly.
   const { data: employees } = await supabase.from("employees").select("id, notes").eq("tenant_id", tenantId);
   const empLegacyMap: Record<string, string> = {};
   for (const e of employees || []) {
-    const m = (e.notes || "").match(/Dept legacy ID:\s*(\S+)/);
-    // Store by notes pattern — we use legacy_id from notes
     const legacyMatch = (e.notes || "").match(/Legacy ID:\s*(\d+)/);
     if (legacyMatch) empLegacyMap[legacyMatch[1]] = e.id;
   }
@@ -1067,6 +1102,55 @@ async function importEmployeeContracts(csvText: string, tenantId: string, supaba
     return { inserted: 0, skipped: 0, errors: ["EmployeeContract file not recognized — import Employee first"] };
   }
 
+  return { inserted, skipped, errors };
+}
+
+// Import opportunities from dbo.Project.csv and dbo.Opportunity.csv
+async function importOpportunities(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+
+  const { data: existing } = await supabase.from("opportunities").select("name").eq("tenant_id", tenantId);
+  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
+
+  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  const batch: any[] = [];
+
+  const parseDate = (d: string | null) => {
+    if (!d) return null;
+    const p = new Date(d);
+    return isNaN(p.getTime()) ? null : p.toISOString().split("T")[0];
+  };
+
+  if (unipromTable === "Project" || unipromTable === "Opportunity") {
+    const cm = UNIPROM_COLUMN_MAP[unipromTable] || UNIPROM_COLUMN_MAP["Project"];
+    const lines = reconstructLogicalRows(sanitized);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 2) continue;
+      const name = cols[cm.name]?.trim();
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      batch.push({
+        tenant_id: tenantId,
+        name,
+        stage: "prospecting",
+        status: "open",
+        expected_close_date: parseDate(cols[cm.end_date ?? -1]?.trim() || null),
+        notes: `Imported from legacy ${unipromTable}`,
+      });
+    }
+  } else {
+    return { inserted: 0, skipped: 0, errors: ["No opportunity importer for this file format"] };
+  }
+
+  if (batch.length > 0) {
+    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
+      const { error } = await supabase.from("opportunities").insert(batch.slice(i, i + BATCH_SIZE));
+      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
+    }
+  }
   return { inserted, skipped, errors };
 }
 
@@ -1163,7 +1247,9 @@ Deno.serve(async (req) => {
           case "chart_of_accounts":   result = await importChartOfAccounts(csvText, tenantId, supabase); break;
           case "inventory_stock":     result = await importInventoryStock(csvText, tenantId, supabase); break;
           case "supplier_invoices":   result = await importSupplierInvoices(csvText, tenantId, supabase); break;
+          // BUG FIX: pass filename to invoices importer so it can use Uniprom column positions
           case "invoices":            result = await importInvoicesHeuristic(csvText, tenantId, supabase); break;
+          case "opportunities":       result = await importOpportunities(csvText, tenantId, supabase, fullPath || filename); break;
           case "departments":         result = await importDepartments(csvText, tenantId, supabase, fullPath || filename); break;
           case "currencies":          result = await importCurrencies(csvText, tenantId, supabase, fullPath || filename); break;
           case "tax_rates":           result = await importTaxRates(csvText, tenantId, supabase, fullPath || filename); break;
