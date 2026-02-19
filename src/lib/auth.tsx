@@ -144,6 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // When token refresh fails, actively sign out to wipe the stale token from localStorage
+        if ((event as string) === 'TOKEN_REFRESH_FAILED') {
+          supabase.auth.signOut();
+          setProfile(null);
+          setIsAdmin(false);
+          setProfileLoading(false);
+          fetchingRef.current = false;
+          setLoading(false);
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
 
