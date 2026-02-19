@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const fetchingRef = useRef(false);
   const sessionExpiredToastRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
 
   const showSessionExpiredToast = () => {
     if (!sessionExpiredToastRef.current) {
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, isInitialLoad = false) => {
     // Prevent duplicate concurrent calls
     if (fetchingRef.current) return;
     fetchingRef.current = true;
@@ -142,6 +143,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setProfileLoading(false);
       fetchingRef.current = false;
+      if (isInitialLoad) {
+        initialLoadDoneRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
@@ -188,9 +193,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           // Use setTimeout to avoid Supabase deadlock on auth state change
+          const isInitial = !initialLoadDoneRef.current;
           setTimeout(() => {
             fetchingRef.current = false; // allow fresh fetch on each auth event
-            fetchProfile(session.user.id);
+            fetchProfile(session.user.id, isInitial);
           }, 0);
         } else {
           // Explicitly reset all auth state — covers SIGNED_OUT and failed token refresh
@@ -198,8 +204,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
           setProfileLoading(false);
           fetchingRef.current = false;
+          initialLoadDoneRef.current = true;
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -207,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // don't always trigger TOKEN_REFRESH_FAILED (bfcache, multi-tab rotation, long background)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
+        initialLoadDoneRef.current = true;
         setLoading(false);
         return;
       }

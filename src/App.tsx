@@ -94,6 +94,14 @@ function ProtectedRoute({
 function AppRoutes() {
   const { user, loading, profileLoading, profile, isAdmin, isEmailVerified } = useAuth();
   const location = useLocation();
+  const [timedOut, setTimedOut] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const isRecoveryUrl =
     location.hash.includes("type=recovery") ||
@@ -105,8 +113,9 @@ function AppRoutes() {
     return <Navigate to={`/auth${location.search}${location.hash}`} replace />;
   }
 
-  // Spinner samo pri prvom učitavanju (kada profil još ne postoji)
-  if (loading || (profileLoading && !profile)) {
+  // Spinner samo pri prvom učitavanju (kada profil još ne postoji) — sa 5s timeout sigurnošću
+  const isStillLoading = loading || (profileLoading && !profile);
+  if (isStillLoading && !timedOut) {
     return (
       <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
