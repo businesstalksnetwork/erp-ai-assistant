@@ -1,145 +1,92 @@
 
-# Root Cause: Missing DB Constraints + Wrong Column Names
+# Rewrite: import-legacy-zip Edge Function
 
-## Confirmed Bugs (from DB schema inspection + session logs)
+## What's Wrong With the Current Design
 
-The import runs and finishes, but 0 rows land because every single importer is hitting one of these hard errors:
+After reading the full 1344-line function and cross-referencing against the live DB schema, the root problems are:
 
-### Bug A — Missing unique constraints (most critical — affects ALL tables)
-The upsert calls use `onConflict: "tenant_id,pib"` (partners), `"tenant_id,sku"` (products), `"tenant_id,invoice_number"` (invoices), `"tenant_id,name"` (warehouses, tax_rates) — **but none of these constraints exist in the database**. Only `currencies (tenant_id,code)` and `departments (tenant_id,code)` have unique constraints. PostgreSQL throws "there is no unique or exclusion constraint matching the ON CONFLICT specification" — confirmed in the session log.
+1. **Silent failures everywhere.** Errors are pushed to an array and counted — but the caller never sees them unless they read deep into the JSON. A single DB column mismatch causes an entire 500-row batch to fail with 0 rows inserted and 1 line in the errors array.
 
-### Bug B — `opportunities` table has wrong column name
-The import code inserts `{ name: ... }` but the actual DB column is `title`. Also `value`, `currency`, `probability` are NOT NULL with no defaults and are missing from the insert.
+2. **`employees` inserts are failing** because the current code sends `first_name`/`last_name` but the table requires `full_name NOT NULL` with no default. Every employee row fails.
 
-### Bug C — `departments` upsert uses wrong conflict column
-Code: `onConflict: "tenant_id,name"` — but the DB constraint is `(tenant_id,code)`. The department code field is short and unique per tenant; name has no constraint.
+3. **`partners` legacy reference is stored in `contact_person`** which gets overwritten by actual contact person data — and `buildPartnerLegacyMap` only finds partners where the legacy code is there. This makes the PartnerLocation enrichment and contacts company-name join fail silently.
 
-### Bug D — `tax_rates` upsert uses nonexistent `(tenant_id,name)` constraint
-No unique constraint on `tax_rates` at all except the primary key.
+4. **The 500-row batch model means one bad row kills the whole batch.** If row 47 has a bad value, all 500 fail. No individual row error capture.
 
-### Bug E — `warehouses` upsert uses nonexistent `(tenant_id,name)` constraint
-Same as above — no unique constraint beyond PK.
+5. **Branching spaghetti.** Each importer has 2-3 code paths (Uniprom format vs generic format) tangled together. Adding a log line requires finding the right branch.
 
-### Bug F — `contacts.insert` fails on duplicate check with `function_area` column
-The contacts table has no `function_area` column — the import inserts `function_area: role || null` which will fail with a column-not-found error.
+6. **No logging during import.** The function logs nothing with `console.log` during processing — so edge function logs are empty, giving zero debugging signal.
 
-## Fix Plan
+## New Design Philosophy
 
-### Migration — Add missing unique constraints
+- **One row at a time in a batch, collected and flushed.** Each row error is caught individually and logged with the row number and content.
+- **`console.log` at every step** — file name, row count, first 3 rows, each batch result. The edge function log becomes the debugging tool.
+- **Each importer only knows one schema path** (the Uniprom `dbo.*` format). Generic files that don't match the column map get a clear "file format not recognized" message instead of guessing.
+- **`employees` gets `full_name`** computed as `firstName + ' ' + lastName` before insert.
+- **Partners legacy map uses a dedicated `maticni_broj` field** to store the legacy ID (this field is currently null for all Uniprom partners since they have PIBs, so it's safe to repurpose as `"LEG:12345"`). No more piggybacking on `contact_person`.
+- **Batch insert with individual error logging.** Instead of bulk upsert where one failure silences everything, we do batches of 100 with a fallback single-row insert if the batch fails.
+- **Every importer returns detailed stats**: `{ inserted, skipped, errors: [{row, reason}] }` — errors include the actual row data so you can trace the problem.
 
-Add a Supabase migration that creates the constraints the import code assumes exist:
+## Files to Change
 
-```sql
--- Partners: unique PIB per tenant (only when PIB is not null)
-CREATE UNIQUE INDEX IF NOT EXISTS partners_tenant_pib_key 
-  ON public.partners (tenant_id, pib) WHERE pib IS NOT NULL;
+Only one file changes: `supabase/functions/import-legacy-zip/index.ts`
 
--- Products: unique SKU per tenant (only when SKU is not null)  
-CREATE UNIQUE INDEX IF NOT EXISTS products_tenant_sku_key
-  ON public.products (tenant_id, sku) WHERE sku IS NOT NULL;
+The rewrite keeps the same external API (same request body, same response shape) and same dispatcher switch-case structure. It replaces the internal importer implementations.
 
--- Invoices: unique invoice_number per tenant
-CREATE UNIQUE INDEX IF NOT EXISTS invoices_tenant_invoice_number_key
-  ON public.invoices (tenant_id, invoice_number);
+## Structural Changes Per Importer
 
--- Warehouses: unique name per tenant
-CREATE UNIQUE INDEX IF NOT EXISTS warehouses_tenant_name_key
-  ON public.warehouses (tenant_id, name);
+### `importPartners`
+- Current: stores legacy ID in `contact_person` as `"LegacyCode:P000001"` — conflicts with actual contact person data
+- New: stores legacy ID in `maticni_broj` as `"LEG:12345"` (safe because Uniprom PIBs exist but matični brojevi are usually empty in legacy data)
+- Logs: `console.log("Partners batch 1/5: 100 rows, 98 inserted, 2 skipped")`
 
--- Tax rates: unique name per tenant
-CREATE UNIQUE INDEX IF NOT EXISTS tax_rates_tenant_name_key
-  ON public.tax_rates (tenant_id, name);
+### `importEmployees`
+- Current: sends `first_name`, `last_name` but NOT `full_name` → every row fails on NOT NULL violation
+- New: computes `full_name = [firstName, lastName].filter(Boolean).join(' ')` before insert
+
+### `importContacts`
+- Current: builds partner company name by joining through `buildPartnerLegacyMap` which looks for `LegacyCode:` prefix in `contact_person` — after fix, this moves to `maticni_broj`
+- New: updates `buildPartnerLegacyMap` to look for `LEG:` prefix in `maticni_broj`
+
+### `importProducts`
+- Keep batch upsert on `(tenant_id,sku)` for SKU'd items
+- Add per-batch error logging: if batch fails, log which rows and why
+
+### `importWarehouses`, `importDepartments`, `importTaxRates`
+- These are working (indexes exist). Add `console.log` at start and end of each.
+
+### `importInvoicesHeuristic`
+- `partner_name` defaults to `''` so that's safe. Keep as-is but add logging.
+
+### `importOpportunities`
+- Already fixed (uses `title`, provides `value/currency/probability`). Add logging.
+
+## Logging Strategy
+
+Every importer will `console.log`:
+```
+[importPartners] dbo.Partner.csv: 1200 rows parsed
+[importPartners] Batch 1: inserted 98, skipped 2, errors: []  
+[importPartners] Batch 2: inserted 100, skipped 0, errors: []
+[importPartners] TOTAL: 198 inserted, 2 skipped
 ```
 
-Note: `departments` already has `(tenant_id, code)` — the import code just needs to use the right conflict column.
+This means the Supabase Edge Function logs panel becomes a real-time debugger.
 
-### Code fix — `import-legacy-zip/index.ts`
+## Technical Implementation Notes
 
-**Fix 1: `importOpportunities()`** — map `name` → `title`, add required NOT NULL fields:
-```typescript
-batch.push({
-  tenant_id: tenantId,
-  title: name,          // was: name — wrong column
-  stage: "prospecting",
-  status: "open",       // remove: not a column in opportunities
-  value: 0,             // required NOT NULL
-  currency: "RSD",      // required NOT NULL
-  probability: 10,      // required NOT NULL
-  expected_close_date: parseDate(...),
-  notes: `Imported from legacy ${unipromTable}`,
-});
-```
+- Keep `BATCH_SIZE = 100` (down from 500) so a bad batch affects fewer rows
+- Keep all existing upsert conflict targets — the indexes are confirmed in the DB
+- `buildPartnerLegacyMap` changes from: `contact_person.match(/LegacyCode:(\S+)/)` → `maticni_broj.match(/^LEG:(.+)/)`
+- `employees` insert adds: `full_name: [firstName, lastName].filter(Boolean).join(' ') || 'Unknown'`
+- The function keeps the same HTTP interface — no changes to the frontend `LegacyImport.tsx`
+- Deploy is automatic on save
 
-Also update the dedup check: `nameSet` → compare against `title` column:
-```typescript
-const { data: existing } = await supabase.from("opportunities").select("title").eq("tenant_id", tenantId);
-const nameSet = new Set((existing || []).map((r: any) => r.title?.toLowerCase()));
-```
+## What We Do NOT Change
 
-**Fix 2: `importDepartments()`** — change conflict column from `name` to `code`:
-```typescript
-// From:
-{ onConflict: "tenant_id,name", ignoreDuplicates: true }
-// To:
-{ onConflict: "tenant_id,code", ignoreDuplicates: true }
-```
-
-**Fix 3: `importContacts()`** — remove `function_area` (column doesn't exist), map to `notes` instead:
-```typescript
-// Remove: function_area: role || null,
-// Add role info to notes:
-notes: [
-  legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
-  role ? `Role: ${role}` : null,
-].filter(Boolean).join(" | ") || null,
-```
-
-**Fix 4: `importPartners()` null-PIB batch** — use `ignoreDuplicates: true` with the partial index:
-```typescript
-// For rows WITHOUT pib: use insert with onConflict ignore on name
-if (withoutPib.length) {
-  const { error } = await supabase.from("partners").insert(withoutPib);
-  if (error && !error.message.includes("duplicate")) errors.push(`No-PIB insert: ${error.message}`);
-  else inserted += withoutPib.length;
-}
-```
-
-**Fix 5: `importInvoicesHeuristic()`** — add Uniprom-specific path using DocumentHeader column map when filename is recognized:
-The current function calls `parseCSV()` which tries to detect headers. Since DocumentHeader has no headers, col[0] (legacy_id integer) is used as `invNum`, causing duplicates/skips. Add a check at the top:
-```typescript
-const unipromTable = filename ? getUnipromTableName(filename) : null;
-if (unipromTable === "DocumentHeader") {
-  // Use column positions from UNIPROM_COLUMN_MAP
-  const cm = UNIPROM_COLUMN_MAP["DocumentHeader"];
-  const lines = reconstructLogicalRows(sanitizeCSVText(csvText));
-  // ... use cm.doc_number for invoice_number
-}
-```
-
-But note the dispatcher at line 1251 does NOT pass `filename` to `importInvoicesHeuristic()` — this is the bug mentioned in the plan but never fixed. Fix the dispatcher call:
-```typescript
-case "invoices": result = await importInvoicesHeuristic(csvText, tenantId, supabase, fullPath || filename); break;
-```
-And update the function signature to accept `filename?: string`.
-
-## Files to Modify
-
-| File | Change |
-|---|---|
-| New migration file | Add 5 unique partial indexes for partners, products, invoices, warehouses, tax_rates |
-| `supabase/functions/import-legacy-zip/index.ts` | Fix opportunities (title+required fields), departments (conflict column), contacts (remove function_area), invoices (pass filename, use Uniprom columns) |
-
-## Import Order After Fix
-
-After these fixes, uploading `Uniprom_csv-4.zip` should result in:
-- `dbo.Currency.csv` / `dbo.CurrencyISO.csv` → currencies (already works — has constraint)
-- `dbo.Tax.csv` → tax_rates (needs new constraint)  
-- `dbo.Department.csv` → departments (needs conflict column fix)
-- `dbo.Warehouse.csv` → warehouses (needs new constraint)
-- `dbo.Item.csv` → products (needs new partial index)
-- `dbo.Partner.csv` + `dbo.A_UnosPodataka_Partner.csv` → partners (needs partial index)
-- `dbo.PartnerLocation.csv` → partners enrichment
-- `dbo.PartnerContact.csv` / `dbo.A_aPodaci.csv` → contacts (needs function_area fix)
-- `dbo.Employee.csv` → employees
-- `dbo.Project.csv` / `dbo.Opportunity.csv` → opportunities (needs title fix)
-- `dbo.DocumentHeader.csv` → invoices (needs filename passed to importer)
+- CSV parsing logic (`sanitizeCSVText`, `reconstructLogicalRows`, `parseCSVLine`) — these work correctly
+- `UNIPROM_COLUMN_MAP` — confirmed accurate for the Uniprom schema
+- The dispatcher switch-case and `IMPORT_ORDER` sort
+- The session tracking (`legacy_import_sessions` update calls)
+- The ZIP file loading via JSZip
+- Any frontend code
