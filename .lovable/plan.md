@@ -1,180 +1,142 @@
 
-# PRD v1.0 Enhanced — Gap Analysis & Upgrade Plan
+# Settings — Complete Gap Analysis & Upgrade Plan
 
-## What the PRD Is
+## Current State Summary
 
-This is a comprehensive **Product Requirements Document** for an AI-powered Serbian ERP SaaS system. It specifies regulatory compliance requirements, module specifications, AI automation layers, and a 15-phase implementation roadmap.
+After reviewing all Settings-related pages, routes, and the sidebar navigation, here is a full inventory of what exists, what's broken/incomplete, and what's missing entirely.
 
-## Current System Status (What's Already Built)
+---
 
-The codebase is already very well-developed. Most major modules exist:
-- Multi-tenant architecture with RLS, RBAC, super-admin
-- Sales: Quotes, Orders, Invoices, SEF integration, eOtpremnica
-- Purchasing: POs, Goods Receipts, Supplier Invoices
-- Inventory: Stock, Movements, WMS, FIFO cost layers
-- Finance: Chart of Accounts, Journal Entries, GL, Trial Balance, PDV Periods, Bank Statements
-- HR: Employees, Contracts, Payroll, Leave, Attendance
-- Production: BOM, Production Orders
-- CRM: Leads, Opportunities, Companies, Contacts
-- POS + eFiskalizacija
-- DMS: Documents, Archive, Approval Workflows
-- AI: Assistant, Insights, Analytics Narrative
+## GAP 1: Settings Hub Page — Missing Important Sections
 
-## Gap Analysis — Priority Upgrades from PRD
+The `/settings` hub card grid is missing several pages that already exist and have routes registered:
 
-### GAP 1: Payroll Tax Parameters — Out of Date (HIGH PRIORITY)
-The PRD specifies **2025 legal rates** that differ from what's currently seeded in `payroll_parameters`:
-- **Nontaxable amount**: PRD says `28,423 RSD` — current code uses `34,221 RSD` (old value)
-- **Min contribution base**: PRD says `45,950 RSD` — current code uses `51,297 RSD` (old value)
-- **Max contribution base**: PRD says `656,425 RSD` — current code uses `732,820 RSD` (old value)
-- **PIO employer rate**: PRD says `11%` — current code uses `10%`
-- **Min hourly wage (net)**: PRD says `308 RSD/hour` — not yet in payroll_parameters
+**Currently shown in the Settings hub:**
+- Organization: Legal Entities, Locations, Warehouses, Cost Centers
+- Finance: Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
+- Operations: Users, API Configuration (Integrations), Business Rules, Sales Channels, Web Sales (conditional), Legacy Import, AI Audit Log
 
-### GAP 2: Tax Parameter Engine — Missing UI (HIGH PRIORITY)
-The PRD specifies a **Tax Parameter Engine** that allows updating tax rates per effective date without code changes. While `payroll_parameters` table exists in the DB, there is **no UI page** to view/edit these parameters. Admins must currently use SQL to update rates.
+**Already built but NOT linked from the Settings hub:**
+- `Currencies` → `/settings/currencies` (full page exists, route exists, sidebar has it — but NOT in hub)
+- `Approval Workflows` → `/settings/approvals` (full page exists, route exists, sidebar has it — but NOT in hub)
+- `Pending Approvals` → `/settings/pending-approvals` (full page exists — but NOT in hub)
+- `Audit Log` → `/settings/audit-log` (full page exists — but NOT in hub)
+- `Event Monitor` → `/settings/events` (full page exists — but NOT in hub)
+- `Departments` → `/hr/departments` (exists but technically a settings-level concept)
 
-**Action**: Create `/settings/payroll-parameters` page showing the current 2025 rates with an edit form.
+**Action:** Add 5 missing cards to the Settings hub under appropriate sections.
 
-### GAP 3: Payroll Formula — PIO employer rate incorrect
-PRD Section 7.2 specifies:
-- PIO employee: 14%, PIO employer: **11%** (total 25%)
-- Health employee: 5.15%, Health employer: 5.15% (total 10.3%)
+---
 
-The `calculate_payroll_for_run` function default fallback uses `pio_employer_rate = 0.10` (10%) instead of 11%.
+## GAP 2: Sidebar Settings Nav — Missing Items
 
-### GAP 4: AI Audit Log — Schema Defined but No UI
-The PRD specifies (Section 11.2) an **AI Audit Log** with fields: `timestamp`, `user_id`, `action_type`, `module`, `input_data`, `ai_output`, `model_version`, `confidence_score`, `user_decision`, `reasoning`.
+The `settingsNav` in `TenantLayout.tsx` (lines 205–215) only shows 9 items:
+- companySettings, taxRates, currencies, users, approvalWorkflows, pendingApprovalsPage, integrations, auditLog, eventMonitor
 
-The current system has a general `audit_log` table but no dedicated `ai_action_log` table, and no UI for reviewing AI decisions. The PRD explicitly requires this for regulatory compliance.
+**Missing from sidebar settings nav** (routes and pages exist):
+- `Payroll Parameters` → `/settings/payroll-parameters` — just added via PRD upgrade but NOT in sidebar
+- `AI Audit Log` → `/settings/ai-audit-log` — just added via PRD upgrade but NOT in sidebar
+- `Legacy Import` → `/settings/legacy-import` — exists but NOT in sidebar
+- `Business Rules` → `/settings/business-rules` — exists but NOT in sidebar
+- `Posting Rules` → `/settings/posting-rules` — exists but NOT in sidebar
 
-**Action**: Create a new `ai_action_log` table + a read-only UI page at `/settings/ai-audit-log`.
+**Action:** Add 5 missing items to `settingsNav` in `TenantLayout.tsx`.
 
-### GAP 5: Dashboard — Missing Predictive Widgets
-The PRD (Section 6.1) requires:
-- **Cashflow prediction** 30/60/90 days
-- **Anomaly alerts** widget
-- **Natural Language Query** ("Ask ERP" interface)
+---
 
-The dashboard has charts and an AI insights widget, but no dedicated 30/60/90 day cashflow prediction widget or an "Ask ERP" natural language interface.
+## GAP 3: PostingRules Page — Empty Because of Missing Tenant Scope in DB Query
 
-**Action**: Add a Cashflow Forecast widget to the dashboard that shows 30/60/90 day projections based on open invoices + due dates.
+Looking at `PostingRules.tsx` line 33-36, it queries `posting_rule_catalog` filtered by `tenant_id`. However, based on the screenshot the user shared (which shows an empty/broken state), the `posting_rule_catalog` table likely has no records because it's never seeded per-tenant. The page itself is structurally complete but has no data.
 
-### GAP 6: Settings — Missing "Payroll Parameters" and "AI Audit Log" links
-The Settings page (`/settings`) currently has no link to payroll parameters or AI audit log pages.
+**Action:** Add a migration that seeds default `posting_rule_catalog` entries for all existing tenants (same as what gets seeded on new tenant creation). Also add a "Seed Defaults" button to the PostingRules page UI.
 
-### GAP 7: Compliance Calendar — Not Implemented
-PRD Section 12.5 requires an **Automated Compliance Engine** with a **Zakonski Kalendar** (Legal Calendar) that tracks PDV deadlines, PP-PDV, EEPP, etc. Currently there is no compliance calendar/deadline tracker.
+---
 
-**Action**: Add a compliance deadline widget to the dashboard showing upcoming regulatory deadlines (PDV by 15th, SEF evidencije by 12th, etc.).
+## GAP 4: Settings Hub — Inconsistent Grouping
+
+The current Settings hub groups items as "Organization", "Finance", "Operations". Several items are in wrong groups or the groupings are confusing:
+- "Posting Rules" is in Finance but it's really a finance/accounting bridge — ok
+- "Legacy Import" is in Operations but feels like a one-time utility — it belongs in a new "Data" section
+- There's no "Compliance & Audit" section for Audit Log, AI Audit Log, Event Monitor
+
+**Action:** Reorganize into 4 clear sections:
+1. **Organization** — Legal Entities, Locations, Warehouses, Cost Centers, Currencies
+2. **Finance** — Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
+3. **Operations** — Users, Approval Workflows, Business Rules, Sales Channels, Web Sales, Integrations
+4. **Audit & Data** — Audit Log, AI Audit Log, Event Monitor, Legacy Import
+
+---
+
+## GAP 5: Missing Translations
+
+The Settings hub uses `t("organization")`, `t("finance")`, `t("operations")` but these keys may not exist in translations (they use `as any` casting as a workaround). The new section headings also need translations.
+
+**Action:** Add missing translation keys for settings section headings in both English and Serbian.
+
+---
 
 ## Implementation Plan
 
-### Phase 1: Update 2025 Tax Parameters (DB Migration)
-Update the `payroll_parameters` default fallback values in `calculate_payroll_for_run` to match 2025 law:
-- `nontaxable_amount`: 28,423 RSD
-- `min_contribution_base`: 45,950 RSD
-- `max_contribution_base`: 656,425 RSD
-- `pio_employer_rate`: 0.11
-- Insert correct 2025 parameters for all tenants that don't already have one
+### Files to Modify
 
-### Phase 2: Tax Parameter Engine UI
-**New page**: `src/pages/tenant/PayrollParameters.tsx`
-- Shows current effective payroll parameters
-- Form to add new parameter set with `effective_from` date
-- History of past parameter changes
-- Linked from Settings page under "Finance" section
+| File | Change |
+|---|---|
+| `src/pages/tenant/Settings.tsx` | Add 5 missing page cards, reorganize into 4 sections |
+| `src/layouts/TenantLayout.tsx` | Add 5 missing items to `settingsNav` |
+| `src/i18n/translations.ts` | Add missing translation keys for settings sections |
+| `src/pages/tenant/PostingRules.tsx` | Add "Seed Defaults" button for empty state |
+| `supabase/migrations/` | Seed `posting_rule_catalog` for existing tenants |
 
-### Phase 3: AI Audit Log
-**New DB table**: `ai_action_log` with fields from PRD Section 11.2
-**New page**: `src/pages/tenant/AiAuditLog.tsx`
-- Read-only table view of all AI actions
-- Filterable by module, action_type, user_decision
-- Linked from Settings page under "Operations" section
+### Details
 
-### Phase 4: Dashboard — Cashflow Forecast Widget + Compliance Calendar
-**Enhanced Dashboard**:
-- Add `CashflowForecastWidget` component (30/60/90 day view based on open invoices)
-- Add `ComplianceDeadlineWidget` component showing:
-  - Next PDV deadline (15th of month)
-  - Next SEF evidencija deadline (12th of month)
-  - Any open PDV periods not yet submitted
-- These replace 2 of the less-used placeholder cards
+**Settings.tsx** — New 4-section layout:
+```
+Organization (5 cards):
+  Legal Entities, Locations, Warehouses, Cost Centers, Currencies [NEW]
 
-### Phase 5: Settings Page — Add Missing Links
-Add to the Settings page:
-- "Payroll Parameters" link under Finance section
-- "AI Audit Log" link under Operations section
+Finance (5 cards):
+  Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
 
-## Files to Create/Modify
+Operations (5 cards):
+  Users, Approval Workflows [NEW], Business Rules, Sales Channels, Integrations
 
-| File | Action | Reason |
-|---|---|---|
-| `supabase/migrations/` | NEW migration | Create `ai_action_log` table + update 2025 payroll params |
-| `src/pages/tenant/PayrollParameters.tsx` | CREATE | Tax Parameter Engine UI |
-| `src/pages/tenant/AiAuditLog.tsx` | CREATE | AI Audit Log viewer |
-| `src/components/dashboard/CashflowForecastWidget.tsx` | CREATE | 30/60/90 day cashflow widget |
-| `src/components/dashboard/ComplianceDeadlineWidget.tsx` | CREATE | Regulatory deadline tracker |
-| `src/pages/tenant/Dashboard.tsx` | MODIFY | Add new widgets |
-| `src/pages/tenant/Settings.tsx` | MODIFY | Add new settings links |
-| `src/App.tsx` | MODIFY | Register new routes |
-| `supabase/functions/calculate_payroll_for_run` (DB fn) | MODIFY via migration | Fix PIO employer rate default to 11% |
-
-## Database Changes
-
-**Migration 1**: Create `ai_action_log` table
-```sql
-CREATE TABLE public.ai_action_log (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES tenants(id),
-  user_id uuid REFERENCES auth.users(id),
-  action_type text NOT NULL,
-  module text NOT NULL,
-  input_data jsonb DEFAULT '{}',
-  ai_output jsonb DEFAULT '{}',
-  model_version text,
-  confidence_score numeric,
-  user_decision text CHECK (user_decision IN ('approved', 'rejected', 'modified', 'auto')),
-  reasoning text,
-  created_at timestamptz DEFAULT now()
-);
--- Enable RLS
-ALTER TABLE public.ai_action_log ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "tenant_isolation" ON public.ai_action_log
-  FOR ALL USING (tenant_id IN (SELECT get_user_tenant_ids(auth.uid())));
+Audit & Data (5 cards):
+  Audit Log [NEW], AI Audit Log, Event Monitor [NEW], Legacy Import, Pending Approvals [NEW]
 ```
 
-**Migration 2**: Seed 2025 payroll parameters for tenants missing them
+**TenantLayout.tsx settingsNav** — Add these 5 entries:
+- `{ key: "payrollParameters", url: "/settings/payroll-parameters", icon: Calculator }`
+- `{ key: "aiAuditLog", url: "/settings/ai-audit-log", icon: ShieldCheck }`
+- `{ key: "legacyImport", url: "/settings/legacy-import", icon: Upload }`
+- `{ key: "businessRules", url: "/settings/business-rules", icon: FileText }`
+- `{ key: "postingRules", url: "/settings/posting-rules", icon: BookOpen }`
+
+**translations.ts** — Add keys:
+- `organization`, `finance`, `operations`, `auditData` (section headings)
+- `payrollParameters`, `aiAuditLog`, `legacyImport`, `pendingApprovalsPage`, `auditLog`, `eventMonitor` (if missing)
+
+**PostingRules.tsx** — When no rules exist, show a "Seed Default Rules" button that calls a Supabase function or inserts default rules.
+
+**Migration** — Seed `posting_rule_catalog` rows for all tenants that have 0 rules:
 ```sql
-INSERT INTO payroll_parameters (
-  tenant_id, effective_from,
-  tax_rate, nontaxable_amount,
-  pio_employee_rate, pio_employer_rate,
-  health_employee_rate, health_employer_rate,
-  unemployment_rate,
-  min_contribution_base, max_contribution_base
-)
-SELECT 
-  t.id, '2025-01-01',
-  0.10, 28423,
-  0.14, 0.11,
-  0.0515, 0.0515,
-  0.0075,
-  45950, 656425
+INSERT INTO posting_rule_catalog (tenant_id, rule_code, description, debit_account_code, credit_account_code)
+SELECT t.id, r.rule_code, r.description, r.debit_account_code, r.credit_account_code
 FROM tenants t
+CROSS JOIN (VALUES
+  ('pos_cash_receipt', 'POS Cash Receipt', '2430', NULL),
+  ('pos_card_receipt', 'POS Card Receipt', '2431', NULL),
+  ('pos_revenue', 'POS Revenue', NULL, '6010'),
+  ('pos_output_vat', 'POS Output VAT', NULL, '2470'),
+  ('pos_cogs', 'POS COGS', '5010', NULL),
+  ('invoice_ar', 'Invoice AR', '2040', NULL),
+  ('invoice_revenue', 'Invoice Revenue', NULL, '6000'),
+  ('invoice_output_vat', 'Invoice Output VAT', NULL, '4700'),
+  ('payroll_gross_exp', 'Payroll Gross Expense', '5400', NULL),
+  ('payroll_net_payable', 'Payroll Net Payable', NULL, '2720'),
+  ('payroll_tax', 'Payroll Tax Payable', NULL, '4810'),
+  ('payroll_bank', 'Payroll Bank Payment', '2720', '2431')
+) AS r(rule_code, description, debit_account_code, credit_account_code)
 WHERE NOT EXISTS (
-  SELECT 1 FROM payroll_parameters pp 
-  WHERE pp.tenant_id = t.id AND pp.effective_from = '2025-01-01'
-)
-ON CONFLICT DO NOTHING;
+  SELECT 1 FROM posting_rule_catalog prc WHERE prc.tenant_id = t.id
+);
 ```
-
-## Expected Outcome
-
-After these upgrades:
-1. Payroll calculations are **legally compliant for 2025** (correct rates)
-2. Admins can view and update tax parameters without SQL access
-3. Every AI action is logged and auditable (regulatory compliance)
-4. Dashboard shows **actionable forward-looking data** (cashflow + deadlines)
-5. The system is demonstrably aligned with the PRD spec
-
-These are the highest-impact gaps. The rest of the PRD (advanced FIFO costing UI, CROSO export, bank file generator for payments, PPP-PD auto-fill) represents Phase 2 work that can be planned separately.
