@@ -1,65 +1,83 @@
 
-# Fix: Revoke Stale Sessions + Enforce 24-Hour Login Requirement
+# Add Session Expiry Toast Notification
 
-## Current State
+## What Changes
 
-From the database analysis:
+One file only: `src/lib/auth.tsx`
 
-| Session Status | Sessions | Users |
+The standalone `toast` function from `sonner` will be imported and called at each of the 4 places where the app automatically signs a user out due to a stale or expired session. This works because `sonner`'s `toast()` is a standalone function (not a React hook) and can be called from anywhere — including inside context providers.
+
+## The 4 Auto-Logout Points
+
+| # | Location | Trigger |
 |---|---|---|
-| NEVER refreshed | 21 | 13 |
-| Stale > 7 days | 17 | 17 |
-| Stale 3-7 days | 6 | 6 |
-| Stale 1-3 days | 2 | 2 |
-| Active (< 1 day) | 10 | 9 |
+| 1 | `onAuthStateChange` | `TOKEN_REFRESH_FAILED` event |
+| 2 | `getSession()` on app load | 24-hour login limit exceeded |
+| 3 | `getSession()` on app load | Token expired, refresh attempt failed |
+| 4 | `visibilitychange` handler | 24-hour limit exceeded on tab focus |
 
-The 13 users with sessions that have NEVER been refreshed (including users like `tihomir.azzure@gmail.com`, `doseze@yahoo.com`, `dragana@blink-blink.co.rs` etc.) are the next group that will hit the infinite spinner when they return to the app.
+A helper flag `sessionExpiredToastShown` (a `useRef` boolean) will be used to prevent the toast from firing multiple times in rapid succession (e.g. if both the `getSession` check and the `onAuthStateChange` event fire close together).
 
-## Two-Part Fix
+## Code Change
 
-### Part 1: Delete All Stale Sessions from the Database (one-time cleanup)
-
-Run a SQL command via the backend to delete all sessions that have not been refreshed for more than 24 hours. This forces every affected user to log in fresh the next time they open the app. Their stale localStorage tokens will then correctly get a 400 error → trigger our existing `TOKEN_REFRESH_FAILED` handler → clean redirect to login page.
-
-```sql
--- Delete all sessions not refreshed in the last 24 hours
--- (sessions with NULL refreshed_at that are older than 24h are also deleted)
-DELETE FROM auth.sessions
-WHERE 
-  (refreshed_at IS NULL AND created_at < NOW() - INTERVAL '24 hours')
-  OR (refreshed_at IS NOT NULL AND refreshed_at < NOW() - INTERVAL '24 hours');
+**Import addition** at the top of `src/lib/auth.tsx`:
+```typescript
+import { toast } from 'sonner';
 ```
 
-This is a one-time fix. After this, every user with a stale session will be forced to log in again. The existing app-side fixes (TOKEN_REFRESH_FAILED handler, proactive refresh on load) will cleanly redirect them to the login page instead of showing a spinner.
+**Helper ref** inside `AuthProvider` (next to the existing `fetchingRef`):
+```typescript
+const sessionExpiredToastRef = useRef(false);
+```
 
-### Part 2: Enforce 24-Hour Session Lifetime Going Forward
+**Helper function** inside `AuthProvider`:
+```typescript
+const showSessionExpiredToast = () => {
+  if (!sessionExpiredToastRef.current) {
+    sessionExpiredToastRef.current = true;
+    toast.error('Vaša sesija je istekla, molimo prijavite se ponovo', {
+      duration: 6000,
+    });
+  }
+};
+```
 
-The Supabase Auth project has a **JWT expiry** setting that controls how long an access token lives (default: 3600 seconds = 1 hour). But the session itself (the refresh token) can live much longer if users keep the app open.
+**Called at all 4 auto-logout points**, for example:
+```typescript
+// TOKEN_REFRESH_FAILED
+if ((event as string) === 'TOKEN_REFRESH_FAILED') {
+  showSessionExpiredToast(); // <-- added
+  supabase.auth.signOut();
+  ...
+}
 
-To enforce 24-hour sessions going forward, there are two levers:
+// 24-hour limit on load
+if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
+  showSessionExpiredToast(); // <-- added
+  await supabase.auth.signOut();
+  ...
+}
 
-**Option A — Reduce refresh token reuse interval (recommended):** Set `refresh_token_reuse_interval` to 0 and `jwt_expiry` to 86400 (24 hours). This means the access token is valid for 24 hours and will attempt to refresh after that — if the user is inactive for more than 24 hours, their session expires.
+// Refresh failed
+if (error) {
+  showSessionExpiredToast(); // <-- added
+  await supabase.auth.signOut();
+  ...
+}
 
-**Option B — Client-side enforcement:** Store a `login_at` timestamp in `localStorage` when the user signs in. On each app load, check if more than 24 hours have passed since login. If yes, call `signOut()` and redirect to login.
+// visibilitychange 24-hour limit
+if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
+  showSessionExpiredToast(); // <-- added
+  supabase.auth.signOut();
+  ...
+}
+```
 
-Option B is implemented in `src/lib/auth.tsx` because it does not require changing Supabase server settings (which may not be accessible):
+The ref resets to `false` when the user successfully signs in (`SIGNED_IN` event), so the toast can appear again on the next session expiry.
 
-In the `onAuthStateChange` handler, when a new session is received with a `SIGNED_IN` event, store `Date.now()` to `localStorage` as `pausalbox_login_at`. Then in the `getSession()` check at startup, compare against this timestamp — if more than 24 hours have passed, call `signOut()`.
+## Technical Details
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Backend (SQL) | Delete all sessions not refreshed in 24+ hours (one-time cleanup via SQL query) |
-| `src/lib/auth.tsx` | Add 24-hour client-side session enforcement: store login timestamp on `SIGNED_IN`, check on startup and tab focus |
-
-## Implementation Steps
-
-1. **Run SQL cleanup** (via database query tool) to delete all stale sessions immediately — this fixes all currently affected users
-2. **Update `src/lib/auth.tsx`** to enforce 24-hour session limit client-side going forward
-
-## What Users Will Experience
-
-- Users with stale sessions: next time they open the app, they will see the login page (clean redirect, no spinner)
-- Active users: no interruption — their sessions are still valid
-- Going forward: after 24 hours of inactivity, any user will be redirected to login automatically
+- `sonner`'s `toast` is already used across the entire app and the `<Sonner />` toaster is mounted in `App.tsx` — no new setup needed
+- `toast.error()` gives a red/destructive styling appropriate for a session expiry message
+- The 6-second duration ensures users have time to read the message before it fades
+- The deduplication ref prevents double-toasting when multiple signals fire simultaneously
