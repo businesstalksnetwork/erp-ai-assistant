@@ -282,10 +282,11 @@ async function importProducts(csvText: string, tenantId: string, supabase: any, 
 
 // Build a legacy_id → partner.id map for later FK joins
 async function buildPartnerLegacyMap(tenantId: string, supabase: any): Promise<Record<string, string>> {
-  const { data } = await supabase.from("partners").select("id, notes").eq("tenant_id", tenantId);
+  // Legacy code is stored in contact_person as "LegacyCode:P000001" since partners has no notes column
+  const { data } = await supabase.from("partners").select("id, contact_person").eq("tenant_id", tenantId);
   const map: Record<string, string> = {};
   for (const p of data || []) {
-    const m = (p.notes || "").match(/Legacy code:\s*(\S+)/);
+    const m = (p.contact_person || "").match(/LegacyCode:(\S+)/);
     if (m) map[m[1]] = p.id;
   }
   return map;
@@ -365,12 +366,14 @@ async function importPartners(csvText: string, tenantId: string, supabase: any, 
     const contactPerson = getCol!(cols, "contact_person");
     const partnerCode = legacyId || getCol!(cols, "partner_code");
 
+    // Store legacy code in contact_person with prefix "LegacyCode:" so buildPartnerLegacyMap can find it
+    // partners table has NO notes column — contact_person is used as the legacy reference carrier
+    const legacyTag = partnerCode ? `LegacyCode:${partnerCode}` : null;
     batch.push({
       tenant_id: tenantId, name, city: city || null, country,
       pib: pib || null,
-      contact_person: contactPerson || null,
+      contact_person: contactPerson || legacyTag || null,
       type: "customer", is_active: true,
-      notes: partnerCode ? `Legacy code: ${partnerCode}` : null,
     });
 
     if (batch.length >= BATCH_SIZE) {
@@ -471,15 +474,22 @@ async function importContacts(csvText: string, tenantId: string, supabase: any, 
       if (partnerId) companyName = partnerIdToName[partnerId] || null;
     }
 
+    // contacts.type check constraint only allows: customer, supplier, prospect
+    // contacts.function_area check constraint only allows specific values — map or omit
+    const validFunctionAreas = new Set(["management","sales","marketing","finance","hr","it","operations","legal","procurement","production","other"]);
+    const mappedFunctionArea = role && validFunctionAreas.has(role.toLowerCase()) ? role.toLowerCase() : null;
     batch.push({
       tenant_id: tenantId,
       first_name: effectiveFirst, last_name: effectiveLast,
       email: email || null, phone: phone || null,
       city, country,
-      function_area: role || null,
+      function_area: mappedFunctionArea,
       company_name: companyName,
-      notes: legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
-      type: "contact",
+      notes: [
+        legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
+        role && !mappedFunctionArea ? `Role: ${role}` : null,
+      ].filter(Boolean).join(" | ") || null,
+      type: "prospect",
     });
 
     if (batch.length >= BATCH_SIZE) {
