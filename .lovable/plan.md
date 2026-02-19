@@ -1,186 +1,451 @@
 
-# Fix: Map All 42 Remaining Unmapped Files
+# Full Database Schema Reference for CSV Mapping
 
-## Root Cause Analysis
+Below is the complete list of all importable tables in the system, with their exact column names, required fields, and what the data represents. Use this to map your Uniprom/FactorOne CSV files.
 
-After reading the **live edge function response** for every file in the Uniprom ZIP, I now have the exact identity of all 42 unmapped files. The issue is simple: this Uniprom system uses a **FactorOne ERP** (not just generic `dbo.A_*` tables). It has a second table naming convention — `dbo.Document*`, `dbo.Item*`, `HangFire.*`, `dbo.Book*`, `dbo.Role`, `dbo.User`, `dbo.Project*` — none of which are in the current lookup table.
+---
 
-## Exact Breakdown of All 42 Unmapped Files
+## CORE IMPORTABLE TABLES
 
-**Group A — Importable business data (2 files worth mapping):**
+### 1. `products`
+The main product catalog. Maps from: `dbo.A_UnosPodataka.csv`, `dbo.Item.csv`, `dbo.A_Artikal.csv`
 
-| File | Rows | What It Is | Target |
+| Column | Type | Required | Notes |
 |---|---|---|---|
-| `dbo.DocumentHeader.csv` | 844 | Generic document header — contains invoice/order numbers, dates, partner refs, amounts. This IS the invoices/orders table | `invoices` → high |
-| `dbo.DocumentLine.csv` | 383 | Document line items — quantities, unit prices, VAT amounts. Line items for DocumentHeader | skip (requiresParent: invoices — complex FK) |
+| `tenant_id` | uuid | YES | Auto-filled by system |
+| `sku` | text | NO | Product code / SKU |
+| `name` | text | YES | Product name |
+| `description` | text | NO | Description |
+| `unit` | text | NO | Unit of measure (kom, kg, m...) |
+| `default_sale_price` | numeric | NO | Retail/sale price |
+| `default_purchase_price` | numeric | NO | Purchase/cost price |
+| `purchase_price` | numeric | NO | Purchase price (used in POS/COGS) |
+| `is_active` | boolean | NO | Default: true |
+| `product_type` | text | NO | "goods", "service", "raw_material" |
+| `barcode` | text | NO | EAN/barcode |
+| `category` | text | NO | Category text |
+| `brand` | text | NO | Brand name |
+| `weight` | numeric | NO | Weight in kg |
+| `vat_rate` | numeric | NO | VAT % (default 20) |
 
-**Group B — System/infrastructure tables to skip (25 files):**
+**Confirmed column mapping from `dbo.A_UnosPodataka.csv` (no headers, 13 cols):**
+- col_1 → `sku`
+- col_2 → `name`
+- col_3 → `unit`
+- col_4 → quantity (stock — goes to `inventory_stock`, not products)
+- col_5 → `default_purchase_price`
+- col_6 → `default_sale_price`
+- col_7 → `is_active` (1/0)
+- col_8–12 → categories (use col_8 as `category`)
+- col_13 → `brand`
 
-| File | Rows | Reason |
-|---|---|---|
-| `HangFire.JobParameter.csv` | 256 | Background job queue (Hangfire scheduler) |
-| `HangFire.State.csv` | 211 | Job execution state log |
-| `HangFire.Hash.csv` | 64 | Job hash data |
-| `HangFire.Job.csv` | 63 | Job definition records |
-| `HangFire.AggregatedCounter.csv` | 52 | Job execution statistics |
-| `dbo.User.csv` | 20 | Legacy user accounts with SHA256 password hashes — NEVER import |
-| `dbo.Role.csv` | 43 | Legacy user roles |
-| `dbo.AppObjects.csv` | 522 | UI object registry (screen names/modules) |
+---
 
-**Group C — Document framework config/lookup tables to skip (15 files):**
+### 2. `partners`
+Customers and suppliers. Maps from: `dbo.A_UnosPodataka_Partner.csv`, `dbo.Partner.csv`, `dbo.A_Kupac.csv`, `dbo.A_Dobavljac.csv`
 
-| File | Rows | Reason |
-|---|---|---|
-| `dbo.DocumentType.csv` | 119 | Document type definitions (INV, SN, REC...) — config |
-| `dbo.DocumentStatus.csv` | 77 | Document status lookup |
-| `dbo.DocumentStatusLanguage.csv` | 261 | Status name translations |
-| `dbo.DocumentList.csv` | 43 | Document list/numbering config |
-| `dbo.DocumentProperty.csv` | 40 | Custom document properties |
-| `dbo.DocumentRule.csv` | 38 | Document rule config |
-| `dbo.DocumentBookRule.csv` | 20 | Accounting book rules |
-| `dbo.DocumentBookRuleItem.csv` | 69 | Book rule items |
-| `dbo.DocumentFinancialRule.csv` | 18 | Financial posting rules |
-| `dbo.DocumentFinancialRuleItem.csv` | 484 | Financial rule items (FK junction) |
-| `dbo.DocumentLinePriceCalculator.csv` | 94 | Price calculator rules |
-| `dbo.DocumentHeaderAttachment.csv` | 332 | PDF attachment paths (storage links) |
-| `dbo.DocumentShippingInfo.csv` | 278 | Shipping info (mostly null/empty) |
-| `dbo.DocumentHeaderHistory.csv` | 222 | Document audit history |
-| `dbo.DocumentLineHistory.csv` | 16 | Line audit history |
-| `dbo.BookJournalSaleProperty.csv` | 66 | VAT book journal property definitions |
-| `dbo.BookkeepingBookType.csv` | 25 | KIF/KUF VAT book types |
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `code` | text | NO | Partner code (P000001) |
+| `name` | text | YES | Company name |
+| `type` | text | NO | "customer", "supplier", "both" |
+| `pib` | text | NO | Tax ID / PIB |
+| `mb` | text | NO | Company registration number |
+| `address` | text | NO | Street address |
+| `city` | text | NO | City |
+| `country` | text | NO | Country |
+| `postal_code` | text | NO | Postal code |
+| `phone` | text | NO | Phone |
+| `email` | text | NO | Email |
+| `website` | text | NO | Website |
+| `contact_person` | text | NO | Primary contact name |
+| `bank_account` | text | NO | IBAN/account |
+| `currency` | text | NO | Default currency (RSD) |
+| `credit_limit` | numeric | NO | Credit limit |
+| `payment_terms_days` | integer | NO | Net payment days |
+| `is_active` | boolean | NO | Default: true |
 
-**Group D — Geo/reference lookup tables to skip (4 files):**
+**Confirmed column mapping from `dbo.A_UnosPodataka_Partner.csv` (no headers, 6 cols):**
+- col_1 → `code`
+- col_2 → `name`
+- col_3 → `country`
+- col_4 → `city`
+- col_5 → `pib`
+- col_6 → `contact_person`
 
-| File | Rows | Reason |
-|---|---|---|
-| `dbo.Country.csv` | 247 | Country lookup (same as City.csv) |
-| `dbo.Region.csv` | 81 | Geographic region lookup |
-| `dbo.Language.csv` | 136 | Language/locale lookup |
-| `dbo.ItemUnitOfMeasureLanguage.csv` | 29 | Unit-of-measure translations |
+---
 
-**Group E — App data without import target (3 files):**
+### 3. `contacts`
+Contact persons linked to partners/companies. Maps from: `dbo.A_aPodaci.csv`, `dbo.PartnerContact.csv`, `dbo.A_Kontakt.csv`
 
-| File | Rows | Reason |
-|---|---|---|
-| `dbo.Project.csv` | 312 | CRM projects — no system table |
-| `dbo.ProjectStage.csv` | 19 | Project stages — no system table |
-| `dbo.ItemGroup.csv` | 242 | Product category group definitions |
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `first_name` | text | YES | First name |
+| `last_name` | text | NO | Last name |
+| `email` | text | NO | Email address |
+| `phone` | text | NO | Phone |
+| `address` | text | NO | Address |
+| `city` | text | NO | City |
+| `country` | text | NO | Country |
+| `company_name` | text | NO | Company name (text, not FK) |
+| `type` | text | NO | "contact", "lead"... |
+| `function_area` | text | NO | Job function/area |
+| `seniority_level` | text | NO | Seniority |
+| `notes` | text | NO | Notes |
 
-**Conclusion: Only `dbo.DocumentHeader.csv` is genuinely importable (→ `invoices` high). All 41 others are correctly categorized as system/config/lookup tables that must be auto-skipped.**
+**Confirmed column mapping from `dbo.A_aPodaci.csv` (no headers, 7 cols):**
+- col_1 → legacy partner ID (ignore or store in notes)
+- col_2 → `last_name`
+- col_3 → `first_name`
+- col_4 → `function_area` (role/title)
+- col_5 → `city`
+- col_6 → `email`
+- col_7 → `phone`
 
-## Why "6 high" Instead of Expected More
+---
 
-The previous iteration added `dbo.Employee.csv` to the lookup (→ employees high), but looking at the actual data it contains many `\u0000` null byte columns mixed in. The null-byte ratio check on line 313 examines **header cells** — but for `dbo.Employee.csv`, only ~12 of 71 header cells are null bytes (~17%), which is below the 0.5 threshold. So it correctly passes through to the lookup and gets classified as `high`. The 6 high files are: `PartnerLocation`, `Partner`, `Item`, `CurrencyISO`, `Employee`, `Department` — that is correct.
+### 4. `employees`
+HR employees. Maps from: `dbo.A_Zaposleni.csv`, `dbo.A_Radnik.csv`, `dbo.Employee.csv`
 
-The previous screenshot showed 7 high. Something changed. Looking carefully — `dbo.PartnerContact.csv` should be the 7th but it's now being classified differently, OR one of the high-confidence files is being eaten by the regex fallback. This will be investigated and fixed simultaneously.
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `employee_number` | text | NO | Employee ID/number |
+| `first_name` | text | YES | First name |
+| `last_name` | text | YES | Last name |
+| `email` | text | NO | Work email |
+| `phone` | text | NO | Phone |
+| `jmbg` | text | NO | Serbian national ID number |
+| `position` | text | NO | Job title/position |
+| `department_id` | uuid | NO | FK to departments |
+| `hire_date` | date | NO | Start date |
+| `termination_date` | date | NO | End date |
+| `status` | text | NO | "active", "inactive" (default: "active") |
+| `gender` | text | NO | "male", "female" |
+| `date_of_birth` | date | NO | Birth date |
+| `address` | text | NO | Home address |
+| `city` | text | NO | City |
+| `bank_account` | text | NO | Bank account for salary |
 
-## What This Plan Will Do
+---
 
-Add 42 exact entries to `DBO_TABLE_LOOKUP` in `analyze-legacy-zip/index.ts`, covering every unmapped file by its exact table name. After this:
+### 5. `departments`
+Organizational departments. Maps from: `dbo.A_Odeljenje.csv`, `dbo.Department.csv`
 
-- **42 unmapped → 0 unmapped** (1 becomes `invoices` high, 41 become auto-skipped)
-- **6 high → 7 high** (adding DocumentHeader → invoices)
-- **530 auto-skipped → 571 auto-skipped** 
-- The review screen becomes clean: only the 9 meaningful files are shown (3 exact + 7 high), with 530+ auto-skipped collapsed
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `code` | text | YES | Department code |
+| `name` | text | YES | Department name |
+| `is_active` | boolean | NO | Default: true |
 
-## File to Modify
+---
 
-### `supabase/functions/analyze-legacy-zip/index.ts`
+### 6. `invoices`
+Outgoing sales invoices. Maps from: `dbo.A_Faktura.csv`, `dbo.A_Racun.csv`, `dbo.DocumentHeader.csv`
 
-Add the following 42 entries to the `DBO_TABLE_LOOKUP` dictionary, immediately after the existing `"Dobavljaci"` entry (line ~206):
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `invoice_number` | text | YES | Invoice number |
+| `invoice_date` | date | YES | Invoice date |
+| `due_date` | date | NO | Payment due date |
+| `partner_id` | uuid | NO | FK to partners |
+| `partner_name` | text | NO | Partner name (text copy) |
+| `partner_pib` | text | NO | Partner tax ID |
+| `subtotal` | numeric | YES | Amount before tax |
+| `tax_amount` | numeric | NO | VAT amount |
+| `total` | numeric | YES | Total with tax |
+| `currency` | text | NO | Currency code (default: "RSD") |
+| `status` | text | NO | "draft", "sent", "paid" (default: "draft") |
+| `invoice_type` | text | NO | "regular", "advance", "credit_note" |
+| `sale_type` | text | NO | "domestic", "export" |
+| `legal_entity_id` | uuid | NO | FK to legal_entities |
+| `notes` | text | NO | Notes/description |
 
-```typescript
-// ── FactorOne ERP — Document framework (importable) ──────────────────────
-"DocumentHeader": { target: "invoices", confidence: "high", label: "DocumentHeader = universal document header (invoices/orders)", dedupField: "invoice_number" },
+---
 
-// ── FactorOne ERP — Document framework config/audit (skip) ───────────────
-"DocumentLine":            { target: "skip", confidence: "exact", label: "DocumentLine = line items (requires DocumentHeader FK) — auto-skip", skipReason: "Line items require parent document import first" },
-"DocumentHeaderHistory":   { target: "skip", confidence: "exact", label: "DocumentHeaderHistory = document audit history — auto-skip", skipReason: "Audit log (not imported)" },
-"DocumentLineHistory":     { target: "skip", confidence: "exact", label: "DocumentLineHistory = line audit history — auto-skip", skipReason: "Audit log (not imported)" },
-"DocumentHeaderAttachment":{ target: "skip", confidence: "exact", label: "DocumentHeaderAttachment = PDF attachment paths — auto-skip", skipReason: "File attachment index (not imported)" },
-"DocumentShippingInfo":    { target: "skip", confidence: "exact", label: "DocumentShippingInfo = shipping info — auto-skip", skipReason: "Shipping metadata, mostly empty" },
-"DocumentStatusLanguage":  { target: "skip", confidence: "exact", label: "DocumentStatusLanguage = status translations — auto-skip", skipReason: "UI translation table" },
-"DocumentType":            { target: "skip", confidence: "exact", label: "DocumentType = document type definitions — auto-skip", skipReason: "Config table (INV, SN, REC types)" },
-"DocumentStatus":          { target: "skip", confidence: "exact", label: "DocumentStatus = document status lookup — auto-skip", skipReason: "Status lookup table" },
-"DocumentList":            { target: "skip", confidence: "exact", label: "DocumentList = numbering/list config — auto-skip", skipReason: "Document numbering config" },
-"DocumentProperty":        { target: "skip", confidence: "exact", label: "DocumentProperty = custom properties — auto-skip", skipReason: "Custom property definitions" },
-"DocumentRule":            { target: "skip", confidence: "exact", label: "DocumentRule = document rules — auto-skip", skipReason: "Document processing rules config" },
-"DocumentBookRule":        { target: "skip", confidence: "exact", label: "DocumentBookRule = accounting book rules — auto-skip", skipReason: "Accounting config" },
-"DocumentBookRuleItem":    { target: "skip", confidence: "exact", label: "DocumentBookRuleItem = book rule items — auto-skip", skipReason: "Accounting config (FK junction)" },
-"DocumentFinancialRule":   { target: "skip", confidence: "exact", label: "DocumentFinancialRule = posting rules — auto-skip", skipReason: "Financial posting rule config" },
-"DocumentFinancialRuleItem":{ target: "skip", confidence: "exact", label: "DocumentFinancialRuleItem = posting rule items — auto-skip", skipReason: "Posting rule FK junction" },
-"DocumentLinePriceCalculator":{ target: "skip", confidence: "exact", label: "DocumentLinePriceCalculator = price calc rules — auto-skip", skipReason: "Price calculation rule config" },
+### 7. `supplier_invoices`
+Incoming supplier invoices. Maps from: `dbo.A_UlaznaFaktura.csv`
 
-// ── FactorOne ERP — Bookkeeping config (skip) ────────────────────────────
-"BookJournalSaleProperty": { target: "skip", confidence: "exact", label: "BookJournalSaleProperty = VAT book properties — auto-skip", skipReason: "VAT book journal field definitions" },
-"BookkeepingBookType":     { target: "skip", confidence: "exact", label: "BookkeepingBookType = KIF/KUF book types — auto-skip", skipReason: "VAT book type config (KIF/KUF)" },
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `invoice_number` | text | YES | Invoice number |
+| `invoice_date` | date | YES | Invoice date |
+| `due_date` | date | NO | Due date |
+| `supplier_id` | uuid | NO | FK to partners (supplier) |
+| `supplier_name` | text | NO | Supplier name (text) |
+| `amount` | numeric | YES | Subtotal/net amount |
+| `tax_amount` | numeric | NO | VAT |
+| `total` | numeric | YES | Total |
+| `currency` | text | NO | Default: "RSD" |
+| `status` | text | NO | "draft", "received", "approved", "paid" |
+| `legal_entity_id` | uuid | NO | FK to legal_entities |
+| `notes` | text | NO | Notes |
 
-// ── FactorOne ERP — App framework (skip) ─────────────────────────────────
-"AppObjects":              { target: "skip", confidence: "exact", label: "AppObjects = UI object registry — auto-skip", skipReason: "Application UI screen registry" },
+---
 
-// ── FactorOne ERP — User/auth (skip — NEVER import password hashes) ──────
-"User":                    { target: "skip", confidence: "exact", label: "Legacy user accounts — auto-skip (SECURITY)", skipReason: "Legacy users with password hashes — never import" },
-"Role":                    { target: "skip", confidence: "exact", label: "Legacy user roles — auto-skip", skipReason: "Legacy role table (not imported)" },
+### 8. `inventory_stock`
+Current stock levels per product per warehouse. Maps from: `dbo.A_Lager.csv`
 
-// ── FactorOne ERP — Project management (skip — no system table) ──────────
-"Project":                 { target: "skip", confidence: "exact", label: "Projects (CRM) — auto-skip", skipReason: "No project import target in system" },
-"ProjectStage":            { target: "skip", confidence: "exact", label: "Project stages — auto-skip", skipReason: "No project import target in system" },
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `product_id` | uuid | YES | FK to products (must exist first) |
+| `warehouse_id` | uuid | YES | FK to warehouses (must exist first) |
+| `quantity_on_hand` | numeric | NO | Current stock qty (default: 0) |
+| `quantity_reserved` | numeric | NO | Reserved qty (default: 0) |
+| `unit_cost` | numeric | NO | Average cost per unit |
+| `reorder_point` | numeric | NO | Minimum stock trigger |
 
-// ── FactorOne ERP — Geo/reference lookups (skip) ─────────────────────────
-"Country":                 { target: "skip", confidence: "exact", label: "Country lookup — auto-skip", skipReason: "Geo lookup table (247 countries)" },
-"Region":                  { target: "skip", confidence: "exact", label: "Region lookup — auto-skip", skipReason: "Geographic region lookup" },
-"Language":                { target: "skip", confidence: "exact", label: "Language/locale lookup — auto-skip", skipReason: "Language locale definitions" },
-"ItemUnitOfMeasureLanguage":{ target: "skip", confidence: "exact", label: "UoM language translations — auto-skip", skipReason: "Unit of measure translation table" },
-"ItemGroup":               { target: "skip", confidence: "exact", label: "Item group definitions — auto-skip", skipReason: "Product group/category config" },
+**Note:** Products and warehouses must be imported FIRST before inventory_stock can be populated.
 
-// ── HangFire background job scheduler tables (all skip) ──────────────────
-"HangFire.JobParameter":   { target: "skip", confidence: "exact", label: "HangFire job parameters — auto-skip", skipReason: "Background job scheduler data" },
-"HangFire.State":          { target: "skip", confidence: "exact", label: "HangFire job states — auto-skip", skipReason: "Background job execution log" },
-"HangFire.Hash":           { target: "skip", confidence: "exact", label: "HangFire hashes — auto-skip", skipReason: "Background job hash data" },
-"HangFire.Job":            { target: "skip", confidence: "exact", label: "HangFire jobs — auto-skip", skipReason: "Background job definitions" },
-"HangFire.AggregatedCounter":{ target: "skip", confidence: "exact", label: "HangFire counters — auto-skip", skipReason: "Background job execution statistics" },
+---
+
+### 9. `inventory_movements`
+Stock movement history. Maps from: `dbo.A_LagerPromet.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `product_id` | uuid | YES | FK to products |
+| `warehouse_id` | uuid | YES | FK to warehouses |
+| `movement_type` | text | YES | "in", "out", "adjustment", "transfer" |
+| `quantity` | numeric | YES | Quantity moved |
+| `unit_cost` | numeric | NO | Cost per unit |
+| `reference` | text | NO | Reference number |
+| `notes` | text | NO | Notes |
+| `created_at` | timestamptz | NO | Date of movement |
+
+---
+
+### 10. `chart_of_accounts`
+Accounting chart. Maps from: `dbo.A_KontniPlan.csv`, `dbo.A_Konto.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `code` | text | YES | Account code (e.g. "2040") |
+| `name` | text | YES | Account name |
+| `account_type` | text | YES | "asset", "liability", "equity", "revenue", "expense" |
+| `parent_id` | uuid | NO | FK to parent account |
+| `is_active` | boolean | NO | Default: true |
+| `description` | text | NO | Description |
+
+---
+
+### 11. `warehouses`
+Warehouses/storage locations. Maps from: `dbo.A_Magacin.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `code` | text | YES | Warehouse code |
+| `name` | text | YES | Warehouse name |
+| `location` | text | NO | Physical address/location |
+| `is_active` | boolean | NO | Default: true |
+
+---
+
+### 12. `currencies`
+Currency list. Maps from: `dbo.CurrencyISO.csv`, `dbo.A_Valuta.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `code` | text | YES | ISO code (EUR, USD, RSD) |
+| `name` | text | YES | Full name |
+| `symbol` | text | NO | Symbol (€, $) |
+| `is_active` | boolean | NO | Default: true |
+| `is_base` | boolean | NO | Is this the base currency? |
+
+---
+
+### 13. `companies` (CRM)
+Company records. Maps from: company data in FactorOne.
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `name` | text | YES | Company name |
+| `pib` | text | NO | Tax ID |
+| `mb` | text | NO | Registration number |
+| `address` | text | NO | Address |
+| `city` | text | NO | City |
+| `country` | text | NO | Country |
+| `phone` | text | NO | Phone |
+| `email` | text | NO | Email |
+| `website` | text | NO | Website |
+| `industry` | text | NO | Industry sector |
+| `employee_count` | integer | NO | Size |
+
+---
+
+### 14. `purchase_orders`
+Purchase orders. Maps from: `dbo.A_Narudzbenica.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `order_number` | text | YES | PO number |
+| `order_date` | date | YES | Order date |
+| `supplier_id` | uuid | NO | FK to partners |
+| `supplier_name` | text | NO | Supplier name text |
+| `status` | text | NO | "draft", "confirmed", "received" |
+| `total` | numeric | NO | Total amount |
+| `currency` | text | NO | Default: "RSD" |
+| `notes` | text | NO | Notes |
+
+---
+
+### 15. `sales_orders`
+Sales orders. Maps from: `dbo.A_ProdajniNalog.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `order_number` | text | YES | SO number |
+| `order_date` | date | YES | Order date |
+| `partner_id` | uuid | NO | FK to partners |
+| `partner_name` | text | NO | Customer name |
+| `status` | text | NO | "draft", "confirmed", "shipped", "delivered" |
+| `total` | numeric | NO | Total |
+| `currency` | text | NO | Default: "RSD" |
+
+---
+
+### 16. `employee_contracts`
+Employment contracts. Maps from: `dbo.A_Ugovor.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `employee_id` | uuid | YES | FK to employees (must exist first) |
+| `contract_type` | text | NO | "permanent", "fixed_term", "part_time" |
+| `start_date` | date | YES | Contract start |
+| `end_date` | date | NO | Contract end (null = permanent) |
+| `gross_salary` | numeric | NO | Monthly gross salary |
+| `net_salary` | numeric | NO | Monthly net salary |
+| `position` | text | NO | Job title in contract |
+| `working_hours_per_week` | numeric | NO | Hours per week (default: 40) |
+
+---
+
+### 17. `leave_requests`
+Leave/absence records. Maps from: `dbo.A_Odsustvo.csv`, `dbo.A_Bolovanje.csv`, `dbo.A_GodisnjOdmor.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `employee_id` | uuid | YES | FK to employees |
+| `leave_type` | text | YES | "annual", "sick", "unpaid", "maternity" |
+| `start_date` | date | YES | Leave start |
+| `end_date` | date | YES | Leave end |
+| `status` | text | NO | "pending", "approved", "rejected" |
+| `notes` | text | NO | Reason/notes |
+
+---
+
+### 18. `overtime_hours`
+Overtime records. Maps from: `dbo.A_Prekovremeni.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `employee_id` | uuid | YES | FK to employees |
+| `hours` | numeric | YES | Hours worked |
+| `month` | integer | YES | Month (1-12) |
+| `year` | integer | YES | Year |
+| `notes` | text | NO | Notes |
+
+---
+
+### 19. `goods_receipts`
+Goods received from suppliers. Maps from: `dbo.A_Primka.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `receipt_number` | text | YES | Receipt number |
+| `receipt_date` | date | YES | Date received |
+| `supplier_id` | uuid | NO | FK to partners |
+| `supplier_name` | text | NO | Supplier name |
+| `warehouse_id` | uuid | NO | FK to warehouses |
+| `purchase_order_id` | uuid | NO | FK to purchase_orders |
+| `status` | text | NO | "draft", "completed" |
+| `notes` | text | NO | Notes |
+
+---
+
+### 20. `retail_prices`
+Retail price list. Maps from: `dbo.A_Nivelacija.csv`
+
+| Column | Type | Required | Notes |
+|---|---|---|---|
+| `tenant_id` | uuid | YES | Auto-filled |
+| `product_id` | uuid | YES | FK to products |
+| `warehouse_id` | uuid | NO | FK to warehouses |
+| `retail_price` | numeric | YES | Retail price with VAT |
+| `effective_from` | date | NO | Valid from date |
+
+---
+
+## IMPORT ORDER (respect FK dependencies)
+
+Import tables in this sequence to avoid foreign key errors:
+
+```text
+1. warehouses          (no dependencies)
+2. departments         (no dependencies)
+3. currencies          (no dependencies)
+4. chart_of_accounts   (self-referencing parent_id OK — import in code order)
+5. partners            (no dependencies)
+6. contacts            (no dependencies)
+7. companies           (no dependencies)
+8. employees           (depends on: departments)
+9. products            (no dependencies)
+10. inventory_stock    (depends on: products + warehouses)
+11. inventory_movements (depends on: products + warehouses)
+12. employee_contracts  (depends on: employees)
+13. leave_requests      (depends on: employees)
+14. overtime_hours      (depends on: employees)
+15. goods_receipts      (depends on: partners + warehouses)
+16. purchase_orders     (depends on: partners)
+17. sales_orders        (depends on: partners)
+18. supplier_invoices   (depends on: partners)
+19. invoices            (depends on: partners)
+20. retail_prices       (depends on: products + warehouses)
 ```
 
-**Important note on HangFire files:** These files are named `HangFire.JobParameter.csv`, `HangFire.State.csv` etc. — they use `HangFire.` as the schema prefix, not `dbo.`. The current regex in `classifyFile` only matches `dbo.TableName` pattern. We need to extend the dbo match to also handle non-dbo schema prefixes:
+---
 
-```typescript
-// Current (line 326):
-const dboMatch = basename.match(/^dbo\.(.+?)\.csv$/i);
+## TABLES TO SKIP (no import path)
 
-// Fix — match any schema prefix (dbo., HangFire., etc.):
-const dboMatch = basename.match(/^(?:dbo|HangFire|hangfire)\.(.+?)\.csv$/i);
-// OR use a broader match:
-const dboMatch = basename.match(/^([A-Za-z_]+)\.(.+?)\.csv$/i);
-// Then use dboMatch[2] as tableName and check DBO_TABLE_LOOKUP["HangFire.JobParameter"] etc.
-```
+These tables are managed by the system and cannot be bulk-imported from CSV:
+- `journal_entries` / `journal_lines` — system-generated via posting functions
+- `payroll_runs` / `payroll_items` — generated by payroll calculation engine
+- `pos_sessions` / `pos_transactions` — POS system generated
+- `audit_log` — system generated
+- `notifications` — system generated
+- `approval_requests` — workflow system
+- All `ai_*` tables — system generated
 
-Actually, for HangFire files the table name extracted would be `JobParameter`, `State`, etc. — which could conflict with legitimate tables. The safest approach is to add entries using the **full name minus .csv** for HangFire tables:
+---
 
-```typescript
-// In classifyFile, add BEFORE the dbo match:
-// Step 0.5: Check for HangFire.* tables (background job system)
-if (basename.startsWith('HangFire.') || basename.startsWith('hangfire.')) {
-  return {
-    target: null, confidence: "none" as const, dedupField: "",
-    humanLabel: "HangFire background job scheduler table — auto-skip",
-    autoSkip: true,
-    skipReason: "Background job scheduler data (not imported)",
-  };
-}
-```
+## KEY NOTES FOR MAPPING
 
-This is cleaner — any file starting with `HangFire.` is auto-skipped without needing individual lookup entries.
+1. **`tenant_id`** — Every table requires this. The system fills it automatically during import (hardcoded to your tenant UUID in the edge function).
 
-## Summary of Changes
+2. **UUIDs for FKs** — When mapping `employee_contracts`, you need employee UUIDs that were just created. The import pipeline handles this by doing a post-import lookup by `employee_number` or `name`.
 
-| Change | Impact |
-|---|---|
-| Add 29 `DBO_TABLE_LOOKUP` entries | Maps all remaining `dbo.Document*`, `dbo.Book*`, `dbo.Country`, `dbo.Region`, `dbo.Language`, `dbo.User`, `dbo.Role`, `dbo.Project*`, `dbo.AppObjects`, `dbo.ItemGroup`, `dbo.ItemUnitOfMeasureLanguage` |
-| Add `HangFire.*` prefix catch in `classifyFile()` | All 5 HangFire files auto-skipped without individual lookup entries |
-| `dbo.DocumentHeader.csv` → `invoices` (high) | 844-row business data document correctly identified |
-| Re-deploy edge function | No frontend changes needed |
+3. **Dedup field** — The importers use these to avoid double-importing:
+   - `products` → `sku`
+   - `partners` → `pib` (falls back to `name`)
+   - `contacts` → `email` (falls back to `first_name + last_name`)
+   - `employees` → `jmbg` (falls back to `first_name + last_name`)
+   - `invoices` → `invoice_number`
 
-**Expected result after these changes:**
-- 3 exact · **7 high** · 0 medium · **572 auto-skipped** · **0 unmapped**
-
-Zero business data files remain unmapped. All 42 previously unmapped files are now either correctly mapped or correctly identified as system/config tables.
+4. **Column position vs. header name** — All 3 confirmed Uniprom files have no CSV headers. The importer uses column position (col_1, col_2...). When you map, specify which column index maps to which field.
