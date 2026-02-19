@@ -1,205 +1,100 @@
 
-# Smart ZIP Import Pipeline with AI-Assisted CSV Mapping
+# Fix: Mapping Quality + Import Reliability + UI Bugs
 
-## The Problem
+## Issues Identified
 
-The legacy export contains 500+ CSV files. We can't know in advance what every file contains. The system needs to:
-1. Accept a single ZIP upload
-2. Inspect every CSV file inside it — read column headers and sample rows
-3. Intelligently match each CSV to a known system table (or mark it as "unmapped")
-4. Show you the mapping for review before any data is written
-5. Execute the import only after you confirm
+### 1. React Ref Warning (Console Errors)
+`FileRow` and `ResultRow` are declared as plain functions after the default export, then used as JSX components. The `Collapsible` + `CollapsibleTrigger asChild` pattern in the unmapped section passes a ref to `CardHeader`, which is a forwardRef component — this is fine. The actual warning comes from `FileRow` and `ResultRow` being passed as component types directly inside `files.map()` — React's dev mode complains when a function component is **used as a ref target** via third-party wrappers. The fix: move `FileRow` and `ResultRow` definitions to **before** the default export and add proper `React.memo` wrapping where needed. Also fix the `CollapsibleTrigger asChild` wrapping around `CardHeader` — this is the actual ref warning source.
 
-## Architecture — Two-Phase Approach
+### 2. Import Timeout / Does Not Work
+The `import-legacy-zip` edge function re-downloads and re-unzips the **entire** ZIP for every import run. For a 581-file ZIP this will hit Supabase's 150-second edge function timeout. 
+
+**Fix strategy**: Move the heavy lifting **client-side**. After analysis, the browser already has the ZIP uploaded to storage. Instead of calling one giant edge function for all files, the frontend will:
+- Call `import-legacy-zip` **one file at a time** (per confirmed mapping entry)
+- Show per-file progress as each one completes
+- This also makes the UI much more responsive with a live progress indicator
+
+### 3. Mapping Quality — Much More Comprehensive Rules
+The current 15 rules cover only the 3 known exact files plus generic patterns. For a 581-file Serbian ERP export (likely MS SQL Server `dbo.*` table dumps), we need to expand the mapping registry significantly covering:
+
+**Expanded mapping rules for Serbian ERP table names:**
+
+| Pattern | Target | Confidence |
+|---|---|---|
+| `A_UnosPodataka.csv` (exact) | products | exact |
+| `A_UnosPodataka_Partner.csv` (exact) | partners | exact |
+| `A_aPodaci.csv` (exact) | contacts | exact |
+| `*Faktura*`, `*faktur*`, `*Invoice*`, `*Racun*` | invoices | high |
+| `*UlaznaFaktura*`, `*SupplierInv*`, `*UlazniRacun*` | supplier_invoices | high |
+| `*Narudzbenica*`, `*PurchaseOrder*`, `*NarudzbenicaDobavljac*` | purchase_orders | high |
+| `*ProdajniNalog*`, `*SalesOrder*`, `*Nalog*` | sales_orders | high |
+| `*Zaposleni*`, `*Employee*`, `*Radnik*` | employees | high |
+| `*Magacin*`, `*Warehouse*`, `*Skladiste*` | warehouses | high |
+| `*KontoPlana*`, `*KontniPlan*`, `*ChartOfAccounts*`, `*Konto*` | chart_of_accounts | high |
+| `*PdvPeriod*`, `*Pdv*`, `*Vat*` | tax_rates | medium |
+| `*Placanje*`, `*Payment*`, `*Uplata*` | payments | medium |
+| `*BankStatement*`, `*IzvodBanke*`, `*Izvod*` | bank_statements | medium |
+| `*Artikal*`, `*Proizvod*`, `*Product*`, `*Roba*` | products | medium |
+| `*Kupac*`, `*Customer*`, `*Klijent*` | partners | medium |
+| `*Dobavljac*`, `*Supplier*`, `*Vendor*` | partners | medium |
+| `*Kontakt*`, `*Contact*` | contacts | medium |
+| `*Ugovor*`, `*Contract*` | employee_contracts | medium |
+| `*Plata*`, `*Payroll*`, `*Obracun*` | payroll_runs | medium |
+| `*Lokacija*`, `*Location*` | locations | medium |
+| `*CenovnikMaloprodajni*`, `*RetailPrice*`, `*Nivelacija*` | retail_prices | medium |
+| `*KalkulacijaCena*`, `*Kalkulacija*` | products (kalkulacija) | medium |
+
+**Header-based fallback** (when filename doesn't match) — much more comprehensive:
+
+| Header signals | Target |
+|---|---|
+| `pib` OR `mb` OR `matični broj` OR `tax_id` | partners |
+| `sku` OR `šifra artikla` OR `sifra` OR `barcode` | products |
+| `email` + (`ime` OR `prezime` OR `first_name`) | contacts |
+| `broj fakture` OR `invoice_number` OR `faktura_br` | invoices |
+| `ulazna faktura` OR `supplier_invoice` | supplier_invoices |
+| `narudžbenica` OR `purchase_order` | purchase_orders |
+| `JMBG` OR `jmbg` OR `lična karta` | employees |
+| `konto` OR `account_code` OR `sifra konta` | chart_of_accounts |
+
+### 4. Empty File Handling
+Currently empty files appear in the "Unmapped/Empty" section mixed with genuinely unmapped files. They should be:
+- **Completely auto-rejected** (accepted = false, no override offered)
+- Shown in a separate "Empty files (skipped)" collapsed section showing only count
+- Never sent to the import function
+
+### 5. Client-Side Progressive Import
+New flow for Phase 2:
 
 ```text
-PHASE 1 — ANALYZE (client-side, no data written)
-  Browser uploads ZIP → edge function "analyze-legacy-zip"
-    ├─ Unzips in Deno memory using JSZip (esm.sh)
-    ├─ Reads first 5 rows + column headers of every CSV
-    ├─ Pattern-matches against a known mapping table (500+ legacy table names)
-    └─ Returns: array of { filename, rowCount, headers, sampleRows, suggestedTarget, confidence }
-
-PHASE 2 — IMPORT (after user reviews/confirms mapping)
-  Browser shows mapping review UI
-  User can:  ✓ Accept  ✗ Skip  ✎ Override target  for each file
-  On confirm → edge function "import-legacy-zip"
-    ├─ Re-downloads ZIP from storage
-    ├─ Imports only confirmed files in dependency order
-    └─ Returns per-file: { inserted, skipped, errors }
+handleImport():
+  For each confirmed mapping (one at a time):
+    1. Show "Importing file X of N: filename → table"
+    2. Call import-legacy-zip with just { storagePath, tenantId, confirmedMapping: [single entry] }
+    3. Show result immediately
+    4. Move to next file
+  When all done → navigate to results screen
 ```
 
-## Known CSV → Table Mapping Registry
+This means even if one file fails, others continue. The user sees live progress.
 
-Based on the 3 sample files we've seen and the system's full schema (100+ tables), we build a hardcoded registry inside the edge function:
+## Files to Modify
 
-| Legacy CSV pattern | Confidence | System table | Key dedup field |
-|---|---|---|---|
-| `A_UnosPodataka.csv` | exact | `products` | `sku` |
-| `A_UnosPodataka_Partner.csv` | exact | `partners` | `pib` / `name` |
-| `A_aPodaci.csv` | exact | `contacts` | `email` |
-| `A_Faktura*.csv` / `*Faktura*` | high | `invoices` | `invoice_number` |
-| `*Invoice*` | high | `invoices` | `invoice_number` |
-| `*Account*.csv` (with data) | high | `chart_of_accounts` | `code` |
-| `*Employee*` | high | `employees` | `email` |
-| `*Warehouse*` | medium | `warehouses` | `name` |
-| `*Product*` | medium | `products` | `sku` |
-| `*Contact*` | medium | `contacts` | `email` |
-| `*Order*` | medium | `sales_orders` | `order_number` |
-| `*PurchaseOrder*` | medium | `purchase_orders` | `order_number` |
-| (empty / unrecognized) | none | `unmapped` | — |
+### 1. `supabase/functions/analyze-legacy-zip/index.ts`
+- Expand `MAPPING_RULES` from 15 rules to 50+ rules covering Serbian ERP naming conventions
+- Improve `classifyFile()` header-based fallback with 15+ header signal checks
+- Fix `isEmpty` detection: a file with only a header row (1 line) should be marked empty, same as 0 rows
+- Add a `humanLabel` field to each result that explains **why** it was mapped (e.g. "Matched filename pattern `*Faktura*`" or "Header `pib` detected → partners")
 
-Unrecognized files are shown in a "skipped / unknown" section. The user can manually assign a target table or skip them.
+### 2. `supabase/functions/import-legacy-zip/index.ts`
+- No changes needed to the import logic itself (it already works for individual files)
+- The timeout issue is solved by calling it one file at a time from the frontend
 
-## UI — Three Screens on the Same Page
-
-### Screen 1 — Upload
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Legacy ZIP Import                                       │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │   📦  Drop your .zip file here or click to select  │ │
-│  │        Supports up to 500 MB                       │ │
-│  └────────────────────────────────────────────────────┘ │
-│                                                          │
-│  [ Analyze ZIP ]   ← disabled until file selected       │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Screen 2 — Mapping Review (after analysis)
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Found 23 CSV files in archive.zip                      │
-│  12 mapped  •  4 partial  •  7 unmapped/empty           │
-│                                                          │
-│  ✅ CONFIRMED MAPPINGS (12 files)                        │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │ dbo.A_UnosPodataka.csv        → products  (3,729 rows) [✓] [✗] │
-│  │ dbo.A_UnosPodataka_Partner.csv → partners (9,785 rows) [✓] [✗] │
-│  │ dbo.A_aPodaci.csv             → contacts (293 rows)    [✓] [✗] │
-│  │ dbo.A_Faktura.csv             → invoices (1,204 rows)  [✓] [✗] │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  ⚠️  NEEDS REVIEW (4 files)                              │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │ dbo.Account.csv  (empty, 0 rows)                 │   │
-│  │ dbo.SomeOther.csv → [select target ▾] [skip]     │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  ❌ UNMAPPED / EMPTY (7 files)                           │
-│  (collapsed by default, expandable)                      │
-│                                                          │
-│  [ Run Import for 12 confirmed files ]                   │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Screen 3 — Import Results
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Import Complete                                         │
-│                                                          │
-│  products   ✓  3,729 inserted   0 skipped  0 errors     │
-│  partners   ✓  9,785 inserted   0 skipped  0 errors     │
-│  contacts   ✓    293 inserted   0 skipped  0 errors     │
-│  invoices   ✓  1,204 inserted   0 skipped  12 errors ↗  │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Technical Details
-
-### New Edge Function 1: `analyze-legacy-zip`
-
-**What it does:**
-- Receives: path to a ZIP file already uploaded to `legacy-imports/` bucket
-- Uses `https://esm.sh/jszip` to unzip in memory
-- For each `.csv` entry in the zip:
-  - Reads first 2000 characters (header + ~5 rows) — no need to read the full file
-  - Counts lines to estimate row count
-  - Runs the mapping registry pattern matcher
-- Returns a JSON array of file analyses — fast, no DB writes
-
-```typescript
-// Response shape
-{
-  files: [{
-    filename: string,           // "dbo.A_UnosPodataka.csv"
-    rowCount: number,           // estimated from line count
-    headers: string[],          // first row if it looks like a header
-    sampleRows: string[][],     // first 3 data rows
-    suggestedTarget: string | null,  // "products", "partners", null
-    confidence: "exact" | "high" | "medium" | "none",
-    isEmpty: boolean
-  }]
-}
-```
-
-### New Edge Function 2: `import-legacy-zip`
-
-**What it does:**
-- Receives a confirmed mapping array: `[{ filename, targetTable }]`
-- Downloads and unzips the same ZIP from storage
-- Imports each file using the same logic as the individual import functions
-- Uses the existing `import-legacy-products`, `import-legacy-partners`, `import-legacy-contacts` logic but generalized for any table
-- Returns per-file results
-
-### Column mapping for new file types
-
-For CSV files mapped to `invoices`, the function uses heuristics on column names/content:
-- Column with a date → `invoice_date`
-- Column with a number that looks like an invoice number → `invoice_number`
-- Numeric column with large values → `total`
-- Column with name/company text → `partner_name`
-
-This is a "best-effort" import — transactional data (invoices, journal entries) will have more partial matches and errors than master data (products, partners).
-
-### New Migration: `legacy_import_sessions` table
-
-A small table to persist analysis results so the UI can survive page refreshes:
-
-```sql
-CREATE TABLE legacy_import_sessions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES tenants(id),
-  zip_filename text,
-  analysis jsonb,          -- full response from analyze-legacy-zip
-  confirmed_mapping jsonb, -- user's confirmed selections
-  import_results jsonb,    -- final per-file results
-  status text DEFAULT 'analyzed', -- analyzed | importing | done | error
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
-
-This means if the import takes 2 minutes on a 500-file ZIP, the user can close the tab and come back.
-
-### Storage
-
-- ZIP uploads go to `legacy-imports/` bucket (already exists)
-- Filename: `upload-{timestamp}.zip` (avoid overwriting previous uploads)
-
-### Files to Create / Modify
-
-1. **`supabase/functions/analyze-legacy-zip/index.ts`** — New: reads ZIP from storage, samples each CSV, returns mapping suggestions
-2. **`supabase/functions/import-legacy-zip/index.ts`** — New: orchestrator that imports confirmed files
-3. **`supabase/config.toml`** — Add 2 new `verify_jwt = false` entries
-4. **`supabase/migrations/XXXXXX_legacy_import_sessions.sql`** — New table for session persistence
-5. **`src/pages/tenant/LegacyImport.tsx`** — Rebuilt as 3-screen flow (Upload → Review → Results), keeps individual import cards as "Advanced" section at bottom
-6. Keep existing `import-legacy-products`, `import-legacy-partners`, `import-legacy-contacts` edge functions unchanged as a fallback
-
-### Dependency Order During Import
-
-The import function runs files in this order to respect foreign keys:
-1. `products` (no deps)
-2. `partners` (no deps)
-3. `contacts` (no deps)
-4. `warehouses` (no deps)
-5. `employees` (no deps)
-6. `invoices` (depends on partners — uses partner name match, not FK)
-7. `journal_entries` (standalone)
-8. Everything else
-
-Note: For transactional data (invoices, journal entries, purchase orders), the import uses the `notes` / `reference` fields to store legacy IDs so data is preserved even if FK links can't be resolved at import time.
+### 3. `src/pages/tenant/LegacyImport.tsx`
+- Move `FileRow` and `ResultRow` component definitions to **before** the default export (fixes React ref warnings)
+- Remove `asChild` from `CollapsibleTrigger` wrapping `CardHeader` (fix the ref warning source)
+- **Redesign empty file handling**: auto-set `accepted = false` for empty files, show them in a collapsed count-only section
+- **Redesign Phase 2 import**: progressive file-by-file calls with live progress bar (`importing file 3 of 12`)
+- Add `importReason` field to `FileAnalysis` to show why each file was mapped (tooltip on the confidence badge)
+- Add a search/filter input on the review screen to find specific files among 581 results
+- Show a count summary at top: "12 auto-mapped · 45 medium · 524 empty/unmapped"
