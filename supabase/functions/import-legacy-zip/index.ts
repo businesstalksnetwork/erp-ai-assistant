@@ -7,16 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 100; // Reduced from 500 so a bad batch affects fewer rows
 
 // ──────────────────────────────────────────────────────────────────────────────
-// RFC 4180-aware CSV parsing with:
-//   1. NUL byte removal (PostgreSQL chokes on \x00)
-//   2. Logical row reconstruction for embedded CR/LF
-//      (a line that doesn't start with a number+comma is a continuation)
+// CSV PARSING — keep exactly as-is (these work correctly)
 // ──────────────────────────────────────────────────────────────────────────────
 function sanitizeCSVText(raw: string): string {
-  // Remove NUL bytes
   return raw.replace(/\x00/g, "");
 }
 
@@ -25,13 +21,10 @@ function reconstructLogicalRows(text: string): string[] {
   const logical: string[] = [];
   for (const line of rawLines) {
     if (line.length === 0) continue;
-    // A new logical row starts with an integer ID followed by a delimiter
-    // OR is the first row ever (empty logical array)
     const startsNewRow = /^\d+[,;|]/.test(line) || logical.length === 0;
     if (startsNewRow) {
       logical.push(line);
     } else {
-      // Continuation of previous row — append with a space (replaces embedded CR/LF)
       if (logical.length > 0) {
         logical[logical.length - 1] += " " + line;
       } else {
@@ -50,7 +43,6 @@ function parseCSVLine(line: string): string[] {
     const ch = line[i];
     if (ch === '"') {
       if (inQuotes && line[i + 1] === '"') {
-        // Escaped quote inside quoted field
         current += '"';
         i++;
       } else {
@@ -90,58 +82,32 @@ function parseCSV(text: string): { headers: string[]; rows: string[][]; hasHeade
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// UNIPROM_COLUMN_MAP — exact column positions per CSV_to_ERP_AI_Mapping.docx
-// Key = dbo.TableName (without dbo. prefix and .csv suffix)
-// All files have NO HEADER ROW — first row is data.
+// UNIPROM_COLUMN_MAP — keep exactly as-is (confirmed accurate)
 // ──────────────────────────────────────────────────────────────────────────────
 const UNIPROM_COLUMN_MAP: Record<string, Record<string, number>> = {
-  // Partners: dbo.Partner.csv
   "Partner": { legacy_id: 0, name: 1, is_active: 17 },
-  // Partner address enrichment: dbo.PartnerLocation.csv
   "PartnerLocation": { legacy_id: 0, full_name: 1, partner_code: 7, city: 9, address: 10, partner_legacy_id: 22 },
-  // Contacts: dbo.PartnerContact.csv
   "PartnerContact": { legacy_id: 0, last_name: 1, first_name: 2, phone: 6, email: 10, partner_legacy_id: 12 },
-  // Products: dbo.Item.csv
   "Item": { legacy_id: 0, name: 1, sku: 2, is_active: 33, product_type: 34 },
-  // Unit of measure: dbo.ItemUnitOfMeasure.csv
   "ItemUnitOfMeasure": { legacy_id: 0, code: 1, name: 2 },
-  // Employees: dbo.Employee.csv
   "Employee": { legacy_id: 0, first_name: 1, last_name: 2, jmbg: 4, department_legacy_id: 9, email: 6, phone: 7 },
-  // Employee contracts: dbo.EmployeeContract.csv
   "EmployeeContract": { legacy_id: 0, employee_legacy_id: 1, start_date: 3, end_date: 4, gross_salary: 5, contract_type: 6 },
-  // Employee overtime: dbo.EmployeeOvertime.csv
   "EmployeeOvertime": { legacy_id: 0, employee_legacy_id: 1, year: 2, month: 3, hours: 4 },
-  // Departments: dbo.Department.csv
   "Department": { legacy_id: 0, name: 1, code: 3 },
-  // Currencies: dbo.Currency.csv (internal ID-to-name)
   "Currency": { legacy_id: 0, name: 1, code: 2 },
-  // Currency ISO: dbo.CurrencyISO.csv (authoritative ISO codes)
   "CurrencyISO": { legacy_id: 0, code: 1, name: 2, symbol: 3 },
-  // Tax rates: dbo.Tax.csv (rate field is decimal 0.20 = 20%, multiply ×100)
   "Tax": { legacy_id: 0, name: 1, pdv_code: 2, rate: 3 },
-  // Legal entities: dbo.Company.csv (1 row)
   "Company": { legacy_id: 0, name: 1, address: 3, pib: 6, maticni_broj: 7 },
-  // Locations: dbo.CompanyOffice.csv (1 row)
   "CompanyOffice": { legacy_id: 0, name: 1, address: 3 },
-  // Warehouses: dbo.Warehouse.csv
   "Warehouse": { legacy_id: 0, code: 1, name: 2 },
-  // Documents — BUG FIX: updated column positions per the full 581-file mapping doc:
-  // col[0]=legacy_id, col[1]=doc_number, col[2]=date, col[3]=doc_list_id,
-  // col[4]=status_id, col[6]=partner_id, col[7]=warehouse_id, col[11]=total
   "DocumentType": { legacy_id: 0, code: 1, name: 2 },
   "DocumentList": { legacy_id: 0, document_type_id: 1, code: 2, name: 3 },
   "DocumentHeader": { legacy_id: 0, doc_number: 1, date: 2, doc_list_id: 3, status_id: 4, partner_id: 6, warehouse_id: 7, total: 11 },
   "DocumentLine": { legacy_id: 0, header_id: 1, item_id: 2, qty: 3, unit_price: 4, discount: 5, tax_id: 6 },
-  // Project (CRM) → opportunities
   "Project": { legacy_id: 0, name: 1, start_date: 3, end_date: 4, status_id: 9, partner_id: 7 },
-  // Opportunity → opportunities
   "Opportunity": { legacy_id: 0, name: 1, partner_id: 2, value: 5, status_id: 9 },
 };
 
-// Detect which Uniprom table name a filename maps to (strips dbo. prefix and .csv suffix)
-// BUG FIX: always return the table name — do NOT gate on COLUMN_MAP existence.
-// Importers check the table name themselves; gating here caused PartnerLocation,
-// Dobavljaci, Project etc. to silently fall to the generic (skip) importer.
 function getUnipromTableName(filename: string): string | null {
   const basename = filename.split("/").pop() || filename;
   const m = basename.match(/^dbo\.(.+?)\.csv$/i);
@@ -149,24 +115,464 @@ function getUnipromTableName(filename: string): string | null {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Column maps — derived from actual Uniprom CSV inspection:
-//
-// dbo.A_UnosPodataka.csv (Products, NO header):
-//   [0] SKU  [1] Name  [2] Unit  [3] qty_on_hand  [4] purchase_price
-//   [5] sale_price  [6] is_active(1/0)  [7] cat1...[11] cat5  [12] brand
-//
-// dbo.A_UnosPodataka_Partner.csv (Partners, NO header):
-//   [0] partner_code(P000001)  [1] name  [2] country  [3] city
-//   [4] pib  [5] contact_person
-//
-// dbo.A_aPodaci.csv (Contacts, NO header):
-//   [0] legacy_partner_id  [1] last_name  [2] first_name
-//   [3] role  [4] city  [5] email  [6] phone
+// ROBUST BATCH FLUSH — tries batch insert; on failure retries row-by-row
+// Returns { inserted, errors: [{rowIndex, reason}] }
 // ──────────────────────────────────────────────────────────────────────────────
+async function flushBatch(
+  supabase: any,
+  table: string,
+  batch: any[],
+  upsertConflict: string | null,
+  tag: string,
+  batchNum: number
+): Promise<{ inserted: number; errors: { rowIndex: number; reason: string }[] }> {
+  if (batch.length === 0) return { inserted: 0, errors: [] };
 
-async function importProducts(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  // Try batch first
+  const batchResult = upsertConflict
+    ? await supabase.from(table).upsert(batch, { onConflict: upsertConflict, ignoreDuplicates: true })
+    : await supabase.from(table).insert(batch);
+
+  if (!batchResult.error) {
+    console.log(`[${tag}] Batch ${batchNum}: ${batch.length} rows → ${batch.length} inserted OK`);
+    return { inserted: batch.length, errors: [] };
+  }
+
+  // Batch failed — retry row by row to isolate bad rows
+  console.warn(`[${tag}] Batch ${batchNum} FAILED (${batch.length} rows): ${batchResult.error.message} — retrying row-by-row`);
+  let inserted = 0;
+  const errors: { rowIndex: number; reason: string }[] = [];
+
+  for (let i = 0; i < batch.length; i++) {
+    const row = batch[i];
+    const rowResult = upsertConflict
+      ? await supabase.from(table).upsert([row], { onConflict: upsertConflict, ignoreDuplicates: true })
+      : await supabase.from(table).insert([row]);
+    if (rowResult.error) {
+      errors.push({ rowIndex: i, reason: rowResult.error.message });
+      console.warn(`[${tag}] Batch ${batchNum} row ${i} ERROR: ${rowResult.error.message} | data: ${JSON.stringify(row).substring(0, 200)}`);
+    } else {
+      inserted++;
+    }
+  }
+  console.log(`[${tag}] Batch ${batchNum} row-by-row: ${inserted} inserted, ${errors.length} errors`);
+  return { inserted, errors };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// buildPartnerLegacyMap — FIXED: reads from maticni_broj using LEG: prefix
+// Old: contact_person.match(/LegacyCode:(\S+)/)
+// New: maticni_broj.match(/^LEG:(.+)/)
+// ──────────────────────────────────────────────────────────────────────────────
+async function buildPartnerLegacyMap(tenantId: string, supabase: any): Promise<Record<string, string>> {
+  const { data } = await supabase.from("partners").select("id, maticni_broj").eq("tenant_id", tenantId);
+  const map: Record<string, string> = {};
+  for (const p of data || []) {
+    const m = (p.maticni_broj || "").match(/^LEG:(.+)/);
+    if (m) map[m[1].trim()] = p.id;
+  }
+  console.log(`[buildPartnerLegacyMap] Found ${Object.keys(map).length} legacy partner mappings`);
+  return map;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importPartners — FIXED: stores legacy ID in maticni_broj as "LEG:xxx"
+// ──────────────────────────────────────────────────────────────────────────────
+async function importPartners(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importPartners";
   const sanitized = sanitizeCSVText(csvText);
   const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  // ── PartnerLocation: enrich existing partner records with address ──
+  if (unipromTable === "PartnerLocation") {
+    const cm = UNIPROM_COLUMN_MAP["PartnerLocation"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] PartnerLocation: ${lines.length} rows to process`);
+    let enriched = 0; let skipped = 0;
+    const legacyMap = await buildPartnerLegacyMap(tenantId, supabase);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      const partnerLegacyId = cols[cm.partner_legacy_id]?.trim();
+      if (!partnerLegacyId) { skipped++; continue; }
+      const partnerId = legacyMap[partnerLegacyId];
+      if (!partnerId) { skipped++; continue; }
+      const city = cols[cm.city]?.trim() || null;
+      const address = cols[cm.address]?.trim() || null;
+      if (!city && !address) { skipped++; continue; }
+      const { error } = await supabase.from("partners")
+        .update({ city: city || undefined, address: address || undefined })
+        .eq("id", partnerId);
+      if (!error) enriched++; else skipped++;
+    }
+    console.log(`[${tag}] PartnerLocation TOTAL: ${enriched} enriched, ${skipped} skipped`);
+    return { inserted: 0, updated: enriched, skipped, errors: [] };
+  }
+
+  // ── Partner.csv (Uniprom) or generic ──
+  let dataLines: string[];
+  let getCol: (cols: string[], field: string) => string | null;
+
+  if (unipromTable === "Partner") {
+    const cm = UNIPROM_COLUMN_MAP["Partner"];
+    dataLines = reconstructLogicalRows(sanitized);
+    getCol = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
+  } else {
+    // generic A_UnosPodataka_Partner.csv: [0]=partner_code [1]=name [2]=country [3]=city [4]=pib [5]=contact_person
+    const firstCols = parseCSVLine(sanitized.split("\n")[0] || "");
+    const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0])) && !firstCols[0].startsWith("P0");
+    const lines = sanitized.split("\n").filter((l) => l.trim().length > 0);
+    dataLines = hasHeader ? lines.slice(1) : lines;
+    const cm: Record<string, number> = { legacy_id: 0, name: 1, country: 2, city: 3, pib: 4, contact_person: 5 };
+    getCol = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
+  }
+
+  console.log(`[${tag}] ${filename}: ${dataLines.length} rows parsed`);
+
+  const { data: existingPartners } = await supabase.from("partners").select("pib, name, maticni_broj").eq("tenant_id", tenantId);
+  const pibSet = new Set((existingPartners || []).filter((r: any) => r.pib).map((r: any) => r.pib));
+  const nameSet = new Set((existingPartners || []).map((r: any) => r.name?.toLowerCase()));
+  // Also track legacy IDs already stored
+  const legSet = new Set(
+    (existingPartners || [])
+      .filter((r: any) => r.maticni_broj?.startsWith("LEG:"))
+      .map((r: any) => r.maticni_broj)
+  );
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+  let batchNum = 0;
+
+  for (let rowIdx = 0; rowIdx < dataLines.length; rowIdx++) {
+    const line = dataLines[rowIdx];
+    const cols = parseCSVLine(line);
+    if (cols.length < 2) continue;
+
+    const name = getCol(cols, "name") || "";
+    if (!name) continue;
+    const pib = getCol(cols, "pib");
+    const legacyId = getCol(cols, "legacy_id");
+
+    if (unipromTable === "Partner") {
+      const isActive = cols[UNIPROM_COLUMN_MAP["Partner"].is_active]?.trim();
+      if (isActive === "0") { skipped++; continue; }
+    }
+
+    if (pib && pibSet.has(pib)) { skipped++; continue; }
+    if (!pib && nameSet.has(name.toLowerCase())) { skipped++; continue; }
+    const legTag = legacyId ? `LEG:${legacyId}` : null;
+    if (legTag && legSet.has(legTag)) { skipped++; continue; }
+
+    if (pib) pibSet.add(pib);
+    nameSet.add(name.toLowerCase());
+    if (legTag) legSet.add(legTag);
+
+    const country = getCol(cols, "country") || "Serbia";
+    const city = getCol(cols, "city");
+    const partnerCode = legacyId || getCol(cols, "partner_code");
+
+    // FIX: store legacy code in maticni_broj as "LEG:xxx" — NOT in contact_person
+    // contact_person carries actual contact data; maticni_broj is safe (PIBs exist for Uniprom, matični usually blank)
+    batch.push({
+      tenant_id: tenantId,
+      name,
+      city: city || null,
+      country,
+      pib: pib || null,
+      maticni_broj: partnerCode ? `LEG:${partnerCode}` : null,
+      type: "customer",
+      is_active: true,
+    });
+
+    if (batch.length >= BATCH_SIZE) {
+      batchNum++;
+      const withPib = batch.filter((r: any) => r.pib);
+      const withoutPib = batch.filter((r: any) => !r.pib);
+      if (withPib.length) {
+        const res = await flushBatch(supabase, "partners", withPib, "tenant_id,pib", tag, batchNum);
+        inserted += res.inserted;
+        allErrors.push(...res.errors.map(e => ({ ...e, rowIndex: e.rowIndex + (rowIdx - batch.length) })));
+      }
+      if (withoutPib.length) {
+        const res = await flushBatch(supabase, "partners", withoutPib, null, tag, batchNum);
+        inserted += res.inserted;
+        allErrors.push(...res.errors.map(e => ({ ...e, rowIndex: e.rowIndex + (rowIdx - batch.length) })));
+      }
+      batch.length = 0;
+    }
+  }
+
+  if (batch.length > 0) {
+    batchNum++;
+    const withPib = batch.filter((r: any) => r.pib);
+    const withoutPib = batch.filter((r: any) => !r.pib);
+    if (withPib.length) {
+      const res = await flushBatch(supabase, "partners", withPib, "tenant_id,pib", tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
+    }
+    if (withoutPib.length) {
+      const res = await flushBatch(supabase, "partners", withoutPib, null, tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
+    }
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importContacts — FIXED: uses LEG: prefix in maticni_broj for partner lookup
+// ──────────────────────────────────────────────────────────────────────────────
+async function importContacts(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importContacts";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  let dataLines: string[];
+  let getField: (cols: string[], field: string) => string | null;
+
+  if (unipromTable === "PartnerContact") {
+    const cm = UNIPROM_COLUMN_MAP["PartnerContact"];
+    dataLines = reconstructLogicalRows(sanitized);
+    getField = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
+  } else {
+    // Legacy A_aPodaci.csv: [0]=legacy_partner_id [1]=last_name [2]=first_name [3]=role [4]=city [5]=email [6]=phone
+    const lines = sanitized.split("\n").filter((l) => l.trim().length > 0);
+    const firstCols = parseCSVLine(lines[0] || "");
+    const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0]));
+    dataLines = hasHeader ? lines.slice(1) : lines;
+    const cm: Record<string, number> = { legacy_id: 0, last_name: 1, first_name: 2, role: 3, city: 4, email: 5, phone: 6 };
+    getField = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
+  }
+
+  console.log(`[${tag}] ${filename}: ${dataLines.length} rows parsed`);
+
+  const { data: existingContacts } = await supabase.from("contacts").select("email, first_name, last_name").eq("tenant_id", tenantId);
+  const emailSet = new Set((existingContacts || []).filter((r: any) => r.email).map((r: any) => r.email?.toLowerCase()));
+  const nameSet = new Set((existingContacts || []).map((r: any) => `${r.first_name}|${r.last_name}`.toLowerCase()));
+
+  // FIXED: buildPartnerLegacyMap now uses LEG: prefix in maticni_broj
+  const legacyMap = await buildPartnerLegacyMap(tenantId, supabase);
+  const { data: partnerNames } = await supabase.from("partners").select("id, name").eq("tenant_id", tenantId);
+  const partnerIdToName: Record<string, string> = {};
+  for (const p of partnerNames || []) partnerIdToName[p.id] = p.name;
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+  let batchNum = 0;
+
+  for (let rowIdx = 0; rowIdx < dataLines.length; rowIdx++) {
+    const line = dataLines[rowIdx];
+    const cols = parseCSVLine(line);
+    if (cols.length < 2) continue;
+
+    const legacyPartnerId = getField(cols, "legacy_id") || getField(cols, "partner_legacy_id");
+    const lastName = getField(cols, "last_name");
+    const firstName = getField(cols, "first_name");
+    const role = getField(cols, "role");
+    const rawCity = getField(cols, "city");
+    const email = getField(cols, "email");
+    const phone = getField(cols, "phone");
+
+    const effectiveFirst = firstName || lastName || "";
+    const effectiveLast = firstName ? lastName : null;
+    if (!effectiveFirst) continue;
+
+    if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
+    const nameKey = `${effectiveFirst}|${effectiveLast}`.toLowerCase();
+    if (!email && nameSet.has(nameKey)) { skipped++; continue; }
+    if (email) emailSet.add(email.toLowerCase());
+    nameSet.add(nameKey);
+
+    const city = (rawCity && rawCity.toUpperCase() !== "SRBIJA") ? rawCity : null;
+    const country = (!rawCity || rawCity.toUpperCase() === "SRBIJA") ? "Serbia" : null;
+
+    let companyName: string | null = null;
+    if (legacyPartnerId) {
+      const partnerId = legacyMap[legacyPartnerId];
+      if (partnerId) companyName = partnerIdToName[partnerId] || null;
+    }
+
+    const validFunctionAreas = new Set(["management","sales","marketing","finance","hr","it","operations","legal","procurement","production","other"]);
+    const mappedFunctionArea = role && validFunctionAreas.has(role.toLowerCase()) ? role.toLowerCase() : null;
+
+    batch.push({
+      tenant_id: tenantId,
+      first_name: effectiveFirst,
+      last_name: effectiveLast,
+      email: email || null,
+      phone: phone || null,
+      city,
+      country,
+      function_area: mappedFunctionArea,
+      company_name: companyName,
+      notes: [
+        legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
+        role && !mappedFunctionArea ? `Role: ${role}` : null,
+      ].filter(Boolean).join(" | ") || null,
+      type: "prospect",
+    });
+
+    if (batch.length >= BATCH_SIZE) {
+      batchNum++;
+      const res = await flushBatch(supabase, "contacts", [...batch], null, tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
+      batch.length = 0;
+    }
+  }
+
+  if (batch.length > 0) {
+    batchNum++;
+    const res = await flushBatch(supabase, "contacts", batch, null, tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importEmployees — FIXED: computes full_name (required NOT NULL)
+// ──────────────────────────────────────────────────────────────────────────────
+async function importEmployees(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importEmployees";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  const { data: existing } = await supabase.from("employees").select("email, full_name").eq("tenant_id", tenantId);
+  const emailSet = new Set((existing || []).filter((r: any) => r.email).map((r: any) => r.email?.toLowerCase()));
+  const nameSet = new Set((existing || []).map((r: any) => r.full_name?.toLowerCase()));
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+  let batchNum = 0;
+
+  const flushEmployees = async () => {
+    if (batch.length === 0) return;
+    batchNum++;
+    const res = await flushBatch(supabase, "employees", [...batch], null, tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+    batch.length = 0;
+  };
+
+  if (unipromTable === "Employee") {
+    const cm = UNIPROM_COLUMN_MAP["Employee"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows parsed`);
+
+    for (let rowIdx = 0; rowIdx < lines.length; rowIdx++) {
+      const cols = parseCSVLine(lines[rowIdx]);
+      if (cols.length < 3) continue;
+      const firstName = cols[cm.first_name]?.trim() || null;
+      const lastName  = cols[cm.last_name]?.trim()  || null;
+      const jmbg      = cols[cm.jmbg]?.trim()       || null;
+      const deptLegacyId = cols[cm.department_legacy_id]?.trim() || null;
+      const email     = cols[cm.email]?.trim() || null;
+      const phone     = cols[cm.phone]?.trim() || null;
+      const legacyId  = cols[cm.legacy_id]?.trim()  || null;
+
+      if (!firstName && !lastName) continue;
+
+      // FIX: compute full_name — employees.full_name is NOT NULL with no default
+      const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Unknown";
+
+      if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
+      if (!email && nameSet.has(fullName.toLowerCase())) { skipped++; continue; }
+      if (email) emailSet.add(email.toLowerCase());
+      nameSet.add(fullName.toLowerCase());
+
+      batch.push({
+        tenant_id: tenantId,
+        full_name: fullName,
+        first_name: firstName || "",
+        last_name:  lastName  || "",
+        email:      email || null,
+        phone:      phone || null,
+        status:     "active",
+        notes: [
+          legacyId     ? `Legacy ID: ${legacyId}`   : null,
+          jmbg         ? `JMBG: ${jmbg}`             : null,
+          deptLegacyId ? `Dept ID: ${deptLegacyId}`  : null,
+        ].filter(Boolean).join(" | ") || null,
+      });
+
+      if (batch.length >= BATCH_SIZE) await flushEmployees();
+    }
+  } else {
+    // Generic CSV with headers
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
+    const firstNameIdx = h.findIndex((x) => /ime$|firstname|^ime/i.test(x));
+    const lastNameIdx  = h.findIndex((x) => /prezime|lastname/i.test(x));
+    const emailIdx     = h.findIndex((x) => /email|mail/i.test(x));
+    const phoneIdx     = h.findIndex((x) => /tel|phone|mobil/i.test(x));
+    const jmbgIdx      = h.findIndex((x) => /jmbg/i.test(x));
+    const positionIdx  = h.findIndex((x) => /pozicija|radno.*mesto|position|job/i.test(x));
+    const effFirst = firstNameIdx >= 0 ? firstNameIdx : 2;
+    const effLast  = lastNameIdx  >= 0 ? lastNameIdx  : 1;
+    const effEmail = emailIdx     >= 0 ? emailIdx     : 3;
+    const effPhone = phoneIdx     >= 0 ? phoneIdx     : 4;
+
+    console.log(`[${tag}] ${filename}: ${rows.length} rows parsed (generic)`);
+
+    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx];
+      const firstName = row[effFirst]?.trim() || null;
+      const lastName  = row[effLast]?.trim()  || null;
+      const email     = row[effEmail]?.trim() || null;
+      const phone     = row[effPhone]?.trim() || null;
+      const jmbg      = jmbgIdx >= 0 ? row[jmbgIdx]?.trim() || null : null;
+      const position  = positionIdx >= 0 ? row[positionIdx]?.trim() || null : null;
+
+      if (!firstName && !lastName) continue;
+
+      // FIX: compute full_name
+      const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Unknown";
+
+      if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
+      if (!email && nameSet.has(fullName.toLowerCase())) { skipped++; continue; }
+      if (email) emailSet.add(email.toLowerCase());
+      nameSet.add(fullName.toLowerCase());
+
+      batch.push({
+        tenant_id: tenantId,
+        full_name: fullName,
+        first_name: firstName || "",
+        last_name:  lastName  || "",
+        email:      email || null,
+        phone:      phone || null,
+        position:   position || null,
+        status:     "active",
+        notes:      jmbg ? `JMBG: ${jmbg}` : null,
+      });
+
+      if (batch.length >= BATCH_SIZE) await flushEmployees();
+    }
+  }
+
+  await flushEmployees();
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importProducts — added logging + per-batch error capture
+// ──────────────────────────────────────────────────────────────────────────────
+async function importProducts(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importProducts";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
 
   const lines = unipromTable === "Item"
     ? reconstructLogicalRows(sanitized)
@@ -175,14 +581,36 @@ async function importProducts(csvText: string, tenantId: string, supabase: any, 
   const firstCols = parseCSVLine(lines[0] || "");
   const hasHeader = !unipromTable && firstCols.length > 0 && isNaN(Number(firstCols[0])) && firstCols[0].length > 0 && /[a-zA-Z]/.test(firstCols[0]);
   const dataLines = hasHeader ? lines.slice(1) : lines;
+  console.log(`[${tag}] ${filename}: ${dataLines.length} data rows`);
 
   const { data: existingSkus } = await supabase.from("products").select("sku").eq("tenant_id", tenantId);
   const skuSet = new Set((existingSkus || []).map((r: any) => r.sku));
 
-  let inserted = 0; let updated = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
+  let batchNum = 0;
 
-  for (const line of dataLines) {
+  const flushProducts = async () => {
+    if (batch.length === 0) return;
+    batchNum++;
+    const withSku = batch.filter((r: any) => r.sku);
+    const withoutSku = batch.filter((r: any) => !r.sku);
+    if (withSku.length) {
+      const res = await flushBatch(supabase, "products", withSku, "tenant_id,sku", tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
+    }
+    if (withoutSku.length) {
+      const res = await flushBatch(supabase, "products", withoutSku, null, tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
+    }
+    batch.length = 0;
+  };
+
+  for (let rowIdx = 0; rowIdx < dataLines.length; rowIdx++) {
+    const line = dataLines[rowIdx];
     const cols = parseCSVLine(line);
     if (cols.length < 2) continue;
 
@@ -226,32 +654,10 @@ async function importProducts(csvText: string, tenantId: string, supabase: any, 
       batch.push({ tenant_id: tenantId, sku, name, unit_of_measure: unitOfMeasure, is_active: isActive });
     }
 
-    if (batch.length >= BATCH_SIZE) {
-      const withSku = batch.filter((r: any) => r.sku);
-      const withoutSku = batch.filter((r: any) => !r.sku);
-      if (withSku.length) {
-        const { error } = await supabase.from("products").upsert(withSku, { onConflict: "tenant_id,sku", ignoreDuplicates: true });
-        if (error) errors.push(error.message); else inserted += withSku.length;
-      }
-      if (withoutSku.length) {
-        const { error } = await supabase.from("products").insert(withoutSku);
-        if (error) errors.push(`No-SKU insert: ${error.message}`); else inserted += withoutSku.length;
-      }
-      batch.length = 0;
-    }
+    if (batch.length >= BATCH_SIZE) await flushProducts();
   }
-  if (batch.length > 0) {
-    const withSku = batch.filter((r: any) => r.sku);
-    const withoutSku = batch.filter((r: any) => !r.sku);
-    if (withSku.length) {
-      const { error } = await supabase.from("products").upsert(withSku, { onConflict: "tenant_id,sku", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += withSku.length;
-    }
-    if (withoutSku.length) {
-      const { error } = await supabase.from("products").insert(withoutSku);
-      if (error) errors.push(`No-SKU insert: ${error.message}`); else inserted += withoutSku.length;
-    }
-  }
+
+  await flushProducts();
 
   // Seed inventory stock for items with qty > 0 (A_UnosPodataka only)
   if (!unipromTable) {
@@ -271,253 +677,39 @@ async function importProducts(csvText: string, tenantId: string, supabase: any, 
             const pid = skuToId[sku];
             if (pid && qty > 0) stockBatch.push({ tenant_id: tenantId, product_id: pid, warehouse_id: warehouseId, quantity_on_hand: qty });
           }
-          if (stockBatch.length > 0) await supabase.from("inventory_stock").upsert(stockBatch, { onConflict: "product_id,warehouse_id" });
+          if (stockBatch.length > 0) {
+            console.log(`[${tag}] Seeding inventory stock: ${stockBatch.length} rows`);
+            await supabase.from("inventory_stock").upsert(stockBatch, { onConflict: "product_id,warehouse_id" });
+          }
         }
       }
     } catch (_) { /* best-effort */ }
   }
 
-  return { inserted, updated, skipped, errors };
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
-// Build a legacy_id → partner.id map for later FK joins
-async function buildPartnerLegacyMap(tenantId: string, supabase: any): Promise<Record<string, string>> {
-  // Legacy code is stored in contact_person as "LegacyCode:P000001" since partners has no notes column
-  const { data } = await supabase.from("partners").select("id, contact_person").eq("tenant_id", tenantId);
-  const map: Record<string, string> = {};
-  for (const p of data || []) {
-    const m = (p.contact_person || "").match(/LegacyCode:(\S+)/);
-    if (m) map[m[1]] = p.id;
-  }
-  return map;
-}
-
-async function importPartners(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  let dataLines: string[];
-  let getCol: (cols: string[], field: string) => string | null;
-
-  if (unipromTable === "Partner") {
-    const cm = UNIPROM_COLUMN_MAP["Partner"];
-    dataLines = reconstructLogicalRows(sanitized);
-    getCol = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
-  } else if (unipromTable === "PartnerLocation") {
-    // PartnerLocation enriches existing partners with address data
-    const cm = UNIPROM_COLUMN_MAP["PartnerLocation"];
-    const lines = reconstructLogicalRows(sanitized);
-    let enriched = 0;
-    const legacyMap = await buildPartnerLegacyMap(tenantId, supabase);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      const partnerLegacyId = cols[cm.partner_legacy_id]?.trim();
-      if (!partnerLegacyId) continue;
-      const partnerId = legacyMap[partnerLegacyId];
-      if (!partnerId) continue;
-      const city = cols[cm.city]?.trim() || null;
-      const address = cols[cm.address]?.trim() || null;
-      if (!city && !address) continue;
-      const { error } = await supabase.from("partners")
-        .update({ city: city || undefined, address: address || undefined })
-        .eq("id", partnerId);
-      if (!error) enriched++;
-    }
-    return { inserted: 0, updated: enriched, skipped: lines.length - enriched, errors: [] };
-  } else {
-    const firstCols = parseCSVLine(sanitized.split("\n")[0] || "");
-    const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0])) && !firstCols[0].startsWith("P0");
-    const lines = sanitized.split("\n").filter((l) => l.trim().length > 0);
-    dataLines = hasHeader ? lines.slice(1) : lines;
-    // generic: [0]=partner_code [1]=name [2]=country [3]=city [4]=pib [5]=contact_person
-    const cm: Record<string, number> = { legacy_id: 0, name: 1, country: 2, city: 3, pib: 4, contact_person: 5 };
-    getCol = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
-  }
-
-  const { data: existingPartners } = await supabase.from("partners").select("pib, name").eq("tenant_id", tenantId);
-  const pibSet = new Set((existingPartners || []).filter((r: any) => r.pib).map((r: any) => r.pib));
-  const nameSet = new Set((existingPartners || []).map((r: any) => r.name?.toLowerCase()));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  for (const line of dataLines!) {
-    const cols = parseCSVLine(line);
-    if (cols.length < 2) continue;
-
-    const name = getCol!(cols, "name") || "";
-    if (!name) continue;
-    const pib = getCol!(cols, "pib");
-    const legacyId = getCol!(cols, "legacy_id");
-
-    // For Partner.csv: is_active col[17] — skip inactive (0)
-    if (unipromTable === "Partner") {
-      const isActive = cols[UNIPROM_COLUMN_MAP["Partner"].is_active]?.trim();
-      if (isActive === "0") { skipped++; continue; }
-    }
-
-    if (pib && pibSet.has(pib)) { skipped++; continue; }
-    if (!pib && nameSet.has(name.toLowerCase())) { skipped++; continue; }
-    if (pib) pibSet.add(pib);
-    nameSet.add(name.toLowerCase());
-
-    const country = getCol!(cols, "country") || "Serbia";
-    const city = getCol!(cols, "city");
-    const contactPerson = getCol!(cols, "contact_person");
-    const partnerCode = legacyId || getCol!(cols, "partner_code");
-
-    // Store legacy code in contact_person with prefix "LegacyCode:" so buildPartnerLegacyMap can find it
-    // partners table has NO notes column — contact_person is used as the legacy reference carrier
-    const legacyTag = partnerCode ? `LegacyCode:${partnerCode}` : null;
-    batch.push({
-      tenant_id: tenantId, name, city: city || null, country,
-      pib: pib || null,
-      contact_person: contactPerson || legacyTag || null,
-      type: "customer", is_active: true,
-    });
-
-    if (batch.length >= BATCH_SIZE) {
-      // BUG FIX: PostgreSQL does not match NULL in ON CONFLICT, so upsert by
-      // tenant_id,pib fails for rows where pib IS NULL (constraint not triggered,
-      // duplicates sneak in, then next batch hits a unique violation on the name).
-      // Split: rows WITH pib → upsert; rows WITHOUT pib → plain insert (best-effort).
-      const withPib = batch.filter((r: any) => r.pib);
-      const withoutPib = batch.filter((r: any) => !r.pib);
-      if (withPib.length) {
-        const { error } = await supabase.from("partners").upsert(withPib, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
-        if (error) errors.push(`PIB upsert: ${error.message}`); else inserted += withPib.length;
-      }
-      if (withoutPib.length) {
-        const { error } = await supabase.from("partners").insert(withoutPib);
-        if (error) errors.push(`No-PIB insert: ${error.message}`); else inserted += withoutPib.length;
-      }
-      batch.length = 0;
-    }
-  }
-  if (batch.length > 0) {
-    const withPib = batch.filter((r: any) => r.pib);
-    const withoutPib = batch.filter((r: any) => !r.pib);
-    if (withPib.length) {
-      const { error } = await supabase.from("partners").upsert(withPib, { onConflict: "tenant_id,pib", ignoreDuplicates: true });
-      if (error) errors.push(`PIB upsert: ${error.message}`); else inserted += withPib.length;
-    }
-    if (withoutPib.length) {
-      const { error } = await supabase.from("partners").insert(withoutPib);
-      if (error) errors.push(`No-PIB insert: ${error.message}`); else inserted += withoutPib.length;
-    }
-  }
-  return { inserted, skipped, errors };
-}
-
-async function importContacts(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  let dataLines: string[];
-  let getField: (cols: string[], field: string) => string | null;
-
-  if (unipromTable === "PartnerContact") {
-    const cm = UNIPROM_COLUMN_MAP["PartnerContact"];
-    dataLines = reconstructLogicalRows(sanitized);
-    getField = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
-  } else {
-    // Legacy A_aPodaci.csv: [0]=legacy_partner_id [1]=last_name [2]=first_name [3]=role [4]=city [5]=email [6]=phone
-    const lines = sanitized.split("\n").filter((l) => l.trim().length > 0);
-    const firstCols = parseCSVLine(lines[0] || "");
-    const hasHeader = firstCols.length > 0 && isNaN(Number(firstCols[0]));
-    dataLines = hasHeader ? lines.slice(1) : lines;
-    const cm: Record<string, number> = { legacy_id: 0, last_name: 1, first_name: 2, role: 3, city: 4, email: 5, phone: 6 };
-    getField = (cols, field) => cols[cm[field] ?? -1]?.trim() || null;
-  }
-
-  const { data: existingContacts } = await supabase.from("contacts").select("email, first_name, last_name").eq("tenant_id", tenantId);
-  const emailSet = new Set((existingContacts || []).filter((r: any) => r.email).map((r: any) => r.email?.toLowerCase()));
-  const nameSet = new Set((existingContacts || []).map((r: any) => `${r.first_name}|${r.last_name}`.toLowerCase()));
-
-  // Build partner legacy map for company_name enrichment
-  const legacyMap = await buildPartnerLegacyMap(tenantId, supabase);
-  const { data: partnerNames } = await supabase.from("partners").select("id, name").eq("tenant_id", tenantId);
-  const partnerIdToName: Record<string, string> = {};
-  for (const p of partnerNames || []) partnerIdToName[p.id] = p.name;
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  for (const line of dataLines) {
-    const cols = parseCSVLine(line);
-    if (cols.length < 2) continue;
-    const legacyPartnerId = getField(cols, "legacy_id") || getField(cols, "partner_legacy_id");
-    const lastName = getField(cols, "last_name");
-    const firstName = getField(cols, "first_name");
-    const role = getField(cols, "role");
-    const rawCity = getField(cols, "city");
-    const email = getField(cols, "email");
-    const phone = getField(cols, "phone");
-
-    const effectiveFirst = firstName || lastName || "";
-    const effectiveLast = firstName ? lastName : null;
-    if (!effectiveFirst) continue;
-
-    if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
-    const nameKey = `${effectiveFirst}|${effectiveLast}`.toLowerCase();
-    if (!email && nameSet.has(nameKey)) { skipped++; continue; }
-    if (email) emailSet.add(email.toLowerCase());
-    nameSet.add(nameKey);
-
-    const city = (rawCity && rawCity.toUpperCase() !== "SRBIJA") ? rawCity : null;
-    const country = (!rawCity || rawCity.toUpperCase() === "SRBIJA") ? "Serbia" : null;
-
-    // Resolve company_name from partner legacy map
-    let companyName: string | null = null;
-    if (legacyPartnerId) {
-      const partnerId = legacyMap[legacyPartnerId];
-      if (partnerId) companyName = partnerIdToName[partnerId] || null;
-    }
-
-    // contacts.type check constraint only allows: customer, supplier, prospect
-    // contacts.function_area check constraint only allows specific values — map or omit
-    const validFunctionAreas = new Set(["management","sales","marketing","finance","hr","it","operations","legal","procurement","production","other"]);
-    const mappedFunctionArea = role && validFunctionAreas.has(role.toLowerCase()) ? role.toLowerCase() : null;
-    batch.push({
-      tenant_id: tenantId,
-      first_name: effectiveFirst, last_name: effectiveLast,
-      email: email || null, phone: phone || null,
-      city, country,
-      function_area: mappedFunctionArea,
-      company_name: companyName,
-      notes: [
-        legacyPartnerId ? `Legacy partner ref: ${legacyPartnerId}` : null,
-        role && !mappedFunctionArea ? `Role: ${role}` : null,
-      ].filter(Boolean).join(" | ") || null,
-      type: "prospect",
-    });
-
-    if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("contacts").insert(batch);
-      if (error) errors.push(error.message); else inserted += batch.length;
-      batch.length = 0;
-    }
-  }
-  if (batch.length > 0) {
-    const { error } = await supabase.from("contacts").insert(batch);
-    if (error) errors.push(error.message); else inserted += batch.length;
-  }
-  return { inserted, skipped, errors };
-}
-
+// ──────────────────────────────────────────────────────────────────────────────
+// importWarehouses — added logging
+// ──────────────────────────────────────────────────────────────────────────────
 async function importWarehouses(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importWarehouses";
   const sanitized = sanitizeCSVText(csvText);
   const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
 
   const { data: existing } = await supabase.from("warehouses").select("name").eq("tenant_id", tenantId);
   const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
 
   if (unipromTable === "Warehouse") {
     const cm = UNIPROM_COLUMN_MAP["Warehouse"];
     const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
     for (const line of lines) {
       const cols = parseCSVLine(line);
       if (cols.length < 3) continue;
@@ -533,6 +725,7 @@ async function importWarehouses(csvText: string, tenantId: string, supabase: any
     const h = headers.map((x) => x.toLowerCase());
     const nameIdx = h.findIndex((x) => /name|naziv/i.test(x));
     const codeIdx = h.findIndex((x) => /code|sifra/i.test(x));
+    console.log(`[${tag}] ${filename}: ${rows.length} rows (generic)`);
     for (const row of rows) {
       const name = (nameIdx >= 0 ? row[nameIdx] : row[0])?.trim();
       if (!name) continue;
@@ -544,15 +737,255 @@ async function importWarehouses(csvText: string, tenantId: string, supabase: any
   }
 
   if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("warehouses").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,name", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
+    const res = await flushBatch(supabase, "warehouses", batch, "tenant_id,name", tag, 1);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importDepartments — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importDepartments(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importDepartments";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  const { data: existing } = await supabase.from("departments").select("name").eq("tenant_id", tenantId);
+  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+
+  if (unipromTable === "Department") {
+    const cm = UNIPROM_COLUMN_MAP["Department"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 2) continue;
+      const name = cols[cm.name]?.trim();
+      const code = cols[cm.code]?.trim();
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      batch.push({ tenant_id: tenantId, name, code: code || name.substring(0, 10).toUpperCase() });
+    }
+  } else {
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase());
+    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
+    const codeIdx = h.findIndex((x) => /sifra|code/i.test(x));
+    console.log(`[${tag}] ${filename}: ${rows.length} rows (generic)`);
+    for (const row of rows) {
+      const name = (nameIdx >= 0 ? row[nameIdx] : row[1] || row[0])?.trim();
+      const code = (codeIdx >= 0 ? row[codeIdx] : row[0])?.trim();
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      batch.push({ tenant_id: tenantId, name, code: code || name.substring(0, 10).toUpperCase() });
     }
   }
+
+  if (batch.length > 0) {
+    const res = await flushBatch(supabase, "departments", batch, "tenant_id,code", tag, 1);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importTaxRates — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importTaxRates(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importTaxRates";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  const { data: existing } = await supabase.from("tax_rates").select("name").eq("tenant_id", tenantId);
+  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+
+  if (unipromTable === "Tax") {
+    const cm = UNIPROM_COLUMN_MAP["Tax"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 4) continue;
+      const name = cols[cm.name]?.trim();
+      const rateRaw = parseFloat(cols[cm.rate]) || 0;
+      const rate = rateRaw <= 1 ? Math.round(rateRaw * 100) : rateRaw;
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      batch.push({ tenant_id: tenantId, name, rate, is_active: true, is_default: rate === 20 });
+    }
+  } else {
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase());
+    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
+    const rateIdx = h.findIndex((x) => /stopa|rate|procenat|pdv/i.test(x));
+    console.log(`[${tag}] ${filename}: ${rows.length} rows (generic)`);
+    for (const row of rows) {
+      const name = (nameIdx >= 0 ? row[nameIdx] : row[1])?.trim();
+      const rateRaw = parseFloat(rateIdx >= 0 ? row[rateIdx] : row[2]) || 0;
+      const rate = rateRaw <= 1 ? Math.round(rateRaw * 100) : rateRaw;
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      batch.push({ tenant_id: tenantId, name, rate, is_active: true, is_default: rate === 20 });
+    }
+  }
+
+  if (batch.length > 0) {
+    const res = await flushBatch(supabase, "tax_rates", batch, "tenant_id,name", tag, 1);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importCurrencies — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importCurrencies(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importCurrencies";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  const { data: existing } = await supabase.from("currencies").select("code").eq("tenant_id", tenantId);
+  const codeSet = new Set((existing || []).map((r: any) => r.code));
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+
+  if (unipromTable === "CurrencyISO") {
+    const cm = UNIPROM_COLUMN_MAP["CurrencyISO"];
+    const lines = reconstructLogicalRows(sanitized);
+    const KNOWN_CURRENCIES = new Set(["RSD", "EUR", "USD", "CHF", "GBP", "HRK", "BAM"]);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows (filtering to known currencies)`);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 2) continue;
+      const code = cols[cm.code]?.trim()?.toUpperCase();
+      const name = cols[cm.name]?.trim();
+      const symbol = cols[cm.symbol]?.trim() || null;
+      if (!code || !KNOWN_CURRENCIES.has(code)) continue;
+      if (codeSet.has(code)) { skipped++; continue; }
+      codeSet.add(code);
+      batch.push({ tenant_id: tenantId, code, name: name || code, symbol, is_active: true, is_base: code === "RSD" });
+    }
+  } else if (unipromTable === "Currency") {
+    const cm = UNIPROM_COLUMN_MAP["Currency"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 3) continue;
+      const code = cols[cm.code]?.trim()?.toUpperCase();
+      const name = cols[cm.name]?.trim();
+      if (!code) continue;
+      if (codeSet.has(code)) { skipped++; continue; }
+      codeSet.add(code);
+      batch.push({ tenant_id: tenantId, code, name: name || code, is_active: true, is_base: code === "RSD" });
+    }
+  } else {
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase());
+    const codeIdx = h.findIndex((x) => /code|sifra|oznak/i.test(x));
+    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
+    const symbolIdx = h.findIndex((x) => /simbol|symbol|znak/i.test(x));
+    console.log(`[${tag}] ${filename}: ${rows.length} rows (generic)`);
+    for (const row of rows) {
+      const code   = (codeIdx >= 0 ? row[codeIdx] : row[0])?.trim()?.toUpperCase();
+      const name   = (nameIdx >= 0 ? row[nameIdx] : row[1] || code)?.trim();
+      const symbol = (symbolIdx >= 0 ? row[symbolIdx] : null)?.trim() || null;
+      if (!code) continue;
+      if (codeSet.has(code)) { skipped++; continue; }
+      codeSet.add(code);
+      batch.push({ tenant_id: tenantId, code, name: name || code, symbol, is_active: true, is_base: code === "RSD" });
+    }
+  }
+
+  if (batch.length > 0) {
+    const res = await flushBatch(supabase, "currencies", batch, "tenant_id,code", tag, 1);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importLegalEntities — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importLegalEntities(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importLegalEntities";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
+
+  const { data: existing } = await supabase.from("legal_entities").select("name").eq("tenant_id", tenantId);
+  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
+
+  let inserted = 0; let skipped = 0; const errors: string[] = [];
+
+  if (unipromTable === "Company") {
+    const cm = UNIPROM_COLUMN_MAP["Company"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 8) continue;
+      const name = cols[cm.name]?.trim();
+      if (!name) continue;
+      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
+      nameSet.add(name.toLowerCase());
+      const address = cols[cm.address]?.trim() || null;
+      const pib = cols[cm.pib]?.trim() || null;
+      const maticni = cols[cm.maticni_broj]?.trim() || null;
+      const { error } = await supabase.from("legal_entities").upsert({
+        tenant_id: tenantId, name, address, pib, maticni_broj: maticni, is_active: true,
+      }, { onConflict: "tenant_id,name", ignoreDuplicates: true });
+      if (error) {
+        errors.push(error.message);
+        console.warn(`[${tag}] Row error: ${error.message}`);
+      } else {
+        inserted++;
+      }
+    }
+  } else {
+    return { inserted: 0, skipped: 0, errors: ["No dedicated importer for this legal entities file format"] };
+  }
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${errors.length} errors`);
   return { inserted, skipped, errors };
 }
 
-async function importChartOfAccounts(csvText: string, tenantId: string, supabase: any) {
+// ──────────────────────────────────────────────────────────────────────────────
+// importChartOfAccounts — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importChartOfAccounts(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importChartOfAccounts";
+  console.log(`[${tag}] File: ${filename}`);
   const { headers, rows } = parseCSV(csvText);
   const h = headers.map((x) => x.toLowerCase());
 
@@ -566,8 +999,12 @@ async function importChartOfAccounts(csvText: string, tenantId: string, supabase
   const { data: existing } = await supabase.from("chart_of_accounts").select("code").eq("tenant_id", tenantId);
   const codeSet = new Set((existing || []).map((r: any) => r.code));
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
+  let batchNum = 0;
+
+  console.log(`[${tag}] ${filename}: ${rows.length} rows`);
 
   for (const row of rows) {
     const code = row[effectiveCodeIdx]?.trim();
@@ -587,7 +1024,6 @@ async function importChartOfAccounts(csvText: string, tenantId: string, supabase
     else if (prefix === "6") accountType = "revenue";
     else if (prefix === "7") accountType = "revenue";
     else if (prefix === "8") accountType = "equity";
-    else if (prefix === "9") accountType = "other";
 
     if (typeIdx >= 0 && row[typeIdx]) {
       const t = row[typeIdx].toLowerCase();
@@ -606,132 +1042,132 @@ async function importChartOfAccounts(csvText: string, tenantId: string, supabase
     });
 
     if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("chart_of_accounts").upsert(batch, { onConflict: "tenant_id,code", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += batch.length;
+      batchNum++;
+      const res = await flushBatch(supabase, "chart_of_accounts", [...batch], "tenant_id,code", tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
       batch.length = 0;
     }
   }
+
   if (batch.length > 0) {
-    const { error } = await supabase.from("chart_of_accounts").upsert(batch, { onConflict: "tenant_id,code", ignoreDuplicates: true });
-    if (error) errors.push(error.message); else inserted += batch.length;
+    batchNum++;
+    const res = await flushBatch(supabase, "chart_of_accounts", batch, "tenant_id,code", tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
   }
-  return { inserted, skipped, errors };
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
-async function importEmployees(csvText: string, tenantId: string, supabase: any, filename?: string) {
+// ──────────────────────────────────────────────────────────────────────────────
+// importEmployeeContracts — added logging, kept working logic
+// ──────────────────────────────────────────────────────────────────────────────
+async function importEmployeeContracts(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importEmployeeContracts";
   const sanitized = sanitizeCSVText(csvText);
   const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
 
-  const { data: existing } = await supabase.from("employees").select("email, first_name, last_name").eq("tenant_id", tenantId);
-  const emailSet = new Set((existing || []).filter((r: any) => r.email).map((r: any) => r.email?.toLowerCase()));
-  const nameSet  = new Set((existing || []).map((r: any) => `${r.first_name}|${r.last_name}`.toLowerCase()));
+  const { data: employees } = await supabase.from("employees").select("id, notes").eq("tenant_id", tenantId);
+  const empLegacyMap: Record<string, string> = {};
+  for (const e of employees || []) {
+    const legacyMatch = (e.notes || "").match(/Legacy ID:\s*(\d+)/);
+    if (legacyMatch) empLegacyMap[legacyMatch[1]] = e.id;
+  }
+  console.log(`[${tag}] Found ${Object.keys(empLegacyMap).length} employee legacy mappings`);
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
 
-  if (unipromTable === "Employee") {
-    const cm = UNIPROM_COLUMN_MAP["Employee"];
+  const parseDate = (d: string | null) => {
+    if (!d) return null;
+    const p = new Date(d);
+    return isNaN(p.getTime()) ? null : p.toISOString().split("T")[0];
+  };
+
+  if (unipromTable === "EmployeeContract") {
+    const cm = UNIPROM_COLUMN_MAP["EmployeeContract"];
     const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 3) continue;
-      const firstName = cols[cm.first_name]?.trim() || null;
-      const lastName  = cols[cm.last_name]?.trim()  || null;
-      const jmbg      = cols[cm.jmbg]?.trim()       || null;
-      const deptLegacyId = cols[cm.department_legacy_id]?.trim() || null;
-      const email     = cols[cm.email]?.trim() || null;
-      const phone     = cols[cm.phone]?.trim() || null;
-      if (!firstName && !lastName) continue;
-      if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
-      const nameKey = `${firstName}|${lastName}`.toLowerCase();
-      if (!email && nameSet.has(nameKey)) { skipped++; continue; }
-      if (email) emailSet.add(email.toLowerCase());
-      nameSet.add(nameKey);
-      const legacyId = cols[UNIPROM_COLUMN_MAP["Employee"].legacy_id]?.trim() || null;
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    const batch: any[] = [];
+    let batchNum = 0;
+
+    for (let rowIdx = 0; rowIdx < lines.length; rowIdx++) {
+      const cols = parseCSVLine(lines[rowIdx]);
+      if (cols.length < 5) continue;
+      const empLegacyId = cols[cm.employee_legacy_id]?.trim();
+      const employeeId = empLegacyMap[empLegacyId];
+      if (!employeeId) { skipped++; continue; }
+      const startDate = parseDate(cols[cm.start_date]?.trim() || null);
+      if (!startDate) { skipped++; continue; }
+      const grossSalary = parseFloat(cols[cm.gross_salary]?.trim() || "0") || 0;
       batch.push({
         tenant_id: tenantId,
-        first_name: firstName || "",
-        last_name:  lastName  || "",
-        email:      email || null,
-        phone:      phone || null,
-        status:     "active",
-        // BUG FIX: store legacy_id as "Legacy ID: X" so importEmployeeContracts()
-        // can find it with /Legacy ID:\s*(\d+)/ — previous pattern "Dept legacy ID:"
-        // never matched the regex in the contracts importer.
-        notes: [
-          legacyId ? `Legacy ID: ${legacyId}` : null,
-          jmbg ? `JMBG: ${jmbg}` : null,
-          deptLegacyId ? `Dept ID: ${deptLegacyId}` : null,
-        ].filter(Boolean).join(" | ") || null,
+        employee_id: employeeId,
+        start_date: startDate,
+        end_date: parseDate(cols[cm.end_date]?.trim() || null),
+        gross_salary: grossSalary,
+        contract_type: cols[cm.contract_type]?.trim() || "permanent",
+        working_hours_per_week: 40,
       });
+
+      if (batch.length >= BATCH_SIZE) {
+        batchNum++;
+        const res = await flushBatch(supabase, "employee_contracts", [...batch], null, tag, batchNum);
+        inserted += res.inserted;
+        allErrors.push(...res.errors);
+        batch.length = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      batchNum++;
+      const res = await flushBatch(supabase, "employee_contracts", batch, null, tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
     }
   } else {
-    const { headers, rows } = parseCSV(csvText);
-    const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
-    const firstNameIdx = h.findIndex((x) => /ime$|firstname|^ime/i.test(x));
-    const lastNameIdx  = h.findIndex((x) => /prezime|lastname/i.test(x));
-    const emailIdx     = h.findIndex((x) => /email|mail/i.test(x));
-    const phoneIdx     = h.findIndex((x) => /tel|phone|mobil/i.test(x));
-    const jmbgIdx      = h.findIndex((x) => /jmbg/i.test(x));
-    const positionIdx  = h.findIndex((x) => /pozicija|radno.*mesto|position|job/i.test(x));
-    const effFirst    = firstNameIdx >= 0 ? firstNameIdx : 2;
-    const effLast     = lastNameIdx  >= 0 ? lastNameIdx  : 1;
-    const effEmail    = emailIdx     >= 0 ? emailIdx     : 3;
-    const effPhone    = phoneIdx     >= 0 ? phoneIdx     : 4;
-    for (const row of rows) {
-      const firstName = row[effFirst]?.trim() || null;
-      const lastName  = row[effLast]?.trim()  || null;
-      const email     = row[effEmail]?.trim() || null;
-      const phone     = row[effPhone]?.trim() || null;
-      const jmbg      = jmbgIdx >= 0 ? row[jmbgIdx]?.trim() || null : null;
-      const position  = positionIdx >= 0 ? row[positionIdx]?.trim() || null : null;
-      if (!firstName && !lastName) continue;
-      if (email && emailSet.has(email.toLowerCase())) { skipped++; continue; }
-      const nameKey = `${firstName}|${lastName}`.toLowerCase();
-      if (!email && nameSet.has(nameKey)) { skipped++; continue; }
-      if (email) emailSet.add(email.toLowerCase());
-      nameSet.add(nameKey);
-      batch.push({
-        tenant_id: tenantId,
-        first_name: firstName || "", last_name: lastName || "",
-        email: email || null, phone: phone || null,
-        position: position || null, status: "active",
-        notes: jmbg ? `JMBG: ${jmbg}` : null,
-      });
-    }
+    return { inserted: 0, skipped: 0, errors: ["EmployeeContract file not recognized — import Employee first"] };
   }
 
-  if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("employees").insert(batch.slice(i, i + BATCH_SIZE));
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-    }
-  }
-  return { inserted, skipped, errors };
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
-async function importInventoryStock(csvText: string, tenantId: string, supabase: any) {
+// ──────────────────────────────────────────────────────────────────────────────
+// importInventoryStock — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importInventoryStock(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importInventoryStock";
+  console.log(`[${tag}] File: ${filename}`);
   const { headers, rows } = parseCSV(csvText);
   const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
 
-  const skuIdx      = h.findIndex((x) => /sifra|sku|artik/i.test(x));
-  const qtyIdx      = h.findIndex((x) => /kolicin|qty|zaliha|stanje|kolicina/i.test(x));
-  const warehIdx    = h.findIndex((x) => /magacin|warehouse|skladiste/i.test(x));
-  const costIdx     = h.findIndex((x) => /cena|price|cost|nabav/i.test(x));
+  const skuIdx   = h.findIndex((x) => /sifra|sku|artik/i.test(x));
+  const qtyIdx   = h.findIndex((x) => /kolicin|qty|zaliha|stanje|kolicina/i.test(x));
+  const warehIdx = h.findIndex((x) => /magacin|warehouse|skladiste/i.test(x));
+  const costIdx  = h.findIndex((x) => /cena|price|cost|nabav/i.test(x));
 
   const { data: whs } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId).limit(5);
   const defaultWarehouseId = whs && whs.length > 0 ? whs[0].id : null;
   if (!defaultWarehouseId) {
-    return { inserted: 0, skipped: rows.length, errors: ["No warehouses found for this tenant — import products & warehouses first"] };
+    return { inserted: 0, skipped: rows.length, errors: ["No warehouses found for this tenant — import warehouses first"] };
   }
 
   const warehouseMap: Record<string, string> = {};
   if (whs) for (const w of whs) warehouseMap[w.name?.toLowerCase()] = w.id;
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
+  let batchNum = 0;
 
-  for (const row of rows) {
+  console.log(`[${tag}] ${filename}: ${rows.length} rows`);
+
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx];
     const skuRaw = skuIdx >= 0 ? row[skuIdx]?.trim() : row[0]?.trim();
     const qty    = qtyIdx >= 0 ? parseFloat(row[qtyIdx]) || 0 : parseFloat(row[1]) || 0;
     const warehName = warehIdx >= 0 ? row[warehIdx]?.trim()?.toLowerCase() : null;
@@ -743,43 +1179,44 @@ async function importInventoryStock(csvText: string, tenantId: string, supabase:
     if (!prod) { skipped++; continue; }
 
     const warehouseId = (warehName && warehouseMap[warehName]) || defaultWarehouseId;
-
-    batch.push({
-      tenant_id: tenantId,
-      product_id: prod.id,
-      warehouse_id: warehouseId,
-      quantity_on_hand: qty,
-      unit_cost: unitCost || null,
-    });
+    batch.push({ tenant_id: tenantId, product_id: prod.id, warehouse_id: warehouseId, quantity_on_hand: qty, unit_cost: unitCost || null });
 
     if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("inventory_stock").upsert(batch, { onConflict: "product_id,warehouse_id" });
-      if (error) errors.push(error.message); else inserted += batch.length;
+      batchNum++;
+      const res = await flushBatch(supabase, "inventory_stock", [...batch], "product_id,warehouse_id", tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
       batch.length = 0;
     }
   }
+
   if (batch.length > 0) {
-    const { error } = await supabase.from("inventory_stock").upsert(batch, { onConflict: "product_id,warehouse_id" });
-    if (error) errors.push(error.message); else inserted += batch.length;
+    batchNum++;
+    const res = await flushBatch(supabase, "inventory_stock", batch, "product_id,warehouse_id", tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
   }
-  return { inserted, skipped, errors };
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
-async function importSupplierInvoices(csvText: string, tenantId: string, supabase: any) {
-  const { headers, rows } = parseCSV(csvText);
-  const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
+// ──────────────────────────────────────────────────────────────────────────────
+// importInvoicesHeuristic — added logging, kept working logic
+// ──────────────────────────────────────────────────────────────────────────────
+async function importInvoicesHeuristic(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importInvoices";
+  const sanitized = sanitizeCSVText(csvText);
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
 
-  const invNumIdx   = h.findIndex((x) => /broj|number|num|faktura/i.test(x));
-  const dateIdx     = h.findIndex((x) => /datum|date/i.test(x));
-  const totalIdx    = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
-  const partnerIdx  = h.findIndex((x) => /dobavljac|supplier|partner|naziv|name/i.test(x));
-  const dueDateIdx  = h.findIndex((x) => /rokplacanja|duedate|valuteroki/i.test(x));
-
-  const { data: existing } = await supabase.from("supplier_invoices").select("invoice_number").eq("tenant_id", tenantId);
+  const { data: existing } = await supabase.from("invoices").select("invoice_number").eq("tenant_id", tenantId);
   const invSet = new Set((existing || []).map((r: any) => r.invoice_number));
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
+  let batchNum = 0;
 
   const parseDate = (d: string | null) => {
     if (!d) return new Date().toISOString().split("T")[0];
@@ -787,7 +1224,111 @@ async function importSupplierInvoices(csvText: string, tenantId: string, supabas
     return isNaN(p.getTime()) ? new Date().toISOString().split("T")[0] : p.toISOString().split("T")[0];
   };
 
-  for (const row of rows) {
+  const flushInvoices = async () => {
+    if (batch.length === 0) return;
+    batchNum++;
+    const res = await flushBatch(supabase, "invoices", [...batch], "tenant_id,invoice_number", tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
+    batch.length = 0;
+  };
+
+  if (unipromTable === "DocumentHeader") {
+    const cm = UNIPROM_COLUMN_MAP["DocumentHeader"];
+    const lines = reconstructLogicalRows(sanitized);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+    for (let rowIdx = 0; rowIdx < lines.length; rowIdx++) {
+      const cols = parseCSVLine(lines[rowIdx]);
+      if (cols.length < 4) continue;
+      const invNum = cols[cm.doc_number]?.trim();
+      if (!invNum || invNum === "0") continue;
+      if (invSet.has(invNum)) { skipped++; continue; }
+      invSet.add(invNum);
+      batch.push({
+        tenant_id: tenantId,
+        invoice_number: invNum,
+        invoice_date: parseDate(cols[cm.date]?.trim() || null),
+        due_date: parseDate(cols[cm.date]?.trim() || null),
+        status: "draft",
+        partner_name: "Imported",
+        total: parseFloat(cols[cm.total]?.trim() || "0") || 0,
+        subtotal: parseFloat(cols[cm.total]?.trim() || "0") || 0,
+        tax_amount: 0,
+        currency: "RSD",
+        notes: `Imported from legacy DocumentHeader (doc_list: ${cols[cm.doc_list_id]?.trim() || ""})`,
+      });
+      if (batch.length >= BATCH_SIZE) await flushInvoices();
+    }
+  } else {
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
+    const invNumIdx  = h.findIndex((x) => /broj.*faktur|faktura.*br|invoicenum|invoice_num|racun.*br/i.test(x));
+    const dateIdx    = h.findIndex((x) => /datum|date/i.test(x));
+    const totalIdx   = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
+    const partnerIdx = h.findIndex((x) => /kupac|partner|customer|naziv|name/i.test(x));
+    const dueDateIdx = h.findIndex((x) => /rokplacanja|duedate|valuta/i.test(x));
+    console.log(`[${tag}] ${filename}: ${rows.length} rows (generic)`);
+    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx];
+      const invNum = (invNumIdx >= 0 ? row[invNumIdx] : row[0])?.trim();
+      if (!invNum) continue;
+      if (invSet.has(invNum)) { skipped++; continue; }
+      invSet.add(invNum);
+      batch.push({
+        tenant_id: tenantId,
+        invoice_number: invNum,
+        invoice_date: parseDate(dateIdx >= 0 ? row[dateIdx] : null),
+        due_date: parseDate(dueDateIdx >= 0 ? row[dueDateIdx] : null),
+        status: "draft",
+        partner_name: (partnerIdx >= 0 ? row[partnerIdx] : null)?.trim() || "Unknown",
+        total: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
+        subtotal: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
+        tax_amount: 0,
+        currency: "RSD",
+        notes: "Imported from legacy system",
+      });
+      if (batch.length >= BATCH_SIZE) await flushInvoices();
+    }
+  }
+
+  await flushInvoices();
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// importSupplierInvoices — added logging
+// ──────────────────────────────────────────────────────────────────────────────
+async function importSupplierInvoices(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importSupplierInvoices";
+  console.log(`[${tag}] File: ${filename}`);
+  const { headers, rows } = parseCSV(csvText);
+  const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
+
+  const invNumIdx  = h.findIndex((x) => /broj|number|num|faktura/i.test(x));
+  const dateIdx    = h.findIndex((x) => /datum|date/i.test(x));
+  const totalIdx   = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
+  const partnerIdx = h.findIndex((x) => /dobavljac|supplier|partner|naziv|name/i.test(x));
+  const dueDateIdx = h.findIndex((x) => /rokplacanja|duedate|valuteroki/i.test(x));
+
+  const { data: existing } = await supabase.from("supplier_invoices").select("invoice_number").eq("tenant_id", tenantId);
+  const invSet = new Set((existing || []).map((r: any) => r.invoice_number));
+
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
+  const batch: any[] = [];
+  let batchNum = 0;
+
+  const parseDate = (d: string | null) => {
+    if (!d) return new Date().toISOString().split("T")[0];
+    const p = new Date(d);
+    return isNaN(p.getTime()) ? new Date().toISOString().split("T")[0] : p.toISOString().split("T")[0];
+  };
+
+  console.log(`[${tag}] ${filename}: ${rows.length} rows`);
+
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx];
     const invNum = (invNumIdx >= 0 ? row[invNumIdx] : row[0])?.trim();
     if (!invNum) continue;
     if (invSet.has(invNum)) { skipped++; continue; }
@@ -808,372 +1349,41 @@ async function importSupplierInvoices(csvText: string, tenantId: string, supabas
     });
 
     if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("supplier_invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += batch.length;
+      batchNum++;
+      const res = await flushBatch(supabase, "supplier_invoices", [...batch], "tenant_id,invoice_number", tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
       batch.length = 0;
     }
   }
-  if (batch.length > 0) {
-    const { error } = await supabase.from("supplier_invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-    if (error) errors.push(error.message); else inserted += batch.length;
-  }
-  return { inserted, skipped, errors };
-}
-
-async function importInvoicesHeuristic(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  // BUG FIX: detect Uniprom DocumentHeader.csv (no header row) and use exact column positions
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  const { data: existing } = await supabase.from("invoices").select("invoice_number").eq("tenant_id", tenantId);
-  const invSet = new Set((existing || []).map((r: any) => r.invoice_number));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  const parseDate = (d: string | null) => {
-    if (!d) return new Date().toISOString().split("T")[0];
-    const p = new Date(d);
-    return isNaN(p.getTime()) ? new Date().toISOString().split("T")[0] : p.toISOString().split("T")[0];
-  };
-
-  if (unipromTable === "DocumentHeader") {
-    // Uniprom column positions: col[1]=doc_number, col[2]=date, col[6]=partner_id, col[11]=total
-    const cm = UNIPROM_COLUMN_MAP["DocumentHeader"];
-    const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 4) continue;
-      const invNum = cols[cm.doc_number]?.trim();
-      if (!invNum || invNum === "0") continue;
-      if (invSet.has(invNum)) { skipped++; continue; }
-      invSet.add(invNum);
-      batch.push({
-        tenant_id: tenantId,
-        invoice_number: invNum,
-        invoice_date: parseDate(cols[cm.date]?.trim() || null),
-        due_date: parseDate(cols[cm.date]?.trim() || null),
-        status: "draft",
-        partner_name: "Imported",
-        total: parseFloat(cols[cm.total]?.trim() || "0") || 0,
-        subtotal: parseFloat(cols[cm.total]?.trim() || "0") || 0,
-        tax_amount: 0,
-        currency: "RSD",
-        notes: `Imported from legacy DocumentHeader (doc_list: ${cols[cm.doc_list_id]?.trim() || ""})`,
-      });
-      if (batch.length >= BATCH_SIZE) {
-        const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-        if (error) errors.push(error.message); else inserted += batch.length;
-        batch.length = 0;
-      }
-    }
-  } else {
-    const { headers, rows } = parseCSV(csvText);
-    const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
-    const invNumIdx  = h.findIndex((x) => /broj.*faktur|faktura.*br|invoicenum|invoice_num|racun.*br/i.test(x));
-    const dateIdx    = h.findIndex((x) => /datum|date/i.test(x));
-    const totalIdx   = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
-    const partnerIdx = h.findIndex((x) => /kupac|partner|customer|naziv|name/i.test(x));
-    const dueDateIdx = h.findIndex((x) => /rokplacanja|duedate|valuta/i.test(x));
-    for (const row of rows) {
-      const invNum = (invNumIdx >= 0 ? row[invNumIdx] : row[0])?.trim();
-      if (!invNum) continue;
-      if (invSet.has(invNum)) { skipped++; continue; }
-      invSet.add(invNum);
-      batch.push({
-        tenant_id: tenantId,
-        invoice_number: invNum,
-        invoice_date: parseDate(dateIdx >= 0 ? row[dateIdx] : null),
-        due_date: parseDate(dueDateIdx >= 0 ? row[dueDateIdx] : null),
-        status: "draft",
-        partner_name: (partnerIdx >= 0 ? row[partnerIdx] : null)?.trim() || "Unknown",
-        total: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
-        subtotal: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
-        tax_amount: 0,
-        currency: "RSD",
-        notes: "Imported from legacy system",
-      });
-      if (batch.length >= BATCH_SIZE) {
-        const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-        if (error) errors.push(error.message); else inserted += batch.length;
-        batch.length = 0;
-      }
-    }
-  }
 
   if (batch.length > 0) {
-    const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-    if (error) errors.push(error.message); else inserted += batch.length;
+    batchNum++;
+    const res = await flushBatch(supabase, "supplier_invoices", batch, "tenant_id,invoice_number", tag, batchNum);
+    inserted += res.inserted;
+    allErrors.push(...res.errors);
   }
-  return { inserted, skipped, errors };
+
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
-async function importDepartments(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  const { data: existing } = await supabase.from("departments").select("name").eq("tenant_id", tenantId);
-  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  if (unipromTable === "Department") {
-    const cm = UNIPROM_COLUMN_MAP["Department"];
-    const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 2) continue;
-      const name = cols[cm.name]?.trim();
-      const code = cols[cm.code]?.trim();
-      if (!name) continue;
-      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
-      nameSet.add(name.toLowerCase());
-      batch.push({ tenant_id: tenantId, name, code: code || name.substring(0, 10).toUpperCase() });
-    }
-  } else {
-    const { headers, rows } = parseCSV(csvText);
-    const h = headers.map((x) => x.toLowerCase());
-    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
-    const codeIdx = h.findIndex((x) => /sifra|code/i.test(x));
-    for (const row of rows) {
-      const name = (nameIdx >= 0 ? row[nameIdx] : row[1] || row[0])?.trim();
-      const code = (codeIdx >= 0 ? row[codeIdx] : row[0])?.trim();
-      if (!name) continue;
-      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
-      nameSet.add(name.toLowerCase());
-      batch.push({ tenant_id: tenantId, name, code: code || name.substring(0, 10).toUpperCase() });
-    }
-  }
-
-  if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      // BUG FIX: unique constraint is on (tenant_id,code), NOT (tenant_id,name)
-      const { error } = await supabase.from("departments").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,code", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-    }
-  }
-  return { inserted, skipped, errors };
-}
-
-async function importCurrencies(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  const { data: existing } = await supabase.from("currencies").select("code").eq("tenant_id", tenantId);
-  const codeSet = new Set((existing || []).map((r: any) => r.code));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  if (unipromTable === "CurrencyISO") {
-    // CurrencyISO.csv is authoritative — col[1]=code, col[2]=name, col[3]=symbol
-    const cm = UNIPROM_COLUMN_MAP["CurrencyISO"];
-    const lines = reconstructLogicalRows(sanitized);
-    // Only import commonly used currencies to avoid importing all 250+
-    const KNOWN_CURRENCIES = new Set(["RSD", "EUR", "USD", "CHF", "GBP", "HRK", "BAM"]);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 2) continue;
-      const code = cols[cm.code]?.trim()?.toUpperCase();
-      const name = cols[cm.name]?.trim();
-      const symbol = cols[cm.symbol]?.trim() || null;
-      if (!code || !KNOWN_CURRENCIES.has(code)) continue;
-      if (codeSet.has(code)) { skipped++; continue; }
-      codeSet.add(code);
-      batch.push({ tenant_id: tenantId, code, name: name || code, symbol, is_active: true, is_base: code === "RSD" });
-    }
-  } else if (unipromTable === "Currency") {
-    const cm = UNIPROM_COLUMN_MAP["Currency"];
-    const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 3) continue;
-      const code = cols[cm.code]?.trim()?.toUpperCase();
-      const name = cols[cm.name]?.trim();
-      if (!code) continue;
-      if (codeSet.has(code)) { skipped++; continue; }
-      codeSet.add(code);
-      batch.push({ tenant_id: tenantId, code, name: name || code, is_active: true, is_base: code === "RSD" });
-    }
-  } else {
-    const { headers, rows } = parseCSV(csvText);
-    const h = headers.map((x) => x.toLowerCase());
-    const codeIdx = h.findIndex((x) => /code|sifra|oznak/i.test(x));
-    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
-    const symbolIdx = h.findIndex((x) => /simbol|symbol|znak/i.test(x));
-    for (const row of rows) {
-      const code   = (codeIdx >= 0 ? row[codeIdx] : row[0])?.trim()?.toUpperCase();
-      const name   = (nameIdx >= 0 ? row[nameIdx] : row[1] || code)?.trim();
-      const symbol = (symbolIdx >= 0 ? row[symbolIdx] : null)?.trim() || null;
-      if (!code) continue;
-      if (codeSet.has(code)) { skipped++; continue; }
-      codeSet.add(code);
-      batch.push({ tenant_id: tenantId, code, name: name || code, symbol, is_active: true, is_base: code === "RSD" });
-    }
-  }
-
-  if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("currencies").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,code", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-    }
-  }
-  return { inserted, skipped, errors };
-}
-
-async function importTaxRates(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  const { data: existing } = await supabase.from("tax_rates").select("name").eq("tenant_id", tenantId);
-  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-  const batch: any[] = [];
-
-  if (unipromTable === "Tax") {
-    const cm = UNIPROM_COLUMN_MAP["Tax"];
-    const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 4) continue;
-      const name = cols[cm.name]?.trim();
-      const rateRaw = parseFloat(cols[cm.rate]) || 0;
-      // Convert decimal to percentage: 0.20 → 20
-      const rate = rateRaw <= 1 ? Math.round(rateRaw * 100) : rateRaw;
-      if (!name) continue;
-      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
-      nameSet.add(name.toLowerCase());
-      batch.push({ tenant_id: tenantId, name, rate, is_active: true, is_default: rate === 20 });
-    }
-  } else {
-    const { headers, rows } = parseCSV(csvText);
-    const h = headers.map((x) => x.toLowerCase());
-    const nameIdx = h.findIndex((x) => /naziv|name/i.test(x));
-    const rateIdx = h.findIndex((x) => /stopa|rate|procenat|pdv/i.test(x));
-    for (const row of rows) {
-      const name = (nameIdx >= 0 ? row[nameIdx] : row[1])?.trim();
-      const rateRaw = parseFloat(rateIdx >= 0 ? row[rateIdx] : row[2]) || 0;
-      const rate = rateRaw <= 1 ? Math.round(rateRaw * 100) : rateRaw;
-      if (!name) continue;
-      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
-      nameSet.add(name.toLowerCase());
-      batch.push({ tenant_id: tenantId, name, rate, is_active: true, is_default: rate === 20 });
-    }
-  }
-
-  if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("tax_rates").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,name", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-    }
-  }
-  return { inserted, skipped, errors };
-}
-
-async function importLegalEntities(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  const { data: existing } = await supabase.from("legal_entities").select("name").eq("tenant_id", tenantId);
-  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-
-  if (unipromTable === "Company") {
-    const cm = UNIPROM_COLUMN_MAP["Company"];
-    const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 8) continue;
-      const name = cols[cm.name]?.trim();
-      if (!name) continue;
-      if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
-      nameSet.add(name.toLowerCase());
-      const address = cols[cm.address]?.trim() || null;
-      const pib = cols[cm.pib]?.trim() || null;
-      const maticni = cols[cm.maticni_broj]?.trim() || null;
-      const { error } = await supabase.from("legal_entities").upsert({
-        tenant_id: tenantId, name, address, pib, maticni_broj: maticni, is_active: true,
-      }, { onConflict: "tenant_id,name", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted++;
-    }
-  } else {
-    return { inserted: 0, skipped: 0, errors: ["No dedicated importer for this legal entities file format"] };
-  }
-
-  return { inserted, skipped, errors };
-}
-
-async function importEmployeeContracts(csvText: string, tenantId: string, supabase: any, filename?: string) {
-  const sanitized = sanitizeCSVText(csvText);
-  const unipromTable = filename ? getUnipromTableName(filename) : null;
-
-  // Build employee legacy_id → employee.id map
-  // BUG FIX: now that importEmployees stores "Legacy ID: X", match it correctly.
-  const { data: employees } = await supabase.from("employees").select("id, notes").eq("tenant_id", tenantId);
-  const empLegacyMap: Record<string, string> = {};
-  for (const e of employees || []) {
-    const legacyMatch = (e.notes || "").match(/Legacy ID:\s*(\d+)/);
-    if (legacyMatch) empLegacyMap[legacyMatch[1]] = e.id;
-  }
-
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
-
-  const parseDate = (d: string | null) => {
-    if (!d) return null;
-    const p = new Date(d);
-    return isNaN(p.getTime()) ? null : p.toISOString().split("T")[0];
-  };
-
-  if (unipromTable === "EmployeeContract") {
-    const cm = UNIPROM_COLUMN_MAP["EmployeeContract"];
-    const lines = reconstructLogicalRows(sanitized);
-    const batch: any[] = [];
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
-      if (cols.length < 5) continue;
-      const empLegacyId = cols[cm.employee_legacy_id]?.trim();
-      const employeeId = empLegacyMap[empLegacyId];
-      if (!employeeId) { skipped++; continue; }
-      const startDate = parseDate(cols[cm.start_date]?.trim() || null);
-      if (!startDate) { skipped++; continue; }
-      const grossSalary = parseFloat(cols[cm.gross_salary]?.trim() || "0") || 0;
-      batch.push({
-        tenant_id: tenantId,
-        employee_id: employeeId,
-        start_date: startDate,
-        end_date: parseDate(cols[cm.end_date]?.trim() || null),
-        gross_salary: grossSalary,
-        contract_type: cols[cm.contract_type]?.trim() || "permanent",
-        working_hours_per_week: 40,
-      });
-    }
-    if (batch.length > 0) {
-      for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-        const { error } = await supabase.from("employee_contracts").insert(batch.slice(i, i + BATCH_SIZE));
-        if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-      }
-    }
-  } else {
-    return { inserted: 0, skipped: 0, errors: ["EmployeeContract file not recognized — import Employee first"] };
-  }
-
-  return { inserted, skipped, errors };
-}
-
-// Import opportunities from dbo.Project.csv and dbo.Opportunity.csv
+// ──────────────────────────────────────────────────────────────────────────────
+// importOpportunities — added logging, kept already-fixed logic
+// ──────────────────────────────────────────────────────────────────────────────
 async function importOpportunities(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const tag = "importOpportunities";
   const sanitized = sanitizeCSVText(csvText);
   const unipromTable = filename ? getUnipromTableName(filename) : null;
+  console.log(`[${tag}] File: ${filename} → unipromTable: ${unipromTable}`);
 
-  // BUG FIX: opportunities table uses "title" not "name"
   const { data: existing } = await supabase.from("opportunities").select("title").eq("tenant_id", tenantId);
   const nameSet = new Set((existing || []).map((r: any) => r.title?.toLowerCase()));
 
-  let inserted = 0; let skipped = 0; const errors: string[] = [];
+  let inserted = 0; let skipped = 0;
+  const allErrors: { rowIndex: number; reason: string }[] = [];
   const batch: any[] = [];
+  let batchNum = 0;
 
   const parseDate = (d: string | null) => {
     if (!d) return null;
@@ -1184,41 +1394,57 @@ async function importOpportunities(csvText: string, tenantId: string, supabase: 
   if (unipromTable === "Project" || unipromTable === "Opportunity") {
     const cm = UNIPROM_COLUMN_MAP[unipromTable] || UNIPROM_COLUMN_MAP["Project"];
     const lines = reconstructLogicalRows(sanitized);
-    for (const line of lines) {
-      const cols = parseCSVLine(line);
+    console.log(`[${tag}] ${filename}: ${lines.length} rows`);
+
+    for (let rowIdx = 0; rowIdx < lines.length; rowIdx++) {
+      const cols = parseCSVLine(lines[rowIdx]);
       if (cols.length < 2) continue;
       const name = cols[cm.name]?.trim();
       if (!name) continue;
       if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
       nameSet.add(name.toLowerCase());
-      // BUG FIX: DB column is "title" not "name". Also value/currency/probability are NOT NULL with no defaults.
+
       const endDateRaw = cm.end_date !== undefined ? cols[cm.end_date]?.trim() || null : null;
       batch.push({
         tenant_id: tenantId,
-        title: name,           // was: name — wrong column name
+        title: name,
         stage: "prospecting",
-        value: 0,              // required NOT NULL
-        currency: "RSD",       // required NOT NULL
-        probability: 10,       // required NOT NULL
+        value: 0,
+        currency: "RSD",
+        probability: 10,
         expected_close_date: parseDate(endDateRaw),
         notes: `Imported from legacy ${unipromTable}`,
       });
+
+      if (batch.length >= BATCH_SIZE) {
+        batchNum++;
+        const res = await flushBatch(supabase, "opportunities", [...batch], null, tag, batchNum);
+        inserted += res.inserted;
+        allErrors.push(...res.errors);
+        batch.length = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      batchNum++;
+      const res = await flushBatch(supabase, "opportunities", batch, null, tag, batchNum);
+      inserted += res.inserted;
+      allErrors.push(...res.errors);
     }
   } else {
     return { inserted: 0, skipped: 0, errors: ["No opportunity importer for this file format"] };
   }
 
-  if (batch.length > 0) {
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("opportunities").insert(batch.slice(i, i + BATCH_SIZE));
-      if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
-    }
-  }
-  return { inserted, skipped, errors };
+  console.log(`[${tag}] TOTAL: ${inserted} inserted, ${skipped} skipped, ${allErrors.length} errors`);
+  return { inserted, skipped, errors: allErrors.map(e => `Row ${e.rowIndex}: ${e.reason}`) };
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// importGeneric — skip with clear message
+// ──────────────────────────────────────────────────────────────────────────────
 async function importGeneric(_csvText: string, _tenantId: string, targetTable: string, _supabase: any) {
   const lines = _csvText.split("\n").filter((l) => l.trim().length > 0);
+  console.log(`[importGeneric] No dedicated importer for "${targetTable}" — ${lines.length} rows skipped`);
   return {
     inserted: 0,
     skipped: lines.length,
@@ -1227,7 +1453,7 @@ async function importGeneric(_csvText: string, _tenantId: string, targetTable: s
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Dependency-ordered import dispatcher
+// IMPORT ORDER — dependency-sorted dispatcher (unchanged)
 // ──────────────────────────────────────────────────────────────────────────────
 const IMPORT_ORDER = [
   "legal_entities", "currencies", "departments", "warehouses", "locations", "tax_rates",
@@ -1238,6 +1464,9 @@ const IMPORT_ORDER = [
   "journal_entries", "payroll_runs", "leave_requests",
 ];
 
+// ──────────────────────────────────────────────────────────────────────────────
+// MAIN HANDLER — same external API, same session tracking
+// ──────────────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -1257,6 +1486,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log(`[import-legacy-zip] START tenantId=${tenantId} sessionId=${sessionId} files=${confirmedMapping.length}`);
+
     if (sessionId) {
       await supabase.from("legacy_import_sessions")
         .update({ status: "importing", confirmed_mapping: confirmedMapping })
@@ -1270,6 +1501,7 @@ Deno.serve(async (req) => {
 
     const zipBuffer = await zipBlob.arrayBuffer();
     const zip = await JSZip.loadAsync(zipBuffer);
+    console.log(`[import-legacy-zip] ZIP loaded. Files in archive: ${Object.keys(zip.files).length}`);
 
     const sorted = [...confirmedMapping].sort((a: any, b: any) => {
       const ai = IMPORT_ORDER.indexOf(a.targetTable);
@@ -1292,34 +1524,38 @@ Deno.serve(async (req) => {
       }
 
       if (!zipFile) {
+        console.warn(`[import-legacy-zip] File "${filename}" not found in ZIP`);
         results[filename] = { inserted: 0, skipped: 0, errors: [`File "${filename}" not found in ZIP`] };
         continue;
       }
 
       const csvText = await (zipFile as any).async("string");
+      console.log(`[import-legacy-zip] Processing: ${filename} → ${targetTable} (${csvText.length} bytes)`);
 
       try {
         let result;
         switch (targetTable) {
-          case "products":            result = await importProducts(csvText, tenantId, supabase, fullPath || filename); break;
-          case "partners":            result = await importPartners(csvText, tenantId, supabase, fullPath || filename); break;
-          case "contacts":            result = await importContacts(csvText, tenantId, supabase, fullPath || filename); break;
-          case "warehouses":          result = await importWarehouses(csvText, tenantId, supabase, fullPath || filename); break;
-          case "employees":           result = await importEmployees(csvText, tenantId, supabase, fullPath || filename); break;
-          case "employee_contracts":  result = await importEmployeeContracts(csvText, tenantId, supabase, fullPath || filename); break;
-          case "chart_of_accounts":   result = await importChartOfAccounts(csvText, tenantId, supabase); break;
-          case "inventory_stock":     result = await importInventoryStock(csvText, tenantId, supabase); break;
-          case "supplier_invoices":   result = await importSupplierInvoices(csvText, tenantId, supabase); break;
-          case "invoices":            result = await importInvoicesHeuristic(csvText, tenantId, supabase, fullPath || filename); break;
-          case "opportunities":       result = await importOpportunities(csvText, tenantId, supabase, fullPath || filename); break;
-          case "departments":         result = await importDepartments(csvText, tenantId, supabase, fullPath || filename); break;
-          case "currencies":          result = await importCurrencies(csvText, tenantId, supabase, fullPath || filename); break;
-          case "tax_rates":           result = await importTaxRates(csvText, tenantId, supabase, fullPath || filename); break;
-          case "legal_entities":      result = await importLegalEntities(csvText, tenantId, supabase, fullPath || filename); break;
-          default:                    result = await importGeneric(csvText, tenantId, targetTable, supabase); break;
+          case "products":           result = await importProducts(csvText, tenantId, supabase, fullPath || filename); break;
+          case "partners":           result = await importPartners(csvText, tenantId, supabase, fullPath || filename); break;
+          case "contacts":           result = await importContacts(csvText, tenantId, supabase, fullPath || filename); break;
+          case "warehouses":         result = await importWarehouses(csvText, tenantId, supabase, fullPath || filename); break;
+          case "employees":          result = await importEmployees(csvText, tenantId, supabase, fullPath || filename); break;
+          case "employee_contracts": result = await importEmployeeContracts(csvText, tenantId, supabase, fullPath || filename); break;
+          case "chart_of_accounts":  result = await importChartOfAccounts(csvText, tenantId, supabase, fullPath || filename); break;
+          case "inventory_stock":    result = await importInventoryStock(csvText, tenantId, supabase, fullPath || filename); break;
+          case "supplier_invoices":  result = await importSupplierInvoices(csvText, tenantId, supabase, fullPath || filename); break;
+          case "invoices":           result = await importInvoicesHeuristic(csvText, tenantId, supabase, fullPath || filename); break;
+          case "opportunities":      result = await importOpportunities(csvText, tenantId, supabase, fullPath || filename); break;
+          case "departments":        result = await importDepartments(csvText, tenantId, supabase, fullPath || filename); break;
+          case "currencies":         result = await importCurrencies(csvText, tenantId, supabase, fullPath || filename); break;
+          case "tax_rates":          result = await importTaxRates(csvText, tenantId, supabase, fullPath || filename); break;
+          case "legal_entities":     result = await importLegalEntities(csvText, tenantId, supabase, fullPath || filename); break;
+          default:                   result = await importGeneric(csvText, tenantId, targetTable, supabase); break;
         }
         results[filename] = result;
+        console.log(`[import-legacy-zip] DONE: ${filename} → inserted=${result.inserted} skipped=${result.skipped} errors=${result.errors?.length ?? 0}`);
       } catch (err: any) {
+        console.error(`[import-legacy-zip] EXCEPTION processing ${filename}: ${err.message}`);
         results[filename] = { inserted: 0, skipped: 0, errors: [err.message] };
       }
     }
@@ -1330,12 +1566,16 @@ Deno.serve(async (req) => {
         .eq("id", sessionId);
     }
 
+    const totalInserted = Object.values(results).reduce((s: number, r: any) => s + (r.inserted || 0), 0);
+    const totalErrors = Object.values(results).reduce((s: number, r: any) => s + (r.errors?.length || 0), 0);
+    console.log(`[import-legacy-zip] ALL DONE: totalInserted=${totalInserted} totalErrors=${totalErrors}`);
+
     return new Response(
       JSON.stringify({ success: true, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("import-legacy-zip error:", err);
+    console.error("[import-legacy-zip] FATAL:", err.message);
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
