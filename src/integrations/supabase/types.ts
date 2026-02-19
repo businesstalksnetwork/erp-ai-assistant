@@ -96,6 +96,59 @@ export type Database = {
           },
         ]
       }
+      ai_action_log: {
+        Row: {
+          action_type: string
+          ai_output: Json | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          input_data: Json | null
+          model_version: string | null
+          module: string
+          reasoning: string | null
+          tenant_id: string
+          user_decision: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          ai_output?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          input_data?: Json | null
+          model_version?: string | null
+          module: string
+          reasoning?: string | null
+          tenant_id: string
+          user_decision?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          ai_output?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          input_data?: Json | null
+          model_version?: string | null
+          module?: string
+          reasoning?: string | null
+          tenant_id?: string
+          user_decision?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string

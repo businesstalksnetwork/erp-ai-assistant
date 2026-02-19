@@ -18,6 +18,8 @@ import { ModuleHealthSummary } from "@/components/dashboard/ModuleHealthSummary"
 import { FiscalReceiptStatusWidget } from "@/components/dashboard/FiscalReceiptStatusWidget";
 import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
+import { CashflowForecastWidget } from "@/components/dashboard/CashflowForecastWidget";
+import { ComplianceDeadlineWidget } from "@/components/dashboard/ComplianceDeadlineWidget";
 import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 import { addDays } from "date-fns";
 
@@ -205,6 +207,14 @@ export default function TenantDashboard() {
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <CashFlowChart tenantId={tenantId} />
           <TopCustomersChart tenantId={tenantId} />
+        </div>
+      )}
+
+      {/* Cashflow Forecast + Compliance Deadlines */}
+      {tenantId && (
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          <CashflowForecastWidget tenantId={tenantId} />
+          <ComplianceDeadlineWidget tenantId={tenantId} />
         </div>
       )}
 
