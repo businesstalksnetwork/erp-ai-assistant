@@ -3350,6 +3350,10 @@ export const translations = {
     minContributionBase: "Min. osnovica doprinosa",
     maxContributionBase: "Maks. osnovica doprinosa",
     payrollRunAlreadyExists: "Obračun za ovaj period već postoji.",
+
+    // Posting Rules
+    postingRuleCatalog: "Katalog pravila knjiženja",
+    postingRules: "Pravila knjiženja",
   },
 } as const;
 
