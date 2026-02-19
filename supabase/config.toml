@@ -71,3 +71,12 @@ verify_jwt = false
 
 [functions.admin-create-user]
 verify_jwt = false
+
+[functions.import-legacy-products]
+verify_jwt = false
+
+[functions.import-legacy-partners]
+verify_jwt = false
+
+[functions.import-legacy-contacts]
+verify_jwt = false

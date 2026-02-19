@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -37,6 +37,7 @@ export default function TenantSettings() {
         { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
+        { label: "Legacy Import", icon: Upload, to: "/settings/legacy-import" },
       ],
     },
   ];
