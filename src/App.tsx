@@ -19,6 +19,7 @@ import ModuleManagement from "@/pages/super-admin/ModuleManagement";
 import UserManagement from "@/pages/super-admin/UserManagement";
 import PlatformMonitoring from "@/pages/super-admin/PlatformMonitoring";
 import IntegrationSupport from "@/pages/super-admin/IntegrationSupport";
+import SuperAdminAnalytics from "@/pages/super-admin/Analytics";
 
 import TenantLayout from "@/layouts/TenantLayout";
 import TenantDashboard from "@/pages/tenant/Dashboard";
@@ -190,6 +191,7 @@ const App = () => (
                 <Route path="users" element={<UserManagement />} />
                 <Route path="monitoring" element={<PlatformMonitoring />} />
                 <Route path="integrations" element={<IntegrationSupport />} />
+                <Route path="analytics" element={<SuperAdminAnalytics />} />
               </Route>
 
               {/* Tenant routes */}

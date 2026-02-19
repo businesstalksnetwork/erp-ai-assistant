@@ -25,6 +25,7 @@ import {
   Activity,
   Plug,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 
 const superAdminNav = [
@@ -34,6 +35,7 @@ const superAdminNav = [
   { key: "users" as const, url: "/super-admin/users", icon: Users },
   { key: "monitoring" as const, url: "/super-admin/monitoring", icon: Activity },
   { key: "integrations" as const, url: "/super-admin/integrations", icon: Plug },
+  { key: "analytics" as const, url: "/super-admin/analytics", icon: BarChart3 },
 ];
 
 export default function SuperAdminLayout() {
