@@ -204,6 +204,58 @@ const DBO_TABLE_LOOKUP: Record<string, {
 
   // ── AUTO-SKIP: Corrupt/binary data ───────────────────────────────────────
   "Dobavljaci":              { target: "skip", confidence: "exact", label: "Corrupt binary data — auto-skip",          skipReason: "Binary data export (all null bytes, unreadable)" },
+
+  // ── FactorOne ERP — Document framework (importable) ──────────────────────
+  "DocumentHeader":              { target: "invoices",    confidence: "high",  label: "DocumentHeader = universal document header (invoices/orders)", dedupField: "invoice_number" },
+
+  // ── FactorOne ERP — Document framework config/audit (skip) ───────────────
+  "DocumentLine":                { target: "skip", confidence: "exact", label: "DocumentLine = line items (requires DocumentHeader FK) — auto-skip",  skipReason: "Line items require parent document import first" },
+  "DocumentHeaderHistory":       { target: "skip", confidence: "exact", label: "DocumentHeaderHistory = document audit history — auto-skip",           skipReason: "Audit log (not imported)" },
+  "DocumentLineHistory":         { target: "skip", confidence: "exact", label: "DocumentLineHistory = line audit history — auto-skip",                 skipReason: "Audit log (not imported)" },
+  "DocumentHeaderAttachment":    { target: "skip", confidence: "exact", label: "DocumentHeaderAttachment = PDF attachment paths — auto-skip",          skipReason: "File attachment index (not imported)" },
+  "DocumentShippingInfo":        { target: "skip", confidence: "exact", label: "DocumentShippingInfo = shipping info — auto-skip",                    skipReason: "Shipping metadata, mostly empty" },
+  "DocumentStatusLanguage":      { target: "skip", confidence: "exact", label: "DocumentStatusLanguage = status translations — auto-skip",             skipReason: "UI translation table" },
+  "DocumentType":                { target: "skip", confidence: "exact", label: "DocumentType = document type definitions — auto-skip",                 skipReason: "Config table (INV, SN, REC types)" },
+  "DocumentStatus":              { target: "skip", confidence: "exact", label: "DocumentStatus = document status lookup — auto-skip",                  skipReason: "Status lookup table" },
+  "DocumentList":                { target: "skip", confidence: "exact", label: "DocumentList = numbering/list config — auto-skip",                     skipReason: "Document numbering config" },
+  "DocumentProperty":            { target: "skip", confidence: "exact", label: "DocumentProperty = custom properties — auto-skip",                    skipReason: "Custom property definitions" },
+  "DocumentRule":                { target: "skip", confidence: "exact", label: "DocumentRule = document rules — auto-skip",                           skipReason: "Document processing rules config" },
+  "DocumentBookRule":            { target: "skip", confidence: "exact", label: "DocumentBookRule = accounting book rules — auto-skip",                 skipReason: "Accounting config" },
+  "DocumentBookRuleItem":        { target: "skip", confidence: "exact", label: "DocumentBookRuleItem = book rule items — auto-skip",                   skipReason: "Accounting config (FK junction)" },
+  "DocumentFinancialRule":       { target: "skip", confidence: "exact", label: "DocumentFinancialRule = posting rules — auto-skip",                   skipReason: "Financial posting rule config" },
+  "DocumentFinancialRuleItem":   { target: "skip", confidence: "exact", label: "DocumentFinancialRuleItem = posting rule items — auto-skip",           skipReason: "Posting rule FK junction" },
+  "DocumentLinePriceCalculator": { target: "skip", confidence: "exact", label: "DocumentLinePriceCalculator = price calc rules — auto-skip",          skipReason: "Price calculation rule config" },
+
+  // ── FactorOne ERP — Bookkeeping config (skip) ────────────────────────────
+  "BookJournalSaleProperty":     { target: "skip", confidence: "exact", label: "BookJournalSaleProperty = VAT book properties — auto-skip",           skipReason: "VAT book journal field definitions" },
+  "BookkeepingBookType":         { target: "skip", confidence: "exact", label: "BookkeepingBookType = KIF/KUF book types — auto-skip",                skipReason: "VAT book type config (KIF/KUF)" },
+
+  // ── FactorOne ERP — App framework (skip) ─────────────────────────────────
+  "AppObjects":                  { target: "skip", confidence: "exact", label: "AppObjects = UI object registry — auto-skip",                         skipReason: "Application UI screen registry" },
+
+  // ── FactorOne ERP — User/auth (NEVER import password hashes) ─────────────
+  "User":                        { target: "skip", confidence: "exact", label: "Legacy user accounts — auto-skip (SECURITY)",                        skipReason: "Legacy users with password hashes — never import" },
+  "Role":                        { target: "skip", confidence: "exact", label: "Legacy user roles — auto-skip",                                      skipReason: "Legacy role table (not imported)" },
+
+  // ── FactorOne ERP — Project management (no system table) ─────────────────
+  "Project":                     { target: "skip", confidence: "exact", label: "Projects (CRM) — auto-skip",                                         skipReason: "No project import target in system" },
+  "ProjectStage":                { target: "skip", confidence: "exact", label: "Project stages — auto-skip",                                          skipReason: "No project import target in system" },
+
+  // ── FactorOne ERP — Geo/reference lookups (skip) ─────────────────────────
+  "Country":                     { target: "skip", confidence: "exact", label: "Country lookup — auto-skip",                                          skipReason: "Geo lookup table (247 countries)" },
+  "Region":                      { target: "skip", confidence: "exact", label: "Region lookup — auto-skip",                                           skipReason: "Geographic region lookup" },
+  "Language":                    { target: "skip", confidence: "exact", label: "Language/locale lookup — auto-skip",                                  skipReason: "Language locale definitions" },
+  "ItemUnitOfMeasureLanguage":   { target: "skip", confidence: "exact", label: "UoM language translations — auto-skip",                              skipReason: "Unit of measure translation table" },
+  "ItemGroup":                   { target: "skip", confidence: "exact", label: "Item group definitions — auto-skip",                                  skipReason: "Product group/category config" },
+
+  // ── FactorOne ERP — Additional small lookup/config tables (skip) ─────────
+  "ItemUnitOfMeasure":           { target: "skip", confidence: "exact", label: "Unit of measure lookup — auto-skip",                                  skipReason: "UoM lookup table (not imported)" },
+  "ItemRestrictor":              { target: "skip", confidence: "exact", label: "Item restrictor config — auto-skip",                                   skipReason: "Product restriction config table" },
+  "ItemTariffNumber":            { target: "skip", confidence: "exact", label: "HS tariff number lookup — auto-skip",                                  skipReason: "Customs tariff number lookup" },
+  "WeighingListPurpose":         { target: "skip", confidence: "exact", label: "Weighing list purpose lookup — auto-skip",                            skipReason: "Weighing/transport purpose config" },
+  "WorkorderStatusLanguage":     { target: "skip", confidence: "exact", label: "Workorder status language — auto-skip",                               skipReason: "UI translation table" },
+  "ProjectAttachment":           { target: "skip", confidence: "exact", label: "Project attachments — auto-skip",                                      skipReason: "File attachment index (binary data)" },
+  "ProjectStatus":               { target: "skip", confidence: "exact", label: "Project status lookup — auto-skip",                                    skipReason: "Status lookup table" },
 };
 
 interface MappingRule {
@@ -319,6 +371,19 @@ function classifyFile(filename: string, headers: string[], rowCount: number): {
       humanLabel: "Binary/corrupt data detected (null bytes in CSV cells)",
       autoSkip: true,
       skipReason: "Binary data detected — SQL Server blob columns exported as CSV (unreadable)",
+    };
+  }
+
+  // ── STEP 0.5: HangFire.* background job scheduler tables ─────────────────
+  // Files like HangFire.JobParameter.csv, HangFire.State.csv — always skip
+  if (/^HangFire\./i.test(basename)) {
+    return {
+      target: null,
+      confidence: "none",
+      dedupField: "",
+      humanLabel: "HangFire background job scheduler table — auto-skip",
+      autoSkip: true,
+      skipReason: "Background job scheduler data (not imported)",
     };
   }
 
