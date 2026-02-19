@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getProductionUrl } from '@/lib/domain';
@@ -80,8 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const fetchingRef = useRef(false);
 
   const fetchProfile = async (userId: string) => {
+    // Prevent duplicate concurrent calls
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setProfileLoading(true);
     try {
       const { data: profileData } = await supabase
@@ -126,11 +130,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(!!roleData);
     } finally {
       setProfileLoading(false);
+      fetchingRef.current = false;
     }
   };
 
   const refreshProfile = async () => {
     if (user) {
+      fetchingRef.current = false; // allow forced refresh
       await fetchProfile(user.id);
     }
   };
@@ -142,24 +148,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          // Use setTimeout to avoid Supabase deadlock on auth state change
           setTimeout(() => {
+            fetchingRef.current = false; // allow fresh fetch on each auth event
             fetchProfile(session.user.id);
           }, 0);
         } else {
+          // Explicitly reset all auth state — covers SIGNED_OUT and failed token refresh
           setProfile(null);
           setIsAdmin(false);
+          setProfileLoading(false);
+          fetchingRef.current = false;
         }
         setLoading(false);
       }
     );
 
+    // Do NOT call fetchProfile here — onAuthStateChange fires on initial session too
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+      if (!session) {
+        // No session at all — clear loading immediately
+        setLoading(false);
       }
-      setLoading(false);
+      // If session exists, onAuthStateChange will handle it
     });
 
     return () => subscription.unsubscribe();
