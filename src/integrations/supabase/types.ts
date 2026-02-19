@@ -5356,6 +5356,53 @@ export type Database = {
           },
         ]
       }
+      legacy_import_sessions: {
+        Row: {
+          analysis: Json | null
+          confirmed_mapping: Json | null
+          created_at: string
+          id: string
+          import_results: Json | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          zip_filename: string | null
+          zip_storage_path: string | null
+        }
+        Insert: {
+          analysis?: Json | null
+          confirmed_mapping?: Json | null
+          created_at?: string
+          id?: string
+          import_results?: Json | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          zip_filename?: string | null
+          zip_storage_path?: string | null
+        }
+        Update: {
+          analysis?: Json | null
+          confirmed_mapping?: Json | null
+          created_at?: string
+          id?: string
+          import_results?: Json | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          zip_filename?: string | null
+          zip_storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_import_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       legal_entities: {
         Row: {
           address: string | null
