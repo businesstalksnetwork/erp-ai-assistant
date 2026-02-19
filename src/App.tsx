@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,9 +47,18 @@ function ProtectedRoute({
   allowExpired?: boolean;
 }) {
   const { user, loading, profileLoading, profile, isAdmin, isEmailVerified, isSubscriptionExpired, isBookkeeper } = useAuth();
+  const [timedOut, setTimedOut] = React.useState(false);
 
-  // Spinner samo pri prvom učitavanju (kada profil još ne postoji)
-  if (loading || (profileLoading && !profile)) {
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Spinner samo pri prvom učitavanju — ali ne duže od 5 sekundi (timeout sigurnost)
+  const isStillLoading = loading || (profileLoading && !profile);
+  if (isStillLoading && !timedOut) {
     return (
       <div className="min-h-screen min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
