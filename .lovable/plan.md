@@ -1,83 +1,56 @@
 
-# Add Session Expiry Toast Notification
 
-## What Changes
+# Fix Mobile Loading Issue - Stuck Spinner
 
-One file only: `src/lib/auth.tsx`
+## Problem
 
-The standalone `toast` function from `sonner` will be imported and called at each of the 4 places where the app automatically signs a user out due to a stale or expired session. This works because `sonner`'s `toast()` is a standalone function (not a React hook) and can be called from anywhere — including inside context providers.
+On mobile, the app shows the dashboard briefly, then a loading spinner appears and **stays permanently**. The root cause is a race condition in `src/lib/auth.tsx` and a missing safety timeout in `src/App.tsx`.
 
-## The 4 Auto-Logout Points
+### What Happens Step by Step
 
-| # | Location | Trigger |
-|---|---|---|
-| 1 | `onAuthStateChange` | `TOKEN_REFRESH_FAILED` event |
-| 2 | `getSession()` on app load | 24-hour login limit exceeded |
-| 3 | `getSession()` on app load | Token expired, refresh attempt failed |
-| 4 | `visibilitychange` handler | 24-hour limit exceeded on tab focus |
+1. User opens app on mobile
+2. `onAuthStateChange` fires -- sets `loading = false`
+3. `fetchProfile` runs in `setTimeout(0)` -- sets `profileLoading = true`
+4. On slow mobile network, the profile query takes too long or silently fails
+5. `AppRoutes` keeps showing the spinner forever (no timeout like `ProtectedRoute` has)
 
-A helper flag `sessionExpiredToastShown` (a `useRef` boolean) will be used to prevent the toast from firing multiple times in rapid succession (e.g. if both the `getSession` check and the `onAuthStateChange` event fire close together).
+Additionally, there is a brief gap between step 2 and 3 where `loading = false`, `profile = null`, and `profileLoading = false`. During this gap the app thinks the user is not verified and redirects them, creating a flash.
 
-## Code Change
+## Solution (2 files)
 
-**Import addition** at the top of `src/lib/auth.tsx`:
-```typescript
-import { toast } from 'sonner';
-```
+### 1. `src/lib/auth.tsx` - Keep loading until profile is fetched
 
-**Helper ref** inside `AuthProvider` (next to the existing `fetchingRef`):
-```typescript
-const sessionExpiredToastRef = useRef(false);
-```
+Instead of setting `loading = false` as soon as `onAuthStateChange` fires and then separately fetching the profile, keep `loading = true` until the profile fetch completes on the initial load. This eliminates the gap entirely.
 
-**Helper function** inside `AuthProvider`:
-```typescript
-const showSessionExpiredToast = () => {
-  if (!sessionExpiredToastRef.current) {
-    sessionExpiredToastRef.current = true;
-    toast.error('Vaša sesija je istekla, molimo prijavite se ponovo', {
-      duration: 6000,
-    });
-  }
-};
-```
+- Add an `initialLoadRef` to track whether the first profile fetch has completed
+- Only set `loading = false` after the first `fetchProfile` completes (or if there is no session)
+- Move `setLoading(false)` into `fetchProfile`'s `finally` block for the initial load
 
-**Called at all 4 auto-logout points**, for example:
-```typescript
-// TOKEN_REFRESH_FAILED
-if ((event as string) === 'TOKEN_REFRESH_FAILED') {
-  showSessionExpiredToast(); // <-- added
-  supabase.auth.signOut();
-  ...
-}
+### 2. `src/App.tsx` - Add safety timeout to `AppRoutes`
 
-// 24-hour limit on load
-if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
-  showSessionExpiredToast(); // <-- added
-  await supabase.auth.signOut();
-  ...
-}
-
-// Refresh failed
-if (error) {
-  showSessionExpiredToast(); // <-- added
-  await supabase.auth.signOut();
-  ...
-}
-
-// visibilitychange 24-hour limit
-if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
-  showSessionExpiredToast(); // <-- added
-  supabase.auth.signOut();
-  ...
-}
-```
-
-The ref resets to `false` when the user successfully signs in (`SIGNED_IN` event), so the toast can appear again on the next session expiry.
+Add the same 5-second safety timeout that `ProtectedRoute` already has. If `profileLoading && !profile` stays stuck beyond 5 seconds, stop showing the spinner and let the route logic handle the state.
 
 ## Technical Details
 
-- `sonner`'s `toast` is already used across the entire app and the `<Sonner />` toaster is mounted in `App.tsx` — no new setup needed
-- `toast.error()` gives a red/destructive styling appropriate for a session expiry message
-- The 6-second duration ensures users have time to read the message before it fades
-- The deduplication ref prevents double-toasting when multiple signals fire simultaneously
+### `src/lib/auth.tsx`
+
+```text
+Changes:
+- Add: const initialLoadDoneRef = useRef(false);
+- Modify fetchProfile to accept an `isInitialLoad` flag
+- When isInitialLoad is true, call setLoading(false) in the finally block
+- In onAuthStateChange: pass isInitialLoad=!initialLoadDoneRef.current
+- Set initialLoadDoneRef.current = true after first profile fetch
+- In getSession() no-session path: also set initialLoadDoneRef.current = true
+```
+
+### `src/App.tsx`
+
+```text
+Changes:
+- Add a timedOut state + 5s timeout in AppRoutes (identical pattern to ProtectedRoute)
+- Change spinner condition to: (loading || (profileLoading && !profile)) && !timedOut
+```
+
+This ensures the app never shows an infinite spinner on mobile, while also preventing the flash caused by the brief gap where profile is null.
+
