@@ -48,6 +48,7 @@ import {
   Users, Mail, Clock, UserCheck, UserX, XCircle 
 } from 'lucide-react';
 import { z } from 'zod';
+import DOMPurify from 'dompurify';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 
@@ -738,7 +739,10 @@ function InlineCompanyProfile({ company, onCompanyUpdated }: { company: Company;
                         <div 
                           className="text-sm whitespace-pre-wrap"
                           dangerouslySetInnerHTML={{ 
-                            __html: signatureTab === 'sr' ? emailSignatureSr : emailSignatureEn 
+                            __html: DOMPurify.sanitize(signatureTab === 'sr' ? emailSignatureSr : emailSignatureEn, {
+                              ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'span'],
+                              ALLOWED_ATTR: ['href', 'target', 'rel'],
+                            })
                           }}
                         />
                       </div>

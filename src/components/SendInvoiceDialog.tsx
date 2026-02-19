@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Mail, Globe } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { useInvoiceEmail } from '@/hooks/useInvoiceEmail';
 
 interface SendInvoiceDialogProps {
@@ -224,7 +225,10 @@ export function SendInvoiceDialog({
                     <div 
                       className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap"
                       dangerouslySetInnerHTML={{ 
-                        __html: (language === 'sr' ? signatureSr : signatureEn) || '' 
+                        __html: DOMPurify.sanitize((language === 'sr' ? signatureSr : signatureEn) || '', {
+                          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'span'],
+                          ALLOWED_ATTR: ['href', 'target', 'rel'],
+                        })
                       }}
                     />
                   )}
