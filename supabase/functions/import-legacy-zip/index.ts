@@ -227,16 +227,30 @@ async function importProducts(csvText: string, tenantId: string, supabase: any, 
     }
 
     if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("products")
-        .upsert(batch, { onConflict: sku ? "tenant_id,sku" : undefined, ignoreDuplicates: !sku });
-      if (error) errors.push(error.message); else inserted += batch.length;
+      const withSku = batch.filter((r: any) => r.sku);
+      const withoutSku = batch.filter((r: any) => !r.sku);
+      if (withSku.length) {
+        const { error } = await supabase.from("products").upsert(withSku, { onConflict: "tenant_id,sku", ignoreDuplicates: true });
+        if (error) errors.push(error.message); else inserted += withSku.length;
+      }
+      if (withoutSku.length) {
+        const { error } = await supabase.from("products").insert(withoutSku);
+        if (error) errors.push(`No-SKU insert: ${error.message}`); else inserted += withoutSku.length;
+      }
       batch.length = 0;
     }
   }
   if (batch.length > 0) {
-    const { error } = await supabase.from("products")
-      .upsert(batch, { onConflict: "tenant_id,sku", ignoreDuplicates: true });
-    if (error) errors.push(error.message); else inserted += batch.length;
+    const withSku = batch.filter((r: any) => r.sku);
+    const withoutSku = batch.filter((r: any) => !r.sku);
+    if (withSku.length) {
+      const { error } = await supabase.from("products").upsert(withSku, { onConflict: "tenant_id,sku", ignoreDuplicates: true });
+      if (error) errors.push(error.message); else inserted += withSku.length;
+    }
+    if (withoutSku.length) {
+      const { error } = await supabase.from("products").insert(withoutSku);
+      if (error) errors.push(`No-SKU insert: ${error.message}`); else inserted += withoutSku.length;
+    }
   }
 
   // Seed inventory stock for items with qty > 0 (A_UnosPodataka only)
@@ -796,15 +810,10 @@ async function importSupplierInvoices(csvText: string, tenantId: string, supabas
   return { inserted, skipped, errors };
 }
 
-async function importInvoicesHeuristic(csvText: string, tenantId: string, supabase: any) {
-  const { headers, rows } = parseCSV(csvText);
-  const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
-
-  const invNumIdx  = h.findIndex((x) => /broj.*faktur|faktura.*br|invoicenum|invoice_num|racun.*br/i.test(x));
-  const dateIdx    = h.findIndex((x) => /datum|date/i.test(x));
-  const totalIdx   = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
-  const partnerIdx = h.findIndex((x) => /kupac|partner|customer|naziv|name/i.test(x));
-  const dueDateIdx = h.findIndex((x) => /rokplacanja|duedate|valuta/i.test(x));
+async function importInvoicesHeuristic(csvText: string, tenantId: string, supabase: any, filename?: string) {
+  const sanitized = sanitizeCSVText(csvText);
+  // BUG FIX: detect Uniprom DocumentHeader.csv (no header row) and use exact column positions
+  const unipromTable = filename ? getUnipromTableName(filename) : null;
 
   const { data: existing } = await supabase.from("invoices").select("invoice_number").eq("tenant_id", tenantId);
   const invSet = new Set((existing || []).map((r: any) => r.invoice_number));
@@ -818,32 +827,70 @@ async function importInvoicesHeuristic(csvText: string, tenantId: string, supaba
     return isNaN(p.getTime()) ? new Date().toISOString().split("T")[0] : p.toISOString().split("T")[0];
   };
 
-  for (const row of rows) {
-    const invNum = (invNumIdx >= 0 ? row[invNumIdx] : row[0])?.trim();
-    if (!invNum) continue;
-    if (invSet.has(invNum)) { skipped++; continue; }
-    invSet.add(invNum);
-
-    batch.push({
-      tenant_id: tenantId,
-      invoice_number: invNum,
-      invoice_date: parseDate(dateIdx >= 0 ? row[dateIdx] : null),
-      due_date: parseDate(dueDateIdx >= 0 ? row[dueDateIdx] : null),
-      status: "draft",
-      partner_name: (partnerIdx >= 0 ? row[partnerIdx] : null)?.trim() || "Unknown",
-      total: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
-      subtotal: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
-      tax_amount: 0,
-      currency: "RSD",
-      notes: "Imported from legacy system",
-    });
-
-    if (batch.length >= BATCH_SIZE) {
-      const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
-      if (error) errors.push(error.message); else inserted += batch.length;
-      batch.length = 0;
+  if (unipromTable === "DocumentHeader") {
+    // Uniprom column positions: col[1]=doc_number, col[2]=date, col[6]=partner_id, col[11]=total
+    const cm = UNIPROM_COLUMN_MAP["DocumentHeader"];
+    const lines = reconstructLogicalRows(sanitized);
+    for (const line of lines) {
+      const cols = parseCSVLine(line);
+      if (cols.length < 4) continue;
+      const invNum = cols[cm.doc_number]?.trim();
+      if (!invNum || invNum === "0") continue;
+      if (invSet.has(invNum)) { skipped++; continue; }
+      invSet.add(invNum);
+      batch.push({
+        tenant_id: tenantId,
+        invoice_number: invNum,
+        invoice_date: parseDate(cols[cm.date]?.trim() || null),
+        due_date: parseDate(cols[cm.date]?.trim() || null),
+        status: "draft",
+        partner_name: "Imported",
+        total: parseFloat(cols[cm.total]?.trim() || "0") || 0,
+        subtotal: parseFloat(cols[cm.total]?.trim() || "0") || 0,
+        tax_amount: 0,
+        currency: "RSD",
+        notes: `Imported from legacy DocumentHeader (doc_list: ${cols[cm.doc_list_id]?.trim() || ""})`,
+      });
+      if (batch.length >= BATCH_SIZE) {
+        const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
+        if (error) errors.push(error.message); else inserted += batch.length;
+        batch.length = 0;
+      }
+    }
+  } else {
+    const { headers, rows } = parseCSV(csvText);
+    const h = headers.map((x) => x.toLowerCase().replace(/[\s_]/g, ""));
+    const invNumIdx  = h.findIndex((x) => /broj.*faktur|faktura.*br|invoicenum|invoice_num|racun.*br/i.test(x));
+    const dateIdx    = h.findIndex((x) => /datum|date/i.test(x));
+    const totalIdx   = h.findIndex((x) => /ukupno|total|iznos|vrednost/i.test(x));
+    const partnerIdx = h.findIndex((x) => /kupac|partner|customer|naziv|name/i.test(x));
+    const dueDateIdx = h.findIndex((x) => /rokplacanja|duedate|valuta/i.test(x));
+    for (const row of rows) {
+      const invNum = (invNumIdx >= 0 ? row[invNumIdx] : row[0])?.trim();
+      if (!invNum) continue;
+      if (invSet.has(invNum)) { skipped++; continue; }
+      invSet.add(invNum);
+      batch.push({
+        tenant_id: tenantId,
+        invoice_number: invNum,
+        invoice_date: parseDate(dateIdx >= 0 ? row[dateIdx] : null),
+        due_date: parseDate(dueDateIdx >= 0 ? row[dueDateIdx] : null),
+        status: "draft",
+        partner_name: (partnerIdx >= 0 ? row[partnerIdx] : null)?.trim() || "Unknown",
+        total: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
+        subtotal: totalIdx >= 0 ? parseFloat(row[totalIdx]) || 0 : 0,
+        tax_amount: 0,
+        currency: "RSD",
+        notes: "Imported from legacy system",
+      });
+      if (batch.length >= BATCH_SIZE) {
+        const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
+        if (error) errors.push(error.message); else inserted += batch.length;
+        batch.length = 0;
+      }
     }
   }
+
   if (batch.length > 0) {
     const { error } = await supabase.from("invoices").upsert(batch, { onConflict: "tenant_id,invoice_number", ignoreDuplicates: true });
     if (error) errors.push(error.message); else inserted += batch.length;
@@ -891,7 +938,8 @@ async function importDepartments(csvText: string, tenantId: string, supabase: an
 
   if (batch.length > 0) {
     for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const { error } = await supabase.from("departments").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,name", ignoreDuplicates: true });
+      // BUG FIX: unique constraint is on (tenant_id,code), NOT (tenant_id,name)
+      const { error } = await supabase.from("departments").upsert(batch.slice(i, i + BATCH_SIZE), { onConflict: "tenant_id,code", ignoreDuplicates: true });
       if (error) errors.push(error.message); else inserted += Math.min(BATCH_SIZE, batch.length - i);
     }
   }
@@ -1110,8 +1158,9 @@ async function importOpportunities(csvText: string, tenantId: string, supabase: 
   const sanitized = sanitizeCSVText(csvText);
   const unipromTable = filename ? getUnipromTableName(filename) : null;
 
-  const { data: existing } = await supabase.from("opportunities").select("name").eq("tenant_id", tenantId);
-  const nameSet = new Set((existing || []).map((r: any) => r.name?.toLowerCase()));
+  // BUG FIX: opportunities table uses "title" not "name"
+  const { data: existing } = await supabase.from("opportunities").select("title").eq("tenant_id", tenantId);
+  const nameSet = new Set((existing || []).map((r: any) => r.title?.toLowerCase()));
 
   let inserted = 0; let skipped = 0; const errors: string[] = [];
   const batch: any[] = [];
@@ -1132,12 +1181,16 @@ async function importOpportunities(csvText: string, tenantId: string, supabase: 
       if (!name) continue;
       if (nameSet.has(name.toLowerCase())) { skipped++; continue; }
       nameSet.add(name.toLowerCase());
+      // BUG FIX: DB column is "title" not "name". Also value/currency/probability are NOT NULL with no defaults.
+      const endDateRaw = cm.end_date !== undefined ? cols[cm.end_date]?.trim() || null : null;
       batch.push({
         tenant_id: tenantId,
-        name,
+        title: name,           // was: name — wrong column name
         stage: "prospecting",
-        status: "open",
-        expected_close_date: parseDate(cols[cm.end_date ?? -1]?.trim() || null),
+        value: 0,              // required NOT NULL
+        currency: "RSD",       // required NOT NULL
+        probability: 10,       // required NOT NULL
+        expected_close_date: parseDate(endDateRaw),
         notes: `Imported from legacy ${unipromTable}`,
       });
     }
@@ -1247,8 +1300,7 @@ Deno.serve(async (req) => {
           case "chart_of_accounts":   result = await importChartOfAccounts(csvText, tenantId, supabase); break;
           case "inventory_stock":     result = await importInventoryStock(csvText, tenantId, supabase); break;
           case "supplier_invoices":   result = await importSupplierInvoices(csvText, tenantId, supabase); break;
-          // BUG FIX: pass filename to invoices importer so it can use Uniprom column positions
-          case "invoices":            result = await importInvoicesHeuristic(csvText, tenantId, supabase); break;
+          case "invoices":            result = await importInvoicesHeuristic(csvText, tenantId, supabase, fullPath || filename); break;
           case "opportunities":       result = await importOpportunities(csvText, tenantId, supabase, fullPath || filename); break;
           case "departments":         result = await importDepartments(csvText, tenantId, supabase, fullPath || filename); break;
           case "currencies":          result = await importCurrencies(csvText, tenantId, supabase, fullPath || filename); break;
