@@ -1,166 +1,105 @@
 
-# Translation Fix Implementation Plan
+# Two Separate Problems — Analytics Missing
 
-## Assessment Summary
+## Problem 1: Uniprom tenant has no `analytics` module enabled
 
-After a thorough audit, the translation system is in better shape than expected. The major work from the previous plan has already been completed correctly:
-- `PayrollParameters.tsx`, `AiAuditLog.tsx`, `CashflowForecastWidget.tsx`, `ComplianceDeadlineWidget.tsx` all use `t()` properly
-- All ~55 new keys exist in both EN and SR sections of `translations.ts`
-- `BusinessRules.tsx` month names use `t(m.key)` correctly
+Looking at the database, Uniprom has these modules enabled:
+`accounting, crm, documents, hr, inventory, pos, production, purchasing, returns, sales, web`
 
-What remains are targeted fixes in 6 files, plus a decision on the analytics pages.
+**`analytics` is completely missing from this list.**
 
----
-
-## Remaining Issues
-
-### Issue 1: `Settings.tsx` — 3 Hardcoded Labels + Missing Section (HIGH PRIORITY)
-
-Lines 30, 41, 42 have hardcoded strings that bypass the translation system:
-```
-line 30: { label: "Parametri zarada", icon: Calculator, ... }  → should be t("payrollParamsTitle")
-line 41: { label: "Legacy Import", icon: Upload, ... }          → should be t("legacyImport")
-line 42: { label: "AI Revizijski dnevnik", icon: ShieldCheck }  → should be t("aiAuditLog")
-```
-Additionally, the plan called for a 4th section ("Audit & Data") that was never added. Currently there are only 3 sections (Organization, Finance, Operations) and 5 pages are missing: Currencies, Approval Workflows, Audit Log, Event Monitor, Pending Approvals.
-
-The section headings use `t("organization" as any)` — keys DO exist but the `as any` cast should be removed since `organization`, `finance`, `operations` are proper TypeScript keys.
-
-### Issue 2: `Companies.tsx` — 4 Hardcoded Serbian Toast Messages
-
-```typescript
-// Line 89: hardcoded Serbian
-toast.error("PIB mora imati 9 cifara");
-// Line 110: hardcoded Serbian
-toast.success("Podaci pronađeni");
-// Line 112: hardcoded Serbian
-toast.info("PIB nije pronađen u registru");
-// Line 115: hardcoded Serbian
-toast.error("Greška pri pretrazi PIB-a");
+In `TenantLayout.tsx` line 398–400, the Analytics sidebar section is wrapped in:
+```tsx
+{canAccess("analytics") && (
+  <CollapsibleNavGroup ... />
+)}
 ```
 
-### Issue 3: `WmsCycleCounts.tsx` — 2 Hardcoded Locale Strings
+Since `analytics` is not in Uniprom's `tenant_modules`, `canAccess("analytics")` returns `false` → the entire Analytics nav group is invisible.
 
-Lines 301–303 use `locale === "sr" ? "..." : "..."` directly in JSX:
-- `"Nema razlika za uskladjivanje"` / `"No variances to reconcile"`
-- `"Odobravanjem ćete prilagoditi..."` / `"Approving will adjust..."`
+**Fix:** Enable the `analytics` module for Uniprom tenant via a SQL migration that inserts the missing row into `tenant_modules`.
 
-### Issue 4: `WmsReceiving.tsx` — 2 Hardcoded Locale Strings
+## Problem 2: Super Admin sidebar has no "Analytics" page link
 
-Lines 241, 262 use `locale === "sr" ? "..." : "..."`:
-- `"Broj nabavke"` / `"PO Number"`
-- `"Dodaj stavku"` / `"Add Line"`
+The `superAdminNav` array in `src/layouts/SuperAdminLayout.tsx` (lines 30–37) only contains:
+- dashboard → `/super-admin/dashboard`
+- tenants → `/super-admin/tenants`
+- modules → `/super-admin/modules`
+- users → `/super-admin/users`
+- monitoring → `/super-admin/monitoring`
+- integrations → `/super-admin/integrations`
 
-### Issue 5: `AiPlanningSchedule.tsx` — 4 Hardcoded Locale Toast Strings
+There is no "Analytics" entry. However, looking at `App.tsx` lines 184–193, there is also **no super-admin analytics route registered** — so we need to both add the nav item AND potentially create a super-admin analytics page, OR link to the tenant analytics page.
 
-Lines 96, 98, 112 use `locale === "sr" ? "..." : "..."` for toasts:
-- `"Raspored generisan"` / `"Schedule generated"`
-- `"Greška"` / `"Error generating schedule"`
-- `"Raspored primenjen"` / `"Schedule applied"`
+The most practical fix is to add a link in the super admin sidebar that navigates to the platform monitoring page (which has analytics-like data), OR add a dedicated super-admin analytics overview. Looking at the existing `PlatformMonitoring` page, it already covers system-level analytics.
 
-### Issue 6: `AiCapacitySimulation.tsx` + `AiPlanningDashboard.tsx` — Hardcoded Ternaries
+The cleanest solution: **Add an "Analytics" nav item in the Super Admin sidebar that links to an existing analytics overview.** Since super admins also have access to the tenant app (via the "ERP Dashboard" button in the header), we add a link to `/analytics` in the super admin header or sidebar.
 
-Similar `locale === "sr" ? "..." : "..."` patterns in toast messages and empty states.
+## Implementation Plan
 
-### Issue 7: Analytics Pages — Local `t()` Pattern (LOW PRIORITY — FUNCTIONAL)
+### Fix 1 — Enable `analytics` module for Uniprom (Database Migration)
 
-8 pages (`ProfitabilityAnalysis`, `InventoryHealth`, `CustomerRiskScoring`, `SupplierDependency`, `MarginBridge`, `PayrollBenchmark`, `VatCashTrap`, `WorkingCapitalStress`) define a local helper:
-```typescript
-const t = (en: string, srText: string) => sr ? srText : en;
+Create migration file: `supabase/migrations/[timestamp]_enable_analytics_uniprom.sql`
+
+```sql
+INSERT INTO tenant_modules (tenant_id, module_id, is_enabled)
+SELECT 
+  t.id,
+  md.id,
+  true
+FROM tenants t
+CROSS JOIN module_definitions md
+WHERE t.name = 'Uniprom'
+  AND md.key = 'analytics'
+  AND NOT EXISTS (
+    SELECT 1 FROM tenant_modules tm 
+    WHERE tm.tenant_id = t.id AND tm.module_id = md.id
+  );
 ```
-These **work correctly** — strings do switch with language toggle. The only downside is they don't go through the central translations.ts. Since these are already bilingual and functional, this plan will **not** migrate them to named keys (that would require adding ~200+ new keys), but will note them as a Phase 2 cleanup task.
 
----
+This will make Analytics appear in Uniprom's sidebar immediately after the page reloads (the `usePermissions` hook re-fetches on tenant change).
 
-## Files to Modify
+### Fix 2 — Add "Analytics" link to Super Admin sidebar
 
-| File | Changes |
+In `src/layouts/SuperAdminLayout.tsx`, add a `BarChart3` import and a new entry to `superAdminNav`:
+
+```tsx
+import { LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3 } from "lucide-react";
+
+const superAdminNav = [
+  { key: "dashboard" as const, url: "/super-admin/dashboard", icon: LayoutDashboard },
+  { key: "tenants" as const, url: "/super-admin/tenants", icon: Building2 },
+  { key: "modules" as const, url: "/super-admin/modules", icon: Puzzle },
+  { key: "users" as const, url: "/super-admin/users", icon: Users },
+  { key: "monitoring" as const, url: "/super-admin/monitoring", icon: Activity },
+  { key: "integrations" as const, url: "/super-admin/integrations", icon: Plug },
+  { key: "analytics" as const, url: "/super-admin/analytics", icon: BarChart3 },  // NEW
+];
+```
+
+Then add a new route in `App.tsx`:
+```tsx
+<Route path="analytics" element={<SuperAdminAnalytics />} />
+```
+
+And create a new page `src/pages/super-admin/Analytics.tsx` — a platform-wide analytics overview showing:
+- Total revenue across all tenants (from `invoices` table, grouped by tenant)
+- Module adoption rates (how many tenants use each module)
+- Active tenant activity (last login, recent audit log entries)
+- System-wide KPIs: total invoices, total journal entries, total employees across platform
+
+### Files to Change
+
+| File | Change |
 |---|---|
-| `src/i18n/translations.ts` | Add ~14 new keys for PIB lookup, WMS, planning toasts |
-| `src/pages/tenant/Settings.tsx` | Fix 3 hardcoded labels, remove `as any` casts, add 4th section + 5 missing cards |
-| `src/pages/tenant/Companies.tsx` | Replace 4 hardcoded toast messages with `t()` |
-| `src/pages/tenant/WmsCycleCounts.tsx` | Replace 2 hardcoded ternary strings |
-| `src/pages/tenant/WmsReceiving.tsx` | Replace 2 hardcoded ternary strings |
-| `src/pages/tenant/AiPlanningSchedule.tsx` | Replace 3 hardcoded ternary toast strings |
-| `src/pages/tenant/AiCapacitySimulation.tsx` | Replace 2 hardcoded ternary toast strings |
-| `src/pages/tenant/AiPlanningDashboard.tsx` | Replace 1 hardcoded ternary empty state string |
+| `supabase/migrations/[ts]_enable_analytics_uniprom.sql` | Enable `analytics` module for Uniprom |
+| `src/layouts/SuperAdminLayout.tsx` | Add `analytics` entry to `superAdminNav` + import `BarChart3` |
+| `src/App.tsx` | Import new page + add `/super-admin/analytics` route |
+| `src/pages/super-admin/Analytics.tsx` | New page — platform-wide analytics overview |
 
----
+### What the Super Admin Analytics Page Will Show
 
-## New Translation Keys
-
-### EN additions:
-```
-// PIB lookup (Companies.tsx)
-pibMustBe9Digits: "PIB must be 9 digits"
-pibDataFound: "Data found"
-pibNotFound: "PIB not found in registry"
-pibLookupError: "Error searching PIB"
-
-// WMS (CycleCounts + Receiving)
-noVariancesToReconcile: "No variances to reconcile"
-approveAdjustmentHint: "Approving will adjust bin stock quantities to match counted values."
-poNumberLabel: "PO Number"
-addLine: "Add Line"
-
-// AI Planning toasts
-scheduleGenerated: "Schedule generated"
-scheduleGenerationError: "Error generating schedule"
-scheduleApplied: "Schedule applied"
-simulationComplete: "Simulation complete"
-simulationError: "Simulation error"
-
-// AI Planning Dashboard
-noInsightsToDisplay: "No insights to display."
-```
-
-### SR additions:
-```
-pibMustBe9Digits: "PIB mora imati 9 cifara"
-pibDataFound: "Podaci pronađeni"
-pibNotFound: "PIB nije pronađen u registru"
-pibLookupError: "Greška pri pretrazi PIB-a"
-noVariancesToReconcile: "Nema razlika za usklađivanje"
-approveAdjustmentHint: "Odobravanjem ćete prilagoditi zalihe na lokacijama prema prebrojanim količinama."
-poNumberLabel: "Broj nabavke"
-addLine: "Dodaj stavku"
-scheduleGenerated: "Raspored generisan"
-scheduleGenerationError: "Greška pri generisanju rasporeda"
-scheduleApplied: "Raspored primenjen"
-simulationComplete: "Simulacija završena"
-simulationError: "Greška pri simulaciji"
-noInsightsToDisplay: "Nema uvida za prikaz."
-```
-
----
-
-## Settings.tsx Reorganization (4 Sections)
-
-```
-Organization (5 cards):
-  Legal Entities, Locations, Warehouses, Cost Centers, Currencies
-
-Finance (5 cards):
-  Bank Accounts, Tax Rates, Posting Rules, Accounting Architecture, Payroll Parameters
-
-Operations (4 cards):
-  Users, Business Rules, Sales Channels, Integrations
-
-Audit & Data (5 cards):
-  Approval Workflows, Pending Approvals, Audit Log, AI Audit Log, Event Monitor, Legacy Import
-```
-
-All section headings use existing typed keys: `t("organization")`, `t("finance")`, `t("operations")`, `t("auditData")` — no `as any` casts needed.
-
----
-
-## Implementation Order
-
-1. Add ~14 new keys to `translations.ts` (both EN and SR sections)
-2. Fix `Settings.tsx` — labels + 4th section
-3. Fix `Companies.tsx` — PIB toast messages
-4. Fix `WmsCycleCounts.tsx` — reconcile dialog strings
-5. Fix `WmsReceiving.tsx` — PO Number and Add Line labels
-6. Fix `AiPlanningSchedule.tsx` — toast strings
-7. Fix `AiCapacitySimulation.tsx` — toast strings
-8. Fix `AiPlanningDashboard.tsx` — empty state string
+- **Platform Summary Cards**: Total tenants, total active users, total modules enabled
+- **Module Adoption Chart**: Bar chart of how many tenants have each module enabled
+- **Tenant Activity Table**: Each tenant, last activity date, number of journal entries, invoice count
+- **Top Tenants by Volume**: Sorted by invoice/transaction count
