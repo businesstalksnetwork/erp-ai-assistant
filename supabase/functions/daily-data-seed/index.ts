@@ -18,12 +18,35 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth: require cron secret for non-interactive calls
+    // Environment guard: block in production
+    if (Deno.env.get("ENVIRONMENT") === "production") {
+      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Auth: require cron secret OR super_admin
     const cronSecret = req.headers.get("x-cron-secret");
-    if (cronSecret !== Deno.env.get("CRON_SECRET")) {
+    const authHeader = req.headers.get("Authorization");
+    let authorized = false;
+
+    if (cronSecret && cronSecret === Deno.env.get("CRON_SECRET")) {
+      authorized = true;
+    } else if (authHeader) {
+      const sbUrl = Deno.env.get("SUPABASE_URL")!;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const callerClient = createClient(sbUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user: caller } } = await callerClient.auth.getUser();
+      if (caller) {
+        const sbAdmin = createClient(sbUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const { data: isSA } = await sbAdmin.rpc("is_super_admin", { _user_id: caller.id });
+        if (isSA) authorized = true;
+      }
+    }
+
+    if (!authorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
