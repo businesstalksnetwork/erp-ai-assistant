@@ -1,102 +1,91 @@
 
 
-## Update All Documentation Files to Reflect AI & Production Module Upgrades
+## Smooth Navigation, Page Transitions & Documentation Update
 
-### What Changed (Not Yet Documented)
+### Problem Analysis
 
-The following major changes were implemented but the `.md` files are stale:
+There are two distinct issues causing poor UX during navigation:
 
-**AI Module (End-to-End Upgrade):**
-- `ai-assistant`: Now has true SSE streaming, dynamic schema from `information_schema.columns` (cached 1hr), 3 tools (`query_tenant_data`, `analyze_trend`, `create_reminder`), 5 tool-calling rounds, audit logging to `ai_action_log`
-- `ai-insights`: Now hybrid rules + AI enrichment via Gemini (prioritization, correlation, recommendations, executive summary), audit logging
-- `ai-analytics-narrative`: Now has `query_tenant_data` tool-calling for DB drill-down, response caching in `ai_narrative_cache` table (30min TTL), audit logging
-- `AiAssistantPanel.tsx` deleted (deduplicated into `AiContextSidebar.tsx`)
-- `useAiStream.ts`: Real SSE stream parsing, conversation persistence via `ai_conversations` + `ai_conversation_messages` tables
-- `AiContextSidebar.tsx`: Conversation history list, "New Chat" button, unified AI interface
+1. **Full-page refresh on route change**: The `<Suspense fallback={<LoadingFallback />}>` in `App.tsx` wraps ALL routes (line 198), including the layout components. When a lazy-loaded page is first loaded, React unmounts the entire tree (sidebar + header + content) and shows a centered spinner. This makes the sidebar and header "disappear and reappear" on every new page visit.
 
-**Production AI Module:**
-- `production_orders.priority` column (1-5, default 3)
-- `production_scenarios` table for persistent schedule/simulation/bottleneck storage
-- `production-ai-planning`: locked/excluded order filtering, post-AI date validation, `local-fallback-schedule` action, `save-scenario`/`list-scenarios` actions
-- `AiPlanningSchedule.tsx`: AI/Local toggle, order exclusion, Gantt legend, batch apply
-- `AiCapacitySimulation.tsx`: DB-backed scenario persistence, comparison view
-- `AiBottleneckPrediction.tsx`: Local material pre-check (BOM vs inventory)
-- `ProductionOrders.tsx`: Priority field in create/edit
+2. **No page transition animation**: When navigating between pages, content just pops in with no visual continuity. There is no `AnimatePresence` or transition wrapper around the page content area.
 
-**WMS AI Module (previous session):**
-- Batch task generation (single bulk INSERT)
-- Bin capacity validation (edge function + local heuristic)
-- SQL-filtered data fetching (accessibility > 0, top 100 bins, 5000 pick history limit)
-- Scenario comparison view (side-by-side KPI diff)
-
-**Database Tables Added:**
-- `ai_conversations` (chat persistence)
-- `ai_conversation_messages` (message storage)
-- `ai_narrative_cache` (analytics narrative caching)
-- `production_scenarios` (schedule/simulation/bottleneck results)
-- `production_orders.priority` column
+3. **WMS_AI_REPORT.md** still lists issues as unresolved that were fixed in previous sessions.
 
 ---
 
-### Files to Update
+### Changes
 
-#### 1. `ARCHITECTURE_DOCUMENTATION.md` (Primary)
+#### 1. Fix Suspense Boundary (Stop sidebar/header refresh)
 
-**Section 4.1.11 (Platform tables):** Add `ai_conversations`, `ai_conversation_messages`, `ai_narrative_cache` tables with columns.
+**File: `src/App.tsx`**
 
-**Section 4.1.8 (Production):** Already has `production_scenarios` and `priority` -- verify accuracy.
+Move the `<Suspense>` wrapper from around ALL routes to only around the child routes inside each layout. The layout components (`TenantLayout`, `SuperAdminLayout`) render via `<Outlet />`, so lazy children suspend inside the layout, not above it.
 
-**Section 5.1 (AI Functions):** Rewrite to reflect:
-- `ai-assistant`: 3 tools, 5 rounds, true streaming, dynamic schema, audit logging
-- `ai-insights`: hybrid rules + AI enrichment, audit logging  
-- `ai-analytics-narrative`: tool-calling, caching, audit logging
-- `production-ai-planning`: 6 actions (generate-schedule, predict-bottlenecks, simulate-scenario, local-fallback-schedule, save-scenario, list-scenarios)
-- `wms-slotting`: capacity validation, SQL filtering, audit logging
+- Remove the outer `<Suspense fallback={<LoadingFallback />}>` that wraps all `<Routes>`
+- Keep lazy imports as-is (code splitting is good)
 
-**Section 8.10 (AI SQL Tool Calling):** Update to reflect 3 tools, 5 rounds, true SSE streaming, dynamic schema context.
+**File: `src/layouts/TenantLayout.tsx`**
 
-**Section 8.11 (AI Anomaly Detection):** Update to reflect AI enrichment layer (hybrid rules + Gemini).
+Wrap the `<Outlet />` (line 518) in a `<Suspense>` with an inline skeleton/shimmer fallback instead of a spinner. This ensures the sidebar and header stay mounted while only the content area shows a loading state.
 
-**New Section 8.12 (AI Conversation Persistence):** Document conversation save/load flow.
+The fallback will be a subtle content-area skeleton (pulsing bars mimicking a page header + card grid) instead of a spinner, creating the "no loading" feel.
 
-**New Section 8.13 (AI Audit Trail):** Document which functions write to `ai_action_log` and the schema.
+**File: `src/layouts/SuperAdminLayout.tsx`**
 
-**New Section 8.14 (AI Analytics Narrative Tool-Calling & Caching):** Document the drill-down capability and cache table.
+Same pattern: wrap the `<Outlet />` in `<Suspense>` with the same skeleton fallback.
 
-**Section 8.7 (Production Module):** Add AI Planning details (local fallback, locked/excluded orders, scenario persistence, priority).
+#### 2. Smooth Page Transitions with Framer Motion
 
-**Section on WMS (8.4/WMS):** Add capacity validation, batch task generation, scenario comparison.
+**File: `src/layouts/TenantLayout.tsx`**
 
-**Footer:** Update version to 3.0, date, edge function count.
+Add an `AnimatePresence` + `motion.div` wrapper around the `<Outlet />` keyed by `location.pathname`. This produces a subtle fade+slide transition (opacity 0 to 1, translateY 8px to 0, 200ms) when navigating between pages. The sidebar and header remain completely static.
 
-#### 2. `COMPLETE_CODEBASE_REVIEW.md`
+**File: `src/layouts/SuperAdminLayout.tsx`**
 
-**Section 7 (Edge Functions):** Update AI function count and descriptions.
+Same transition wrapper for consistency.
 
-**Section 8 (State Management, New Features):** Add v3.0 features list.
+#### 3. Content Skeleton Fallback Component
 
-**Section 4 (Design System):** No changes needed.
+**File: `src/components/shared/PageSkeleton.tsx`** (new file)
 
-#### 3. `WMS_AI_REPORT.md`
+A reusable skeleton that mimics a typical page layout:
+- A header bar (title placeholder + action buttons placeholder)
+- A row of 4 stat cards (pulsing rectangles)
+- A large content area card (table placeholder with rows)
 
-**Issues/Risks section:** Mark resolved items:
-- Sequential task generation -- RESOLVED (batch INSERT)
-- No scenario comparison -- RESOLVED (comparison view)
-- Local algorithm ignores capacity -- RESOLVED (capacity validation)
-- AI constraint validation -- RESOLVED (post-AI capacity checks)
+This replaces the spinning circle, creating the impression that the page is "already there" and just filling in data.
 
-**Recommendations:** Move completed items to "Implemented" section.
+#### 4. Update WMS_AI_REPORT.md
 
-**Data/Schema:** Update `wms_slotting_scenarios` with comparison view capabilities.
+Mark the following issues as RESOLVED:
+- "Sequential Task Generation" -- resolved via batch INSERT
+- "No Scenario Comparison" -- resolved via comparison view
+- "Local Algorithm Ignores Capacity" -- resolved via capacity validation
+- "AI Constraint Validation" -- resolved via post-AI capacity checks
+
+Move completed recommendations to an "Implemented" section.
+
+#### 5. Update COMPLETE_CODEBASE_REVIEW.md
+
+Add entry for v3.0 UX improvements:
+- Suspense boundary fix (sidebar/header persistence)
+- Framer Motion page transitions
+- Skeleton loading states
 
 ---
 
 ### Technical Details
 
-**Files to modify (3 files):**
-- `ARCHITECTURE_DOCUMENTATION.md` -- major update across 8+ sections
-- `COMPLETE_CODEBASE_REVIEW.md` -- update sections 7, 8
-- `WMS_AI_REPORT.md` -- mark resolved issues, update recommendations
+**Files to create (1):**
+- `src/components/shared/PageSkeleton.tsx` -- reusable skeleton fallback
 
-**No database or edge function changes** -- documentation only.
+**Files to modify (5):**
+- `src/App.tsx` -- remove outer Suspense wrapper
+- `src/layouts/TenantLayout.tsx` -- add Suspense + AnimatePresence around Outlet
+- `src/layouts/SuperAdminLayout.tsx` -- add Suspense + AnimatePresence around Outlet
+- `WMS_AI_REPORT.md` -- mark resolved issues
+- `COMPLETE_CODEBASE_REVIEW.md` -- add v3.0 UX improvements
+
+**No new dependencies needed** -- framer-motion is already installed (v12.34.0).
 
