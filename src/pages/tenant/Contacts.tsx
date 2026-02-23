@@ -20,19 +20,30 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/Resp
 const TYPES = ["customer", "supplier", "prospect"] as const;
 const SENIORITY = ["c_level", "executive", "senior_manager", "manager", "senior", "mid", "junior", "intern"] as const;
 const FUNCTIONS = ["management", "sales", "marketing", "finance", "hr", "it", "operations", "legal", "procurement", "production", "other"] as const;
+const CONTACT_ROLES = ["decision_maker", "influencer", "champion", "end_user", "billing", "technical", "primary"] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  decision_maker: "decisionMaker",
+  influencer: "influencer",
+  champion: "champion",
+  end_user: "endUser",
+  billing: "billing",
+  technical: "technical",
+  primary: "primaryContact",
+};
 
 interface ContactForm {
   first_name: string; last_name: string; email: string; phone: string;
   type: string; seniority_level: string; function_area: string;
   company_name: string; address: string; city: string; notes: string;
-  company_id: string; job_title: string;
+  company_id: string; job_title: string; contact_role: string;
 }
 
 const emptyForm: ContactForm = {
   first_name: "", last_name: "", email: "", phone: "",
   type: "prospect", seniority_level: "", function_area: "",
   company_name: "", address: "", city: "", notes: "",
-  company_id: "", job_title: "",
+  company_id: "", job_title: "", contact_role: "",
 };
 
 export default function Contacts() {
@@ -70,7 +81,7 @@ export default function Contacts() {
 
   const mutation = useMutation({
     mutationFn: async (f: ContactForm) => {
-      const { company_id, job_title, ...contactData } = f;
+      const { company_id, job_title, contact_role, ...contactData } = f;
       const payload = {
         ...contactData, tenant_id: tenantId!,
         seniority_level: contactData.seniority_level || null,
@@ -88,7 +99,7 @@ export default function Contacts() {
       if (company_id && contactId) {
         if (editId) await supabase.from("contact_company_assignments").delete().eq("contact_id", editId);
         await supabase.from("contact_company_assignments").insert([{
-          contact_id: contactId, company_id, partner_id: company_id, tenant_id: tenantId!, job_title: job_title || null, is_primary: true,
+          contact_id: contactId, company_id, partner_id: company_id, tenant_id: tenantId!, job_title: job_title || null, is_primary: true, role: contact_role || null,
         }]);
       }
     },
@@ -105,6 +116,7 @@ export default function Contacts() {
       type: c.type || "prospect", seniority_level: c.seniority_level || "", function_area: c.function_area || "",
       company_name: c.company_name || "", address: c.address || "", city: c.city || "", notes: c.notes || "",
       company_id: assignment?.partner_id || assignment?.company_id || "", job_title: assignment?.job_title || "",
+      contact_role: assignment?.role || "",
     });
     setOpen(true);
   };
@@ -193,6 +205,16 @@ export default function Contacts() {
                 </Select>
               </div>
               <div className="grid gap-2"><Label>{t("jobTitle")}</Label><Input value={form.job_title} onChange={e => setForm({ ...form, job_title: e.target.value })} /></div>
+              <div className="grid gap-2">
+                <Label>{t("contactRole")}</Label>
+                <Select value={form.contact_role || "__none"} onValueChange={v => setForm({ ...form, contact_role: v === "__none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">{t("noRole")}</SelectItem>
+                    {CONTACT_ROLES.map(r => <SelectItem key={r} value={r}>{t(ROLE_LABELS[r] as any)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2">

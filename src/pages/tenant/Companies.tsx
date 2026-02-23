@@ -10,13 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Loader2, Search, Building2 } from "lucide-react";
+import { Plus, Loader2, Search, Building2, CheckCircle2, AlertTriangle, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+
+const TIER_COLORS: Record<string, string> = {
+  A: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  B: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  C: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  D: "bg-muted text-muted-foreground",
+};
+
+const DORMANCY_ICONS: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
+  active: { icon: CheckCircle2, color: "text-emerald-500", label: "dormancyActive" },
+  at_risk: { icon: AlertTriangle, color: "text-amber-500", label: "dormancyAtRisk" },
+  dormant: { icon: ShieldAlert, color: "text-destructive", label: "dormancyDormant" },
+};
 
 interface PartnerForm {
   name: string; display_name: string; pib: string; maticni_broj: string;
@@ -45,6 +58,7 @@ export default function Companies() {
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [tierFilter, setTierFilter] = useState("all");
   const [pibLooking, setPibLooking] = useState(false);
 
   const { data: partners = [], isLoading } = useQuery({
@@ -166,6 +180,7 @@ export default function Companies() {
 
   const filtered = partners.filter((p: any) => {
     if (typeFilter !== "all" && p.type !== typeFilter) return false;
+    if (tierFilter !== "all" && (p.account_tier || "D") !== tierFilter) return false;
     if (!search) return true;
     const s = search.toLowerCase();
     return p.name?.toLowerCase().includes(s) || p.display_name?.toLowerCase().includes(s) || p.pib?.includes(s) || p.city?.toLowerCase().includes(s);
@@ -178,8 +193,24 @@ export default function Companies() {
         <span className="font-medium">{p.display_name || p.name}</span>
       </div>
     )},
-    { key: "pib", label: t("pib"), render: (p) => p.pib || "—" },
-    { key: "city", label: t("city"), render: (p) => p.city || "—" },
+    { key: "tier", label: t("accountTier"), render: (p) => {
+      const tier = p.account_tier;
+      if (!tier) return <span className="text-muted-foreground text-xs">—</span>;
+      return <Badge className={`${TIER_COLORS[tier] || ""}`}>{tier}</Badge>;
+    }},
+    { key: "dormancy", label: t("dormancyStatus"), render: (p) => {
+      const status = p.dormancy_status || "active";
+      const info = DORMANCY_ICONS[status] || DORMANCY_ICONS.active;
+      const DormIcon = info.icon;
+      return (
+        <div className="flex items-center gap-1.5">
+          <DormIcon className={`h-3.5 w-3.5 ${info.color}`} />
+          <span className="text-xs">{t(info.label as any)}</span>
+        </div>
+      );
+    }},
+    { key: "pib", label: t("pib"), hideOnMobile: true, render: (p) => p.pib || "—" },
+    { key: "city", label: t("city"), hideOnMobile: true, render: (p) => p.city || "—" },
     { key: "type", label: t("type"), render: (p) => <Badge variant="outline">{typeLabel(p.type)}</Badge> },
     { key: "categories", label: t("categories"), hideOnMobile: true, render: (p) => (
       <div className="flex gap-1 flex-wrap">
@@ -189,11 +220,6 @@ export default function Companies() {
           </Badge>
         ))}
       </div>
-    )},
-    { key: "status", label: t("status"), render: (p) => (
-      <Badge variant={p.is_active ? "default" : "secondary"}>
-        {p.is_active ? t("active") : t("inactive")}
-      </Badge>
     )},
     { key: "actions", label: t("actions"), showInCard: false, render: (p) => (
       <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(p); }}>{t("edit")}</Button>
@@ -214,15 +240,27 @@ export default function Companies() {
       <MobileFilterBar
         search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />}
         filters={
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allTypes")}</SelectItem>
-              <SelectItem value="customer">{t("customer")}</SelectItem>
-              <SelectItem value="supplier">{t("supplier")}</SelectItem>
-              <SelectItem value="both">{t("both")}</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allTypes")}</SelectItem>
+                <SelectItem value="customer">{t("customer")}</SelectItem>
+                <SelectItem value="supplier">{t("supplier")}</SelectItem>
+                <SelectItem value="both">{t("both")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={tierFilter} onValueChange={setTierFilter}>
+              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allTiers")}</SelectItem>
+                <SelectItem value="A">{t("tierA")}</SelectItem>
+                <SelectItem value="B">{t("tierB")}</SelectItem>
+                <SelectItem value="C">{t("tierC")}</SelectItem>
+                <SelectItem value="D">{t("tierD")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 

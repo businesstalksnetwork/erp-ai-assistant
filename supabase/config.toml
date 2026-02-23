@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.import-legacy-zip]
 verify_jwt = false
+
+[functions.crm-tier-refresh]
+verify_jwt = false
