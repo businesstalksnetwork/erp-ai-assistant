@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { Sparkles } from "lucide-react";
+import { BarChart3, Users, Package, Factory, Brain } from "lucide-react";
+import erpAiLogo from "@/assets/erpAI.png";
 
 export default function Login() {
   const { t } = useLanguage();
@@ -39,26 +40,50 @@ export default function Login() {
     setLoading(false);
   };
 
+  const features = [
+    { icon: BarChart3, label: "Finansije i računovodstvo", desc: "Glavna knjiga, PDV, bilans" },
+    { icon: Users, label: "CRM & Prodaja", desc: "Kontakti, ponude, fakture" },
+    { icon: Package, label: "Skladište & WMS", desc: "Zalihe, prijem, otprema" },
+    { icon: Factory, label: "Proizvodnja", desc: "Radni nalozi, BOM, planiranje" },
+    { icon: Brain, label: "AI Asistent", desc: "Analitika, predikcije, uvidi" },
+  ];
+
   return (
     <div className="flex min-h-screen">
       {/* Brand panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-primary/70 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsla(225,73%,70%,0.3),transparent_60%)]" />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-white/15 flex items-center justify-center">
-              <Sparkles className="h-4.5 w-4.5" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_hsla(225,73%,57%,0.2),transparent_50%)]" />
+        <div className="relative z-10 flex flex-col justify-between p-12 text-white h-full w-full">
+          <div>
+            <img src={erpAiLogo} alt="ERP-AI Logo" className="max-w-[180px]" />
+          </div>
+
+          <div className="space-y-6 max-w-md">
+            <div className="space-y-3">
+              <h1 className="text-3xl font-bold tracking-tight leading-tight">
+                Inteligentno upravljanje poslovanjem
+              </h1>
+              <p className="text-base text-white/60 leading-relaxed">
+                Sveobuhvatni ERP sistem sa AI asistentom za srpsko tržište — sve na jednom mestu.
+              </p>
             </div>
-            <span className="text-lg font-bold tracking-tight">ERP-AI</span>
+
+            <div className="space-y-3">
+              {features.map((f) => (
+                <div key={f.label} className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <f.icon className="h-4 w-4 text-white/80" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/90">{f.label}</p>
+                    <p className="text-xs text-white/50">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-3 max-w-md">
-            <h1 className="text-3xl font-bold tracking-tight leading-tight">
-              Inteligentno upravljanje poslovanjem
-            </h1>
-            <p className="text-base text-white/60 leading-relaxed">
-              Sveobuhvatni ERP sistem sa AI asistentom za srpsko tržište. Finansije, CRM, skladište, proizvodnja — sve na jednom mestu.
-            </p>
-          </div>
+
           <p className="text-xs text-white/30">© 2026 ERP-AI Platform</p>
         </div>
       </div>
@@ -71,10 +96,7 @@ export default function Login() {
 
         {/* Mobile brand header */}
         <div className="absolute top-6 left-4 lg:hidden flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <span className="text-base font-bold tracking-tight">ERP-AI</span>
+          <img src={erpAiLogo} alt="ERP-AI" className="h-8" />
         </div>
 
         <Card className="w-full max-w-sm">
