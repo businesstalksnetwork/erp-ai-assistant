@@ -1,96 +1,104 @@
 
-# Redesign Meeting Forms: Full-Screen Layout with Two-Column Cards
+# Configurable Opportunity Stages in Settings
 
-## What Changes
+## Problem
+Opportunity pipeline stages ("Kvalifikacija", "Ponuda", "Pregovaranje", "Zatvoreno - dobijeno", "Zatvoreno - izgubljeno") are hardcoded across 4 files. Tenants cannot rename or reorder them.
 
-Replace the current cramped `Dialog` (max-w-2xl) with a **full-screen overlay page** layout, inspired by the uploaded screenshot from the reference project. Instead of a scrollable dialog, both "Zakazi sastanak" and "Evidentiraj sastanak" will open as a near-full-screen panel with a clean two-column card layout.
+## Solution
 
-## New Layout (Matching Reference Screenshot)
-
-The form opens as a full-screen overlay (or a dedicated route-like panel) with:
+### 1. New Database Table: `opportunity_stages`
 
 ```text
-+----------------------------------------------------------+
-| <- Back    Novi Sastanak / Evidentiraj Sastanak           |
-|            Zakazite novi / Evidentirajte odrzani          |
-+----------------------------------------------------------+
-|                                                          |
-|  +-- Osnovni Podaci --------+  +-- Ucesnici -----------+|
-|  | Naslov *                  |  | Zaposleni (Interni)   ||
-|  | Tip Sastanka              |  |   [ ] Employee 1      ||
-|  | Datum i Vreme * | Trajanje|  |   [ ] Employee 2      ||
-|  | Kanal Komunikacije        |  |                       ||
-|  | Lokacija                  |  | Kontakti (Eksterni)   ||
-|  | Napomene (agenda)         |  |   grouped by partner  ||
-|  |                           |  |                       ||
-|  | (Log mode only:)          |  | Eksterni ucesnici     ||
-|  | Ishod                     |  |   Name + Email + Add  ||
-|  | Sledeci koraci            |  |                       ||
-|  +---------------------------+  | [badges of selected]  ||
-|                                 +------------------------+|
-|  +-- Kompanije -------------+  +-- Prilika -------------+|
-|  | [ ] Partner 1             |  | Select opportunity     ||
-|  | [ ] Partner 2             |  |                        ||
-|  +---------------------------+  +------------------------+|
-|                                                          |
-|  [Otkazi]  [Zakazi Sastanak / Evidentiraj]               |
-+----------------------------------------------------------+
+CREATE TABLE opportunity_stages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  code text NOT NULL,           -- internal key e.g. "qualification"
+  name text NOT NULL,           -- English display name
+  name_sr text,                 -- Serbian display name
+  color text,                   -- hex color for badges/charts
+  sort_order int DEFAULT 0,
+  is_won boolean DEFAULT false, -- marks "closed won" stage
+  is_lost boolean DEFAULT false,-- marks "closed lost" stage
+  is_system boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(tenant_id, code)
+);
+ALTER TABLE opportunity_stages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Tenant access" ON opportunity_stages FOR ALL
+  USING (tenant_id IN (SELECT get_user_tenant_ids(auth.uid())));
 ```
 
-## Implementation Details
+Seed default stages per tenant (via migration inserting for all existing tenants, and via the create-tenant function for new tenants):
+- qualification / Kvalifikacija / #3B82F6 / sort_order=1
+- proposal / Ponuda / #8B5CF6 / sort_order=2
+- negotiation / Pregovaranje / #F59E0B / sort_order=3
+- closed_won / Zatvoreno - dobijeno / #10B981 / is_won=true / sort_order=4
+- closed_lost / Zatvoreno - izgubljeno / #EF4444 / is_lost=true / sort_order=5
 
-### Replace Dialog with Full-Screen Overlay
+### 2. New Settings Page: `OpportunityStagesSettings.tsx`
 
-- Instead of `<Dialog>`, use a **Sheet from the right** with `side="right"` and full width, OR better: a **conditional render** that replaces the table view with the form view (same pattern as the reference screenshot -- back arrow returns to list).
-- The form view uses `grid grid-cols-1 lg:grid-cols-2 gap-6` for the two-column card layout.
-- Each section is wrapped in a `Card` with `CardHeader` (icon + title + subtitle) and `CardContent`.
+A CRUD page following the same pattern as `CompanyCategoriesSettings.tsx`:
+- Table listing all stages with: Name (EN), Name (SR), Code, Color swatch, Sort order, Won/Lost flags
+- Add/Edit dialog with fields for name, name_sr, code, color picker, sort_order, is_won, is_lost checkboxes
+- Delete with protection: cannot delete stages that have opportunities assigned
+- Reorder via sort_order field
+- System stages (is_system=true) cannot be deleted but CAN be renamed
 
-### Four Cards
+### 3. Add to Settings Hub
 
-1. **Osnovni Podaci** (Basic Info) -- Left column, top
-   - Title, Meeting Type (from `meeting_types`), Date+Time, Duration, Channel, Location, Notes/Agenda
-   - In "log" mode: adds Outcome and Next Steps textareas at the bottom of this card
+Add a new link in the **Operations** section of `Settings.tsx`:
+- Label: `t("opportunityStages")` / "Faze prilika"
+- Icon: `TrendingUp`
+- Route: `/settings/opportunity-stages`
 
-2. **Ucesnici** (Attendees) -- Right column, top
-   - Internal employees section with checkboxes
-   - External contacts grouped by selected partner(s) with checkboxes
-   - External attendees free-text (name + email) with add button
-   - Selected attendees shown as badges with remove
-   - Invite preview (schedule mode only)
+### 4. Add Route in `App.tsx`
 
-3. **Kompanije** (Partners) -- Left column, bottom
-   - Multi-select checkbox list of partners
-   - Subtitle: "Povezane kompanije (opciono)"
+```text
+<Route path="settings/opportunity-stages" element={<ProtectedRoute requiredModule="settings"><OpportunityStagesSettings /></ProtectedRoute>} />
+```
 
-4. **Prilika** (Opportunity) -- Right column, bottom
-   - Optional dropdown to link to an opportunity
-   - Subtitle: "Povezite sa prilikom (opciono)"
+### 5. Custom Hook: `useOpportunityStages`
 
-### Footer
+A reusable hook that fetches stages from the DB:
+```text
+export function useOpportunityStages() {
+  const { tenantId } = useTenant();
+  return useQuery({
+    queryKey: ["opportunity-stages", tenantId],
+    queryFn: async () => { /* fetch from opportunity_stages ordered by sort_order */ },
+    enabled: !!tenantId,
+  });
+}
+```
 
-- Sticky bottom bar with Cancel (left) and Submit button (right)
-- Submit text changes: "Zakazi Sastanak" in schedule mode, "Evidentiraj" in log mode
+### 6. Update Consuming Components
 
-### Navigation
+Replace the hardcoded `STAGES` constant in these files with the dynamic hook:
 
-- When form is open, the meetings table is hidden and the form is shown in its place
-- Back arrow at top-left returns to the list view
-- No route change needed -- just component state (`showForm` boolean)
+- **`Opportunities.tsx`** -- Kanban columns driven by `useOpportunityStages()`, use stage colors from DB
+- **`OpportunityDetail.tsx`** -- Stage selector dropdown uses dynamic stages
+- **`OpportunityPipelineChart.tsx`** -- Chart bars use dynamic stages + their colors from DB
+- **`WinLossChart.tsx`** -- Uses `is_won` / `is_lost` flags instead of hardcoded `"closed_won"` / `"closed_lost"`
+- **`Meetings.tsx`** -- Opportunity dropdown (if it references stages anywhere)
 
-## Files to Modify
+### 7. i18n Keys
 
-1. **`src/pages/tenant/Meetings.tsx`** -- Major UI refactor:
-   - Add `showForm` state to toggle between list view and form view
-   - Form view renders 4 Cards in a 2-column grid
-   - All existing logic (queries, mutations, attendee management) stays the same
-   - Dialog removed, replaced with inline form view
-   - Add meeting type selector (query `meeting_types` table)
-   - Conditionally show outcome/next_steps only in log mode
+Add to `translations.ts`:
+- `opportunityStages` / "Opportunity Stages" / "Faze prilika"
+- `stageCode` / "Code" / "Kod"
+- `isWon` / "Won stage" / "Faza dobitka"
+- `isLost` / "Lost stage" / "Faza gubitka"
+- `cannotDeleteStageInUse` / "Cannot delete: stage is assigned to opportunities" / "Ne moze se obrisati: faza je dodeljena prilikama"
 
-2. **`src/i18n/translations.ts`** -- Add keys:
-   - `osnovniPodaci` / "Basic Info" / "Osnovni podaci"
-   - `ucesnici` / "Attendees" / "Ucesnici"
-   - `povezaneKompanije` / "Linked companies (optional)" / "Povezane kompanije (opciono)"
-   - `poveziteSaPrilikom` / "Link to opportunity (optional)" / "Povezite sa prilikom (opciono)"
-   - `meetingType` / "Meeting Type" / "Tip sastanka"
-   - `agenda` / "Agenda" / "Agenda, teme za diskusiju..."
+## Files to Create/Modify
+
+1. **New migration** -- Create `opportunity_stages` table + seed defaults for existing tenants
+2. **`src/pages/tenant/OpportunityStagesSettings.tsx`** -- New CRUD settings page
+3. **`src/hooks/useOpportunityStages.ts`** -- New shared hook
+4. **`src/pages/tenant/Settings.tsx`** -- Add link to opportunity stages
+5. **`src/App.tsx`** -- Add route
+6. **`src/pages/tenant/Opportunities.tsx`** -- Replace hardcoded STAGES with hook
+7. **`src/pages/tenant/OpportunityDetail.tsx`** -- Replace hardcoded STAGES with hook
+8. **`src/components/crm/OpportunityPipelineChart.tsx`** -- Use dynamic stages + colors
+9. **`src/components/crm/WinLossChart.tsx`** -- Use is_won/is_lost flags
+10. **`src/i18n/translations.ts`** -- New keys
