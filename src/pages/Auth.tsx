@@ -789,7 +789,9 @@ export default function Auth() {
       <div className="w-full max-w-md space-y-6 animate-fade-in">
         <div className="text-center space-y-2">
           <Link to="/" className="inline-block">
-            <img src={logo} alt="Paušal box" className="h-12" />
+            <div className="h-12 flex items-center justify-center">
+              <span className="text-2xl font-bold text-primary">ERP-AI Assistant</span>
+            </div>
           </Link>
           <p className="text-muted-foreground">
             ERP sistem za upravljanje poslovanjem
