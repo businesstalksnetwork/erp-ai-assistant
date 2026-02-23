@@ -165,6 +165,7 @@ export type Database = {
           id: string
           messages: Json
           tenant_id: string
+          title: string | null
           updated_at: string
           user_id: string
         }
@@ -173,6 +174,7 @@ export type Database = {
           id?: string
           messages?: Json
           tenant_id: string
+          title?: string | null
           updated_at?: string
           user_id: string
         }
@@ -181,6 +183,7 @@ export type Database = {
           id?: string
           messages?: Json
           tenant_id?: string
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -231,6 +234,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_insights_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_narrative_cache: {
+        Row: {
+          context_type: string
+          created_at: string
+          data_hash: string | null
+          expires_at: string
+          id: string
+          narrative: string
+          recommendations: Json
+          tenant_id: string
+        }
+        Insert: {
+          context_type: string
+          created_at?: string
+          data_hash?: string | null
+          expires_at?: string
+          id?: string
+          narrative?: string
+          recommendations?: Json
+          tenant_id: string
+        }
+        Update: {
+          context_type?: string
+          created_at?: string
+          data_hash?: string | null
+          expires_at?: string
+          id?: string
+          narrative?: string
+          recommendations?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_narrative_cache_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

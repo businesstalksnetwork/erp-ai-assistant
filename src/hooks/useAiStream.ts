@@ -1,7 +1,13 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+type Conversation = {
+  id: string;
+  title: string;
+  updated_at: string;
+};
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
@@ -13,7 +19,83 @@ interface UseAiStreamOptions {
 export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load conversation list
+  const loadConversations = useCallback(async () => {
+    if (!tenantId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data } = await supabase
+      .from("ai_conversations")
+      .select("id, title, updated_at")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", session.user.id)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+
+    if (data) setConversations(data as Conversation[]);
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Load a specific conversation
+  const loadConversation = useCallback(async (conversationId: string) => {
+    const { data } = await supabase
+      .from("ai_conversations")
+      .select("messages")
+      .eq("id", conversationId)
+      .maybeSingle();
+
+    if (data?.messages) {
+      const msgs = (data.messages as any[]).map((m: any) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content as string,
+      }));
+      setMessages(msgs);
+      setActiveConversationId(conversationId);
+    }
+  }, []);
+
+  // Save conversation to DB
+  const saveConversation = useCallback(async (msgs: ChatMessage[]) => {
+    if (!tenantId || msgs.length === 0) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const title = msgs[0]?.content?.substring(0, 50) || "New Chat";
+
+    if (activeConversationId) {
+      await supabase
+        .from("ai_conversations")
+        .update({
+          messages: msgs as any,
+          title,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", activeConversationId);
+    } else {
+      const { data } = await supabase
+        .from("ai_conversations")
+        .insert({
+          tenant_id: tenantId,
+          user_id: session.user.id,
+          messages: msgs as any,
+          title,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (data) setActiveConversationId(data.id);
+    }
+
+    loadConversations();
+  }, [tenantId, activeConversationId, loadConversations]);
 
   const send = useCallback(async (input: string) => {
     if (!input.trim() || !tenantId || isLoading) return;
@@ -108,12 +190,16 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
         }
       }
 
-      // Final flush
       if (textBuffer.trim()) {
         for (const raw of textBuffer.split("\n")) {
           if (raw) processLine(raw);
         }
       }
+
+      // Save conversation after successful exchange
+      const finalMessages = [...allMessages, { role: "assistant" as const, content: assistantSoFar }];
+      saveConversation(finalMessages);
+
     } catch (e: any) {
       if (e.name !== "AbortError") {
         console.error("AI chat error:", e);
@@ -128,13 +214,21 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [tenantId, isLoading, messages, locale]);
+  }, [tenantId, isLoading, messages, locale, saveConversation]);
 
   const clear = useCallback(() => {
     abortRef.current?.abort();
     setMessages([]);
     setIsLoading(false);
+    setActiveConversationId(null);
   }, []);
 
-  return { messages, isLoading, send, clear };
+  const newChat = useCallback(() => {
+    abortRef.current?.abort();
+    setMessages([]);
+    setIsLoading(false);
+    setActiveConversationId(null);
+  }, []);
+
+  return { messages, isLoading, send, clear, newChat, conversations, loadConversation, activeConversationId };
 }
