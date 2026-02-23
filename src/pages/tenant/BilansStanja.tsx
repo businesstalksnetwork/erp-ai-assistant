@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -30,7 +29,7 @@ const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
 export default function BilansStanja() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
-  const { legalEntities } = useLegalEntities();
+  const { entities: legalEntities } = useLegalEntities();
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split("T")[0]);
   const [legalEntityId, setLegalEntityId] = useState<string>("");
 
@@ -38,7 +37,7 @@ export default function BilansStanja() {
     queryKey: ["bilans_stanja", tenantId, asOfDate, legalEntityId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase.rpc("get_bilans_stanja", {
+      const { data, error } = await supabase.rpc("get_bilans_stanja" as any, {
         p_tenant_id: tenantId,
         p_as_of_date: asOfDate,
         p_legal_entity_id: legalEntityId || null,
@@ -53,7 +52,7 @@ export default function BilansStanja() {
     queryKey: ["bilans_stanja_totals", tenantId, asOfDate, legalEntityId],
     queryFn: async () => {
       if (!tenantId) return null;
-      const { data, error } = await supabase.rpc("get_bilans_stanja_totals", {
+      const { data, error } = await supabase.rpc("get_bilans_stanja_totals" as any, {
         p_tenant_id: tenantId,
         p_as_of_date: asOfDate,
         p_legal_entity_id: legalEntityId || null,
