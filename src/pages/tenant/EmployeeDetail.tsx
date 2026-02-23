@@ -70,7 +70,7 @@ export default function EmployeeDetail() {
   const [contractForm, setContractForm] = useState({
     contract_type: "indefinite", start_date: new Date().toISOString().split("T")[0],
     end_date: "", gross_salary: 0, net_salary: 0, working_hours_per_week: 40,
-    currency: "RSD", is_active: true,
+    currency: "RSD", is_active: true, position_template_id: "",
   });
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [salaryForm, setSalaryForm] = useState({
@@ -94,7 +94,7 @@ export default function EmployeeDetail() {
   const { data: contracts = [] } = useQuery({
     queryKey: ["employee-contracts", id],
     queryFn: async () => {
-      const { data } = await supabase.from("employee_contracts").select("*").eq("employee_id", id!).order("start_date", { ascending: false });
+      const { data } = await supabase.from("employee_contracts").select("*, position_templates(name)").eq("employee_id", id!).order("start_date", { ascending: false });
       return data || [];
     },
     enabled: !!id,
@@ -202,6 +202,7 @@ export default function EmployeeDetail() {
         start_date: f.start_date, end_date: f.end_date || null,
         gross_salary: f.gross_salary, net_salary: f.net_salary,
         working_hours_per_week: f.working_hours_per_week, currency: f.currency, is_active: f.is_active,
+        position_template_id: f.position_template_id || null,
       };
       const { error } = await supabase.from("employee_contracts").insert([payload]);
       if (error) throw error;
@@ -353,7 +354,7 @@ export default function EmployeeDetail() {
         {/* Contracts */}
         <TabsContent value="contracts">
           <div className="flex justify-end mb-4">
-            <Button onClick={() => { setContractForm({ contract_type: "indefinite", start_date: new Date().toISOString().split("T")[0], end_date: "", gross_salary: 0, net_salary: 0, working_hours_per_week: 40, currency: "RSD", is_active: true }); setContractOpen(true); }}>
+            <Button onClick={() => { setContractForm({ contract_type: "indefinite", start_date: new Date().toISOString().split("T")[0], end_date: "", gross_salary: 0, net_salary: 0, working_hours_per_week: 40, currency: "RSD", is_active: true, position_template_id: employee?.position_template_id || "" }); setContractOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />{t("addContract")}
             </Button>
           </div>
@@ -361,16 +362,18 @@ export default function EmployeeDetail() {
             <Table>
               <TableHeader><TableRow>
                 <TableHead>{t("contractTypeLabel")}</TableHead>
+                <TableHead>{t("position")}</TableHead>
                 <TableHead>{t("startDate")}</TableHead>
                 <TableHead>{t("endDate")}</TableHead>
                 <TableHead>{t("grossSalary")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {contracts.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{t("noResults")}</TableCell></TableRow>
+                {contracts.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">{t("noResults")}</TableCell></TableRow>
                 : contracts.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.contract_type}</TableCell>
+                    <TableCell>{c.position_templates?.name || "—"}</TableCell>
                     <TableCell>{formatDate(c.start_date)}</TableCell>
                     <TableCell>{formatDate(c.end_date)}</TableCell>
                     <TableCell>{formatNum(Number(c.gross_salary))}</TableCell>
@@ -639,17 +642,29 @@ export default function EmployeeDetail() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("addContract")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>{t("contractTypeLabel")} *</Label>
-              <Select value={contractForm.contract_type} onValueChange={v => setContractForm({ ...contractForm, contract_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="indefinite">{t("indefinite")}</SelectItem>
-                  <SelectItem value="fixed_term">{t("fixedTerm")}</SelectItem>
-                  <SelectItem value="temporary">{t("temporary")}</SelectItem>
-                  <SelectItem value="contract">{t("contractType")}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("contractTypeLabel")} *</Label>
+                <Select value={contractForm.contract_type} onValueChange={v => setContractForm({ ...contractForm, contract_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="indefinite">{t("indefinite")}</SelectItem>
+                    <SelectItem value="fixed_term">{t("fixedTerm")}</SelectItem>
+                    <SelectItem value="temporary">{t("temporary")}</SelectItem>
+                    <SelectItem value="contract">{t("contractType")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("position")}</Label>
+                <Select value={contractForm.position_template_id || "__none"} onValueChange={v => setContractForm({ ...contractForm, position_template_id: v === "__none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {positionTemplates.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={contractForm.start_date} onChange={e => setContractForm({ ...contractForm, start_date: e.target.value })} /></div>

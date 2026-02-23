@@ -67,7 +67,7 @@ export default function Payroll() {
     queryFn: async () => {
       const { data } = await supabase
         .from("payroll_items")
-        .select("*, employees(full_name)")
+        .select("*, employees(full_name, position, departments(name))")
         .eq("payroll_run_id", expandedRun!)
         .order("created_at");
       return data || [];
@@ -240,7 +240,9 @@ export default function Payroll() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>{t("employee")}</TableHead>
+                             <TableHead>{t("employee")}</TableHead>
+                             <TableHead>{t("department")}</TableHead>
+                             <TableHead>{t("position")}</TableHead>
                              <TableHead className="text-right">{t("grossSalary")}</TableHead>
                             <TableHead className="text-right">PIO {params ? `${Number(params.pio_employee_rate)}%` : "14%"}</TableHead>
                             <TableHead className="text-right">Zdrav. {params ? `${Number(params.health_employee_rate)}%` : "5.15%"}</TableHead>
@@ -256,8 +258,10 @@ export default function Payroll() {
                         <TableBody>
                           {runItems.map((item: any) => (
                             <TableRow key={item.id}>
-                              <TableCell>{item.employees?.full_name}</TableCell>
-                              <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
+                               <TableCell>{item.employees?.full_name}</TableCell>
+                               <TableCell>{item.employees?.departments?.name || "—"}</TableCell>
+                               <TableCell>{item.employees?.position || "—"}</TableCell>
+                               <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.pension_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.unemployment_contribution))}</TableCell>
