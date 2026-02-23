@@ -37,6 +37,7 @@ export default function PosTerminal() {
   const [customerName, setCustomerName] = useState("");
   const [buyerId, setBuyerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [voucherType, setVoucherType] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<{ number: string; qr?: string } | null>(null);
   const [identifiedSeller, setIdentifiedSeller] = useState<IdentifiedSeller | null>(null);
 
@@ -145,7 +146,8 @@ export default function PosTerminal() {
         buyer_id: buyerId || null,
         receipt_type: "sale",
         status: "pending_fiscal",
-      }).select().single();
+        voucher_type: voucherType || null,
+      } as any).select().single();
 
       if (txErr || !tx) throw new Error(txErr?.message || "Failed to create transaction");
 
@@ -160,11 +162,18 @@ export default function PosTerminal() {
               transaction_id: tx.id,
               tenant_id: tenantId,
               device_id: fiscalDevices[0].id,
-              items: cart.map(c => ({ name: c.name, quantity: c.quantity, unit_price: c.unit_price, tax_rate: c.tax_rate, total_amount: c.unit_price * c.quantity * (1 + c.tax_rate / 100) })),
+              items: cart.map(c => ({
+                name: c.name,
+                quantity: c.quantity,
+                unit_price: c.unit_price,
+                tax_rate: voucherType === "multi_purpose" ? 0 : c.tax_rate,
+                total_amount: c.unit_price * c.quantity * (1 + (voucherType === "multi_purpose" ? 0 : c.tax_rate) / 100),
+              })),
               payments: [{ amount: total, method: paymentMethod }],
               buyer_id: buyerId || null,
               receipt_type: "normal",
               transaction_type: "sale",
+              voucher_type: voucherType || null,
             },
           });
 
@@ -323,9 +332,18 @@ export default function PosTerminal() {
             <Input placeholder={t("buyerId")} value={buyerId} onChange={e => setBuyerId(e.target.value)} />
             <div className="flex gap-2 flex-wrap">
               {["cash", "card", "wire_transfer", "voucher", "mobile"].map(m => (
-                <Button key={m} size="sm" variant={paymentMethod === m ? "default" : "outline"} onClick={() => setPaymentMethod(m)}>{t(m as any)}</Button>
+                <Button key={m} size="sm" variant={paymentMethod === m ? "default" : "outline"} onClick={() => {
+                  setPaymentMethod(m);
+                  if (m !== "voucher") setVoucherType(null);
+                }}>{t(m as any)}</Button>
               ))}
             </div>
+            {paymentMethod === "voucher" && (
+              <div className="flex gap-2">
+                <Button size="sm" variant={voucherType === "single_purpose" ? "default" : "outline"} onClick={() => setVoucherType("single_purpose")}>{t("singlePurpose")}</Button>
+                <Button size="sm" variant={voucherType === "multi_purpose" ? "default" : "outline"} onClick={() => setVoucherType("multi_purpose")}>{t("multiPurpose")}</Button>
+              </div>
+            )}
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span>{t("subtotal")}</span><span>{subtotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>{t("taxAmount")}</span><span>{taxAmount.toFixed(2)}</span></div>

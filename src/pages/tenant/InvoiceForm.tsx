@@ -75,6 +75,7 @@ export default function InvoiceForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [voucherType, setVoucherType] = useState<string | null>(null);
   const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
@@ -348,6 +349,7 @@ export default function InvoiceForm() {
         advance_invoice_id: advanceInvoiceId || null,
         advance_amount_applied: advanceAmountApplied,
         legal_entity_id: legalEntityId || null,
+        voucher_type: voucherType || null,
       };
 
 
@@ -453,6 +455,19 @@ export default function InvoiceForm() {
               {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {fmtNum(advanceAmountApplied)}</p>}
             </div>
           )}
+          {/* Voucher Type */}
+          <div>
+            <Label>{t("voucherType")}</Label>
+            <Select value={voucherType || "none"} onValueChange={(v) => setVoucherType(v === "none" ? null : v)} disabled={isReadOnly}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">—</SelectItem>
+                <SelectItem value="single_purpose">{t("singlePurpose")}</SelectItem>
+                <SelectItem value="multi_purpose">{t("multiPurpose")}</SelectItem>
+              </SelectContent>
+            </Select>
+            {voucherType && <p className="text-xs text-muted-foreground mt-1">{t("voucherTypeHint")}</p>}
+          </div>
         </CardContent>
       </Card>
 

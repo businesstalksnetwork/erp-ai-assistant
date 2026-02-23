@@ -1982,6 +1982,50 @@ export type Database = {
           },
         ]
       }
+      consent_records: {
+        Row: {
+          consented_at: string
+          created_at: string
+          id: string
+          legal_basis: string | null
+          purpose: string
+          subject_id: string
+          subject_type: string
+          tenant_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          legal_basis?: string | null
+          purpose: string
+          subject_id: string
+          subject_type: string
+          tenant_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          legal_basis?: string | null
+          purpose?: string
+          subject_id?: string
+          subject_type?: string
+          tenant_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_company_assignments: {
         Row: {
           assigned_at: string
@@ -2053,10 +2097,12 @@ export type Database = {
       contacts: {
         Row: {
           address: string | null
+          anonymized_at: string | null
           city: string | null
           company_name: string | null
           country: string | null
           created_at: string
+          data_retention_expiry: string | null
           email: string | null
           first_name: string
           function_area: string | null
@@ -2073,10 +2119,12 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          anonymized_at?: string | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           created_at?: string
+          data_retention_expiry?: string | null
           email?: string | null
           first_name: string
           function_area?: string | null
@@ -2093,10 +2141,12 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          anonymized_at?: string | null
           city?: string | null
           company_name?: string | null
           country?: string | null
           created_at?: string
+          data_retention_expiry?: string | null
           email?: string | null
           first_name?: string
           function_area?: string | null
@@ -2356,6 +2406,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "currencies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_subject_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          request_type: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          subject_id: string
+          subject_type: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_type: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          subject_id: string
+          subject_type: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_type?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          subject_id?: string
+          subject_type?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_subject_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3800,10 +3903,12 @@ export type Database = {
         Row: {
           address: string | null
           annual_leave_days: number
+          anonymized_at: string | null
           city: string | null
           company_id: string | null
           created_at: string
           daily_work_hours: number
+          data_retention_expiry: string | null
           department_id: string | null
           early_termination_date: string | null
           email: string | null
@@ -3832,10 +3937,12 @@ export type Database = {
         Insert: {
           address?: string | null
           annual_leave_days?: number
+          anonymized_at?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
           daily_work_hours?: number
+          data_retention_expiry?: string | null
           department_id?: string | null
           early_termination_date?: string | null
           email?: string | null
@@ -3864,10 +3971,12 @@ export type Database = {
         Update: {
           address?: string | null
           annual_leave_days?: number
+          anonymized_at?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
           daily_work_hours?: number
+          data_retention_expiry?: string | null
           department_id?: string | null
           early_termination_date?: string | null
           email?: string | null
@@ -5627,6 +5736,8 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          voucher_original_invoice_id: string | null
+          voucher_type: string | null
         }
         Insert: {
           advance_amount_applied?: number
@@ -5662,6 +5773,8 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          voucher_original_invoice_id?: string | null
+          voucher_type?: string | null
         }
         Update: {
           advance_amount_applied?: number
@@ -5697,6 +5810,8 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          voucher_original_invoice_id?: string | null
+          voucher_type?: string | null
         }
         Relationships: [
           {
@@ -5753,6 +5868,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_voucher_original_invoice_id_fkey"
+            columns: ["voucher_original_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -8871,6 +8993,8 @@ export type Database = {
           tenant_id: string
           total: number
           transaction_number: string
+          voucher_original_transaction_id: string | null
+          voucher_type: string | null
           warehouse_id: string | null
         }
         Insert: {
@@ -8896,6 +9020,8 @@ export type Database = {
           tenant_id: string
           total?: number
           transaction_number: string
+          voucher_original_transaction_id?: string | null
+          voucher_type?: string | null
           warehouse_id?: string | null
         }
         Update: {
@@ -8921,6 +9047,8 @@ export type Database = {
           tenant_id?: string
           total?: number
           transaction_number?: string
+          voucher_original_transaction_id?: string | null
+          voucher_type?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -8978,6 +9106,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_voucher_original_transaction_id_fkey"
+            columns: ["voucher_original_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
             referencedColumns: ["id"]
           },
           {

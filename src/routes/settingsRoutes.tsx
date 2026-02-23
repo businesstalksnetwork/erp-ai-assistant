@@ -25,6 +25,7 @@ const ApprovalWorkflows = React.lazy(() => import("@/pages/tenant/ApprovalWorkfl
 const PendingApprovals = React.lazy(() => import("@/pages/tenant/PendingApprovals"));
 const Currencies = React.lazy(() => import("@/pages/tenant/Currencies"));
 const EventMonitor = React.lazy(() => import("@/pages/tenant/EventMonitor"));
+const DataProtection = React.lazy(() => import("@/pages/tenant/DataProtection"));
 
 export const settingsRoutes = (
   <>
@@ -51,5 +52,6 @@ export const settingsRoutes = (
     <Route path="settings/pending-approvals" element={<ProtectedRoute requiredModule="settings-approvals"><PendingApprovals /></ProtectedRoute>} />
     <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><Currencies /></ProtectedRoute>} />
     <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
+    <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><DataProtection /></ProtectedRoute>} />
   </>
 );
