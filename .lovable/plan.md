@@ -1,86 +1,108 @@
 
 
-# CRM Phase 2 Testing + Company Detail Polish
+# Full Application Architecture Documentation
 
-## Part 1: CRM Phase 2 -- Already Implemented (Verification)
+## What Will Be Created
 
-All four CRM Phase 2 feature blocks are already in the codebase:
+A comprehensive Markdown document (`ARCHITECTURE_DOCUMENTATION.md`) at the project root that serves as a complete technical reference for the ERP-AI application. This is the most practical format since Lovable works with code files -- the document can be exported to PDF/DOCX using any Markdown converter (Pandoc, VS Code, etc.).
 
-1. **Expiring Quotes Widget** -- Present in `CrmDashboard.tsx` (lines 120-344). Queries quotes with `status = 'sent'` and `valid_until` within 3 days. Shows amber warning icons. Conditionally renders only when there are expiring quotes.
+## Document Structure
 
-2. **Discount Approval Badge** -- `DiscountApprovalBadge.tsx` exists. Integrated into the Quotes list status column. Uses `useDiscountApproval` hook.
+The document will contain the following major sections:
 
-3. **Discount Rules Settings** -- `DiscountApprovalRules.tsx` exists with full CRUD (add/edit/delete rules by role, max %, approval threshold). Route registered in `App.tsx`.
+### 1. Executive Summary
+- Application purpose, target market (Serbian SMB/Enterprise)
+- Tech stack overview
+- Multi-tenant SaaS architecture summary
 
-4. **Discount Approval Integration** -- `useDiscountApproval.ts` hook connects to `approval_workflows` / `approval_requests` with `entity_type = 'quote_discount'`. Blocks "Send" in the quote form when approval is needed.
+### 2. System Architecture
+- High-level architecture (React SPA + Supabase BaaS)
+- Provider hierarchy: QueryClient > LanguageProvider > AuthProvider > TenantProvider > Router
+- Authentication flow (Supabase Auth > user_roles > tenant_members)
+- Multi-tenancy model (tenant_id isolation via RLS)
 
-No code changes needed for Phase 2.
+### 3. Module Dependency Map
+- All 12+ modules with their database tables, edge functions, hooks, and page components
+- Cross-module dependencies (e.g., Invoices depend on Chart of Accounts, Fiscal Periods, Partners)
+- Module permission matrix (which roles access which modules)
 
----
+### 4. Database Schema Reference
+- All major tables grouped by module with columns and relationships
+- Foreign key dependency graph (textual)
+- Key database functions and triggers (journal balance check, posted entry protection, stock adjustment, payroll calculation, POS sale processing, storno workflow, etc.)
+- RLS strategy description
 
-## Part 2: Company Detail Page Polish
+### 5. API / Edge Functions Reference
+- All 63 edge functions documented with:
+  - Endpoint path
+  - HTTP method
+  - JWT verification status (from config.toml)
+  - Request/response format
+  - Purpose and module association
+- Grouped by category: AI, SEF, Email, Storage, Fiscal, Import, Admin, Web, Utilities
 
-The `CompanyDetail.tsx` page is missing several useful sections that would provide a 360-degree view of the company. Here are the improvements:
+### 6. Frontend Route Map
+- Complete list of 170+ routes
+- Route protection (requiredModule, requireSuperAdmin)
+- Layout hierarchy (SuperAdminLayout vs TenantLayout)
 
-### 2.1 Add Related Opportunities Tab
-- Query the `opportunities` table filtered by `partner_id = id`
-- Show a table with title, stage, value, expected close date, salesperson
-- Clicking navigates to the opportunity detail page
-- This gives users direct visibility into the sales pipeline for a company
+### 7. State Management
+- TanStack Query patterns (query keys, invalidation)
+- Context providers (Auth, Tenant, Language)
+- Custom hooks inventory with their purpose
 
-### 2.2 Add Related Quotes Tab
-- Query the `quotes` table filtered by `partner_id = id`
-- Show quote number, date, total, status, version badge
-- Clicking navigates to the quotes page
-- Provides quote history per company
+### 8. Feature Deep-Dives
+For each major module:
+- **Accounting**: Journal entry lifecycle (draft > posted > storno), fiscal period gating, PDV period blocking, invoice posting with auto-journal, year-end closing
+- **CRM**: Partner tiers (A/B/C/D via revenue percentiles), dormancy detection, opportunity pipeline with "partially won" stage, quote versioning and expiry, discount approval workflow
+- **Inventory**: Stock adjustment RPC, internal transfers (draft > in_transit > delivered), kalkulacija/nivelacija posting with retail accounting (1320/1329/1340), WMS zones/bins/tasks/slotting
+- **HR/Payroll**: Serbian-compliant payroll calculation (PIO/health/unemployment contributions, min/max contribution base, overtime/night work/leave deductions)
+- **POS**: Transaction processing with retail accounting entries, fiscal device integration
+- **SEF**: Serbian e-invoicing (UBL 2.1 XML, idempotent submissions, async status polling)
+- **Production**: BOM templates, production orders, AI planning (schedule, bottleneck, capacity simulation)
+- **DMS**: Protocol number generation (XXX-YY/GGGG), access control, archive book, destruction workflow
 
-### 2.3 Add Notes/Description Field to Edit Form
-- Include `postal_code` in the edit form (currently visible in read mode but not editable)
+### 9. Integration Points
+- SEF (Serbian e-Invoice system) -- 15+ edge functions
+- NBS Exchange Rates -- daily rate fetching
+- APR Lookup -- company registry
+- Fiscal devices -- receipt fiscalization
+- Email (Resend/SMTP) -- invoice emails, notifications, verification
+- Push notifications (VAPID/Web Push)
+- Web channel (web-sync, web-order-import)
 
-### 2.4 Add Quick Stats Summary
-- Show a row of summary stats at the top of the overview tab: Total Revenue (sum of paid invoices), Open Balance, Number of Opportunities, Number of Quotes
-- Provides at-a-glance financial context
+### 10. Security Architecture
+- Supabase RLS with tenant_id filtering
+- Role-based access control (7 roles: admin, manager, accountant, sales, hr, store, user)
+- SECURITY DEFINER functions with assert_tenant_member
+- auth.uid() enforcement (no user_id parameter trust)
+- JWT verification configuration per edge function
 
-### 2.5 Add "Related Quotes" and "Opportunities" to Tab Bar
-- Update the TabsList to include two new tabs: "Opportunities" and "Quotes"
+### 11. Event System
+- Module event bus (emit_module_event > pg_notify > process-module-event edge function)
+- Event types and their handlers
+- Notification system flow
+
+### 12. Postman Collection Structure
+- Documented endpoint list formatted for Postman import
+- Environment variables (SUPABASE_URL, ANON_KEY, AUTH_TOKEN)
+- Example requests for each edge function category
 
 ---
 
 ## Technical Details
 
-### Files to Modify
-| File | Changes |
+### Files to Create
+| File | Purpose |
 |------|---------|
-| `src/pages/tenant/CompanyDetail.tsx` | Add opportunities query, quotes query, two new tabs, quick stats row in overview |
+| `ARCHITECTURE_DOCUMENTATION.md` | Complete architecture reference (~2000+ lines) |
 
-### New Queries (in CompanyDetail.tsx)
-```
-// Related Opportunities
-supabase.from("opportunities")
-  .select("id, title, stage, value, expected_close_date, salespeople(first_name, last_name)")
-  .eq("partner_id", id)
-  .order("created_at", { ascending: false })
-  .limit(20)
+### No Files Modified
+This is a documentation-only task. No existing code changes.
 
-// Related Quotes  
-supabase.from("quotes")
-  .select("id, quote_number, quote_date, total, status, currency, current_version, valid_until")
-  .eq("partner_id", id)
-  .order("created_at", { ascending: false })
-  .limit(20)
-```
-
-### Updated Tab Bar
-The TabsList will expand from 5 tabs to 7:
-- Overview | Contacts | Opportunities | Quotes | Meetings | Invoices | Activities
-
-### Quick Stats Row (Overview Tab)
-Four compact stat cards above the Account Health card:
-- Total Revenue (sum of paid/posted invoices)
-- Outstanding Balance (existing calculation)
-- Open Opportunities (count)
-- Active Quotes (count of draft/sent quotes)
-
-### No Database Changes Required
-All data is already available in existing tables. Only frontend queries and UI additions.
+### Export Options
+The Markdown file can be converted to PDF or DOCX using:
+- `pandoc ARCHITECTURE_DOCUMENTATION.md -o architecture.pdf`
+- VS Code "Markdown PDF" extension
+- Any online Markdown-to-PDF converter
 
