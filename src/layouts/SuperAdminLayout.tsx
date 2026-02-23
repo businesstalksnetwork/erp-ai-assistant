@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import erpAiLogo from "@/assets/erpAI.png";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,14 +57,8 @@ export default function SuperAdminLayout() {
             <div className="absolute bottom-0 left-0 w-[150px] h-[150px] rounded-full bg-[hsl(260,60%,30%)]/8 blur-[60px] animate-[pulse_10s_ease-in-out_infinite_2s] pointer-events-none" />
 
             {/* Logo */}
-            <div className="pt-6 pb-8 px-4 border-b border-white/5 flex items-center gap-2.5 relative z-10">
-              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/15 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-sidebar-primary" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
-                <span className="text-[10px] text-sidebar-foreground/40">{t("superAdmin")}</span>
-              </div>
+            <div className="pt-6 pb-8 px-4 border-b border-white/5 flex justify-center relative z-10">
+              <img src={erpAiLogo} alt="ERP AI" className="max-w-[140px] h-auto" />
             </div>
 
             <SidebarContent className="flex-1 overflow-y-auto relative z-10">
