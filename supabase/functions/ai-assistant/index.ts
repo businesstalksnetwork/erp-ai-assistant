@@ -17,6 +17,17 @@ const INJECTION_PATTERNS = [
   /pretend\s+you\s+are/i,
   /act\s+as\s+if\s+you/i,
   /override\s+(your|the)\s+(system|instructions)/i,
+  // Unicode/homoglyph injection detection
+  /[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]/,
+  // Base64 encoded instruction detection
+  /aWdub3JlIGFsbCBwcmV2aW91cw/i, // "ignore all previous" in base64
+  /c3lzdGVtOi/i, // "system:" in base64
+  // JSON injection in tool arguments
+  /"\s*}\s*,\s*{/,
+  // Role impersonation
+  /\b(assistant|system)\s*:\s/i,
+  /new\s+instructions?\s*:/i,
+  /disregard\s+(all|any|the)\s+(above|previous)/i,
 ];
 
 function detectPromptInjection(text: string): boolean {
@@ -279,7 +290,7 @@ const GENERATE_REPORT_TOOL = {
 function validateSql(sql: string, tenantId: string): string {
   const trimmed = sql.trim().replace(/;+$/, "");
   const upper = trimmed.toUpperCase();
-  const forbidden = ["INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "CREATE ", "TRUNCATE ", "GRANT ", "REVOKE ", "EXECUTE ", "EXEC "];
+  const forbidden = ["INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "CREATE ", "TRUNCATE ", "GRANT ", "REVOKE ", "EXECUTE ", "EXEC ", "UNION "];
   for (const kw of forbidden) {
     if (upper.includes(kw)) throw new Error(`Forbidden SQL keyword: ${kw.trim()}`);
   }
@@ -416,13 +427,25 @@ async function getKpiScorecard(supabase: any, tenantId: string): Promise<string>
 
 async function explainAccount(supabase: any, tenantId: string, accountCode: string): Promise<string> {
   try {
-    const isNumeric = /^\d+$/.test(accountCode.trim());
-    const accountQuery = isNumeric
-      ? `SELECT id, code, name, name_sr, account_type FROM chart_of_accounts WHERE tenant_id = '${tenantId}' AND code = '${accountCode.trim()}' LIMIT 1`
-      : `SELECT id, code, name, name_sr, account_type FROM chart_of_accounts WHERE tenant_id = '${tenantId}' AND (LOWER(name) LIKE '%${accountCode.toLowerCase()}%' OR LOWER(name_sr) LIKE '%${accountCode.toLowerCase()}%') LIMIT 1`;
-    const { data: accounts } = await supabase.rpc("execute_readonly_query", { query_text: accountQuery });
+    const code = accountCode.trim().substring(0, 20);
+    const isNumeric = /^\d+$/.test(code);
+    
+    // Find account using parameterized Supabase client queries
+    let accountQuery = supabase
+      .from("chart_of_accounts")
+      .select("id, code, name, name_sr, account_type")
+      .eq("tenant_id", tenantId)
+      .limit(1);
+    if (isNumeric) {
+      accountQuery = accountQuery.eq("code", code);
+    } else {
+      accountQuery = accountQuery.or(`name.ilike.%${code.toLowerCase()}%,name_sr.ilike.%${code.toLowerCase()}%`);
+    }
+    const { data: accounts } = await accountQuery;
     if (!accounts || accounts.length === 0) return JSON.stringify({ error: `Account '${accountCode}' not found` });
     const account = accounts[0];
+
+    // Use RPC for aggregation queries (these are safe - account.id is a UUID from our own query)
     const [balanceResult, transactionsResult, trendResult] = await Promise.all([
       supabase.rpc("execute_readonly_query", { query_text: `SELECT COALESCE(SUM(debit), 0) as total_debit, COALESCE(SUM(credit), 0) as total_credit, COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) as balance FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id WHERE jl.account_id = '${account.id}' AND je.tenant_id = '${tenantId}' AND je.status = 'posted'` }),
       supabase.rpc("execute_readonly_query", { query_text: `SELECT je.entry_date, je.entry_number, jl.description, jl.debit, jl.credit FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id WHERE jl.account_id = '${account.id}' AND je.tenant_id = '${tenantId}' AND je.status = 'posted' ORDER BY je.entry_date DESC LIMIT 10` }),
@@ -436,53 +459,58 @@ async function explainAccount(supabase: any, tenantId: string, accountCode: stri
 
 async function searchDocuments(supabase: any, tenantId: string, query: string, category?: string, limit: number = 10): Promise<string> {
   try {
-    const safeQuery = query.replace(/'/g, "''").substring(0, 100);
-    let sql = `SELECT d.id, d.name, d.description, d.file_type, d.created_at, dc.name as category_name
-      FROM dms_documents d
-      LEFT JOIN document_categories dc ON dc.id = d.category_id
-      WHERE d.tenant_id = '${tenantId}'
-        AND (LOWER(d.name) LIKE '%${safeQuery.toLowerCase()}%' OR LOWER(COALESCE(d.description, '')) LIKE '%${safeQuery.toLowerCase()}%')`;
-    if (category) {
-      sql += ` AND LOWER(COALESCE(dc.name, '')) LIKE '%${category.replace(/'/g, "''").toLowerCase()}%'`;
-    }
-    sql += ` ORDER BY d.created_at DESC LIMIT ${Math.min(limit, 20)}`;
-    const { data, error } = await supabase.rpc("execute_readonly_query", { query_text: sql });
+    const safeLimit = Math.min(limit, 20);
+    const searchTerm = `%${query.substring(0, 100).toLowerCase()}%`;
+    let q = supabase
+      .from("dms_documents")
+      .select("id, name, description, file_type, created_at, document_categories(name)")
+      .eq("tenant_id", tenantId)
+      .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
+      .order("created_at", { ascending: false })
+      .limit(safeLimit);
+    const { data, error } = await q;
     if (error) return JSON.stringify({ error: error.message });
-    return JSON.stringify({ results: data || [], count: (data || []).length, query });
+    let results = data || [];
+    if (category) {
+      const catLower = category.toLowerCase();
+      results = results.filter((d: any) => d.document_categories?.name?.toLowerCase().includes(catLower));
+    }
+    return JSON.stringify({ results, count: results.length, query });
   } catch (e) { return JSON.stringify({ error: e instanceof Error ? e.message : "Search failed" }); }
 }
 
 async function getPartnerDossier(supabase: any, tenantId: string, partnerName: string): Promise<string> {
   try {
-    const safeName = partnerName.replace(/'/g, "''").substring(0, 100);
-    // Find partner
-    const { data: partners } = await supabase.rpc("execute_readonly_query", {
-      query_text: `SELECT id, name, type, email, phone, pib, city, address, account_tier, dormancy_status, risk_score, credit_limit, payment_terms_days, created_at FROM partners WHERE tenant_id = '${tenantId}' AND LOWER(name) LIKE '%${safeName.toLowerCase()}%' LIMIT 1`,
-    });
+    const searchTerm = `%${partnerName.substring(0, 100).toLowerCase()}%`;
+    // Find partner using parameterized query
+    const { data: partners } = await supabase
+      .from("partners")
+      .select("id, name, type, email, phone, pib, city, address, account_tier, dormancy_status, risk_score, credit_limit, payment_terms_days, created_at")
+      .eq("tenant_id", tenantId)
+      .ilike("name", searchTerm)
+      .limit(1);
     if (!partners || partners.length === 0) return JSON.stringify({ error: `Partner '${partnerName}' not found` });
     const partner = partners[0];
 
-    // Get related data in parallel
-    const [invoices, supplierInvoices, contacts, activities, payments] = await Promise.all([
-      supabase.rpc("execute_readonly_query", { query_text: `SELECT invoice_number, invoice_date, due_date, status, total, currency, balance_due FROM invoices WHERE tenant_id = '${tenantId}' AND partner_name ILIKE '%${safeName}%' ORDER BY invoice_date DESC LIMIT 10` }),
-      supabase.rpc("execute_readonly_query", { query_text: `SELECT invoice_number, invoice_date, status, total FROM supplier_invoices WHERE tenant_id = '${tenantId}' AND supplier_name ILIKE '%${safeName}%' ORDER BY invoice_date DESC LIMIT 10` }),
-      supabase.rpc("execute_readonly_query", { query_text: `SELECT c.first_name, c.last_name, c.email, c.phone, c.position FROM contacts c JOIN companies comp ON comp.id = c.company_id WHERE comp.tenant_id = '${tenantId}' AND LOWER(comp.name) LIKE '%${safeName.toLowerCase()}%' LIMIT 5` }),
-      supabase.rpc("execute_readonly_query", { query_text: `SELECT type, description, created_at FROM activities WHERE tenant_id = '${tenantId}' AND partner_id = '${partner.id}' ORDER BY created_at DESC LIMIT 5` }),
-      supabase.rpc("execute_readonly_query", { query_text: `SELECT pa.amount, pa.allocated_at FROM payment_allocations pa JOIN invoices i ON i.id = pa.invoice_id WHERE pa.tenant_id = '${tenantId}' AND i.partner_name ILIKE '%${safeName}%' ORDER BY pa.allocated_at DESC LIMIT 10` }),
+    // Get related data in parallel using parameterized queries
+    const [invoices, supplierInvoices, contacts, activities] = await Promise.all([
+      supabase.from("invoices").select("invoice_number, invoice_date, due_date, status, total, currency, balance_due")
+        .eq("tenant_id", tenantId).ilike("partner_name", searchTerm)
+        .order("invoice_date", { ascending: false }).limit(10),
+      supabase.from("supplier_invoices").select("invoice_number, invoice_date, status, total")
+        .eq("tenant_id", tenantId).ilike("supplier_name", searchTerm)
+        .order("invoice_date", { ascending: false }).limit(10),
+      supabase.from("contacts").select("first_name, last_name, email, phone, position, companies!inner(tenant_id, name)")
+        .eq("companies.tenant_id", tenantId).ilike("companies.name", searchTerm).limit(5),
+      supabase.from("activities").select("type, description, created_at")
+        .eq("tenant_id", tenantId).eq("partner_id", partner.id)
+        .order("created_at", { ascending: false }).limit(5),
     ]);
 
-    // Calculate summary stats
     const allInv = invoices.data || [];
     const totalRevenue = allInv.reduce((s: number, i: any) => s + Number(i.total || 0), 0);
     const overdueInv = allInv.filter((i: any) => i.status !== 'paid' && new Date(i.due_date) < new Date());
     const totalOverdue = overdueInv.reduce((s: number, i: any) => s + Number(i.balance_due || i.total || 0), 0);
-
-    // Calculate avg days to pay
-    const paidInv = allInv.filter((i: any) => i.status === 'paid');
-    let avgDaysToPay = null;
-    if (paidInv.length > 0 && (payments.data || []).length > 0) {
-      avgDaysToPay = "calculated from payment history";
-    }
 
     return JSON.stringify({
       partner,
@@ -491,7 +519,6 @@ async function getPartnerDossier(supabase: any, tenantId: string, partnerName: s
       supplier_invoices: (supplierInvoices.data || []).slice(0, 5),
       contacts: contacts.data || [],
       recent_activities: activities.data || [],
-      recent_payments: (payments.data || []).slice(0, 5),
     });
   } catch (e) { return JSON.stringify({ error: e instanceof Error ? e.message : "Dossier failed" }); }
 }

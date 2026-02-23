@@ -75,13 +75,13 @@ const App = () => (
               {/* Super Admin routes */}
               <Route path="/super-admin" element={<ProtectedRoute requireSuperAdmin><SuperAdminLayout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<SuperAdminDashboard />} />
-                <Route path="tenants" element={<TenantManagement />} />
-                <Route path="modules" element={<ModuleManagement />} />
-                <Route path="users" element={<UserManagement />} />
-                <Route path="monitoring" element={<PlatformMonitoring />} />
-                <Route path="integrations" element={<IntegrationSupport />} />
-                <Route path="analytics" element={<SuperAdminAnalytics />} />
+              <Route path="dashboard" element={<React.Suspense fallback={<LoadingFallback />}><SuperAdminDashboard /></React.Suspense>} />
+                <Route path="tenants" element={<React.Suspense fallback={<LoadingFallback />}><TenantManagement /></React.Suspense>} />
+                <Route path="modules" element={<React.Suspense fallback={<LoadingFallback />}><ModuleManagement /></React.Suspense>} />
+                <Route path="users" element={<React.Suspense fallback={<LoadingFallback />}><UserManagement /></React.Suspense>} />
+                <Route path="monitoring" element={<React.Suspense fallback={<LoadingFallback />}><PlatformMonitoring /></React.Suspense>} />
+                <Route path="integrations" element={<React.Suspense fallback={<LoadingFallback />}><IntegrationSupport /></React.Suspense>} />
+                <Route path="analytics" element={<React.Suspense fallback={<LoadingFallback />}><SuperAdminAnalytics /></React.Suspense>} />
               </Route>
 
               {/* Tenant routes - modularized */}
