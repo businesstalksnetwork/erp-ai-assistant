@@ -93,7 +93,7 @@ function detectRole(memberRole: string): string {
   if (r.includes("hr") || r.includes("human")) return "hr";
   if (r.includes("warehouse") || r.includes("store") || r.includes("pos")) return "warehouse";
   if (r.includes("manager")) return "manager";
-  return "admin"; // default to full view
+  return "admin";
 }
 
 serve(async (req) => {
@@ -111,12 +111,18 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { tenant_id, language } = await req.json();
+    const { tenant_id, language, date_from, date_to } = await req.json();
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id is required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Default to last 30 days if not provided
+    const today = new Date().toISOString().split("T")[0];
+    const defaultFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const periodFrom = date_from || defaultFrom;
+    const periodTo = date_to || today;
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -126,7 +132,6 @@ serve(async (req) => {
       .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
 
     if (!membership) {
-      // Check super admin
       const { data: sa } = await supabase.from("user_roles").select("id").eq("user_id", caller.id).eq("role", "super_admin").maybeSingle();
       if (!sa) {
         return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -135,27 +140,31 @@ serve(async (req) => {
 
     const userRole = detectRole(membership?.role || "admin");
     const sr = language === "sr";
-    const today = new Date().toISOString().split("T")[0];
 
-    // Gather KPI data in parallel
+    // Gather KPI data in parallel — filtered by date range
     const [
       invoiceStats, partnerCount, productCount, employeeCount,
       draftJournals, overdueInvoices, lowStockItems,
       recentPayroll, pendingApprovals, pipelineData,
       posTransactions, leaveRequests, productionOrders
     ] = await Promise.all([
-      supabase.from("invoices").select("status, total, invoice_date").eq("tenant_id", tenant_id),
+      supabase.from("invoices").select("status, total, invoice_date").eq("tenant_id", tenant_id)
+        .gte("invoice_date", periodFrom).lte("invoice_date", periodTo),
       supabase.from("partners").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id).eq("is_active", true),
       supabase.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id),
       supabase.from("employees").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id).eq("status", "active"),
       supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id).eq("status", "draft"),
-      supabase.from("invoices").select("partner_name, total, due_date", { count: "exact" }).eq("tenant_id", tenant_id).in("status", ["draft", "sent"]).lt("due_date", today),
+      supabase.from("invoices").select("partner_name, total, due_date", { count: "exact" }).eq("tenant_id", tenant_id)
+        .in("status", ["draft", "sent"]).lt("due_date", today)
+        .gte("invoice_date", periodFrom).lte("invoice_date", periodTo),
       supabase.from("inventory_stock").select("product_id, quantity_on_hand, min_stock_level").eq("tenant_id", tenant_id).gt("min_stock_level", 0),
       supabase.from("payroll_runs").select("total_gross, total_net, period_month, period_year, status").eq("tenant_id", tenant_id).in("status", ["calculated", "approved", "paid"]).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(3),
       supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id).eq("status", "pending"),
       supabase.from("opportunities").select("title, value, probability, stage").eq("tenant_id", tenant_id).in("stage", ["qualification", "proposal", "negotiation", "discovery"]),
-      supabase.from("pos_transactions").select("total, created_at").eq("tenant_id", tenant_id).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-      supabase.from("leave_requests").select("id, status, leave_type").eq("tenant_id", tenant_id).eq("status", "pending"),
+      supabase.from("pos_transactions").select("total, created_at").eq("tenant_id", tenant_id)
+        .gte("created_at", periodFrom).lte("created_at", periodTo + "T23:59:59Z"),
+      supabase.from("leave_requests").select("id, status, leave_type").eq("tenant_id", tenant_id).eq("status", "pending")
+        .gte("start_date", periodFrom).lte("start_date", periodTo),
       supabase.from("production_orders").select("status, quantity").eq("tenant_id", tenant_id).in("status", ["planned", "in_progress"]),
     ]);
 
@@ -166,10 +175,12 @@ serve(async (req) => {
     const overdueTotal = (overdueInvoices.data || []).reduce((s: number, i: any) => s + Number(i.total), 0);
     const lowStock = (lowStockItems.data || []).filter((s: any) => Number(s.quantity_on_hand) < Number(s.min_stock_level));
     const pipelineValue = (pipelineData.data || []).reduce((s: number, o: any) => s + Number(o.value || 0), 0);
-    const weeklyPosSales = (posTransactions.data || []).reduce((s: number, t: any) => s + Number(t.total), 0);
+    const posSales = (posTransactions.data || []).reduce((s: number, t: any) => s + Number(t.total), 0);
 
     const kpiData = {
       role: userRole,
+      period_from: periodFrom,
+      period_to: periodTo,
       revenue: revenue.toFixed(2),
       overdue_count: overdueInvoices.count || 0,
       overdue_total: overdueTotal.toFixed(2),
@@ -181,7 +192,7 @@ serve(async (req) => {
       pending_approvals: pendingApprovals.count || 0,
       pipeline_value: pipelineValue.toFixed(2),
       pipeline_count: (pipelineData.data || []).length,
-      weekly_pos_sales: weeklyPosSales.toFixed(2),
+      pos_sales: posSales.toFixed(2),
       pending_leaves: (leaveRequests.data || []).length,
       active_production_orders: (productionOrders.data || []).length,
       latest_payroll_gross: recentPayroll.data?.[0]?.total_gross || 0,
@@ -207,7 +218,7 @@ serve(async (req) => {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt + langHint },
-          { role: "user", content: `Generate an executive briefing based on this company data:\n${JSON.stringify(kpiData, null, 2)}\n\nToday's date: ${today}` },
+          { role: "user", content: `Generate an executive briefing based on this company data for the period ${periodFrom} to ${periodTo}:\n${JSON.stringify(kpiData, null, 2)}\n\nToday's date: ${today}` },
         ],
         tools: [{
           type: "function",
@@ -310,7 +321,7 @@ serve(async (req) => {
         action_type: "executive_briefing",
         module: "analytics",
         model_version: "gemini-3-flash-preview",
-        reasoning: `Generated ${userRole} briefing: ${briefing.summary?.substring(0, 200)}`,
+        reasoning: `Generated ${userRole} briefing (${periodFrom} to ${periodTo}): ${briefing.summary?.substring(0, 200)}`,
       });
     } catch (e) {
       console.warn("Failed to log AI action:", e);
