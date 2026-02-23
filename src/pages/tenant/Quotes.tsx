@@ -134,7 +134,7 @@ export default function Quotes() {
   const convertToSOmutation = useMutation({
     mutationFn: async (q: any) => {
       const orderNumber = `SO-${Date.now().toString(36).toUpperCase()}`;
-      const { error: soError } = await supabase.from("sales_orders").insert([{
+      const { data: soData, error: soError } = await supabase.from("sales_orders").insert([{
         tenant_id: tenantId!,
         order_number: orderNumber,
         quote_id: q.id,
@@ -147,8 +147,25 @@ export default function Quotes() {
         tax_amount: q.tax_amount || 0,
         total: q.total || 0,
         notes: q.notes || "",
-      }]);
+        salesperson_id: q.salesperson_id || null,
+      }]).select("id").single();
       if (soError) throw soError;
+
+      // Copy quote_lines to sales_order_lines
+      const { data: quoteLines } = await supabase.from("quote_lines").select("*").eq("quote_id", q.id).order("sort_order");
+      if (quoteLines && quoteLines.length > 0 && soData) {
+        const soLines = quoteLines.map((l: any, i: number) => ({
+          sales_order_id: soData.id,
+          product_id: l.product_id || null,
+          description: l.description || "",
+          quantity: l.quantity || 1,
+          unit_price: l.unit_price || 0,
+          total: (l.quantity || 1) * (l.unit_price || 0),
+          sort_order: i,
+        }));
+        await supabase.from("sales_order_lines").insert(soLines);
+      }
+
       if (q.status !== "accepted") {
         await supabase.from("quotes").update({ status: "accepted" }).eq("id", q.id);
       }

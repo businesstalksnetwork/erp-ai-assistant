@@ -1,5 +1,6 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,17 +29,20 @@ interface SalesOrderForm {
   currency: string;
   notes: string;
   salesperson_id: string | null;
+  legal_entity_id: string | null;
+  warehouse_id: string | null;
 }
 
 const emptyForm: SalesOrderForm = {
   order_number: "", quote_id: null, partner_id: null, partner_name: "",
   order_date: new Date().toISOString().split("T")[0], status: "pending",
-  currency: "RSD", notes: "", salesperson_id: null,
+  currency: "RSD", notes: "", salesperson_id: null, legal_entity_id: null, warehouse_id: null,
 };
 
 export default function SalesOrders() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { entities: legalEntities } = useLegalEntities();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -50,7 +54,7 @@ export default function SalesOrders() {
     queryFn: async () => {
       const { data } = await supabase
         .from("sales_orders")
-        .select("*, partners(name), quotes(quote_number), salespeople(first_name, last_name)")
+        .select("*, partners(name), quotes(quote_number), salespeople(first_name, last_name), legal_entities(name), warehouses(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       return data || [];
@@ -85,6 +89,15 @@ export default function SalesOrders() {
     enabled: !!tenantId,
   });
 
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ["warehouses-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: SalesOrderForm) => {
       const payload = {
@@ -92,6 +105,8 @@ export default function SalesOrders() {
         partner_id: f.partner_id || null,
         quote_id: f.quote_id || null,
         salesperson_id: f.salesperson_id || null,
+        legal_entity_id: f.legal_entity_id || null,
+        warehouse_id: f.warehouse_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("sales_orders").update(payload).eq("id", editId);
@@ -140,11 +155,14 @@ export default function SalesOrders() {
       order_number: o.order_number, quote_id: o.quote_id, partner_id: o.partner_id,
       partner_name: o.partner_name, order_date: o.order_date, status: o.status,
       currency: o.currency, notes: o.notes || "", salesperson_id: o.salesperson_id || null,
+      legal_entity_id: o.legal_entity_id || null, warehouse_id: o.warehouse_id || null,
     });
     setOpen(true);
   };
 
-  const createInvoice = (o: any) => {
+  const createInvoice = async (o: any) => {
+    // Fetch sales order lines to carry over to invoice
+    const { data: soLines } = await supabase.from("sales_order_lines").select("*").eq("sales_order_id", o.id).order("sort_order");
     navigate("/accounting/invoices/new", {
       state: {
         fromSalesOrder: {
@@ -153,6 +171,14 @@ export default function SalesOrders() {
           currency: o.currency,
           notes: `From Sales Order ${o.order_number}`,
           sales_order_id: o.id,
+          salesperson_id: o.salesperson_id,
+          legal_entity_id: o.legal_entity_id,
+          lines: soLines?.map((l: any) => ({
+            product_id: l.product_id,
+            description: l.description,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+          })) || [],
         },
       },
     });
@@ -273,6 +299,30 @@ export default function SalesOrders() {
                   {salespeople.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {legalEntities.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>{t("legalEntity")}</Label>
+                  <Select value={form.legal_entity_id || "__none"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {legalEntities.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label>{t("warehouse")}</Label>
+                <Select value={form.warehouse_id || "__none"} onValueChange={(v) => setForm({ ...form, warehouse_id: v === "__none" ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>

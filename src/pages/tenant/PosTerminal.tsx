@@ -64,6 +64,20 @@ export default function PosTerminal() {
     enabled: !!tenantId && !!activeSession?.location_id,
   });
 
+  // Fetch location's price list for location-specific pricing
+  const { data: locationPrices = [] } = useQuery({
+    queryKey: ["location-retail-prices", tenantId, activeSession?.location_id],
+    queryFn: async () => {
+      if (!activeSession?.location_id) return [];
+      // Get the location's default_price_list_id
+      const { data: loc } = await supabase.from("locations").select("default_price_list_id").eq("id", activeSession.location_id).single();
+      if (!loc?.default_price_list_id) return [];
+      const { data } = await supabase.from("retail_prices").select("product_id, retail_price").eq("price_list_id", loc.default_price_list_id);
+      return data || [];
+    },
+    enabled: !!tenantId && !!activeSession?.location_id,
+  });
+
   const { data: products = [] } = useQuery({
     queryKey: ["products", tenantId],
     queryFn: async () => {
@@ -89,7 +103,9 @@ export default function PosTerminal() {
   );
 
   const addToCart = (p: any) => {
-    const price = Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price);
+    // Use location-specific price if available, then default_retail_price, then default_sale_price
+    const locPrice = locationPrices.find((lp: any) => lp.product_id === p.id);
+    const price = locPrice ? Number(locPrice.retail_price) : (Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price));
     setCart(prev => {
       const existing = prev.find(c => c.product_id === p.id);
       if (existing) return prev.map(c => c.product_id === p.id ? { ...c, quantity: c.quantity + 1 } : c);
