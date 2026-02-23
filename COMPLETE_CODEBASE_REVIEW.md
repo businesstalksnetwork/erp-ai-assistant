@@ -58,7 +58,7 @@
 │   └── index.css           # Design system (440 lines)
 ├── supabase/
 │   ├── migrations/         # 185+ database migration files
-│   └── functions/          # 63 Edge Functions
+│   └── functions/          # 65 Edge Functions
 └── [config files]
 ```
 
@@ -164,7 +164,7 @@
 
 ## 5. ROUTING STRUCTURE
 
-**Total Routes:** 170+ routes
+| **Total Routes:** 170+ routes | ~155+ tenant routes + super admin + public |
 
 **Route Organization:**
 - Public: `/login`, `/register`, `/reset-password`, `/verify`
@@ -208,7 +208,7 @@
 
 ## 7. SUPABASE EDGE FUNCTIONS
 
-**Total Functions:** 63 functions
+**Total Functions:** 65 functions
 
 **Categories:**
 - **AI:** `ai-assistant`, `ai-analytics-narrative`, `ai-insights`, `production-ai-planning`
@@ -239,6 +239,14 @@
 - `useInvoices`, `useClients`, `useCompanies`, `usePartners` - Data fetching
 - `useSEF`, `useSEFImport`, `useKPO` - Feature-specific
 - `usePdfGenerator`, `useAiStream` - Utilities
+- `useStatusWorkflow` - Reusable status mutation pattern (draft→confirmed→in_transit→delivered)
+
+### New Features (v2.0)
+
+1. **Dispatch Notes (e-Otpremnice) UI Rebuild** — Migrated from legacy `eotpremnica` table to new `dispatch_notes` / `dispatch_note_lines` / `dispatch_receipts` schema. New detail page with Lines + Receipts tabs.
+2. **AI SQL Tool Calling** — `ai-assistant` uses a 3-round tool-calling loop with `execute_readonly_query` RPC for live tenant data queries.
+3. **AI Anomaly Detection** — `ai-insights` performs 7 anomaly checks: expense spikes, duplicate invoices, weekend postings, dormant/at-risk partners, slow-moving inventory, fiscal period warnings.
+4. **Architecture Hardening** — `useStatusWorkflow` hook, `useMemo` optimization, improved type safety.
 
 ---
 

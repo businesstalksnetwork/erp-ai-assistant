@@ -1,7 +1,7 @@
 # ERP-AI Full Application Architecture Documentation
 
-**Version:** 1.0  
-**Date:** February 23, 2026  
+**Version:** 2.0  
+**Date:** February 23, 2026 (Updated)  
 **System:** ProERP AI — Multi-Tenant SaaS ERP for Serbian Market  
 **Production URL:** https://proerpai.lovable.app
 
@@ -46,8 +46,9 @@ ProERP AI is a comprehensive, multi-tenant SaaS ERP system purpose-built for the
 | **Charts** | Recharts 2.15 |
 | **Animation** | Framer Motion 12.34 |
 | **Backend** | Supabase (PostgreSQL 15, Auth, Edge Functions, Storage, Realtime) |
-| **Edge Functions** | Deno runtime (63+ functions) |
+| **Edge Functions** | Deno runtime (65+ functions) |
 | **Auth** | Supabase Auth (email/password, magic link) |
+| **Markdown** | react-markdown 10.1 |
 | **i18n** | Custom LanguageContext (EN/SR toggle) |
 
 ### 1.4 Multi-Tenant Architecture Summary
@@ -99,7 +100,7 @@ ProERP AI is a comprehensive, multi-tenant SaaS ERP system purpose-built for the
 │                    Supabase Platform                             │
 │  ┌────────────┐  ┌──────────────┐  ┌──────────────────────┐    │
 │  │ PostgreSQL │  │ Auth (GoTrue)│  │ Edge Functions (Deno) │    │
-│  │ + RLS      │  │ JWT tokens   │  │ 63+ functions         │    │
+│  │ + RLS      │  │ JWT tokens   │  │ 65+ functions         │    │
 │  │ + Triggers │  └──────────────┘  └──────────────────────┘    │
 │  │ + RPC      │  ┌──────────────┐  ┌──────────────────────┐    │
 │  │ Functions  │  │ Storage      │  │ Realtime (pg_notify)  │    │
@@ -162,7 +163,7 @@ tenants (id, name, slug, ...)
 | **Sales** | `sales` | quotes, quote_lines, quote_versions, sales_orders, sales_order_lines, salespeople | — | 6 |
 | **Web Channel** | `web` | web_settings, web_prices | web-sync, web-order-import | 2 |
 | **Purchasing** | `purchasing` | purchase_orders, purchase_order_lines, goods_receipts, goods_receipt_lines, supplier_invoices, supplier_invoice_lines | — | 3 |
-| **Inventory** | `inventory` | products, inventory_stock, inventory_movements, warehouses, locations, internal_transfers, internal_transfer_items, internal_goods_receipts, kalkulacije, kalkulacija_lines, nivelacije, nivelacija_lines, wms_zones, wms_bins, wms_tasks, wms_cycle_counts, inventory_cost_layers | wms-slotting | 20 |
+| **Inventory** | `inventory` | products, inventory_stock, inventory_movements, warehouses, locations, internal_transfers, internal_transfer_items, internal_goods_receipts, kalkulacije, kalkulacija_lines, nivelacije, nivelacija_lines, wms_zones, wms_bins, wms_tasks, wms_cycle_counts, inventory_cost_layers, **dispatch_notes**, **dispatch_note_lines**, **dispatch_receipts** | wms-slotting, eotpremnica-submit | 21 |
 | **Accounting** | `accounting` | chart_of_accounts, journal_entries, journal_lines, invoices, invoice_lines, fiscal_periods, pdv_periods, pdv_entries, tax_rates, bank_statements, bank_statement_lines, bank_accounts, fixed_assets, deferrals, deferral_schedules, loans, open_items, budgets, posting_rules, fx_rates | generate-pdf, nbs-exchange-rates | 22 |
 | **Analytics** | `analytics` | ar_aging_snapshots, ap_aging_snapshots, budgets | ai-analytics-narrative, ai-insights | 13 |
 | **HR** | `hr` | employees, employee_contracts, departments, attendance_records, leave_requests, payroll_runs, payroll_items, payroll_parameters, overtime_hours, night_work_records, annual_leave_balances, holidays, deduction_types, deductions, allowance_types, allowances, external_workers, insurance_records, position_templates, work_logs | ebolovanje-submit | 17 |
@@ -298,7 +299,15 @@ CRM ───────────► Partners (tier calculation, dormancy de
 | `sales_order_lines` | Order items | sales_order_id, product_id, quantity |
 | `salespeople` | Sales reps | first_name, last_name, email, commission_rate |
 
-#### 4.1.5 Purchasing
+#### 4.1.5a Dispatch Notes (e-Otpremnice)
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `dispatch_notes` | Dispatch note documents | document_number, dispatch_date, sender_name, sender_pib, sender_address, sender_city, receiver_name, receiver_pib, receiver_address, receiver_city, transport_reason, vehicle_plate, driver_name, status (draft/confirmed/in_transit/delivered), eotpremnica_status, eotpremnica_sent_at |
+| `dispatch_note_lines` | Line items per dispatch note | dispatch_note_id, product_id, description, quantity, unit, weight, lot_number, serial_number |
+| `dispatch_receipts` | Receipt confirmations (prijemnica) | dispatch_note_id, receipt_number, receipt_date, received_by, warehouse_id, status, notes |
+
+#### 4.1.5b Purchasing
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
@@ -594,7 +603,7 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
 | `process-module-event` | POST | ❌ | Process events from module event bus |
 | `crm-tier-refresh` | POST | ❌ | Refresh partner tiers and dormancy |
 | `ebolovanje-submit` | POST | ❌ | Submit sick leave (eBolovanje) |
-| `eotpremnica-submit` | POST | ❌ | Submit dispatch note (eOtpremnica) |
+| `eotpremnica-submit` | POST | ✅ | Submit dispatch note (eOtpremnica). Supports both `dispatch_note_id` (new schema) and legacy `eotpremnica_id`. Updates `eotpremnica_status` and `eotpremnica_sent_at` on success. |
 | `wms-slotting` | POST | ❌ | AI-based WMS bin slotting optimization |
 | `track-invoice-view` | POST | ✅ | Track when customer views invoice |
 | `parse-pausalni-pdf` | POST | ✅ | Parse flat-rate tax PDF |
@@ -723,7 +732,7 @@ All under `/` with `TenantLayout`. Requires authenticated user with active tenan
 | `/purchasing/goods-receipts` | purchasing | GoodsReceipts |
 | `/purchasing/supplier-invoices` | purchasing | SupplierInvoices |
 
-#### Inventory & WMS (16 routes)
+#### Inventory & WMS (17 routes)
 | Path | Module | Component |
 |------|--------|-----------|
 | `/inventory/products` | inventory | Products |
@@ -731,6 +740,7 @@ All under `/` with `TenantLayout`. Requires authenticated user with active tenan
 | `/inventory/stock` | inventory | InventoryStock |
 | `/inventory/movements` | inventory | InventoryMovements |
 | `/inventory/dispatch-notes` | inventory | Eotpremnica |
+| `/inventory/dispatch-notes/:id` | inventory | **DispatchNoteDetail** *(new)* |
 | `/inventory/cost-layers` | inventory | InventoryCostLayers |
 | `/inventory/internal-orders` | inventory | InternalOrders |
 | `/inventory/internal-transfers` | inventory | InternalTransfers |
@@ -895,6 +905,7 @@ const mutation = useMutation({
 | `useLegalEntities()` | `src/hooks/useLegalEntities.ts` | Fetch legal entities for current tenant |
 | `useNotifications()` | `src/hooks/useNotifications.ts` | Real-time notification management |
 | `useOpportunityStages()` | `src/hooks/useOpportunityStages.ts` | Custom opportunity stage configuration |
+| `useStatusWorkflow()` | `src/hooks/useStatusWorkflow.ts` | **Reusable status mutation hook** — encapsulates draft→confirmed→in_transit→delivered pattern. Accepts `{ table, queryKey }`, returns a mutation. Eliminates ~20 lines of boilerplate per page. |
 
 ---
 
@@ -1233,6 +1244,105 @@ Draft → Active → Archived
                     │   → Approved by admin
                     │   → Executed (documents destroyed)
 ```
+
+### 8.9 Dispatch Notes (e-Otpremnice) *(New in v2.0)*
+
+#### Dispatch Note Lifecycle
+
+```
+┌─────────┐  confirm   ┌───────────┐  ship     ┌────────────┐  deliver  ┌───────────┐
+│  DRAFT  │ ─────────► │ CONFIRMED │ ────────► │ IN_TRANSIT │ ────────► │ DELIVERED │
+└─────────┘            └───────────┘           └────────────┘          └───────────┘
+     │                      │                       │
+Can edit lines         Locked for edit         Can create receipt
+Can delete             Can submit to API       (prijemnica)
+```
+
+#### eOtpremnica API Submission
+
+```
+DispatchNoteDetail → "Submit to eOtpremnica" button
+    │
+    ▼ eotpremnica-submit edge function
+    │
+    ├─► Validates: sender/receiver info, PIB format, vehicle plate, lines
+    │
+    ├─► Builds payload (document, sender, receiver, lines with lot/serial)
+    │
+    ├─► Sandbox mode: immediate "accepted" response (simulated)
+    │   Production mode: "submitted" → poll for acceptance
+    │
+    └─► Updates dispatch_notes: eotpremnica_status, eotpremnica_sent_at
+```
+
+#### Line Items Management
+- Product picker from `products` table
+- Fields: description, quantity, unit, weight, lot_number, serial_number
+- Only editable when dispatch note status = `draft`
+
+#### Receipt (Prijemnica) Workflow
+- Created from Receipts tab when status ≥ `in_transit`
+- Fields: receipt_number, receipt_date, received_by, warehouse_id, notes
+- Links back to parent dispatch note via `dispatch_note_id`
+
+#### Detail Page (`DispatchNoteDetail.tsx`)
+- **Lines Tab**: CRUD for `dispatch_note_lines` (draft only)
+- **Receipts Tab**: View/create `dispatch_receipts`
+- Header: Status badges, transition buttons, API submit button
+
+### 8.10 AI SQL Tool Calling *(New in v2.0)*
+
+#### Architecture
+
+The `ai-assistant` edge function implements a **tool-calling loop** that allows the AI to query the tenant's database in real-time:
+
+```
+User message → ai-assistant edge function
+    │
+    ├─► Build system prompt with SCHEMA_CONTEXT (30 table schemas)
+    │   + live tenant stats (invoice count, revenue, partner count, etc.)
+    │
+    ├─► Send to Gemini 3 Flash via Lovable AI Gateway
+    │
+    ├─► Tool-calling loop (up to 3 rounds):
+    │     │
+    │     ├─► AI requests query_tenant_data tool call
+    │     │     └─► validateSql(): block mutations, enforce SELECT, inject tenant_id
+    │     │     └─► Execute via execute_readonly_query RPC (10s timeout)
+    │     │     └─► Return results as tool response
+    │     │
+    │     └─► AI may request additional queries based on results
+    │
+    └─► Stream final response as SSE (chunked for frontend compatibility)
+```
+
+#### SQL Validation Rules
+- **SELECT only**: Blocks INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, GRANT, REVOKE, EXECUTE
+- **Tenant scoping**: All queries must include `WHERE tenant_id = '{TENANT_ID}'`
+- **Row limit**: Automatic `LIMIT 50` if not specified
+- **Placeholder replacement**: `'{TENANT_ID}'` → actual tenant UUID
+
+#### `execute_readonly_query` RPC
+- PostgreSQL function callable via `supabase.rpc()`
+- Service role only (not accessible to anon key)
+- SELECT-only enforcement at DB level
+- 10-second statement timeout for safety
+
+### 8.11 AI Anomaly Detection *(New in v2.0)*
+
+The `ai-insights` edge function performs **7 anomaly detection checks** beyond basic KPI insights:
+
+| Check | Severity | Condition | Module Filter |
+|-------|----------|-----------|---------------|
+| **Expense Spike** | critical | Month-over-month expense increase > 50% | analytics, accounting |
+| **Duplicate Supplier Invoices** | critical | Same supplier + same amount within 3 days | analytics, accounting |
+| **Weekend Postings** | warning | ≥ 5 journal entries posted on Saturday/Sunday | analytics, accounting |
+| **Dormant Partners** | warning | Partners with `dormancy_status = 'dormant'` | crm |
+| **At-Risk Partners** | warning | Partners with `dormancy_status = 'at_risk'` | crm |
+| **Slow-Moving Inventory** | info | Items with stock but no outbound movement in 90+ days | inventory |
+| **Fiscal Period Warning** | warning | Open fiscal periods older than current month | accounting |
+
+All insights are cached in `ai_insights_cache` with TTL-based expiration. Results are bilingual (EN/SR).
 
 ---
 
@@ -1628,5 +1738,5 @@ pandoc ARCHITECTURE_DOCUMENTATION.md -o ARCHITECTURE_DOCUMENTATION.docx --toc --
 ---
 
 *Document generated: February 23, 2026*  
-*System version: ProERP AI v1.0*  
-*Total routes: ~150+ | Edge functions: 63+ | Database tables: 100+*
+*System version: ProERP AI v2.0*  
+*Total routes: ~155+ | Edge functions: 65+ | Database tables: 105+*
