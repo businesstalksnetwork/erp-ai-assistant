@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -66,7 +66,15 @@ export default function Opportunities() {
     enabled: !!tenantId,
   });
 
-  const getOppTags = (oppId: string) => allTags.filter((t: any) => t.opportunity_id === oppId);
+  const getOppTags = useMemo(() => {
+    const map = new Map<string, any[]>();
+    allTags.forEach((t: any) => {
+      const arr = map.get(t.opportunity_id) || [];
+      arr.push(t);
+      map.set(t.opportunity_id, arr);
+    });
+    return (oppId: string) => map.get(oppId) || [];
+  }, [allTags]);
 
   const { data: contactsList = [] } = useQuery({
     queryKey: ["contacts-list", tenantId],
@@ -145,13 +153,16 @@ export default function Opportunities() {
   };
 
   // Group by stage for Kanban
-  const grouped = stages.map(stage => ({
-    stage: stage.code,
-    label: stage.name_sr || stage.name,
-    color: stage.color,
-    items: opps.filter((o: any) => o.stage === stage.code),
-    total: opps.filter((o: any) => o.stage === stage.code).reduce((sum: number, o: any) => sum + (o.value || 0), 0),
-  }));
+  const grouped = useMemo(() => stages.map(stage => {
+    const items = opps.filter((o: any) => o.stage === stage.code);
+    return {
+      stage: stage.code,
+      label: stage.name_sr || stage.name,
+      color: stage.color,
+      items,
+      total: items.reduce((sum: number, o: any) => sum + (o.value || 0), 0),
+    };
+  }), [stages, opps]);
 
   const getContactName = (o: any) => {
     if (o.contacts) return `${o.contacts.first_name} ${o.contacts.last_name || ""}`;
@@ -172,9 +183,10 @@ export default function Opportunities() {
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="overflow-x-auto -mx-2 px-2 pb-2">
+          <div className="flex gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-5">
           {grouped.map(g => (
-            <div key={g.stage} className="space-y-3">
+            <div key={g.stage} className="space-y-3 min-w-[250px] lg:min-w-0">
               <div className="flex items-center justify-between">
                 <Badge variant={stageColor(g.stage) as any} className="text-xs" style={g.color ? { backgroundColor: g.color, color: "#fff" } : undefined}>{g.label}</Badge>
                 <span className="text-xs text-muted-foreground">{g.items.length}</span>
@@ -211,6 +223,7 @@ export default function Opportunities() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
