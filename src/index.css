@@ -224,3 +224,16 @@
 }
 
 ::selection { background: hsl(var(--primary) / 0.15); color: hsl(var(--foreground)); }
+
+/* Sidebar grid pattern overlay */
+.sidebar-grid-pattern::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(100, 120, 180, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 120, 180, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 1;
+}
