@@ -1,71 +1,86 @@
 
 
-## e-Otpremnice UI + Architecture Hardening
+## Update ARCHITECTURE_DOCUMENTATION.md with All New Features
 
 ### Overview
 
-Migrate the dispatch notes frontend from the legacy `eotpremnica` table to the new `dispatch_notes` / `dispatch_note_lines` / `dispatch_receipts` schema created in Tier 2, and add line-item management, a detail page, and receipt confirmation. Also apply targeted architecture improvements.
+Update the architecture documentation to reflect all changes from Tier 2 (database schema), Tier 3 (AI enhancements), e-Otpremnice UI rebuild, and architecture hardening work.
 
 ---
 
-### Part 1: e-Otpremnice UI Rebuild
+### Changes to Apply
 
-#### 1.1 Rewrite `Eotpremnica.tsx` to use `dispatch_notes` table
-- Query `dispatch_notes` instead of `eotpremnica`
-- Map all new columns: `sender_city`, `receiver_city`, `transport_reason`, `dispatch_date`, `eotpremnica_status`
-- Create form includes all new fields (cities, transport reason, warehouse picker, linked sales order/invoice selectors)
-- Status workflow remains: draft -> confirmed -> in_transit -> delivered
-- API submit button calls `eotpremnica-submit` with `dispatch_note_id` instead of `eotpremnica_id`
+#### 1. Version & Date Update (Line 3-4)
+- Update version to 2.0
+- Update date to current
 
-#### 1.2 New detail page: `DispatchNoteDetail.tsx`
-- Route: `/inventory/dispatch-notes/:id`
-- Header card with dispatch note metadata (sender/receiver info, transport details, status badge, eOtpremnica status)
-- **Lines tab**: Table of `dispatch_note_lines` with add/edit/delete for draft status
-  - Product picker (from `products` table), description, quantity, unit, lot number, serial number
-- **Receipts tab**: Shows linked `dispatch_receipts` with status
-  - "Create Receipt" button (when status = `in_transit` or `delivered`)
-  - Receipt form: receipt number, date, warehouse, notes
-- Status transition buttons in header
-- API submit button in header
+#### 2. Section 1.3 Tech Stack (Line 40-51)
+- Update edge function count from "63+" to "65+" (new functions added)
+- Add `react-markdown` to dependencies
 
-#### 1.3 Route registration
-- Add `DispatchNoteDetail` route in `App.tsx`: `inventory/dispatch-notes/:id`
-- Table rows in list page become clickable, navigating to detail
+#### 3. Section 3.1 Module Overview — Inventory Row (Line 165)
+- Add `dispatch_notes`, `dispatch_note_lines`, `dispatch_receipts` tables to the Inventory module
+- Add `eotpremnica-submit` edge function reference
+- Update page count
 
-#### 1.4 Translation keys
-- Add ~15 new keys to `translations.ts`: `dispatchDate`, `transportReason`, `senderCity`, `receiverCity`, `lineItems`, `lotNumber`, `serialNumber`, `addLine`, `receipts`, `createReceipt`, `receiptNumber`, `receiptDate`, `receivedBy`
+#### 4. Section 4.1.6 Inventory & WMS Tables (after Line 331)
+- Add new table entries:
+  - `dispatch_notes`: Document number, sender/receiver info, cities, transport reason, status workflow, eotpremnica_status
+  - `dispatch_note_lines`: Product lines with lot/serial tracking
+  - `dispatch_receipts`: Receipt confirmation (prijemnica) records
 
-#### 1.5 Update `eotpremnica-submit` edge function
-- Accept `dispatch_note_id` parameter alongside legacy `eotpremnica_id`
-- Update `dispatch_notes.eotpremnica_status` and `eotpremnica_sent_at` on success
+#### 5. Section 4.2 Key Database Functions (after Line 421)
+- Add `execute_readonly_query(query_text)` RPC function — used by AI assistant for safe tenant-scoped SQL execution (service_role only, SELECT-only, 10s timeout)
 
----
+#### 6. Section 5.1 AI Functions (Lines 469-484)
+- Rewrite `ai-assistant` description to reflect tool-calling loop with SQL query capability
+- Add details about `execute_readonly_query` RPC integration
+- Document 3-round tool-calling loop, SQL validation, tenant scoping
+- Update `ai-insights` description to include anomaly detection capabilities:
+  - Expense spikes (>50% MoM)
+  - Duplicate supplier invoices (same supplier + amount within 3 days)
+  - Weekend posting detection
+  - Dormant/at-risk partner alerts
+  - Slow-moving inventory detection
 
-### Part 2: Architecture Hardening
+#### 7. Section 5.11 Other Functions — eotpremnica-submit (Line 597)
+- Update to note it now supports both `dispatch_note_id` (new) and legacy `eotpremnica_id`
 
-#### 2.1 Extract reusable status workflow hook
-- Create `useStatusWorkflow.ts` hook that encapsulates the status mutation pattern used in Eotpremnica, InternalTransfers, SalesOrders, etc.
-- Reduces ~20 lines of boilerplate per page
+#### 8. Section 6.3 Inventory Routes (Lines 726-748)
+- Add new route: `/inventory/dispatch-notes/:id` -> `DispatchNoteDetail`
 
-#### 2.2 Memoize filtered lists
-- Add `useMemo` for client-side filter operations in the dispatch notes list (and pattern for other list pages)
+#### 9. Section 7.3 Custom Hooks Inventory (Lines 885-898)
+- Add `useStatusWorkflow()` hook — reusable status mutation pattern for draft/confirmed/in_transit/delivered workflows
 
-#### 2.3 Type safety
-- Replace `any` casts in Eotpremnica with proper types from `Database["public"]["Tables"]["dispatch_notes"]["Row"]`
+#### 10. New Feature Deep-Dive: Section 8.9 — Dispatch Notes (e-Otpremnice)
+Add new subsection after Section 8.8 documenting:
+- Dispatch note lifecycle: draft -> confirmed -> in_transit -> delivered
+- eOtpremnica API submission flow (dispatch_note_id -> eotpremnica-submit -> status update)
+- Line items management (product picker, lot/serial tracking)
+- Receipt (prijemnica) workflow
+- Detail page with Lines + Receipts tabs
+
+#### 11. New Feature Deep-Dive: Section 8.10 — AI SQL Tool Calling
+Add new subsection documenting:
+- Tool-calling loop architecture (up to 3 rounds)
+- SQL validation rules (SELECT-only, tenant_id scoping, keyword blocklist)
+- `execute_readonly_query` RPC function
+- Schema context injection
+- SSE streaming of final response
+
+#### 12. New Feature Deep-Dive: Section 8.11 — AI Anomaly Detection
+Add subsection documenting the 7 anomaly detection checks in `ai-insights`
+
+#### 13. Update Appendix / Footer (Line 1632)
+- Update version, total routes count (~155+), edge functions count (65+), table count
 
 ---
 
 ### Technical Details
 
-**Files to create:**
-- `src/pages/tenant/DispatchNoteDetail.tsx` — Detail page with lines + receipts tabs
-- `src/hooks/useStatusWorkflow.ts` — Reusable status mutation hook
+**File to modify:**
+- `ARCHITECTURE_DOCUMENTATION.md` — Full rewrite with all new sections
+- `COMPLETE_CODEBASE_REVIEW.md` — Update hook count, route count, function count, and add new features summary
 
-**Files to modify:**
-- `src/pages/tenant/Eotpremnica.tsx` — Rewrite to use `dispatch_notes`
-- `src/App.tsx` — Add detail route
-- `src/i18n/translations.ts` — Add new keys
-- `supabase/functions/eotpremnica-submit/index.ts` — Support `dispatch_note_id`
-
-**No database migrations needed** — the `dispatch_notes`, `dispatch_note_lines`, and `dispatch_receipts` tables already exist from Tier 2.
+No code changes — documentation only.
 
