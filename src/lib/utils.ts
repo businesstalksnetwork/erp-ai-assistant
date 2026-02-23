@@ -17,3 +17,10 @@ export const fmtNumCompact = (n: number): string => {
   if (abs >= 10_000) return `${sign}${(n / 1_000).toLocaleString("sr-RS", { maximumFractionDigits: 0 })}K`;
   return fmtNum(n);
 };
+
+/** Auto-compact: uses full format for small numbers, compact for 10M+ */
+export const fmtNumAuto = (n: number): string => {
+  const abs = Math.abs(n);
+  if (abs >= 10_000_000) return fmtNumCompact(n);
+  return fmtNum(n);
+};

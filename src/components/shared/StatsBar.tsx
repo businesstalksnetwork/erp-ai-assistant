@@ -38,7 +38,7 @@ export function StatsBar({ stats }: StatsBarProps) {
             </div>
             <div className="mt-1.5 flex items-end justify-between gap-2">
               <div className="flex items-end gap-2 min-w-0">
-                <span className="text-xl font-bold tracking-tight tabular-nums">{stat.value}</span>
+                <span className="text-base lg:text-xl font-bold tracking-tight tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">{stat.value}</span>
                 {stat.trend !== undefined && stat.trend !== 0 && (
                   <span className={`flex items-center text-xs font-medium pb-0.5 ${stat.trend > 0 ? "text-accent" : "text-destructive"}`}>
                     {stat.trend > 0 ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
