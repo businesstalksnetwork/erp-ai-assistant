@@ -11415,6 +11415,7 @@ export type Database = {
         }
         Returns: string
       }
+      execute_readonly_query: { Args: { query_text: string }; Returns: Json }
       expire_overdue_quotes: { Args: { p_tenant_id: string }; Returns: number }
       force_delete_journal_entries: {
         Args: { p_tenant_id: string }

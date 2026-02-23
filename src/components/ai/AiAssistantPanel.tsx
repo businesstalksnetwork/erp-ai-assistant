@@ -3,10 +3,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Sparkles, Send, Loader2, Bot, User } from "lucide-react";
+import { Sparkles, Send, Loader2, Bot, User, Trash2 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -20,6 +21,7 @@ export function AiAssistantPanel() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -37,19 +39,35 @@ export function AiAssistantPanel() {
 
     let assistantSoFar = "";
     const allMessages = [...messages, userMsg];
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: locale === "sr"
+            ? "Morate biti prijavljeni da biste koristili AI asistenta."
+            : "You must be logged in to use the AI assistant.",
+        }]);
+        setIsLoading(false);
+        return;
+      }
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           messages: allMessages,
           tenant_id: tenantId,
           language: locale,
         }),
+        signal: controller.signal,
       });
 
       if (!resp.ok || !resp.body) {
@@ -61,6 +79,16 @@ export function AiAssistantPanel() {
       const decoder = new TextDecoder();
       let textBuffer = "";
       let streamDone = false;
+
+      const updateAssistant = (snapshot: string) => {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
+          }
+          return [...prev, { role: "assistant", content: snapshot }];
+        });
+      };
 
       while (!streamDone) {
         const { done, value } = await reader.read();
@@ -84,14 +112,7 @@ export function AiAssistantPanel() {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
-              const snapshot = assistantSoFar;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
-                }
-                return [...prev, { role: "assistant", content: snapshot }];
-              });
+              updateAssistant(assistantSoFar);
             }
           } catch {
             textBuffer = line + "\n" + textBuffer;
@@ -114,28 +135,24 @@ export function AiAssistantPanel() {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
-              const snapshot = assistantSoFar;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: snapshot } : m);
-                }
-                return [...prev, { role: "assistant", content: snapshot }];
-              });
+              updateAssistant(assistantSoFar);
             }
           } catch { /* ignore */ }
         }
       }
-    } catch (e) {
-      console.error("AI chat error:", e);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: locale === "sr"
-          ? "Došlo je do greške. Pokušajte ponovo."
-          : "An error occurred. Please try again.",
-      }]);
+    } catch (e: any) {
+      if (e.name !== "AbortError") {
+        console.error("AI chat error:", e);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: locale === "sr"
+            ? "Došlo je do greške. Pokušajte ponovo."
+            : "An error occurred. Please try again.",
+        }]);
+      }
     } finally {
       setIsLoading(false);
+      abortRef.current = null;
     }
   }, [input, tenantId, isLoading, messages, locale]);
 
@@ -144,6 +161,12 @@ export function AiAssistantPanel() {
       e.preventDefault();
       send();
     }
+  };
+
+  const clearChat = () => {
+    abortRef.current?.abort();
+    setMessages([]);
+    setIsLoading(false);
   };
 
   return (
@@ -158,10 +181,17 @@ export function AiAssistantPanel() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="p-4 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            {t("aiInsights")}
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              {t("aiInsights")}
+            </SheetTitle>
+            {messages.length > 0 && (
+              <Button variant="ghost" size="icon" onClick={clearChat} className="h-8 w-8">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
@@ -172,8 +202,9 @@ export function AiAssistantPanel() {
                 <p>{locale === "sr" ? "Pitajte me bilo šta o vašim podacima" : "Ask me anything about your data"}</p>
                 <div className="mt-3 space-y-1 text-xs">
                   <p className="text-muted-foreground/70">"{locale === "sr" ? "Koje fakture su dospele?" : "Which invoices are overdue?"}"</p>
-                  <p className="text-muted-foreground/70">"{locale === "sr" ? "Koliki je ukupan prihod?" : "What is total revenue?"}"</p>
+                  <p className="text-muted-foreground/70">"{locale === "sr" ? "Prikaži top 10 kupaca po prihodu" : "Show top 10 customers by revenue"}"</p>
                   <p className="text-muted-foreground/70">"{locale === "sr" ? "Koji artikli imaju niske zalihe?" : "Which items have low stock?"}"</p>
+                  <p className="text-muted-foreground/70">"{locale === "sr" ? "Mesečni pregled troškova" : "Monthly expense breakdown"}"</p>
                 </div>
               </div>
             )}
@@ -184,12 +215,18 @@ export function AiAssistantPanel() {
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
                 }`}>
-                  {msg.content}
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_table]:border-collapse [&_th]:border [&_td]:border [&_th]:border-border [&_td]:border-border [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_pre]:bg-background/50 [&_pre]:p-2 [&_pre]:rounded [&_code]:text-xs">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  )}
                 </div>
                 {msg.role === "user" && (
                   <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">

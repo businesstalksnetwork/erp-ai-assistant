@@ -53,7 +53,6 @@ serve(async (req) => {
     }
 
     // Check cache
-    const cacheKey = module ? `${tenant_id}_${module}` : tenant_id;
     const { data: cached } = await supabase
       .from("ai_insights_cache")
       .select("*")
@@ -61,7 +60,6 @@ serve(async (req) => {
       .gt("expires_at", new Date().toISOString())
       .order("generated_at", { ascending: false });
 
-    // Filter cached by module if applicable
     if (cached && cached.length > 0 && module) {
       const moduleInsights = filterByModule(cached, module);
       if (moduleInsights.length > 0) {
@@ -78,6 +76,8 @@ serve(async (req) => {
     const insights: Insight[] = [];
     const sr = language === "sr";
     const today = new Date().toISOString().split("T")[0];
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
 
     // ─── Core insights (always generated) ───
 
@@ -208,9 +208,181 @@ serve(async (req) => {
       }
     }
 
+    // ─── Anomaly Detection: Expense spikes ───
+    if (!module || module === "analytics" || module === "accounting") {
+      // Detect month-over-month expense spikes > 50%
+      const { data: expenseLines } = await supabase
+        .from("journal_lines")
+        .select("debit, account_id, journal_entry_id")
+        .eq("tenant_id", tenant_id) as any;
+
+      if (expenseLines && expenseLines.length > 0) {
+        // Get journal entries to filter by posted + date
+        const jeIds = [...new Set(expenseLines.map((l: any) => l.journal_entry_id))];
+        const { data: journalEntries } = await supabase
+          .from("journal_entries")
+          .select("id, entry_date, status")
+          .eq("tenant_id", tenant_id)
+          .eq("status", "posted")
+          .in("id", jeIds.slice(0, 500));
+
+        if (journalEntries) {
+          const jeMap = new Map(journalEntries.map(j => [j.id, j]));
+          
+          // Get expense accounts
+          const { data: expenseAccounts } = await supabase
+            .from("chart_of_accounts")
+            .select("id")
+            .eq("tenant_id", tenant_id)
+            .eq("account_type", "expense");
+
+          if (expenseAccounts) {
+            const expenseAccountIds = new Set(expenseAccounts.map(a => a.id));
+            const monthlyExpense: Record<string, number> = {};
+
+            for (const line of expenseLines) {
+              if (!expenseAccountIds.has(line.account_id)) continue;
+              const je = jeMap.get(line.journal_entry_id);
+              if (!je) continue;
+              const month = je.entry_date.substring(0, 7);
+              monthlyExpense[month] = (monthlyExpense[month] || 0) + Number(line.debit || 0);
+            }
+
+            const months = Object.keys(monthlyExpense).sort();
+            if (months.length >= 2) {
+              const latest = monthlyExpense[months[months.length - 1]];
+              const prev = monthlyExpense[months[months.length - 2]];
+              if (prev > 0 && latest > prev * 1.5) {
+                const spike = ((latest - prev) / prev * 100).toFixed(0);
+                insights.push({
+                  insight_type: "expense_spike",
+                  severity: "critical",
+                  title: sr ? `Skok troškova od ${spike}%` : `Expense Spike: ${spike}% Increase`,
+                  description: sr
+                    ? `Troškovi u ${months[months.length - 1]} su porasli za ${spike}% u odnosu na prethodni mesec. Proverite neočekivane rashode.`
+                    : `Expenses in ${months[months.length - 1]} spiked ${spike}% vs prior month. Review for unexpected charges.`,
+                  data: { latest_month: months[months.length - 1], latest_amount: latest, previous_amount: prev },
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Detect potential duplicate supplier invoices (same supplier + same total within 3 days)
+      const { data: recentSupplierInvoices } = await supabase
+        .from("supplier_invoices")
+        .select("id, supplier_name, total, invoice_date, invoice_number")
+        .eq("tenant_id", tenant_id)
+        .order("invoice_date", { ascending: false })
+        .limit(200);
+
+      if (recentSupplierInvoices && recentSupplierInvoices.length > 1) {
+        const duplicates: Array<{ supplier: string; total: number; dates: string[] }> = [];
+        for (let i = 0; i < recentSupplierInvoices.length; i++) {
+          for (let j = i + 1; j < recentSupplierInvoices.length; j++) {
+            const a = recentSupplierInvoices[i];
+            const b = recentSupplierInvoices[j];
+            if (a.supplier_name === b.supplier_name && Number(a.total) === Number(b.total) && Number(a.total) > 0) {
+              const daysDiff = Math.abs(new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime()) / (1000 * 60 * 60 * 24);
+              if (daysDiff <= 3) {
+                duplicates.push({
+                  supplier: a.supplier_name,
+                  total: Number(a.total),
+                  dates: [a.invoice_date, b.invoice_date],
+                });
+              }
+            }
+          }
+        }
+
+        if (duplicates.length > 0) {
+          insights.push({
+            insight_type: "duplicate_invoices",
+            severity: "critical",
+            title: sr ? `${duplicates.length} mogućih duplikata faktura` : `${duplicates.length} Potential Duplicate Invoices`,
+            description: sr
+              ? `Pronađene su ${duplicates.length} parova faktura od istog dobavljača sa istim iznosom unutar 3 dana.`
+              : `Found ${duplicates.length} invoice pairs from the same supplier with matching amounts within 3 days.`,
+            data: { count: duplicates.length, samples: duplicates.slice(0, 3) },
+          });
+        }
+      }
+
+      // Unusual posting patterns: journal entries posted on weekends
+      const { data: weekendPostings } = await supabase
+        .from("journal_entries")
+        .select("id, entry_date, description")
+        .eq("tenant_id", tenant_id)
+        .eq("status", "posted")
+        .order("entry_date", { ascending: false })
+        .limit(100);
+
+      if (weekendPostings) {
+        const weekendEntries = weekendPostings.filter(je => {
+          const day = new Date(je.entry_date).getDay();
+          return day === 0 || day === 6;
+        });
+
+        if (weekendEntries.length >= 5) {
+          insights.push({
+            insight_type: "weekend_postings",
+            severity: "warning",
+            title: sr ? `${weekendEntries.length} knjiženja vikendom` : `${weekendEntries.length} Weekend Postings`,
+            description: sr
+              ? `${weekendEntries.length} naloga je knjiženo vikendom. Ovo može ukazivati na neovlašćena knjiženja.`
+              : `${weekendEntries.length} journal entries were posted on weekends. This may indicate unauthorized postings.`,
+            data: { count: weekendEntries.length },
+          });
+        }
+      }
+    }
+
+    // ─── Dormant accounts alert ───
+    if (!module || module === "crm") {
+      const { data: dormantPartners, count: dormantCount } = await supabase
+        .from("partners")
+        .select("id, name", { count: "exact" })
+        .eq("tenant_id", tenant_id)
+        .eq("dormancy_status", "dormant")
+        .eq("is_active", true)
+        .limit(5);
+
+      if (dormantCount && dormantCount > 0) {
+        insights.push({
+          insight_type: "dormant_accounts",
+          severity: "warning",
+          title: sr ? `${dormantCount} neaktivnih partnera` : `${dormantCount} Dormant Partner Accounts`,
+          description: sr
+            ? `${dormantCount} aktivnih partnera je klasifikovano kao neaktivno. Razmotrite reaktivaciju ili deaktivaciju.`
+            : `${dormantCount} active partners are classified as dormant. Consider re-engagement or deactivation.`,
+          data: { count: dormantCount, samples: dormantPartners?.map(p => p.name) },
+        });
+      }
+
+      const { data: atRiskPartners, count: atRiskCount } = await supabase
+        .from("partners")
+        .select("id, name", { count: "exact" })
+        .eq("tenant_id", tenant_id)
+        .eq("dormancy_status", "at_risk")
+        .eq("is_active", true)
+        .limit(5);
+
+      if (atRiskCount && atRiskCount > 0) {
+        insights.push({
+          insight_type: "at_risk_accounts",
+          severity: "warning",
+          title: sr ? `${atRiskCount} partnera u riziku` : `${atRiskCount} At-Risk Partners`,
+          description: sr
+            ? `${atRiskCount} partnera je u riziku od gubitka. Preporučujemo hitno kontaktiranje.`
+            : `${atRiskCount} partners are at risk of churning. Recommend immediate outreach.`,
+          data: { count: atRiskCount },
+        });
+      }
+    }
+
     // ─── Inventory-specific insights ───
     if (!module || module === "inventory") {
-      // Slow movers: products with stock but no outbound movements in 90 days
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       const { data: recentMovements } = await supabase
         .from("inventory_movements")
@@ -235,7 +407,6 @@ serve(async (req) => {
         }
       }
 
-      // Reorder suggestions based on consumption
       if (lowStock) {
         const belowMin = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
         if (belowMin.length > 3) {
@@ -254,10 +425,6 @@ serve(async (req) => {
 
     // ─── HR-specific insights ───
     if (!module || module === "hr") {
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
-
-      // Excessive overtime
       const { data: overtimeRecords } = await supabase
         .from("overtime_hours")
         .select("employee_id, hours")
@@ -280,7 +447,6 @@ serve(async (req) => {
         }
       }
 
-      // Leave balance warnings
       const { data: leaveBalances } = await supabase
         .from("annual_leave_balances")
         .select("employee_id, entitled_days, carried_over_days, used_days")
@@ -307,8 +473,7 @@ serve(async (req) => {
     if (!module || module === "crm") {
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Stale leads
-      const { data: staleLeads, count: staleCount } = await supabase
+      const { count: staleCount } = await supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenant_id)
@@ -327,7 +492,6 @@ serve(async (req) => {
         });
       }
 
-      // High-value deals at risk
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: atRiskDeals } = await supabase
         .from("opportunities")
@@ -352,9 +516,6 @@ serve(async (req) => {
 
     // ─── Analytics-specific insights ───
     if (!module || module === "analytics") {
-      // 6. Budget variance check
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1;
       const { data: budgets } = await supabase
         .from("budgets")
         .select("account_id, amount, month, fiscal_year")
@@ -362,7 +523,6 @@ serve(async (req) => {
         .eq("fiscal_year", currentYear);
 
       if (budgets && budgets.length > 0) {
-        // Get actual amounts from journal lines for current year
         const { data: journalLines } = await supabase
           .from("journal_lines")
           .select("amount, side, account_id, journal:journal_entry_id(status, entry_date)")
@@ -405,7 +565,7 @@ serve(async (req) => {
         }
       }
 
-      // 7. Revenue trend (month-over-month decline for 2+ months)
+      // Revenue trend
       const { data: revLines } = await supabase
         .from("journal_lines")
         .select("amount, side, accounts:account_id(account_type), journal:journal_entry_id(status, entry_date)")
@@ -476,11 +636,11 @@ serve(async (req) => {
 /** Filter insights by module context */
 function filterByModule(insights: any[], module: string): any[] {
   const moduleMap: Record<string, string[]> = {
-    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "all_clear"],
+    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "all_clear"],
     inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "all_clear"],
     hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "all_clear"],
-    crm: ["stale_leads", "high_value_at_risk", "all_clear"],
-    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "all_clear"],
+    crm: ["stale_leads", "high_value_at_risk", "dormant_accounts", "at_risk_accounts", "all_clear"],
+    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "all_clear"],
   };
   const allowed = moduleMap[module];
   if (!allowed) return insights;
