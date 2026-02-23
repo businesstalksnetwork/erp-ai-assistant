@@ -486,7 +486,7 @@ export default function Returns() {
 
       {/* RETURN CASE DIALOG */}
       <Dialog open={rcOpen} onOpenChange={setRcOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{rcEditId ? t("edit") : t("add")} — {t("returnCase")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid grid-cols-3 gap-4">
@@ -612,7 +612,7 @@ export default function Returns() {
 
       {/* CREDIT NOTE DIALOG */}
       <Dialog open={cnOpen} onOpenChange={setCnOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{cnEditId ? t("edit") : t("add")} — {t("creditNote")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("creditNumber")} *</Label><Input value={cnForm.credit_number} onChange={(e) => setCnForm({ ...cnForm, credit_number: e.target.value })} /></div>
@@ -664,7 +664,7 @@ export default function Returns() {
 
       {/* SUPPLIER RETURN SHIPMENT DIALOG */}
       <Dialog open={srOpen} onOpenChange={setSrOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{srEditId ? t("edit") : t("add")} — {t("supplierReturn")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("shipmentNumber")} *</Label><Input value={srForm.shipment_number} onChange={(e) => setSrForm({ ...srForm, shipment_number: e.target.value })} /></div>

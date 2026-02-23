@@ -199,7 +199,7 @@ export default function Quotes() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editQuote") : t("addQuote")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard, ClipboardCheck, Sparkles } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { fmtNum, fmtNumCompact } from "@/lib/utils";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
@@ -223,8 +223,13 @@ export default function TenantDashboard() {
 
       {/* Pending Actions + Quick Actions */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("pendingActions")}</CardTitle></CardHeader>
+        <Card className="border-border/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+              {t("pendingActions")}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             {draftCount > 0 && (
               <div className="flex items-center justify-between">
@@ -276,8 +281,13 @@ export default function TenantDashboard() {
             )}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("quickActions")}</CardTitle></CardHeader>
+        <Card className="border-border/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              {t("quickActions")}
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <div className={`flex gap-3 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
               {canAccess("accounting") && (
