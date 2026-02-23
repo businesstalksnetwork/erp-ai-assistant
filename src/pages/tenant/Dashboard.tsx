@@ -7,6 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard, ClipboardCheck, Sparkles } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { fmtNum, fmtNumCompact, fmtNumAuto } from "@/lib/utils";
@@ -31,7 +32,7 @@ export default function TenantDashboard() {
   const isMobile = useIsMobile();
 
   // KPI Summary (revenue, expenses, cash balance) via server-side RPC
-  const { data: kpiData } = useQuery({
+  const { data: kpiData, isLoading: kpiLoading } = useQuery({
     queryKey: ["dashboard-kpi-summary", tenantId],
     queryFn: async () => {
       const { data } = await supabase.rpc("dashboard_kpi_summary", {
@@ -149,19 +150,31 @@ export default function TenantDashboard() {
 
       {/* KPI Cards */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor}`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</CardTitle>
-              <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-                <kpi.icon className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-base lg:text-xl xl:text-2xl font-bold tabular-nums text-foreground whitespace-nowrap">{kpi.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+        {kpiLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="border-t-2 border-t-muted">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Skeleton className="h-7 w-32" />
+                </CardContent>
+              </Card>
+            ))
+          : kpis.map((kpi) => (
+              <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor}`}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</CardTitle>
+                  <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
+                    <kpi.icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="text-base lg:text-xl xl:text-2xl font-bold tabular-nums text-foreground whitespace-nowrap">{kpi.value}</div>
+                </CardContent>
+              </Card>
+            ))}
       </div>
 
       {/* Fiscal Receipt Status */}
