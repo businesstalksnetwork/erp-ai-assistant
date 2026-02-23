@@ -1,4 +1,3 @@
-// @ts-nocheck
 export const translations = {
   en: {
     // Auth
@@ -266,7 +265,8 @@ export const translations = {
     netIncome: "Net Income",
     loss: "Loss",
     asOfDate: "As of Date",
-    allLegalEntities: "All Legal Entities",
+    pdvPeriodSubmittedSuccessfully: "PDV period submitted successfully",
+    pdvSubmissionFailed: "PDV submission failed",
 
     // CRM
     crm: "CRM",

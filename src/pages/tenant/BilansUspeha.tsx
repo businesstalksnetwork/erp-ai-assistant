@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -27,7 +26,7 @@ const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
 export default function BilansUspeha() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
-  const { legalEntities } = useLegalEntities();
+  const { entities: legalEntities } = useLegalEntities();
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
   const [legalEntityId, setLegalEntityId] = useState<string>("");
@@ -36,7 +35,7 @@ export default function BilansUspeha() {
     queryKey: ["bilans_uspeha", tenantId, dateFrom, dateTo, legalEntityId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase.rpc("get_bilans_uspeha", {
+      const { data, error } = await supabase.rpc("get_bilans_uspeha" as any, {
         p_tenant_id: tenantId,
         p_date_from: dateFrom,
         p_date_to: dateTo,
@@ -52,7 +51,7 @@ export default function BilansUspeha() {
     queryKey: ["bilans_uspeha_totals", tenantId, dateFrom, dateTo, legalEntityId],
     queryFn: async () => {
       if (!tenantId) return null;
-      const { data, error } = await supabase.rpc("get_bilans_uspeha_totals", {
+      const { data, error } = await supabase.rpc("get_bilans_uspeha_totals" as any, {
         p_tenant_id: tenantId,
         p_date_from: dateFrom,
         p_date_to: dateTo,

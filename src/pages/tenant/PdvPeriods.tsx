@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -213,7 +212,7 @@ export default function PdvPeriods() {
 
   const submitMutation = useMutation({
     mutationFn: async (periodId: string) => {
-      const { error } = await supabase.rpc("submit_pdv_period", {
+      const { error } = await supabase.rpc("submit_pdv_period" as any, {
         p_pdv_period_id: periodId,
       });
       if (error) throw error;
@@ -221,12 +220,12 @@ export default function PdvPeriods() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
       qc.invalidateQueries({ queryKey: ["pdv_entries"] });
-      toast({ title: t("pdvSubmitted"), description: t("pdvPeriodSubmittedSuccessfully") });
+      toast({ title: t("pdvSubmitted" as any), description: t("pdvPeriodSubmittedSuccessfully" as any) });
     },
     onError: (e: Error) => {
       toast({
         title: t("error"),
-        description: e.message || t("pdvSubmissionFailed"),
+        description: e.message || t("pdvSubmissionFailed" as any),
         variant: "destructive",
       });
     },
