@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.crm-tier-refresh]
 verify_jwt = false
+
+[functions.ai-executive-briefing]
+verify_jwt = false
