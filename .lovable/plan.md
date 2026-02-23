@@ -1,129 +1,117 @@
 
-# Enhance Opportunity Detail: Documents, Chat, Activity, Tags
 
-## Overview
+# Full Application Optimization: Responsive, Connected, and Polished
 
-Transform the Opportunity Detail page from a simple info view into a full-featured deal workspace with tabbed sections for Documents, Internal Chat, Activity Log, and User Tagging. This turns each opportunity into a collaborative hub where the sales team can work together.
+## Summary
 
-## New Database Tables
+A comprehensive pass across the CRM/Opportunity system and related pages to fix bugs, improve mobile responsiveness, strengthen data connections, and polish the UI end-to-end.
 
-### 1. `opportunity_documents` -- Files attached to opportunities
-- `id` uuid PK
-- `tenant_id` uuid FK tenants
-- `opportunity_id` uuid FK opportunities
-- `file_name` text
-- `file_path` text (path in storage bucket)
-- `file_size` bigint
-- `mime_type` text
-- `uploaded_by` uuid (references profiles)
-- `created_at` timestamptz
+---
 
-### 2. `opportunity_comments` -- Internal chat/discussion thread
-- `id` uuid PK
-- `tenant_id` uuid FK tenants
-- `opportunity_id` uuid FK opportunities
-- `user_id` uuid (references profiles)
-- `content` text (supports @mentions as `@[user_id]`)
-- `parent_id` uuid (nullable, for threaded replies)
-- `created_at` timestamptz
-- `updated_at` timestamptz
+## 1. Bug Fixes
 
-### 3. `opportunity_activities` -- Automatic activity/audit log
-- `id` uuid PK
-- `tenant_id` uuid FK tenants
-- `opportunity_id` uuid FK opportunities
-- `user_id` uuid
-- `activity_type` text (stage_change, document_uploaded, comment_added, meeting_scheduled, quote_created, tag_added, etc.)
-- `description` text
-- `metadata` jsonb
-- `created_at` timestamptz
+### 1.1 Fix React ref warning on OpportunityActivityTab
+The console shows: "Function components cannot be given refs" for `OpportunityActivityTab`. The `TabsContent` component passes a ref to it. Wrap the component export with `React.forwardRef`.
 
-### 4. `opportunity_tags` -- Tags/labels on opportunities
-- `id` uuid PK
-- `tenant_id` uuid FK tenants
-- `opportunity_id` uuid FK opportunities
-- `tag` text (e.g. "urgent", "enterprise", "follow-up")
-- `color` text (hex)
-- `created_by` uuid
-- `created_at` timestamptz
-- UNIQUE(opportunity_id, tag)
+**Files**: `OpportunityActivityTab.tsx`, `OpportunityDocumentsTab.tsx`, `OpportunityDiscussionTab.tsx`, `OpportunityOverviewTab.tsx`, `OpportunityTagsBar.tsx`
 
-### 5. `opportunity_followers` -- Users "following" an opportunity (for notifications/tagging)
-- `id` uuid PK
-- `tenant_id` uuid FK tenants
-- `opportunity_id` uuid FK opportunities
-- `user_id` uuid
-- `created_at` timestamptz
-- UNIQUE(opportunity_id, user_id)
+### 1.2 Kanban grid-cols-5 breaks on mobile
+Currently `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5` -- on tablets (sm), only 2 columns show which truncates 5 stages awkwardly. Change to a horizontal scrollable container on mobile and stacked cards.
 
-All tables get RLS using `tenant_id IN (SELECT get_user_tenant_ids(auth.uid()))`.
+**File**: `Opportunities.tsx`
 
-### Storage
-Use the existing `tenant-documents` bucket for opportunity file uploads (files stored under `opportunities/{opportunity_id}/` prefix).
+---
 
-## UI Changes to OpportunityDetail.tsx
+## 2. Mobile Responsiveness
 
-Reorganize the page into a tabbed layout:
+### 2.1 Opportunity Detail page
+- Header: Stack title, badge, and tags vertically on mobile instead of wrapping horizontally
+- Stage buttons: Make horizontally scrollable in a `overflow-x-auto` container instead of wrapping
+- Tabs: Use `overflow-x-auto` on `TabsList` for mobile
+- Overview tab: The `md:grid-cols-2` grid works well; meetings table needs `overflow-x-auto` wrapper
+- Documents tab: Table needs `overflow-x-auto` or convert to card layout on mobile
+- Discussion tab: Already works well with chat bubbles
 
-```text
-+-------------------------------------------------------+
-| <- Back   "Opportunity Title"   [Stage Badge]  [Tags] |
-|                                                        |
-| [Stage progression buttons]                            |
-|                                                        |
-| +-- Info --+-- Dokumenti --+-- Diskusija --+-- Aktivnost --+
-| |                                                      |
-| | (Tab content below)                                  |
-| |                                                      |
-+-------------------------------------------------------+
-```
+### 2.2 Meetings page
+- List view filters: Wrap in `MobileFilterBar` component for mobile collapse
+- Meeting table: Add `overflow-x-auto` wrapper
+- Form view: Two-column grid already has `grid-cols-1 lg:grid-cols-2` which is good
+- Action buttons in header: Stack on mobile (currently inline, may overflow)
+- Stats cards: Already `sm:grid-cols-3`
 
-### Tab 1: Pregled (Overview) -- existing content
-- Deal info card (value, probability, contact, dates, partners)
-- Actions card (Create Quote, Schedule Meeting)
-- Meetings table
-- Followers/assigned users with ability to tag/add team members
+### 2.3 Kanban (Opportunities.tsx)
+- Replace the fixed grid with a horizontally scrollable flex container on mobile
+- Each Kanban column gets a minimum width (250px) and the container scrolls horizontally
+- Add a visual scroll indicator
 
-### Tab 2: Dokumenti (Documents)
-- File upload area (drag-and-drop or button)
-- List of attached documents with: name, size, uploader, date, download button, delete
-- Upload goes to `tenant-documents` storage bucket under `opportunities/{id}/` prefix
+---
 
-### Tab 3: Diskusija (Discussion/Chat)
-- Chat-style thread for internal team communication
-- Each message shows: avatar, user name, timestamp, content
-- Support @mention of team members (autocomplete from `tenant_members` joined with `profiles`)
-- Text input at bottom with send button
-- Threaded replies (optional, via parent_id)
+## 3. Connection Improvements
 
-### Tab 4: Aktivnost (Activity Log)
-- Chronological feed of all actions on this opportunity
-- Auto-logged events: stage changes, document uploads, comments, meetings added, quotes created, tags modified
-- Each entry: icon + description + user + timestamp
-- Activity gets logged automatically via the mutation handlers (no separate triggers needed -- we log from the frontend on each action)
+### 3.1 Opportunity Detail - Meeting link
+Currently navigates to `/crm/meetings?opportunity=...` but the Meetings page does not read URL params to pre-fill the form. Add URL param parsing in Meetings.tsx to auto-open the schedule form with the opportunity pre-selected.
 
-### Tags System
-- Show tags as colored badges near the title
-- "Add tag" popover with text input + color picker
-- Click tag to remove
-- Tags shown on Kanban cards too (in Opportunities.tsx)
+**File**: `Meetings.tsx`
 
-### Followers / Team Tagging
-- "Followers" section showing team members watching this deal
-- "Add follower" dropdown listing tenant members
-- Followers get highlighted in the discussion @mention autocomplete
+### 3.2 Opportunity tags on Kanban cards
+Tags already display on Kanban cards (working). Verify `opportunity_tags` query includes tenant_id filter (it does).
 
-## Files to Create/Modify
+### 3.3 Activity logging completeness
+Currently activity is logged for: stage changes, quote creation, follower add, document upload, comment add, tag add. Missing: tag removal activity logging.
 
-1. **New migration** -- Create 5 tables + RLS policies
-2. **`src/pages/tenant/OpportunityDetail.tsx`** -- Major rewrite with Tabs layout, 4 tabs
-3. **`src/pages/tenant/Opportunities.tsx`** -- Show tags on Kanban cards
-4. **`src/i18n/translations.ts`** -- New keys: documents, discussion, activity, addTag, addFollower, uploadDocument, writeComment, tagColor, followers, activityLog, stageChanged, documentUploaded, commentAdded, etc.
+**File**: `OpportunityTagsBar.tsx` -- add `onActivity("tag_removed", ...)` in remove mutation
 
-## Implementation Notes
+### 3.4 Meetings table on Overview tab - click to navigate
+Meeting rows in OpportunityOverviewTab are not clickable. Add `onClick` to navigate to meeting edit.
 
-- Documents use Supabase Storage (`tenant-documents` bucket) with path `opportunities/{opp_id}/{filename}`
-- Chat uses real-time polling via React Query refetchInterval (no need for Supabase Realtime complexity)
-- Activity log entries are created inline in the existing mutations (stage change, quote creation) and new ones (document upload, comment)
-- @mentions are stored as `@[uuid]` in comment text and rendered as highlighted names
-- Tags are free-text with optional color -- no predefined tag list (users create as needed)
+**File**: `OpportunityOverviewTab.tsx`
+
+---
+
+## 4. UI Polish
+
+### 4.1 Consistent empty states
+Some empty states use different messages/styles. Standardize to the same pattern across all opportunity tabs.
+
+### 4.2 Discussion tab improvements
+- Add a subtle timestamp separator between messages from different days
+- Increase max-height on mobile for the chat scroll area
+
+### 4.3 Stage progression visual
+Replace plain buttons with a step-progress indicator showing which stages have been passed, making the pipeline progression more visual and intuitive.
+
+### 4.4 Sticky tab bar
+On the Opportunity Detail page, make the `TabsList` sticky below the header so it remains visible when scrolling long content.
+
+---
+
+## 5. Performance
+
+### 5.1 Reduce unnecessary re-renders
+- Memoize `fmt` function and `contactName` in OpportunityDetail using `useMemo`
+- Memoize `grouped` array and `getOppTags` in Opportunities.tsx
+
+### 5.2 Query optimization
+- The `opportunity-tags-all` query fetches ALL tags for the tenant. This is fine for now but add a `staleTime` to reduce refetches.
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `OpportunityActivityTab.tsx` | Wrap with `forwardRef` |
+| `OpportunityDocumentsTab.tsx` | `forwardRef`, mobile table overflow |
+| `OpportunityDiscussionTab.tsx` | `forwardRef`, responsive chat height |
+| `OpportunityOverviewTab.tsx` | `forwardRef`, meetings table overflow, row click |
+| `OpportunityTagsBar.tsx` | Tag removal activity logging |
+| `OpportunityDetail.tsx` | Sticky tabs, mobile header layout, scrollable stages, `useMemo` |
+| `Opportunities.tsx` | Horizontal scroll Kanban on mobile, `useMemo` |
+| `Meetings.tsx` | `MobileFilterBar`, URL param parsing for opportunity pre-fill, table overflow |
+| `src/index.css` | Add utility class for horizontal scroll snap (optional) |
+
+### No database changes required
+All optimizations are frontend-only.
+
