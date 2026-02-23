@@ -1,38 +1,75 @@
 
 
-## Redesign Login Page - Left Brand Panel
+## Fix: Restore Sidebar Visibility and Apply Dark Theme Correctly
 
-### What Changes
+The sidebar disappeared because of two issues from the last edit:
 
-Redesign the left brand panel of the login page (`src/pages/Login.tsx`) to:
-1. Replace the Sparkles icon + "ERP-AI" text with the actual `erpAI.png` logo image (centered vertically in upper area)
-2. Add more descriptive content about the software features
-3. Improve visual layout with feature highlights/bullet points
+1. **`overflow-hidden` on the Sidebar component** -- The `className` prop on `<Sidebar>` is applied to a `fixed`-positioned wrapper div. Adding `overflow-hidden` there clips all sidebar content, and the animated orb blurs (which extend beyond bounds) make this worse.
 
-### Design
+2. **Gradient background override** -- The gradient classes (`bg-gradient-to-b ...`) are applied to the fixed wrapper, but there's an inner `div[data-sidebar="sidebar"]` that has `bg-sidebar` which paints over the gradient, making it invisible.
 
-The left panel will have three vertical sections:
-- **Top**: The erpAI logo image (centered, ~180px max-width)
-- **Middle** (flex-grow, centered): Headline + description + feature list with icons (e.g., Finansije, CRM, Skladiste, Proizvodnja, AI Asistent)
-- **Bottom**: Copyright text
+3. **Animated orbs are direct children of `<Sidebar>`** -- They render inside the fixed wrapper but outside the inner sidebar div, causing layout issues.
 
-### Technical Details
+### Fix in `src/layouts/TenantLayout.tsx`
 
-**File: `src/pages/Login.tsx`**
+**Remove** from the `<Sidebar>` className:
+- `bg-gradient-to-b from-[hsl(225,50%,12%)] via-[hsl(225,55%,15%)] to-[hsl(230,45%,10%)]`
+- `relative overflow-hidden`
 
-1. Import the logo: `import erpAiLogo from "@/assets/erpAI.png"`
-2. Remove the `Sparkles` import (no longer needed for left panel - keep if used in mobile header)
-3. Replace the top logo area (currently Sparkles icon + "ERP-AI" text) with `<img src={erpAiLogo}>`
-4. Expand the middle content section with:
-   - Keep the existing headline "Inteligentno upravljanje poslovanjem"
-   - Keep the description paragraph
-   - Add a feature list with lucide icons (e.g., BarChart3, Users, Package, Factory, Brain) showing key modules
-5. Update the mobile header to also use the logo image instead of Sparkles icon
-6. Style features list with `space-y-3`, white/60 text, small icons
+**Keep** only the original styling: `border-r border-sidebar-border w-64`
 
-### Files to Modify
+**Move** the gradient background and animated orbs **inside** the sidebar content area -- wrap them in a container div that sits inside the `<Sidebar>` as a styled wrapper, or apply the dark theme via CSS variables instead.
+
+### Recommended approach
+
+Since the sidebar CSS variables already define a dark theme (`--sidebar-background: 224 71% 4%`), the cleanest fix is:
+
+1. **Remove** the inline gradient and orb divs from `<Sidebar>`
+2. **Update CSS variables** in `src/index.css` to use the desired gradient-like dark colors (the sidebar is already dark by default)
+3. **Add** the animated orbs inside a wrapper div that is a child of `SidebarContent` or the logo area, with `overflow-hidden` only on that inner wrapper
+
+### Files to modify
 
 | File | Change |
 |------|--------|
-| `src/pages/Login.tsx` | Replace Sparkles with logo image, add feature list, improve layout |
+| `src/layouts/TenantLayout.tsx` | Remove gradient classes and `overflow-hidden` from Sidebar className. Move animated orbs inside a proper inner wrapper with `relative overflow-hidden`. |
+| `src/index.css` (optional) | Fine-tune `--sidebar-background` and related variables if a different shade is desired |
+
+### Technical detail
+
+In `TenantLayout.tsx` line 315, change:
+```
+<Sidebar className="border-r border-sidebar-border w-64 bg-gradient-to-b from-[hsl(225,50%,12%)] via-[hsl(225,55%,15%)] to-[hsl(230,45%,10%)] relative overflow-hidden">
+  {/* Subtle animated orbs */}
+  <div className="absolute top-0 right-0 ..." />
+  <div className="absolute bottom-0 left-0 ..." />
+```
+
+To:
+```
+<Sidebar className="border-r border-sidebar-border w-64">
+```
+
+Then wrap ALL sidebar children (logo + SidebarContent + footer) in a single inner div:
+```
+<div className="relative flex flex-col h-full w-full overflow-hidden bg-gradient-to-b from-[hsl(225,50%,12%)] via-[hsl(225,55%,15%)] to-[hsl(230,45%,10%)]">
+  {/* Animated orbs */}
+  <div className="absolute top-0 right-0 w-[200px] h-[200px] rounded-full bg-primary/10 blur-[80px] animate-[pulse_8s_ease-in-out_infinite] pointer-events-none" />
+  <div className="absolute bottom-0 left-0 w-[150px] h-[150px] rounded-full bg-[hsl(260,60%,30%)]/8 blur-[60px] animate-[pulse_10s_ease-in-out_infinite_2s] pointer-events-none" />
+
+  {/* Logo */}
+  <div className="pt-2 pb-5 px-4 border-b border-white/5 flex justify-center relative z-10">
+    ...
+  </div>
+
+  <SidebarContent className="... relative z-10">
+    ...
+  </SidebarContent>
+
+  {/* Footer */}
+  ...
+</div>
+```
+
+This ensures the gradient and orbs render inside the inner sidebar container (which already has `bg-sidebar`) without breaking the Sidebar component's fixed positioning logic.
 
