@@ -282,7 +282,7 @@ export default function WmsCycleCounts() {
 
       {/* Reconcile Dialog */}
       <Dialog open={reconcileDialog} onOpenChange={setReconcileDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("reconcile")} — {t("varianceSummary")}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-4">
             {countLines.filter((l: any) => l.status === "counted" && l.variance !== 0).map((l: any) => (

@@ -254,7 +254,7 @@ export default function WmsPicking() {
 
       {/* Create Pick Wave */}
       <Dialog open={createWaveOpen} onOpenChange={setCreateWaveOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("createPickWave")}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div><Label>{t("warehouse")}</Label>
