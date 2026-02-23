@@ -319,11 +319,14 @@ export default function TenantLayout() {
         <Sidebar className="border-r border-sidebar-border w-64">
           {/* Logo + Search trigger */}
           <div className="p-4 border-b border-sidebar-border space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center shadow-sm">
-                <Sparkles className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-md border border-primary/20">
+                <Sparkles className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+              <div>
+                <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Sistem za upravljanje</p>
+              </div>
             </div>
             <button
               onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
@@ -474,7 +477,7 @@ export default function TenantLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
-          <header className="h-11 border-b border-border/50 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg sticky top-0 z-10 shadow-[0_1px_3px_0_hsl(var(--foreground)/0.04)]">
+          <header className="h-12 border-b border-border/60 flex items-center justify-between px-4 lg:px-6 bg-background/95 backdrop-blur-md sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-4" />
@@ -529,8 +532,8 @@ export default function TenantLayout() {
             </div>
           </header>
           <div className="flex-1 flex overflow-hidden">
-            <main className="flex-1 p-4 lg:p-6 overflow-auto animate-in fade-in duration-300">
-              <div className="max-w-screen-2xl mx-auto">
+            <main className="flex-1 p-4 lg:p-6 xl:p-8 overflow-auto animate-in fade-in duration-300 bg-gradient-to-b from-background to-background/95">
+              <div className="max-w-screen-2xl mx-auto space-y-6">
                 <Outlet />
               </div>
             </main>

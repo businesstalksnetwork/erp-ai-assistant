@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard, ClipboardCheck, Sparkles } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { fmtNum, fmtNumCompact } from "@/lib/utils";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
@@ -174,15 +174,15 @@ export default function TenantDashboard() {
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor} hover:shadow-md transition-shadow`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                <kpi.icon className="h-4 w-4 text-foreground" />
+          <Card key={kpi.label} className={`border-t-[3px] ${kpi.borderColor} hover:shadow-lg transition-all hover:-translate-y-0.5`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{kpi.label}</CardTitle>
+              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center border border-primary/10">
+                <kpi.icon className="h-4 w-4 text-primary" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl lg:text-2xl text-lg font-bold tabular-nums">{kpi.value}</div>
+            <CardContent className="pt-0">
+              <div className="text-2xl lg:text-3xl font-bold tabular-nums text-foreground">{kpi.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -223,8 +223,13 @@ export default function TenantDashboard() {
 
       {/* Pending Actions + Quick Actions */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("pendingActions")}</CardTitle></CardHeader>
+        <Card className="border-border/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+              {t("pendingActions")}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             {draftCount > 0 && (
               <div className="flex items-center justify-between">
@@ -276,8 +281,13 @@ export default function TenantDashboard() {
             )}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("quickActions")}</CardTitle></CardHeader>
+        <Card className="border-border/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              {t("quickActions")}
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <div className={`flex gap-3 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
               {canAccess("accounting") && (

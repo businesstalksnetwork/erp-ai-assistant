@@ -23,13 +23,13 @@ function trendTopColor(trend?: number): string {
 
 export function StatsBar({ stats }: StatsBarProps) {
   return (
-    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => (
         <Card
           key={stat.label}
-          className={`overflow-hidden border-t-[3px] ${trendTopColor(stat.trend)} transition-all hover:shadow-md hover:-translate-y-0.5`}
+          className={`overflow-hidden border-t-[3px] ${trendTopColor(stat.trend)} transition-all hover:shadow-lg hover:-translate-y-1 border-border/60`}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">
                 {stat.label}
