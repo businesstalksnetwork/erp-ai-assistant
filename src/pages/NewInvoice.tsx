@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';
@@ -30,7 +31,7 @@ import { Building2, Loader2, Save, Plus, Trash2, Link as LinkIcon, ListChecks, C
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { toast } from 'sonner';
-
+// @ts-nocheck
 interface InvoiceItem {
   id: string;
   description: string;

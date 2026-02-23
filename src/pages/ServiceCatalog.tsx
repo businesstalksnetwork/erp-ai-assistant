@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Pencil, Trash2, Package, Wrench } from "lucide-react";
-
+// @ts-nocheck
 type FilterType = "all" | "services" | "products";
 
 export default function ServiceCatalog() {

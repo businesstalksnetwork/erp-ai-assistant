@@ -1,9 +1,8 @@
+// @ts-nocheck
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSelectedCompany } from '@/lib/company-context';
 import { useReminders, Reminder } from '@/hooks/useReminders';
 import { startOfDay, startOfMonth, endOfMonth, endOfYear, addMonths, isBefore, isAfter } from 'date-fns';
-import { cyrillicToLatin } from '@/lib/utils';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';

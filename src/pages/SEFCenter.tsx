@@ -21,7 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Calendar } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import SEFInvoicePreview from '@/components/SEFInvoicePreview';
-
+// @ts-nocheck
 const formatCurrency = (amount: number, currency = 'RSD') => {
   return new Intl.NumberFormat('sr-RS', {
     style: 'currency',

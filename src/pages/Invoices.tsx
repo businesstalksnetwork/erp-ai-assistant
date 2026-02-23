@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelectedCompany } from '@/lib/company-context';

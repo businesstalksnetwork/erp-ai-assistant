@@ -82,18 +82,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { selectedCompany, setSelectedCompany, companies, myCompanies, clientCompanies, isViewingClientCompany } = useSelectedCompany();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { upcomingCount, hasPermission, canRequest, requestPermission } = useNotifications(selectedCompany?.id || null);
+  const { unreadCount } = useNotifications();
   
   // Track previous company id to detect changes
   const prevCompanyIdRef = useRef<string | null>(null);
   const isInitialMount = useRef(true);
 
-  // Request notification permission when user logs in
-  useEffect(() => {
-    if (canRequest) {
-      requestPermission();
-    }
-  }, [canRequest]);
 
   // Redirect to /dashboard when switching to a client company
   useEffect(() => {
@@ -279,7 +273,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Main navigation */}
             {filteredNavItems.main.map((item) => {
               const isActive = location.pathname === item.href;
-              const showBadge = item.href === '/reminders' && upcomingCount > 0;
+              const showBadge = item.href === '/reminders' && unreadCount > 0;
               return (
                 <Link
                   key={item.href}
@@ -296,7 +290,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   {item.label}
                   {showBadge && (
                     <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] justify-center animate-pulse-slow">
-                      {upcomingCount}
+                      {unreadCount}
                     </Badge>
                   )}
                 </Link>
@@ -400,7 +394,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             : mobileBottomNavItems
           ).map((item) => {
             const isActive = location.pathname === item.href;
-            const showBadge = item.href === '/reminders' && upcomingCount > 0;
+            const showBadge = item.href === '/reminders' && unreadCount > 0;
             return (
               <Link
                 key={item.href}
