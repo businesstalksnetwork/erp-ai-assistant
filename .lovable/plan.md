@@ -1,53 +1,119 @@
 
-
-## Translate AI Insight Severity Badges
+## Create Module Hub Pages for All Missing Parent Routes
 
 ### Problem
+Navigating to parent module routes like `/accounting`, `/production`, `/inventory`, `/hr`, `/purchasing`, `/sales`, `/pos`, and `/web` shows a 404 error. These routes have no page component registered. Each module needs a hub/summary page showing an overview of the module and cards linking to all sub-pages within it.
 
-In the AI Insights widget on the dashboard, the severity badges display raw English strings -- "critical", "info", "warning" -- instead of professional Serbian translations.
+Note: `/crm`, `/documents`, and `/analytics` already have working pages.
 
-The issue is on line 108 of `src/components/ai/AiInsightsWidget.tsx`:
-```
-{insight.severity}
-```
+### Solution
+Create 8 new module hub pages and register them in the router. Each page will:
+- Use the existing `BiPageLayout` component for consistent styling
+- Show a module description in Serbian Latin (professional language)
+- Display clickable cards for each sub-section with icons and short descriptions
+- All text fully translated in Serbian Latin
 
-### Changes
+### New Files to Create (8)
 
-#### 1. `src/components/ai/AiInsightsWidget.tsx`
+#### 1. `src/pages/tenant/AccountingHub.tsx`
+Module summary for Računovodstvo with cards linking to:
+- Kontni plan (`/accounting/chart-of-accounts`)
+- Knjiženja (`/accounting/journal`)
+- Fakture (`/accounting/invoices`)
+- Glavna knjiga (`/accounting/ledger`)
+- Izvodi (`/accounting/bank-statements`)
+- Otvorene stavke (`/accounting/open-items`)
+- PDV periodi (`/accounting/pdv`)
+- Fiskalni periodi (`/accounting/fiscal-periods`)
+- Osnovna sredstva (`/accounting/fixed-assets`)
+- Razgraničenja (`/accounting/deferrals`)
+- Krediti (`/accounting/loans`)
+- Troškovi (`/accounting/expenses`)
+- Revalorizacija (`/accounting/fx-revaluation`)
+- Kompenzacija (`/accounting/kompenzacija`)
+- Zaključak godine (`/accounting/year-end`)
+- Izveštaji (`/accounting/reports`)
 
-Replace `{insight.severity}` on line 108 with a translated severity label using a local map:
+#### 2. `src/pages/tenant/ProductionHub.tsx`
+Module summary for Proizvodnja with cards linking to:
+- Sastavnice (BOM) (`/production/bom`)
+- Radni nalozi (`/production/orders`)
+- AI planiranje (`/production/ai-planning`)
 
-```ts
-const severityLabels: Record<string, string> = {
-  critical: t("critical"),
-  warning: t("severityWarning"),
-  info: t("severityInfo"),
-};
-```
+#### 3. `src/pages/tenant/InventoryHub.tsx`
+Module summary for Magacin with cards linking to:
+- Proizvodi (`/inventory/products`)
+- Stanje zaliha (`/inventory/stock`)
+- Kretanje zaliha (`/inventory/movements`)
+- Otpremnice (`/inventory/dispatch-notes`)
+- Troškovni slojevi (`/inventory/cost-layers`)
+- Interne narudžbine (`/inventory/internal-orders`)
+- Interni transferi (`/inventory/internal-transfers`)
+- Interne prijemnice (`/inventory/internal-receipts`)
+- Kalkulacija (`/inventory/kalkulacija`)
+- Nivelacija (`/inventory/nivelacija`)
+- WMS kontrolna tabla (`/inventory/wms/dashboard`)
 
-Then render: `{severityLabels[insight.severity]}`
+#### 4. `src/pages/tenant/HrHub.tsx`
+Module summary for Ljudski resursi with cards linking to:
+- Zaposleni (`/hr/employees`)
+- Ugovori (`/hr/contracts`)
+- Odeljenja (`/hr/departments`)
+- Evidencija prisustva (`/hr/attendance`)
+- Zahtevi za odsustvo (`/hr/leave-requests`)
+- Obračun zarada (`/hr/payroll`)
+- Evidencija rada (`/hr/work-logs`)
+- Prekovremeni rad (`/hr/overtime`)
+- Noćni rad (`/hr/night-work`)
+- Godišnji odmor (`/hr/annual-leave`)
+- Praznici (`/hr/holidays`)
+- Odbici (`/hr/deductions`)
+- Dodaci (`/hr/allowances`)
+- Spoljni saradnici (`/hr/external-workers`)
+- Istorija plata (`/hr/salaries`)
+- Osiguranje (`/hr/insurance`)
+- Šabloni pozicija (`/hr/position-templates`)
+- eBolovanje (`/hr/ebolovanje`)
+- HR izveštaji (`/hr/reports`)
 
-Also translate the two hardcoded strings on lines 80 and 85:
-- `"Analiziranje podataka..." / "Analyzing data..."` to use a translation key
-- `"Nema dostupnih uvida." / "No insights available."` to use a translation key
+#### 5. `src/pages/tenant/PurchasingHub.tsx`
+Module summary for Nabavka with cards linking to:
+- Narudžbenice (`/purchasing/orders`)
+- Prijemnice (`/purchasing/goods-receipts`)
+- Ulazne fakture (`/purchasing/supplier-invoices`)
 
-#### 2. `src/components/shared/AiModuleInsights.tsx`
+#### 6. `src/pages/tenant/SalesHub.tsx`
+Module summary for Prodaja with cards linking to:
+- Ponude (`/sales/quotes`)
+- Prodajni nalozi (`/sales/sales-orders`)
+- Kanali prodaje (`/sales/sales-channels`)
+- Prodavci (`/sales/salespeople`)
+- Učinak prodaje (`/sales/sales-performance`)
+- Maloprodajne cene (`/sales/retail-prices`)
 
-Same fix for the hardcoded `"Analiziranje..."` on line 67 -- replace with translation key.
+#### 7. `src/pages/tenant/PosHub.tsx`
+Module summary for Maloprodaja (POS) with cards linking to:
+- POS terminal (`/pos/terminal`)
+- Sesije (`/pos/sessions`)
+- Fiskalni uređaji (`/pos/fiscal-devices`)
+- Dnevni izveštaj (`/pos/daily-report`)
 
-#### 3. `src/i18n/translations.ts`
+#### 8. `src/pages/tenant/WebHub.tsx`
+Module summary for Web prodaja with cards linking to:
+- Web podešavanja (`/web/settings`)
+- Web cene (`/web/prices`)
 
-Add missing keys to both EN and SR sections:
-- `severityWarning`: EN "Warning" / SR "Upozorenje"
-- `severityInfo`: EN "Info" / SR "Informacija"
-- `analyzingData`: EN "Analyzing data..." / SR "Analiziranje podataka..."
-- `noInsightsAvailable`: EN "No insights available." / SR "Nema dostupnih uvida."
+### File to Modify (1)
 
-(The `critical` key already exists as "Critical" / "Kritican".)
+#### `src/App.tsx`
+- Import all 8 new hub pages (lazy-loaded)
+- Register routes: `/accounting`, `/production`, `/inventory`, `/hr`, `/purchasing`, `/sales`, `/pos`, `/web`
 
 ### Technical Details
 
-**Files to modify (3):**
-- `src/components/ai/AiInsightsWidget.tsx` -- translate severity badge + hardcoded strings
-- `src/components/shared/AiModuleInsights.tsx` -- translate loading text
-- `src/i18n/translations.ts` -- add 4 new translation keys
+Each hub page follows the same pattern:
+- Uses `BiPageLayout` with module icon and Serbian description
+- Renders a responsive grid of `Card` components (each linking to a sub-page)
+- Each card has an icon, translated title, and short Serbian description
+- All strings are hardcoded Serbian Latin (since the app targets the Serbian market and the user explicitly requested professional Serbian language)
+- No new dependencies required
