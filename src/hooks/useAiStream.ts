@@ -7,6 +7,8 @@ type Conversation = {
   id: string;
   title: string;
   updated_at: string;
+  is_pinned: boolean;
+  tags: string[];
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
@@ -23,7 +25,6 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load conversation list
   const loadConversations = useCallback(async () => {
     if (!tenantId) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -31,20 +32,18 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
 
     const { data } = await supabase
       .from("ai_conversations")
-      .select("id, title, updated_at")
+      .select("id, title, updated_at, is_pinned, tags")
       .eq("tenant_id", tenantId)
       .eq("user_id", session.user.id)
+      .order("is_pinned", { ascending: false })
       .order("updated_at", { ascending: false })
-      .limit(20);
+      .limit(30);
 
     if (data) setConversations(data as Conversation[]);
   }, [tenantId]);
 
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+  useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  // Load a specific conversation
   const loadConversation = useCallback(async (conversationId: string) => {
     const { data } = await supabase
       .from("ai_conversations")
@@ -62,7 +61,6 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
     }
   }, []);
 
-  // Save conversation to DB
   const saveConversation = useCallback(async (msgs: ChatMessage[]) => {
     if (!tenantId || msgs.length === 0) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -73,29 +71,54 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
     if (activeConversationId) {
       await supabase
         .from("ai_conversations")
-        .update({
-          messages: msgs as any,
-          title,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ messages: msgs as any, title, updated_at: new Date().toISOString() })
         .eq("id", activeConversationId);
     } else {
       const { data } = await supabase
         .from("ai_conversations")
-        .insert({
-          tenant_id: tenantId,
-          user_id: session.user.id,
-          messages: msgs as any,
-          title,
-        })
+        .insert({ tenant_id: tenantId, user_id: session.user.id, messages: msgs as any, title })
         .select("id")
         .maybeSingle();
-
       if (data) setActiveConversationId(data.id);
     }
-
     loadConversations();
   }, [tenantId, activeConversationId, loadConversations]);
+
+  const togglePin = useCallback(async (conversationId: string) => {
+    const conv = conversations.find(c => c.id === conversationId);
+    if (!conv) return;
+    await supabase
+      .from("ai_conversations")
+      .update({ is_pinned: !conv.is_pinned })
+      .eq("id", conversationId);
+    loadConversations();
+  }, [conversations, loadConversations]);
+
+  const searchConversations = useCallback(async (query: string) => {
+    if (!tenantId || !query.trim()) { loadConversations(); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data } = await supabase
+      .from("ai_conversations")
+      .select("id, title, updated_at, is_pinned, tags")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", session.user.id)
+      .ilike("title", `%${query}%`)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+
+    if (data) setConversations(data as Conversation[]);
+  }, [tenantId, loadConversations]);
+
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    await supabase.from("ai_conversations").delete().eq("id", conversationId);
+    if (activeConversationId === conversationId) {
+      setMessages([]);
+      setActiveConversationId(null);
+    }
+    loadConversations();
+  }, [activeConversationId, loadConversations]);
 
   const send = useCallback(async (input: string) => {
     if (!input.trim() || !tenantId || isLoading) return;
@@ -130,17 +153,18 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({
-          messages: allMessages,
-          tenant_id: tenantId,
-          language: locale,
-        }),
+        body: JSON.stringify({ messages: allMessages, tenant_id: tenantId, language: locale }),
         signal: controller.signal,
       });
 
       if (!resp.ok || !resp.body) {
         const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to connect to AI");
+        const errorMsg = resp.status === 429
+          ? (locale === "sr" ? "Previše zahteva. Sačekajte trenutak." : "Too many requests. Please wait a moment.")
+          : resp.status === 402
+          ? (locale === "sr" ? "Potrebno je dopuniti AI kredite." : "AI credits need to be topped up.")
+          : errData.error || "Failed to connect to AI";
+        throw new Error(errorMsg);
       }
 
       const reader = resp.body.getReader();
@@ -171,9 +195,7 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
             assistantSoFar += content;
             updateAssistant(assistantSoFar);
           }
-        } catch {
-          return false;
-        }
+        } catch { return false; }
         return false;
       };
 
@@ -181,7 +203,6 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
-
         let newlineIndex: number;
         while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           const line = textBuffer.slice(0, newlineIndex);
@@ -196,7 +217,6 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
         }
       }
 
-      // Save conversation after successful exchange
       const finalMessages = [...allMessages, { role: "assistant" as const, content: assistantSoFar }];
       saveConversation(finalMessages);
 
@@ -205,9 +225,7 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
         console.error("AI chat error:", e);
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: locale === "sr"
-            ? "Došlo je do greške. Pokušajte ponovo."
-            : "An error occurred. Please try again.",
+          content: e.message || (locale === "sr" ? "Došlo je do greške." : "An error occurred."),
         }]);
       }
     } finally {
@@ -230,5 +248,9 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
     setActiveConversationId(null);
   }, []);
 
-  return { messages, isLoading, send, clear, newChat, conversations, loadConversation, activeConversationId };
+  return {
+    messages, isLoading, send, clear, newChat,
+    conversations, loadConversation, activeConversationId,
+    togglePin, searchConversations, deleteConversation,
+  };
 }

@@ -265,11 +265,51 @@ export type Database = {
           },
         ]
       }
+      ai_anomaly_baselines: {
+        Row: {
+          id: string
+          last_updated: string
+          mean_value: number
+          metric_key: string
+          sample_count: number
+          stddev_value: number
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          mean_value?: number
+          metric_key: string
+          sample_count?: number
+          stddev_value?: number
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          mean_value?: number
+          metric_key?: string
+          sample_count?: number
+          stddev_value?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_anomaly_baselines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
           id: string
+          is_pinned: boolean
           messages: Json
+          tags: string[] | null
           tenant_id: string
           title: string | null
           updated_at: string
@@ -278,7 +318,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_pinned?: boolean
           messages?: Json
+          tags?: string[] | null
           tenant_id: string
           title?: string | null
           updated_at?: string
@@ -287,7 +329,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_pinned?: boolean
           messages?: Json
+          tags?: string[] | null
           tenant_id?: string
           title?: string | null
           updated_at?: string
@@ -381,6 +425,82 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_narrative_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_rate_limits: {
+        Row: {
+          id: string
+          request_count: number
+          tenant_id: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          id?: string
+          request_count?: number
+          tenant_id: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          id?: string
+          request_count?: number
+          tenant_id?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_rate_limits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_token_usage: {
+        Row: {
+          completion_tokens: number
+          created_at: string
+          function_name: string
+          id: string
+          model: string
+          prompt_tokens: number
+          tenant_id: string
+          total_tokens: number
+          user_id: string | null
+        }
+        Insert: {
+          completion_tokens?: number
+          created_at?: string
+          function_name: string
+          id?: string
+          model?: string
+          prompt_tokens?: number
+          tenant_id: string
+          total_tokens?: number
+          user_id?: string | null
+        }
+        Update: {
+          completion_tokens?: number
+          created_at?: string
+          function_name?: string
+          id?: string
+          model?: string
+          prompt_tokens?: number
+          tenant_id?: string
+          total_tokens?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_token_usage_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

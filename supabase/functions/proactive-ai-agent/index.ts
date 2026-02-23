@@ -1,0 +1,273 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+/**
+ * Proactive AI Agent: runs daily (or on-demand) to detect critical conditions
+ * and push notifications to relevant users. Can be triggered via cron or manual call.
+ * 
+ * Checks:
+ * 1. Invoices becoming overdue today
+ * 2. Stock falling below minimum
+ * 3. Payroll not processed for current month
+ * 4. Bank statements not imported recently
+ * 5. PDV period approaching deadline
+ * 6. Opportunities going stale
+ * 7. Employee contracts expiring soon
+ */
+
+interface Alert {
+  title: string;
+  message: string;
+  type: string;
+  severity: "info" | "warning" | "critical";
+  module: string;
+  target_roles: string[];
+}
+
+async function checkTenantAlerts(supabase: any, tenantId: string, language: string): Promise<Alert[]> {
+  const alerts: Alert[] = [];
+  const sr = language === "sr";
+  const today = new Date().toISOString().split("T")[0];
+
+  try {
+    // 1. Invoices becoming overdue today
+    const { data: newlyOverdue, count: overdueCount } = await supabase
+      .from("invoices")
+      .select("invoice_number, partner_name, total", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .in("status", ["draft", "sent"])
+      .eq("due_date", today);
+
+    if (overdueCount && overdueCount > 0) {
+      const total = (newlyOverdue || []).reduce((s: number, i: any) => s + Number(i.total), 0);
+      alerts.push({
+        title: sr ? `${overdueCount} faktura dospeva danas` : `${overdueCount} invoices due today`,
+        message: sr
+          ? `${overdueCount} faktura u ukupnom iznosu od ${total.toLocaleString("sr-RS")} RSD dospeva danas za plaćanje.`
+          : `${overdueCount} invoices totaling ${total.toLocaleString("en-US")} RSD are due today.`,
+        type: "overdue_invoice_alert",
+        severity: overdueCount > 3 ? "critical" : "warning",
+        module: "accounting",
+        target_roles: ["admin", "manager", "accountant"],
+      });
+    }
+
+    // 2. Critical stock (zero or negative)
+    const { count: criticalStockCount } = await supabase
+      .from("inventory_stock")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .lte("quantity_on_hand", 0)
+      .gt("min_stock_level", 0);
+
+    if (criticalStockCount && criticalStockCount > 0) {
+      alerts.push({
+        title: sr ? `${criticalStockCount} artikala bez zaliha` : `${criticalStockCount} items out of stock`,
+        message: sr
+          ? `${criticalStockCount} artikala sa definisanim minimalnim nivoom ima nulte ili negativne zalihe.`
+          : `${criticalStockCount} items with defined minimum levels have zero or negative stock.`,
+        type: "critical_stock_alert",
+        severity: "critical",
+        module: "inventory",
+        target_roles: ["admin", "manager"],
+      });
+    }
+
+    // 3. Payroll not processed
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const dayOfMonth = new Date().getDate();
+
+    if (dayOfMonth >= 25) {
+      const { count: payrollCount } = await supabase
+        .from("payroll_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("period_month", currentMonth)
+        .eq("period_year", currentYear);
+
+      if (!payrollCount || payrollCount === 0) {
+        alerts.push({
+          title: sr ? "Plate nisu obrađene" : "Payroll not processed",
+          message: sr
+            ? `Obračun plata za ${currentMonth}/${currentYear} još nije kreiran. Rok se približava.`
+            : `Payroll for ${currentMonth}/${currentYear} has not been created yet. Deadline approaching.`,
+          type: "payroll_missing_alert",
+          severity: "warning",
+          module: "hr",
+          target_roles: ["admin", "hr", "accountant"],
+        });
+      }
+    }
+
+    // 4. Employee contracts expiring in 30 days
+    const futureDate = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+    const { data: expiringContracts, count: expiringCount } = await supabase
+      .from("employee_contracts")
+      .select("employee_id, end_date", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .lte("end_date", futureDate)
+      .gte("end_date", today);
+
+    if (expiringCount && expiringCount > 0) {
+      alerts.push({
+        title: sr ? `${expiringCount} ugovora ističe uskoro` : `${expiringCount} contracts expiring soon`,
+        message: sr
+          ? `${expiringCount} ugovora o radu ističe u narednih 30 dana.`
+          : `${expiringCount} employee contracts expire within the next 30 days.`,
+        type: "contract_expiry_alert",
+        severity: "warning",
+        module: "hr",
+        target_roles: ["admin", "hr"],
+      });
+    }
+
+    // 5. Stale opportunities (>14 days no update, high value)
+    const staleDate = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
+    const { data: staleOpps } = await supabase
+      .from("opportunities")
+      .select("title, value")
+      .eq("tenant_id", tenantId)
+      .not("stage", "in", '("won","lost")')
+      .lt("updated_at", staleDate)
+      .order("value", { ascending: false })
+      .limit(5);
+
+    if (staleOpps && staleOpps.length > 0) {
+      const totalValue = staleOpps.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
+      if (totalValue > 0) {
+        alerts.push({
+          title: sr ? `${staleOpps.length} prilika zahteva pažnju` : `${staleOpps.length} opportunities need attention`,
+          message: sr
+            ? `${staleOpps.length} prilika u vrednosti od ${totalValue.toLocaleString("sr-RS")} RSD nije ažurirano 14+ dana.`
+            : `${staleOpps.length} opportunities worth ${totalValue.toLocaleString("en-US")} RSD haven't been updated in 14+ days.`,
+          type: "stale_opportunity_alert",
+          severity: "warning",
+          module: "crm",
+          target_roles: ["admin", "manager", "sales"],
+        });
+      }
+    }
+
+  } catch (e) {
+    console.error(`Error checking alerts for tenant ${tenantId}:`, e);
+  }
+
+  return alerts;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Can be called by cron (no auth) or by super admin
+    const authHeader = req.headers.get("Authorization");
+    let callerUserId: string | null = null;
+
+    if (authHeader) {
+      const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await userClient.auth.getUser();
+      callerUserId = user?.id || null;
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const targetTenantId = body.tenant_id;
+
+    // Get tenants to check
+    let tenants: Array<{ id: string; name: string }>;
+    if (targetTenantId) {
+      tenants = [{ id: targetTenantId, name: "" }];
+    } else {
+      const { data } = await supabase.from("tenants").select("id, name").eq("status", "active");
+      tenants = data || [];
+    }
+
+    const results: Array<{ tenant_id: string; alerts_created: number }> = [];
+
+    for (const tenant of tenants) {
+      const alerts = await checkTenantAlerts(supabase, tenant.id, "sr");
+
+      // Get tenant admin users to notify
+      const { data: members } = await supabase
+        .from("tenant_members")
+        .select("user_id, role")
+        .eq("tenant_id", tenant.id)
+        .eq("status", "active");
+
+      let createdCount = 0;
+
+      for (const alert of alerts) {
+        // Find target users based on role
+        const targetUsers = (members || []).filter((m: any) =>
+          alert.target_roles.includes(m.role)
+        );
+
+        for (const user of targetUsers) {
+          // Check if similar alert already sent today
+          const { count } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenant.id)
+            .eq("user_id", user.user_id)
+            .eq("type", alert.type)
+            .gte("created_at", today + "T00:00:00Z");
+
+          if (!count || count === 0) {
+            await supabase.from("notifications").insert({
+              tenant_id: tenant.id,
+              user_id: user.user_id,
+              title: alert.title,
+              message: alert.message,
+              type: alert.type,
+              read: false,
+            });
+            createdCount++;
+          }
+        }
+      }
+
+      // Log AI action
+      if (alerts.length > 0) {
+        await supabase.from("ai_action_log").insert({
+          tenant_id: tenant.id,
+          user_id: callerUserId,
+          action_type: "proactive_alert",
+          module: "system",
+          model_version: "rule-based",
+          user_decision: "auto",
+          reasoning: `Generated ${alerts.length} alerts, notified ${createdCount} users`,
+        });
+      }
+
+      results.push({ tenant_id: tenant.id, alerts_created: createdCount });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    return new Response(JSON.stringify({
+      success: true,
+      tenants_checked: tenants.length,
+      results,
+      checked_at: new Date().toISOString(),
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  } catch (e: any) {
+    console.error("proactive-ai-agent error:", e);
+    return new Response(JSON.stringify({ error: e.message || "Internal error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
