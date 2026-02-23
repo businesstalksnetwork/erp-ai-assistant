@@ -1,91 +1,51 @@
 
 
-## Fix HR Module: Employee Detail, Clickable Employee Links, and Layout Issues
+## Rename to "Brzi AI Izveštaj" + Add Date Range Picker
 
-### Problems Found
+### What Changes
 
-1. **Employee Detail page shows "Nema rezultata" (blank page)**: The Supabase query uses `departments(name)` without a foreign key hint, but the `employees` table likely has multiple relationships to `departments`. The Employees list page correctly uses `departments!employees_department_id_fkey(name)` -- the detail page must match.
-
-2. **Employee names are plain text strings in 10+ HR pages**: Allowances, Leave Requests, Overtime Hours, Night Work, Deductions, Annual Leave Balances, Work Logs, Attendance, Insurance Records, and HR Reports all show employee names as flat text. None navigate to the employee profile when clicked.
-
-3. **HR Reports page scrolls horizontally past the sidebar**: The monthly report table has many columns and the `overflow-auto` on the card content doesn't constrain properly within the layout, causing the entire page to scroll sideways.
-
----
-
-### Fix 1: Employee Detail Query
-
-**File: `EmployeeDetail.tsx`**
-
-Change the employee query from:
-```typescript
-.select("*, departments(name), locations(name), position_templates(name)")
-```
-to:
-```typescript
-.select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name)")
-```
-
-This matches the pattern already used in `Employees.tsx` and resolves the ambiguous FK error.
+1. **Rename the page** from "AI Executive Briefing" to "Brzi AI Izveštaj" (Serbian) / "Quick AI Report" (English)
+2. **Add a date range selector** with presets: Danas (Today), 7 dana, 30 dana, 90 dana, Custom range
+3. **Pass date range to the edge function** so all SQL queries are filtered by the selected period
+4. **Update the nav label** in TenantLayout and translations
 
 ---
 
-### Fix 2: Make Employee Names Clickable Links to Profile
+### Technical Details
 
-In all HR pages that show employee names, replace the plain text with a clickable link that navigates to `/hr/employees/{employee_id}`.
+#### File: `src/pages/tenant/AiBriefing.tsx`
 
-**Pages to update (10 files):**
+- Change PageHeader title to "Brzi AI Izveštaj" / "Quick AI Report"
+- Add state for date range: `dateFrom` and `dateTo`
+- Add a row of preset buttons (Danas, 7 dana, 30 dana, 90 dana, Prilagodi) using the existing Button component
+- For custom range: show two date inputs (using the existing `DateInput` component) when "Prilagodi" is selected
+- Include `date_from` and `date_to` in the query key and in the body sent to the edge function
+- Auto-trigger refetch when date range changes
 
-| Page | Current | Fix |
-|------|---------|-----|
-| `Allowances.tsx` | `a.employees?.full_name` | Wrap in clickable link to `/hr/employees/{a.employee_id}` |
-| `LeaveRequests.tsx` | `r.employees?.full_name` | Same pattern |
-| `OvertimeHours.tsx` | `r.employees?.full_name` | Same pattern |
-| `NightWork.tsx` | `r.employees?.full_name` | Same pattern |
-| `Deductions.tsx` | `d.employees?.full_name` | Same pattern |
-| `AnnualLeaveBalances.tsx` | `b.employees?.full_name` | Same pattern |
-| `WorkLogs.tsx` | `l.employees?.full_name` | Same pattern |
-| `Attendance.tsx` | `r.employees?.full_name` | Same pattern |
-| `InsuranceRecords.tsx` | `r.first_name` / `r.last_name` | Show linked employee name if `employee_id` exists |
-| `HrReports.tsx` | `r.name` in monthly table | Make clickable to `/hr/employees/{r.id}` |
+#### File: `supabase/functions/ai-executive-briefing/index.ts`
 
-Each employee name will be rendered as a styled link:
-```tsx
-<span
-  className="text-primary hover:underline cursor-pointer font-medium"
-  onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${id}`); }}
->
-  {name}
-</span>
-```
+- Parse `date_from` and `date_to` from the request body (default to last 30 days if not provided)
+- Apply date filters to all relevant queries:
+  - `invoices` filtered by `invoice_date` within range
+  - `pos_transactions` filtered by `created_at` within range
+  - `production_orders` filtered by date range
+  - `leave_requests` filtered by date range
+  - Overdue invoices still use `today` for the overdue check but scope to range
+- Pass the date range info to the AI prompt so it knows the period being analyzed
 
-Pages using `ResponsiveTable` will update the `render` function. Pages using raw `<Table>` will update the `<TableCell>` content. Each page will import `useNavigate` from react-router-dom.
+#### File: `src/layouts/TenantLayout.tsx`
 
----
+- No structural change needed, just the translation key renders the new name
 
-### Fix 3: HR Reports Layout Overflow
+#### File: `src/i18n/translations.ts`
 
-**File: `HrReports.tsx`**
+- Update `aiBriefing` key: SR = "Brzi AI Izveštaj", EN = "Quick AI Report"
 
-The page content overflows the sidebar. Fix by:
-- Adding `overflow-hidden` to the root container
-- Ensuring the monthly report table's parent has `max-w-full overflow-x-auto` so only the table scrolls horizontally, not the entire page
-- Adding `min-w-0` to prevent flex children from expanding beyond their container
-
----
-
-### Files Changed Summary
+### Files to Change
 
 | File | Change |
 |------|--------|
-| `EmployeeDetail.tsx` | Fix FK hint in departments join query |
-| `Allowances.tsx` | Add `useNavigate`, make employee name a clickable link |
-| `LeaveRequests.tsx` | Same |
-| `OvertimeHours.tsx` | Same |
-| `NightWork.tsx` | Same |
-| `Deductions.tsx` | Same |
-| `AnnualLeaveBalances.tsx` | Same |
-| `WorkLogs.tsx` | Same |
-| `Attendance.tsx` | Same |
-| `InsuranceRecords.tsx` | Same (use employee_id when available) |
-| `HrReports.tsx` | Make names clickable + fix horizontal overflow layout |
+| `src/pages/tenant/AiBriefing.tsx` | Rename title, add date range presets + custom date inputs, pass dates to API |
+| `supabase/functions/ai-executive-briefing/index.ts` | Accept `date_from`/`date_to`, filter all queries by date range |
+| `src/i18n/translations.ts` | Update `aiBriefing` translation to "Brzi AI Izveštaj" / "Quick AI Report" |
 
