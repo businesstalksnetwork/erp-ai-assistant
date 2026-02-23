@@ -1,75 +1,53 @@
 
 
-## Fix Breadcrumb Labels + Translate All Hardcoded Strings to Serbian Latin
+## Translate AI Insight Severity Badges
 
 ### Problem
 
-1. **Breadcrumb shows raw URL slugs**: Routes like `payroll-parameters`, `ai-planning`, `legacy-import`, `ai-audit-log`, `partner-categories`, `payroll-benchmark`, `opportunity-stages`, `discount-approval`, `schedule`, `bottlenecks`, `scenarios` are missing from the `routeLabels` map in `Breadcrumbs.tsx`. This causes the breadcrumb to display "payroll-parameters" instead of "Parametri obračuna".
+In the AI Insights widget on the dashboard, the severity badges display raw English strings -- "critical", "info", "warning" -- instead of professional Serbian translations.
 
-2. **Calendar legend shows raw DB values**: In `AiPlanningCalendar.tsx` (line 94), the status legend renders `status.replace("_", " ")` -- displaying "in progress", "draft", "completed" in English instead of translated labels.
-
-3. **Same issue in other pages**: `WmsTasks.tsx`, `WmsPicking.tsx`, `WmsDashboard.tsx`, `WmsCycleCounts.tsx`, `Invoices.tsx` all use `status.replace("_", " ")` instead of `t(status)`.
-
-4. **Hardcoded "Svi" / "All" and "Detail"**: In `AiPlanningCalendar.tsx` line 83 and `Breadcrumbs.tsx` line 148, these strings are not using translation keys.
-
----
+The issue is on line 108 of `src/components/ai/AiInsightsWidget.tsx`:
+```
+{insight.severity}
+```
 
 ### Changes
 
-#### 1. `src/components/layout/Breadcrumbs.tsx`
+#### 1. `src/components/ai/AiInsightsWidget.tsx`
 
-Add missing route segments to the `routeLabels` map:
+Replace `{insight.severity}` on line 108 with a translated severity label using a local map:
 
-| Slug | Translation Key |
-|------|----------------|
-| `ai-planning` | `aiPlanning` |
-| `payroll-parameters` | `payrollParamsTitle` |
-| `legacy-import` | `legacyImport` |
-| `ai-audit-log` | `aiAuditLog` |
-| `partner-categories` | `companyCategories` |
-| `payroll-benchmark` | `payrollBenchmark` |
-| `opportunity-stages` | `opportunityStages` |
-| `discount-approval` | `discountApprovalRules` |
-| `schedule` | `schedule` |
-| `bottlenecks` | `bottlenecks` |
-| `scenarios` | `scenarios` |
-| `web-settings` | `webSettings` |
-| `web-prices` | `webPrices` |
-| `dispatch-notes` | `dispatchNotes` |
+```ts
+const severityLabels: Record<string, string> = {
+  critical: t("critical"),
+  warning: t("severityWarning"),
+  info: t("severityInfo"),
+};
+```
 
-Also change the hardcoded "Detail" fallback for UUID segments to use `t("detail")`.
+Then render: `{severityLabels[insight.severity]}`
 
-#### 2. `src/pages/tenant/AiPlanningCalendar.tsx`
+Also translate the two hardcoded strings on lines 80 and 85:
+- `"Analiziranje podataka..." / "Analyzing data..."` to use a translation key
+- `"Nema dostupnih uvida." / "No insights available."` to use a translation key
 
-- Replace `status.replace("_", " ")` on line 94 with `t(status as any)` so legend labels use translations ("Nacrt", "U toku", "Završeno").
-- Replace hardcoded `locale === "sr" ? "Svi" : "All"` on line 83 with a translation key `t("all")`.
+#### 2. `src/components/shared/AiModuleInsights.tsx`
 
-#### 3. `src/pages/tenant/WmsTasks.tsx`, `WmsPicking.tsx`, `WmsDashboard.tsx`, `WmsCycleCounts.tsx`
+Same fix for the hardcoded `"Analiziranje..."` on line 67 -- replace with translation key.
 
-Replace all `status.replace("_", " ")` calls with `t(status as any)` to use proper Serbian translations.
+#### 3. `src/i18n/translations.ts`
 
-#### 4. `src/i18n/translations.ts`
+Add missing keys to both EN and SR sections:
+- `severityWarning`: EN "Warning" / SR "Upozorenje"
+- `severityInfo`: EN "Info" / SR "Informacija"
+- `analyzingData`: EN "Analyzing data..." / SR "Analiziranje podataka..."
+- `noInsightsAvailable`: EN "No insights available." / SR "Nema dostupnih uvida."
 
-Add any missing translation keys:
-- `all`: EN "All" / SR "Sve"
-- `detail`: EN "Detail" / SR "Detalj"
-- `aiPlanning`: EN "AI Planning" / SR "AI planiranje"
-- `schedule`: EN "Schedule" / SR "Raspored"  
-- `bottlenecks`: EN "Bottlenecks" / SR "Uska grla"
-- `scenarios`: EN "Scenarios" / SR "Scenariji"
-- `cancelled`: EN "Cancelled" / SR "Otkazano"
-- Any other keys referenced but not yet in the translations file
-
----
+(The `critical` key already exists as "Critical" / "Kritican".)
 
 ### Technical Details
 
-**Files to modify (8):**
-- `src/components/layout/Breadcrumbs.tsx` -- add ~15 missing route label mappings, fix "Detail" hardcode
-- `src/pages/tenant/AiPlanningCalendar.tsx` -- translate legend + filter labels
-- `src/pages/tenant/WmsTasks.tsx` -- translate status badges
-- `src/pages/tenant/WmsPicking.tsx` -- translate status badges
-- `src/pages/tenant/WmsDashboard.tsx` -- translate status labels
-- `src/pages/tenant/WmsCycleCounts.tsx` -- translate status badges
-- `src/pages/tenant/Invoices.tsx` -- translate SEF status
-- `src/i18n/translations.ts` -- add missing keys for both EN and SR locales
+**Files to modify (3):**
+- `src/components/ai/AiInsightsWidget.tsx` -- translate severity badge + hardcoded strings
+- `src/components/shared/AiModuleInsights.tsx` -- translate loading text
+- `src/i18n/translations.ts` -- add 4 new translation keys
