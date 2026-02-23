@@ -9,11 +9,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, Pencil, Save, X, Plus, Calendar } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Save, X, Plus, Calendar, ShieldCheck, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+
+const TIER_COLORS: Record<string, string> = {
+  A: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  B: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  C: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  D: "bg-muted text-muted-foreground",
+};
+
+const CONTACT_ROLES = ["decision_maker", "influencer", "champion", "end_user", "billing", "technical", "primary"] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  decision_maker: "decisionMaker",
+  influencer: "influencer",
+  champion: "champion",
+  end_user: "endUser",
+  billing: "billing",
+  technical: "technical",
+  primary: "primaryContact",
+};
 
 export default function CompanyDetail() {
   const { t } = useLanguage();
@@ -114,6 +135,15 @@ export default function CompanyDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ assignmentId, role }: { assignmentId: string; role: string | null }) => {
+      const { error } = await supabase.from("contact_company_assignments").update({ role }).eq("id", assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partner-contacts", id] }); toast.success(t("success")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!partner) return <div className="text-center py-20 text-muted-foreground">{t("noResults")}</div>;
 
@@ -134,6 +164,20 @@ export default function CompanyDetail() {
     setEditing(true);
   };
 
+  // Credit status calculation
+  const unpaidInvoices = relatedInvoices.filter((inv: any) => inv.status === "sent" || inv.status === "overdue");
+  const outstandingBalance = unpaidInvoices.reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
+  const creditLimit = partner.credit_limit || 0;
+  const creditUtilization = creditLimit > 0 ? Math.min(Math.round((outstandingBalance / creditLimit) * 100), 100) : 0;
+  const creditColor = creditUtilization > 90 ? "text-destructive" : creditUtilization > 70 ? "text-amber-500" : "text-emerald-500";
+
+  // Dormancy info
+  const dormancyStatus = partner.dormancy_status || "active";
+  const lastInvoiceDate = partner.last_invoice_date;
+  const daysSinceInvoice = lastInvoiceDate
+    ? Math.floor((Date.now() - new Date(lastInvoiceDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   const txCount = relatedInvoices.length + relatedPOs.length;
 
   return (
@@ -142,6 +186,9 @@ export default function CompanyDetail() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/companies")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
         <h1 className="text-2xl font-bold">{partner.display_name || partner.name}</h1>
         <Badge variant="outline">{typeLabel(partner.type)}</Badge>
+        {partner.account_tier && (
+          <Badge className={TIER_COLORS[partner.account_tier] || ""}>{t("accountTier")}: {partner.account_tier}</Badge>
+        )}
         <div className="flex gap-1">
           {partner.partner_category_assignments?.map((a: any) => (
             <Badge key={a.category_id} variant="outline" style={{ borderColor: a.company_categories?.color }}>
@@ -161,50 +208,118 @@ export default function CompanyDetail() {
         </TabsList>
 
         <TabsContent value="overview">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{t("companyInfo")}</CardTitle>
-              {!editing ? (
-                <Button variant="outline" size="sm" onClick={startEdit}><Pencil className="h-4 w-4 mr-1" />{t("edit")}</Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1" />{t("cancel")}</Button>
-                  <Button size="sm" onClick={() => updateMutation.mutate(form)} disabled={updateMutation.isPending}>
-                    <Save className="h-4 w-4 mr-1" />{t("save")}
-                  </Button>
+          <div className="space-y-4">
+            {/* Account Health Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  {t("accountHealth")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {/* Tier & Revenue */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">{t("accountTier")}</p>
+                    <div className="flex items-center gap-2">
+                      {partner.account_tier ? (
+                        <Badge className={`text-lg px-3 py-1 ${TIER_COLORS[partner.account_tier] || ""}`}>
+                          {partner.account_tier}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("revenue12m")}: {fmt(partner.tier_revenue_12m || 0)}
+                    </p>
+                  </div>
+
+                  {/* Dormancy Status */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">{t("dormancyStatus")}</p>
+                    <div className="flex items-center gap-2">
+                      {dormancyStatus === "active" && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                      {dormancyStatus === "at_risk" && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                      {dormancyStatus === "dormant" && <ShieldAlert className="h-5 w-5 text-destructive" />}
+                      <span className="font-medium">
+                        {t(dormancyStatus === "active" ? "dormancyActive" : dormancyStatus === "at_risk" ? "dormancyAtRisk" : "dormancyDormant")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("lastInvoiceDate")}: {lastInvoiceDate ? new Date(lastInvoiceDate).toLocaleDateString("sr-RS") : "—"}
+                      {daysSinceInvoice !== null && ` (${daysSinceInvoice} ${t("daysInactive")})`}
+                    </p>
+                  </div>
+
+                  {/* Credit Status */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">{t("creditStatus")}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-bold ${creditColor}`}>{fmt(outstandingBalance)}</span>
+                      <span className="text-sm text-muted-foreground">/ {fmt(creditLimit)}</span>
+                    </div>
+                    {creditLimit > 0 && (
+                      <div className="space-y-1">
+                        <Progress
+                          value={creditUtilization}
+                          className={`h-2 ${creditUtilization > 90 ? "[&>div]:bg-destructive" : creditUtilization > 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
+                        />
+                        <p className="text-xs text-muted-foreground">{t("creditUtilization")}: {creditUtilization}%</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {editing && form ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2"><Label>{t("name")}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("displayName")}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("phone")}</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("website")}</Label><Input value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("contactPerson")}</Label><Input value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
-                  <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-                  <div className="grid gap-2 md:col-span-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 text-sm">
-                  <div><span className="text-muted-foreground">{t("name")}:</span> <strong>{partner.name}</strong></div>
-                  <div><span className="text-muted-foreground">{t("pib")}:</span> {partner.pib || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("maticniBroj")}:</span> {partner.maticni_broj || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("email")}:</span> {partner.email || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("phone")}:</span> {partner.phone || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("website")}:</span> {partner.website || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("contactPerson")}:</span> {partner.contact_person || "—"}</div>
-                  <div><span className="text-muted-foreground">{t("address")}:</span> {partner.address || "—"}, {partner.city || ""} {partner.postal_code || ""}</div>
-                  <div><span className="text-muted-foreground">{t("creditLimit")}:</span> {fmt(partner.credit_limit || 0)}</div>
-                  <div><span className="text-muted-foreground">{t("paymentTermsDays")}:</span> {partner.payment_terms_days || 30}</div>
-                  <div><span className="text-muted-foreground">{t("status")}:</span> <Badge variant={partner.is_active ? "default" : "secondary"}>{partner.is_active ? t("active") : t("inactive")}</Badge></div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Company Info Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{t("companyInfo")}</CardTitle>
+                {!editing ? (
+                  <Button variant="outline" size="sm" onClick={startEdit}><Pencil className="h-4 w-4 mr-1" />{t("edit")}</Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1" />{t("cancel")}</Button>
+                    <Button size="sm" onClick={() => updateMutation.mutate(form)} disabled={updateMutation.isPending}>
+                      <Save className="h-4 w-4 mr-1" />{t("save")}
+                    </Button>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent>
+                {editing && form ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2"><Label>{t("name")}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("displayName")}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("phone")}</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("website")}</Label><Input value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("contactPerson")}</Label><Input value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+                    <div className="grid gap-2 md:col-span-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 text-sm">
+                    <div><span className="text-muted-foreground">{t("name")}:</span> <strong>{partner.name}</strong></div>
+                    <div><span className="text-muted-foreground">{t("pib")}:</span> {partner.pib || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("maticniBroj")}:</span> {partner.maticni_broj || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("email")}:</span> {partner.email || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("phone")}:</span> {partner.phone || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("website")}:</span> {partner.website || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("contactPerson")}:</span> {partner.contact_person || "—"}</div>
+                    <div><span className="text-muted-foreground">{t("address")}:</span> {partner.address || "—"}, {partner.city || ""} {partner.postal_code || ""}</div>
+                    <div><span className="text-muted-foreground">{t("creditLimit")}:</span> {fmt(partner.credit_limit || 0)}</div>
+                    <div><span className="text-muted-foreground">{t("paymentTermsDays")}:</span> {partner.payment_terms_days || 30}</div>
+                    <div><span className="text-muted-foreground">{t("status")}:</span> <Badge variant={partner.is_active ? "default" : "secondary"}>{partner.is_active ? t("active") : t("inactive")}</Badge></div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="contacts">
@@ -218,11 +333,12 @@ export default function CompanyDetail() {
                     <TableHead>{t("phone")}</TableHead>
                     <TableHead>{t("type")}</TableHead>
                     <TableHead>{t("jobTitle")}</TableHead>
+                    <TableHead>{t("contactRole")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {linkedContacts.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
                   ) : linkedContacts.map((lc: any) => (
                     <TableRow key={lc.id} className="cursor-pointer" onClick={() => navigate(`/crm/contacts/${lc.contacts?.id}`)}>
                       <TableCell className="font-medium">{lc.contacts?.first_name} {lc.contacts?.last_name || ""}</TableCell>
@@ -230,6 +346,22 @@ export default function CompanyDetail() {
                       <TableCell>{lc.contacts?.phone || "—"}</TableCell>
                       <TableCell><Badge variant="secondary">{lc.contacts?.type}</Badge></TableCell>
                       <TableCell>{lc.job_title || "—"}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select
+                          value={lc.role || "__none"}
+                          onValueChange={(v) => updateRoleMutation.mutate({ assignmentId: lc.id, role: v === "__none" ? null : v })}
+                        >
+                          <SelectTrigger className="w-[140px] h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">{t("noRole")}</SelectItem>
+                            {CONTACT_ROLES.map(r => (
+                              <SelectItem key={r} value={r}>{t(ROLE_LABELS[r] as any)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

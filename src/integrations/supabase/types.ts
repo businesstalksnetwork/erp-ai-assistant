@@ -1594,6 +1594,7 @@ export type Database = {
           is_primary: boolean | null
           job_title: string | null
           partner_id: string | null
+          role: string | null
           tenant_id: string
         }
         Insert: {
@@ -1605,6 +1606,7 @@ export type Database = {
           is_primary?: boolean | null
           job_title?: string | null
           partner_id?: string | null
+          role?: string | null
           tenant_id: string
         }
         Update: {
@@ -1616,6 +1618,7 @@ export type Database = {
           is_primary?: boolean | null
           job_title?: string | null
           partner_id?: string | null
+          role?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -1815,6 +1818,66 @@ export type Database = {
           },
           {
             foreignKeyName: "credit_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          partner_id: string | null
+          priority: string
+          status: string
+          task_type: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          partner_id?: string | null
+          priority?: string
+          status?: string
+          task_type?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          partner_id?: string | null
+          priority?: string
+          status?: string
+          task_type?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7225,6 +7288,7 @@ export type Database = {
       }
       partners: {
         Row: {
+          account_tier: string | null
           address: string | null
           city: string | null
           contact_person: string | null
@@ -7233,9 +7297,12 @@ export type Database = {
           credit_limit: number | null
           default_currency: string | null
           display_name: string | null
+          dormancy_detected_at: string | null
+          dormancy_status: string | null
           email: string | null
           id: string
           is_active: boolean
+          last_invoice_date: string | null
           maticni_broj: string | null
           name: string
           notes: string | null
@@ -7245,11 +7312,14 @@ export type Database = {
           postal_code: string | null
           status: string
           tenant_id: string
+          tier_revenue_12m: number | null
+          tier_updated_at: string | null
           type: string
           updated_at: string
           website: string | null
         }
         Insert: {
+          account_tier?: string | null
           address?: string | null
           city?: string | null
           contact_person?: string | null
@@ -7258,9 +7328,12 @@ export type Database = {
           credit_limit?: number | null
           default_currency?: string | null
           display_name?: string | null
+          dormancy_detected_at?: string | null
+          dormancy_status?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
+          last_invoice_date?: string | null
           maticni_broj?: string | null
           name: string
           notes?: string | null
@@ -7270,11 +7343,14 @@ export type Database = {
           postal_code?: string | null
           status?: string
           tenant_id: string
+          tier_revenue_12m?: number | null
+          tier_updated_at?: string | null
           type?: string
           updated_at?: string
           website?: string | null
         }
         Update: {
+          account_tier?: string | null
           address?: string | null
           city?: string | null
           contact_person?: string | null
@@ -7283,9 +7359,12 @@ export type Database = {
           credit_limit?: number | null
           default_currency?: string | null
           display_name?: string | null
+          dormancy_detected_at?: string | null
+          dormancy_status?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
+          last_invoice_date?: string | null
           maticni_broj?: string | null
           name?: string
           notes?: string | null
@@ -7295,6 +7374,8 @@ export type Database = {
           postal_code?: string | null
           status?: string
           tenant_id?: string
+          tier_revenue_12m?: number | null
+          tier_updated_at?: string | null
           type?: string
           updated_at?: string
           website?: string | null
@@ -10886,6 +10967,10 @@ export type Database = {
         }
         Returns: string
       }
+      calculate_partner_tiers: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       calculate_payroll_for_run: {
         Args: { p_payroll_run_id: string }
         Returns: undefined
@@ -10926,6 +11011,10 @@ export type Database = {
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }
         Returns: string
+      }
+      detect_partner_dormancy: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
       }
       emit_module_event: {
         Args: {
