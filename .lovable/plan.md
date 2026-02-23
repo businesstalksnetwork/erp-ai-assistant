@@ -1,97 +1,86 @@
 
-# CRM Phase 2: Remaining Features Implementation
 
-## Overview
-Four feature blocks to implement: Expiring Quotes UI, Discount Approval UI, Discount Rules Settings, and Discount Approval Integration.
+# CRM Phase 2 Testing + Company Detail Polish
 
----
+## Part 1: CRM Phase 2 -- Already Implemented (Verification)
 
-## 1. Expiring Quotes UI
+All four CRM Phase 2 feature blocks are already in the codebase:
 
-### Quotes List (already partially done)
-The `isExpiringSoon` helper and amber `AlertTriangle` icon already exist in `Quotes.tsx`. No changes needed there.
+1. **Expiring Quotes Widget** -- Present in `CrmDashboard.tsx` (lines 120-344). Queries quotes with `status = 'sent'` and `valid_until` within 3 days. Shows amber warning icons. Conditionally renders only when there are expiring quotes.
 
-### CRM Dashboard -- "Expiring Quotes" Widget
-- Add a new query in `CrmDashboard.tsx` fetching quotes with `status = 'sent'` and `valid_until` within the next 3 days
-- Render a new `Card` widget titled "Expiring Quotes" with an amber `AlertTriangle` icon, showing each quote's number, partner name, valid_until date, and total
-- Clicking a row navigates to `/crm/quotes`
-- Place it between the "Accounts at Risk" and "CRM Tasks" sections
+2. **Discount Approval Badge** -- `DiscountApprovalBadge.tsx` exists. Integrated into the Quotes list status column. Uses `useDiscountApproval` hook.
 
----
+3. **Discount Rules Settings** -- `DiscountApprovalRules.tsx` exists with full CRUD (add/edit/delete rules by role, max %, approval threshold). Route registered in `App.tsx`.
 
-## 2. Discount Approval UI
+4. **Discount Approval Integration** -- `useDiscountApproval.ts` hook connects to `approval_workflows` / `approval_requests` with `entity_type = 'quote_discount'`. Blocks "Send" in the quote form when approval is needed.
 
-### DiscountApprovalBadge Component
-- New file: `src/components/quotes/DiscountApprovalBadge.tsx`
-- Accepts `quoteId`, `tenantId`, `maxDiscountPct` props
-- Queries `approval_requests` for `entity_type = 'quote_discount'` and `entity_id = quoteId`
-- Displays a Badge: "Pending Approval" (amber), "Approved" (green), or "Discount Exceeds Limit" (red) depending on state
-- Used in the Quotes list table (status column area) and quote form dialog
-
-### Quote Form Warning
-- In `Quotes.tsx` dialog, after the form fields, add logic:
-  - Fetch the user's role-based `discount_approval_rules` for the current tenant
-  - If the quote's `max_discount_pct` exceeds the rule's threshold, show an amber warning: "Discount exceeds your limit (X%). Approval required."
-- The "Send" status option is blocked (disabled with tooltip) if:
-  - `max_discount_pct` > the user's allowed threshold AND
-  - No `approved` approval_request exists for `entity_type = 'quote_discount'`, `entity_id = quote.id`
-
-### Blocking "Send" Logic
-- When user tries to set status to `sent` and discount exceeds threshold:
-  - If no approval request exists, auto-create one via `useApprovalCheck` with `entity_type = 'quote_discount'`
-  - Show toast: "Approval required before sending"
-  - Prevent the save mutation from executing with status = 'sent'
+No code changes needed for Phase 2.
 
 ---
 
-## 3. Discount Rules Settings
+## Part 2: Company Detail Page Polish
 
-### New Page: `src/pages/tenant/DiscountApprovalRules.tsx`
-- CRUD page for the existing `discount_approval_rules` table (role, max_discount_pct, requires_approval_above)
-- Standard table + dialog pattern matching `ApprovalWorkflows.tsx` style
-- Fields: Role (select from available roles), Max Discount % (number input), Requires Approval Above % (optional number input)
+The `CompanyDetail.tsx` page is missing several useful sections that would provide a 360-degree view of the company. Here are the improvements:
 
-### Route
-- Add route in `App.tsx`: `settings/discount-rules` with `ProtectedRoute requiredModule="settings-approvals"`
+### 2.1 Add Related Opportunities Tab
+- Query the `opportunities` table filtered by `partner_id = id`
+- Show a table with title, stage, value, expected close date, salesperson
+- Clicking navigates to the opportunity detail page
+- This gives users direct visibility into the sales pipeline for a company
 
-### Settings Page Link
-- Add a new link in the Operations section of `Settings.tsx`: "Discount Rules" with `Percent` icon, linking to `/settings/discount-rules`
+### 2.2 Add Related Quotes Tab
+- Query the `quotes` table filtered by `partner_id = id`
+- Show quote number, date, total, status, version badge
+- Clicking navigates to the quotes page
+- Provides quote history per company
 
-### Translations
-- Add keys for both EN and SR: `discountRules`, `maxDiscountPct`, `requiresApprovalAbove`, `discountRuleSaved`, `discountRuleDeleted`
+### 2.3 Add Notes/Description Field to Edit Form
+- Include `postal_code` in the edit form (currently visible in read mode but not editable)
 
----
+### 2.4 Add Quick Stats Summary
+- Show a row of summary stats at the top of the overview tab: Total Revenue (sum of paid invoices), Open Balance, Number of Opportunities, Number of Quotes
+- Provides at-a-glance financial context
 
-## 4. Discount Approval Integration
-
-### Hook: `useDiscountApproval`
-- New file: `src/hooks/useDiscountApproval.ts`
-- Accepts `tenantId`, `quoteId`, `discountPct`
-- Fetches the current user's role, then checks `discount_approval_rules` for that tenant+role
-- Returns: `{ needsApproval: boolean, maxAllowed: number, approvalStatus: 'none' | 'pending' | 'approved' | 'rejected', submitForApproval: () => Promise<void> }`
-- `submitForApproval` creates an `approval_request` with `entity_type = 'quote_discount'` and fires `process-module-event` + `create-notification`
-
-### Integration Points
-- `Quotes.tsx` uses `useDiscountApproval` to gate the "Send" action
-- `DiscountApprovalBadge` uses `useDiscountApproval` for display state
+### 2.5 Add "Related Quotes" and "Opportunities" to Tab Bar
+- Update the TabsList to include two new tabs: "Opportunities" and "Quotes"
 
 ---
 
-## Files to Create
-| File | Purpose |
-|------|---------|
-| `src/components/quotes/DiscountApprovalBadge.tsx` | Badge showing discount approval status |
-| `src/pages/tenant/DiscountApprovalRules.tsx` | Settings CRUD for discount rules |
-| `src/hooks/useDiscountApproval.ts` | Hook for discount approval logic |
+## Technical Details
 
-## Files to Modify
+### Files to Modify
 | File | Changes |
 |------|---------|
-| `src/pages/tenant/CrmDashboard.tsx` | Add "Expiring Quotes" widget |
-| `src/pages/tenant/Quotes.tsx` | Integrate discount approval badge, block Send, show warnings |
-| `src/pages/tenant/Settings.tsx` | Add "Discount Rules" link in Operations section |
-| `src/App.tsx` | Add route for DiscountApprovalRules |
-| `src/i18n/translations.ts` | Add ~10 new translation keys (EN + SR) |
+| `src/pages/tenant/CompanyDetail.tsx` | Add opportunities query, quotes query, two new tabs, quick stats row in overview |
 
-## No Database Changes Needed
-The `discount_approval_rules` table and `approval_requests` table already exist with all required columns. The `quotes` table already has `max_discount_pct`. No migrations required.
+### New Queries (in CompanyDetail.tsx)
+```
+// Related Opportunities
+supabase.from("opportunities")
+  .select("id, title, stage, value, expected_close_date, salespeople(first_name, last_name)")
+  .eq("partner_id", id)
+  .order("created_at", { ascending: false })
+  .limit(20)
+
+// Related Quotes  
+supabase.from("quotes")
+  .select("id, quote_number, quote_date, total, status, currency, current_version, valid_until")
+  .eq("partner_id", id)
+  .order("created_at", { ascending: false })
+  .limit(20)
+```
+
+### Updated Tab Bar
+The TabsList will expand from 5 tabs to 7:
+- Overview | Contacts | Opportunities | Quotes | Meetings | Invoices | Activities
+
+### Quick Stats Row (Overview Tab)
+Four compact stat cards above the Account Health card:
+- Total Revenue (sum of paid/posted invoices)
+- Outstanding Balance (existing calculation)
+- Open Opportunities (count)
+- Active Quotes (count of draft/sent quotes)
+
+### No Database Changes Required
+All data is already available in existing tables. Only frontend queries and UI additions.
+
