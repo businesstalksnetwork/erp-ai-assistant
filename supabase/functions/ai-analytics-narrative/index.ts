@@ -47,14 +47,20 @@ serve(async (req) => {
       });
     }
 
-    // Verify tenant membership
+    // Verify tenant membership (super admins bypass)
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: membership } = await supabase
-      .from("tenant_members").select("id")
-      .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
-    if (!membership) {
-      return new Response(JSON.stringify({ error: "Forbidden" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { data: isSuperAdmin } = await supabase
+      .from("user_roles").select("id")
+      .eq("user_id", caller.id).eq("role", "super_admin").maybeSingle();
+
+    if (!isSuperAdmin) {
+      const { data: membership } = await supabase
+        .from("tenant_members").select("id")
+        .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
