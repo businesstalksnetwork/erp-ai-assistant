@@ -314,7 +314,7 @@ export default function TenantLayout() {
       <div className="min-h-screen flex w-full">
         <Sidebar className="border-r border-sidebar-border w-64 bg-sidebar-background">
           {/* Logo */}
-          <div className="p-4 border-b border-sidebar-border/60 flex justify-center">
+          <div className="pt-2 pb-5 px-4 border-b border-sidebar-border/60 flex justify-center">
             <img src={erpAiLogo} alt="ERP AI" className="max-w-[140px] h-auto" />
           </div>
 
