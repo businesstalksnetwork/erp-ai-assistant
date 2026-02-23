@@ -208,10 +208,10 @@
 
 ## 7. SUPABASE EDGE FUNCTIONS
 
-**Total Functions:** 65 functions
+**Total Functions:** 68 functions
 
 **Categories:**
-- **AI:** `ai-assistant`, `ai-analytics-narrative`, `ai-insights`, `production-ai-planning`
+- **AI:** `ai-assistant` (3 tools, 5 rounds, true SSE streaming, dynamic schema), `ai-analytics-narrative` (tool-calling + caching), `ai-insights` (hybrid rules + AI enrichment), `production-ai-planning` (6 actions, scenario persistence), `wms-slotting` (capacity validation, batch tasks, scenario comparison)
 - **SEF:** 15+ functions for Serbian e-invoicing
 - **Email:** `send-invoice-email`, `send-verification-email`, `send-notification-emails`, `send-admin-bulk-email`
 - **Storage:** `storage-upload`, `storage-download`, `storage-delete`, `storage-cleanup`, `storage-migrate`
@@ -247,6 +247,23 @@
 2. **AI SQL Tool Calling** — `ai-assistant` uses a 3-round tool-calling loop with `execute_readonly_query` RPC for live tenant data queries.
 3. **AI Anomaly Detection** — `ai-insights` performs 7 anomaly checks: expense spikes, duplicate invoices, weekend postings, dormant/at-risk partners, slow-moving inventory, fiscal period warnings.
 4. **Architecture Hardening** — `useStatusWorkflow` hook, `useMemo` optimization, improved type safety.
+
+### New Features (v3.0 — AI End-to-End Upgrade)
+
+1. **AI Assistant: True SSE Streaming** — Real token-by-token streaming via ReadableStream after tool-calling rounds complete. No more fake chunking.
+2. **AI Assistant: Multi-Tool Support** — 3 tools (`query_tenant_data`, `analyze_trend`, `create_reminder`), 5 tool-calling rounds (up from 3).
+3. **AI Assistant: Dynamic Schema Context** — Schema fetched from `information_schema.columns` at runtime (cached 1hr), always up-to-date.
+4. **AI Conversation Persistence** — Chat history saved to `ai_conversations` table. Sidebar shows conversation list, "New Chat" button, resume any past conversation.
+5. **AI Insights: Hybrid Rules + AI Enrichment** — Rule-based anomaly checks enriched by Gemini for prioritization, cross-module correlation, and strategic recommendations.
+6. **AI Analytics Narrative: Tool-Calling & Caching** — `ai-analytics-narrative` can now query the DB for deeper context. Results cached in `ai_narrative_cache` (30min TTL).
+7. **AI Audit Trail** — All 5 AI edge functions now write to `ai_action_log` table (action_type, module, model_version, input/output).
+8. **Component Deduplication** — `AiAssistantPanel.tsx` deleted; `AiContextSidebar.tsx` is the unified AI interface.
+9. **Production AI: Scenario Persistence** — `production_scenarios` table for schedule/simulation/bottleneck results. Comparison view in `AiCapacitySimulation`.
+10. **Production Orders: Priority** — Priority field (1-5) added to `production_orders` table and create/edit UI.
+11. **WMS AI: Capacity Validation** — Both AI and local modes validate bin capacity before saving moves.
+12. **WMS AI: Batch Task Generation** — Single bulk INSERT replaces sequential per-move inserts.
+13. **WMS AI: Scenario Comparison** — Side-by-side KPI diff for comparing optimization runs.
+14. **New DB Tables** — `ai_conversations`, `ai_conversation_messages`, `ai_narrative_cache`, `production_scenarios`.
 
 ---
 
