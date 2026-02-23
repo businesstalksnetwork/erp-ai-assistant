@@ -207,7 +207,9 @@ export default function Quotes() {
   const columns: ResponsiveColumn<any>[] = [
     { key: "quote_number", label: t("quoteNumber"), primary: true, render: (q) => (
       <div className="flex items-center gap-1.5">
-        {q.quote_number}
+        <button className="text-primary hover:underline font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/sales/quotes/${q.id}`); }}>
+          {q.quote_number}
+        </button>
         {(q.current_version || 1) > 1 && <Badge variant="outline" className="text-[10px] px-1">v{q.current_version}</Badge>}
         {isExpiringSoon(q) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
       </div>
