@@ -21,6 +21,11 @@ const insightRouteMap: Record<string, string> = {
   revenue_declining: "/analytics",
   slow_moving: "/analytics/inventory-health",
   reorder_suggestion: "/purchasing/orders",
+  expense_spike: "/analytics/expenses",
+  duplicate_invoices: "/purchasing/invoices",
+  weekend_postings: "/accounting/journal",
+  dormant_accounts: "/crm/companies",
+  at_risk_accounts: "/crm/companies",
 };
 
 interface Insight {
