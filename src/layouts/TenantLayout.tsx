@@ -244,37 +244,37 @@ function CollapsibleNavGroup({
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
-                const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
-                return (
-                  <React.Fragment key={item.key}>
-                    {item.section && (
-                      <li className="px-3 pt-3 pb-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-                          {t(item.section as any)}
-                        </span>
-                      </li>
-                    )}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-all border-l-2 border-transparent ${
-                            itemActive
-                              ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                              : "hover:bg-sidebar-accent"
-                          }`}
-                          activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                        >
-                          <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : "opacity-60"}`} />
-                          <span className="truncate">{t(item.key as any)}</span>
-                          {itemActive && <ChevronRight className="h-3 w-3 ml-auto opacity-50" />}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </React.Fragment>
-                );
-              })}
+                    {items.map((item) => {
+                      const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                      return (
+                        <React.Fragment key={item.key}>
+                          {item.section && (
+                            <li className="px-3 pt-3 pb-1">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                                {t(item.section as any)}
+                              </span>
+                            </li>
+                          )}
+                          <SidebarMenuItem>
+                            <SidebarMenuButton asChild>
+                              <NavLink
+                                to={item.url}
+                                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 border-transparent group ${
+                                  itemActive
+                                    ? "bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
+                                    : "hover:bg-sidebar-accent/60 hover:text-sidebar-foreground text-sidebar-foreground/80"
+                                }`}
+                                activeClassName="bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
+                              >
+                                <item.icon className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${itemActive ? "text-primary scale-110" : "opacity-70 group-hover:opacity-100"}`} />
+                                <span className="truncate">{t(item.key as any)}</span>
+                                {itemActive && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-60 animate-in slide-in-right" />}
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        </React.Fragment>
+                      );
+                    })}
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
