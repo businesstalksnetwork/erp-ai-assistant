@@ -46,7 +46,7 @@ serve(async (req) => {
       transaction_id, tenant_id, device_id, items, payments,
       buyer_id, receipt_type = "normal", transaction_type = "sale",
       referent_receipt_number, referent_receipt_date, cashier_name,
-      environment_type, omit_qr_code, journal_report,
+      environment_type, omit_qr_code, journal_report, voucher_type,
     } = body;
 
     // Verify tenant_id is provided
@@ -98,13 +98,19 @@ serve(async (req) => {
         amount: p.amount,
         paymentType: PAYMENT_TYPE_MAP[p.method] ?? 0,
       })),
-      items: items.map((item: { name: string; quantity: number; unit_price: number; tax_rate: number; total_amount: number }) => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
-        labels: [resolveTaxLabel(item.tax_rate, taxLabelMap)],
-        totalAmount: item.total_amount,
-      })),
+      items: items.map((item: { name: string; quantity: number; unit_price: number; tax_rate: number; total_amount: number }) => {
+        // Multi-purpose voucher sale: use tax category "O" (outside scope), no VAT
+        const label = voucher_type === "multi_purpose"
+          ? "O"
+          : resolveTaxLabel(item.tax_rate, taxLabelMap);
+        return {
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          labels: [label],
+          totalAmount: item.total_amount,
+        };
+      }),
     };
 
     // PFR v3 optional fields

@@ -212,6 +212,7 @@ const settingsNav: NavItem[] = [
   { key: "integrations", url: "/settings/integrations", icon: Plug, section: "system" },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
+  { key: "dataProtection", url: "/settings/data-protection", icon: Shield },
 ];
 
 function CollapsibleNavGroup({

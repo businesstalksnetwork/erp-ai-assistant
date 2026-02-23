@@ -84,12 +84,18 @@ export default function YearEndClosing() {
       const revenueTotal = revenueItems.reduce((s, a) => s + a.balance, 0);
       const expenseTotal = expenseItems.reduce((s, a) => s + a.balance, 0);
 
+      const netIncome = revenueTotal - expenseTotal;
+      const citAmount = netIncome > 0 ? Math.round(netIncome * 0.15 * 100) / 100 : 0;
+      const netIncomeAfterCit = netIncome - citAmount;
+
       return {
         revenue: revenueItems,
         expense: expenseItems,
         revenueTotal,
         expenseTotal,
-        netIncome: revenueTotal - expenseTotal,
+        netIncome,
+        citAmount,
+        netIncomeAfterCit,
       };
     },
     enabled: !!tenantId && !!selectedPeriod,
@@ -181,7 +187,7 @@ export default function YearEndClosing() {
               <CardHeader className="pb-2"><CardTitle className="text-sm text-red-600">{t("totalExpenses")}</CardTitle></CardHeader>
               <CardContent><p className="text-2xl font-bold">{fmt(preview.expenseTotal)} RSD</p></CardContent>
             </Card>
-            <Card>
+           <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">{t("netIncome")}</CardTitle></CardHeader>
               <CardContent>
                 <p className={`text-2xl font-bold ${preview.netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -190,6 +196,46 @@ export default function YearEndClosing() {
               </CardContent>
             </Card>
           </div>
+
+          {/* CIT Accrual Preview */}
+          {preview.citAmount > 0 && (
+            <Card className="border-blue-500/30">
+              <CardHeader>
+                <CardTitle className="text-base">{t("citAccrual")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("account")}</TableHead>
+                      <TableHead>{t("description")}</TableHead>
+                      <TableHead className="text-right">{t("debit")}</TableHead>
+                      <TableHead className="text-right">{t("credit")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-mono">7200</TableCell>
+                      <TableCell>{t("citTaxExpense")}</TableCell>
+                      <TableCell className="text-right font-mono">{fmt(preview.citAmount)}</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-mono">4810</TableCell>
+                      <TableCell>{t("citPayable")}</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right font-mono">{fmt(preview.citAmount)}</TableCell>
+                    </TableRow>
+                    <TableRow className="font-semibold">
+                      <TableCell colSpan={2}>{t("netIncomeAfterCit")}</TableCell>
+                      <TableCell colSpan={2} className="text-right font-mono">{fmt(preview.netIncomeAfterCit)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <p className="text-xs text-muted-foreground mt-2">{t("citAccrualNote")}</p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Revenue accounts */}
           {preview.revenue.length > 0 && (
