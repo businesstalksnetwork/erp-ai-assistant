@@ -1386,7 +1386,7 @@ export default function AdminPanel() {
                                     size="sm"
                                     className="h-6 w-6 p-0"
                                     onClick={() => {
-                                      navigator.clipboard.writeText(`https://pausalbox.aiknjigovodja.rs/auth?partner=${partner.code}`);
+                                      navigator.clipboard.writeText(`https://erp-ai-assistant.aiknjigovodja.rs/auth?partner=${partner.code}`);
                                       toast({ title: 'Link kopiran', description: 'Partnerski link je kopiran u clipboard.' });
                                     }}
                                   >
@@ -1444,7 +1444,7 @@ export default function AdminPanel() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                       onClick={() => {
-                                        navigator.clipboard.writeText(`https://pausalbox.aiknjigovodja.rs/auth?partner=${partner.code}`);
+                                        navigator.clipboard.writeText(`https://erp-ai-assistant.aiknjigovodja.rs/auth?partner=${partner.code}`);
                                         toast({ title: 'Link kopiran' });
                                       }}
                                     >

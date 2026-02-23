@@ -184,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
       subject: string;
       html: string;
     } = {
-      from: `${company.name} <no-reply@pausalbox.rs>`,
+      from: `${company.name} <no-reply@erp-ai-assistant.rs>`,
       to: recipients,
       subject: subject,
       html: htmlContent,

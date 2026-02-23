@@ -101,8 +101,8 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     // Default fallback
-    const defaultSubject = "Vaš probni period na PausalBox-u je istekao";
-    const defaultHtml = `<p>Zdravo {{full_name}},</p><p>Vaš besplatni probni period na PausalBox-u je istekao. Aktivirajte pretplatu da biste nastavili sa korišćenjem.</p><p>Posetite <a href="https://pausalbox.lovable.app">PausalBox</a> za više informacija.</p>`;
+    const defaultSubject = "Vaš probni period je istekao";
+    const defaultHtml = `<p>Zdravo {{full_name}},</p><p>Vaš besplatni probni period je istekao. Aktivirajte pretplatu da biste nastavili sa korišćenjem.</p><p>Posetite <a href="https://erp-ai-assistant.aiknjigovodja.rs">ERP-AI Assistant</a> za više informacija.</p>`;
 
     let sent = 0;
     let errors = 0;
@@ -122,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
           : renderTemplate(defaultHtml, data);
 
         const emailRes = await resend.emails.send({
-          from: "PausalBox <obavestenja@pausalbox.rs>",
+          from: "ERP-AI Assistant <obavestenja@erp-ai-assistant.rs>",
           to: [recipient.email],
           subject,
           html,
@@ -134,7 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`Rate limited for ${recipient.email}, retrying after 1.5s...`);
             await sleep(1500);
             const retryRes = await resend.emails.send({
-              from: "PausalBox <obavestenja@pausalbox.rs>",
+              from: "ERP-AI Assistant <obavestenja@erp-ai-assistant.rs>",
               to: [recipient.email],
               subject,
               html,

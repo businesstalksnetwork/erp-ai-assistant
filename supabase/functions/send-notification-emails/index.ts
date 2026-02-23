@@ -261,7 +261,7 @@ async function sendPushToUser(supabase: any, userId: string, title: string, mess
   if (!profile?.push_notifications_enabled) return;
 
   const payload = JSON.stringify({ title, message, link, tag: `pb-${Date.now()}` });
-  const subject = 'mailto:obavestenja@pausalbox.rs';
+  const subject = 'mailto:obavestenja@erp-ai-assistant.rs';
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
 
@@ -348,7 +348,7 @@ const handler = async (req: Request): Promise<Response> => {
             const data = { full_name: profile.full_name || profile.email, reminder_title: r.title, due_date: formatDate(r.due_date), amount: r.amount ? formatCurrency(r.amount) : null };
             const subject = tpl ? renderTemplate(tpl.subject, data) : `Podsetnik: ${r.title}`;
             const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Podsetnik: ${r.title} - ${formatDate(r.due_date)}</p>`;
-            const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            const emailRes = await resend.emails.send({ from: "ERP-AI Assistant <obavestenja@erp-ai-assistant.rs>", to: [profile.email], subject, html });
             if (emailRes.error) {
               console.error(`Failed to send reminder email to ${profile.email}:`, emailRes.error);
               continue;
@@ -382,7 +382,7 @@ const handler = async (req: Request): Promise<Response> => {
               const data = { full_name: profile.full_name || profile.email, subscription_end_date: formatDate(profile.subscription_end), days_left: d };
               const subject = tpl ? renderTemplate(tpl.subject, data) : `${profile.is_trial ? 'Trial' : 'Pretplata'} ističe za ${d} dana`;
               const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Vaš nalog ističe ${formatDate(profile.subscription_end)}</p>`;
-              const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+              const emailRes = await resend.emails.send({ from: "ERP-AI Assistant <obavestenja@erp-ai-assistant.rs>", to: [profile.email], subject, html });
               if (emailRes.error) {
                 console.error(`Failed to send subscription email to ${profile.email}:`, emailRes.error);
                 continue;
@@ -420,7 +420,7 @@ const handler = async (req: Request): Promise<Response> => {
             const data = { full_name: profile.full_name || profile.email, current_amount: formatCurrency(yearly), limit_amount: formatCurrency(LIMIT_6M), remaining_amount: formatCurrency(Math.max(0, LIMIT_6M - yearly)), limit_percent: Math.round(pct6m) };
             const subject = tpl ? renderTemplate(tpl.subject, data) : `Limit 6M - ${t.p}%`;
             const html = tpl ? renderTemplate(tpl.html_content, data) : `<p>Dostigli ste ${t.p}% limita</p>`;
-            const emailRes = await resend.emails.send({ from: "PausalBox <obavestenja@pausalbox.rs>", to: [profile.email], subject, html });
+            const emailRes = await resend.emails.send({ from: "ERP-AI Assistant <obavestenja@erp-ai-assistant.rs>", to: [profile.email], subject, html });
             if (emailRes.error) {
               console.error(`Failed to send limit warning email to ${profile.email}:`, emailRes.error);
               continue;

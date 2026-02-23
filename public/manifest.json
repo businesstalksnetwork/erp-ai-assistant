@@ -1,7 +1,7 @@
 {
-  "name": "Paušal Box - AI Knjigovodja",
-  "short_name": "Paušal Box",
-  "description": "Aplikacija za preduzetnike paušalce",
+  "name": "ERP-AI Assistant",
+  "short_name": "ERP-AI",
+  "description": "ERP sistem za upravljanje poslovanjem",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#faf8f5",

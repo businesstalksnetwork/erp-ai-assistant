@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Paušal Box</string>
-    <string name="title_activity_main">Paušal Box</string>
-    <string name="package_name">rs.aiknjigovodja.pausalbox</string>
-    <string name="custom_url_scheme">rs.aiknjigovodja.pausalbox</string>
-</resources>

@@ -118,7 +118,7 @@ export function PartnerDialog({
               placeholder="npr. freelance-serbia"
             />
             <p className="text-xs text-muted-foreground">
-              Link: pausalbox.aiknjigovodja.rs/auth?partner={code || "kod"}
+              Link: erp-ai-assistant.aiknjigovodja.rs/auth?partner={code || "kod"}
             </p>
           </div>
 

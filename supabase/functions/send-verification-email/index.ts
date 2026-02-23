@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const PRODUCTION_URL = "https://pausalbox.aiknjigovodja.rs";
+const PRODUCTION_URL = "https://erp-ai-assistant.aiknjigovodja.rs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -117,7 +117,7 @@ serve(async (req) => {
 
     // Send email via Resend
     const { data: emailResult, error: emailError } = await resend.emails.send({
-      from: "PausalBox <verification@pausalbox.rs>",
+      from: "ERP-AI Assistant <verification@erp-ai-assistant.rs>",
       to: [email],
       subject: template.subject,
       html: htmlContent,

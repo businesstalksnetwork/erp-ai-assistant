@@ -1,4 +1,4 @@
-// PausalBox Service Worker for Push Notifications
+// ERP-AI Assistant Service Worker for Push Notifications
 
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
@@ -10,12 +10,12 @@ self.addEventListener('push', function(event) {
     data: {
       url: data.link || '/'
     },
-    tag: data.tag || 'pausalbox-notification',
+    tag: data.tag || 'erpai-notification',
     renotify: true,
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'PausalBox', options)
+    self.registration.showNotification(data.title || 'ERP-AI Assistant', options)
   );
 });
 

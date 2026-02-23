@@ -186,7 +186,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between print:hidden shadow-sm">
         <Link to="/dashboard" className="transition-transform hover:scale-105">
-          <img src={theme === 'dark' ? logoDark : logoLight} alt="Paušal box" className="h-10" />
+          <div className="h-10 flex items-center">
+            <span className="text-xl font-bold text-primary">ERP-AI</span>
+          </div>
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell />
@@ -225,8 +227,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full overflow-y-auto overscroll-contain pb-16 lg:pb-0">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
-            <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-              <img src={theme === 'dark' ? logoDark : logoLightSidebar} alt="Paušal box" className="w-full max-w-[200px]" />
+            <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-md border border-primary/20">
+                  <Calculator className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="text-lg font-bold text-sidebar-foreground">ERP-AI</span>
+              </div>
             </Link>
           </div>
 
