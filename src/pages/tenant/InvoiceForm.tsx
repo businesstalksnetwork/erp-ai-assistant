@@ -79,6 +79,8 @@ export default function InvoiceForm() {
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
   const [legalEntityId, setLegalEntityId] = useState<string>("");
+  const [salespersonId, setSalespersonId] = useState<string>("");
+  const [salesOrderId, setSalesOrderId] = useState<string | null>(null);
   const { entities: legalEntities } = useLegalEntities();
 
   // Auto-select legal entity if only one exists
@@ -100,6 +102,16 @@ export default function InvoiceForm() {
         .order("name");
       if (error) throw error;
       return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  // Fetch salespeople
+  const { data: salespeople = [] } = useQuery({
+    queryKey: ["salespeople-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("salespeople").select("id, first_name, last_name").eq("tenant_id", tenantId!).eq("is_active", true).order("first_name");
+      return data || [];
     },
     enabled: !!tenantId,
   });
@@ -180,9 +192,27 @@ export default function InvoiceForm() {
       }
       if (so.currency) setCurrency(so.currency);
       if (so.notes) setNotes(so.notes);
+      if (so.salesperson_id) setSalespersonId(so.salesperson_id);
+      if (so.sales_order_id) setSalesOrderId(so.sales_order_id);
+      if (so.legal_entity_id) setLegalEntityId(so.legal_entity_id);
+      // Pre-fill lines from sales order
+      if (so.lines && so.lines.length > 0 && defaultTaxRate) {
+        setLines(so.lines.map((l: any, i: number) => calcLine({
+          product_id: l.product_id || undefined,
+          description: l.description || "",
+          quantity: l.quantity || 1,
+          unit_price: l.unit_price || 0,
+          tax_rate_id: defaultTaxRate.id,
+          tax_rate_value: Number(defaultTaxRate.rate),
+          line_total: 0,
+          tax_amount: 0,
+          total_with_tax: 0,
+          sort_order: i,
+        })));
+      }
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, isEdit]);
+  }, [location.state, isEdit, defaultTaxRate]);
 
   // Init empty line when tax rates load
   useEffect(() => {
@@ -304,6 +334,9 @@ export default function InvoiceForm() {
         partner_name: partnerName,
         partner_pib: partnerPib || null,
         partner_address: partnerAddress || null,
+        partner_id: selectedPartnerId && selectedPartnerId !== "__manual__" ? selectedPartnerId : null,
+        salesperson_id: salespersonId || null,
+        sales_order_id: salesOrderId || null,
         subtotal,
         tax_amount: totalTax,
         total: grandTotal,
@@ -487,6 +520,24 @@ export default function InvoiceForm() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Salesperson */}
+      {salespeople.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>{t("salesperson")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="max-w-sm">
+              <Select value={salespersonId || "__none"} onValueChange={(v) => setSalespersonId(v === "__none" ? "" : v)} disabled={isReadOnly}>
+                <SelectTrigger><SelectValue placeholder={t("salesperson")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {salespeople.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Line Items */}
       <Card>

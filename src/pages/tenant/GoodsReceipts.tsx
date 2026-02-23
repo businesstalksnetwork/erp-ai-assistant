@@ -55,7 +55,7 @@ export default function GoodsReceipts() {
     queryFn: async () => {
       const { data } = await supabase
         .from("goods_receipts")
-        .select("*, purchase_orders(order_number), warehouses(name)")
+        .select("*, purchase_orders(order_number, supplier_id, legal_entity_id, warehouse_id), warehouses(name), partners(name), legal_entities(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       return data || [];
@@ -91,21 +91,34 @@ export default function GoodsReceipts() {
   });
 
   const loadPOLines = async (poId: string) => {
+    // Fetch PO header to auto-populate supplier_id, legal_entity_id, warehouse_id
+    const { data: po } = await supabase.from("purchase_orders").select("supplier_id, legal_entity_id, warehouse_id").eq("id", poId).single();
     const { data } = await supabase.from("purchase_order_lines").select("product_id, quantity, description").eq("purchase_order_id", poId).order("sort_order");
-    if (data && data.length > 0) {
-      setForm(f => ({
-        ...f, purchase_order_id: poId,
-        lines: data.filter(l => l.product_id).map(l => ({ product_id: l.product_id!, quantity_ordered: l.quantity, quantity_received: l.quantity })),
-      }));
-    }
+    setForm(f => ({
+      ...f, purchase_order_id: poId,
+      warehouse_id: po?.warehouse_id || f.warehouse_id,
+      lines: data && data.length > 0
+        ? data.filter(l => l.product_id).map(l => ({ product_id: l.product_id!, quantity_ordered: l.quantity, quantity_received: l.quantity }))
+        : f.lines,
+    }));
   };
 
   const mutation = useMutation({
     mutationFn: async (f: GRForm) => {
+      // Auto-populate supplier_id and legal_entity_id from linked PO
+      let supplierId: string | null = null;
+      let legalEntityId: string | null = null;
+      if (f.purchase_order_id) {
+        const { data: po } = await supabase.from("purchase_orders").select("supplier_id, legal_entity_id").eq("id", f.purchase_order_id).single();
+        supplierId = po?.supplier_id || null;
+        legalEntityId = po?.legal_entity_id || null;
+      }
       const payload = {
         tenant_id: tenantId!, receipt_number: f.receipt_number,
         purchase_order_id: f.purchase_order_id || null,
         warehouse_id: f.warehouse_id || null, status: f.status, notes: f.notes || null,
+        supplier_id: supplierId,
+        legal_entity_id: legalEntityId,
       };
       let grId = editId;
       if (editId) {

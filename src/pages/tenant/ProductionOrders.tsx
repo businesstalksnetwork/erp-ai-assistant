@@ -27,7 +27,7 @@ export default function ProductionOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
+  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [completeOrder, setCompleteOrder] = useState<any>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
@@ -142,6 +142,7 @@ export default function ProductionOrders() {
         planned_end: form.planned_end || null,
         notes: form.notes || null,
         created_by: user?.id || null,
+        warehouse_id: form.warehouse_id || null,
       };
       if (editId) {
         const { status: _, ...updatePayload } = payload;
@@ -200,7 +201,7 @@ export default function ProductionOrders() {
         const selectedBom = boms.find((b: any) => b.id === bomParam);
         if (selectedBom) {
           setEditId(null);
-          setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
+          setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
         setOpen(true);
         setSearchParams({}, { replace: true });
       }
@@ -209,7 +210,7 @@ export default function ProductionOrders() {
 
   const openCreate = () => {
     setEditId(null);
-    setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
+    setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
     setOpen(true);
   };
 
@@ -224,6 +225,7 @@ export default function ProductionOrders() {
       planned_start: o.planned_start || "",
       planned_end: o.planned_end || "",
       notes: o.notes || "",
+      warehouse_id: o.warehouse_id || "",
     });
     setOpen(true);
   };
@@ -382,6 +384,15 @@ export default function ProductionOrders() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>{t("plannedStart")}</Label><Input type="date" value={form.planned_start} onChange={e => setForm({ ...form, planned_start: e.target.value })} /></div>
               <div><Label>{t("plannedEnd")}</Label><Input type="date" value={form.planned_end} onChange={e => setForm({ ...form, planned_end: e.target.value })} /></div>
+            </div>
+            <div>
+              <Label>{t("warehouse")}</Label>
+              <Select value={form.warehouse_id} onValueChange={v => setForm({ ...form, warehouse_id: v })}>
+                <SelectTrigger><SelectValue placeholder={t("warehouse")} /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
           </div>

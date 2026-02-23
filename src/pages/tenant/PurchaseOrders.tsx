@@ -1,5 +1,6 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,8 @@ interface POForm {
   currency: string;
   notes: string;
   lines: POLine[];
+  legal_entity_id: string | null;
+  warehouse_id: string | null;
 }
 
 const emptyLine: POLine = { product_id: null, description: "", quantity: 1, unit_price: 0, total: 0 };
@@ -46,12 +49,14 @@ const emptyForm: POForm = {
   order_number: "", supplier_id: null, supplier_name: "",
   order_date: new Date().toISOString().split("T")[0], expected_date: "",
   status: "draft", currency: "RSD", notes: "", lines: [{ ...emptyLine }],
+  legal_entity_id: null, warehouse_id: null,
 };
 
 export default function PurchaseOrders() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const { entities: legalEntities } = useLegalEntities();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -63,9 +68,18 @@ export default function PurchaseOrders() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_orders")
-        .select("*, partners(name)")
+        .select("*, partners(name), legal_entities(name), warehouses(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ["warehouses-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -98,6 +112,8 @@ export default function PurchaseOrders() {
         order_date: f.order_date, expected_date: f.expected_date || null,
         status: f.status, currency: f.currency, notes: f.notes || null,
         subtotal, tax_amount: 0, total: subtotal,
+        legal_entity_id: f.legal_entity_id || null,
+        warehouse_id: f.warehouse_id || null,
       };
       let poId = editId;
       if (editId) {
@@ -129,6 +145,9 @@ export default function PurchaseOrders() {
       const receiptNumber = `GRN-${Date.now().toString(36).toUpperCase()}`;
       const { data: grn, error: grnError } = await supabase.from("goods_receipts").insert([{
         tenant_id: tenantId!, receipt_number: receiptNumber, purchase_order_id: o.id, status: "draft",
+        warehouse_id: o.warehouse_id || null,
+        supplier_id: o.supplier_id || null,
+        legal_entity_id: o.legal_entity_id || null,
       }]).select("id").single();
       if (grnError) throw grnError;
       if (lines && lines.length > 0) {
@@ -164,6 +183,7 @@ export default function PurchaseOrders() {
       order_number: o.order_number, supplier_id: o.supplier_id, supplier_name: o.supplier_name,
       order_date: o.order_date, expected_date: o.expected_date || "",
       status: o.status, currency: o.currency, notes: o.notes || "",
+      legal_entity_id: o.legal_entity_id || null, warehouse_id: o.warehouse_id || null,
       lines: lines?.map(l => ({ id: l.id, product_id: l.product_id, description: l.description, quantity: l.quantity, unit_price: l.unit_price, total: l.total })) || [{ ...emptyLine }],
     });
     setOpen(true);
@@ -336,6 +356,30 @@ export default function PurchaseOrders() {
               <div className="text-right font-semibold">{t("total")}: {fmt(form.lines.reduce((s, l) => s + l.total, 0), form.currency)}</div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {legalEntities.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>{t("legalEntity")}</Label>
+                  <Select value={form.legal_entity_id || "__none"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {legalEntities.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label>{t("warehouse")}</Label>
+                <Select value={form.warehouse_id || "__none"} onValueChange={(v) => setForm({ ...form, warehouse_id: v === "__none" ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <DialogFooter>

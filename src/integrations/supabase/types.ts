@@ -4409,12 +4409,14 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          legal_entity_id: string | null
           notes: string | null
           purchase_order_id: string | null
           receipt_number: string
           received_at: string
           received_by: string | null
           status: string
+          supplier_id: string | null
           tenant_id: string
           updated_at: string
           warehouse_id: string | null
@@ -4422,12 +4424,14 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          legal_entity_id?: string | null
           notes?: string | null
           purchase_order_id?: string | null
           receipt_number: string
           received_at?: string
           received_by?: string | null
           status?: string
+          supplier_id?: string | null
           tenant_id: string
           updated_at?: string
           warehouse_id?: string | null
@@ -4435,22 +4439,38 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          legal_entity_id?: string | null
           notes?: string | null
           purchase_order_id?: string | null
           receipt_number?: string
           received_at?: string
           received_by?: string | null
           status?: string
+          supplier_id?: string | null
           tenant_id?: string
           updated_at?: string
           warehouse_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "goods_receipts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "goods_receipts_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -5178,6 +5198,7 @@ export type Database = {
           partner_pib: string | null
           sale_type: string
           sales_channel_id: string | null
+          sales_order_id: string | null
           salesperson_id: string | null
           sef_request_id: string | null
           sef_status: string
@@ -5209,6 +5230,7 @@ export type Database = {
           partner_pib?: string | null
           sale_type?: string
           sales_channel_id?: string | null
+          sales_order_id?: string | null
           salesperson_id?: string | null
           sef_request_id?: string | null
           sef_status?: string
@@ -5240,6 +5262,7 @@ export type Database = {
           partner_pib?: string | null
           sale_type?: string
           sales_channel_id?: string | null
+          sales_order_id?: string | null
           salesperson_id?: string | null
           sef_request_id?: string | null
           sef_status?: string
@@ -5284,6 +5307,13 @@ export type Database = {
             columns: ["sales_channel_id"]
             isOneToOne: false
             referencedRelation: "sales_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
           {
@@ -8596,6 +8626,7 @@ export type Database = {
           status: string
           tenant_id: string
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           actual_end?: string | null
@@ -8615,6 +8646,7 @@ export type Database = {
           status?: string
           tenant_id: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           actual_end?: string | null
@@ -8634,6 +8666,7 @@ export type Database = {
           status?: string
           tenant_id?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -8655,6 +8688,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -8918,6 +8958,7 @@ export type Database = {
           currency: string
           expected_date: string | null
           id: string
+          legal_entity_id: string | null
           notes: string | null
           order_date: string
           order_number: string
@@ -8929,6 +8970,7 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -8936,6 +8978,7 @@ export type Database = {
           currency?: string
           expected_date?: string | null
           id?: string
+          legal_entity_id?: string | null
           notes?: string | null
           order_date?: string
           order_number: string
@@ -8947,6 +8990,7 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -8954,6 +8998,7 @@ export type Database = {
           currency?: string
           expected_date?: string | null
           id?: string
+          legal_entity_id?: string | null
           notes?: string | null
           order_date?: string
           order_number?: string
@@ -8965,8 +9010,16 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_orders_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -8979,6 +9032,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -9570,6 +9630,7 @@ export type Database = {
           external_order_id: string | null
           id: string
           invoice_id: string | null
+          legal_entity_id: string | null
           notes: string | null
           order_date: string
           order_number: string
@@ -9585,6 +9646,7 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          warehouse_id: string | null
           web_connection_id: string | null
         }
         Insert: {
@@ -9594,6 +9656,7 @@ export type Database = {
           external_order_id?: string | null
           id?: string
           invoice_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           order_date?: string
           order_number: string
@@ -9609,6 +9672,7 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
           web_connection_id?: string | null
         }
         Update: {
@@ -9618,6 +9682,7 @@ export type Database = {
           external_order_id?: string | null
           id?: string
           invoice_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           order_date?: string
           order_number?: string
@@ -9633,6 +9698,7 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
           web_connection_id?: string | null
         }
         Relationships: [
@@ -9648,6 +9714,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
@@ -9683,6 +9756,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
