@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { MobileActionMenu, type ActionItem } from "@/components/shared/MobileActionMenu";
+import { useDebounce } from "@/hooks/useDebounce";
+import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 interface JournalLine {
   id?: string;
@@ -53,15 +56,18 @@ export default function JournalEntries() {
     }
   }, [legalEntities, form.legal_entity_id]);
 
-  const { data: entries = [], isLoading } = useQuery({
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { data: entries = [], isLoading, page, setPage, hasMore } = usePaginatedQuery({
     queryKey: ["journal-entries", tenantId, legalEntityFilter],
-    queryFn: async () => {
+    queryFn: async ({ from, to }) => {
       if (!tenantId) return [];
       let query = supabase
         .from("journal_entries")
         .select("*, legal_entities(name)")
         .eq("tenant_id", tenantId)
-        .order("entry_date", { ascending: false });
+        .order("entry_date", { ascending: false })
+        .range(from, to);
       if (legalEntityFilter !== "all") {
         query = query.eq("legal_entity_id", legalEntityFilter);
       }
@@ -167,10 +173,10 @@ export default function JournalEntries() {
     return <Badge variant={variant}>{label}</Badge>;
   };
 
-  const filtered = entries.filter(e =>
-    e.entry_number?.toLowerCase().includes(search.toLowerCase()) ||
-    e.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => entries.filter(e =>
+    e.entry_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    e.description?.toLowerCase().includes(debouncedSearch.toLowerCase())
+  ), [entries, debouncedSearch]);
 
   const columns: ResponsiveColumn<any>[] = [
     { key: "entry_number", label: t("entryNumber"), primary: true, render: (e) => <span className="font-mono">{e.entry_number}</span> },
@@ -241,6 +247,20 @@ export default function JournalEntries() {
         keyExtractor={(e) => e.id}
         emptyMessage={t("noResults")}
       />
+
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious onClick={() => setPage(Math.max(0, page - 1))} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+          <PaginationItem>
+            <span className="px-3 py-2 text-sm text-muted-foreground">{t("page")} {page + 1}</span>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext onClick={() => hasMore && setPage(page + 1)} className={!hasMore ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
 
       {/* Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

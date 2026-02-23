@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,9 @@ import { ExportButton } from "@/components/ExportButton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { useDebounce } from "@/hooks/useDebounce";
+import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 const UOM_OPTIONS = ["pcs", "kg", "g", "l", "ml", "m", "cm", "m2", "m3", "h"];
 
@@ -50,10 +53,12 @@ export default function Products() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
-  const { data: products = [], isLoading } = useQuery({
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { data: products = [], isLoading, page, setPage, hasMore } = usePaginatedQuery({
     queryKey: ["products", tenantId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("*").eq("tenant_id", tenantId!).order("name");
+    queryFn: async ({ from, to }) => {
+      const { data, error } = await supabase.from("products").select("*").eq("tenant_id", tenantId!).order("name").range(from, to);
       if (error) throw error;
       return data;
     },
@@ -114,9 +119,9 @@ export default function Products() {
     setDialogOpen(true);
   };
 
-  const filtered = products.filter((p) =>
-    `${p.name} ${p.sku || ""} ${p.barcode || ""}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => products.filter((p) =>
+    `${p.name} ${p.sku || ""} ${p.barcode || ""}`.toLowerCase().includes(debouncedSearch.toLowerCase())
+  ), [products, debouncedSearch]);
 
   const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -189,6 +194,20 @@ export default function Products() {
         keyExtractor={(p) => p.id}
         emptyMessage={t("noResults")}
       />
+
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious onClick={() => setPage(Math.max(0, page - 1))} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+          <PaginationItem>
+            <span className="px-3 py-2 text-sm text-muted-foreground">{t("page")} {page + 1}</span>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext onClick={() => hasMore && setPage(page + 1)} className={!hasMore ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Search, Link2, Check, X, Eye, FileText } from "lucide-react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function BankStatements() {
   const { t } = useLanguage();
@@ -288,10 +289,12 @@ export default function BankStatements() {
     return <Badge variant="secondary">{t("unmatched")}</Badge>;
   };
 
-  const filtered = statements.filter(s =>
-    s.statement_number?.toLowerCase().includes(search.toLowerCase()) ||
-    (s as any).bank_accounts?.bank_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const debouncedSearch = useDebounce(search, 300);
+
+  const filtered = useMemo(() => statements.filter(s =>
+    s.statement_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    (s as any).bank_accounts?.bank_name?.toLowerCase().includes(debouncedSearch.toLowerCase())
+  ), [statements, debouncedSearch]);
 
   const unmatchedCount = statementLines.filter(l => l.match_status === "unmatched").length;
   const matchedCount = statementLines.filter(l => l.match_status !== "unmatched").length;

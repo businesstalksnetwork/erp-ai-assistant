@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,9 @@ import { Plus, Send, BookOpen, DollarSign, RefreshCw, Receipt } from "lucide-rea
 import { format } from "date-fns";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
+import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -68,14 +71,17 @@ export default function Invoices() {
     }
   };
 
-  const { data: invoices = [], isLoading } = useQuery({
+  const debouncedSearch = useDebounce(search, 300);
+
+  const { data: invoices = [], isLoading, page, setPage, hasMore } = usePaginatedQuery({
     queryKey: ["invoices", tenantId, legalEntityFilter],
-    queryFn: async () => {
+    queryFn: async ({ from, to }) => {
       let query = supabase
         .from("invoices")
         .select("*, legal_entities(name)")
         .eq("tenant_id", tenantId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
       if (legalEntityFilter !== "all") {
         query = query.eq("legal_entity_id", legalEntityFilter);
       }
@@ -177,14 +183,14 @@ export default function Invoices() {
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
-  const filtered = invoices.filter((inv) => {
+  const filtered = useMemo(() => invoices.filter((inv) => {
     const matchesSearch =
-      !search ||
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.partner_name.toLowerCase().includes(search.toLowerCase());
+      !debouncedSearch ||
+      inv.invoice_number.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      inv.partner_name.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+  }), [invoices, debouncedSearch, statusFilter]);
 
   const columns: ResponsiveColumn<any>[] = [
     { key: "invoice_number", label: t("invoiceNumber"), primary: true, render: (inv) => <span className="font-medium">{inv.invoice_number}</span> },
@@ -324,6 +330,21 @@ export default function Invoices() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pagination */}
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious onClick={() => setPage(Math.max(0, page - 1))} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+          <PaginationItem>
+            <span className="px-3 py-2 text-sm text-muted-foreground">{t("page")} {page + 1}</span>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext onClick={() => hasMore && setPage(page + 1)} className={!hasMore ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
 
       {/* Mark Paid Dialog */}
       <Dialog open={!!markPaidDialog} onOpenChange={() => setMarkPaidDialog(null)}>
