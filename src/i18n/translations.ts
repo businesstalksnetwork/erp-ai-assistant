@@ -1833,6 +1833,16 @@ export const translations = {
     inviteWillBeSent: "Invite will be sent to:",
     selectPartners: "Select partners",
     noPartnersSelected: "No partners selected",
+    osnovniPodaci: "Basic Info",
+    ucesnici: "Attendees",
+    povezaneKompanije: "Linked companies (optional)",
+    poveziteSaPrilikom: "Link to opportunity (optional)",
+    agenda: "Agenda, topics for discussion...",
+    noviSastanak: "New Meeting",
+    evidentirajSastanakTitle: "Log Meeting",
+    zakaziteNovi: "Schedule a new meeting",
+    evidentirajteOdrzani: "Record a meeting that took place",
+    backToList: "Back to list",
   },
   sr: {
     // Auth
@@ -3626,6 +3636,16 @@ export const translations = {
     inviteWillBeSent: "Pozivnica će biti poslata na:",
     selectPartners: "Izaberi partnere",
     noPartnersSelected: "Nema izabranih partnera",
+    osnovniPodaci: "Osnovni podaci",
+    ucesnici: "Učesnici",
+    povezaneKompanije: "Povezane kompanije (opciono)",
+    poveziteSaPrilikom: "Povezite sa prilikom (opciono)",
+    agenda: "Agenda, teme za diskusiju...",
+    noviSastanak: "Novi sastanak",
+    evidentirajSastanakTitle: "Evidentiraj sastanak",
+    zakaziteNovi: "Zakažite novi sastanak",
+    evidentirajteOdrzani: "Evidentirajte održani sastanak",
+    backToList: "Nazad na listu",
   },
 } as const;
 

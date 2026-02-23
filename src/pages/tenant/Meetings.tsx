@@ -2,17 +2,16 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Loader2, Video, Phone, Mail, MapPin, Users, X, CalendarDays, ClipboardCheck } from "lucide-react";
+import { Plus, Loader2, Video, Phone, Mail, MapPin, Users, X, CalendarDays, ClipboardCheck, ArrowLeft, FileText, Building2, Briefcase, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -68,7 +67,7 @@ export default function Meetings() {
   const { tenantId } = useTenant();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode>("schedule");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<MeetingForm>(emptyForm);
@@ -120,7 +119,6 @@ export default function Meetings() {
     enabled: !!tenantId,
   });
 
-  // Contacts for selected partners
   const { data: partnerContacts = [] } = useQuery({
     queryKey: ["partner-contacts-multi", selectedPartnerIds],
     queryFn: async () => {
@@ -132,20 +130,6 @@ export default function Meetings() {
       return data || [];
     },
     enabled: selectedPartnerIds.length > 0,
-  });
-
-  // Meeting participants for current meeting (edit)
-  const { data: meetingParticipants = [] } = useQuery({
-    queryKey: ["meeting-participants", editId],
-    queryFn: async () => {
-      if (!editId) return [];
-      const { data } = await supabase
-        .from("meeting_participants")
-        .select("*, contacts(first_name, last_name, email), employees(full_name)")
-        .eq("meeting_id", editId);
-      return data || [];
-    },
-    enabled: !!editId,
   });
 
   const mutation = useMutation({
@@ -171,7 +155,6 @@ export default function Meetings() {
         meetingId = data.id;
       }
 
-      // Upsert participants
       if (meetingId) {
         await supabase.from("meeting_participants").delete().eq("meeting_id", meetingId);
         const participants = attendees.map(a => ({
@@ -190,7 +173,7 @@ export default function Meetings() {
         }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["meetings"] }); setOpen(false); toast.success(t("success")); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["meetings"] }); setShowForm(false); toast.success(t("success")); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -201,7 +184,7 @@ export default function Meetings() {
     setAttendees([]);
     setSelectedPartnerIds([]);
     setExternalName(""); setExternalEmail("");
-    setOpen(true);
+    setShowForm(true);
   }, []);
 
   const openLog = useCallback(() => {
@@ -211,7 +194,7 @@ export default function Meetings() {
     setAttendees([]);
     setSelectedPartnerIds([]);
     setExternalName(""); setExternalEmail("");
-    setOpen(true);
+    setShowForm(true);
   }, []);
 
   const openEdit = async (m: any) => {
@@ -224,7 +207,6 @@ export default function Meetings() {
       notes: m.notes || "", opportunity_id: m.opportunity_id || null,
       outcome: m.outcome || "", next_steps: m.next_steps || "",
     });
-    // Load participants to get partner IDs
     const { data: parts } = await supabase
       .from("meeting_participants")
       .select("*, contacts(first_name, last_name, email), employees(full_name)")
@@ -250,19 +232,15 @@ export default function Meetings() {
     setAttendees(loadedAttendees);
     setSelectedPartnerIds(Array.from(partnerIds));
     setExternalName(""); setExternalEmail("");
-    setOpen(true);
+    setShowForm(true);
   };
 
-  // Partner toggle
   const togglePartner = (partnerId: string) => {
     setSelectedPartnerIds(prev =>
-      prev.includes(partnerId)
-        ? prev.filter(id => id !== partnerId)
-        : [...prev, partnerId]
+      prev.includes(partnerId) ? prev.filter(id => id !== partnerId) : [...prev, partnerId]
     );
   };
 
-  // Contact toggle
   const toggleContact = (c: any) => {
     const cId = c.contacts?.id;
     if (!cId) return;
@@ -279,17 +257,12 @@ export default function Meetings() {
     }
   };
 
-  // Employee toggle
   const toggleEmployee = (emp: any) => {
     const exists = attendees.find(a => a.employee_id === emp.id);
     if (exists) {
       setAttendees(prev => prev.filter(a => a.employee_id !== emp.id));
     } else {
-      setAttendees(prev => [...prev, {
-        employee_id: emp.id,
-        is_internal: true,
-        label: emp.full_name,
-      }]);
+      setAttendees(prev => [...prev, { employee_id: emp.id, is_internal: true, label: emp.full_name }]);
     }
   };
 
@@ -320,7 +293,6 @@ export default function Meetings() {
     return m.title?.toLowerCase().includes(search.toLowerCase()) || m.partners?.name?.toLowerCase().includes(search.toLowerCase());
   });
 
-  // Group contacts by partner for display
   const contactsByPartner = new Map<string, any[]>();
   partnerContacts.forEach((pc: any) => {
     const pid = pc.partner_id;
@@ -328,7 +300,6 @@ export default function Meetings() {
     contactsByPartner.get(pid)!.push(pc);
   });
 
-  // Collect emails for invite preview
   const attendeeEmails = attendees
     .map(a => {
       if (a.external_email) return a.external_email;
@@ -337,6 +308,278 @@ export default function Meetings() {
     })
     .filter(Boolean);
 
+  // ──────── FORM VIEW (full-screen inline) ────────
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {editId
+                ? t("editMeeting")
+                : dialogMode === "schedule"
+                  ? t("noviSastanak")
+                  : t("evidentirajSastanakTitle")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {dialogMode === "schedule" ? t("zakaziteNovi") : t("evidentirajteOdrzani")}
+            </p>
+          </div>
+        </div>
+
+        {/* Two-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ─── Left Column ─── */}
+          <div className="space-y-6">
+            {/* Card 1: Basic Info */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">{t("osnovniPodaci")}</CardTitle>
+                    <CardDescription>{dialogMode === "schedule" ? t("zakaziteNovi") : t("evidentirajteOdrzani")}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t("title")} *</Label>
+                  <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder={t("title")} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t("date")} *</Label>
+                    <Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("duration")} (min)</Label>
+                    <Input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t("channel")}</Label>
+                    <Select value={form.communication_channel} onValueChange={v => setForm({ ...form, communication_channel: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{CHANNELS.map(ch => <SelectItem key={ch} value={ch}>{t(ch as any) || ch}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("status")}</Label>
+                    <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t("location")}</Label>
+                  <Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder={t("location")} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t("description")}</Label>
+                  <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} placeholder={t("agenda")} />
+                </div>
+
+                {/* Outcome & Next Steps — log mode only */}
+                {dialogMode === "log" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>{t("outcome")}</Label>
+                      <Textarea value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })} rows={3} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("nextSteps")}</Label>
+                      <Textarea value={form.next_steps} onChange={e => setForm({ ...form, next_steps: e.target.value })} rows={3} />
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <Label>{t("notes")}</Label>
+                  <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Partners */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">{t("partners")}</CardTitle>
+                    <CardDescription>{t("povezaneKompanije")}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {partners.length === 0 && <p className="text-sm text-muted-foreground">{t("noResults")}</p>}
+                  {partners.map((p: any) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedPartnerIds.includes(p.id)}
+                        onCheckedChange={() => togglePartner(p.id)}
+                      />
+                      <span className="text-sm">{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ─── Right Column ─── */}
+          <div className="space-y-6">
+            {/* Card 2: Attendees */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">{t("ucesnici")}</CardTitle>
+                    <CardDescription>{t("attendees")}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* Internal Staff */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("internalAttendees")}</Label>
+                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {employees.length === 0 && <p className="text-xs text-muted-foreground">{t("noResults")}</p>}
+                    {employees.map((emp: any) => {
+                      const checked = attendees.some(a => a.employee_id === emp.id);
+                      return (
+                        <div key={emp.id} className="flex items-center gap-2">
+                          <Checkbox checked={checked} onCheckedChange={() => toggleEmployee(emp)} />
+                          <span className="text-sm">{emp.full_name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Partner Contacts */}
+                {selectedPartnerIds.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("contacts")}</Label>
+                    <div className="border rounded-md p-3 space-y-3 max-h-48 overflow-y-auto">
+                      {selectedPartnerIds.map(pid => {
+                        const pName = partners.find((p: any) => p.id === pid)?.name || pid;
+                        const contacts = contactsByPartner.get(pid) || [];
+                        return (
+                          <div key={pid}>
+                            <div className="text-xs font-semibold text-muted-foreground mb-1">{pName}</div>
+                            {contacts.length === 0 && <p className="text-xs text-muted-foreground italic">Nema kontakata</p>}
+                            {contacts.map((pc: any) => {
+                              const cName = `${pc.contacts?.first_name} ${pc.contacts?.last_name || ""}`;
+                              const checked = attendees.some(a => a.contact_id === pc.contacts?.id);
+                              return (
+                                <div key={pc.contact_id} className="flex items-center gap-2 ml-2">
+                                  <Checkbox checked={checked} onCheckedChange={() => toggleContact(pc)} />
+                                  <span className="text-sm">{cName}</span>
+                                  {pc.contacts?.email && <span className="text-xs text-muted-foreground">({pc.contacts.email})</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* External Attendees */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("externalAttendee")}</Label>
+                  <div className="flex gap-2">
+                    <Input placeholder={t("fullName")} value={externalName} onChange={e => setExternalName(e.target.value)} className="flex-1" />
+                    <Input placeholder={t("externalEmail")} value={externalEmail} onChange={e => setExternalEmail(e.target.value)} className="flex-1"
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addExternal(); } }} />
+                    <Button type="button" variant="outline" size="icon" onClick={addExternal} disabled={!externalName.trim()}>
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Selected attendees badges */}
+                {attendees.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t("ucesnici")} ({attendees.length})
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {attendees.map((a, i) => (
+                        <Badge key={i} variant={a.is_internal ? "default" : "secondary"} className="gap-1 pr-1">
+                          {a.label}
+                          {a.external_email && <span className="text-[10px] opacity-70">({a.external_email})</span>}
+                          <X className="h-3 w-3 cursor-pointer ml-0.5" onClick={() => removeAttendee(i)} />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Invite preview (schedule mode only) */}
+                {dialogMode === "schedule" && attendeeEmails.length > 0 && (
+                  <div className="bg-muted/50 rounded-md p-3 text-xs">
+                    <span className="font-medium">{t("inviteWillBeSent")}</span>{" "}
+                    {attendeeEmails.join(", ")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Card 4: Opportunity */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">{t("opportunity")}</CardTitle>
+                    <CardDescription>{t("poveziteSaPrilikom")}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Select value={form.opportunity_id || "__none"} onValueChange={v => setForm({ ...form, opportunity_id: v === "__none" ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {opportunities.map((o: any) => (
+                      <SelectItem key={o.id} value={o.id}>{o.title} {o.partners?.name ? `(${o.partners.name})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 bg-background border-t py-4 -mx-6 px-6 flex justify-between items-center z-10">
+          <Button variant="outline" onClick={() => setShowForm(false)}>{t("cancel")}</Button>
+          <Button onClick={() => mutation.mutate(form)} disabled={!form.title || !form.scheduled_at || mutation.isPending} size="lg">
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {dialogMode === "schedule" ? t("zakaziSastanak") : t("evidentirajSastanak")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ──────── LIST VIEW ────────
   return (
     <div className="space-y-6">
       <PageHeader
@@ -420,204 +663,6 @@ export default function Meetings() {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Meeting Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editId
-                ? t("editMeeting")
-                : dialogMode === "schedule"
-                  ? t("zakaziSastanak")
-                  : t("evidentirajSastanak")}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4">
-            {/* Title */}
-            <div className="grid gap-2">
-              <Label>{t("title")} *</Label>
-              <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-            </div>
-
-            {/* Date + Duration */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>{t("date")} *</Label>
-                <Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("duration")} (min)</Label>
-                <Input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
-              </div>
-            </div>
-
-            {/* Channel + Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>{t("channel")}</Label>
-                <Select value={form.communication_channel} onValueChange={v => setForm({ ...form, communication_channel: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{CHANNELS.map(ch => <SelectItem key={ch} value={ch}>{t(ch as any) || ch}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("status")}</Label>
-                <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="grid gap-2">
-              <Label>{t("location")}</Label>
-              <Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
-            </div>
-
-            {/* Opportunity */}
-            <div className="grid gap-2">
-              <Label>{t("linkedOpportunity")}</Label>
-              <Select value={form.opportunity_id || "__none"} onValueChange={v => setForm({ ...form, opportunity_id: v === "__none" ? null : v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">—</SelectItem>
-                  {opportunities.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.title} {o.partners?.name ? `(${o.partners.name})` : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Multi-Partner Selector */}
-            <div className="grid gap-2">
-              <Label>{t("selectPartners")}</Label>
-              <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                {partners.length === 0 && <p className="text-xs text-muted-foreground">{t("noResults")}</p>}
-                {partners.map((p: any) => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={selectedPartnerIds.includes(p.id)}
-                      onCheckedChange={() => togglePartner(p.id)}
-                    />
-                    <span className="text-sm">{p.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Contacts from selected partners */}
-            {selectedPartnerIds.length > 0 && (
-              <div className="grid gap-2">
-                <Label>{t("attendees")} — {t("contacts")}</Label>
-                <div className="border rounded-md p-3 space-y-3 max-h-48 overflow-y-auto">
-                  {selectedPartnerIds.map(pid => {
-                    const pName = partners.find((p: any) => p.id === pid)?.name || pid;
-                    const contacts = contactsByPartner.get(pid) || [];
-                    return (
-                      <div key={pid}>
-                        <div className="text-xs font-semibold text-muted-foreground mb-1">{pName}</div>
-                        {contacts.length === 0 && <p className="text-xs text-muted-foreground italic">Nema kontakata</p>}
-                        {contacts.map((pc: any) => {
-                          const cName = `${pc.contacts?.first_name} ${pc.contacts?.last_name || ""}`;
-                          const checked = attendees.some(a => a.contact_id === pc.contacts?.id);
-                          return (
-                            <div key={pc.contact_id} className="flex items-center gap-2 ml-2">
-                              <Checkbox checked={checked} onCheckedChange={() => toggleContact(pc)} />
-                              <span className="text-sm">{cName}</span>
-                              {pc.contacts?.email && <span className="text-xs text-muted-foreground">({pc.contacts.email})</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Internal Staff */}
-            <div className="grid gap-2">
-              <Label>{t("internalAttendees")}</Label>
-              <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                {employees.length === 0 && <p className="text-xs text-muted-foreground">{t("noResults")}</p>}
-                {employees.map((emp: any) => {
-                  const checked = attendees.some(a => a.employee_id === emp.id);
-                  return (
-                    <div key={emp.id} className="flex items-center gap-2">
-                      <Checkbox checked={checked} onCheckedChange={() => toggleEmployee(emp)} />
-                      <span className="text-sm">{emp.full_name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* External Attendees */}
-            <div className="grid gap-2">
-              <Label>{t("externalAttendee")}</Label>
-              <div className="flex gap-2">
-                <Input placeholder={t("fullName")} value={externalName} onChange={e => setExternalName(e.target.value)} className="flex-1" />
-                <Input placeholder={t("externalEmail")} value={externalEmail} onChange={e => setExternalEmail(e.target.value)} className="flex-1"
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addExternal(); } }} />
-                <Button type="button" variant="outline" size="sm" onClick={addExternal} disabled={!externalName.trim()}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Selected attendees badges */}
-            {attendees.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {attendees.map((a, i) => (
-                  <Badge key={i} variant={a.is_internal ? "default" : "secondary"} className="gap-1">
-                    {a.is_internal ? "👤 " : ""}{a.label}
-                    {a.external_email && <span className="text-[10px] opacity-70">({a.external_email})</span>}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeAttendee(i)} />
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* Invite preview (schedule mode only) */}
-            {dialogMode === "schedule" && attendeeEmails.length > 0 && (
-              <div className="bg-muted/50 rounded-md p-3 text-xs">
-                <span className="font-medium">{t("inviteWillBeSent")}</span>{" "}
-                {attendeeEmails.join(", ")}
-              </div>
-            )}
-
-            <div className="grid gap-2">
-              <Label>{t("description")}</Label>
-              <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
-            </div>
-
-            {/* Outcome & Next Steps (log mode only) */}
-            {dialogMode === "log" && (
-              <>
-                <div className="grid gap-2">
-                  <Label>{t("outcome")}</Label>
-                  <Textarea value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })} rows={2} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("nextSteps")}</Label>
-                  <Textarea value={form.next_steps} onChange={e => setForm({ ...form, next_steps: e.target.value })} rows={2} />
-                </div>
-              </>
-            )}
-
-            <div className="grid gap-2">
-              <Label>{t("notes")}</Label>
-              <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => mutation.mutate(form)} disabled={!form.title || !form.scheduled_at || mutation.isPending}>
-              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
