@@ -199,7 +199,7 @@ export default function Invoices() {
     ...(legalEntities.length > 1 ? [{ key: "legal_entity", label: t("legalEntity"), hideOnMobile: true, render: (inv: any) => (inv as any).legal_entities?.name || "—" } as ResponsiveColumn<any>] : []),
     { key: "total", label: t("total"), align: "right" as const, render: (inv) => <span className="font-mono">{fmtNum(Number(inv.total))} {inv.currency}</span> },
     { key: "status", label: t("status"), render: (inv) => <Badge className={statusColors[inv.status] || ""}>{t(inv.status as any)}</Badge> },
-    { key: "sef", label: "SEF", hideOnMobile: true, render: (inv) => <Badge variant="outline" className={sefColors[inv.sef_status] || ""}>{inv.sef_status.replace("_", " ")}</Badge> },
+    { key: "sef", label: "SEF", hideOnMobile: true, render: (inv) => <Badge variant="outline" className={sefColors[inv.sef_status] || ""}>{t(inv.sef_status as any)}</Badge> },
     { key: "actions", label: t("actions"), showInCard: false, render: (inv) => {
       const actions: ActionItem[] = [];
       if (inv.status === "draft") {

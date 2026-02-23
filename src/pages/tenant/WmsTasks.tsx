@@ -171,7 +171,7 @@ export default function WmsTasks() {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "outline", assigned: "secondary", in_progress: "default", completed: "default", cancelled: "secondary", exception: "destructive",
     };
-    return <Badge variant={variants[status] || "outline"}>{status.replace("_", " ")}</Badge>;
+    return <Badge variant={variants[status] || "outline"}>{t(status as any)}</Badge>;
   };
 
   const priorityLabel = (p: number) => {
@@ -239,7 +239,7 @@ export default function WmsTasks() {
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("wmsAllStatuses")}</SelectItem>
-            {TASK_STATUSES.map(ts => <SelectItem key={ts} value={ts}>{ts.replace("_", " ")}</SelectItem>)}
+            {TASK_STATUSES.map(ts => <SelectItem key={ts} value={ts}>{t(ts as any)}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="ml-auto flex gap-2">

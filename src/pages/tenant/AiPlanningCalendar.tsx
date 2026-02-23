@@ -80,7 +80,7 @@ export default function AiPlanningCalendar() {
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[130px] h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{locale === "sr" ? "Svi" : "All"}</SelectItem>
+              <SelectItem value="all">{t("all")}</SelectItem>
               <SelectItem value="draft">{t("draft")}</SelectItem>
               <SelectItem value="in_progress">{t("in_progress")}</SelectItem>
               <SelectItem value="completed">{t("completed")}</SelectItem>
@@ -91,7 +91,7 @@ export default function AiPlanningCalendar() {
           {Object.entries(STATUS_COLORS).filter(([k]) => k !== "cancelled").map(([status, cls]) => (
             <div key={status} className="flex items-center gap-1">
               <span className={`h-2.5 w-2.5 rounded-full ${cls}`} />
-              <span className="capitalize">{status.replace("_", " ")}</span>
+              <span className="capitalize">{t(status as any)}</span>
             </div>
           ))}
         </div>

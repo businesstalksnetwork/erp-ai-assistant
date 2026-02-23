@@ -176,7 +176,7 @@ export default function WmsPicking() {
 
   const statusBadge = (status: string) => {
     const v: Record<string, "default" | "secondary" | "outline" | "destructive"> = { draft: "outline", released: "secondary", in_progress: "default", completed: "default" };
-    return <Badge variant={v[status] || "outline"}>{status.replace("_", " ")}</Badge>;
+    return <Badge variant={v[status] || "outline"}>{t(status as any)}</Badge>;
   };
 
   const toggleOrder = (id: string) => {
@@ -237,7 +237,7 @@ export default function WmsPicking() {
                   <TableCell>{task.products?.name || "—"}</TableCell>
                   <TableCell>{task.quantity}</TableCell>
                   <TableCell className="font-mono text-xs">{task.from_bin?.code || "—"}</TableCell>
-                  <TableCell><Badge variant={task.status === "completed" ? "default" : task.status === "in_progress" ? "secondary" : "outline"}>{task.status.replace("_", " ")}</Badge></TableCell>
+                  <TableCell><Badge variant={task.status === "completed" ? "default" : task.status === "in_progress" ? "secondary" : "outline"}>{t(task.status as any)}</Badge></TableCell>
                   <TableCell>
                     {(task.status === "pending" || task.status === "in_progress") && (
                       <Button size="sm" variant="outline" onClick={() => { setConfirmTask(task); setActualQty(task.quantity); setConfirmPickOpen(true); }}>

@@ -166,7 +166,7 @@ export default function WmsCycleCounts() {
 
   const statusBadge = (status: string) => {
     const v: Record<string, "default" | "secondary" | "outline" | "destructive"> = { planned: "outline", in_progress: "secondary", completed: "default", reconciled: "default" };
-    return <Badge variant={v[status] || "outline"}>{status.replace("_", " ")}</Badge>;
+    return <Badge variant={v[status] || "outline"}>{t(status as any)}</Badge>;
   };
 
   return (
