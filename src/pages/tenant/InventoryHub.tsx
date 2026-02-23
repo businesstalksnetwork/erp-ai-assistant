@@ -3,7 +3,7 @@ import { BiPageLayout } from "@/components/shared/BiPageLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Package, Boxes, ArrowRightLeft, Truck, Layers, ClipboardList,
-  ArrowLeftRight, PackageOpen, Calculator, BarChart3, LayoutDashboard,
+  ArrowLeftRight, PackageOpen, Calculator, BarChart3, LayoutDashboard, Tag,
 } from "lucide-react";
 
 const sections = [
@@ -30,6 +30,12 @@ const sections = [
       { to: "/inventory/internal-orders", icon: ClipboardList, label: "Interne narudžbine", desc: "Zahtevi za internu nabavku" },
       { to: "/inventory/internal-transfers", icon: ArrowLeftRight, label: "Interni transferi", desc: "Prenos robe između magacina" },
       { to: "/inventory/internal-receipts", icon: PackageOpen, label: "Interne prijemnice", desc: "Prijem robe iz internih izvora" },
+    ],
+  },
+  {
+    title: "Cene",
+    links: [
+      { to: "/inventory/retail-prices", icon: Tag, label: "Maloprodajne cene", desc: "Upravljanje cenovnicima za maloprodaju" },
     ],
   },
   {

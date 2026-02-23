@@ -186,7 +186,7 @@ const HrHub = React.lazy(() => import("@/pages/tenant/HrHub"));
 const PurchasingHub = React.lazy(() => import("@/pages/tenant/PurchasingHub"));
 const SalesHub = React.lazy(() => import("@/pages/tenant/SalesHub"));
 const PosHub = React.lazy(() => import("@/pages/tenant/PosHub"));
-const WebHub = React.lazy(() => import("@/pages/tenant/WebHub"));
+
 
 const queryClient = new QueryClient();
 
@@ -337,10 +337,9 @@ const App = () => (
                 <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><PosDailyReport /></ProtectedRoute>} />
                 <Route path="sales/salespeople" element={<ProtectedRoute requiredModule="sales"><Salespeople /></ProtectedRoute>} />
                 <Route path="sales/sales-performance" element={<ProtectedRoute requiredModule="sales"><SalesPerformance /></ProtectedRoute>} />
-                <Route path="sales/retail-prices" element={<ProtectedRoute requiredModule="sales"><RetailPrices /></ProtectedRoute>} />
-                <Route path="web" element={<ProtectedRoute requiredModule="web"><WebHub /></ProtectedRoute>} />
-                <Route path="web/settings" element={<ProtectedRoute requiredModule="web"><WebSettings /></ProtectedRoute>} />
-                <Route path="web/prices" element={<ProtectedRoute requiredModule="web"><WebPrices /></ProtectedRoute>} />
+                <Route path="inventory/retail-prices" element={<ProtectedRoute requiredModule="inventory"><RetailPrices /></ProtectedRoute>} />
+                <Route path="sales/web-settings" element={<ProtectedRoute requiredModule="sales"><WebSettings /></ProtectedRoute>} />
+                <Route path="sales/web-prices" element={<ProtectedRoute requiredModule="sales"><WebPrices /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
                 <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
                 <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule="accounting"><FixedAssets /></ProtectedRoute>} />

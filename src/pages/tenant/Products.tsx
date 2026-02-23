@@ -32,6 +32,8 @@ interface ProductForm {
   unit_of_measure: string;
   default_purchase_price: number;
   default_sale_price: number;
+  default_retail_price: number;
+  default_web_price: number;
   tax_rate_id: string;
   is_active: boolean;
   costing_method: string;
@@ -40,6 +42,7 @@ interface ProductForm {
 const emptyForm: ProductForm = {
   name: "", name_sr: "", sku: "", barcode: "", description: "",
   unit_of_measure: "pcs", default_purchase_price: 0, default_sale_price: 0,
+  default_retail_price: 0, default_web_price: 0,
   tax_rate_id: "", is_active: true, costing_method: "weighted_average",
 };
 
@@ -113,6 +116,8 @@ export default function Products() {
       description: p.description || "", unit_of_measure: p.unit_of_measure,
       default_purchase_price: Number(p.default_purchase_price),
       default_sale_price: Number(p.default_sale_price),
+      default_retail_price: Number(p.default_retail_price || 0),
+      default_web_price: Number(p.default_web_price || 0),
       tax_rate_id: p.tax_rate_id || "", is_active: p.is_active,
       costing_method: p.costing_method || "weighted_average",
     });
@@ -132,6 +137,8 @@ export default function Products() {
     { key: "costing_method", label: t("costingMethod"), hideOnMobile: true, render: (p) => <Badge variant="outline">{p.costing_method === "fifo" ? t("fifo") : t("weightedAverage")}</Badge> },
     { key: "purchase_price", label: t("purchasePrice"), align: "right" as const, render: (p) => fmtNum(Number(p.default_purchase_price)) },
     { key: "sale_price", label: t("salePrice"), align: "right" as const, render: (p) => fmtNum(Number(p.default_sale_price)) },
+    { key: "retail_price", label: t("retailPrice"), align: "right" as const, hideOnMobile: true, render: (p) => fmtNum(Number(p.default_retail_price || 0)) },
+    { key: "web_price", label: t("webPrice"), align: "right" as const, hideOnMobile: true, render: (p) => fmtNum(Number(p.default_web_price || 0)) },
     { key: "status", label: t("status"), render: (p) => <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? t("active") : t("inactive")}</Badge> },
     { key: "actions", label: t("actions"), showInCard: false, align: "right" as const, render: (p) => (
       <div className="flex gap-1 justify-end">
@@ -169,7 +176,9 @@ export default function Products() {
                 { key: "sku", label: "SKU" },
                 { key: "unit_of_measure", label: t("unitOfMeasure") },
                 { key: "default_purchase_price", label: t("purchasePrice"), formatter: (v) => Number(v).toFixed(2) },
-                { key: "default_sale_price", label: t("salePrice"), formatter: (v) => Number(v).toFixed(2) },
+                 { key: "default_sale_price", label: t("salePrice"), formatter: (v) => Number(v).toFixed(2) },
+                 { key: "default_retail_price", label: t("retailPrice"), formatter: (v) => Number(v).toFixed(2) },
+                 { key: "default_web_price", label: t("webPrice"), formatter: (v) => Number(v).toFixed(2) },
               ]}
               filename="products"
             />
@@ -232,6 +241,10 @@ export default function Products() {
               </div>
               <div><Label>{t("purchasePrice")}</Label><Input type="number" min={0} step={0.01} value={form.default_purchase_price} onChange={(e) => setForm({ ...form, default_purchase_price: Number(e.target.value) })} /></div>
               <div><Label>{t("salePrice")}</Label><Input type="number" min={0} step={0.01} value={form.default_sale_price} onChange={(e) => setForm({ ...form, default_sale_price: Number(e.target.value) })} /></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><Label>{t("retailPrice")}</Label><Input type="number" min={0} step={0.01} value={form.default_retail_price} onChange={(e) => setForm({ ...form, default_retail_price: Number(e.target.value) })} /></div>
+              <div><Label>{t("webPrice")}</Label><Input type="number" min={0} step={0.01} value={form.default_web_price} onChange={(e) => setForm({ ...form, default_web_price: Number(e.target.value) })} /></div>
             </div>
             <div>
               <Label>{t("taxRate")}</Label>

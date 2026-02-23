@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { BiPageLayout } from "@/components/shared/BiPageLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, FileText, ClipboardList, Store, UserCheck, BarChart3, Tag } from "lucide-react";
+import { TrendingUp, FileText, ClipboardList, Store, UserCheck, BarChart3, Globe, Receipt } from "lucide-react";
 
 const links = [
   { to: "/sales/quotes", icon: FileText, label: "Ponude", desc: "Kreiranje i slanje ponuda kupcima" },
@@ -9,14 +9,15 @@ const links = [
   { to: "/sales/sales-channels", icon: Store, label: "Kanali prodaje", desc: "Konfiguracija prodajnih kanala" },
   { to: "/sales/salespeople", icon: UserCheck, label: "Prodavci", desc: "Evidencija prodajnog osoblja" },
   { to: "/sales/sales-performance", icon: BarChart3, label: "Učinak prodaje", desc: "Analitika prodajnih rezultata" },
-  { to: "/sales/retail-prices", icon: Tag, label: "Maloprodajne cene", desc: "Upravljanje cenovnicima za maloprodaju" },
+  { to: "/sales/web-settings", icon: Globe, label: "Web podešavanja", desc: "Konfiguracija web prodavnice i integracija" },
+  { to: "/sales/web-prices", icon: Receipt, label: "Web cene", desc: "Upravljanje cenama za web prodaju" },
 ];
 
 export default function SalesHub() {
   return (
     <BiPageLayout
       title="Prodaja"
-      description="Upravljanje prodajnim aktivnostima — ponude, nalozi, kanali prodaje i analitika učinka."
+      description="Upravljanje prodajnim aktivnostima — ponude, nalozi, kanali prodaje, web prodaja i analitika učinka."
       icon={TrendingUp}
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
