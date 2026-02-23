@@ -118,6 +118,20 @@ const routeLabels: Record<string, string> = {
   bulk: "bulkEntry",
   calendar: "calendar",
   bins: "wmsBins",
+  "ai-planning": "aiPlanning",
+  "payroll-parameters": "payrollParamsTitle",
+  "legacy-import": "legacyImport",
+  "ai-audit-log": "aiAuditLog",
+  "partner-categories": "companyCategories",
+  "payroll-benchmark": "payrollBenchmark",
+  "opportunity-stages": "opportunityStages",
+  "discount-approval": "discountApprovalRules",
+  schedule: "aiSchedule",
+  bottlenecks: "bottleneckPrediction",
+  scenarios: "capacitySimulation",
+  "web-settings": "webSettings",
+  "web-prices": "webPrices",
+  "wms-dashboard": "wmsDashboard",
 };
 
 export function Breadcrumbs() {
@@ -145,7 +159,7 @@ export function Breadcrumbs() {
           const path = "/" + segments.slice(0, idx + 1).join("/");
           const isLast = idx === segments.length - 1;
           const labelKey = routeLabels[segment];
-          const label = isUuid(segment) ? "Detail" : (labelKey ? t(labelKey as any) : segment);
+          const label = isUuid(segment) ? t("detail") : (labelKey ? t(labelKey as any) : segment);
 
           return (
             <span key={path} className="contents">

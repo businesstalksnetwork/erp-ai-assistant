@@ -1934,6 +1934,14 @@ export const translations = {
     discountExceedsLimit: "Discount exceeds your limit",
     pendingDiscountApproval: "Pending Discount Approval",
     addRule: "Add Rule",
+    all: "All",
+    detail: "Detail",
+    assigned: "Assigned",
+    exception: "Exception",
+    reconciled: "Reconciled",
+    released: "Released",
+    not_submitted: "Not Submitted",
+    companyCategories: "Company Categories",
   },
   sr: {
     // Auth
@@ -3826,6 +3834,14 @@ export const translations = {
     discountExceedsLimit: "Popust prelazi vaš limit",
     pendingDiscountApproval: "Čeka odobrenje popusta",
     addRule: "Dodaj pravilo",
+    all: "Sve",
+    detail: "Detalj",
+    assigned: "Dodeljeno",
+    exception: "Izuzetak",
+    reconciled: "Usklađeno",
+    released: "Pušteno",
+    not_submitted: "Nije poslato",
+    companyCategories: "Kategorije firmi",
   },
 } as const;
 

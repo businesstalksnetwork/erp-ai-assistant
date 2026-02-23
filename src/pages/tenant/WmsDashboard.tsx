@@ -181,7 +181,7 @@ export default function WmsDashboard() {
                   <div key={task.id} className="flex items-center justify-between text-sm border-b border-border/50 pb-2 last:border-0">
                     <div className="flex items-center gap-2">
                       <Badge variant={task.status === "exception" ? "destructive" : "default"} className="text-[10px]">{task.task_type}</Badge>
-                      <span className="text-muted-foreground">{task.status.replace("_", " ")}</span>
+                      <span className="text-muted-foreground">{t(task.status as any)}</span>
                     </div>
                     <span className="text-xs text-muted-foreground">{new Date(task.completed_at || task.created_at).toLocaleString()}</span>
                   </div>
