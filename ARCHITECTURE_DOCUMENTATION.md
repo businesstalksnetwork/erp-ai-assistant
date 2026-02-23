@@ -1,7 +1,7 @@
 # ERP-AI Full Application Architecture Documentation
 
-**Version:** 2.0  
-**Date:** February 23, 2026 (Updated)  
+**Version:** 3.0  
+**Date:** February 23, 2026 (Updated — AI End-to-End Upgrade)  
 **System:** ProERP AI — Multi-Tenant SaaS ERP for Serbian Market  
 **Production URL:** https://proerpai.lovable.app
 
@@ -46,7 +46,7 @@ ProERP AI is a comprehensive, multi-tenant SaaS ERP system purpose-built for the
 | **Charts** | Recharts 2.15 |
 | **Animation** | Framer Motion 12.34 |
 | **Backend** | Supabase (PostgreSQL 15, Auth, Edge Functions, Storage, Realtime) |
-| **Edge Functions** | Deno runtime (65+ functions) |
+| **Edge Functions** | Deno runtime (68+ functions) |
 | **Auth** | Supabase Auth (email/password, magic link) |
 | **Markdown** | react-markdown 10.1 |
 | **i18n** | Custom LanguageContext (EN/SR toggle) |
@@ -167,7 +167,7 @@ tenants (id, name, slug, ...)
 | **Accounting** | `accounting` | chart_of_accounts, journal_entries, journal_lines, invoices, invoice_lines, fiscal_periods, pdv_periods, pdv_entries, tax_rates, bank_statements, bank_statement_lines, bank_accounts, fixed_assets, deferrals, deferral_schedules, loans, open_items, budgets, posting_rules, fx_rates | generate-pdf, nbs-exchange-rates | 22 |
 | **Analytics** | `analytics` | ar_aging_snapshots, ap_aging_snapshots, budgets | ai-analytics-narrative, ai-insights | 13 |
 | **HR** | `hr` | employees, employee_contracts, departments, attendance_records, leave_requests, payroll_runs, payroll_items, payroll_parameters, overtime_hours, night_work_records, annual_leave_balances, holidays, deduction_types, deductions, allowance_types, allowances, external_workers, insurance_records, position_templates, work_logs | ebolovanje-submit | 17 |
-| **Production** | `production` | bom_templates, bom_lines, production_orders, production_order_lines | production-ai-planning | 7 |
+| **Production** | `production` | bom_templates, bom_lines, production_orders, production_order_lines, **production_scenarios** | production-ai-planning | 7 |
 | **Documents** | `documents` | documents, document_categories, document_access, archive_book, archiving_requests, archiving_request_items, dms_projects | storage-upload, storage-download, storage-delete | 9 |
 | **POS** | `pos` | pos_sessions, pos_transactions, pos_transaction_items, fiscal_devices, fiscal_receipts | fiscalize-receipt, fiscalize-retry-offline | 4 |
 | **Returns** | `returns` | returns, return_lines | — | 1 |
@@ -474,14 +474,15 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
 
 **Base URL:** `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/`
 
-### 5.1 AI Functions
+### 5.1 AI Functions *(Upgraded in v3.0)*
 
 | Function | Method | JWT | Purpose |
 |----------|--------|-----|---------|
-| `ai-assistant` | POST | ❌ | Conversational AI assistant with ERP context |
-| `ai-insights` | POST | ❌ | Module-specific AI insights generation |
-| `ai-analytics-narrative` | POST | ❌ | AI-generated narrative for analytics dashboards |
-| `production-ai-planning` | POST | ❌ | AI production planning (schedule, bottleneck, capacity, local-fallback-schedule, save/list-scenarios) |
+| `ai-assistant` | POST | ❌ | Conversational AI copilot with **3 tools** (`query_tenant_data`, `analyze_trend`, `create_reminder`), **5 tool-calling rounds**, **true SSE streaming**, **dynamic schema context** from `information_schema.columns` (cached 1hr), **audit logging** to `ai_action_log` |
+| `ai-insights` | POST | ❌ | **Hybrid rules + AI enrichment**: 7 rule-based anomaly checks + Gemini AI prioritization, cross-module correlation, strategic recommendations, executive summary. **Audit logging** |
+| `ai-analytics-narrative` | POST | ❌ | AI-generated analytics narrative with **DB tool-calling** (`query_tenant_data` for drill-down), **response caching** in `ai_narrative_cache` (30min TTL), **audit logging** |
+| `production-ai-planning` | POST | ❌ | AI production planning: 6 actions (`generate-schedule`, `predict-bottlenecks`, `simulate-scenario`, `local-fallback-schedule`, `save-scenario`, `list-scenarios`). Locked/excluded order filtering, post-AI date validation, **scenario persistence** in `production_scenarios`, **audit logging** |
+| `wms-slotting` | POST | ❌ | AI/local warehouse slot optimization with **bin capacity validation**, **SQL-filtered data** (top 100 bins, 5000 picks limit), **batch task generation**, **scenario comparison view**, **audit logging** |
 
 **Request format (ai-assistant):**
 ```json
@@ -489,7 +490,8 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
   "messages": [{"role": "user", "content": "..."}],
   "tenantId": "uuid",
   "module": "accounting",
-  "context": { /* module-specific data */ }
+  "context": { /* module-specific data */ },
+  "conversationId": "uuid (optional — for persistence)"
 }
 ```
 
@@ -605,7 +607,7 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
 | `crm-tier-refresh` | POST | ❌ | Refresh partner tiers and dormancy |
 | `ebolovanje-submit` | POST | ❌ | Submit sick leave (eBolovanje) |
 | `eotpremnica-submit` | POST | ✅ | Submit dispatch note (eOtpremnica). Supports both `dispatch_note_id` (new schema) and legacy `eotpremnica_id`. Updates `eotpremnica_status` and `eotpremnica_sent_at` on success. |
-| `wms-slotting` | POST | ❌ | AI-based WMS bin slotting optimization |
+| `wms-slotting` | POST | ❌ | AI/local WMS bin slotting optimization (see Section 5.1 for details) |
 | `track-invoice-view` | POST | ✅ | Track when customer views invoice |
 | `parse-pausalni-pdf` | POST | ✅ | Parse flat-rate tax PDF |
 
@@ -1291,30 +1293,43 @@ DispatchNoteDetail → "Submit to eOtpremnica" button
 - **Receipts Tab**: View/create `dispatch_receipts`
 - Header: Status badges, transition buttons, API submit button
 
-### 8.10 AI SQL Tool Calling *(New in v2.0)*
+### 8.10 AI SQL Tool Calling & Multi-Tool Assistant *(Upgraded in v3.0)*
 
 #### Architecture
 
-The `ai-assistant` edge function implements a **tool-calling loop** that allows the AI to query the tenant's database in real-time:
+The `ai-assistant` edge function implements a **multi-tool calling loop** with **true SSE streaming**, **dynamic schema context**, and **conversation persistence**:
 
 ```
 User message → ai-assistant edge function
     │
-    ├─► Build system prompt with SCHEMA_CONTEXT (30 table schemas)
-    │   + live tenant stats (invoice count, revenue, partner count, etc.)
+    ├─► Dynamic Schema: Query information_schema.columns (cached 1hr in-memory)
+    │   Builds full table/column context for ALL public schema tables
+    │
+    ├─► Build system prompt with dynamic schema + live tenant stats
     │
     ├─► Send to Gemini 3 Flash via Lovable AI Gateway
     │
-    ├─► Tool-calling loop (up to 3 rounds):
+    ├─► Tool-calling loop (up to 5 rounds, 3 tools available):
     │     │
-    │     ├─► AI requests query_tenant_data tool call
+    │     ├─► query_tenant_data: Execute read-only SQL against tenant data
     │     │     └─► validateSql(): block mutations, enforce SELECT, inject tenant_id
     │     │     └─► Execute via execute_readonly_query RPC (10s timeout)
     │     │     └─► Return results as tool response
     │     │
-    │     └─► AI may request additional queries based on results
+    │     ├─► analyze_trend: Compute MoM/YoY growth for a metric
+    │     │     └─► Queries time-series data from DB
+    │     │     └─► Calculates growth rates, averages, trend direction
+    │     │     └─► Returns structured trend analysis
+    │     │
+    │     ├─► create_reminder: Create notification for the user
+    │     │     └─► Inserts into notifications table
+    │     │     └─► Sets due date, link, priority from AI parameters
+    │     │
+    │     └─► AI may chain multiple tool calls across rounds
     │
-    └─► Stream final response as SSE (chunked for frontend compatibility)
+    ├─► Final AI response streamed as TRUE SSE (token-by-token via ReadableStream)
+    │
+    └─► Audit: Each tool call logged to ai_action_log (action_type, module, model_version)
 ```
 
 #### SQL Validation Rules
@@ -1329,9 +1344,17 @@ User message → ai-assistant edge function
 - SELECT-only enforcement at DB level
 - 10-second statement timeout for safety
 
-### 8.11 AI Anomaly Detection *(New in v2.0)*
+#### Conversation Persistence
+- Conversations stored in `ai_conversations` table (id, tenant_id, user_id, title, messages JSONB)
+- Auto-generated title from first user message (truncated to 50 chars)
+- Frontend loads conversation history in sidebar, supports "New Chat" button
+- Messages persisted after each exchange via `useAiStream` hook
 
-The `ai-insights` edge function performs **7 anomaly detection checks** beyond basic KPI insights:
+### 8.11 AI Anomaly Detection & Enrichment *(Upgraded in v3.0)*
+
+The `ai-insights` edge function performs **hybrid rules + AI enrichment**:
+
+#### Phase 1: Rule-Based Detection (7 anomaly checks)
 
 | Check | Severity | Condition | Module Filter |
 |-------|----------|-----------|---------------|
@@ -1343,7 +1366,85 @@ The `ai-insights` edge function performs **7 anomaly detection checks** beyond b
 | **Slow-Moving Inventory** | info | Items with stock but no outbound movement in 90+ days | inventory |
 | **Fiscal Period Warning** | warning | Open fiscal periods older than current month | accounting |
 
-All insights are cached in `ai_insights_cache` with TTL-based expiration. Results are bilingual (EN/SR).
+#### Phase 2: AI Enrichment (Gemini)
+
+After collecting rule-based insights, the top 10 are sent to Gemini for:
+- **Prioritization** by business impact
+- **Cross-module correlation** (e.g. "overdue invoices + low stock = supply chain risk")
+- **2-3 strategic recommendations** connecting multiple signals
+- **Executive summary** (1-sentence overview)
+
+All insights are cached in `ai_insights_cache` with TTL-based expiration. Results are bilingual (EN/SR). Each enrichment call logged to `ai_action_log`.
+
+### 8.12 AI Analytics Narrative with Tool-Calling & Caching *(New in v3.0)*
+
+The `ai-analytics-narrative` edge function generates contextual narratives for analytics dashboards:
+
+```
+Analytics page sends KPI data → ai-analytics-narrative
+    │
+    ├─► Check ai_narrative_cache (tenant_id + context_type, 30min TTL)
+    │     └─► If cached & not expired → return cached result
+    │
+    ├─► Build system prompt with page KPI data + context_type
+    │
+    ├─► Tool-calling loop (up to 3 rounds):
+    │     └─► query_tenant_data: Drill into specific accounts, compare periods,
+    │         look up partner/product names for richer narrative
+    │
+    ├─► AI generates narrative + recommendations[]
+    │
+    ├─► Cache result in ai_narrative_cache (30min expiry)
+    │
+    └─► Audit log entry (action_type: "narrative_generation", module: context_type)
+```
+
+**Supported context types:** dashboard, ratios, cashflow, planning, budget, breakeven, profitability, expenses, working_capital, customer_risk, supplier_risk, margin_bridge, payroll_benchmark, vat_trap, inventory_health, early_warning
+
+### 8.13 AI Audit Trail *(New in v3.0)*
+
+All 5 AI edge functions write to the `ai_action_log` table for full traceability:
+
+| Function | action_type | module | What's Logged |
+|----------|-------------|--------|---------------|
+| `ai-assistant` | `sql_query`, `trend_analysis`, `reminder_created` | auto-detected from query | Each tool call with input/output |
+| `ai-insights` | `insight_generation` | detected from insights | AI enrichment call with rule-based input + AI output |
+| `ai-analytics-narrative` | `narrative_generation` | context_type | Narrative generation with KPI input summary |
+| `production-ai-planning` | `schedule_generation`, `bottleneck_prediction`, `capacity_simulation` | production | Each planning action with parameters + results |
+| `wms-slotting` | `slotting_optimization` | wms | Optimization run with weights, bin count, move count |
+
+**Schema:** `ai_action_log` — `id`, `tenant_id`, `user_id`, `action_type`, `module`, `model_version`, `input_data` (JSONB), `ai_output` (JSONB), `confidence_score`, `reasoning`, `user_decision`, `created_at`
+
+### 8.14 Production AI Planning *(Upgraded in v3.0)*
+
+The `production-ai-planning` edge function supports 6 actions:
+
+| Action | Purpose | Key Features |
+|--------|---------|-------------|
+| `generate-schedule` | AI-optimized production schedule | Locked/excluded order filtering, post-AI date validation |
+| `predict-bottlenecks` | Identify capacity constraints | Local material pre-check (BOM vs inventory) |
+| `simulate-scenario` | What-if capacity analysis | DB-backed scenario persistence |
+| `local-fallback-schedule` | Deterministic scheduling | No AI call, priority-based FCFS algorithm |
+| `save-scenario` | Persist scenario results | Saves to `production_scenarios` table |
+| `list-scenarios` | Retrieve saved scenarios | Returns all scenarios for comparison |
+
+**Frontend components:**
+- `AiPlanningSchedule.tsx`: AI/Local toggle, order exclusion, Gantt legend, batch apply
+- `AiCapacitySimulation.tsx`: DB-backed scenario persistence, side-by-side comparison view
+- `AiBottleneckPrediction.tsx`: Local material pre-check (BOM vs inventory), AI enrichment
+- `ProductionOrders.tsx`: Priority field (1-5) in create/edit dialogs
+
+### 8.15 WMS AI Slotting *(Upgraded in v3.0)*
+
+The `wms-slotting` edge function provides dual-mode warehouse slot optimization:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Bin capacity validation** | ✅ Implemented | Both AI and local modes validate against `max_units` before saving |
+| **SQL-filtered data** | ✅ Implemented | `accessibility_score > 0`, top 100 bins, 5000 pick history limit |
+| **Batch task generation** | ✅ Implemented | Single bulk INSERT replaces sequential per-move inserts |
+| **Scenario comparison** | ✅ Implemented | Side-by-side KPI diff (travel reduction %, move count, zones affected) |
+| **Audit logging** | ✅ Implemented | Each optimization run logged to `ai_action_log` |
 
 ---
 
@@ -1739,5 +1840,5 @@ pandoc ARCHITECTURE_DOCUMENTATION.md -o ARCHITECTURE_DOCUMENTATION.docx --toc --
 ---
 
 *Document generated: February 23, 2026*  
-*System version: ProERP AI v2.0*  
-*Total routes: ~155+ | Edge functions: 65+ | Database tables: 105+*
+*System version: ProERP AI v3.0*  
+*Total routes: ~155+ | Edge functions: 68+ | Database tables: 110+*
