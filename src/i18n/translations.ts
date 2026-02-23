@@ -2127,7 +2127,6 @@ export const translations = {
     balanceSheet: "Bilans stanja",
     bilansUspeha: "Bilans uspeha",
     bilansStanja: "Bilans stanja",
-    allLegalEntities: "Све правне особе",
     balance: "Saldo",
     netIncome: "Neto prihod",
     loss: "Gubitak",
