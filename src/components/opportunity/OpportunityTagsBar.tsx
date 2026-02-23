@@ -60,9 +60,10 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
   });
 
   const removeMutation = useMutation({
-    mutationFn: async (tagId: string) => {
-      const { error } = await supabase.from("opportunity_tags" as any).delete().eq("id", tagId);
+    mutationFn: async (tag: any) => {
+      const { error } = await supabase.from("opportunity_tags" as any).delete().eq("id", tag.id);
       if (error) throw error;
+      onActivity("tag_removed", `Tag removed: ${tag.tag}`, { tag: tag.tag });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opportunity-tags", opportunityId] });
@@ -77,7 +78,7 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
           key={tag.id}
           className="gap-1 cursor-pointer"
           style={{ backgroundColor: tag.color, color: "#fff" }}
-          onClick={() => removeMutation.mutate(tag.id)}
+          onClick={() => removeMutation.mutate(tag)}
         >
           {tag.tag}
           <X className="h-3 w-3" />

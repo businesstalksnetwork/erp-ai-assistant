@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 import { OpportunityOverviewTab } from "@/components/opportunity/OpportunityOverviewTab";
@@ -16,7 +16,8 @@ import { OpportunityDocumentsTab } from "@/components/opportunity/OpportunityDoc
 import { OpportunityDiscussionTab } from "@/components/opportunity/OpportunityDiscussionTab";
 import { OpportunityActivityTab } from "@/components/opportunity/OpportunityActivityTab";
 import { OpportunityTagsBar } from "@/components/opportunity/OpportunityTagsBar";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 export default function OpportunityDetail() {
   const { t } = useLanguage();
@@ -85,7 +86,6 @@ export default function OpportunityDetail() {
         .select("user_id, role")
         .eq("tenant_id", tenantId!)
         .eq("status", "active");
-      // Fetch profiles separately to avoid join issues
       const userIds = (data || []).map((m: any) => m.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
@@ -99,7 +99,6 @@ export default function OpportunityDetail() {
     enabled: !!tenantId,
   });
 
-  // Activity logger
   const logActivity = useCallback(async (activityType: string, description: string, metadata?: any) => {
     if (!tenantId || !id) return;
     await supabase.from("opportunity_activities" as any).insert([{
@@ -171,44 +170,69 @@ export default function OpportunityDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const fmt = useMemo(() => {
+    if (!opp) return (n: number) => String(n);
+    return (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: opp.currency || "RSD" }).format(n);
+  }, [opp?.currency]);
+
+  const isClosed = useMemo(() => stages.some(s => s.code === opp?.stage && (s.is_won || s.is_lost)), [stages, opp?.stage]);
+  const currentStage = useMemo(() => stages.find(s => s.code === opp?.stage), [stages, opp?.stage]);
+  const currentStageIdx = useMemo(() => stages.findIndex(s => s.code === opp?.stage), [stages, opp?.stage]);
+  const contactName = useMemo(() => {
+    if (!opp) return "—";
+    return opp.contacts ? `${opp.contacts.first_name} ${opp.contacts.last_name || ""}` : opp.leads ? (opp.leads.first_name || opp.leads.name) : opp.partners?.name || "—";
+  }, [opp]);
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!opp) return <div className="text-center py-20 text-muted-foreground">{t("noResults")}</div>;
-
-  const fmt = (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: opp.currency || "RSD" }).format(n);
-  const isClosed = stages.some(s => s.code === opp.stage && (s.is_won || s.is_lost));
-  const currentStage = stages.find(s => s.code === opp.stage);
-  const contactName = opp.contacts ? `${opp.contacts.first_name} ${opp.contacts.last_name || ""}` : opp.leads ? (opp.leads.first_name || opp.leads.name) : opp.partners?.name || "—";
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/crm/opportunities")}>
-          <ArrowLeft className="h-4 w-4 mr-1" />{t("back")}
-        </Button>
-        <h1 className="text-2xl font-bold">{opp.title}</h1>
-        <Badge
-          variant={currentStage?.is_won ? "default" : currentStage?.is_lost ? "destructive" : "secondary"}
-          style={currentStage?.color ? { backgroundColor: currentStage.color, color: "#fff" } : undefined}
-        >
-          {currentStage?.name_sr || currentStage?.name || opp.stage}
-        </Badge>
-        <OpportunityTagsBar opportunityId={id!} tenantId={tenantId!} onActivity={logActivity} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/crm/opportunities")}>
+            <ArrowLeft className="h-4 w-4 mr-1" />{t("back")}
+          </Button>
+          <h1 className="text-xl sm:text-2xl font-bold truncate">{opp.title}</h1>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap pl-9 sm:pl-0">
+          <Badge
+            variant={currentStage?.is_won ? "default" : currentStage?.is_lost ? "destructive" : "secondary"}
+            style={currentStage?.color ? { backgroundColor: currentStage.color, color: "#fff" } : undefined}
+          >
+            {currentStage?.name_sr || currentStage?.name || opp.stage}
+          </Badge>
+          <OpportunityTagsBar opportunityId={id!} tenantId={tenantId!} onActivity={logActivity} />
+        </div>
       </div>
 
-      {/* Stage buttons */}
+      {/* Stage progression */}
       {!isClosed && (
         <Card>
-          <CardHeader><CardTitle className="text-base">{t("stage")}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">{t("stage")}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex gap-2 flex-wrap">
-              {stages.map(s => (
-                <Button key={s.code} variant={opp.stage === s.code ? "default" : "outline"} size="sm"
-                  style={opp.stage === s.code && s.color ? { backgroundColor: s.color, color: "#fff" } : undefined}
-                  onClick={() => stageMutation.mutate(s.code)} disabled={stageMutation.isPending}>
-                  {s.name_sr || s.name}
-                </Button>
-              ))}
+            <div className="overflow-x-auto -mx-2 px-2 pb-1">
+              <div className="flex gap-1 min-w-max">
+                {stages.map((s, idx) => {
+                  const isActive = opp.stage === s.code;
+                  const isPast = idx < currentStageIdx;
+                  return (
+                    <Button
+                      key={s.code}
+                      variant={isActive ? "default" : isPast ? "secondary" : "outline"}
+                      size="sm"
+                      className={cn("relative gap-1.5", isPast && "opacity-80")}
+                      style={isActive && s.color ? { backgroundColor: s.color, color: "#fff" } : undefined}
+                      onClick={() => stageMutation.mutate(s.code)}
+                      disabled={stageMutation.isPending}
+                    >
+                      {isPast && <Check className="h-3 w-3" />}
+                      {s.name_sr || s.name}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -216,12 +240,14 @@ export default function OpportunityDetail() {
 
       {/* Tabbed content */}
       <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
-          <TabsTrigger value="documents">{t("documents")}</TabsTrigger>
-          <TabsTrigger value="discussion">{t("discussion")}</TabsTrigger>
-          <TabsTrigger value="activity">{t("activityLog")}</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="w-max">
+            <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
+            <TabsTrigger value="documents">{t("documents")}</TabsTrigger>
+            <TabsTrigger value="discussion">{t("discussion")}</TabsTrigger>
+            <TabsTrigger value="activity">{t("activityLog")}</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview">
           <OpportunityOverviewTab

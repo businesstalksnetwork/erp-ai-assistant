@@ -13,9 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Loader2, Video, Phone, Mail, MapPin, Users, X, CalendarDays, ClipboardCheck, ArrowLeft, FileText, Building2, Briefcase, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const CHANNELS = ["in_person", "video_call", "phone_call", "email", "hybrid"] as const;
 const STATUSES = ["scheduled", "in_progress", "completed", "cancelled"] as const;
@@ -67,6 +67,7 @@ export default function Meetings() {
   const { tenantId } = useTenant();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode>("schedule");
   const [editId, setEditId] = useState<string | null>(null);
@@ -77,6 +78,24 @@ export default function Meetings() {
   const [externalName, setExternalName] = useState("");
   const [externalEmail, setExternalEmail] = useState("");
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+
+  // Handle URL params to auto-open schedule form from Opportunity Detail
+  useEffect(() => {
+    const oppId = searchParams.get("opportunity");
+    const partnerId = searchParams.get("partner");
+    if (oppId) {
+      setDialogMode("schedule");
+      setEditId(null);
+      setForm(f => ({ ...emptyForm, status: "scheduled", opportunity_id: oppId }));
+      setAttendees([]);
+      if (partnerId) setSelectedPartnerIds([partnerId]);
+      else setSelectedPartnerIds([]);
+      setExternalName(""); setExternalEmail("");
+      setShowForm(true);
+      // Clear the URL params
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Data queries
   const { data: meetings = [], isLoading } = useQuery({
@@ -587,15 +606,15 @@ export default function Meetings() {
         description="Schedule and track meetings with partners and opportunities"
         icon={Users}
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/crm/meetings/calendar")}>
-              <CalendarDays className="h-4 w-4 mr-2" />{t("meetingsCalendar")}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="sm:size-default" onClick={() => navigate("/crm/meetings/calendar")}>
+              <CalendarDays className="h-4 w-4 mr-2" /><span className="hidden sm:inline">{t("meetingsCalendar")}</span><span className="sm:hidden">Calendar</span>
             </Button>
-            <Button variant="outline" onClick={openLog}>
-              <ClipboardCheck className="h-4 w-4 mr-2" />{t("evidentirajSastanak")}
+            <Button variant="outline" size="sm" className="sm:size-default" onClick={openLog}>
+              <ClipboardCheck className="h-4 w-4 mr-2" /><span className="hidden sm:inline">{t("evidentirajSastanak")}</span><span className="sm:hidden">Log</span>
             </Button>
-            <Button onClick={openSchedule}>
-              <Plus className="h-4 w-4 mr-2" />{t("zakaziSastanak")}
+            <Button size="sm" className="sm:size-default" onClick={openSchedule}>
+              <Plus className="h-4 w-4 mr-2" /><span className="hidden sm:inline">{t("zakaziSastanak")}</span><span className="sm:hidden">New</span>
             </Button>
           </div>
         }
@@ -609,12 +628,12 @@ export default function Meetings() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative max-w-sm flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
+        <div className="relative flex-1">
           <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("allStatuses")}</SelectItem>
             {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}
@@ -623,7 +642,7 @@ export default function Meetings() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

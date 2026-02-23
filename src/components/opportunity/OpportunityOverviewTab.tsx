@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Calendar, UserPlus, X } from "lucide-react";
+import { FileText, Calendar, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   opp: any;
@@ -28,6 +29,7 @@ export function OpportunityOverviewTab({
   onAddFollower, onRemoveFollower, createQuotePending,
 }: Props) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const nonFollowerMembers = tenantMembers.filter(
     m => !followers.some((f: any) => f.user_id === m.user_id)
@@ -112,28 +114,30 @@ export function OpportunityOverviewTab({
           {oppMeetings.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">{t("noResults")}</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("title")}</TableHead>
-                  <TableHead>{t("date")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                  <TableHead>{t("outcome")}</TableHead>
-                  <TableHead>{t("nextSteps")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {oppMeetings.map((m: any) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.title}</TableCell>
-                    <TableCell>{new Date(m.scheduled_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}</TableCell>
-                    <TableCell><Badge variant="secondary">{t(m.status as any) || m.status}</Badge></TableCell>
-                    <TableCell className="max-w-[200px] truncate">{m.outcome || "—"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{m.next_steps || "—"}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("title")}</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead>{t("outcome")}</TableHead>
+                    <TableHead>{t("nextSteps")}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {oppMeetings.map((m: any) => (
+                    <TableRow key={m.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/meetings?edit=${m.id}`)}>
+                      <TableCell className="font-medium">{m.title}</TableCell>
+                      <TableCell className="whitespace-nowrap">{new Date(m.scheduled_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}</TableCell>
+                      <TableCell><Badge variant="secondary">{t(m.status as any) || m.status}</Badge></TableCell>
+                      <TableCell className="max-w-[200px] truncate">{m.outcome || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{m.next_steps || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

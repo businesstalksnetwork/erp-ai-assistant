@@ -5,9 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Download, Trash2, Loader2 } from "lucide-react";
+import { Upload, Download, Trash2, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   opportunityId: string;
@@ -20,6 +21,7 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
   const { user } = useAuth();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ["opportunity-documents", opportunityId],
@@ -93,7 +95,7 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base">{t("documents")} ({docs.length})</CardTitle>
         <div>
           <input
@@ -108,7 +110,8 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
           />
           <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending}>
             {uploadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
-            {t("uploadDocument")}
+            <span className="hidden sm:inline">{t("uploadDocument")}</span>
+            <span className="sm:hidden">{t("upload")}</span>
           </Button>
         </div>
       </CardHeader>
@@ -117,36 +120,58 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
           <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : docs.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">{t("noResults")}</p>
+        ) : isMobile ? (
+          <div className="space-y-3">
+            {docs.map((d: any) => (
+              <div key={d.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{d.file_name}</p>
+                  <p className="text-xs text-muted-foreground">{fmtSize(d.file_size || 0)} · {(d as any).profiles?.full_name || "—"} · {new Date(d.created_at).toLocaleDateString("sr-RS")}</p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(d)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMutation.mutate(d)} disabled={deleteMutation.isPending}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("size")}</TableHead>
-                <TableHead>{t("uploadedBy")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {docs.map((d: any) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.file_name}</TableCell>
-                  <TableCell>{fmtSize(d.file_size || 0)}</TableCell>
-                  <TableCell>{(d as any).profiles?.full_name || "—"}</TableCell>
-                  <TableCell>{new Date(d.created_at).toLocaleDateString("sr-RS")}</TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleDownload(d)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(d)} disabled={deleteMutation.isPending}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("size")}</TableHead>
+                  <TableHead>{t("uploadedBy")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {docs.map((d: any) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="font-medium">{d.file_name}</TableCell>
+                    <TableCell>{fmtSize(d.file_size || 0)}</TableCell>
+                    <TableCell>{(d as any).profiles?.full_name || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{new Date(d.created_at).toLocaleDateString("sr-RS")}</TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleDownload(d)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(d)} disabled={deleteMutation.isPending}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
