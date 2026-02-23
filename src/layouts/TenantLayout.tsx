@@ -312,9 +312,12 @@ export default function TenantLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r border-sidebar-border w-64 bg-sidebar-background">
+        <Sidebar className="border-r border-sidebar-border w-64 bg-gradient-to-b from-[hsl(225,50%,12%)] via-[hsl(225,55%,15%)] to-[hsl(230,45%,10%)] relative overflow-hidden">
+          {/* Subtle animated orbs */}
+          <div className="absolute top-0 right-0 w-[200px] h-[200px] rounded-full bg-primary/10 blur-[80px] animate-[pulse_8s_ease-in-out_infinite] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-[150px] h-[150px] rounded-full bg-[hsl(260,60%,30%)]/8 blur-[60px] animate-[pulse_10s_ease-in-out_infinite_2s] pointer-events-none" />
           {/* Logo */}
-          <div className="pt-2 pb-5 px-4 border-b border-sidebar-border/60 flex justify-center">
+          <div className="pt-2 pb-5 px-4 border-b border-white/5 flex justify-center relative z-10">
             <img src={erpAiLogo} alt="ERP AI" className="max-w-[140px] h-auto" />
           </div>
 
