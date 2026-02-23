@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap, Loader2 } from "lucide-react";
+import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap, Loader2, GitCompareArrows, X } from "lucide-react";
 
 export default function WmsSlotting() {
   const { t } = useLanguage();
@@ -33,6 +33,9 @@ export default function WmsSlotting() {
   const [selectedScenario, setSelectedScenario] = useState<any>(null);
   const [createDialog, setCreateDialog] = useState(false);
   const [useAi, setUseAi] = useState(true);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareScenarioA, setCompareScenarioA] = useState<any>(null);
+  const [compareScenarioB, setCompareScenarioB] = useState<any>(null);
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses", tenantId],
@@ -54,6 +57,8 @@ export default function WmsSlotting() {
     enabled: !!tenantId,
   });
 
+  const completedScenarios = useMemo(() => scenarios.filter((s: any) => s.status === "completed"), [scenarios]);
+
   const { data: moves = [] } = useQuery({
     queryKey: ["wms-slotting-moves", selectedScenario?.id],
     queryFn: async () => {
@@ -66,7 +71,6 @@ export default function WmsSlotting() {
 
   const runAnalysisMutation = useMutation({
     mutationFn: async () => {
-      // Create scenario
       const params = {
         travel_weight: travelWeight / 100,
         affinity_weight: affinityWeight / 100,
@@ -80,7 +84,6 @@ export default function WmsSlotting() {
       if (error) throw error;
 
       if (useAi) {
-        // AI-powered analysis via Edge Function
         const { data: aiResult, error: aiError } = await supabase.functions.invoke("wms-slotting", {
           body: {
             warehouse_id: warehouseId,
@@ -94,16 +97,13 @@ export default function WmsSlotting() {
         const recommendations = aiResult?.recommendations || [];
         const estimatedImprovement = aiResult?.estimated_improvement || { travel_reduction_pct: 0, summary: "No improvement data" };
 
-        // Update scenario with AI results
         await supabase.from("wms_slotting_scenarios").update({
           status: "completed",
           results: recommendations,
           estimated_improvement: { travel_reduction_pct: estimatedImprovement.travel_reduction_pct, moves_count: recommendations.length, summary: estimatedImprovement.summary },
         }).eq("id", scenario.id);
 
-        // Save move plan from AI recommendations
         if (recommendations.length > 0) {
-          // Resolve bin IDs from codes if needed
           const moveInserts = recommendations.map((r: any, i: number) => ({
             tenant_id: tenantId!, scenario_id: scenario.id,
             product_id: r.product_id,
@@ -114,20 +114,24 @@ export default function WmsSlotting() {
           await supabase.from("wms_slotting_moves").insert(moveInserts);
         }
       } else {
-        // Local algorithm fallback
-        const [binStock, bins, pickHistory] = await Promise.all([
+        // Local algorithm with capacity validation
+        const [binStockRes, binsRes, pickHistoryRes] = await Promise.all([
           supabase.from("wms_bin_stock").select("bin_id, product_id, quantity").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!),
-          supabase.from("wms_bins").select("id, code, zone_id, level, accessibility_score, max_units, sort_order").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("is_active", true),
-          supabase.from("wms_tasks").select("product_id, from_bin_id, created_at").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("task_type", "pick").eq("status", "completed").gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
+          supabase.from("wms_bins").select("id, code, zone_id, level, accessibility_score, max_units, sort_order").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("is_active", true).gt("accessibility_score", 0).order("accessibility_score", { ascending: false }).limit(500),
+          supabase.from("wms_tasks").select("product_id, from_bin_id, created_at").eq("warehouse_id", warehouseId).eq("tenant_id", tenantId!).eq("task_type", "pick").eq("status", "completed").gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()).order("created_at", { ascending: false }).limit(5000),
         ]);
 
         const velocity: Record<string, number> = {};
-        (pickHistory.data || []).forEach((p: any) => { velocity[p.product_id] = (velocity[p.product_id] || 0) + 1; });
+        (pickHistoryRes.data || []).forEach((p: any) => { velocity[p.product_id] = (velocity[p.product_id] || 0) + 1; });
 
         const currentPlacement: Record<string, string> = {};
-        (binStock.data || []).forEach((bs: any) => { currentPlacement[bs.product_id] = bs.bin_id; });
+        const binOccupancy: Record<string, number> = {};
+        (binStockRes.data || []).forEach((bs: any) => {
+          currentPlacement[bs.product_id] = bs.bin_id;
+          binOccupancy[bs.bin_id] = (binOccupancy[bs.bin_id] || 0) + (bs.quantity || 0);
+        });
 
-        const binsData = bins.data || [];
+        const binsData = binsRes.data || [];
         const sortedBins = [...binsData].sort((a: any, b: any) => b.accessibility_score - a.accessibility_score || a.sort_order - b.sort_order);
         const sortedProducts = Object.entries(velocity).sort((a, b) => b[1] - a[1]);
 
@@ -137,7 +141,13 @@ export default function WmsSlotting() {
         for (const [productId, picks] of sortedProducts) {
           const currentBin = currentPlacement[productId];
           if (!currentBin) continue;
-          const bestBin = sortedBins.find((b: any) => !usedBins.has(b.id) && b.id !== currentBin);
+          const bestBin = sortedBins.find((b: any) => {
+            if (usedBins.has(b.id) || b.id === currentBin) return false;
+            // Capacity validation: check max_units vs current occupancy
+            const maxUnits = b.max_units || 9999;
+            const currentOccupancy = binOccupancy[b.id] || 0;
+            return currentOccupancy < maxUnits;
+          });
           if (!bestBin) continue;
           const currentBinData = binsData.find((b: any) => b.id === currentBin);
           if (!currentBinData) continue;
@@ -145,7 +155,7 @@ export default function WmsSlotting() {
             recommendations.push({
               product_id: productId, from_bin_id: currentBin, to_bin_id: bestBin.id,
               score: bestBin.accessibility_score - (currentBinData as any).accessibility_score,
-              reasons: [`${picks} picks in 90 days`, `Accessibility: ${(currentBinData as any).accessibility_score} → ${bestBin.accessibility_score}`],
+              reasons: [`${picks} picks in 90 days`, `Accessibility: ${(currentBinData as any).accessibility_score} → ${bestBin.accessibility_score}`, `Capacity: ${binOccupancy[bestBin.id] || 0}/${bestBin.max_units || '∞'}`],
             });
             usedBins.add(bestBin.id);
           }
@@ -161,6 +171,7 @@ export default function WmsSlotting() {
         }).eq("id", scenario.id);
 
         if (recommendations.length > 0) {
+          // Batch insert all moves at once
           await supabase.from("wms_slotting_moves").insert(recommendations.map((r: any, i: number) => ({
             tenant_id: tenantId!, scenario_id: scenario.id,
             product_id: r.product_id, from_bin_id: r.from_bin_id, to_bin_id: r.to_bin_id,
@@ -179,20 +190,45 @@ export default function WmsSlotting() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  // Batch task generation — single bulk insert instead of sequential loop
   const generateTasksMutation = useMutation({
     mutationFn: async () => {
       if (!selectedScenario) return;
-      for (const move of moves) {
-        if ((move as any).status !== "proposed") continue;
-        const { data: task } = await supabase.from("wms_tasks").insert({
-          tenant_id: tenantId!, warehouse_id: selectedScenario.warehouse_id,
-          task_type: "reslot", status: "pending", priority: (move as any).priority,
-          product_id: (move as any).product_id, from_bin_id: (move as any).from_bin_id, to_bin_id: (move as any).to_bin_id,
-          created_by: user?.id,
-        }).select("id").single();
-        if (task) {
-          await supabase.from("wms_slotting_moves").update({ status: "approved", task_id: task.id }).eq("id", (move as any).id);
-        }
+      const proposedMoves = moves.filter((m: any) => m.status === "proposed");
+      if (proposedMoves.length === 0) return;
+
+      // Batch insert all reslot tasks at once
+      const taskInserts = proposedMoves.map((move: any) => ({
+        tenant_id: tenantId!,
+        warehouse_id: selectedScenario.warehouse_id,
+        task_type: "reslot" as const,
+        status: "pending" as const,
+        priority: move.priority,
+        product_id: move.product_id,
+        from_bin_id: move.from_bin_id,
+        to_bin_id: move.to_bin_id,
+        created_by: user?.id,
+      }));
+
+      const { data: tasks, error: taskError } = await supabase
+        .from("wms_tasks")
+        .insert(taskInserts)
+        .select("id");
+      if (taskError) throw taskError;
+
+      // Batch update all moves to approved with their task IDs
+      if (tasks && tasks.length === proposedMoves.length) {
+        const moveUpdates = proposedMoves.map((move: any, i: number) => ({
+          id: move.id,
+          status: "approved" as const,
+          task_id: tasks[i].id,
+        }));
+        // Update each move — Supabase doesn't support batch upsert on non-PK, so we use Promise.all
+        await Promise.all(
+          moveUpdates.map((u) =>
+            supabase.from("wms_slotting_moves").update({ status: u.status, task_id: u.task_id }).eq("id", u.id)
+          )
+        );
       }
     },
     onSuccess: () => {
@@ -200,16 +236,75 @@ export default function WmsSlotting() {
       qc.invalidateQueries({ queryKey: ["wms-tasks"] });
       toast({ title: t("success"), description: t("reslotTasksCreated") });
     },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const improvement = selectedScenario?.estimated_improvement as any;
+  const improvA = compareScenarioA?.estimated_improvement as any;
+  const improvB = compareScenarioB?.estimated_improvement as any;
 
   return (
     <div className="space-y-6">
       <PageHeader title={t("wmsSlotting")} description={t("wmsSlottingDesc")} icon={Brain}
-        actions={<Button onClick={() => setCreateDialog(true)}><Zap className="h-4 w-4 mr-1" />{t("runAnalysis")}</Button>} />
+        actions={
+          <div className="flex gap-2">
+            {completedScenarios.length >= 2 && (
+              <Button variant="outline" onClick={() => { setCompareMode(!compareMode); setCompareScenarioA(null); setCompareScenarioB(null); }}>
+                <GitCompareArrows className="h-4 w-4 mr-1" />{compareMode ? t("cancel") : "Compare"}
+              </Button>
+            )}
+            <Button onClick={() => setCreateDialog(true)}><Zap className="h-4 w-4 mr-1" />{t("runAnalysis")}</Button>
+          </div>
+        } />
 
-      {selectedScenario && improvement && (
+      {/* Scenario Comparison View */}
+      {compareMode && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <GitCompareArrows className="h-4 w-4" />
+              Scenario Comparison
+            </CardTitle>
+            <CardDescription>Select two completed scenarios to compare</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <Label className="text-xs mb-1 block">Scenario A</Label>
+                <Select value={compareScenarioA?.id || ""} onValueChange={(id) => setCompareScenarioA(completedScenarios.find((s: any) => s.id === id))}>
+                  <SelectTrigger><SelectValue placeholder="Select scenario A" /></SelectTrigger>
+                  <SelectContent>
+                    {completedScenarios.filter((s: any) => s.id !== compareScenarioB?.id).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name} — {s.warehouses?.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Scenario B</Label>
+                <Select value={compareScenarioB?.id || ""} onValueChange={(id) => setCompareScenarioB(completedScenarios.find((s: any) => s.id === id))}>
+                  <SelectTrigger><SelectValue placeholder="Select scenario B" /></SelectTrigger>
+                  <SelectContent>
+                    {completedScenarios.filter((s: any) => s.id !== compareScenarioA?.id).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name} — {s.warehouses?.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {compareScenarioA && compareScenarioB && (
+              <div className="grid grid-cols-2 gap-4">
+                <CompareCard label="A" scenario={compareScenarioA} improvement={improvA} />
+                <CompareCard label="B" scenario={compareScenarioB} improvement={improvB} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* KPI Cards */}
+      {selectedScenario && improvement && !compareMode && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><TrendingDown className="h-4 w-4" />{t("travelReduction")}</CardTitle></CardHeader>
             <CardContent className="text-2xl font-bold text-primary">{improvement.travel_reduction_pct || 0}%</CardContent></Card>
@@ -220,61 +315,66 @@ export default function WmsSlotting() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="text-base">{t("scenarios")}</CardTitle></CardHeader>
-          <CardContent className="space-y-1">
-            {scenarios.map((s: any) => (
-              <button
-                key={s.id}
-                onClick={() => setSelectedScenario(s)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors ${selectedScenario?.id === s.id ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
-              >
-                <div>
-                  <div className="font-medium">{s.name}</div>
-                  <div className="text-xs text-muted-foreground">{s.warehouses?.name} · {new Date(s.created_at).toLocaleDateString()}</div>
-                </div>
-                <Badge variant={s.status === "completed" ? "default" : "secondary"}>{s.status}</Badge>
-              </button>
-            ))}
-            {scenarios.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">{t("noResults")}</p>}
-          </CardContent>
-        </Card>
+      {/* Main content */}
+      {!compareMode && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle className="text-base">{t("scenarios")}</CardTitle></CardHeader>
+            <CardContent className="space-y-1">
+              {scenarios.map((s: any) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedScenario(s)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm text-left transition-colors ${selectedScenario?.id === s.id ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                >
+                  <div>
+                    <div className="font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.warehouses?.name} · {new Date(s.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <Badge variant={s.status === "completed" ? "default" : "secondary"}>{s.status}</Badge>
+                </button>
+              ))}
+              {scenarios.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">{t("noResults")}</p>}
+            </CardContent>
+          </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("movePlan")}</CardTitle>
-            {selectedScenario?.status === "completed" && moves.some((m: any) => m.status === "proposed") && (
-              <Button size="sm" onClick={() => generateTasksMutation.mutate()} disabled={generateTasksMutation.isPending}>
-                <Play className="h-3 w-3 mr-1" />{t("generateTasks")}
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {!selectedScenario ? (
-              <p className="text-center text-muted-foreground py-8">{t("selectScenario")}</p>
-            ) : (
-              <Table>
-                <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead>From</TableHead><TableHead>To</TableHead><TableHead>#</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {moves.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-                  ) : moves.map((m: any) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">{m.products?.name}</TableCell>
-                      <TableCell className="font-mono text-xs">{m.from_bin?.code}</TableCell>
-                      <TableCell className="font-mono text-xs">{m.to_bin?.code}</TableCell>
-                      <TableCell>{m.priority}</TableCell>
-                      <TableCell><Badge variant={m.status === "executed" ? "default" : m.status === "approved" ? "secondary" : "outline"}>{m.status}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">{t("movePlan")}</CardTitle>
+              {selectedScenario?.status === "completed" && moves.some((m: any) => m.status === "proposed") && (
+                <Button size="sm" onClick={() => generateTasksMutation.mutate()} disabled={generateTasksMutation.isPending}>
+                  {generateTasksMutation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Play className="h-3 w-3 mr-1" />}
+                  {t("generateTasks")}
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {!selectedScenario ? (
+                <p className="text-center text-muted-foreground py-8">{t("selectScenario")}</p>
+              ) : (
+                <Table>
+                  <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead>From</TableHead><TableHead>To</TableHead><TableHead>#</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {moves.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                    ) : moves.map((m: any) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{m.products?.name}</TableCell>
+                        <TableCell className="font-mono text-xs">{m.from_bin?.code}</TableCell>
+                        <TableCell className="font-mono text-xs">{m.to_bin?.code}</TableCell>
+                        <TableCell>{m.priority}</TableCell>
+                        <TableCell><Badge variant={m.status === "executed" ? "default" : m.status === "approved" ? "secondary" : "outline"}>{m.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
+      {/* Run Analysis Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("runAnalysis")}</DialogTitle></DialogHeader>
@@ -308,6 +408,41 @@ export default function WmsSlotting() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Side-by-side comparison card
+function CompareCard({ label, scenario, improvement }: { label: string; scenario: any; improvement: any }) {
+  const params = scenario.parameters as any;
+  return (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <Badge variant="outline" className="text-xs">{label}</Badge>
+        <span className="text-xs text-muted-foreground">{new Date(scenario.created_at).toLocaleDateString()}</span>
+      </div>
+      <h4 className="font-semibold text-sm">{scenario.name}</h4>
+      <p className="text-xs text-muted-foreground">{scenario.warehouses?.name}</p>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <span className="text-muted-foreground text-xs block">Travel Reduction</span>
+          <span className="text-lg font-bold text-primary">{improvement?.travel_reduction_pct || 0}%</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground text-xs block">Moves</span>
+          <span className="text-lg font-bold">{improvement?.moves_count || 0}</span>
+        </div>
+      </div>
+      {params && (
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <div>Travel: {Math.round((params.travel_weight || 0) * 100)}%</div>
+          <div>Affinity: {Math.round((params.affinity_weight || 0) * 100)}%</div>
+          <div>Space: {Math.round((params.space_weight || 0) * 100)}%</div>
+        </div>
+      )}
+      {improvement?.summary && (
+        <p className="text-xs text-muted-foreground border-t pt-2">{improvement.summary}</p>
+      )}
     </div>
   );
 }
