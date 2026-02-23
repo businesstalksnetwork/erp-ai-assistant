@@ -8766,6 +8766,7 @@ export type Database = {
           default_purchase_price: number
           default_retail_price: number
           default_sale_price: number
+          default_web_price: number
           description: string | null
           id: string
           is_active: boolean
@@ -8784,6 +8785,7 @@ export type Database = {
           default_purchase_price?: number
           default_retail_price?: number
           default_sale_price?: number
+          default_web_price?: number
           description?: string | null
           id?: string
           is_active?: boolean
@@ -8802,6 +8804,7 @@ export type Database = {
           default_purchase_price?: number
           default_retail_price?: number
           default_sale_price?: number
+          default_web_price?: number
           description?: string | null
           id?: string
           is_active?: boolean

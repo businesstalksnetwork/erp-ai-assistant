@@ -1,0 +1,1 @@
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_web_price numeric DEFAULT 0 NOT NULL;

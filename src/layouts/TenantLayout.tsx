@@ -74,6 +74,7 @@ const inventoryNav: NavItem[] = [
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
   { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator, section: "pricingOperations" },
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
+  { key: "retailPrices", url: "/inventory/retail-prices", icon: Receipt },
   { key: "wmsDashboard", url: "/inventory/wms/dashboard", icon: LayoutDashboard, section: "wms" },
   { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
@@ -135,12 +136,8 @@ const salesNav: NavItem[] = [
   { key: "salesChannels", url: "/sales/sales-channels", icon: Grid3X3, section: "performancePricing" },
   { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
   { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
-  { key: "retailPrices", url: "/sales/retail-prices", icon: Receipt },
-];
-
-const webNav: NavItem[] = [
-  { key: "webSettings", url: "/web/settings", icon: Globe },
-  { key: "webPrices", url: "/web/prices", icon: Receipt },
+  { key: "webSettings", url: "/sales/web-settings", icon: Globe, section: "webSales" },
+  { key: "webPrices", url: "/sales/web-prices", icon: Receipt },
 ];
 
 const purchasingNav: NavItem[] = [
@@ -366,9 +363,6 @@ export default function TenantLayout() {
             )}
             {canAccess("pos") && (
               <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} />
-            )}
-            {canAccess("web") && (
-              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} icon={Globe} />
             )}
             {canAccess("inventory") && (
               <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} />

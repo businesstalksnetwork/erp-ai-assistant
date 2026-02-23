@@ -137,6 +137,8 @@ export default function ProductDetail() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("purchasePrice")}</span><span className="font-mono">{fmtNum(purchasePrice)}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("wholesalePrice")}</span><span className="font-mono">{fmtNum(wholesalePrice)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("retailPrice")}</span><span className="font-mono">{fmtNum(Number(product.default_retail_price || 0))}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("webPrice")}</span><span className="font-mono">{fmtNum(Number(product.default_web_price || 0))}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("markup")}</span><span className="font-mono">{calcMargin(wholesalePrice, purchasePrice)}</span></div>
               </CardContent>
             </Card>
