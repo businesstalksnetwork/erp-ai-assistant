@@ -249,7 +249,7 @@ export default function PurchaseOrders() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("editPurchaseOrder") : t("addPurchaseOrder")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -276,7 +276,7 @@ export default function PayrollParameters() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editId} onOpenChange={open => !open && setEditId(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Uredi parametre</DialogTitle>
           </DialogHeader>

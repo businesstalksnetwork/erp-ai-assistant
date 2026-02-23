@@ -233,7 +233,7 @@ export default function PosTerminal() {
   }
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-8rem)]">
       {/* Product Grid */}
       <div className="flex-1 flex flex-col space-y-4">
         {/* Session info bar */}
@@ -280,7 +280,7 @@ export default function PosTerminal() {
       </div>
 
       {/* Cart */}
-      <Card className="w-96 flex flex-col">
+      <Card className="w-full sm:w-96 flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />{t("cart")} ({cart.length})</CardTitle>
         </CardHeader>

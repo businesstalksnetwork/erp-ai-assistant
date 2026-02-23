@@ -165,7 +165,7 @@ export default function EmployeeContracts() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("addContract")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
