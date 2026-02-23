@@ -212,13 +212,22 @@ export default function PdvPeriods() {
 
   const submitMutation = useMutation({
     mutationFn: async (periodId: string) => {
-      await supabase.from("pdv_periods").update({
-        status: "submitted", submitted_at: new Date().toISOString(), submitted_by: user?.id,
-      }).eq("id", periodId);
+      const { error } = await supabase.rpc("submit_pdv_period", {
+        p_pdv_period_id: periodId,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
-      toast({ title: t("pdvSubmitted") });
+      qc.invalidateQueries({ queryKey: ["pdv_entries"] });
+      toast({ title: t("pdvSubmitted"), description: t("pdvPeriodSubmittedSuccessfully") });
+    },
+    onError: (e: Error) => {
+      toast({
+        title: t("error"),
+        description: e.message || t("pdvSubmissionFailed"),
+        variant: "destructive",
+      });
     },
   });
 

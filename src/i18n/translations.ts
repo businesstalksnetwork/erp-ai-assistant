@@ -259,10 +259,13 @@ export const translations = {
     trialBalance: "Trial Balance",
     incomeStatement: "Income Statement",
     balanceSheet: "Balance Sheet",
+    bilansUspeha: "Bilans uspeha (Serbian Income Statement)",
+    bilansStanja: "Bilans stanja (Serbian Balance Sheet)",
     balance: "Balance",
     netIncome: "Net Income",
     loss: "Loss",
     asOfDate: "As of Date",
+    allLegalEntities: "All Legal Entities",
 
     // CRM
     crm: "CRM",
@@ -2122,6 +2125,9 @@ export const translations = {
     trialBalance: "Bruto bilans",
     incomeStatement: "Bilans uspeha",
     balanceSheet: "Bilans stanja",
+    bilansUspeha: "Bilans uspeha",
+    bilansStanja: "Bilans stanja",
+    allLegalEntities: "Све правне особе",
     balance: "Saldo",
     netIncome: "Neto prihod",
     loss: "Gubitak",

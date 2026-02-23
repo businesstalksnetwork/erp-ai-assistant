@@ -45,6 +45,8 @@ import Reports from "@/pages/tenant/Reports";
 import TrialBalance from "@/pages/tenant/TrialBalance";
 import IncomeStatement from "@/pages/tenant/IncomeStatement";
 import BalanceSheet from "@/pages/tenant/BalanceSheet";
+import BilansUspeha from "@/pages/tenant/BilansUspeha";
+import BilansStanja from "@/pages/tenant/BilansStanja";
 import Partners from "@/pages/tenant/Partners";
 import Leads from "@/pages/tenant/Leads";
 import Opportunities from "@/pages/tenant/Opportunities";
@@ -231,6 +233,8 @@ const App = () => (
                 <Route path="accounting/reports/trial-balance" element={<ProtectedRoute requiredModule="accounting"><TrialBalance /></ProtectedRoute>} />
                 <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule="accounting"><IncomeStatement /></ProtectedRoute>} />
                 <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule="accounting"><BalanceSheet /></ProtectedRoute>} />
+                <Route path="accounting/reports/bilans-uspeha" element={<ProtectedRoute requiredModule="accounting"><BilansUspeha /></ProtectedRoute>} />
+                <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule="accounting"><BilansStanja /></ProtectedRoute>} />
                 <Route path="settings/tax-rates" element={<ProtectedRoute requiredModule="settings-tax-rates"><TaxRates /></ProtectedRoute>} />
                 <Route path="crm" element={<ProtectedRoute requiredModule="crm"><CrmDashboard /></ProtectedRoute>} />
                 <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><Partners /></ProtectedRoute>} />
