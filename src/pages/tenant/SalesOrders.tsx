@@ -169,7 +169,11 @@ export default function SalesOrders() {
     new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "order_number", label: t("orderNumber"), primary: true, render: (o) => o.order_number },
+    { key: "order_number", label: t("orderNumber"), primary: true, render: (o) => (
+      <button className="text-primary hover:underline font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/sales/sales-orders/${o.id}`); }}>
+        {o.order_number}
+      </button>
+    ) },
     { key: "partner", label: t("partner"), render: (o) => o.partners?.name || o.partner_name || "—" },
     { key: "salesperson", label: t("salesperson"), hideOnMobile: true, render: (o) => o.salespeople ? `${o.salespeople.first_name} ${o.salespeople.last_name}` : "—" },
     { key: "quote", label: t("quote"), hideOnMobile: true, render: (o) => o.quotes?.quote_number || "—" },

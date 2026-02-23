@@ -58,6 +58,8 @@ const Opportunities = React.lazy(() => import("@/pages/tenant/Opportunities"));
 const OpportunityDetail = React.lazy(() => import("@/pages/tenant/OpportunityDetail"));
 const Quotes = React.lazy(() => import("@/pages/tenant/Quotes"));
 const SalesOrders = React.lazy(() => import("@/pages/tenant/SalesOrders"));
+const QuoteDetail = React.lazy(() => import("@/pages/tenant/QuoteDetail"));
+const SalesOrderDetail = React.lazy(() => import("@/pages/tenant/SalesOrderDetail"));
 const PurchaseOrders = React.lazy(() => import("@/pages/tenant/PurchaseOrders"));
 const GoodsReceipts = React.lazy(() => import("@/pages/tenant/GoodsReceipts"));
 const SupplierInvoices = React.lazy(() => import("@/pages/tenant/SupplierInvoices"));
@@ -276,7 +278,9 @@ const App = () => (
                 <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><MeetingsCalendar /></ProtectedRoute>} />
                 <Route path="sales" element={<ProtectedRoute requiredModule="sales"><SalesHub /></ProtectedRoute>} />
                 <Route path="sales/quotes" element={<ProtectedRoute requiredModule="sales"><Quotes /></ProtectedRoute>} />
+                <Route path="sales/quotes/:id" element={<ProtectedRoute requiredModule="sales"><QuoteDetail /></ProtectedRoute>} />
                 <Route path="sales/sales-orders" element={<ProtectedRoute requiredModule="sales"><SalesOrders /></ProtectedRoute>} />
+                <Route path="sales/sales-orders/:id" element={<ProtectedRoute requiredModule="sales"><SalesOrderDetail /></ProtectedRoute>} />
                 <Route path="sales/sales-channels" element={<ProtectedRoute requiredModule="sales"><SalesChannels /></ProtectedRoute>} />
                 <Route path="purchasing" element={<ProtectedRoute requiredModule="purchasing"><PurchasingHub /></ProtectedRoute>} />
                 <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
