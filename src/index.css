@@ -222,7 +222,7 @@
 
   /* Links */
   a {
-    @apply text-primary hover:text-primary-hover transition-colors;
+    @apply text-primary hover:text-primary transition-colors;
   }
 
   /* Better focus states for accessibility */

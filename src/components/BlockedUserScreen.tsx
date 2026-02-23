@@ -2,8 +2,7 @@ import { Lock, LogOut, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTheme } from '@/lib/theme-context';
-import logoLight from '@/assets/pausal-box-logo-light.png';
-import logoDark from '@/assets/pausal-box-logo-dark.png';
+// Logo imports removed - using ERP-AI branding
 
 interface BlockedUserScreenProps {
   reason: string | null;
@@ -12,13 +11,15 @@ interface BlockedUserScreenProps {
 
 export function BlockedUserScreen({ reason, onSignOut }: BlockedUserScreenProps) {
   const { theme } = useTheme();
-  const logo = theme === 'dark' ? logoDark : logoLight;
+  // Logo removed - using ERP-AI branding
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6 animate-fade-in">
         <div className="text-center">
-          <img src={logo} alt="Paušal box" className="h-12 mx-auto" />
+          <div className="h-12 flex items-center justify-center">
+            <span className="text-2xl font-bold text-primary">ERP-AI</span>
+          </div>
         </div>
 
         <Card className="border-destructive/50">
@@ -37,11 +38,11 @@ export function BlockedUserScreen({ reason, onSignOut }: BlockedUserScreenProps)
                 Za obnovu pristupa kontaktirajte administratora:
               </p>
               <a
-                href="mailto:admin@pausalbox.com"
+                href="mailto:admin@erp-ai-assistant.rs"
                 className="inline-flex items-center gap-2 text-primary hover:underline"
               >
                 <Mail className="h-4 w-4" />
-                admin@pausalbox.com
+                admin@erp-ai-assistant.rs
               </a>
             </div>
 

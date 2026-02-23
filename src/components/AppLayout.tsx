@@ -43,9 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import { BlockedUserScreen } from '@/components/BlockedUserScreen';
 import { BookkeeperProfileBanner } from '@/components/BookkeeperProfileBanner';
-import logoLight from '@/assets/pausal-box-logo-light.png';
-import logoDark from '@/assets/pausal-box-logo-dark.png';
-import logoLightSidebar from '@/assets/pausal-box-logo-light-sidebar.png';
+// Logo imports removed - using ERP-AI branding
 
 // Main navigation items (above separator)
 const mainNavItems = [

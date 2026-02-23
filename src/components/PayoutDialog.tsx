@@ -36,7 +36,7 @@ function generateIPSQRCode(
   recipientAccount: string,
   amount: number,
   purpose: string,
-  payerName: string = 'PAUSALBOX DOO'
+  payerName: string = 'ERP-AI DOO'
 ): string {
   const formattedAccount = formatAccountForIPS(recipientAccount);
   const amountStr = `RSD${amount.toFixed(2).replace('.', ',')}`;
@@ -71,7 +71,7 @@ export function PayoutDialog({ open, onOpenChange, payout, onMarkAsPaid, isMarki
     adresa: payout.bookkeeper_address || '',
     iznos: payout.pending_amount,
     sifra: '221',
-    svrha: `Provizija PausalBox - ${format(new Date(), 'MMMM yyyy', { locale: sr })}`,
+    svrha: `Provizija ERP-AI - ${format(new Date(), 'MMMM yyyy', { locale: sr })}`,
   };
 
   const copyPaymentData = () => {

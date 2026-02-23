@@ -259,7 +259,7 @@ export function usePushNotifications() {
       } else if (Notification.permission === 'granted') {
         const registration = await navigator.serviceWorker.getRegistration('/sw.js');
         if (registration) {
-          registration.showNotification('PausalBox Test', {
+          registration.showNotification('ERP-AI Test', {
             body: 'Push notifikacije rade ispravno! 🎉',
             icon: '/favicon.png',
             data: { url: '/profile?tab=settings' },
