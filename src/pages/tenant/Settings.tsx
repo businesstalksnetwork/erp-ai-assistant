@@ -41,6 +41,7 @@ export default function TenantSettings() {
         { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
         { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
+        { label: t("discountApprovalRules" as any), icon: Percent, to: "/settings/discount-rules" },
       ],
     },
     {

@@ -16,7 +16,9 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { QuoteVersionHistory } from "@/components/quotes/QuoteVersionHistory";
+import { DiscountApprovalBadge } from "@/components/quotes/DiscountApprovalBadge";
 import { useAuth } from "@/hooks/useAuth";
+import { useDiscountApproval } from "@/hooks/useDiscountApproval";
 
 const STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
 
@@ -90,8 +92,26 @@ export default function Quotes() {
     enabled: !!tenantId,
   });
 
+  // Discount approval for the currently edited quote
+  const editingQuote = editId ? quotes.find((q: any) => q.id === editId) : null;
+  const editingDiscountPct = editingQuote?.max_discount_pct || 0;
+  const { needsApproval, maxAllowed, approvalStatus, submitForApproval } = useDiscountApproval({
+    tenantId,
+    quoteId: editId,
+    discountPct: editingDiscountPct,
+  });
+
+  const sendBlocked = needsApproval && approvalStatus !== "approved";
+
   const mutation = useMutation({
     mutationFn: async (f: QuoteForm) => {
+      // Block sending if discount approval is needed
+      if (f.status === "sent" && sendBlocked && editId) {
+        if (approvalStatus === "none") {
+          await submitForApproval();
+        }
+        throw new Error("Approval required before sending");
+      }
       const payload = {
         ...f, tenant_id: tenantId!,
         partner_id: f.partner_id || null,
@@ -197,7 +217,12 @@ export default function Quotes() {
     { key: "opportunity", label: t("opportunity"), hideOnMobile: true, render: (q) => q.opportunities?.title || "—" },
     { key: "quote_date", label: t("quoteDate"), render: (q) => q.quote_date },
     { key: "total", label: t("total"), align: "right" as const, render: (q) => fmt(q.total, q.currency) },
-    { key: "status", label: t("status"), render: (q) => <Badge variant={statusColor(q.status) as any}>{t(q.status as any) || q.status}</Badge> },
+    { key: "status", label: t("status"), render: (q) => (
+      <div className="flex items-center gap-1.5">
+        <Badge variant={statusColor(q.status) as any}>{t(q.status as any) || q.status}</Badge>
+        {q.max_discount_pct > 0 && tenantId && <DiscountApprovalBadge quoteId={q.id} tenantId={tenantId} maxDiscountPct={q.max_discount_pct} />}
+      </div>
+    ) },
     { key: "actions", label: t("actions"), showInCard: false, render: (q) => (
       <div className="flex gap-1">
         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>{t("edit")}</Button>
@@ -302,6 +327,15 @@ export default function Quotes() {
               </Select>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            {/* Discount approval warning */}
+            {editId && needsApproval && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <span className="text-sm text-amber-800 dark:text-amber-300">
+                  {t("discountExceedsLimit" as any)} ({maxAllowed}%). {approvalStatus === "pending" ? t("pendingDiscountApproval" as any) : approvalStatus === "approved" ? t("approved") : ""}
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
