@@ -23,6 +23,7 @@ import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 
 // POPDV sections per Serbian law
 const POPDV_SECTIONS = [
+  { code: "2.1", label: "Kamate na depozite i slično (finansijski prihodi)", direction: "output", rate: 0 },
   { code: "3", label: "Promet dobara i usluga (opšta stopa)", direction: "output", rate: 20 },
   { code: "3a", label: "Promet dobara i usluga (posebna stopa)", direction: "output", rate: 10 },
   { code: "4", label: "Oslobođen promet sa pravom na odbitak", direction: "output", rate: 0 },
@@ -180,6 +181,56 @@ export default function PdvPeriods() {
           vat_rate: effectiveRate,
           direction: "input",
         });
+      }
+
+      // Item 11: Check for Class 77xx accounts (financial income — interest on deposits)
+      // If they exist and have balances in this period, auto-populate Section 2.1
+      const { data: financialIncomeJEs } = await supabase
+        .from("journal_lines")
+        .select("debit, credit, journal_entries!inner(tenant_id, entry_date, status)")
+        .filter("journal_entries.tenant_id", "eq", tenantId!)
+        .filter("journal_entries.status", "eq", "posted")
+        .filter("journal_entries.entry_date", "gte", period.start_date)
+        .filter("journal_entries.entry_date", "lte", period.end_date);
+
+      // Filter for 77xx accounts client-side (account code starts with 77)
+      const { data: finAccounts } = await supabase
+        .from("chart_of_accounts")
+        .select("id, code")
+        .eq("tenant_id", tenantId!)
+        .like("code", "77%")
+        .eq("is_active", true);
+
+      if (finAccounts && finAccounts.length > 0) {
+        const finAccountIds = new Set(finAccounts.map(a => a.id));
+        // Check if any JE lines reference these accounts
+        const { data: finLines } = await supabase
+          .from("journal_lines")
+          .select("credit, account_id, journal_entry_id, journal_entries!inner(entry_date, status, tenant_id)")
+          .in("account_id", Array.from(finAccountIds))
+          .filter("journal_entries.tenant_id", "eq", tenantId!)
+          .filter("journal_entries.status", "eq", "posted")
+          .filter("journal_entries.entry_date", "gte", period.start_date)
+          .filter("journal_entries.entry_date", "lte", period.end_date);
+
+        const totalFinIncome = (finLines || []).reduce((s, l) => s + Number(l.credit || 0), 0);
+        if (totalFinIncome > 0) {
+          outputEntries.push({
+            tenant_id: tenantId!,
+            pdv_period_id: periodId,
+            popdv_section: "2.1",
+            document_type: "financial_income",
+            document_id: null,
+            document_number: "Class 77xx",
+            document_date: period.end_date,
+            partner_name: "Kamate na depozite",
+            partner_pib: null,
+            base_amount: totalFinIncome,
+            vat_amount: 0,
+            vat_rate: 0,
+            direction: "output",
+          });
+        }
       }
 
       const allEntries = [...outputEntries, ...inputEntries];

@@ -3817,6 +3817,7 @@ export type Database = {
           jmbg: string | null
           last_name: string | null
           location_id: string | null
+          municipal_tax_rate: number | null
           phone: string | null
           position: string | null
           position_template_id: string | null
@@ -3848,6 +3849,7 @@ export type Database = {
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
+          municipal_tax_rate?: number | null
           phone?: string | null
           position?: string | null
           position_template_id?: string | null
@@ -3879,6 +3881,7 @@ export type Database = {
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
+          municipal_tax_rate?: number | null
           phone?: string | null
           position?: string | null
           position_template_id?: string | null
@@ -8296,14 +8299,17 @@ export type Database = {
           income_tax: number
           leave_days_deducted: number
           leave_deduction_amount: number
+          meal_allowance: number | null
           net_salary: number
           night_work_hours_count: number
           overtime_hours_count: number
+          overtime_multiplier: number | null
           payroll_run_id: string
           pension_contribution: number
           pension_employer: number
           taxable_base: number
           total_cost: number
+          transport_allowance: number | null
           unemployment_contribution: number
           working_days: number
         }
@@ -8319,14 +8325,17 @@ export type Database = {
           income_tax?: number
           leave_days_deducted?: number
           leave_deduction_amount?: number
+          meal_allowance?: number | null
           net_salary?: number
           night_work_hours_count?: number
           overtime_hours_count?: number
+          overtime_multiplier?: number | null
           payroll_run_id: string
           pension_contribution?: number
           pension_employer?: number
           taxable_base?: number
           total_cost?: number
+          transport_allowance?: number | null
           unemployment_contribution?: number
           working_days?: number
         }
@@ -8342,14 +8351,17 @@ export type Database = {
           income_tax?: number
           leave_days_deducted?: number
           leave_deduction_amount?: number
+          meal_allowance?: number | null
           net_salary?: number
           night_work_hours_count?: number
           overtime_hours_count?: number
+          overtime_multiplier?: number | null
           payroll_run_id?: string
           pension_contribution?: number
           pension_employer?: number
           taxable_base?: number
           total_cost?: number
+          transport_allowance?: number | null
           unemployment_contribution?: number
           working_days?: number
         }
@@ -8380,13 +8392,17 @@ export type Database = {
           health_employer_rate: number
           id: string
           max_contribution_base: number
+          meal_allowance_daily: number | null
           min_contribution_base: number
           minimum_hourly_wage: number | null
+          night_work_multiplier: number | null
           nontaxable_amount: number
+          overtime_multiplier: number | null
           pio_employee_rate: number
           pio_employer_rate: number
           tax_rate: number
           tenant_id: string
+          transport_allowance_monthly: number | null
           unemployment_employee_rate: number
           updated_at: string
         }
@@ -8399,13 +8415,17 @@ export type Database = {
           health_employer_rate?: number
           id?: string
           max_contribution_base?: number
+          meal_allowance_daily?: number | null
           min_contribution_base?: number
           minimum_hourly_wage?: number | null
+          night_work_multiplier?: number | null
           nontaxable_amount?: number
+          overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
           tax_rate?: number
           tenant_id: string
+          transport_allowance_monthly?: number | null
           unemployment_employee_rate?: number
           updated_at?: string
         }
@@ -8418,13 +8438,17 @@ export type Database = {
           health_employer_rate?: number
           id?: string
           max_contribution_base?: number
+          meal_allowance_daily?: number | null
           min_contribution_base?: number
           minimum_hourly_wage?: number | null
+          night_work_multiplier?: number | null
           nontaxable_amount?: number
+          overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
           tax_rate?: number
           tenant_id?: string
+          transport_allowance_monthly?: number | null
           unemployment_employee_rate?: number
           updated_at?: string
         }
@@ -12720,6 +12744,16 @@ export type Database = {
       seed_tenant_tax_rates: {
         Args: { _tenant_id: string }
         Returns: undefined
+      }
+      settle_advance_payment: {
+        Args: {
+          p_advance_id: string
+          p_invoice_id: string
+          p_settlement_amount?: number
+          p_tax_rate?: number
+          p_tenant_id: string
+        }
+        Returns: string
       }
       storno_journal_entry: {
         Args: { p_journal_entry_id: string }

@@ -19,9 +19,8 @@ import { fmtNum } from "@/lib/utils";
 
 // Serbian account class names
 const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
-  "4": { name: "Prihodi od prodaje", nameSr: "Приходи од продаје" },
-  "5": { name: "Rashodi proizvodnje", nameSr: "Расходи производње" },
-  "6": { name: "Prihodi od prodaje", nameSr: "Приходи од продаје" },
+  "5": { name: "Rashodi", nameSr: "Расходи" },
+  "6": { name: "Prihodi", nameSr: "Приходи" },
   "7": { name: "Poslovni rashodi", nameSr: "Пословни расходи" },
   "8": { name: "Vanredni rashodi", nameSr: "Ванредни расходи" },
 };
@@ -66,8 +65,8 @@ export default function BilansUspeha() {
     enabled: !!tenantId,
   });
 
-  const revenueLines = lines.filter((l) => l.account_class === "5");
-  const expenseLines = lines.filter((l) => l.account_class === "6");
+  const revenueLines = lines.filter((l) => l.account_class === "6");
+  const expenseLines = lines.filter((l) => l.account_class === "5");
 
   // Group by section
   const revenueBySection = revenueLines.reduce((acc, line) => {
@@ -157,7 +156,7 @@ export default function BilansUspeha() {
           {/* Prihodi (Revenue) */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold">Класа 5: Приходи (Prihodi)</CardTitle>
+              <CardTitle className="text-lg font-bold">Класа 6: Приходи (Prihodi)</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -217,7 +216,7 @@ export default function BilansUspeha() {
           {/* Rashodi (Expenses) */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold">Класа 6: Раходи (Rashodi)</CardTitle>
+              <CardTitle className="text-lg font-bold">Класа 5: Расходи (Rashodi)</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>

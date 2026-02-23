@@ -29,16 +29,21 @@ function formatPrice(n: number): string {
   return s.replace(/0{1,2}$/, '');
 }
 
-/** Map tax_rate_value to UBL TaxCategory ID per Serbian eFaktura 2026 spec.
+/** Map tax_rate_value to UBL TaxCategory ID per Serbian eFaktura spec.
  *  2026 change (Sl. glasnik RS 109/2025): S split into S10/S20, AE split into AE10/AE20.
- *  Effective for tax periods starting after March 31, 2026. */
-function getTaxCategoryId(taxRateValue: number, isReverseCharge = false): string {
+ *  Effective for tax periods starting after March 31, 2026.
+ *  Before that date, use legacy codes S and AE. */
+function getTaxCategoryId(taxRateValue: number, isReverseCharge = false, invoiceDate?: string): string {
   if (taxRateValue === 0) return "O"; // Zero-rated / exempt
+
+  // Date-dependent logic: legacy codes before 2026-04-01
+  const useLegacyCodes = invoiceDate ? invoiceDate < "2026-04-01" : false;
+
   if (isReverseCharge) {
-    // Reverse charge: AE10 for 10%, AE20 for 20%
+    if (useLegacyCodes) return "AE";
     return taxRateValue === 10 ? "AE10" : "AE20";
   }
-  // Standard rated: S10 for 10%, S20 for 20%
+  if (useLegacyCodes) return "S";
   return taxRateValue === 10 ? "S10" : "S20";
 }
 
@@ -88,6 +93,9 @@ interface InvoiceData {
   total: number;
   notes: string | null;
   advance_amount_applied: number;
+  document_type?: number; // 380=Invoice (default), 381=Credit Note
+  billing_reference_number?: string; // Original invoice number for credit notes
+  billing_reference_date?: string;   // Original invoice date for credit notes
 }
 
 function buildUblXml(
@@ -95,8 +103,9 @@ function buildUblXml(
   supplier: SupplierInfo,
   buyer: BuyerInfo,
   lines: InvoiceLine[],
-  isReverseCharge = false
+  isReverseCharge = false,
 ): string {
+  const invoiceDate = invoice.invoice_date;
   // Group lines by tax rate for TaxSubtotal
   const taxGroups = new Map<number, { taxable: number; tax: number }>();
   for (const line of lines) {
@@ -114,7 +123,7 @@ function buildUblXml(
         <cbc:TaxableAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.taxable)}</cbc:TaxableAmount>
         <cbc:TaxAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.tax)}</cbc:TaxAmount>
         <cac:TaxCategory>
-          <cbc:ID>${getTaxCategoryId(rate, isReverseCharge)}</cbc:ID>
+          <cbc:ID>${getTaxCategoryId(rate, isReverseCharge, invoiceDate)}</cbc:ID>
           <cbc:Percent>${rate}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -142,7 +151,7 @@ function buildUblXml(
           : ""
       }
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>${getTaxCategoryId(line.tax_rate_value, isReverseCharge)}</cbc:ID>
+          <cbc:ID>${getTaxCategoryId(line.tax_rate_value, isReverseCharge, invoiceDate)}</cbc:ID>
           <cbc:Percent>${line.tax_rate_value}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -172,7 +181,19 @@ function buildUblXml(
   <cbc:DueDate>${escapeXml(invoice.due_date)}</cbc:DueDate>`
       : ""
   }
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>${
+   <cbc:InvoiceTypeCode>${invoice.document_type || 380}</cbc:InvoiceTypeCode>${
+    invoice.billing_reference_number
+      ? `
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${escapeXml(invoice.billing_reference_number)}</cbc:ID>${
+        invoice.billing_reference_date ? `
+      <cbc:IssueDate>${escapeXml(invoice.billing_reference_date)}</cbc:IssueDate>` : ''
+      }
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>`
+      : ""
+  }${
     invoice.notes
       ? `
   <cbc:Note>${escapeXml(invoice.notes)}</cbc:Note>`
@@ -311,7 +332,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { invoice_id, tenant_id, test, request_id } = await req.json();
+    const { invoice_id, tenant_id, test, request_id, document_type, billing_reference_number, billing_reference_date } = await req.json();
 
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id required" }), {
@@ -485,6 +506,9 @@ Deno.serve(async (req) => {
       total: invoice.total,
       notes: invoice.notes,
       advance_amount_applied: invoice.advance_amount_applied || 0,
+      document_type: document_type || 380,
+      billing_reference_number: billing_reference_number || undefined,
+      billing_reference_date: billing_reference_date || undefined,
     };
 
     const invoiceLines: InvoiceLine[] = (invoice.invoice_lines || []).map((line: any) => ({
