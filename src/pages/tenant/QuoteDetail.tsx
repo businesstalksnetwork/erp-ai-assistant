@@ -337,7 +337,9 @@ export default function QuoteDetail() {
         <TabsContent value="versions">
           <Card>
             <CardContent className="pt-6">
-              <QuoteVersionHistory open={true} onOpenChange={() => {}} quoteId={id!} inline />
+              <div>
+                <QuoteVersionHistory open={true} onOpenChange={() => {}} quoteId={id!} inline />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
