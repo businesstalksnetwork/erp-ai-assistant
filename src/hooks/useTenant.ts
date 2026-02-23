@@ -12,13 +12,14 @@ interface TenantMembership {
 const STORAGE_KEY = "selectedTenantId";
 
 export function useTenant() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY)
   );
 
-  const { data: tenants = [], isLoading } = useQuery({
+  // Regular users: fetch tenant memberships
+  const { data: memberTenants = [], isLoading: isLoadingMembers } = useQuery({
     queryKey: ["tenant-memberships", user?.id],
     queryFn: async (): Promise<TenantMembership[]> => {
       if (!user) return [];
@@ -34,11 +35,33 @@ export function useTenant() {
         role: m.role,
       }));
     },
-    enabled: !!user,
+    enabled: !!user && !isSuperAdmin,
     staleTime: 1000 * 60 * 10,
   });
 
-  // Validate selectedId against membership list — reset if stale/invalid
+  // Super admins: fetch ALL tenants
+  const { data: allTenants = [], isLoading: isLoadingAll } = useQuery({
+    queryKey: ["all-tenants-superadmin"],
+    queryFn: async (): Promise<TenantMembership[]> => {
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return (data || []).map((t: any) => ({
+        tenantId: t.id,
+        tenantName: t.name,
+        role: "admin",
+      }));
+    },
+    enabled: !!user && isSuperAdmin,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const tenants = isSuperAdmin ? allTenants : memberTenants;
+  const isLoading = isSuperAdmin ? isLoadingAll : isLoadingMembers;
+
+  // Validate selectedId against tenant list — reset if stale/invalid
   useEffect(() => {
     if (isLoading || tenants.length === 0) return;
     const isValid = tenants.some(t => t.tenantId === selectedId);
@@ -55,7 +78,6 @@ export function useTenant() {
   const switchTenant = useCallback((id: string) => {
     localStorage.setItem(STORAGE_KEY, id);
     setSelectedId(id);
-    // Invalidate all tenant-scoped queries
     qc.invalidateQueries();
   }, [qc]);
 
