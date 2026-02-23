@@ -1,92 +1,99 @@
 
-# Enhance Meetings with Partner Links, Attendees, Opportunity Connection, and Fast-Add
+# Refactor Meetings: Schedule vs Log, Multi-Partner, Internal Staff, Calendar
 
-## Current State
-- **`meetings`** table exists with basic fields (title, scheduled_at, duration, location, channel, status, notes) but NO link to partners or opportunities
-- **`meeting_participants`** table exists with `contact_id`, `employee_id`, `company_id` (FK to old `companies` table), `is_organizer`, `is_internal` -- but company_id still points to `companies`, not `partners`
-- **`meeting_types`** table exists (name, name_sr, color)
-- The `Meetings.tsx` page is a basic CRUD with no partner association, no attendees, no opportunity link
-- `CompanyDetail.tsx` (partner detail) has no meetings tab
-- `OpportunityDetail.tsx` has no meetings section
-- 0 meetings in the database currently
+## What's Wrong Now
 
-## What We're Building (Adapted from ProBusinessManagement)
+1. **Single dialog for everything** -- "Dodaj sastanak" mixes scheduling (future) with logging (past). Outcome and next steps should NOT appear when scheduling; they belong on a "log meeting" (record what happened).
+2. **Single partner only** -- The dialog has one partner dropdown. Meetings often involve multiple partners.
+3. **No internal staff** -- Cannot add your own employees as attendees, only external contacts from a partner.
+4. **External attendees by name only** -- Should be by email (for future invite sending).
+5. **No calendar view** -- Meetings need a monthly calendar like WorkLogsCalendar.
+6. **No fast-add "Log Meeting"** -- No way to quickly record a meeting that already happened with outcome/next steps.
 
-### 1. Database Migration
-- Add `partner_id` (FK to partners) and `opportunity_id` (FK to opportunities) columns to `meetings`
-- Add `outcome` (text) and `next_steps` (text) columns to `meetings` for meeting log functionality
-- Add `external_name` (text) column to `meeting_participants` for external attendees (non-contact people)
-- Add `partner_id` (FK to partners) column to `meeting_participants`, drop the `company_id` FK to companies (since we unified to partners)
-- Add `created_by` (uuid) to `meetings` to track who created the meeting
-- RLS policies already exist and are correct (tenant-based)
+## Solution
 
-### 2. Rewrite `Meetings.tsx` -- Full Meeting Management
-- **Partner multi-select**: A meeting can involve multiple partners (via `meeting_participants` with `partner_id`), but also has a primary `partner_id` on the meeting itself
-- **Opportunity link**: Optional dropdown to link a meeting to an opportunity (prilika). The opportunity dropdown filters by tenant and shows opportunity title + partner name
-- **Attendee picker** (adapted from ProBusinessManagement):
-  - Checkbox list of contacts from the selected partner(s), grouped by partner name
-  - "External attendee" free-text input to add names of people not in the system
-  - Selected attendees shown as badges with remove buttons
-- **Outcome & Next Steps** fields in the form
-- **Communication channel** and **Meeting type** selectors (using `meeting_types` table)
-- Stats cards remain (Today, Upcoming, Completed)
+### 1. Two Distinct Actions on the Meetings Page
 
-### 3. Fast-Add Meeting from Partner Detail (`CompanyDetail.tsx`)
-- Add a **"Meetings" tab** to the partner detail page showing all meetings linked to that partner (via `meeting_participants.partner_id` or `meetings.partner_id`)
-- Add a **"Log Meeting" button** that opens a pre-filled meeting dialog with the current partner already selected
-- Meeting list shows: title, date, attendees as badges, outcome, next steps
-- Meetings sorted by date descending
+**"Zakazi sastanak" (Schedule Meeting)** button:
+- Opens a dialog WITHOUT outcome/next_steps fields
+- Status defaults to "scheduled"
+- Fields: Title, Date, Duration, Channel, Location, Description, Notes
+- Multi-partner selector (checkboxes from partner list)
+- For each selected partner: show their contacts as checkboxes
+- Internal staff section: checkboxes from `employees` table (your own team)
+- External attendees: input with email field (not just name)
+- On save, sets `status = 'scheduled'`
 
-### 4. Fast-Add Meeting from Opportunity Detail (`OpportunityDetail.tsx`)
-- Add a **"Meetings" section** showing meetings linked to that opportunity via `meetings.opportunity_id`
-- Add a **"Log Meeting" button** that opens meeting dialog pre-filled with the opportunity and its partner
-- Since an opportunity already has a `partner_id`, the meeting form auto-selects that partner and pre-loads its contacts
+**"Evidentiraj sastanak" (Log Meeting)** button:
+- Opens a dialog WITH outcome and next_steps fields
+- Status defaults to "completed"
+- Same attendee picker (multi-partner, internal staff, external)
+- Additional fields: Outcome (textarea), Next Steps (textarea)
+- On save, sets `status = 'completed'`
 
-### 5. Opportunity Multi-Partner Support
-- The `opportunities` table currently has a single `partner_id`. To support "prilike can be between more than one partner", we create an `opportunity_partners` junction table (opportunity_id, partner_id, tenant_id, role text)
-- Update `Opportunities.tsx` form to allow selecting multiple partners
-- Update `OpportunityDetail.tsx` to show all linked partners
+Both share the same underlying form component but conditionally show/hide fields.
 
-## Technical Details
+### 2. Multi-Partner Support on Meetings
 
-### New Migration SQL
+Currently `meetings.partner_id` is a single FK. We will:
+- Keep `meetings.partner_id` as the "primary" partner (nullable, backward compatible)
+- Use `meeting_participants` with `partner_id` to track all partner associations
+- In the dialog: show a checkbox list of partners; when partners are checked, their contacts appear grouped by partner name
+- The table view shows all linked partner names (comma-separated)
+
+### 3. Internal Staff (Employees) as Attendees
+
+- Add a section "Interni ucesnici" with checkboxes from `employees` table (active, same tenant)
+- Store in `meeting_participants` with `employee_id` + `is_internal = true`
+- Show as badges with a different color than external contacts
+
+### 4. External Attendees with Email
+
+- Change the external attendee input from just "name" to "name + email" fields
+- Store `external_name` and add `external_email` column to `meeting_participants`
+- DB migration: `ALTER TABLE meeting_participants ADD COLUMN external_email text`
+
+### 5. Meetings Calendar Page
+
+- New page: `src/pages/tenant/MeetingsCalendar.tsx`
+- Monthly grid view (same pattern as WorkLogsCalendar)
+- Each day cell shows meeting titles with channel icon and status color
+- Click on a day cell to see that day's meetings
+- Navigation: month forward/back, filter by status
+- Route: `/crm/meetings/calendar`
+- Button on Meetings page to switch to calendar view
+
+### 6. Updated Meeting Table
+
+- "Partner" column shows all linked partners (not just primary)
+- Add "Ucesnici" column showing attendee count or badges
+
+## Database Migration
+
 ```text
--- Add columns to meetings
-ALTER TABLE meetings ADD COLUMN partner_id uuid REFERENCES partners(id);
-ALTER TABLE meetings ADD COLUMN opportunity_id uuid REFERENCES opportunities(id);
-ALTER TABLE meetings ADD COLUMN outcome text;
-ALTER TABLE meetings ADD COLUMN next_steps text;
-ALTER TABLE meetings ADD COLUMN created_by uuid;
-
--- Fix meeting_participants: add partner_id, external_name; drop company_id FK
-ALTER TABLE meeting_participants ADD COLUMN partner_id uuid REFERENCES partners(id);
-ALTER TABLE meeting_participants ADD COLUMN external_name text;
-ALTER TABLE meeting_participants DROP CONSTRAINT meeting_participants_company_id_fkey;
-
--- Opportunity multi-partner junction
-CREATE TABLE opportunity_partners (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  opportunity_id uuid NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-  partner_id uuid NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
-  tenant_id uuid NOT NULL REFERENCES tenants(id),
-  role text DEFAULT 'participant',
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(opportunity_id, partner_id)
-);
-ALTER TABLE opportunity_partners ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Tenant access" ON opportunity_partners FOR ALL
-  USING (tenant_id IN (SELECT get_user_tenant_ids(auth.uid())));
+ALTER TABLE meeting_participants ADD COLUMN external_email text;
 ```
 
-### Files to Create/Modify
-1. **New migration** -- schema changes above
-2. **`src/pages/tenant/Meetings.tsx`** -- Full rewrite with partner/opportunity selectors, attendee picker, outcome/next_steps
-3. **`src/pages/tenant/CompanyDetail.tsx`** -- Add Meetings tab with fast-add button
-4. **`src/pages/tenant/OpportunityDetail.tsx`** -- Add meetings section with fast-add
-5. **`src/pages/tenant/Opportunities.tsx`** -- Multi-partner selector in form
-6. **`src/i18n/translations.ts`** -- New keys for outcome, nextSteps, attendees, logMeeting, externalAttendee, etc.
+No other schema changes needed -- `meeting_participants` already has `employee_id`, `partner_id`, `contact_id`, `external_name`, `is_internal`.
 
-### What We Skip (per user request)
-- No web meeting integrations (Zoom, Teams, Google Meet)
-- No Fireflies or transcription
-- No project linking from ProBusinessManagement (that's a PM concept)
+## Files to Create/Modify
+
+1. **New migration** -- Add `external_email` to `meeting_participants`
+2. **`src/pages/tenant/Meetings.tsx`** -- Major rewrite:
+   - Two buttons: "Zakazi sastanak" + "Evidentiraj sastanak"
+   - Shared dialog with `mode` prop ('schedule' | 'log')
+   - Multi-partner checkbox selector
+   - Grouped contacts per selected partner
+   - Internal employees section
+   - External attendees with name + email
+   - Conditionally show outcome/next_steps only in 'log' mode
+   - Button to navigate to calendar view
+3. **`src/pages/tenant/MeetingsCalendar.tsx`** -- New calendar view
+4. **`src/App.tsx`** -- Add route for `/crm/meetings/calendar`
+5. **`src/i18n/translations.ts`** -- New keys: scheduleMeeting, logMeeting, internalAttendees, externalEmail, meetingsCalendar, evidentirajSastanak
+6. **`src/layouts/TenantLayout.tsx`** -- Optionally add calendar sub-link under meetings
+
+## What We Skip
+
+- Actual email sending for meeting invites (noted as future feature -- Lovable email is auth-only)
+- The plan mentions "automatski ce se slati pozivi" -- we will add a visual indicator "Pozivnica ce biti poslata na: email@..." but actual sending requires a third-party email service which we flag as a future integration
