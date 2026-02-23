@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -515,7 +517,19 @@ export default function TenantLayout() {
           <div className="flex-1 flex overflow-hidden">
             <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
               <div className="max-w-screen-2xl mx-auto">
-                <Outlet />
+                <Suspense fallback={<PageSkeleton />}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentPath}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                    >
+                      <Outlet />
+                    </motion.div>
+                  </AnimatePresence>
+                </Suspense>
               </div>
             </main>
             {!isMobile && (

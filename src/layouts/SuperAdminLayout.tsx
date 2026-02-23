@@ -1,9 +1,12 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Suspense } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Sparkles } from "lucide-react";
 import {
   SidebarProvider,
@@ -35,6 +38,8 @@ export default function SuperAdminLayout() {
   const { t } = useLanguage();
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   const handleLogout = async () => {
     await signOut();
@@ -99,7 +104,19 @@ export default function SuperAdminLayout() {
           </header>
           <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
             <div className="max-w-screen-2xl mx-auto">
-              <Outlet />
+              <Suspense fallback={<PageSkeleton />}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentPath}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                  >
+                    <Outlet />
+                  </motion.div>
+                </AnimatePresence>
+              </Suspense>
             </div>
           </main>
         </div>

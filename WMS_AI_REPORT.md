@@ -71,10 +71,10 @@ The **"Generate Tasks"** button converts all `proposed` moves into actionable `w
 ## Issues / Risks
 
 ### Data Volume
-Full pick history, bin stock, and bin arrays are fetched from the database before slicing for the AI prompt. The edge function limits to top 50 SKUs and 100 bins for the prompt, but unsliced arrays are still loaded. The local algorithm also fetches all bins, stock, and pick history without pagination.
+Full pick history, bin stock, and bin arrays are fetched from the database before slicing for the AI prompt. The edge function now limits with SQL filtering (accessibility > 0, top 100 bins, 5000 pick history limit), but unsliced arrays may still be large for very big warehouses.
 
-### AI Constraint Validation
-No post-AI capacity checking exists. The AI may recommend moving products to bins that are already full or have insufficient `max_units`. The local greedy algorithm also does not validate bin capacity — it only sorts by `accessibility_score` and assigns without checking `max_units` or current occupancy.
+### ~~AI Constraint Validation~~ ✅ RESOLVED
+~~No post-AI capacity checking exists.~~ **Fixed:** Both AI and local modes now validate bin capacity (`max_units` vs current occupancy) before saving moves. The edge function performs server-side capacity checks, and the local heuristic skips bins at capacity.
 
 ### Error Handling
 On AI error, a toast notification displays the error message. When recommendations are empty, the move plan table shows a `"noResults"` message. The edge function catches JSON parsing errors and returns empty results. However, partial failures (e.g., some moves valid, some not) are not distinguished.
@@ -82,38 +82,39 @@ On AI error, a toast notification displays the error message. When recommendatio
 ### Security
 The `wms-slotting` edge function validates JWT authentication and checks tenant membership via `createClient` with the user's auth header. CORS headers are set to `*`, which is acceptable since Supabase Edge Functions require valid auth headers regardless.
 
-### Sequential Task Generation
-`generateTasksMutation` issues one `INSERT` per move sequentially in a `for` loop. For large move plans (50+ moves), this creates 50+ individual database round-trips. Should be batched into a single `INSERT`.
+### ~~Sequential Task Generation~~ ✅ RESOLVED
+~~`generateTasksMutation` issues one `INSERT` per move sequentially in a `for` loop.~~ **Fixed:** Task generation now uses a single bulk `INSERT` for all reslot tasks, eliminating N+1 database round-trips.
 
-### No Scenario Comparison
-Users cannot compare two scenarios side-by-side to evaluate which optimization approach produced better results. Each scenario must be selected individually.
+### ~~No Scenario Comparison~~ ✅ RESOLVED
+~~Users cannot compare two scenarios side-by-side.~~ **Fixed:** A scenario comparison view now allows selecting two completed scenarios and viewing KPI diffs (travel reduction %, move count) in a side-by-side layout.
 
-### Local Algorithm Ignores Capacity
-The local greedy algorithm sorts bins by `accessibility_score` but does not check `max_units` before assignment. A high-velocity product could be assigned to a bin that's already at capacity.
+### ~~Local Algorithm Ignores Capacity~~ ✅ RESOLVED
+~~The local greedy algorithm sorts bins by `accessibility_score` but does not check `max_units`.~~ **Fixed:** The local heuristic now validates bin capacity before assignment, skipping bins that are already at capacity.
 
 ---
 
 ## Recommendations
 
+### ✅ Implemented
+
+- **Batch INSERT for task generation**: Single bulk insert replaces sequential loop.
+- **Bin capacity validation**: Both AI and local modes validate capacity before saving moves.
+- **SQL-filtered data fetching**: Edge function uses `accessibility > 0`, top 100 bins, 5000 pick history limit.
+- **Scenario comparison view**: Side-by-side KPI diff for comparing optimization runs.
+
 ### Short-term
 
-- **Restrict prompt data with SQL filtering**: Filter bins to only those with available capacity (`max_units > current_stock`) before loading. Use `.gt("max_units", 0)` and compute available slots server-side.
-
-- **Batch INSERT for task generation**: Replace the sequential `for` loop in `generateTasksMutation` with a single bulk insert of all reslot tasks, then batch-update move statuses.
-
-- **Bin capacity validation**: In both AI and local modes, validate each recommendation against bin capacity before saving. Reject or flag moves that would exceed `max_units`.
+- **Restrict prompt data further**: Filter bins to only those with available capacity (`max_units > current_stock`) before loading.
 
 ### Medium-term
 
-- **Cross-validation (Hybrid)**: The dual-mode toggle already exists. Add a "Compare" mode that runs both AI and local algorithms, then presents results side-by-side so users can evaluate trade-offs.
+- **Cross-validation (Hybrid)**: Add a "Compare" mode that runs both AI and local algorithms, then presents results side-by-side.
 
-- **Scenario comparison view**: Allow selecting two completed scenarios to compare KPIs (travel reduction %, move count, affected zones) in a split-panel layout.
+- **`wms_product_stats` precomputation table**: Store rolling velocity (picks/week), last pick date, and average daily movement per product. Update via a scheduled function or trigger.
 
-- **`wms_product_stats` precomputation table**: Store rolling velocity (picks/week), last pick date, and average daily movement per product. Update via a scheduled function or trigger. Avoids recomputing from raw pick history on every analysis.
+- **Affinity graph persistence**: Maintain a `wms_affinity_pairs` table updated daily with co-pick counts between product pairs.
 
-- **Affinity graph persistence**: Maintain a `wms_affinity_pairs` table updated daily with co-pick counts between product pairs. The slotting function can read this directly instead of computing from raw task history.
-
-- **Background/scheduled slotting**: For large warehouses, make slotting analysis a scheduled or on-demand background job (e.g., monthly recomputation) rather than synchronous.
+- **Background/scheduled slotting**: For large warehouses, make slotting analysis a scheduled or on-demand background job.
 
 ### Long-term
 

@@ -265,6 +265,12 @@
 13. **WMS AI: Scenario Comparison** — Side-by-side KPI diff for comparing optimization runs.
 14. **New DB Tables** — `ai_conversations`, `ai_conversation_messages`, `ai_narrative_cache`, `production_scenarios`.
 
+### New Features (v3.1 — UX Polish)
+
+1. **Persistent Layouts** — Suspense boundary moved from App.tsx into layout components. Sidebar and header no longer unmount during page navigation.
+2. **Smooth Page Transitions** — Framer Motion `AnimatePresence` with fade+slide animations (180ms) around `<Outlet />` in both TenantLayout and SuperAdminLayout.
+3. **Skeleton Loading States** — New `PageSkeleton` component replaces spinner fallback, showing shimmer placeholders that mimic page structure for a "no-loading" feel.
+
 ---
 
 ## 9. DESIGN SYSTEM IMPLEMENTATION

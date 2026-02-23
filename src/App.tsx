@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -195,7 +195,6 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<LoadingFallback />}>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -373,7 +372,6 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
-            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
         </TenantProvider>
