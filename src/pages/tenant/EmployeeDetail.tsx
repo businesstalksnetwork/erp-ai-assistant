@@ -149,6 +149,15 @@ export default function EmployeeDetail() {
     enabled: !!id,
   });
 
+  const { data: insuranceRecords = [] } = useQuery({
+    queryKey: ["employee-insurance", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("insurance_records").select("*").eq("employee_id", id!).order("insurance_start", { ascending: false });
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
   const { data: departments = [] } = useQuery({
     queryKey: ["departments-list", tenantId],
     queryFn: async () => {
@@ -322,6 +331,7 @@ export default function EmployeeDetail() {
           <TabsTrigger value="leave">{t("leaveRequests")}</TabsTrigger>
           <TabsTrigger value="worklogs">{t("workLogs")}</TabsTrigger>
           <TabsTrigger value="deductions">{t("deductionsModule")}</TabsTrigger>
+          <TabsTrigger value="insurance">{t("insuranceRecords")}</TabsTrigger>
         </TabsList>
 
         {/* Personal Info */}
@@ -524,6 +534,33 @@ export default function EmployeeDetail() {
                     <TableCell>{formatNum(d.paid_amount)}</TableCell>
                     <TableCell>{formatNum(d.total_amount - d.paid_amount)}</TableCell>
                     <TableCell><Badge variant={d.is_active ? "default" : "outline"}>{d.is_active ? t("active") : t("inactive")}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* Insurance Records */}
+        <TabsContent value="insurance">
+          <Card><CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t("jmbg")}</TableHead>
+                <TableHead>{t("lbo")}</TableHead>
+                <TableHead>{t("insuranceStart")}</TableHead>
+                <TableHead>{t("insuranceEnd")}</TableHead>
+                <TableHead>{t("registrationDate")}</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {insuranceRecords.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{t("noResults")}</TableCell></TableRow>
+                : insuranceRecords.map((ir: any) => (
+                  <TableRow key={ir.id}>
+                    <TableCell className="font-mono">{ir.jmbg}</TableCell>
+                    <TableCell>{ir.lbo || "—"}</TableCell>
+                    <TableCell>{formatDate(ir.insurance_start)}</TableCell>
+                    <TableCell>{formatDate(ir.insurance_end)}</TableCell>
+                    <TableCell>{formatDate(ir.registration_date)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

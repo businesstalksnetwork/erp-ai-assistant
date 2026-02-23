@@ -2138,6 +2138,7 @@ export type Database = {
           end_date: string
           frequency: string
           id: string
+          legal_entity_id: string | null
           recognized_amount: number
           source_invoice_id: string | null
           start_date: string
@@ -2154,6 +2155,7 @@ export type Database = {
           end_date: string
           frequency?: string
           id?: string
+          legal_entity_id?: string | null
           recognized_amount?: number
           source_invoice_id?: string | null
           start_date: string
@@ -2170,6 +2172,7 @@ export type Database = {
           end_date?: string
           frequency?: string
           id?: string
+          legal_entity_id?: string | null
           recognized_amount?: number
           source_invoice_id?: string | null
           start_date?: string
@@ -2185,6 +2188,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deferrals_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {
