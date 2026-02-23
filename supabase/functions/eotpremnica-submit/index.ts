@@ -29,9 +29,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { eotpremnica_id, tenant_id } = await req.json();
-    if (!eotpremnica_id || !tenant_id) {
-      return new Response(JSON.stringify({ error: "eotpremnica_id and tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const body = await req.json();
+    const { tenant_id } = body;
+    // Support both legacy eotpremnica_id and new dispatch_note_id
+    const noteId = body.dispatch_note_id || body.eotpremnica_id;
+    const isNewSchema = !!body.dispatch_note_id;
+
+    if (!noteId || !tenant_id) {
+      return new Response(JSON.stringify({ error: "dispatch_note_id (or eotpremnica_id) and tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -57,21 +62,41 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "eOtpremnica connection not configured or inactive" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Get dispatch note with lines
-    const { data: note, error: noteErr } = await supabase
-      .from("eotpremnica")
-      .select("*, eotpremnica_lines(*), legal_entities(name, pib)")
-      .eq("id", eotpremnica_id)
-      .eq("tenant_id", tenant_id)
-      .single();
+    // Determine table and fetch note
+    const tableName = isNewSchema ? "dispatch_notes" : "eotpremnica";
+    const linesTable = isNewSchema ? "dispatch_note_lines" : "eotpremnica_lines";
 
-    if (noteErr || !note) {
-      return new Response(JSON.stringify({ error: "Dispatch note not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    let note: any;
+    let lines: any[] = [];
+
+    if (isNewSchema) {
+      const { data, error: noteErr } = await supabase
+        .from("dispatch_notes")
+        .select("*, dispatch_note_lines(*), legal_entities(name, pib)")
+        .eq("id", noteId)
+        .eq("tenant_id", tenant_id)
+        .single();
+      if (noteErr || !data) {
+        return new Response(JSON.stringify({ error: "Dispatch note not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      note = data;
+      lines = (data as any).dispatch_note_lines || [];
+    } else {
+      const { data, error: noteErr } = await supabase
+        .from("eotpremnica")
+        .select("*, eotpremnica_lines(*), legal_entities(name, pib)")
+        .eq("id", noteId)
+        .eq("tenant_id", tenant_id)
+        .single();
+      if (noteErr || !data) {
+        return new Response(JSON.stringify({ error: "Dispatch note not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      note = data;
+      lines = (data as any).eotpremnica_lines || [];
     }
 
     // --- PAYLOAD VALIDATION ---
     const errors: string[] = [];
-    const lines = (note as any).eotpremnica_lines || [];
 
     if (!note.sender_name || note.sender_name.trim() === "") {
       errors.push("Sender name is required.");
@@ -111,7 +136,7 @@ Deno.serve(async (req) => {
       if (!line.quantity || Number(line.quantity) <= 0) {
         errors.push(`Line ${lineNum}: quantity must be greater than 0.`);
       }
-      if (!line.unit || line.unit.trim() === "") {
+      if (!isNewSchema && (!line.unit || line.unit.trim() === "")) {
         errors.push(`Line ${lineNum}: unit is required.`);
       }
     }
@@ -129,35 +154,57 @@ Deno.serve(async (req) => {
       senderName: note.sender_name,
       senderPib: note.sender_pib,
       senderAddress: note.sender_address,
+      senderCity: note.sender_city || null,
       receiverName: note.receiver_name,
       receiverPib: note.receiver_pib,
       receiverAddress: note.receiver_address,
+      receiverCity: note.receiver_city || null,
       vehiclePlate: note.vehicle_plate,
       driverName: note.driver_name,
-      totalWeight: note.total_weight,
+      totalWeight: note.total_weight || null,
+      transportReason: note.transport_reason || null,
       lines: lines.map((l: any) => ({
         description: l.description,
         quantity: l.quantity,
         unit: l.unit,
-        weight: l.weight,
+        weight: l.weight || null,
+        lotNumber: l.lot_number || null,
+        serialNumber: l.serial_number || null,
       })),
     };
 
     if (connection.environment === "sandbox") {
-      await supabase.from("eotpremnica").update({
-        api_status: "accepted",
-        api_request_id: requestId,
-        api_response: { simulated: true, payload },
-      }).eq("id", eotpremnica_id);
+      if (isNewSchema) {
+        await supabase.from("dispatch_notes").update({
+          eotpremnica_status: "accepted",
+          eotpremnica_id: requestId,
+          eotpremnica_response: { simulated: true, payload },
+          eotpremnica_sent_at: new Date().toISOString(),
+        }).eq("id", noteId);
+      } else {
+        await supabase.from("eotpremnica").update({
+          api_status: "accepted",
+          api_request_id: requestId,
+          api_response: { simulated: true, payload },
+        }).eq("id", noteId);
+      }
 
       return new Response(JSON.stringify({ success: true, status: "accepted", request_id: requestId, simulated: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Production: placeholder for real Ministry API
-    await supabase.from("eotpremnica").update({
-      api_status: "submitted",
-      api_request_id: requestId,
-    }).eq("id", eotpremnica_id);
+    if (isNewSchema) {
+      await supabase.from("dispatch_notes").update({
+        eotpremnica_status: "submitted",
+        eotpremnica_id: requestId,
+        eotpremnica_sent_at: new Date().toISOString(),
+      }).eq("id", noteId);
+    } else {
+      await supabase.from("eotpremnica").update({
+        api_status: "submitted",
+        api_request_id: requestId,
+      }).eq("id", noteId);
+    }
 
     await supabase.from("eotpremnica_connections").update({ last_sync_at: new Date().toISOString() }).eq("id", connection.id);
 

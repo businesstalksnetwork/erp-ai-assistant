@@ -104,6 +104,7 @@ import ContactDetail from "@/pages/tenant/ContactDetail";
 import Meetings from "@/pages/tenant/Meetings";
 import MeetingsCalendar from "@/pages/tenant/MeetingsCalendar";
 import Eotpremnica from "@/pages/tenant/Eotpremnica";
+import DispatchNoteDetail from "@/pages/tenant/DispatchNoteDetail";
 import FxRevaluation from "@/pages/tenant/FxRevaluation";
 import Kompenzacija from "@/pages/tenant/Kompenzacija";
 import InventoryCostLayers from "@/pages/tenant/InventoryCostLayers";
@@ -262,6 +263,7 @@ const App = () => (
                 <Route path="inventory/stock" element={<ProtectedRoute requiredModule="inventory"><InventoryStock /></ProtectedRoute>} />
                 <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
                 <Route path="inventory/dispatch-notes" element={<ProtectedRoute requiredModule="inventory"><Eotpremnica /></ProtectedRoute>} />
+                <Route path="inventory/dispatch-notes/:id" element={<ProtectedRoute requiredModule="inventory"><DispatchNoteDetail /></ProtectedRoute>} />
                 <Route path="hr/employees" element={<ProtectedRoute requiredModule="hr"><Employees /></ProtectedRoute>} />
                 <Route path="hr/employees/:id" element={<ProtectedRoute requiredModule="hr"><EmployeeDetail /></ProtectedRoute>} />
                 <Route path="hr/contracts" element={<ProtectedRoute requiredModule="hr"><EmployeeContracts /></ProtectedRoute>} />
