@@ -1,165 +1,94 @@
 
 
-# Add Uniprom dbo.* File Support to import-legacy-zip
+# Unify Companies and Partners Into a Single Entity
 
-## Goal
+## The Current Problem
 
-Add dedicated importers for the new Uniprom `dbo.*` CSV files that the current system doesn't handle. These files are headerless, use integer legacy IDs, and follow the `dbo.TableName.csv` naming convention. The existing analyze-legacy-zip already recognizes them via `DBO_TABLE_LOOKUP` and routes them to the correct target tables -- but the import function lacks column maps and importer logic for most of them.
+The ERP has two tables representing the same real-world concept (a business entity/firma):
 
-## What Changes
+- **`partners`** (11,125 records) -- the master table used by all transactional modules: Invoices, Purchase Orders, Supplier Invoices, Quotes, Sales Orders, Returns, Loans, Open Items, Kompenzacija, Leads, Opportunities
+- **`companies`** (50 records) -- a CRM-only table with categories, contacts, and activities. Has a `partner_id` FK back to `partners`, confirming they represent the same entity
 
-Only one file: `supabase/functions/import-legacy-zip/index.ts`
+The user creates a "company" in CRM and a "partner" in accounting/nabavka -- but these are the same firm. Suppliers (dobavljaci) in the Partners page (type="supplier") are exactly the same suppliers used in Purchase Orders.
 
-The analyze-legacy-zip function already correctly identifies all `dbo.*` files and maps them to target tables via the `DBO_TABLE_LOOKUP` dictionary. No changes needed there.
+## Solution: Make CRM Pages Use `partners` as the Single Source of Truth
 
-## New UNIPROM_COLUMN_MAP Entries
+We do NOT drop the `companies` table (that would break existing CRM data). Instead, we migrate CRM functionality to work with `partners` and keep `companies` as a thin bridge for categories/activities during transition.
 
-Add column index maps for the new Uniprom tables. These are derived from the profiling data in the user's research:
+### Phase 1: Enhance `partners` Table
 
-```text
-Partner:           { legacy_id: 0, name: 1, city_id: 4, partner_code: 5, pib: 10, is_active: 17 }
-                   (existing -- already in the map, confirmed accurate)
+Add missing CRM fields to the `partners` table via migration:
+- `display_name` (text, nullable) -- friendly name
+- `website` (text, nullable)
+- `notes` (text, nullable)
+- `status` (text, default 'active') -- replaces is_active for consistency
 
-PartnerLocation:   { legacy_id: 0, full_name: 1, city: 9, address: 10, partner_code: 7, partner_legacy_id: 22 }
-                   (existing -- already mapped)
+### Phase 2: Create Partner-Linked CRM Tables
 
-PartnerContact:    { legacy_id: 0, last_name: 1, first_name: 2, phone: 6, email: 10, partner_legacy_id: 12 }
-                   (existing -- already mapped)
+Create new linking tables that reference `partners` instead of `companies`:
+- `partner_category_assignments` (partner_id, category_id, tenant_id) -- mirrors company_category_assignments
+- Update `activities` table to support `partner_id` alongside `company_id`
+- Update `contact_company_assignments` to support `partner_id` alongside `company_id`
 
-Item:              { legacy_id: 0, name: 1, sku: 2, is_active: 33, product_type: 34 }
-                   (existing -- already mapped)
+### Phase 3: Update CRM Pages
 
-City:              { legacy_id: 0, name: 1, display_name: 2, country_id: 4 }
-                   (NEW -- for lookup enrichment)
+**Companies.tsx** -- Rewrite to query `partners` instead of `companies`:
+- Show all partners with category filters
+- Add type filter (customer / supplier / both) -- this is the key differentiator
+- Suppliers (dobavljaci) become just partners filtered by type="supplier"
+- The "Add Company" dialog becomes "Add Partner" and creates in `partners`
+- PIB lookup stays the same
+- Categories still work via new `partner_category_assignments`
 
-Tax:               { legacy_id: 0, name: 1, pdv_code: 2, rate: 3 }
-                   (existing -- already mapped)
+**CompanyDetail.tsx** -- Rewrite to show a partner's detail:
+- Overview tab shows partner data from `partners`
+- Contacts tab queries `contact_company_assignments` (or new partner link)
+- Activities tab queries `activities` by partner_id
+- Add a "Transactions" tab showing linked invoices, POs, quotes (huge CRM value)
 
-DocumentHeader:    { legacy_id: 0, doc_number: 1, date: 2, doc_list_id: 3, status_id: 4, partner_id: 6, warehouse_id: 7, total: 11 }
-                   (existing -- already mapped)
+**Partners.tsx** -- Remove or redirect to the unified Companies/Partners page:
+- The standalone Partners page becomes redundant
+- Redirect `/partners` to `/crm/companies` (or rename the route)
 
-DocumentLine:      { legacy_id: 0, header_id: 1, item_id: 2, qty: 3, unit_price: 4, discount: 5, tax_id: 6 }
-                   (existing -- already mapped)
-```
+**CrmDashboard.tsx** -- Update company count query to use `partners`
 
-Most maps already exist. The main gap is that the **importers** don't use them properly for these files.
+**Contacts.tsx / ContactDetail.tsx** -- Update company selectors to show partners
 
-## Implementation Plan
+### Phase 4: Navigation and Naming
 
-### 1. City Lookup Cache (New Helper)
+- Rename "Companies" in the sidebar to "Partners" or "Business Partners" (Poslovni partneri)
+- Remove the separate "Partners" menu item from Accounting nav
+- Add type-based views: "Customers" = partners where type in (customer, both), "Suppliers" = partners where type in (supplier, both)
 
-Add a function `buildCityLookup` that reads `dbo.City.csv` content from the ZIP and builds a `Map<string, string>` of `city_id -> city_name`. This will be loaded once at the start of the import run and passed to importers that need city resolution.
+### Phase 5: Data Migration
 
-Since the city file is purely a lookup (not imported into any table), we'll:
-- Parse it during the initial ZIP scan
-- Store it in memory as a simple map
-- Use it in Partner and PartnerLocation importers to resolve `city_id` column values to human-readable city names
+- For each existing `companies` row that has a `partner_id`, migrate categories and activities to reference the partner
+- For companies without a `partner_id`, create a corresponding partner record and link them
+- Migrate `contact_company_assignments` to reference partners
 
-### 2. Enhanced importPartners for dbo.Partner.csv
+## Files to Change
 
-The current `importPartners` already handles `unipromTable === "Partner"` but only reads `legacy_id`, `name`, and `is_active`. Update it to also extract:
-- `city_id` (col 4) -- resolve via City lookup to set `partners.city`
-- `pib` (col 10) -- already being extracted from the generic path but not from the Uniprom path
-- `partner_code` (col 5) -- store as `LEG:{partner_code}` in `maticni_broj` (current behavior uses `legacy_id` which is the row number, not the business code)
-
-This means the Uniprom Partner path becomes:
-```
-name = cols[1]
-city = cityLookup[cols[4]] || null
-partner_code = cols[5]
-pib = cols[10]
-is_active = cols[17] !== "0"
-maticni_broj = "LEG:" + (partner_code || legacy_id)
-```
-
-### 3. Enhanced importProducts for dbo.Item.csv
-
-The current Uniprom Item path only reads `sku`, `name`, `is_active`. The `dbo.A_UnosPodataka.csv` enrichment (generic path) provides pricing and UoM. Update the Item path to also extract:
-- Product type from col 34 to set `products.type` (goods vs service)
-- Preserve the legacy ID in description/notes for cross-referencing
-
-### 4. DocumentHeader Type Routing (Major Enhancement)
-
-Currently `importInvoicesHeuristic` dumps ALL DocumentHeader rows into the `invoices` table regardless of document type. The doc_number suffix indicates what kind of document it is:
-- `*-PO` = Purchase Order -> `purchase_orders`
-- `*-RAC` = Invoice (Racun) -> `invoices`  
-- `*-PON` = Quote (Ponuda) -> `quotes` or `sales_orders`
-- Other suffixes -> `invoices` as fallback
-
-Update the DocumentHeader importer to:
-1. Parse the doc_number suffix
-2. Route to the appropriate target table
-3. Resolve `partner_id` (col 6) via the partner legacy map to link the document to a partner
-
-Also add a new `importDocumentLines` function that:
-1. Reads DocumentLine rows
-2. Looks up the parent document by legacy header ID
-3. Looks up the product by legacy item ID
-4. Inserts into the appropriate `*_lines` table
-
-### 5. PartnerLocation Enrichment Fix
-
-The current `importPartners` handles `PartnerLocation` by updating existing partners with city/address. Fix it to:
-- Resolve `city_id` (col 4) via City lookup instead of using raw value
-- Use `partner_legacy_id` (col 22) correctly with the updated legacy map
-
-### 6. PartnerContact Enhancement
-
-The current `importContacts` handles `PartnerContact` correctly via `UNIPROM_COLUMN_MAP`. Just verify the column indices match the actual data (first_name at col 2, last_name at col 1, phone at col 6, email at col 10, partner_legacy_id at col 12 -- note the Uniprom contacts have last_name BEFORE first_name).
-
-### 7. Document Dispatcher Update
-
-Update the target-table-to-importer switch in the main handler to route:
-- `purchase_orders` -> new `importPurchaseOrders` function
-- `quotes` -> new `importQuotes` function  
-- Keep `invoices` -> `importInvoicesHeuristic`
-
-Or simpler: make `importInvoicesHeuristic` accept a `targetTable` parameter and handle the routing internally based on doc_number suffix.
-
-## Technical Details
-
-### City Lookup Implementation
-
-```text
-async function buildCityLookup(zip: JSZip): Promise<Map<string, string>>
-  - Find "dbo.City.csv" in the ZIP
-  - Parse with reconstructLogicalRows + parseCSVLine
-  - For each row: map[cols[0]] = cols[1] (id -> name)
-  - Return the map (typically ~100K entries, fits in memory)
-```
-
-### DocumentHeader Routing Logic
-
-```text
-function getDocType(docNumber: string): "invoice" | "purchase_order" | "quote" | "unknown"
-  - if docNumber contains "-PO" or ends with "PO" -> "purchase_order"
-  - if docNumber contains "-RAC" -> "invoice"
-  - if docNumber contains "-PON" -> "quote"
-  - else -> "invoice" (fallback)
-```
-
-### DocumentLine Parent Resolution
-
-```text
-- Build a map of legacy_doc_id -> { uuid, table } during DocumentHeader import
-- When importing lines, look up the parent document
-- Insert into the matching _lines table
-```
-
-### Import Order Update
-
-Add `purchase_orders`, `sales_orders`, `quotes` to the dispatcher. They should come after `partners` and `products` but before line items.
+1. **New migration** -- Add columns to `partners`, create `partner_category_assignments`, add `partner_id` to activities/contacts if needed
+2. **`src/pages/tenant/Companies.tsx`** -- Rewrite to query `partners` table with category support
+3. **`src/pages/tenant/CompanyDetail.tsx`** -- Rewrite to show partner detail with transactions tab
+4. **`src/pages/tenant/Partners.tsx`** -- Redirect to unified page or remove
+5. **`src/pages/tenant/CrmDashboard.tsx`** -- Update count query
+6. **`src/pages/tenant/Contacts.tsx`** -- Update company selector to show partners
+7. **`src/pages/tenant/ContactDetail.tsx`** -- Update company references
+8. **`src/App.tsx`** -- Update routes
+9. **Navigation/sidebar** -- Update menu items
 
 ## What We Do NOT Change
 
-- CSV parsing logic (sanitizeCSVText, reconstructLogicalRows, parseCSVLine)
-- The analyze-legacy-zip function (it already handles dbo.* files correctly)
-- The frontend LegacyImport.tsx page
-- The flushBatch helper
-- Existing importers for A_UnosPodataka, A_UnosPodataka_Partner, A_aPodaci
-- The two-phase pipeline architecture
+- The `partners` table structure stays backward-compatible (only adding new columns)
+- All existing FK references from invoices, POs, quotes, etc. keep working
+- The `companies` table stays in the DB (not dropped) for data safety
+- Existing partner data (11,125 records) is untouched
 
-## Files Changed
+## Technical Notes
 
-1. `supabase/functions/import-legacy-zip/index.ts` -- add City lookup, enhance Partner/Product importers, add DocumentHeader routing, add DocumentLine importer, update dispatcher
+- The `partners.type` field already distinguishes customer/supplier/both -- this is exactly what "dobavljaci from nabavka" means
+- Purchase Orders already use `partners.id` via `supplier_id` FK -- suppliers are already partners
+- The `companies.partner_id` FK proves these were designed to be linked from the start
+- ProBusinessManagement uses a separate `crm_partners` table because it's a project management tool, not an ERP -- that pattern doesn't apply here
 
