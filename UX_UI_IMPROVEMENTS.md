@@ -376,4 +376,17 @@ All improvements maintain backward compatibility and enhance the user experience
 
 ---
 
+## 🔧 QuoteDetail — Istorija verzija tab fix *(v3.2)*
+
+**Files:** `src/components/quotes/QuoteVersionHistory.tsx` + `src/pages/tenant/QuoteDetail.tsx`
+
+**Changes:**
+- ✅ Dodat `inline` prop koji renderuje sadržaj direktno umesto u Dialog
+- ✅ Tab "Istorija verzija" sada prikazuje listu inline umesto nezatvorivog popup-a
+- ✅ Wrapper div dodat za forwardRef kompatibilnost
+
+**Impact:** Tab "Istorija verzija" sada radi ispravno bez blokirajućeg popup-a.
+
+---
+
 *Improvements completed: February 23, 2026*

@@ -1875,6 +1875,14 @@ pandoc ARCHITECTURE_DOCUMENTATION.md -o ARCHITECTURE_DOCUMENTATION.docx --toc --
 
 ---
 
+### v3.2 Component Updates
+
+- **`QuoteVersionHistory`** — New `inline` prop: when `true`, renders version list directly without Dialog wrapper. Used in QuoteDetail "Istorija verzija" tab.
+- **`CompanyDetail`** — Quote navigation fixed: `/crm/quotes` → `/sales/quotes/${q.id}`.
+- **`QuoteDetail`** — Wrapper `<div>` added around `QuoteVersionHistory` in TabsContent to resolve React forwardRef warning.
+
+---
+
 *Document generated: February 23, 2026*  
-*System version: ProERP AI v3.1*  
+*System version: ProERP AI v3.2*  
 *Total routes: ~155+ | Edge functions: 69+ | Database tables: 110+*
