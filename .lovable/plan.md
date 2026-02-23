@@ -1,23 +1,22 @@
 
 
-## Add Logo to Brzi AI Izveštaj Page
+## Premesti logo u sidebar, obriši iz AiBriefing stranice
 
-### What Changes
+### Izmene
 
-Add the uploaded `erpAI.png` logo centered at the top of the AI Briefing page, between the PageHeader and the date range bar.
+1. **`src/pages/tenant/AiBriefing.tsx`**
+   - Obrisati import `erpAiLogo`
+   - Obrisati `<div className="flex justify-center">` blok sa `<img>` tagom (linije 165-167)
 
-### Steps
+2. **`src/layouts/TenantLayout.tsx`**
+   - Importovati logo: `import erpAiLogo from "@/assets/erpAI.png"`
+   - Zameniti trenutni sidebar header (linije 317-325) koji koristi Sparkles ikonu i tekst "ERP-AI" sa `<img>` tagom koji prikazuje uploadovani logo
+   - Logo ce biti centriran u sidebar header-u, sa odgovarajucom velicinom (~140px max-width)
 
-1. **Copy the logo** from `user-uploads://erpAI.png` to `src/assets/erpAI.png`
-2. **Update `AiBriefing.tsx`**:
-   - Import the logo: `import erpAiLogo from "@/assets/erpAI.png"`
-   - Add a centered `<img>` element after the PageHeader, before the date range bar
-   - Style: centered with `mx-auto`, reasonable max width (~200px), with some vertical spacing
+### Fajlovi za izmenu
 
-### File Changes
-
-| File | Change |
+| Fajl | Izmena |
 |------|--------|
-| `src/assets/erpAI.png` | New file -- copy uploaded logo |
-| `src/pages/tenant/AiBriefing.tsx` | Import logo and render centered image between header and date bar |
+| `src/pages/tenant/AiBriefing.tsx` | Obrisati logo import i img element |
+| `src/layouts/TenantLayout.tsx` | Dodati logo sliku umesto Sparkles ikone u sidebar header |
 
