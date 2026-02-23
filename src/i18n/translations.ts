@@ -1808,6 +1808,22 @@ export const translations = {
     cannotDeleteSystem: "System categories cannot be deleted",
     cannotDeleteHasChildren: "Category has subcategories",
     cannotDeleteInUse: "Category is assigned to partners",
+
+    // Meetings Enhancement
+    outcome: "Outcome",
+    nextSteps: "Next Steps",
+    logMeeting: "Log Meeting",
+    attendees: "Attendees",
+    externalAttendee: "External Attendee",
+    addExternalAttendee: "Add external attendee",
+    meetingType: "Meeting Type",
+    linkedPartners: "Linked Partners",
+    linkedOpportunity: "Linked Opportunity",
+    selectOpportunity: "Select opportunity",
+    noPartnerSelected: "No partner selected",
+    meetingOutcome: "Meeting Outcome",
+    meetingNextSteps: "Next Steps",
+    opportunityPartners: "Opportunity Partners",
   },
   sr: {
     // Auth
@@ -3576,6 +3592,22 @@ export const translations = {
     cannotDeleteSystem: "Sistemske kategorije se ne mogu brisati",
     cannotDeleteHasChildren: "Kategorija ima potkategorije",
     cannotDeleteInUse: "Kategorija ima dodeljene partnere",
+
+    // Meetings Enhancement
+    outcome: "Ishod",
+    nextSteps: "Sledeći koraci",
+    logMeeting: "Zakaži sastanak",
+    attendees: "Učesnici",
+    externalAttendee: "Spoljni učesnik",
+    addExternalAttendee: "Dodaj spoljnog učesnika",
+    meetingType: "Tip sastanka",
+    linkedPartners: "Povezani partneri",
+    linkedOpportunity: "Povezana prilika",
+    selectOpportunity: "Izaberi priliku",
+    noPartnerSelected: "Nije izabran partner",
+    meetingOutcome: "Ishod sastanka",
+    meetingNextSteps: "Sledeći koraci",
+    opportunityPartners: "Partneri prilike",
   },
 } as const;
 

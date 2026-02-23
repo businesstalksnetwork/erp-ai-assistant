@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, Pencil, Save, X } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Save, X, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -58,6 +58,20 @@ export default function CompanyDetail() {
         .eq("partner_id", id!)
         .order("created_at", { ascending: false })
         .limit(20);
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  const { data: relatedMeetings = [] } = useQuery({
+    queryKey: ["partner-meetings", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("meetings")
+        .select("id, title, scheduled_at, duration_minutes, status, communication_channel, outcome, next_steps")
+        .eq("partner_id", id!)
+        .order("scheduled_at", { ascending: false })
+        .limit(50);
       return data || [];
     },
     enabled: !!id,
@@ -141,6 +155,7 @@ export default function CompanyDetail() {
         <TabsList>
           <TabsTrigger value="overview">{t("companyInfo")}</TabsTrigger>
           <TabsTrigger value="contacts">{t("contacts")} ({linkedContacts.length})</TabsTrigger>
+          <TabsTrigger value="meetings">{t("meetings")} ({relatedMeetings.length})</TabsTrigger>
           <TabsTrigger value="transactions">{t("invoices")} ({txCount})</TabsTrigger>
           <TabsTrigger value="activities">{t("activities")} ({relatedActivities.length})</TabsTrigger>
         </TabsList>
@@ -219,6 +234,45 @@ export default function CompanyDetail() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="meetings">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">{t("meetings")}</CardTitle>
+              <Button size="sm" onClick={() => navigate(`/crm/meetings?partner=${id}`)}>
+                <Plus className="h-4 w-4 mr-1" />{t("logMeeting")}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {relatedMeetings.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">{t("noResults")}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("title")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead>{t("outcome")}</TableHead>
+                      <TableHead>{t("nextSteps")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {relatedMeetings.map((m: any) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{m.title}</TableCell>
+                        <TableCell>{new Date(m.scheduled_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}</TableCell>
+                        <TableCell><Badge variant="secondary">{t(m.status as any) || m.status}</Badge></TableCell>
+                        <TableCell className="max-w-[200px] truncate">{m.outcome || "—"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{m.next_steps || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

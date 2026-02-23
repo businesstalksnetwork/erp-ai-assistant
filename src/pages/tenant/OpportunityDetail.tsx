@@ -6,7 +6,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, FileText } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, ArrowLeft, FileText, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 const STAGES = ["qualification", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
@@ -27,6 +28,33 @@ export default function OpportunityDetail() {
         .eq("id", id!)
         .single();
       return data;
+    },
+    enabled: !!id,
+  });
+
+  // Multi-partner support
+  const { data: oppPartners = [] } = useQuery({
+    queryKey: ["opportunity-partners", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("opportunity_partners" as any)
+        .select("*, partners(name)")
+        .eq("opportunity_id", id!);
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Linked meetings
+  const { data: oppMeetings = [] } = useQuery({
+    queryKey: ["opportunity-meetings", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("meetings")
+        .select("id, title, scheduled_at, status, outcome, next_steps, partners(name)")
+        .eq("opportunity_id", id!)
+        .order("scheduled_at", { ascending: false });
+      return data || [];
     },
     enabled: !!id,
   });
@@ -85,13 +113,8 @@ export default function OpportunityDetail() {
           <CardContent>
             <div className="flex gap-2 flex-wrap">
               {STAGES.map(s => (
-                <Button
-                  key={s}
-                  variant={opp.stage === s ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => stageMutation.mutate(s)}
-                  disabled={stageMutation.isPending}
-                >
+                <Button key={s} variant={opp.stage === s ? "default" : "outline"} size="sm"
+                  onClick={() => stageMutation.mutate(s)} disabled={stageMutation.isPending}>
                   {t(s as any)}
                 </Button>
               ))}
@@ -111,6 +134,18 @@ export default function OpportunityDetail() {
             {opp.closed_at && <div><span className="text-muted-foreground">{t("closedAt")}:</span> {new Date(opp.closed_at).toLocaleDateString("sr-RS")}</div>}
             {opp.description && <div><span className="text-muted-foreground">{t("description")}:</span> {opp.description}</div>}
             {opp.notes && <div><span className="text-muted-foreground">{t("notes")}:</span> {opp.notes}</div>}
+
+            {/* Multi-partner display */}
+            {oppPartners.length > 0 && (
+              <div>
+                <span className="text-muted-foreground">{t("opportunityPartners")}:</span>
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {oppPartners.map((op: any) => (
+                    <Badge key={op.id} variant="outline">{(op as any).partners?.name}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -122,9 +157,47 @@ export default function OpportunityDetail() {
                 <FileText className="h-4 w-4 mr-2" />{t("createQuote")}
               </Button>
             )}
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate(`/crm/meetings?opportunity=${id}&partner=${opp.partner_id || ""}`)}>
+              <Calendar className="h-4 w-4 mr-2" />{t("logMeeting")}
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      {/* Meetings section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">{t("meetings")} ({oppMeetings.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {oppMeetings.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">{t("noResults")}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("title")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("outcome")}</TableHead>
+                  <TableHead>{t("nextSteps")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {oppMeetings.map((m: any) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.title}</TableCell>
+                    <TableCell>{new Date(m.scheduled_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}</TableCell>
+                    <TableCell><Badge variant="secondary">{t(m.status as any) || m.status}</Badge></TableCell>
+                    <TableCell className="max-w-[200px] truncate">{m.outcome || "—"}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{m.next_steps || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
