@@ -48,6 +48,11 @@ const severityConfig = {
 
 export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
   const { t, locale } = useLanguage();
+  const severityLabels: Record<string, string> = {
+    critical: t("critical"),
+    warning: t("severityWarning"),
+    info: t("severityInfo"),
+  };
   const navigate = useNavigate();
 
   const { data: insights, isLoading } = useQuery({
@@ -77,12 +82,12 @@ export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             <span className="ml-2 text-sm text-muted-foreground">
-              {locale === "sr" ? "Analiziranje podataka..." : "Analyzing data..."}
+              {t("analyzingData")}
             </span>
           </div>
         ) : !insights?.length ? (
           <p className="text-sm text-muted-foreground">
-            {locale === "sr" ? "Nema dostupnih uvida." : "No insights available."}
+            {t("noInsightsAvailable")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -105,7 +110,7 @@ export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{insight.title}</span>
                       <Badge variant={config.badge} className="text-xs">
-                        {insight.severity}
+                        {severityLabels[insight.severity]}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
