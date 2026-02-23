@@ -39,7 +39,7 @@ export default function TenantSettings() {
         { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
         { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
-        ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
+        ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/sales/web-settings" }] : []),
         { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
         { label: t("discountApprovalRules" as any), icon: Percent, to: "/settings/discount-rules" },
       ],
@@ -47,11 +47,11 @@ export default function TenantSettings() {
     {
       title: t("auditData"),
       links: [
-        { label: t("approvalWorkflows"), icon: GitPullRequest, to: "/settings/approval-workflows" },
+        { label: t("approvalWorkflows"), icon: GitPullRequest, to: "/settings/approvals" },
         { label: t("pendingApprovals"), icon: CheckSquare, to: "/settings/pending-approvals" },
         { label: t("auditLog"), icon: Activity, to: "/settings/audit-log" },
         { label: t("aiAuditLog"), icon: ShieldCheck, to: "/settings/ai-audit-log" },
-        { label: t("eventMonitor"), icon: Clock, to: "/settings/event-monitor" },
+        { label: t("eventMonitor"), icon: Clock, to: "/settings/events" },
         { label: t("legacyImport"), icon: Upload, to: "/settings/legacy-import" },
       ],
     },
