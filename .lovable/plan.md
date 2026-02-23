@@ -1,127 +1,98 @@
-# Upgrade Phases Implementation Plan
 
-Implementing all items from the review **except #7** (Payroll 2026 Defaults — skipped per your instruction). Total: **32 items across 6 phases**.
 
----
+# Law Compliance Updates (Excluding Payroll Defaults)
 
-## Phase 1: Critical Security and Data Integrity (Items 1-6) ✅ COMPLETE
-
-### Item 1: Fix Account Code Validation (Class 5/6 Swapped) ✅ N/A
-### Item 2: Enable JWT Verification ✅ N/A
-### Item 3: Add Auth Checks to Edge Functions ✅ VERIFIED
-### Item 4: Add .env to .gitignore ⚠️ SKIPPED (read-only)
-### Item 5: Block UNION in AI SQL + Parameterize Queries ✅ DONE
-### Item 6: Add Suspense to Super Admin Routes ✅ DONE
-### Item 16: Vite Build Optimization ✅ DONE (pulled from Phase 3)
-### Item 18: Prompt Injection Hardening ✅ DONE (pulled from Phase 3)
+Skipping PayrollParameters defaults as requested. Also, **contribution base clamping is already implemented** in the `calculate_payroll_for_run` RPC (lines 138-139 use `GREATEST`/`LEAST` to clamp). That leaves 3 items.
 
 ---
 
-## Phase 2: Serbian 2026 Compliance (Items 8-14, skipping 7) ✅ COMPLETE
+## Step 1: CIT Accrual in Year-End Closing (Small)
 
-### Item 8: Advance Payment Settlement ✅ DONE
-- Created `settle_advance_payment()` RPC with configurable `p_tax_rate` (not hardcoded 20%)
-- Supports partial settlements, proper JE reversal (D:2300/C:2040, D:4701/C:4700)
-- Added account 4701 (VAT on Advances) to chart seed
+**Problem:** The `perform_year_end_closing` RPC closes revenue/expense to retained earnings (account 3000) but does not accrue Corporate Income Tax (15% per Serbian law).
 
-### Item 9: Credit Note SEF Submission (Type 381) ✅ DONE
-- Added `document_type` param (380=Invoice, 381=Credit Note) to sef-submit
-- Added `<cac:BillingReference>` block with original invoice reference
-- Added `billing_reference_number` and `billing_reference_date` to InvoiceData
+**Changes:**
+- Update `perform_year_end_closing` RPC via new migration:
+  - After computing `v_net_income`, if positive, calculate CIT at 15%: `v_cit := v_net_income * 0.15`
+  - Look up account `7200` (Tax Expense) and `4810` (CIT Payable)
+  - Insert two journal lines: Debit 7200, Credit 4810
+  - Reduce retained earnings posting by the CIT amount
+  - If accounts 7200/4810 don't exist, skip CIT accrual gracefully (RAISE NOTICE)
+- Update `YearEndClosing.tsx` preview to show the CIT accrual line when net income is positive
 
-### Item 10: SEF Tax Category Date Logic ✅ DONE
-- `getTaxCategoryId()` now accepts `invoiceDate` parameter
-- Before 2026-04-01: returns legacy codes (S, AE)
-- After 2026-04-01: returns split codes (S10/S20, AE10/AE20)
-
-### Item 11: POPDV Section 2.1 Validation ✅ DONE
-- Added Section 2.1 to POPDV_SECTIONS array
-- PDV calculation now auto-detects Class 77xx accounts (financial income)
-- Auto-populates Section 2.1 entries when interest income exists in period
-
-### Item 12: Fiscal Receipt PFR v3 Fields ✅ DONE
-- Added `environmentType`, `OmitQRCodeGen` optional fields
-- Added journal endpoint call (`/api/v3/invoices/journal`) for end-of-day reconciliation
-
-### Item 13: Bilans Uspeha/Stanja Consistency ✅ DONE
-- Fixed swapped filter: revenue now filters Class 6, expenses filter Class 5
-- Fixed labels: "Класа 6: Приходи" and "Класа 5: Расходи"
-- Removed incorrect Class 4 from ACCOUNT_CLASSES
-
-### Item 14: Payroll Enhancements ✅ DONE
-- Added `meal_allowance_daily` and `transport_allowance_monthly` to payroll_parameters
-- Added `overtime_multiplier` and `night_work_multiplier` to payroll_parameters
-- Added `municipal_tax_rate` to employees table
-- Payroll calc now includes partial month proration, municipal tax, meal/transport allowances
-- Added new columns to payroll_items table
+**Files:**
+- New migration SQL
+- `src/pages/tenant/YearEndClosing.tsx` (add CIT preview row)
 
 ---
 
-## Phase 3: Architecture and Code Quality (Items 15-20)
+## Step 2: PDPA (Serbian GDPR) Compliance Module (Medium-Large)
 
-### Item 15: ErrorBoundary for All Routes ✅ ALREADY DONE
-### Item 16: Vite Build Optimization ✅ DONE (moved to Phase 1)
-### Item 17: TypeScript Strict Mode — PENDING
-### Item 18: Prompt Injection Hardening ✅ DONE (moved to Phase 1)
-### Item 19: POS Offline Service Worker — PENDING
-### Item 20: Cmd+K Command Palette ✅ ALREADY DONE
+**Problem:** No data protection features exist for consent tracking, data export, or anonymization.
 
----
+### 2a. Database Schema (Migration)
+- Create `data_subject_requests` table:
+  - `id`, `tenant_id`, `request_type` (access/erasure/portability/rectification), `subject_type` (employee/contact/lead), `subject_id`, `status` (pending/processing/completed/rejected), `requested_at`, `completed_at`, `notes`, `requested_by`
+- Create `consent_records` table:
+  - `id`, `tenant_id`, `subject_type`, `subject_id`, `purpose` (marketing/analytics/processing), `consented_at`, `withdrawn_at`, `legal_basis`
+- Add `data_retention_expiry` column to `contacts` and `employees` tables
+- Enable RLS on both new tables
 
-## Phase 4: Accounting Feature Gaps (Items 21-24) ✅ COMPLETE
+### 2b. Data Protection Settings Page
+- New file: `src/pages/tenant/DataProtection.tsx`
+  - Section 1: Data controller info display (company name, DPO contact from settings)
+  - Section 2: Data Subject Requests list with create/process workflow
+  - Section 3: Consent records viewer
+  - Section 4: "Export All Data" button per contact/employee (downloads JSON)
+  - Section 5: "Anonymize" button that replaces PII with hashed placeholders while preserving accounting references
 
-### Item 21: Bank Reconciliation Auto-Match ✅ DONE
-- Enhanced with confidence scoring (amount ±40pts, reference ±40pts, partner ±15pts, date ±5pts)
-- Matches ≥70% auto-confirmed, 40-70% marked as "suggested"
+### 2c. Route and Navigation
+- Add route to `src/routes/settingsRoutes.tsx`
+- Add navigation entry in the settings/HR sidebar
 
-### Item 22: Opening Balance Journal Entry ✅ DONE
-- Created `generate_opening_balance()` RPC
-- Carries forward Classes 0-4 balances
-- Nets income/expense (Classes 5-8) into retained earnings (3400)
-
-### Item 23: FX Revaluation Journal Entry ✅ ALREADY DONE
-- FxRevaluation.tsx has full preview+post with 5072/6072 accounts
-
-### Item 24: IOS for Kompenzacija ✅ DONE
-- Added IOS PDF template to generate-pdf edge function
-- Download button on Kompenzacija history table
-
----
-
-## Phase 5: WMS, Production, and AI (Items 25-31) ✅ COMPLETE
-
-### Item 25: WMS Dashboard Throughput Chart ✅ DONE
-- Added 14-day tasks-completed-per-day line chart
-- Uses CartesianGrid for readability
-
-### Item 26: WMS Product Velocity Stats Table ✅ DONE
-- Created `wms_product_stats` precomputation table
-- Created `refresh_wms_product_stats()` RPC for on-demand refresh
-- Tracks velocity (picks/week), last pick, avg daily movement
-
-### Item 27: MRP Auto-PO for Shortages ✅ DONE
-- Added "Create PO for Shortages" button on MRP Engine
-- Creates draft purchase order with all shortage items as lines
-
-### Items 28-31: Verified Existing ✅ ALREADY DONE
-- Production AI Planning: fully implemented with 5 actions + fallback scheduler
-- WMS Slotting AI: fully implemented with dual-mode (AI + local) + scenario management
-- Production Kanban: drag-drop with forward-only transitions
-- WMS Labor analytics: existing page functional
+### 2d. Anonymization Logic
+- Anonymize replaces: first_name, last_name, email, phone, address with anonymized values
+- Preserves: IDs, tenant references, financial amounts (for accounting integrity)
+- Marks record with `anonymized_at` timestamp
 
 ---
 
-## Phase 6: Housekeeping (Items 32-33) ✅ COMPLETE
+## Step 3: Voucher PDV Treatment (Medium)
 
-### Item 32: Remove App.css ✅ ALREADY DONE
-- File does not exist in codebase (previously removed)
+**Problem:** April 2026 VAT overhaul introduces single-purpose vs multi-purpose voucher rules.
 
-### Item 33: Fix Duplicate Translation Key ✅ ALREADY DONE
-- `allLegalEntities` appears exactly once per locale (not duplicated)
-- Auth is consolidated in single `useAuth` hook
+### 3a. Database Changes (Migration)
+- Add `voucher_type` enum column to `invoices` table: `NULL` (not a voucher), `single_purpose`, `multi_purpose`
+- Add `voucher_type` column to `pos_receipts` table
+- Add `voucher_original_receipt_id` to link redemption to original sale
+
+### 3b. Invoice Form Update
+- `src/pages/tenant/InvoiceForm.tsx`: Add optional voucher type selector (only shown when payment method is voucher)
+- Single-purpose: VAT calculated at time of voucher sale (normal flow)
+- Multi-purpose: VAT field set to 0 at sale, VAT charged at redemption
+
+### 3c. POS Terminal Update
+- `src/pages/tenant/PosTerminal.tsx`: When payment method is "voucher", show voucher type toggle
+- Multi-purpose voucher sales: skip VAT in fiscal receipt, mark for later
+- Redemption flow: look up original voucher, apply correct VAT rate
+
+### 3d. Fiscalization Update
+- `supabase/functions/fiscalize-receipt/index.ts`: Handle `voucher_type` field
+  - Multi-purpose sale: send with tax category `O` (outside scope)
+  - Redemption: send with correct `S10`/`S20` tax category
 
 ---
 
-## Implementation Order
+## Technical Notes
 
-All 6 phases complete. All 32 items (excluding #7) resolved.
+- All database changes via Supabase migrations with RLS policies
+- New translations added for all PDPA and voucher UI strings (both EN and SR)
+- CIT rate (15%) sourced from a constant; could later be made configurable via payroll_parameters or a dedicated tax_settings table
+- Contribution base clamping is already correctly implemented -- no changes needed
+
+## Estimated Effort
+| Step | Description | Effort |
+|------|-------------|--------|
+| 1 | CIT accrual in year-end closing | ~30 min |
+| 2 | PDPA compliance module | ~3 hours |
+| 3 | Voucher PDV treatment | ~2 hours |
+
