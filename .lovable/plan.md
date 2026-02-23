@@ -1,46 +1,75 @@
 
 
-## Fix Payroll Parameters: Clean Data + Fix Edit Dialog Focus Bug
+## Fix Breadcrumb Labels + Translate All Hardcoded Strings to Serbian Latin
 
-### Issues Found
+### Problem
 
-**1. Duplicate junk data in database**
-Your tenant (`92474a4b`) has 8 duplicate rows for 2025-01-01, all with corrupted rates (stored as `14` instead of `0.14` -- meaning 1400% PIO rate). Only the 2026-01-01 row has correct decimal values. These duplicates need to be deleted via a migration.
+1. **Breadcrumb shows raw URL slugs**: Routes like `payroll-parameters`, `ai-planning`, `legacy-import`, `ai-audit-log`, `partner-categories`, `payroll-benchmark`, `opportunity-stages`, `discount-approval`, `schedule`, `bottlenecks`, `scenarios` are missing from the `routeLabels` map in `Breadcrumbs.tsx`. This causes the breadcrumb to display "payroll-parameters" instead of "Parametri obračuna".
 
-**2. Edit dialog loses focus (the main bug)**
-The `FormFields` component is defined **inside** the `PayrollParameters` render function (line 152). Every time you type a character, React state updates, the parent re-renders, and a **brand new** `FormFields` component is created. React sees it as a different component, unmounts all inputs, and remounts them -- destroying your cursor position and focus. This is a classic React anti-pattern.
+2. **Calendar legend shows raw DB values**: In `AiPlanningCalendar.tsx` (line 94), the status legend renders `status.replace("_", " ")` -- displaying "in progress", "draft", "completed" in English instead of translated labels.
+
+3. **Same issue in other pages**: `WmsTasks.tsx`, `WmsPicking.tsx`, `WmsDashboard.tsx`, `WmsCycleCounts.tsx`, `Invoices.tsx` all use `status.replace("_", " ")` instead of `t(status)`.
+
+4. **Hardcoded "Svi" / "All" and "Detail"**: In `AiPlanningCalendar.tsx` line 83 and `Breadcrumbs.tsx` line 148, these strings are not using translation keys.
 
 ---
 
-### Fix Plan
+### Changes
 
-#### 1. Database cleanup migration
+#### 1. `src/components/layout/Breadcrumbs.tsx`
 
-Delete the 8 duplicate 2025-01-01 rows with corrupted rates (where `tax_rate >= 1`, meaning rates were stored as raw percentages instead of decimals). Keep only rows with correct decimal values.
+Add missing route segments to the `routeLabels` map:
 
-Also add a unique constraint on `(tenant_id, effective_from)` to prevent future duplicates.
+| Slug | Translation Key |
+|------|----------------|
+| `ai-planning` | `aiPlanning` |
+| `payroll-parameters` | `payrollParamsTitle` |
+| `legacy-import` | `legacyImport` |
+| `ai-audit-log` | `aiAuditLog` |
+| `partner-categories` | `companyCategories` |
+| `payroll-benchmark` | `payrollBenchmark` |
+| `opportunity-stages` | `opportunityStages` |
+| `discount-approval` | `discountApprovalRules` |
+| `schedule` | `schedule` |
+| `bottlenecks` | `bottlenecks` |
+| `scenarios` | `scenarios` |
+| `web-settings` | `webSettings` |
+| `web-prices` | `webPrices` |
+| `dispatch-notes` | `dispatchNotes` |
 
-**File**: New migration SQL
+Also change the hardcoded "Detail" fallback for UUID segments to use `t("detail")`.
 
-#### 2. Move FormFields outside the component
+#### 2. `src/pages/tenant/AiPlanningCalendar.tsx`
 
-Extract `FormFields` to a standalone component defined **outside** the `PayrollParameters` function. This ensures React reuses the same component reference across renders, preserving input focus.
+- Replace `status.replace("_", " ")` on line 94 with `t(status as any)` so legend labels use translations ("Nacrt", "U toku", "Završeno").
+- Replace hardcoded `locale === "sr" ? "Svi" : "All"` on line 83 with a translation key `t("all")`.
 
-**File**: `src/pages/tenant/PayrollParameters.tsx`
+#### 3. `src/pages/tenant/WmsTasks.tsx`, `WmsPicking.tsx`, `WmsDashboard.tsx`, `WmsCycleCounts.tsx`
 
-#### 3. Add a delete button for parameter rows
+Replace all `status.replace("_", " ")` calls with `t(status as any)` to use proper Serbian translations.
 
-Add a trash icon button on each non-active row so you can manually clean up entries in the future without needing database access.
+#### 4. `src/i18n/translations.ts`
 
-**File**: `src/pages/tenant/PayrollParameters.tsx`
+Add any missing translation keys:
+- `all`: EN "All" / SR "Sve"
+- `detail`: EN "Detail" / SR "Detalj"
+- `aiPlanning`: EN "AI Planning" / SR "AI planiranje"
+- `schedule`: EN "Schedule" / SR "Raspored"  
+- `bottlenecks`: EN "Bottlenecks" / SR "Uska grla"
+- `scenarios`: EN "Scenarios" / SR "Scenariji"
+- `cancelled`: EN "Cancelled" / SR "Otkazano"
+- Any other keys referenced but not yet in the translations file
 
 ---
 
 ### Technical Details
 
-**Files to create (1):**
-- Migration SQL -- delete corrupted duplicates + add unique constraint
-
-**Files to modify (1):**
-- `src/pages/tenant/PayrollParameters.tsx` -- extract FormFields outside component, add delete button
-
+**Files to modify (8):**
+- `src/components/layout/Breadcrumbs.tsx` -- add ~15 missing route label mappings, fix "Detail" hardcode
+- `src/pages/tenant/AiPlanningCalendar.tsx` -- translate legend + filter labels
+- `src/pages/tenant/WmsTasks.tsx` -- translate status badges
+- `src/pages/tenant/WmsPicking.tsx` -- translate status badges
+- `src/pages/tenant/WmsDashboard.tsx` -- translate status labels
+- `src/pages/tenant/WmsCycleCounts.tsx` -- translate status badges
+- `src/pages/tenant/Invoices.tsx` -- translate SEF status
+- `src/i18n/translations.ts` -- add missing keys for both EN and SR locales
