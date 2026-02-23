@@ -121,12 +121,11 @@ const analyticsNav: NavItem[] = [
 
 const crmNav: NavItem[] = [
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
-  { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
+  { key: "partners", url: "/crm/companies", icon: Handshake, section: "records" },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
   { key: "meetings", url: "/crm/meetings", icon: CalendarDays },
-  { key: "partners", url: "/crm/partners", icon: Handshake },
 ];
 
 const salesNav: NavItem[] = [

@@ -24,6 +24,7 @@ export type Database = {
           lead_id: string | null
           meeting_id: string | null
           opportunity_id: string | null
+          partner_id: string | null
           tenant_id: string
           type: string
         }
@@ -36,6 +37,7 @@ export type Database = {
           lead_id?: string | null
           meeting_id?: string | null
           opportunity_id?: string | null
+          partner_id?: string | null
           tenant_id: string
           type: string
         }
@@ -48,6 +50,7 @@ export type Database = {
           lead_id?: string | null
           meeting_id?: string | null
           opportunity_id?: string | null
+          partner_id?: string | null
           tenant_id?: string
           type?: string
         }
@@ -85,6 +88,13 @@ export type Database = {
             columns: ["opportunity_id"]
             isOneToOne: false
             referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -1583,6 +1593,7 @@ export type Database = {
           id: string
           is_primary: boolean | null
           job_title: string | null
+          partner_id: string | null
           tenant_id: string
         }
         Insert: {
@@ -1593,6 +1604,7 @@ export type Database = {
           id?: string
           is_primary?: boolean | null
           job_title?: string | null
+          partner_id?: string | null
           tenant_id: string
         }
         Update: {
@@ -1603,6 +1615,7 @@ export type Database = {
           id?: string
           is_primary?: boolean | null
           job_title?: string | null
+          partner_id?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -1618,6 +1631,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_company_assignments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -6750,6 +6770,49 @@ export type Database = {
           },
         ]
       }
+      partner_category_assignments: {
+        Row: {
+          category_id: string
+          id: string
+          partner_id: string
+          tenant_id: string
+        }
+        Insert: {
+          category_id: string
+          id?: string
+          partner_id: string
+          tenant_id: string
+        }
+        Update: {
+          category_id?: string
+          id?: string
+          partner_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_category_assignments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "company_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_category_assignments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_category_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partners: {
         Row: {
           address: string | null
@@ -6759,18 +6822,22 @@ export type Database = {
           created_at: string
           credit_limit: number | null
           default_currency: string | null
+          display_name: string | null
           email: string | null
           id: string
           is_active: boolean
           maticni_broj: string | null
           name: string
+          notes: string | null
           payment_terms_days: number | null
           phone: string | null
           pib: string | null
           postal_code: string | null
+          status: string
           tenant_id: string
           type: string
           updated_at: string
+          website: string | null
         }
         Insert: {
           address?: string | null
@@ -6780,18 +6847,22 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           default_currency?: string | null
+          display_name?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
           maticni_broj?: string | null
           name: string
+          notes?: string | null
           payment_terms_days?: number | null
           phone?: string | null
           pib?: string | null
           postal_code?: string | null
+          status?: string
           tenant_id: string
           type?: string
           updated_at?: string
+          website?: string | null
         }
         Update: {
           address?: string | null
@@ -6801,18 +6872,22 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           default_currency?: string | null
+          display_name?: string | null
           email?: string | null
           id?: string
           is_active?: boolean
           maticni_broj?: string | null
           name?: string
+          notes?: string | null
           payment_terms_days?: number | null
           phone?: string | null
           pib?: string | null
           postal_code?: string | null
+          status?: string
           tenant_id?: string
           type?: string
           updated_at?: string
+          website?: string | null
         }
         Relationships: [
           {

@@ -20,7 +20,7 @@ export default function ContactDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("contacts")
-        .select("*, contact_company_assignments(company_id, job_title, department, companies(id, legal_name, display_name))")
+        .select("*, contact_company_assignments(company_id, partner_id, job_title, department, partners(id, name, display_name))")
         .eq("id", id!)
         .single();
       return data;
@@ -78,10 +78,10 @@ export default function ContactDetail() {
             {contact.contact_company_assignments?.length > 0 ? (
               <div className="space-y-2">
                 {contact.contact_company_assignments.map((a: any) => (
-                  <div key={a.company_id} className="flex items-center justify-between p-2 border rounded cursor-pointer hover:bg-muted"
-                    onClick={() => navigate(`/crm/companies/${a.company_id}`)}>
+                  <div key={a.partner_id || a.company_id} className="flex items-center justify-between p-2 border rounded cursor-pointer hover:bg-muted"
+                    onClick={() => navigate(`/crm/companies/${a.partner_id || a.company_id}`)}>
                     <div>
-                      <span className="font-medium">{a.companies?.display_name || a.companies?.legal_name}</span>
+                      <span className="font-medium">{a.partners?.display_name || a.partners?.name || "—"}</span>
                       {a.job_title && <span className="text-muted-foreground text-sm ml-2">— {a.job_title}</span>}
                     </div>
                     {a.department && <Badge variant="outline">{a.department}</Badge>}
