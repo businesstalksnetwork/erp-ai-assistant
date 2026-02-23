@@ -5831,6 +5831,7 @@ export type Database = {
           company_id: string | null
           contact_id: string | null
           employee_id: string | null
+          external_email: string | null
           external_name: string | null
           id: string
           is_internal: boolean | null
@@ -5843,6 +5844,7 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           employee_id?: string | null
+          external_email?: string | null
           external_name?: string | null
           id?: string
           is_internal?: boolean | null
@@ -5855,6 +5857,7 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           employee_id?: string | null
+          external_email?: string | null
           external_name?: string | null
           id?: string
           is_internal?: boolean | null
