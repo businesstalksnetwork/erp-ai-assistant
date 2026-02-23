@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,16 +9,26 @@ interface TenantMembership {
   role: string;
 }
 
+interface TenantContextType {
+  tenants: TenantMembership[];
+  tenantId: string | null;
+  tenantName: string | null;
+  role: string | null;
+  switchTenant: (id: string) => void;
+  isLoading: boolean;
+}
+
 const STORAGE_KEY = "selectedTenantId";
 
-export function useTenant() {
+const TenantContext = createContext<TenantContextType | undefined>(undefined);
+
+export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { user, isSuperAdmin } = useAuth();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY)
   );
 
-  // Regular users: fetch tenant memberships
   const { data: memberTenants = [], isLoading: isLoadingMembers } = useQuery({
     queryKey: ["tenant-memberships", user?.id],
     queryFn: async (): Promise<TenantMembership[]> => {
@@ -39,7 +49,6 @@ export function useTenant() {
     staleTime: 1000 * 60 * 10,
   });
 
-  // Super admins: fetch ALL tenants
   const { data: allTenants = [], isLoading: isLoadingAll } = useQuery({
     queryKey: ["all-tenants-superadmin"],
     queryFn: async (): Promise<TenantMembership[]> => {
@@ -61,7 +70,6 @@ export function useTenant() {
   const tenants = isSuperAdmin ? allTenants : memberTenants;
   const isLoading = isSuperAdmin ? isLoadingAll : isLoadingMembers;
 
-  // Validate selectedId against tenant list — reset if stale/invalid
   useEffect(() => {
     if (isLoading || tenants.length === 0) return;
     const isValid = tenants.some(t => t.tenantId === selectedId);
@@ -72,7 +80,6 @@ export function useTenant() {
     }
   }, [tenants, selectedId, isLoading]);
 
-  // Determine active tenant
   const activeTenant = tenants.find(t => t.tenantId === selectedId) || tenants[0] || null;
 
   const switchTenant = useCallback((id: string) => {
@@ -81,7 +88,7 @@ export function useTenant() {
     qc.invalidateQueries();
   }, [qc]);
 
-  return {
+  const value: TenantContextType = {
     tenants,
     tenantId: activeTenant?.tenantId ?? null,
     tenantName: activeTenant?.tenantName ?? null,
@@ -89,4 +96,12 @@ export function useTenant() {
     switchTenant,
     isLoading,
   };
+
+  return React.createElement(TenantContext.Provider, { value }, children);
+}
+
+export function useTenant() {
+  const ctx = useContext(TenantContext);
+  if (!ctx) throw new Error("useTenant must be used within TenantProvider");
+  return ctx;
 }
