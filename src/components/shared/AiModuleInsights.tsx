@@ -7,16 +7,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2, ChevronRight } from "lucide-react";
 
 const insightRouteMap: Record<string, string> = {
-  overdue_invoices: "/accounting/invoices",
-  large_invoices: "/accounting/invoices",
-  zero_stock: "/inventory/stock",
-  low_stock: "/inventory/stock",
-  draft_journals: "/accounting/journal",
+  overdue_invoices: "/accounting/invoices?filter=overdue",
+  large_invoices: "/accounting/invoices?filter=sent",
+  zero_stock: "/inventory/stock?filter=zero_stock",
+  low_stock: "/inventory/stock?filter=low_stock",
+  draft_journals: "/accounting/journal?filter=draft",
   payroll_anomaly: "/hr/payroll",
   excessive_overtime: "/hr/overtime",
   leave_balance_warning: "/hr/annual-leave",
-  stale_leads: "/crm/leads",
-  high_value_at_risk: "/crm/opportunities",
+  stale_leads: "/crm/leads?filter=new",
+  high_value_at_risk: "/crm/opportunities?filter=at_risk",
   budget_variance: "/analytics/budget",
   revenue_declining: "/analytics",
   slow_moving: "/analytics/inventory-health",

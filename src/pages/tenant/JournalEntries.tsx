@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,7 +41,9 @@ export default function JournalEntries() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewEntry, setViewEntry] = useState<any>(null);
@@ -173,10 +176,13 @@ export default function JournalEntries() {
     return <Badge variant={variant}>{label}</Badge>;
   };
 
-  const filtered = useMemo(() => entries.filter(e =>
-    e.entry_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    e.description?.toLowerCase().includes(debouncedSearch.toLowerCase())
-  ), [entries, debouncedSearch]);
+  const filtered = useMemo(() => entries.filter(e => {
+    const matchesSearch = !debouncedSearch ||
+      e.entry_number?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      e.description?.toLowerCase().includes(debouncedSearch.toLowerCase());
+    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }), [entries, debouncedSearch, statusFilter]);
 
   const columns: ResponsiveColumn<any>[] = [
     { key: "entry_number", label: t("entryNumber"), primary: true, render: (e) => <span className="font-mono">{e.entry_number}</span> },
@@ -229,15 +235,26 @@ export default function JournalEntries() {
       <MobileFilterBar
         search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />}
         filters={
-          legalEntities.length > 1 ? (
-            <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
-              <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
-                {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                <SelectItem value="draft">{t("draft")}</SelectItem>
+                <SelectItem value="posted">{t("posted")}</SelectItem>
+                <SelectItem value="reversed">{t("reversed")}</SelectItem>
               </SelectContent>
             </Select>
-          ) : <></>
+            {legalEntities.length > 1 && (
+              <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+                  {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </>
         }
       />
 

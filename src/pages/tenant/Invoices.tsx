@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -47,8 +47,9 @@ export default function Invoices() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("filter") || "all");
   const [legalEntityFilter, setLegalEntityFilter] = useState<string>("all");
   const { entities: legalEntities } = useLegalEntities();
   const { checkApproval } = useApprovalCheck(tenantId, "invoice");

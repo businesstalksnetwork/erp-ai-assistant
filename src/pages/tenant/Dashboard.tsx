@@ -120,10 +120,10 @@ export default function TenantDashboard() {
   const fmt = isMobile ? fmtNumCompact : fmtNumAuto;
 
   const kpis = [
-    { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-t-accent" },
-    { label: t("expenses"), value: `${fmt(expenses)} RSD`, icon: TrendingDown, borderColor: "border-t-destructive" },
-    { label: t("profit"), value: `${fmt(profit)} RSD`, icon: DollarSign, borderColor: "border-t-primary" },
-    { label: t("cashBalance"), value: `${fmt(cashBalance)} RSD`, icon: Wallet, borderColor: "border-t-primary" },
+    { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-t-accent", route: "/analytics" },
+    { label: t("expenses"), value: `${fmt(expenses)} RSD`, icon: TrendingDown, borderColor: "border-t-destructive", route: "/analytics" },
+    { label: t("profit"), value: `${fmt(profit)} RSD`, icon: DollarSign, borderColor: "border-t-primary", route: "/analytics" },
+    { label: t("cashBalance"), value: `${fmt(cashBalance)} RSD`, icon: Wallet, borderColor: "border-t-primary", route: "/accounting/invoices?filter=paid" },
   ];
 
   const exportAction = () => {
@@ -163,7 +163,7 @@ export default function TenantDashboard() {
               </Card>
             ))
           : kpis.map((kpi) => (
-              <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor}`}>
+              <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor} cursor-pointer hover:shadow-md transition-shadow`} onClick={() => navigate(kpi.route)}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</CardTitle>
                   <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
