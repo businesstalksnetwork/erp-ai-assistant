@@ -1794,6 +1794,20 @@ export const translations = {
 
     // AI Planning Dashboard
     noInsightsToDisplay: "No insights to display.",
+
+    // Partner Categories
+    partnerCategories: "Partner Categories",
+    newCategory: "New Category",
+    parentCategory: "Parent Category",
+    systemCategory: "System",
+    userCategory: "Custom",
+    subcategory: "Subcategory",
+    categoryCode: "Code",
+    categoryColor: "Color",
+    
+    cannotDeleteSystem: "System categories cannot be deleted",
+    cannotDeleteHasChildren: "Category has subcategories",
+    cannotDeleteInUse: "Category is assigned to partners",
   },
   sr: {
     // Auth
@@ -3548,6 +3562,20 @@ export const translations = {
 
     // AI Planning Dashboard
     noInsightsToDisplay: "Nema uvida za prikaz.",
+
+    // Partner Categories
+    partnerCategories: "Kategorije partnera",
+    newCategory: "Nova kategorija",
+    parentCategory: "Nadređena kategorija",
+    systemCategory: "Sistemska",
+    userCategory: "Korisnička",
+    subcategory: "Potkategorija",
+    categoryCode: "Kod",
+    categoryColor: "Boja",
+    
+    cannotDeleteSystem: "Sistemske kategorije se ne mogu brisati",
+    cannotDeleteHasChildren: "Kategorija ima potkategorije",
+    cannotDeleteInUse: "Kategorija ima dodeljene partnere",
   },
 } as const;
 

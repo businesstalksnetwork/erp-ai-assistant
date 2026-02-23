@@ -165,6 +165,7 @@ import InventoryHealth from "@/pages/tenant/InventoryHealth";
 import EarlyWarningSystem from "@/pages/tenant/EarlyWarningSystem";
 import PayrollParameters from "@/pages/tenant/PayrollParameters";
 import AiAuditLog from "@/pages/tenant/AiAuditLog";
+import CompanyCategoriesSettings from "@/pages/tenant/CompanyCategoriesSettings";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -214,6 +215,7 @@ const App = () => (
                 <Route path="settings/legacy-import" element={<ProtectedRoute requiredModule="settings"><LegacyImport /></ProtectedRoute>} />
                 <Route path="settings/payroll-parameters" element={<ProtectedRoute requiredModule="settings"><PayrollParameters /></ProtectedRoute>} />
                 <Route path="settings/ai-audit-log" element={<ProtectedRoute requiredModule="settings"><AiAuditLog /></ProtectedRoute>} />
+                <Route path="settings/partner-categories" element={<ProtectedRoute requiredModule="settings"><CompanyCategoriesSettings /></ProtectedRoute>} />
                 <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule="accounting"><ChartOfAccounts /></ProtectedRoute>} />
                 <Route path="accounting/journal" element={<ProtectedRoute requiredModule="accounting"><JournalEntries /></ProtectedRoute>} />
                 <Route path="accounting/invoices" element={<ProtectedRoute requiredModule="accounting"><Invoices /></ProtectedRoute>} />
