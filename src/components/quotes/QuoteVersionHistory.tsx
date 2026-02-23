@@ -10,9 +10,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   quoteId: string;
+  inline?: boolean;
 }
 
-export function QuoteVersionHistory({ open, onOpenChange, quoteId }: Props) {
+export function QuoteVersionHistory({ open, onOpenChange, quoteId, inline }: Props) {
   const { t } = useLanguage();
 
   const { data: versions = [] } = useQuery({
@@ -26,8 +27,68 @@ export function QuoteVersionHistory({ open, onOpenChange, quoteId }: Props) {
       if (error) throw error;
       return data || [];
     },
-    enabled: open && !!quoteId,
+    enabled: (inline || open) && !!quoteId,
   });
+
+  const content = (
+    <ScrollArea className={inline ? "" : "max-h-[70vh]"}>
+      {versions.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">{t("noResults")}</p>
+      ) : (
+        <div className="space-y-4">
+          {versions.map((v: any) => {
+            const snapshot = v.snapshot || {};
+            const quote = snapshot.quote || {};
+            const lines = snapshot.lines || [];
+            return (
+              <div key={v.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">v{v.version_number}</Badge>
+                    <span className="text-sm font-medium">{quote.quote_number || "—"}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(v.created_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                </div>
+                {v.notes && <p className="text-sm text-muted-foreground">{v.notes}</p>}
+                <div className="text-xs space-y-1">
+                  <div>{t("status")}: <Badge variant="outline" className="text-xs">{quote.status || "—"}</Badge></div>
+                  <div>{t("total")}: <strong>{quote.total ?? 0}</strong> {quote.currency || "RSD"}</div>
+                </div>
+                {lines.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("product")}</TableHead>
+                          <TableHead className="text-right">{t("quantity")}</TableHead>
+                          <TableHead className="text-right">{t("unitPrice")}</TableHead>
+                          <TableHead className="text-right">{t("total")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lines.map((l: any, idx: number) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-sm">{l.description || l.product_name || "—"}</TableCell>
+                            <TableCell className="text-right text-sm">{l.quantity}</TableCell>
+                            <TableCell className="text-right text-sm">{l.unit_price}</TableCell>
+                            <TableCell className="text-right text-sm">{l.line_total ?? (l.quantity * l.unit_price)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </ScrollArea>
+  );
+
+  if (inline) return content;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,61 +96,7 @@ export function QuoteVersionHistory({ open, onOpenChange, quoteId }: Props) {
         <DialogHeader>
           <DialogTitle>{t("versionHistory")}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh]">
-          {versions.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">{t("noResults")}</p>
-          ) : (
-            <div className="space-y-4">
-              {versions.map((v: any) => {
-                const snapshot = v.snapshot || {};
-                const quote = snapshot.quote || {};
-                const lines = snapshot.lines || [];
-                return (
-                  <div key={v.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">v{v.version_number}</Badge>
-                        <span className="text-sm font-medium">{quote.quote_number || "—"}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(v.created_at).toLocaleString("sr-RS", { dateStyle: "short", timeStyle: "short" })}
-                      </span>
-                    </div>
-                    {v.notes && <p className="text-sm text-muted-foreground">{v.notes}</p>}
-                    <div className="text-xs space-y-1">
-                      <div>{t("status")}: <Badge variant="outline" className="text-xs">{quote.status || "—"}</Badge></div>
-                      <div>{t("total")}: <strong>{quote.total ?? 0}</strong> {quote.currency || "RSD"}</div>
-                    </div>
-                    {lines.length > 0 && (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>{t("product")}</TableHead>
-                              <TableHead className="text-right">{t("quantity")}</TableHead>
-                              <TableHead className="text-right">{t("unitPrice")}</TableHead>
-                              <TableHead className="text-right">{t("total")}</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {lines.map((l: any, idx: number) => (
-                              <TableRow key={idx}>
-                                <TableCell className="text-sm">{l.description || l.product_name || "—"}</TableCell>
-                                <TableCell className="text-right text-sm">{l.quantity}</TableCell>
-                                <TableCell className="text-right text-sm">{l.unit_price}</TableCell>
-                                <TableCell className="text-right text-sm">{l.line_total ?? (l.quantity * l.unit_price)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
+        {content}
       </DialogContent>
     </Dialog>
   );
