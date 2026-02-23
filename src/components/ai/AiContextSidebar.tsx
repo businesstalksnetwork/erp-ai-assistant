@@ -3,9 +3,10 @@ import { useLocation } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { Bot, Send, Loader2, Sparkles, ChevronRight, MessageSquare, Plus, History } from "lucide-react";
+import { Bot, Send, Loader2, Sparkles, ChevronRight, MessageSquare, Plus, History, Pin, Search, Trash2 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAiStream } from "@/hooks/useAiStream";
@@ -77,13 +78,15 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   ]},
   { prefix: "/dashboard", questions: [
     { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
-    { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
+    { sr: "Ima li anomalija u podacima?", en: "Any anomalies in the data?" },
+    { sr: "Prognoza novčanog toka", en: "Cash flow forecast" },
   ]},
 ];
 
 const FALLBACK_QUESTIONS: SuggestedQ[] = [
   { sr: "Sumiraj trenutno stanje", en: "Summarize current status" },
   { sr: "Ima li nešto što zahteva pažnju?", en: "Anything that needs attention?" },
+  { sr: "Pronađi anomalije", en: "Detect anomalies" },
 ];
 
 function getSuggestedQuestions(path: string, sr: boolean): string[] {
@@ -117,9 +120,13 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
   const { locale } = useLanguage();
   const { tenantId } = useTenant();
   const location = useLocation();
-  const { messages, isLoading, send, clear, newChat, conversations, loadConversation } = useAiStream({ tenantId, locale });
+  const {
+    messages, isLoading, send, clear, newChat,
+    conversations, loadConversation, togglePin, searchConversations, deleteConversation,
+  } = useAiStream({ tenantId, locale });
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const sr = locale === "sr";
 
@@ -142,6 +149,15 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleSearch = (q: string) => {
+    setSearchQuery(q);
+    if (q.trim()) {
+      searchConversations(q);
+    } else {
+      searchConversations("");
     }
   };
 
@@ -176,6 +192,7 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" />
           <span>AI Copilot</span>
+          <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">12 tools</span>
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={newChat} title={sr ? "Novi razgovor" : "New chat"}>
@@ -191,25 +208,52 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
       </div>
 
       {/* Conversation History */}
-      {showHistory && conversations.length > 0 && (
-        <div className="border-b p-2 max-h-40 overflow-y-auto">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">
-            {sr ? "Prethodni razgovori" : "Previous Chats"}
-          </p>
+      {showHistory && (
+        <div className="border-b p-2 max-h-52 overflow-y-auto space-y-1.5">
+          <div className="flex items-center gap-1">
+            <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+            <Input
+              value={searchQuery}
+              onChange={e => handleSearch(e.target.value)}
+              placeholder={sr ? "Pretraži..." : "Search..."}
+              className="h-6 text-[11px] border-0 bg-muted/50 focus-visible:ring-0 px-1.5"
+            />
+          </div>
+          {conversations.length === 0 && (
+            <p className="text-[10px] text-muted-foreground text-center py-2">
+              {sr ? "Nema razgovora" : "No conversations"}
+            </p>
+          )}
           {conversations.map(conv => (
-            <button
-              key={conv.id}
-              onClick={() => { loadConversation(conv.id); setShowHistory(false); }}
-              className="w-full text-left text-xs truncate px-2 py-1 rounded hover:bg-accent transition-colors"
-            >
-              {conv.title || (sr ? "Bez naslova" : "Untitled")}
-            </button>
+            <div key={conv.id} className="flex items-center gap-1 group">
+              <button
+                onClick={() => { loadConversation(conv.id); setShowHistory(false); }}
+                className="flex-1 text-left text-xs truncate px-2 py-1 rounded hover:bg-accent transition-colors"
+              >
+                {conv.is_pinned && <Pin className="h-2.5 w-2.5 inline mr-1 text-primary" />}
+                {conv.title || (sr ? "Bez naslova" : "Untitled")}
+              </button>
+              <Button
+                variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => togglePin(conv.id)}
+                title={conv.is_pinned ? (sr ? "Otkači" : "Unpin") : (sr ? "Zakači" : "Pin")}
+              >
+                <Pin className={`h-2.5 w-2.5 ${conv.is_pinned ? "text-primary" : ""}`} />
+              </Button>
+              <Button
+                variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                onClick={() => deleteConversation(conv.id)}
+                title={sr ? "Obriši" : "Delete"}
+              >
+                <Trash2 className="h-2.5 w-2.5" />
+              </Button>
+            </div>
           ))}
         </div>
       )}
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-3 space-y-3">
+        <div className="p-3 space-y-3" ref={scrollRef}>
           {/* Module Insights */}
           {tenantId && module && (
             <Collapsible defaultOpen>
