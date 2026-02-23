@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -22,18 +23,25 @@ export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
+  const isNative = Capacitor.isNativePlatform();
+  const listenersAdded = useRef(false);
 
-  // Check browser support
+  // Check browser/native support
   useEffect(() => {
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-    setIsSupported(supported);
-    if (supported) {
-      setPermission(Notification.permission);
+    if (isNative) {
+      setIsSupported(true);
+    } else {
+      const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+      setIsSupported(supported);
+      if (supported) {
+        setPermission(Notification.permission);
+      }
     }
-  }, []);
+  }, [isNative]);
 
-  // Fetch VAPID public key
+  // Fetch VAPID public key (web only)
   useEffect(() => {
+    if (isNative) return;
     async function fetchVapidKey() {
       try {
         const { data, error } = await supabase.functions.invoke('get-vapid-public-key');
@@ -45,30 +53,111 @@ export function usePushNotifications() {
       }
     }
     fetchVapidKey();
-  }, []);
+  }, [isNative]);
 
-  // Check existing subscription
+  // Check existing subscription (web) or native token (native)
   useEffect(() => {
-    async function checkSubscription() {
-      if (!isSupported || !user) return;
-      try {
-        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-        if (registration) {
-          const subscription = await (registration as any).pushManager.getSubscription();
-          setIsSubscribed(!!subscription);
+    if (!user) return;
+
+    if (isNative) {
+      async function checkNativeToken() {
+        try {
+          const { data } = await supabase.from('native_push_tokens' as any).select('id').eq('user_id', user!.id).maybeSingle();
+          setIsSubscribed(!!data);
+        } catch (e) {
+          console.error('Error checking native push token:', e);
         }
-      } catch (e) {
-        console.error('Error checking push subscription:', e);
       }
+      checkNativeToken();
+    } else {
+      async function checkSubscription() {
+        if (!isSupported) return;
+        try {
+          const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+          if (registration) {
+            const subscription = await (registration as any).pushManager.getSubscription();
+            setIsSubscribed(!!subscription);
+          }
+        } catch (e) {
+          console.error('Error checking push subscription:', e);
+        }
+      }
+      checkSubscription();
     }
-    checkSubscription();
-  }, [isSupported, user]);
+  }, [isSupported, user, isNative]);
 
   const subscribe = useCallback(async () => {
-    if (!isSupported || !user || !vapidPublicKey) return false;
+    if (!user) return false;
+
+    if (isNative) {
+      setLoading(true);
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const permStatus = await PushNotifications.checkPermissions();
+        let status = permStatus.receive;
+        if (status === 'prompt') {
+          const result = await PushNotifications.requestPermissions();
+          status = result.receive;
+        }
+        setPermission(status as NotificationPermission);
+        if (status !== 'granted') {
+          toast({
+            title: 'Dozvola odbijena',
+            description: 'Morate dozvoliti notifikacije u podešavanjima uređaja.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return false;
+        }
+
+        if (!listenersAdded.current) {
+          listenersAdded.current = true;
+          PushNotifications.addListener('registration', async (ev) => {
+            const token = ev.value;
+            const platform = Capacitor.getPlatform() as 'android' | 'ios';
+            const { error } = await supabase.from('native_push_tokens' as any).upsert(
+              { user_id: user.id, token, platform },
+              { onConflict: 'user_id,platform' }
+            );
+            if (!error) {
+              setIsSubscribed(true);
+              await supabase.from('profiles').update({ push_notifications_enabled: true } as any).eq('id', user.id);
+              await refreshProfile();
+              toast({
+                title: 'Push notifikacije aktivirane',
+                description: 'Primaćete obaveštenja i kada aplikacija nije otvorena.',
+              });
+            }
+          });
+          PushNotifications.addListener('registrationError', (err) => {
+            console.error('Push registration error:', err);
+            toast({
+              title: 'Greška',
+              description: 'Nije moguće registrovati push notifikacije.',
+              variant: 'destructive',
+            });
+          });
+        }
+
+        await PushNotifications.register();
+        return true;
+      } catch (e: any) {
+        console.error('Native push subscription error:', e);
+        toast({
+          title: 'Greška',
+          description: 'Nije moguće aktivirati push notifikacije.',
+          variant: 'destructive',
+        });
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Web push
+    if (!isSupported || !vapidPublicKey) return false;
     setLoading(true);
     try {
-      // Request permission
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== 'granted') {
@@ -81,29 +170,22 @@ export function usePushNotifications() {
         return false;
       }
 
-      // Register service worker
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
-
-      // Subscribe to push
       const subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
-
       const subJson = subscription.toJSON();
-      
-      // Save to database
+
       const { error } = await supabase.from('push_subscriptions' as any).upsert({
         user_id: user.id,
         endpoint: subJson.endpoint!,
         p256dh: subJson.keys!.p256dh,
         auth: subJson.keys!.auth,
       }, { onConflict: 'user_id,endpoint' });
-
       if (error) throw error;
 
-      // Update profile preference
       await supabase.from('profiles').update({ push_notifications_enabled: true } as any).eq('id', user.id);
       await refreshProfile();
 
@@ -124,25 +206,29 @@ export function usePushNotifications() {
     } finally {
       setLoading(false);
     }
-  }, [isSupported, user, vapidPublicKey, toast, refreshProfile]);
+  }, [isSupported, isNative, user, vapidPublicKey, toast, refreshProfile]);
 
   const unsubscribe = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-      if (registration) {
-        const subscription = await (registration as any).pushManager.getSubscription();
-        if (subscription) {
-          // Remove from DB
-          await supabase.from('push_subscriptions' as any).delete().eq('user_id', user.id).eq('endpoint', subscription.endpoint);
-          await subscription.unsubscribe();
+      if (isNative) {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        await PushNotifications.unregister();
+        await supabase.from('native_push_tokens' as any).delete().eq('user_id', user.id);
+      } else {
+        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+        if (registration) {
+          const subscription = await (registration as any).pushManager.getSubscription();
+          if (subscription) {
+            await supabase.from('push_subscriptions' as any).delete().eq('user_id', user.id).eq('endpoint', subscription.endpoint);
+            await subscription.unsubscribe();
+          }
         }
       }
 
       await supabase.from('profiles').update({ push_notifications_enabled: false } as any).eq('id', user.id);
       await refreshProfile();
-
       setIsSubscribed(false);
       toast({
         title: 'Push notifikacije isključene',
@@ -153,14 +239,24 @@ export function usePushNotifications() {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, refreshProfile]);
+  }, [user, isNative, toast, refreshProfile]);
 
   const sendTestNotification = useCallback(async () => {
     if (!user) return;
     try {
-      // Create a test notification in the DB - the edge function would normally send push
-      // For testing, show a local notification
-      if (Notification.permission === 'granted') {
+      if (isNative) {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        await PushNotifications.createChannel({
+          id: 'reminders',
+          name: 'Podsetnici',
+          importance: 4,
+          visibility: 1,
+        });
+        toast({
+          title: 'Test poslat',
+          description: 'Native push kanal kreiran. Za testiranje pošaljite push sa servera.',
+        });
+      } else if (Notification.permission === 'granted') {
         const registration = await navigator.serviceWorker.getRegistration('/sw.js');
         if (registration) {
           registration.showNotification('PausalBox Test', {
@@ -169,15 +265,15 @@ export function usePushNotifications() {
             data: { url: '/profile?tab=settings' },
           });
         }
+        toast({
+          title: 'Test poslat',
+          description: 'Trebalo bi da vidite push notifikaciju.',
+        });
       }
-      toast({
-        title: 'Test poslat',
-        description: 'Trebalo bi da vidite push notifikaciju.',
-      });
     } catch (e) {
       console.error('Test notification error:', e);
     }
-  }, [user, toast]);
+  }, [user, isNative, toast]);
 
   return {
     isSupported,

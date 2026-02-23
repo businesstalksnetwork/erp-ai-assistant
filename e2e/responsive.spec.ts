@@ -3,7 +3,6 @@ import { test, expect } from "../playwright-fixture";
 const mobileViewport = { width: 375, height: 812 };
 
 const pages = [
-  { path: "/", name: "Landing" },
   { path: "/auth", name: "Auth" },
   { path: "/dashboard", name: "Dashboard" },
   { path: "/invoices", name: "Invoices" },

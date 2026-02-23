@@ -428,8 +428,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className={cn(
         "lg:pl-64 print:pl-0 print:pt-0 print:p-0 print:m-0",
         "lg:pt-14",
-        showSubscriptionBanner ? "pt-[108px]" : "pt-16",
-        showBookkeeperBanner && "pt-[108px]",
+        showSubscriptionBanner ? "pt-banner" : "pt-16",
+        showBookkeeperBanner && "pt-banner",
         "pb-16 lg:pb-0" // Add bottom padding for mobile bottom nav
       )}>
         <div className="p-4 lg:p-8 print:p-0 print:m-0">{children}</div>

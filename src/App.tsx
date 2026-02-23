@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { CompanyProvider } from "@/lib/company-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { AppLayout } from "@/components/AppLayout";
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
@@ -135,7 +134,7 @@ function AppRoutes() {
             ? <Navigate to={`/auth${location.search}${location.hash}`} replace />
             : canEnterApp
               ? <Navigate to="/dashboard" replace />
-              : <Index />
+              : <Navigate to="/auth" replace />
         }
       />
       <Route path="/auth" element={canEnterApp && !isRecoveryUrl ? <Navigate to="/dashboard" replace /> : <Auth />} />

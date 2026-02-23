@@ -77,6 +77,9 @@ export default {
           "5": "hsl(var(--chart-5))",
         },
       },
+      spacing: {
+        banner: "108px",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

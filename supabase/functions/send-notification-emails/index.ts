@@ -125,47 +125,187 @@ async function createJWT(vapidPrivateKeyBase64: string, audience: string, subjec
   return `${unsignedToken}.${signatureB64}`;
 }
 
-async function sendPushToUser(supabase: any, userId: string, title: string, message: string, link: string | null) {
-  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!vapidPublicKey || !vapidPrivateKey) return;
+// Create JWT for Google OAuth2 (FCM)
+async function createGoogleJWT(clientEmail: string, privateKeyPem: string): Promise<string> {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: clientEmail,
+    sub: clientEmail,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+  };
+  const enc = new TextEncoder();
+  const headerB64 = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const payloadB64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const unsigned = `${headerB64}.${payloadB64}`;
 
-  // Check if user has push enabled
+  const pemContents = privateKeyPem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\s/g, '');
+  const binary = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    binary,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(unsigned));
+  const sigB64 = arrayBufferToBase64Url(sig);
+  return `${unsigned}.${sigB64}`;
+}
+
+// Create JWT for APNs
+async function createApnsJWT(keyId: string, teamId: string, privateKeyPem: string): Promise<string> {
+  const header = { alg: 'ES256', kid: keyId };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { iss: teamId, iat: now, exp: now + 3600 };
+  const enc = new TextEncoder();
+  const headerB64 = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const payloadB64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const unsigned = `${headerB64}.${payloadB64}`;
+
+  const pemContents = privateKeyPem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/-----BEGIN EC PRIVATE KEY-----/, '').replace(/-----END EC PRIVATE KEY-----/, '').replace(/\s/g, '');
+  const binary = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    binary,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(unsigned));
+  const sigB64 = arrayBufferToBase64Url(sig);
+  return `${unsigned}.${sigB64}`;
+}
+
+async function sendFcmPush(token: string, title: string, message: string, link: string | null): Promise<boolean> {
+  const saJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
+  if (!saJson) return false;
+  try {
+    const sa = JSON.parse(saJson);
+    const projectId = sa.project_id;
+    const jwt = await createGoogleJWT(sa.client_email, sa.private_key);
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    });
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) return false;
+
+    const body = {
+      message: {
+        token,
+        notification: { title, body: message },
+        data: link ? { link } : {},
+        android: { priority: 'high' as const },
+      },
+    };
+    const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 404 || res.status === 400) {
+      const err = await res.json();
+      if (err?.error?.details?.[0]?.errorCode === 'UNREGISTERED') return false;
+    }
+    return res.ok;
+  } catch (e) {
+    console.error('FCM push error:', e);
+    return false;
+  }
+}
+
+async function sendApnsPush(token: string, title: string, message: string, link: string | null): Promise<boolean> {
+  const keyId = Deno.env.get('APNS_KEY_ID');
+  const teamId = Deno.env.get('APNS_TEAM_ID');
+  const bundleId = Deno.env.get('APNS_BUNDLE_ID');
+  const keyP8 = Deno.env.get('APNS_KEY_P8');
+  const isProd = Deno.env.get('APNS_PRODUCTION') === 'true';
+  if (!keyId || !teamId || !bundleId || !keyP8) return false;
+  try {
+    const jwt = await createApnsJWT(keyId, teamId, keyP8);
+    const host = isProd ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
+    const payload = {
+      aps: { alert: { title, body: message }, sound: 'default' },
+      ...(link && { link }),
+    };
+    const res = await fetch(`https://${host}/3/device/${token}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `bearer ${jwt}`,
+        'apns-topic': bundleId,
+        'apns-push-type': 'alert',
+        'apns-priority': '10',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 400 || res.status === 410) return false;
+    return res.ok;
+  } catch (e) {
+    console.error('APNs push error:', e);
+    return false;
+  }
+}
+
+async function sendPushToUser(supabase: any, userId: string, title: string, message: string, link: string | null) {
   const { data: profile } = await supabase.from('profiles').select('push_notifications_enabled').eq('id', userId).single();
   if (!profile?.push_notifications_enabled) return;
 
-  const { data: subscriptions } = await supabase.from('push_subscriptions').select('*').eq('user_id', userId);
-  if (!subscriptions?.length) return;
-
   const payload = JSON.stringify({ title, message, link, tag: `pb-${Date.now()}` });
   const subject = 'mailto:obavestenja@pausalbox.rs';
+  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
 
-  for (const sub of subscriptions) {
-    try {
-      const endpoint = new URL(sub.endpoint);
-      const audience = `${endpoint.protocol}//${endpoint.host}`;
-      
-      const jwt = await createJWT(vapidPrivateKey, audience, subject);
-      
-      // Encrypt payload using Web Push encryption
-      // For simplicity, send without encryption (works for most browsers with proper VAPID)
-      const response = await fetch(sub.endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `vapid t=${jwt}, k=${vapidPublicKey}`,
-          'Content-Type': 'application/json',
-          'Content-Encoding': 'aes128gcm',
-          'TTL': '86400',
-        },
-        body: payload,
-      });
-
-      if (response.status === 404 || response.status === 410) {
-        // Subscription expired, remove it
-        await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+  // Web push (browser)
+  const { data: subscriptions } = await supabase.from('push_subscriptions').select('*').eq('user_id', userId);
+  if (vapidPublicKey && vapidPrivateKey && subscriptions?.length) {
+    for (const sub of subscriptions) {
+      try {
+        const endpoint = new URL(sub.endpoint);
+        const audience = `${endpoint.protocol}//${endpoint.host}`;
+        const jwt = await createJWT(vapidPrivateKey, audience, subject);
+        const response = await fetch(sub.endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `vapid t=${jwt}, k=${vapidPublicKey}`,
+            'Content-Type': 'application/json',
+            'Content-Encoding': 'aes128gcm',
+            'TTL': '86400',
+          },
+          body: payload,
+        });
+        if (response.status === 404 || response.status === 410) {
+          await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+        }
+      } catch (e) {
+        console.error(`Web push failed for subscription ${sub.id}:`, e);
       }
-    } catch (e) {
-      console.error(`Push send failed for subscription ${sub.id}:`, e);
+    }
+  }
+
+  // Native push (FCM/APNs)
+  const { data: nativeTokens } = await supabase.from('native_push_tokens').select('token, platform').eq('user_id', userId);
+  if (nativeTokens?.length) {
+    for (const nt of nativeTokens) {
+      try {
+        const ok = nt.platform === 'android'
+          ? await sendFcmPush(nt.token, title, message, link)
+          : await sendApnsPush(nt.token, title, message, link);
+        if (!ok) {
+          await supabase.from('native_push_tokens').delete().eq('user_id', userId).eq('platform', nt.platform);
+        }
+      } catch (e) {
+        console.error(`Native push failed for ${nt.platform}:`, e);
+      }
     }
   }
 }

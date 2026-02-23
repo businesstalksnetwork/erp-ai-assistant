@@ -635,9 +635,9 @@ body[data-sef-sync-active="1"] .rdp * {
     padding-left: 0 !important;
   }
 
-  .pt-16, .pt-\\[108px\\],
+  .pt-16, .pt-banner,
   [class*="pt-16"],
-  [class*="pt-["] {
+  [class*="pt-banner"] {
     padding-top: 0 !important;
   }
 

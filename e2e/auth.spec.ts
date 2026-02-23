@@ -1,16 +1,10 @@
 import { test, expect } from "../playwright-fixture";
 
 test.describe("Authentication", () => {
-  test("landing page loads correctly", async ({ page }) => {
+  test("root redirects to auth page", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("header")).toBeVisible();
-    await expect(page.getByText("Prijavi se")).toBeVisible();
-  });
-
-  test("navigates to auth page", async ({ page }) => {
-    await page.goto("/");
-    await page.click("text=Prijavi se");
     await expect(page).toHaveURL(/\/auth/);
+    await expect(page.getByText("Prijavi se")).toBeVisible();
   });
 
   test("login form is displayed", async ({ page }) => {
