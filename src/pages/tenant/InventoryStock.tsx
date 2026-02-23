@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,9 +27,12 @@ export default function InventoryStock() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const urlFilter = searchParams.get("filter");
   const [search, setSearch] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("__all__");
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(urlFilter === "low_stock" || urlFilter === "zero_stock");
+  const [zeroStockOnly, setZeroStockOnly] = useState(urlFilter === "zero_stock");
   const [adjustDialog, setAdjustDialog] = useState<{ stockId: string; productId: string; warehouseId: string; productName: string } | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustNotes, setAdjustNotes] = useState("");
@@ -88,7 +92,8 @@ export default function InventoryStock() {
     const sku = (s.products as any)?.sku || "";
     if (!`${productName} ${sku}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (warehouseFilter !== "__all__" && s.warehouse_id !== warehouseFilter) return false;
-    if (lowStockOnly && Number(s.quantity_on_hand) >= Number(s.min_stock_level)) return false;
+    if (zeroStockOnly && Number(s.quantity_on_hand) > 0) return false;
+    if (lowStockOnly && !zeroStockOnly && Number(s.quantity_on_hand) >= Number(s.min_stock_level)) return false;
     return true;
   });
 

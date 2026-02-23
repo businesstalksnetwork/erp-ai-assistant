@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, ArrowRight, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
@@ -39,8 +39,9 @@ export default function Leads() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<LeadForm>(emptyForm);
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("filter") || "all");
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads", tenantId],

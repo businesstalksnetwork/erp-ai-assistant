@@ -14,7 +14,7 @@ import { Plus, Loader2, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 
@@ -34,6 +34,8 @@ export default function Opportunities() {
   const { tenantId } = useTenant();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlFilter = searchParams.get("filter");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<OpportunityForm>(emptyForm);
@@ -152,9 +154,21 @@ export default function Opportunities() {
     return "secondary";
   };
 
+  // Filter at-risk opportunities when URL filter is set
+  const filteredOpps = useMemo(() => {
+    if (urlFilter === "at_risk") {
+      return opps.filter((o: any) => {
+        const isHighValue = Number(o.value) > 100000;
+        const isLowProb = Number(o.probability) <= 30;
+        return isHighValue && isLowProb;
+      });
+    }
+    return opps;
+  }, [opps, urlFilter]);
+
   // Group by stage for Kanban
   const grouped = useMemo(() => stages.map(stage => {
-    const items = opps.filter((o: any) => o.stage === stage.code);
+    const items = filteredOpps.filter((o: any) => o.stage === stage.code);
     return {
       stage: stage.code,
       label: stage.name_sr || stage.name,
@@ -162,7 +176,7 @@ export default function Opportunities() {
       items,
       total: items.reduce((sum: number, o: any) => sum + (o.value || 0), 0),
     };
-  }), [stages, opps]);
+  }), [stages, filteredOpps]);
 
   const getContactName = (o: any) => {
     if (o.contacts) return `${o.contacts.first_name} ${o.contacts.last_name || ""}`;
