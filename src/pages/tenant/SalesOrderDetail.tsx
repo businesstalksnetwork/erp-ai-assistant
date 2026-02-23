@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
 interface LineForm {
   id?: string;
+  product_id?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -34,6 +36,20 @@ export default function SalesOrderDetail() {
   const [lineOpen, setLineOpen] = useState(false);
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine);
   const [editLineId, setEditLineId] = useState<string | null>(null);
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*, tax_rates(id, rate)")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["sales-order-detail", id],
@@ -77,6 +93,7 @@ export default function SalesOrderDetail() {
       const totalWithTax = lineTotal + taxAmount;
       const payload = {
         sales_order_id: id!,
+        product_id: f.product_id || null,
         description: f.description,
         quantity: f.quantity,
         unit_price: f.unit_price,
@@ -122,8 +139,25 @@ export default function SalesOrderDetail() {
   const openAddLine = () => { setEditLineId(null); setLineForm(emptyLine); setLineOpen(true); };
   const openEditLine = (l: any) => {
     setEditLineId(l.id);
-    setLineForm({ id: l.id, description: l.description, quantity: l.quantity, unit_price: l.unit_price, tax_rate_value: l.tax_rate_value });
+    setLineForm({ id: l.id, product_id: l.product_id || undefined, description: l.description, quantity: l.quantity, unit_price: l.unit_price, tax_rate_value: l.tax_rate_value });
     setLineOpen(true);
+  };
+
+  const handleProductSelect = (productId: string) => {
+    if (productId === "__manual__") {
+      setLineForm(f => ({ ...f, product_id: undefined }));
+      return;
+    }
+    const product = products.find((p: any) => p.id === productId);
+    if (product) {
+      setLineForm(f => ({
+        ...f,
+        product_id: product.id,
+        description: product.name,
+        unit_price: product.default_sale_price || 0,
+        tax_rate_value: product.tax_rates?.rate ?? f.tax_rate_value,
+      }));
+    }
   };
 
   const createInvoice = () => {
@@ -219,7 +253,7 @@ export default function SalesOrderDetail() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>#</TableHead>
-                        <TableHead>{t("description")}</TableHead>
+                         <TableHead>Proizvod / Usluga</TableHead>
                         <TableHead className="text-right">{t("quantity")}</TableHead>
                         <TableHead className="text-right">{t("unitPrice")}</TableHead>
                         <TableHead className="text-right">PDV %</TableHead>
@@ -257,7 +291,19 @@ export default function SalesOrderDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>{editLineId ? "Izmeni stavku" : "Dodaj stavku"}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-2"><Label>{t("description")}</Label><Input value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })} /></div>
+            <div className="grid gap-2">
+              <Label>Proizvod / Usluga</Label>
+              <Select value={lineForm.product_id || "__manual__"} onValueChange={handleProductSelect}>
+                <SelectTrigger><SelectValue placeholder="Izaberi proizvod..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__manual__">Ručni unos</SelectItem>
+                  {products.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2"><Label>{t("description")}</Label><Input value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })} placeholder="Opis stavke" /></div>
             <div className="grid grid-cols-3 gap-3">
               <div className="grid gap-2"><Label>{t("quantity")}</Label><Input type="number" min={0} value={lineForm.quantity} onChange={(e) => setLineForm({ ...lineForm, quantity: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("unitPrice")}</Label><Input type="number" min={0} step="0.01" value={lineForm.unit_price} onChange={(e) => setLineForm({ ...lineForm, unit_price: +e.target.value })} /></div>

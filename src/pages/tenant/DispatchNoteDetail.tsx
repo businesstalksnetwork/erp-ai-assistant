@@ -50,8 +50,22 @@ export default function DispatchNoteDetail() {
 
   const [addLineOpen, setAddLineOpen] = useState(false);
   const [addReceiptOpen, setAddReceiptOpen] = useState(false);
-  const [lineForm, setLineForm] = useState({ description: "", quantity: "1", unit: "kom", lot_number: "", serial_number: "" });
+  const [lineForm, setLineForm] = useState({ product_id: "", description: "", quantity: "1", unit: "kom", lot_number: "", serial_number: "" });
   const [receiptForm, setReceiptForm] = useState({ receipt_number: "", notes: "" });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*, tax_rates(id, rate)")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
 
   const statusMutation = useStatusWorkflow({ table: "dispatch_notes", queryKey: ["dispatch_notes"] });
 
@@ -101,6 +115,7 @@ export default function DispatchNoteDetail() {
     mutationFn: async () => {
       const { error } = await supabase.from("dispatch_note_lines").insert({
         dispatch_note_id: id!,
+        product_id: lineForm.product_id || null,
         description: lineForm.description,
         quantity: Number(lineForm.quantity),
         unit: lineForm.unit || null,
@@ -113,7 +128,7 @@ export default function DispatchNoteDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dispatch_note_lines", id] });
       setAddLineOpen(false);
-      setLineForm({ description: "", quantity: "1", unit: "kom", lot_number: "", serial_number: "" });
+      setLineForm({ product_id: "", description: "", quantity: "1", unit: "kom", lot_number: "", serial_number: "" });
       toast({ title: t("success") });
     },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
@@ -260,7 +275,7 @@ export default function DispatchNoteDetail() {
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead>
-                  <TableHead>{t("description")}</TableHead>
+                  <TableHead>Proizvod</TableHead>
                   <TableHead>{t("quantity")}</TableHead>
                   <TableHead>{t("unitOfMeasure")}</TableHead>
                   <TableHead>{t("lotNumber")}</TableHead>
@@ -329,7 +344,28 @@ export default function DispatchNoteDetail() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("addLine")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>{t("description")}</Label><Input value={lineForm.description} onChange={(e) => setLineForm(f => ({ ...f, description: e.target.value }))} /></div>
+            <div>
+              <Label>Proizvod</Label>
+              <Select value={lineForm.product_id || "__manual__"} onValueChange={(val) => {
+                if (val === "__manual__") {
+                  setLineForm(f => ({ ...f, product_id: "" }));
+                } else {
+                  const product = products.find((p: any) => p.id === val);
+                  if (product) {
+                    setLineForm(f => ({ ...f, product_id: product.id, description: product.name }));
+                  }
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Izaberi proizvod..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__manual__">Ručni unos</SelectItem>
+                  {products.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>{t("description")}</Label><Input value={lineForm.description} onChange={(e) => setLineForm(f => ({ ...f, description: e.target.value }))} placeholder="Opis stavke" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("quantity")}</Label><Input type="number" value={lineForm.quantity} onChange={(e) => setLineForm(f => ({ ...f, quantity: e.target.value }))} /></div>
               <div><Label>{t("unitOfMeasure")}</Label><Input value={lineForm.unit} onChange={(e) => setLineForm(f => ({ ...f, unit: e.target.value }))} /></div>
