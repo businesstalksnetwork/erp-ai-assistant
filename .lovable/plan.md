@@ -1,117 +1,87 @@
 
 
-# Full Application Optimization: Responsive, Connected, and Polished
+# Fix All Build Errors - Cleanup Plan
 
-## Summary
-
-A comprehensive pass across the CRM/Opportunity system and related pages to fix bugs, improve mobile responsiveness, strengthen data connections, and polish the UI end-to-end.
+The build is broken because 4 Pausal Box files reference non-existent database tables, and `AppLayout.tsx` uses a wrong hook signature. Here's exactly what needs to happen:
 
 ---
 
-## 1. Bug Fixes
+## 1. Delete 4 Pausal Box files
 
-### 1.1 Fix React ref warning on OpportunityActivityTab
-The console shows: "Function components cannot be given refs" for `OpportunityActivityTab`. The `TabsContent` component passes a ref to it. Wrap the component export with `React.forwardRef`.
+These reference tables (`email_notification_log`, `email_templates`, `kpo_entries`) that don't exist in the CRM database:
 
-**Files**: `OpportunityActivityTab.tsx`, `OpportunityDocumentsTab.tsx`, `OpportunityDiscussionTab.tsx`, `OpportunityOverviewTab.tsx`, `OpportunityTagsBar.tsx`
-
-### 1.2 Kanban grid-cols-5 breaks on mobile
-Currently `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5` -- on tablets (sm), only 2 columns show which truncates 5 stages awkwardly. Change to a horizontal scrollable container on mobile and stacked cards.
-
-**File**: `Opportunities.tsx`
+- `src/components/BulkEmailDialog.tsx`
+- `src/components/EmailTemplateEditor.tsx`  
+- `src/components/KPOCsvImport.tsx`
+- `src/hooks/useAdminAnalytics.ts`
 
 ---
 
-## 2. Mobile Responsiveness
+## 2. Fix `AppLayout.tsx` (line 85)
 
-### 2.1 Opportunity Detail page
-- Header: Stack title, badge, and tags vertically on mobile instead of wrapping horizontally
-- Stage buttons: Make horizontally scrollable in a `overflow-x-auto` container instead of wrapping
-- Tabs: Use `overflow-x-auto` on `TabsList` for mobile
-- Overview tab: The `md:grid-cols-2` grid works well; meetings table needs `overflow-x-auto` wrapper
-- Documents tab: Table needs `overflow-x-auto` or convert to card layout on mobile
-- Discussion tab: Already works well with chat bubbles
+**Problem**: Destructures `upcomingCount`, `hasPermission`, `canRequest`, `requestPermission` from `useNotifications()` -- none of these exist. Also passes an argument when the hook takes none.
 
-### 2.2 Meetings page
-- List view filters: Wrap in `MobileFilterBar` component for mobile collapse
-- Meeting table: Add `overflow-x-auto` wrapper
-- Form view: Two-column grid already has `grid-cols-1 lg:grid-cols-2` which is good
-- Action buttons in header: Stack on mobile (currently inline, may overflow)
-- Stats cards: Already `sm:grid-cols-3`
-
-### 2.3 Kanban (Opportunities.tsx)
-- Replace the fixed grid with a horizontally scrollable flex container on mobile
-- Each Kanban column gets a minimum width (250px) and the container scrolls horizontally
-- Add a visual scroll indicator
+**Fix**:
+- Change line 85 to: `const { unreadCount } = useNotifications();`
+- Remove the `useEffect` block (lines 92-96) calling `requestPermission`
+- Replace all 3 occurrences of `upcomingCount` with `unreadCount` (lines 282, 299, 403)
 
 ---
 
-## 3. Connection Improvements
+## 3. Fix `AdminPanel.tsx` -- remove deleted imports and usages
 
-### 3.1 Opportunity Detail - Meeting link
-Currently navigates to `/crm/meetings?opportunity=...` but the Meetings page does not read URL params to pre-fill the form. Add URL param parsing in Meetings.tsx to auto-open the schedule form with the opportunity pre-selected.
-
-**File**: `Meetings.tsx`
-
-### 3.2 Opportunity tags on Kanban cards
-Tags already display on Kanban cards (working). Verify `opportunity_tags` query includes tenant_id filter (it does).
-
-### 3.3 Activity logging completeness
-Currently activity is logged for: stage changes, quote creation, follower add, document upload, comment add, tag add. Missing: tag removal activity logging.
-
-**File**: `OpportunityTagsBar.tsx` -- add `onActivity("tag_removed", ...)` in remove mutation
-
-### 3.4 Meetings table on Overview tab - click to navigate
-Meeting rows in OpportunityOverviewTab are not clickable. Add `onClick` to navigate to meeting edit.
-
-**File**: `OpportunityOverviewTab.tsx`
+- Remove import of `EmailTemplateEditor` (line 47)
+- Remove import of `BulkEmailDialog` (line 60)
+- Remove the `bulkEmailConfirmOpen` state and `isSendingBulkEmail` state (lines 105-106)
+- Remove the Email Templates tab content (lines 1522-1538) -- replace `<EmailTemplateEditor />` with a placeholder or remove the tab
+- Remove the `<BulkEmailDialog>` component usage (lines 1724-1766)
+- Remove the bulk email button that opens the dialog (lines 912-916)
 
 ---
 
-## 4. UI Polish
+## 4. Fix `KPOBook.tsx` -- remove KPOCsvImport usage
 
-### 4.1 Consistent empty states
-Some empty states use different messages/styles. Standardize to the same pattern across all opportunity tabs.
-
-### 4.2 Discussion tab improvements
-- Add a subtle timestamp separator between messages from different days
-- Increase max-height on mobile for the chat scroll area
-
-### 4.3 Stage progression visual
-Replace plain buttons with a step-progress indicator showing which stages have been passed, making the pipeline progression more visual and intuitive.
-
-### 4.4 Sticky tab bar
-On the Opportunity Detail page, make the `TabsList` sticky below the header so it remains visible when scrolling long content.
+- Remove import of `KPOCsvImport` (line 41)
+- Remove `<KPOCsvImport>` component usage (lines 367-373)
+- Remove the `importDialogOpen` state and the Upload button that opens it
 
 ---
 
-## 5. Performance
+## 5. Fix `AdminAnalytics.tsx` -- remove useAdminAnalytics dependency
 
-### 5.1 Reduce unnecessary re-renders
-- Memoize `fmt` function and `contactName` in OpportunityDetail using `useMemo`
-- Memoize `grouped` array and `getOppTags` in Opportunities.tsx
-
-### 5.2 Query optimization
-- The `opportunity-tags-all` query fetches ALL tags for the tenant. This is fine for now but add a `staleTime` to reduce refetches.
+- Remove import of `useAdminAnalytics` (line 2)
+- Replace the hook call (line 111) with empty/placeholder data so the page renders without errors (show an "Analytics coming soon" message or stub the data)
 
 ---
 
-## Technical Details
+## 6. Add `hover` color variants to `tailwind.config.ts`
 
-### Files to Modify
+The CSS variables `--primary-hover` and `--secondary-hover` are defined in `index.css` but not registered in the Tailwind config, which may cause issues with utility classes. Add:
 
-| File | Changes |
-|------|---------|
-| `OpportunityActivityTab.tsx` | Wrap with `forwardRef` |
-| `OpportunityDocumentsTab.tsx` | `forwardRef`, mobile table overflow |
-| `OpportunityDiscussionTab.tsx` | `forwardRef`, responsive chat height |
-| `OpportunityOverviewTab.tsx` | `forwardRef`, meetings table overflow, row click |
-| `OpportunityTagsBar.tsx` | Tag removal activity logging |
-| `OpportunityDetail.tsx` | Sticky tabs, mobile header layout, scrollable stages, `useMemo` |
-| `Opportunities.tsx` | Horizontal scroll Kanban on mobile, `useMemo` |
-| `Meetings.tsx` | `MobileFilterBar`, URL param parsing for opportunity pre-fill, table overflow |
-| `src/index.css` | Add utility class for horizontal scroll snap (optional) |
+```
+primary: {
+  DEFAULT: "hsl(var(--primary))",
+  foreground: "hsl(var(--primary-foreground))",
+  hover: "hsl(var(--primary-hover))",
+},
+secondary: {
+  DEFAULT: "hsl(var(--secondary))",
+  foreground: "hsl(var(--secondary-foreground))",
+  hover: "hsl(var(--secondary-hover))",
+},
+```
 
-### No database changes required
-All optimizations are frontend-only.
+---
+
+## 7. Fix edge function import
+
+**File**: `supabase/functions/delete-user/index.ts` line 1
+
+Change `'npm:@supabase/supabase-js@2.89.0'` to `'https://esm.sh/@supabase/supabase-js@2'` to match the pattern used by all other edge functions.
+
+---
+
+## Expected Result
+
+All build errors resolved. Preview loads. No Pausal Box code remains.
 
