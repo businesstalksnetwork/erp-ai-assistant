@@ -37,13 +37,19 @@ serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Verify tenant membership
-    const { data: membership } = await supabase
-      .from("tenant_members").select("id")
-      .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
-    if (!membership) {
-      return new Response(JSON.stringify({ error: "Forbidden" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Verify tenant membership (super admins bypass)
+    const { data: isSuperAdmin } = await supabase
+      .from("user_roles").select("id")
+      .eq("user_id", caller.id).eq("role", "super_admin").maybeSingle();
+
+    if (!isSuperAdmin) {
+      const { data: membership } = await supabase
+        .from("tenant_members").select("id")
+        .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Check cache
