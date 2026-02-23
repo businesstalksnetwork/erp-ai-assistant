@@ -71,7 +71,7 @@ export function ResponsiveTable<T>({
             className={`transition-all hover:shadow-md ${onRowClick ? "cursor-pointer hover:-translate-y-0.5" : ""}`}
             onClick={() => onRowClick?.(row)}
           >
-            <CardContent className="p-3">
+            <CardContent className="p-4">
               {primaryCol && (
                 <div className="font-medium text-sm mb-1.5">
                   {primaryCol.render(row)}

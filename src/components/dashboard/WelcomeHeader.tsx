@@ -2,11 +2,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { format } from "date-fns";
 import { srLatn } from "date-fns/locale";
-import { Sparkles } from "lucide-react";
 
 export function WelcomeHeader() {
   const { user } = useAuth();
-  const { t, locale } = useLanguage();
+  const { locale } = useLanguage();
   const name = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
   const today = format(new Date(), "EEEE, d MMMM yyyy", { locale: locale === "sr" ? srLatn : undefined });
 
@@ -16,14 +15,11 @@ export function WelcomeHeader() {
     : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">
-          {greeting}, <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{name}</span>
-          <Sparkles className="inline-block ml-2 h-4 w-4 text-primary" />
-        </h1>
-        <p className="text-sm text-muted-foreground capitalize">{today}</p>
-      </div>
+    <div>
+      <h1 className="text-lg font-semibold tracking-tight">
+        {greeting}, {name}
+      </h1>
+      <p className="text-sm text-muted-foreground capitalize">{today}</p>
     </div>
   );
 }

@@ -41,25 +41,25 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Brand panel - hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/80 to-purple-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsla(234,89%,70%,0.3),transparent_60%)]" />
+      {/* Brand panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-primary/70 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsla(225,73%,70%,0.3),transparent_60%)]" />
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-white/15 flex items-center justify-center">
+              <Sparkles className="h-4.5 w-4.5" />
             </div>
-            <span className="text-xl font-bold tracking-tight">ERP-AI</span>
+            <span className="text-lg font-bold tracking-tight">ERP-AI</span>
           </div>
-          <div className="space-y-4 max-w-md">
-            <h1 className="text-4xl font-bold tracking-tight leading-tight">
+          <div className="space-y-3 max-w-md">
+            <h1 className="text-3xl font-bold tracking-tight leading-tight">
               Inteligentno upravljanje poslovanjem
             </h1>
-            <p className="text-lg text-white/70 leading-relaxed">
+            <p className="text-base text-white/60 leading-relaxed">
               Sveobuhvatni ERP sistem sa AI asistentom za srpsko tržište. Finansije, CRM, skladište, proizvodnja — sve na jednom mestu.
             </p>
           </div>
-          <p className="text-sm text-white/40">© 2026 ERP-AI Platform</p>
+          <p className="text-xs text-white/30">© 2026 ERP-AI Platform</p>
         </div>
       </div>
 
@@ -74,21 +74,21 @@ export default function Login() {
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
-          <span className="text-lg font-bold tracking-tight">ERP-AI</span>
+          <span className="text-base font-bold tracking-tight">ERP-AI</span>
         </div>
 
-        <Card className="w-full max-w-sm border-border/50 shadow-lg">
-          <div className="p-6 pb-2 text-center">
-            <h2 className="text-2xl font-bold tracking-tight">{t("login")}</h2>
+        <Card className="w-full max-w-sm">
+          <div className="p-5 pb-2 text-center">
+            <h2 className="text-xl font-semibold tracking-tight">{t("login")}</h2>
             <p className="text-sm text-muted-foreground mt-1">Prijavite se na vaš nalog</p>
           </div>
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
+            <CardContent className="space-y-4 pt-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="email">{t("email")}</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="password">{t("password")}</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
