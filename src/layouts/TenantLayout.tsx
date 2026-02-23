@@ -1,4 +1,5 @@
 import React, { Suspense, useState, useEffect } from "react";
+import erpAiLogo from "@/assets/erpAI.png";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -313,16 +314,8 @@ export default function TenantLayout() {
       <div className="min-h-screen flex w-full">
         <Sidebar className="border-r border-sidebar-border w-64 bg-sidebar-background">
           {/* Logo */}
-          <div className="p-4 border-b border-sidebar-border/60">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/15 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="h-4 w-4 text-sidebar-primary" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-base font-bold text-sidebar-foreground tracking-tight leading-tight">ERP-AI</h2>
-                <p className="text-[11px] text-sidebar-foreground/40 leading-tight">Sistem za upravljanje</p>
-              </div>
-            </div>
+          <div className="p-4 border-b border-sidebar-border/60 flex justify-center">
+            <img src={erpAiLogo} alt="ERP AI" className="max-w-[140px] h-auto" />
           </div>
 
           <SidebarContent className="flex-1 overflow-y-auto custom-scrollbar py-1.5">
