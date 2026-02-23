@@ -2288,6 +2288,276 @@ export type Database = {
           },
         ]
       }
+      dispatch_note_lines: {
+        Row: {
+          created_at: string
+          description: string
+          dispatch_note_id: string
+          id: string
+          lot_number: string | null
+          product_id: string | null
+          quantity: number
+          serial_number: string | null
+          sort_order: number
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          dispatch_note_id: string
+          id?: string
+          lot_number?: string | null
+          product_id?: string | null
+          quantity?: number
+          serial_number?: string | null
+          sort_order?: number
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          dispatch_note_id?: string
+          id?: string
+          lot_number?: string | null
+          product_id?: string | null
+          quantity?: number
+          serial_number?: string | null
+          sort_order?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_note_lines_dispatch_note_id_fkey"
+            columns: ["dispatch_note_id"]
+            isOneToOne: false
+            referencedRelation: "dispatch_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_note_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dispatch_date: string | null
+          document_date: string
+          document_number: string
+          driver_name: string | null
+          eotpremnica_id: string | null
+          eotpremnica_response: Json | null
+          eotpremnica_sent_at: string | null
+          eotpremnica_status: string | null
+          id: string
+          internal_transfer_id: string | null
+          invoice_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          receiver_address: string | null
+          receiver_city: string | null
+          receiver_name: string | null
+          receiver_pib: string | null
+          sales_order_id: string | null
+          sender_address: string | null
+          sender_city: string | null
+          sender_name: string | null
+          sender_pib: string | null
+          status: string
+          tenant_id: string
+          transport_reason: string | null
+          updated_at: string
+          vehicle_plate: string | null
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dispatch_date?: string | null
+          document_date?: string
+          document_number: string
+          driver_name?: string | null
+          eotpremnica_id?: string | null
+          eotpremnica_response?: Json | null
+          eotpremnica_sent_at?: string | null
+          eotpremnica_status?: string | null
+          id?: string
+          internal_transfer_id?: string | null
+          invoice_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          receiver_address?: string | null
+          receiver_city?: string | null
+          receiver_name?: string | null
+          receiver_pib?: string | null
+          sales_order_id?: string | null
+          sender_address?: string | null
+          sender_city?: string | null
+          sender_name?: string | null
+          sender_pib?: string | null
+          status?: string
+          tenant_id: string
+          transport_reason?: string | null
+          updated_at?: string
+          vehicle_plate?: string | null
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dispatch_date?: string | null
+          document_date?: string
+          document_number?: string
+          driver_name?: string | null
+          eotpremnica_id?: string | null
+          eotpremnica_response?: Json | null
+          eotpremnica_sent_at?: string | null
+          eotpremnica_status?: string | null
+          id?: string
+          internal_transfer_id?: string | null
+          invoice_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          receiver_address?: string | null
+          receiver_city?: string | null
+          receiver_name?: string | null
+          receiver_pib?: string | null
+          sales_order_id?: string | null
+          sender_address?: string | null
+          sender_city?: string | null
+          sender_name?: string | null
+          sender_pib?: string | null
+          status?: string
+          tenant_id?: string
+          transport_reason?: string | null
+          updated_at?: string
+          vehicle_plate?: string | null
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_notes_internal_transfer_id_fkey"
+            columns: ["internal_transfer_id"]
+            isOneToOne: false
+            referencedRelation: "internal_transfers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_notes_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_notes_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_notes_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_receipts: {
+        Row: {
+          created_at: string
+          dispatch_note_id: string
+          goods_receipt_id: string | null
+          id: string
+          notes: string | null
+          receipt_date: string
+          receipt_number: string
+          received_by: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dispatch_note_id: string
+          goods_receipt_id?: string | null
+          id?: string
+          notes?: string | null
+          receipt_date?: string
+          receipt_number: string
+          received_by?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dispatch_note_id?: string
+          goods_receipt_id?: string | null
+          id?: string
+          notes?: string | null
+          receipt_date?: string
+          receipt_number?: string
+          received_by?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_receipts_dispatch_note_id_fkey"
+            columns: ["dispatch_note_id"]
+            isOneToOne: false
+            referencedRelation: "dispatch_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_receipts_goods_receipt_id_fkey"
+            columns: ["goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_receipts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_receipts_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dms_activity_log: {
         Row: {
           action: string
@@ -7548,6 +7818,7 @@ export type Database = {
           id: string
           max_contribution_base: number
           min_contribution_base: number
+          minimum_hourly_wage: number | null
           nontaxable_amount: number
           pio_employee_rate: number
           pio_employer_rate: number
@@ -7566,6 +7837,7 @@ export type Database = {
           id?: string
           max_contribution_base?: number
           min_contribution_base?: number
+          minimum_hourly_wage?: number | null
           nontaxable_amount?: number
           pio_employee_rate?: number
           pio_employer_rate?: number
@@ -7584,6 +7856,7 @@ export type Database = {
           id?: string
           max_contribution_base?: number
           min_contribution_base?: number
+          minimum_hourly_wage?: number | null
           nontaxable_amount?: number
           pio_employee_rate?: number
           pio_employer_rate?: number
