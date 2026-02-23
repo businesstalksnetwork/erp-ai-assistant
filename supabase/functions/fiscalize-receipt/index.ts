@@ -46,6 +46,7 @@ serve(async (req) => {
       transaction_id, tenant_id, device_id, items, payments,
       buyer_id, receipt_type = "normal", transaction_type = "sale",
       referent_receipt_number, referent_receipt_date, cashier_name,
+      environment_type, omit_qr_code, journal_report,
     } = body;
 
     // Verify tenant_id is provided
@@ -105,6 +106,11 @@ serve(async (req) => {
         totalAmount: item.total_amount,
       })),
     };
+
+    // PFR v3 optional fields
+    if (environment_type) invoiceRequest.options = { ...(invoiceRequest.options as Record<string, unknown> || {}), OmitTextualRepresentation: false };
+    if (environment_type) invoiceRequest.environmentType = environment_type; // "Production" or "Sandbox"
+    if (omit_qr_code) invoiceRequest.options = { ...(invoiceRequest.options as Record<string, unknown> || {}), OmitQRCodeGen: 1 };
 
     if (buyer_id) invoiceRequest.buyerId = buyer_id;
 
@@ -223,6 +229,31 @@ serve(async (req) => {
         .from("pos_transactions")
         .update({ fiscal_receipt_number: receiptNumber, fiscal_device_id: device_id })
         .eq("id", transaction_id);
+    }
+
+    // If journal_report requested, call PFR journal endpoint for end-of-day reconciliation
+    if (journal_report && device.api_url) {
+      try {
+        const journalRes = await fetch(`${device.api_url}/api/v3/invoices/journal`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(device.pac ? { "PAC": device.pac } : {}),
+          },
+          body: JSON.stringify({ dateFrom: journal_report.date_from, dateTo: journal_report.date_to }),
+          signal: AbortSignal.timeout(10000),
+        });
+        const journalData = journalRes.ok ? await journalRes.json() : null;
+        return new Response(JSON.stringify({
+          success: true,
+          journal: journalData,
+          receipt_id: receipt?.id,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (journalErr) {
+        console.error("Journal endpoint error:", journalErr);
+      }
     }
 
     return new Response(JSON.stringify({
