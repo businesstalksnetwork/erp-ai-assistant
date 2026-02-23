@@ -1,28 +1,19 @@
-import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { fmtNum } from "@/lib/utils";
+import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 
 interface Props {
   opportunities: Array<{ stage: string; value: number }>;
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  qualification: "hsl(var(--primary))",
-  proposal: "hsl(220, 60%, 65%)",
-  negotiation: "hsl(var(--accent))",
-  closed_won: "hsl(160, 70%, 40%)",
-  closed_lost: "hsl(var(--destructive))",
-};
-
 export function OpportunityPipelineChart({ opportunities }: Props) {
-  const { t } = useLanguage();
+  const { data: stages = [] } = useOpportunityStages();
 
-  const stages = ["qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
   const data = stages.map((s) => ({
-    stage: t(s as any) || s,
-    value: opportunities.filter((o) => o.stage === s).reduce((sum, o) => sum + (o.value || 0), 0),
-    color: STAGE_COLORS[s] || "hsl(var(--muted-foreground))",
+    stage: s.name_sr || s.name,
+    value: opportunities.filter((o) => o.stage === s.code).reduce((sum, o) => sum + (o.value || 0), 0),
+    color: s.color || "hsl(var(--muted-foreground))",
   }));
 
   const fmt = (n: number) => fmtNum(n);
@@ -30,7 +21,7 @@ export function OpportunityPipelineChart({ opportunities }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("pipeline") || "Pipeline"}</CardTitle>
+        <CardTitle className="text-base">Pipeline</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
