@@ -1,22 +1,17 @@
 
 
-## Premesti logo u sidebar, obriši iz AiBriefing stranice
+## Adjust Logo Spacing in Sidebar
 
-### Izmene
+### Change
 
-1. **`src/pages/tenant/AiBriefing.tsx`**
-   - Obrisati import `erpAiLogo`
-   - Obrisati `<div className="flex justify-center">` blok sa `<img>` tagom (linije 165-167)
+Update the logo container padding in `src/layouts/TenantLayout.tsx` (line 317):
 
-2. **`src/layouts/TenantLayout.tsx`**
-   - Importovati logo: `import erpAiLogo from "@/assets/erpAI.png"`
-   - Zameniti trenutni sidebar header (linije 317-325) koji koristi Sparkles ikonu i tekst "ERP-AI" sa `<img>` tagom koji prikazuje uploadovani logo
-   - Logo ce biti centriran u sidebar header-u, sa odgovarajucom velicinom (~140px max-width)
+- Current: `p-4` (equal padding all sides)
+- New: `pt-2 pb-5 px-4` (less padding on top, more on bottom)
 
-### Fajlovi za izmenu
+### File
 
-| Fajl | Izmena |
+| File | Change |
 |------|--------|
-| `src/pages/tenant/AiBriefing.tsx` | Obrisati logo import i img element |
-| `src/layouts/TenantLayout.tsx` | Dodati logo sliku umesto Sparkles ikone u sidebar header |
+| `src/layouts/TenantLayout.tsx` | Line 317: change `p-4` to `pt-2 pb-5 px-4` |
 
