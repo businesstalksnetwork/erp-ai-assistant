@@ -51,7 +51,7 @@ export default function Contacts() {
     queryFn: async () => {
       const { data } = await supabase
         .from("contacts")
-        .select("*, contact_company_assignments(company_id, job_title, companies(id, legal_name, display_name))")
+        .select("*, contact_company_assignments(company_id, partner_id, job_title, partners(id, name, display_name))")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       return data || [];
@@ -60,9 +60,9 @@ export default function Contacts() {
   });
 
   const { data: companiesList = [] } = useQuery({
-    queryKey: ["companies-list", tenantId],
+    queryKey: ["partners-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("id, legal_name, display_name").eq("tenant_id", tenantId!).eq("status", "active").order("legal_name");
+      const { data } = await supabase.from("partners").select("id, name, display_name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -88,7 +88,7 @@ export default function Contacts() {
       if (company_id && contactId) {
         if (editId) await supabase.from("contact_company_assignments").delete().eq("contact_id", editId);
         await supabase.from("contact_company_assignments").insert([{
-          contact_id: contactId, company_id, tenant_id: tenantId!, job_title: job_title || null, is_primary: true,
+          contact_id: contactId, company_id, partner_id: company_id, tenant_id: tenantId!, job_title: job_title || null, is_primary: true,
         }]);
       }
     },
@@ -104,7 +104,7 @@ export default function Contacts() {
       first_name: c.first_name, last_name: c.last_name || "", email: c.email || "", phone: c.phone || "",
       type: c.type || "prospect", seniority_level: c.seniority_level || "", function_area: c.function_area || "",
       company_name: c.company_name || "", address: c.address || "", city: c.city || "", notes: c.notes || "",
-      company_id: assignment?.company_id || "", job_title: assignment?.job_title || "",
+      company_id: assignment?.partner_id || assignment?.company_id || "", job_title: assignment?.job_title || "",
     });
     setOpen(true);
   };
@@ -124,9 +124,9 @@ export default function Contacts() {
     { key: "company", label: t("company"), hideOnMobile: true, render: (c) => (
       <>
         {c.contact_company_assignments?.map((a: any) => (
-          <Badge key={a.company_id} variant="outline" className="cursor-pointer mr-1"
-            onClick={(e) => { e.stopPropagation(); navigate(`/crm/companies/${a.company_id}`); }}>
-            {a.companies?.display_name || a.companies?.legal_name}
+          <Badge key={a.partner_id || a.company_id} variant="outline" className="cursor-pointer mr-1"
+            onClick={(e) => { e.stopPropagation(); navigate(`/crm/companies/${a.partner_id || a.company_id}`); }}>
+            {a.partners?.display_name || a.partners?.name || "—"}
           </Badge>
         ))}
         {(!c.contact_company_assignments || c.contact_company_assignments.length === 0) && "—"}
@@ -188,7 +188,7 @@ export default function Contacts() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
-                    {companiesList.map((co: any) => <SelectItem key={co.id} value={co.id}>{co.display_name || co.legal_name}</SelectItem>)}
+                     {companiesList.map((co: any) => <SelectItem key={co.id} value={co.id}>{co.display_name || co.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

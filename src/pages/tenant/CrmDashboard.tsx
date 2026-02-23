@@ -47,9 +47,9 @@ export default function CrmDashboard() {
   });
 
   const { data: companiesCount = 0 } = useQuery({
-    queryKey: ["crm-companies-count", tenantId],
+    queryKey: ["crm-partners-count", tenantId],
     queryFn: async () => {
-      const { count } = await supabase.from("companies").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId!);
+      const { count } = await supabase.from("partners").select("*", { count: "exact", head: true }).eq("tenant_id", tenantId!);
       return count || 0;
     },
     enabled: !!tenantId,
