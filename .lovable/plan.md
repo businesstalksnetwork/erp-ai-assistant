@@ -1,125 +1,120 @@
 
 
-## Update WMS AI Section of the Report
+## Implement & Upgrade Production AI Module
 
-### Goal
-Rewrite the "WMS AI (Warehouse Management with AI)" section to accurately reflect the current implementation, removing incorrect claims and documenting features that already exist.
+### Overview
+
+The Production AI module has 4 pages (Dashboard, Schedule, Bottleneck Predictor, Capacity Simulator) and 1 edge function. Several key improvements are missing: no `priority` field on orders, no persistent scenario storage, schedule generation ignores locked orders, no date validation on AI output, no local fallback scheduler, and the edge function lacks order priority/due-date context. This plan addresses all of these.
 
 ---
 
-### Changes Required
+### 1. Database Migration: Add `priority` to production_orders + Create `production_scenarios` table
 
-#### 1. Current State -- Complete Rewrite
-Replace the current description with accurate documentation of:
+**New column on `production_orders`:**
+- `priority` INTEGER DEFAULT 3 (1=highest, 5=lowest) -- enables user-driven priority input to AI
 
-- **Scenario Management System**: Named scenarios persisted in `wms_slotting_scenarios` with status tracking (analyzing -> completed). Users can browse past scenarios in a sidebar panel and select any to review.
+**New table `production_scenarios`:**
+- `id` UUID PK
+- `tenant_id` UUID FK NOT NULL
+- `name` TEXT NOT NULL
+- `scenario_type` TEXT NOT NULL (schedule, simulation, bottleneck)
+- `params` JSONB DEFAULT '{}'
+- `result` JSONB DEFAULT '{}'
+- `status` TEXT DEFAULT 'completed'
+- `created_by` UUID
+- `created_at` TIMESTAMPTZ DEFAULT now()
 
-- **Dual-Mode Analysis (AI + Local Heuristic)**:
-  - AI mode: Calls `wms-slotting` edge function which computes velocity scores, co-pick affinity from 90-day pick history, sends top 50 SKUs + 100 bins to Gemini-3 via Lovable AI gateway with tool-calling schema
-  - Local mode: Built-in greedy algorithm that sorts products by pick velocity and assigns them to bins sorted by accessibility score. No external API call.
-  - User toggles between modes via a Switch component in the analysis dialog
+RLS: tenant-scoped read/write for active members.
 
-- **User-Adjustable Optimization Weights**: Three linked sliders (Travel / Affinity / Space) that auto-balance to 100%. These weights are passed to both AI and local algorithms.
+---
 
-- **Move Plan with Lifecycle**: AI/local recommendations are saved to `wms_slotting_moves` table with statuses: proposed -> approved -> executed. Each move tracks product_id, from_bin_id, to_bin_id, priority, and linked task_id.
+### 2. Edge Function Upgrade: `production-ai-planning`
 
-- **Task Generation ("Generate Tasks" button)**: Converts proposed moves into `wms_tasks` with type "reslot", creating actionable warehouse tasks with priority ordering. Moves are updated to "approved" status with the linked task ID.
+**Data enrichment:**
+- Add `priority` and `planned_end` (as due date) to the order data sent to AI
+- Add `today's date` to context so AI doesn't suggest past dates
+- For `generate-schedule`: accept `locked_order_ids` and `excluded_order_ids` arrays from the request body. Filter locked orders out of suggestions and exclude excluded orders from the prompt entirely.
 
-- **Full WMS Module Beyond AI**: Document the complete WMS feature set:
-  - Dashboard: KPI cards (bins, utilization, pending/in-progress/completed tasks), task status pie chart, tasks-by-type bar chart, zone overview grid, recent activity feed, quick action buttons
-  - Tasks: Full lifecycle (pending -> assigned -> in_progress -> completed/exception), manual task creation, batch operations (start/assign/cancel), worker assignment, priority management (1-5 with inline select), performance KPIs (avg completion time)
-  - Receiving: PO linkage, lot/serial tracking, bin assignment
-  - Picking: Wave management
-  - Cycle Counts: Variance approval workflow
-  - Zones & Bins: Zone management with warehouse association, bin detail pages
+**Date validation (post-AI):**
+- After parsing AI schedule suggestions, validate each: `suggested_start < suggested_end` and `suggested_start >= today`. Filter out invalid entries and log warnings.
 
-#### 2. Issues/Risks -- Update
-Remove these incorrect items:
-- "UI Integration: how does the user apply them? This is unclear -- likely manual" (WRONG: Generate Tasks button exists)
+**New action `local-fallback-schedule`:**
+- A deterministic scheduling algorithm in the edge function itself (no AI call):
+  - Sort non-completed orders by priority ASC, then planned_end ASC (earliest due date first)
+  - Assign sequential start dates with estimated durations based on quantity
+  - Returns same `ScheduleResult` schema as AI
+- Used as fallback when AI fails, or when user explicitly selects "Local" mode
 
-Keep/update these valid items:
-- Data Volume: Still valid -- full arrays fetched from DB before slicing for prompt. Add note that local algorithm also fetches all bins/stock/pick history.
-- Heuristic Dependence: Rename to "AI Constraint Validation" -- no post-AI capacity checking exists. The local fallback algorithm also doesn't validate bin capacity before assignment.
-- Error Handling: Still valid but add detail -- on AI error, toast is shown with error message; empty recommendations show "noResults" text in table.
-- Security: Update to note JWT validation + tenant membership check in edge function, plus CORS headers.
+**Save scenario action:**
+- New action `save-scenario`: persists params + result to `production_scenarios` table
+- New action `list-scenarios`: returns recent scenarios for tenant
 
-Add new issues:
-- Batch task generation loops: `generateTasksMutation` issues one INSERT per move sequentially -- should batch.
-- Local algorithm doesn't consider bin capacity (`max_units`) when assigning -- it only sorts by accessibility score.
-- No scenario comparison view -- users can't easily compare two scenarios side-by-side.
+---
 
-#### 3. Recommendations -- Update
-Remove items already implemented:
-- "User-adjustable weights" (DONE -- three linked sliders)
-- "Add UI steps to review" (DONE -- scenario list + move plan table + Generate Tasks button)
-- "Handle empty/partial AI output" (DONE -- shows "noResults" in table)
+### 3. Schedule Page Upgrades (`AiPlanningSchedule.tsx`)
 
-Keep valid recommendations:
-- Restrict prompt size with SQL filtering (still fetches all rows)
-- Constraint checking post-AI (still missing)
-- Background/scheduled slotting job
-- `wms_product_stats` precomputation table
-- Affinity graph persistence table
-- Simulation integration
+- **Locked orders passed to AI**: When generating, send `locked_order_ids` (from the `locked` Set) so AI skips those orders in suggestions
+- **Exclude orders**: Add checkboxes or a multi-select to exclude specific orders from analysis
+- **Date validation toast**: After receiving suggestions, filter out invalid dates and show a warning toast if any were removed
+- **Local fallback toggle**: Add a Switch "AI / Local" mode toggle (like WMS slotting). Local mode calls `local-fallback-schedule` action
+- **Gantt legend**: Add a color legend bar below the chart explaining status colors (draft, in_progress, completed, late, AI suggestion)
+- **Batch apply**: Change sequential `update` loop to `Promise.all` for accepted suggestions
+- **Priority column display**: Show order priority in the tooltip
 
-Update recommendations:
-- "Hybrid algorithm" should note local fallback already exists, but recommend cross-validation (run both, compare results)
-- Add: Batch INSERT for move plan and task generation instead of sequential loops
-- Add: Bin capacity validation in local algorithm before assignment
-- Add: Scenario comparison view (side-by-side KPIs)
+---
 
-#### 4. Flow Diagram -- Update
-Update the Mermaid diagram to show the dual-path (AI vs Local) architecture and the full workflow through to task generation:
+### 4. Capacity Simulation Persistence (`AiCapacitySimulation.tsx`)
 
-```text
-flowchart TD
-    User[User configures weights + warehouse] --> Mode{AI or Local?}
-    Mode -->|AI Mode| EdgeFn[Edge Function: wms-slotting]
-    Mode -->|Local Mode| LocalAlgo[Greedy Heuristic: velocity x accessibility]
+- Replace client-side `savedScenarios` state with database-backed storage using `production_scenarios` table
+- On "Save Scenario": call `save-scenario` action to persist
+- On page load: query `production_scenarios` where `scenario_type = 'simulation'` to show history
+- Add "Load" button on saved scenarios to restore params + result
+- Add "Compare" mode: select 2 saved scenarios, show side-by-side KPI diff (reuse pattern from WMS slotting comparison)
 
-    subgraph EdgeFn[Edge Function]
-      PickHistory[90-day Pick History] --> Velocity[Velocity scores]
-      PickHistory --> Affinity[Co-pick Affinity]
-      BinsData[Bins + Zones] --> Prompt
-      Velocity --> Prompt[Build AI Prompt]
-      Affinity --> Prompt
-      Prompt --> AI[Gemini-3 via AI Gateway]
-      AI -->|Tool Call JSON| Parse[Parse Recommendations]
-    end
+---
 
-    subgraph LocalAlgo[Local Algorithm]
-      FetchData[Fetch bins + stock + picks] --> SortProducts[Sort products by velocity]
-      SortProducts --> SortBins[Sort bins by accessibility]
-      SortBins --> Assign[Greedy assignment]
-    end
+### 5. Bottleneck Predictor: Local Material Check (`AiBottleneckPrediction.tsx`)
 
-    Parse --> SaveScenario[Save to wms_slotting_scenarios]
-    Assign --> SaveScenario
-    SaveScenario --> MovePlan[wms_slotting_moves - proposed]
-    MovePlan -->|User clicks Generate Tasks| Tasks[wms_tasks - type: reslot]
-    Tasks --> Execution[Warehouse workers execute]
-```
+- Add a local pre-check before AI call: cross-reference BOM lines with inventory stock to find real material shortages
+- Merge local material shortages with AI bottlenecks, deduplicating
+- This provides instant results for material shortages even before AI responds
 
-#### 5. Comparison Table -- Update
-Add "Local Greedy (current)" row to the approaches table, noting it's already built in. Update "AI-based (LLM)" row to note it's already implemented with Gemini-3. Change "Hybrid" row to note the dual-mode toggle already exists.
+---
 
-#### 6. Testing Section -- Update
-- Add: Test scenario creation + move plan persistence
-- Add: Test Generate Tasks mutation creates correct wms_tasks records
-- Add: Test local algorithm produces valid recommendations with known input
-- Keep: Mock AI gateway test, empty pick history test, performance test
+### 6. Dashboard: Priority Distribution Widget (`AiPlanningDashboard.tsx`)
 
-#### 7. Data/Schema Section -- Update
-- Note that `wms_slotting_scenarios` and `wms_slotting_moves` tables already exist
-- Keep recommendation for `wms_product_stats` precomputation
-- Keep recommendation for persisted affinity graph
-- Add: Consider adding `estimated_improvement` columns directly to scenarios (currently stored as JSON)
+- Add a small bar chart showing order count by priority (1-5)
+- Add priority to the material readiness check display
+
+---
+
+### 7. Documentation Update
+
+Update `ARCHITECTURE_DOCUMENTATION.md` with:
+- New `production_scenarios` table schema
+- `priority` field on `production_orders`
+- Local fallback scheduler description
+- Updated edge function actions list
 
 ---
 
 ### Technical Details
 
-**File to modify**: The uploaded `deep-research-report.md` -- rewrite the "WMS AI (Warehouse Management with AI)" section entirely.
+**Files to create:**
+- None (all changes are modifications)
 
-No code changes needed -- documentation only.
+**Files to modify:**
+- `supabase/functions/production-ai-planning/index.ts` -- add locked/excluded order filtering, date validation, local fallback action, save/list scenario actions
+- `src/pages/tenant/AiPlanningSchedule.tsx` -- locked order passthrough, exclude UI, local mode toggle, legend, batch apply
+- `src/pages/tenant/AiCapacitySimulation.tsx` -- DB-backed scenario persistence, load, compare
+- `src/pages/tenant/AiBottleneckPrediction.tsx` -- local material pre-check
+- `src/pages/tenant/AiPlanningDashboard.tsx` -- priority distribution widget
+- `src/pages/tenant/ProductionOrders.tsx` -- priority field in create/edit form
+- `ARCHITECTURE_DOCUMENTATION.md` -- document new schema and features
+
+**Database migration:**
+- ALTER TABLE production_orders ADD COLUMN priority INTEGER DEFAULT 3
+- CREATE TABLE production_scenarios (with RLS policies)
+
+**Edge function deployment:** production-ai-planning
 
