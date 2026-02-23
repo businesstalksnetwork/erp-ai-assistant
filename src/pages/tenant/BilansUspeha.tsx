@@ -177,7 +177,7 @@ export default function BilansUspeha() {
                             Sekcija {section}
                           </TableCell>
                         </TableRow>
-                        {revenueBySection[section].map((line) => (
+                        {revenueBySection[section].map((line: any) => (
                           <TableRow key={line.account_code}>
                             <TableCell className="font-mono text-sm">{line.account_code}</TableCell>
                             <TableCell>{line.account_name_sr || line.account_name}</TableCell>
@@ -192,7 +192,7 @@ export default function BilansUspeha() {
                           </TableCell>
                           <TableCell className="text-right font-bold font-mono">
                             {fmtNum(
-                              revenueBySection[section].reduce((s, l) => s + Number(l.amount), 0)
+                              revenueBySection[section].reduce((s: number, l: any) => s + Number(l.amount), 0)
                             )}
                           </TableCell>
                         </TableRow>
@@ -237,7 +237,7 @@ export default function BilansUspeha() {
                             Sekcija {section}
                           </TableCell>
                         </TableRow>
-                        {expenseBySection[section].map((line) => (
+                        {expenseBySection[section].map((line: any) => (
                           <TableRow key={line.account_code}>
                             <TableCell className="font-mono text-sm">{line.account_code}</TableCell>
                             <TableCell>{line.account_name_sr || line.account_name}</TableCell>
@@ -252,7 +252,7 @@ export default function BilansUspeha() {
                           </TableCell>
                           <TableCell className="text-right font-bold font-mono">
                             {fmtNum(
-                              expenseBySection[section].reduce((s, l) => s + Number(l.amount), 0)
+                              expenseBySection[section].reduce((s: number, l: any) => s + Number(l.amount), 0)
                             )}
                           </TableCell>
                         </TableRow>

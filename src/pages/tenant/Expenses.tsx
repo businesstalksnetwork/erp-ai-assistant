@@ -82,7 +82,7 @@ export default function Expenses() {
     for (const e of categorized) {
       const amt = Number(e.debit);
       t.total += amt;
-      t[e.category] += amt;
+      (t as any)[e.category] += amt;
     }
     return t;
   }, [categorized]);
@@ -94,7 +94,7 @@ export default function Expenses() {
       if (!d) continue;
       const key = d.slice(0, 7);
       if (!map.has(key)) map.set(key, { month: key, salaries: 0, suppliers: 0, depreciation: 0, operating: 0 });
-      map.get(key)![e.category] += Number(e.debit);
+      (map.get(key)! as any)[e.category] += Number(e.debit);
     }
     return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
   }, [categorized]);

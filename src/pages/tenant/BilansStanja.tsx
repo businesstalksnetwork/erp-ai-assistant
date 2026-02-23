@@ -112,7 +112,7 @@ export default function BilansStanja() {
                         Sekcija {section}
                       </TableCell>
                     </TableRow>
-                    {sections[section].map((line) => (
+                    {sections[section].map((line: any) => (
                       <TableRow key={line.account_code}>
                         <TableCell className="font-mono text-sm">{line.account_code}</TableCell>
                         <TableCell>{line.account_name_sr || line.account_name}</TableCell>
@@ -126,7 +126,7 @@ export default function BilansStanja() {
                         Укупно секција {section}:
                       </TableCell>
                       <TableCell className="text-right font-bold font-mono">
-                        {fmtNum(sections[section].reduce((s, l) => s + Number(l.balance), 0))}
+                        {fmtNum(sections[section].reduce((s: number, l: any) => s + Number(l.balance), 0))}
                       </TableCell>
                     </TableRow>
                   </React.Fragment>
