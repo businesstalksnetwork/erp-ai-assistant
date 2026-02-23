@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
+import erpAiLogo from "@/assets/erpAI.png";
 
 /* ── helpers ── */
 const fmtDate = (d: Date) => format(d, "yyyy-MM-dd");
@@ -160,6 +161,10 @@ export default function AiBriefing() {
         title={sr ? "Brzi AI Izveštaj" : "Quick AI Report"}
         description={sr ? "Personalizovani pregled kompanije zasnovan na vašoj ulozi" : "Role-based company intelligence dashboard"}
       />
+
+      <div className="flex justify-center">
+        <img src={erpAiLogo} alt="ERP AI" className="max-w-[200px] h-auto" />
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <DateRangeBar
