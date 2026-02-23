@@ -11493,6 +11493,22 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: string
       }
+      dashboard_kpi_summary: {
+        Args: { _tenant_id: string }
+        Returns: {
+          cash_balance: number
+          expenses: number
+          revenue: number
+        }[]
+      }
+      dashboard_revenue_expenses_monthly: {
+        Args: { _months?: number; _tenant_id: string }
+        Returns: {
+          expenses: number
+          month_label: string
+          revenue: number
+        }[]
+      }
       detect_partner_dormancy: {
         Args: { p_tenant_id: string }
         Returns: undefined
