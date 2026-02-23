@@ -1,91 +1,46 @@
 
 
-## Smooth Navigation, Page Transitions & Documentation Update
+## Fix Payroll Parameters: Clean Data + Fix Edit Dialog Focus Bug
 
-### Problem Analysis
+### Issues Found
 
-There are two distinct issues causing poor UX during navigation:
+**1. Duplicate junk data in database**
+Your tenant (`92474a4b`) has 8 duplicate rows for 2025-01-01, all with corrupted rates (stored as `14` instead of `0.14` -- meaning 1400% PIO rate). Only the 2026-01-01 row has correct decimal values. These duplicates need to be deleted via a migration.
 
-1. **Full-page refresh on route change**: The `<Suspense fallback={<LoadingFallback />}>` in `App.tsx` wraps ALL routes (line 198), including the layout components. When a lazy-loaded page is first loaded, React unmounts the entire tree (sidebar + header + content) and shows a centered spinner. This makes the sidebar and header "disappear and reappear" on every new page visit.
-
-2. **No page transition animation**: When navigating between pages, content just pops in with no visual continuity. There is no `AnimatePresence` or transition wrapper around the page content area.
-
-3. **WMS_AI_REPORT.md** still lists issues as unresolved that were fixed in previous sessions.
+**2. Edit dialog loses focus (the main bug)**
+The `FormFields` component is defined **inside** the `PayrollParameters` render function (line 152). Every time you type a character, React state updates, the parent re-renders, and a **brand new** `FormFields` component is created. React sees it as a different component, unmounts all inputs, and remounts them -- destroying your cursor position and focus. This is a classic React anti-pattern.
 
 ---
 
-### Changes
+### Fix Plan
 
-#### 1. Fix Suspense Boundary (Stop sidebar/header refresh)
+#### 1. Database cleanup migration
 
-**File: `src/App.tsx`**
+Delete the 8 duplicate 2025-01-01 rows with corrupted rates (where `tax_rate >= 1`, meaning rates were stored as raw percentages instead of decimals). Keep only rows with correct decimal values.
 
-Move the `<Suspense>` wrapper from around ALL routes to only around the child routes inside each layout. The layout components (`TenantLayout`, `SuperAdminLayout`) render via `<Outlet />`, so lazy children suspend inside the layout, not above it.
+Also add a unique constraint on `(tenant_id, effective_from)` to prevent future duplicates.
 
-- Remove the outer `<Suspense fallback={<LoadingFallback />}>` that wraps all `<Routes>`
-- Keep lazy imports as-is (code splitting is good)
+**File**: New migration SQL
 
-**File: `src/layouts/TenantLayout.tsx`**
+#### 2. Move FormFields outside the component
 
-Wrap the `<Outlet />` (line 518) in a `<Suspense>` with an inline skeleton/shimmer fallback instead of a spinner. This ensures the sidebar and header stay mounted while only the content area shows a loading state.
+Extract `FormFields` to a standalone component defined **outside** the `PayrollParameters` function. This ensures React reuses the same component reference across renders, preserving input focus.
 
-The fallback will be a subtle content-area skeleton (pulsing bars mimicking a page header + card grid) instead of a spinner, creating the "no loading" feel.
+**File**: `src/pages/tenant/PayrollParameters.tsx`
 
-**File: `src/layouts/SuperAdminLayout.tsx`**
+#### 3. Add a delete button for parameter rows
 
-Same pattern: wrap the `<Outlet />` in `<Suspense>` with the same skeleton fallback.
+Add a trash icon button on each non-active row so you can manually clean up entries in the future without needing database access.
 
-#### 2. Smooth Page Transitions with Framer Motion
-
-**File: `src/layouts/TenantLayout.tsx`**
-
-Add an `AnimatePresence` + `motion.div` wrapper around the `<Outlet />` keyed by `location.pathname`. This produces a subtle fade+slide transition (opacity 0 to 1, translateY 8px to 0, 200ms) when navigating between pages. The sidebar and header remain completely static.
-
-**File: `src/layouts/SuperAdminLayout.tsx`**
-
-Same transition wrapper for consistency.
-
-#### 3. Content Skeleton Fallback Component
-
-**File: `src/components/shared/PageSkeleton.tsx`** (new file)
-
-A reusable skeleton that mimics a typical page layout:
-- A header bar (title placeholder + action buttons placeholder)
-- A row of 4 stat cards (pulsing rectangles)
-- A large content area card (table placeholder with rows)
-
-This replaces the spinning circle, creating the impression that the page is "already there" and just filling in data.
-
-#### 4. Update WMS_AI_REPORT.md
-
-Mark the following issues as RESOLVED:
-- "Sequential Task Generation" -- resolved via batch INSERT
-- "No Scenario Comparison" -- resolved via comparison view
-- "Local Algorithm Ignores Capacity" -- resolved via capacity validation
-- "AI Constraint Validation" -- resolved via post-AI capacity checks
-
-Move completed recommendations to an "Implemented" section.
-
-#### 5. Update COMPLETE_CODEBASE_REVIEW.md
-
-Add entry for v3.0 UX improvements:
-- Suspense boundary fix (sidebar/header persistence)
-- Framer Motion page transitions
-- Skeleton loading states
+**File**: `src/pages/tenant/PayrollParameters.tsx`
 
 ---
 
 ### Technical Details
 
 **Files to create (1):**
-- `src/components/shared/PageSkeleton.tsx` -- reusable skeleton fallback
+- Migration SQL -- delete corrupted duplicates + add unique constraint
 
-**Files to modify (5):**
-- `src/App.tsx` -- remove outer Suspense wrapper
-- `src/layouts/TenantLayout.tsx` -- add Suspense + AnimatePresence around Outlet
-- `src/layouts/SuperAdminLayout.tsx` -- add Suspense + AnimatePresence around Outlet
-- `WMS_AI_REPORT.md` -- mark resolved issues
-- `COMPLETE_CODEBASE_REVIEW.md` -- add v3.0 UX improvements
-
-**No new dependencies needed** -- framer-motion is already installed (v12.34.0).
+**Files to modify (1):**
+- `src/pages/tenant/PayrollParameters.tsx` -- extract FormFields outside component, add delete button
 
