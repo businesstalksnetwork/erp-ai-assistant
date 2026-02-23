@@ -8546,6 +8546,7 @@ export type Database = {
           order_number: string | null
           planned_end: string | null
           planned_start: string | null
+          priority: number | null
           product_id: string | null
           quantity: number
           status: string
@@ -8564,6 +8565,7 @@ export type Database = {
           order_number?: string | null
           planned_end?: string | null
           planned_start?: string | null
+          priority?: number | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -8582,6 +8584,7 @@ export type Database = {
           order_number?: string | null
           planned_end?: string | null
           planned_start?: string | null
+          priority?: number | null
           product_id?: string | null
           quantity?: number
           status?: string
@@ -8605,6 +8608,50 @@ export type Database = {
           },
           {
             foreignKeyName: "production_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_scenarios: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          params: Json
+          result: Json
+          scenario_type: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          params?: Json
+          result?: Json
+          scenario_type?: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          params?: Json
+          result?: Json
+          scenario_type?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_scenarios_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

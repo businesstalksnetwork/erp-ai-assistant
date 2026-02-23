@@ -21,14 +21,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { action, tenant_id, language, scenario_params } = await req.json();
+    const { action, tenant_id, language, scenario_params, locked_order_ids, excluded_order_ids, scenario_name, scenario_data } = await req.json();
 
     if (!tenant_id || !action) {
       return new Response(JSON.stringify({ error: "tenant_id and action are required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -40,6 +37,28 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Handle non-AI actions first
+    if (action === "save-scenario") {
+      const { error } = await supabase.from("production_scenarios").insert({
+        tenant_id,
+        name: scenario_name || "Unnamed",
+        scenario_type: scenario_data?.scenario_type || "simulation",
+        params: scenario_data?.params || {},
+        result: scenario_data?.result || {},
+        created_by: caller.id,
+      });
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "list-scenarios") {
+      const { data, error } = await supabase.from("production_scenarios")
+        .select("*").eq("tenant_id", tenant_id)
+        .order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return new Response(JSON.stringify({ scenarios: data || [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Fetch production data
     const [ordersRes, bomsRes, stockRes] = await Promise.all([
       supabase.from("production_orders").select("*, bom_template:bom_templates(name, product_id)").eq("tenant_id", tenant_id).order("created_at", { ascending: false }).limit(100),
@@ -47,18 +66,72 @@ serve(async (req) => {
       supabase.from("inventory_stock").select("*, product:products(name, sku), warehouse:warehouses(name)").eq("tenant_id", tenant_id),
     ]);
 
-    const orders = ordersRes.data || [];
+    const allOrders = ordersRes.data || [];
     const boms = bomsRes.data || [];
     const stock = stockRes.data || [];
 
+    // Filter out excluded orders for AI context
+    const excludedSet = new Set(excluded_order_ids || []);
+    const lockedSet = new Set(locked_order_ids || []);
+    const orders = allOrders.filter(o => !excludedSet.has(o.id));
+
     const lang = language === "sr" ? "Serbian" : "English";
+    const today = new Date().toISOString().split("T")[0];
+
+    // Local fallback scheduler (no AI call)
+    if (action === "local-fallback-schedule") {
+      const activeOrders = orders.filter(o => o.status !== "completed" && o.status !== "cancelled" && !lockedSet.has(o.id));
+      // Sort by priority ASC, then planned_end ASC (earliest due date)
+      activeOrders.sort((a, b) => {
+        const pa = (a as any).priority || 3;
+        const pb = (b as any).priority || 3;
+        if (pa !== pb) return pa - pb;
+        const da = a.planned_end || "9999-12-31";
+        const db = b.planned_end || "9999-12-31";
+        return da.localeCompare(db);
+      });
+
+      let currentDate = new Date(today);
+      const suggestions = activeOrders.map(o => {
+        const qty = Number(o.quantity) || 1;
+        const durationDays = Math.max(Math.ceil(qty / 10), 1); // rough: 10 units/day
+        const startDate = new Date(currentDate);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + durationDays);
+        currentDate = new Date(endDate); // next order starts after this
+        return {
+          order_id: o.id,
+          order_number: o.order_number || o.id.substring(0, 8),
+          suggested_start: startDate.toISOString().split("T")[0],
+          suggested_end: endDate.toISOString().split("T")[0],
+          priority: (o as any).priority || 3,
+          explanation: lang === "Serbian"
+            ? `Raspoređeno po prioritetu ${(o as any).priority || 3}, trajanje ~${durationDays}d`
+            : `Scheduled by priority ${(o as any).priority || 3}, duration ~${durationDays}d`,
+        };
+      });
+
+      return new Response(JSON.stringify({
+        suggestions,
+        overall_explanation: lang === "Serbian"
+          ? "Lokalni raspored: nalozi su poređani po prioritetu i roku, bez AI poziva."
+          : "Local schedule: orders sorted by priority and due date, no AI call.",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const dataContext = `
-Production Orders (${orders.length} total):
+Today's date: ${today}
+
+Production Orders (${orders.length} total, ${lockedSet.size} locked):
 ${JSON.stringify(orders.slice(0, 50).map(o => ({
   id: o.id, order_number: o.order_number, status: o.status,
   planned_start: o.planned_start, planned_end: o.planned_end,
-  quantity: o.quantity, bom: o.bom_template?.name
+  quantity: o.quantity, priority: (o as any).priority || 3,
+  bom: o.bom_template?.name,
+  locked: lockedSet.has(o.id),
 })), null, 2)}
 
 BOM Templates (${boms.length}):
@@ -112,7 +185,7 @@ ${JSON.stringify(stock.slice(0, 50).map(s => ({
       }];
       toolChoice = { type: "function", function: { name: "provide_dashboard_insights" } };
     } else if (action === "generate-schedule") {
-      systemPrompt = `You are a production scheduling optimizer. Analyze the orders, BOMs, and inventory to suggest an optimized production schedule. Respond in ${lang}.`;
+      systemPrompt = `You are a production scheduling optimizer. Analyze the orders, BOMs, and inventory to suggest an optimized production schedule. Today is ${today}. Do NOT suggest start dates in the past. Orders marked as "locked" should NOT appear in your suggestions. Respect order priority (1=highest, 5=lowest). Respond in ${lang}.`;
       tools = [{
         type: "function",
         function: {
@@ -128,8 +201,8 @@ ${JSON.stringify(stock.slice(0, 50).map(s => ({
                   properties: {
                     order_id: { type: "string" },
                     order_number: { type: "string" },
-                    suggested_start: { type: "string", description: "ISO date" },
-                    suggested_end: { type: "string", description: "ISO date" },
+                    suggested_start: { type: "string", description: "ISO date, must be >= today" },
+                    suggested_end: { type: "string", description: "ISO date, must be > suggested_start" },
                     priority: { type: "number", description: "1=highest" },
                     explanation: { type: "string" }
                   },
@@ -146,7 +219,7 @@ ${JSON.stringify(stock.slice(0, 50).map(s => ({
       }];
       toolChoice = { type: "function", function: { name: "provide_schedule" } };
     } else if (action === "predict-bottlenecks") {
-      systemPrompt = `You are a production bottleneck prediction AI. Cross-reference BOM material needs with inventory stock and analyze order scheduling to identify bottlenecks. Respond in ${lang}.`;
+      systemPrompt = `You are a production bottleneck prediction AI. Cross-reference BOM material needs with inventory stock and analyze order scheduling to identify bottlenecks. Today is ${today}. Consider order priorities. Respond in ${lang}.`;
       tools = [{
         type: "function",
         function: {
@@ -165,7 +238,18 @@ ${JSON.stringify(stock.slice(0, 50).map(s => ({
                     title: { type: "string" },
                     description: { type: "string" },
                     suggested_action: { type: "string" },
-                    affected_orders: { type: "array", items: { type: "string" } }
+                    affected_orders: { type: "array", items: { type: "string" } },
+                    material_detail: {
+                      type: "object",
+                      properties: {
+                        product: { type: "string" },
+                        required: { type: "number" },
+                        available: { type: "number" },
+                        deficit: { type: "number" }
+                      },
+                      required: ["product", "required", "available", "deficit"],
+                      additionalProperties: false
+                    }
                   },
                   required: ["type", "severity", "title", "description", "suggested_action"],
                   additionalProperties: false
@@ -179,7 +263,7 @@ ${JSON.stringify(stock.slice(0, 50).map(s => ({
       }];
       toolChoice = { type: "function", function: { name: "provide_bottlenecks" } };
     } else if (action === "simulate-scenario") {
-      systemPrompt = `You are a capacity simulation AI. Given the current production data and the scenario adjustments, compare baseline vs scenario KPIs. Respond in ${lang}.
+      systemPrompt = `You are a capacity simulation AI. Given the current production data and the scenario adjustments, compare baseline vs scenario KPIs. Today is ${today}. Respond in ${lang}.
 Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
       tools = [{
         type: "function",
@@ -249,6 +333,23 @@ Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
       }
       const text = await response.text();
       console.error("AI gateway error:", response.status, text);
+
+      // Fallback for schedule action
+      if (action === "generate-schedule") {
+        console.log("AI failed, returning local fallback schedule");
+        const activeOrders = orders.filter(o => o.status !== "completed" && o.status !== "cancelled" && !lockedSet.has(o.id));
+        activeOrders.sort((a, b) => ((a as any).priority || 3) - ((b as any).priority || 3));
+        let cd = new Date(today);
+        const suggestions = activeOrders.map(o => {
+          const dur = Math.max(Math.ceil((Number(o.quantity) || 1) / 10), 1);
+          const s = new Date(cd);
+          const e = new Date(s); e.setDate(e.getDate() + dur);
+          cd = new Date(e);
+          return { order_id: o.id, order_number: o.order_number || o.id.substring(0, 8), suggested_start: s.toISOString().split("T")[0], suggested_end: e.toISOString().split("T")[0], priority: (o as any).priority || 3, explanation: "Fallback schedule" };
+        });
+        return new Response(JSON.stringify({ suggestions, overall_explanation: "AI unavailable — local fallback schedule generated by priority and due date.", _fallback: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       return new Response(JSON.stringify({ error: "AI service unavailable" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -258,7 +359,27 @@ Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
       return new Response(JSON.stringify({ error: "AI did not return structured data" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    let parsed = JSON.parse(toolCall.function.arguments);
+
+    // Post-processing: validate schedule dates
+    if (action === "generate-schedule" && parsed.suggestions) {
+      const validSuggestions: any[] = [];
+      let invalidCount = 0;
+      for (const s of parsed.suggestions) {
+        // Skip locked orders
+        if (lockedSet.has(s.order_id)) continue;
+        // Validate dates
+        if (s.suggested_start >= s.suggested_end) { invalidCount++; continue; }
+        if (s.suggested_start < today) { invalidCount++; continue; }
+        validSuggestions.push(s);
+      }
+      if (invalidCount > 0) {
+        console.warn(`Filtered out ${invalidCount} invalid schedule suggestions`);
+        parsed._filtered_count = invalidCount;
+      }
+      parsed.suggestions = validSuggestions;
+    }
+
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e) {
