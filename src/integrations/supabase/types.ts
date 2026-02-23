@@ -5831,40 +5831,39 @@ export type Database = {
           company_id: string | null
           contact_id: string | null
           employee_id: string | null
+          external_name: string | null
           id: string
           is_internal: boolean | null
           is_organizer: boolean | null
           meeting_id: string
+          partner_id: string | null
           tenant_id: string
         }
         Insert: {
           company_id?: string | null
           contact_id?: string | null
           employee_id?: string | null
+          external_name?: string | null
           id?: string
           is_internal?: boolean | null
           is_organizer?: boolean | null
           meeting_id: string
+          partner_id?: string | null
           tenant_id: string
         }
         Update: {
           company_id?: string | null
           contact_id?: string | null
           employee_id?: string | null
+          external_name?: string | null
           id?: string
           is_internal?: boolean | null
           is_organizer?: boolean | null
           meeting_id?: string
+          partner_id?: string | null
           tenant_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "meeting_participants_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "meeting_participants_contact_id_fkey"
             columns: ["contact_id"]
@@ -5884,6 +5883,13 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_participants_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -5934,12 +5940,17 @@ export type Database = {
         Row: {
           communication_channel: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           duration_minutes: number | null
           id: string
           location: string | null
           meeting_type_id: string | null
+          next_steps: string | null
           notes: string | null
+          opportunity_id: string | null
+          outcome: string | null
+          partner_id: string | null
           scheduled_at: string
           status: string | null
           tenant_id: string
@@ -5949,12 +5960,17 @@ export type Database = {
         Insert: {
           communication_channel?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           duration_minutes?: number | null
           id?: string
           location?: string | null
           meeting_type_id?: string | null
+          next_steps?: string | null
           notes?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
+          partner_id?: string | null
           scheduled_at: string
           status?: string | null
           tenant_id: string
@@ -5964,12 +5980,17 @@ export type Database = {
         Update: {
           communication_channel?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           duration_minutes?: number | null
           id?: string
           location?: string | null
           meeting_type_id?: string | null
+          next_steps?: string | null
           notes?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
+          partner_id?: string | null
           scheduled_at?: string
           status?: string | null
           tenant_id?: string
@@ -5982,6 +6003,20 @@ export type Database = {
             columns: ["meeting_type_id"]
             isOneToOne: false
             referencedRelation: "meeting_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -6673,6 +6708,55 @@ export type Database = {
           },
           {
             foreignKeyName: "opportunities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_partners: {
+        Row: {
+          created_at: string | null
+          id: string
+          opportunity_id: string
+          partner_id: string
+          role: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          opportunity_id: string
+          partner_id: string
+          role?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          opportunity_id?: string
+          partner_id?: string
+          role?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_partners_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_partners_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_partners_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

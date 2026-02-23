@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, TrendingUp } from "lucide-react";
+import { Plus, Loader2, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -37,6 +38,7 @@ export default function Opportunities() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<OpportunityForm>(emptyForm);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
   const { data: opps = [], isLoading } = useQuery({
     queryKey: ["opportunities", tenantId],
@@ -60,6 +62,15 @@ export default function Opportunities() {
     enabled: !!tenantId,
   });
 
+  const { data: partnersList = [] } = useQuery({
+    queryKey: ["partners-list-opp", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("partners").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: OpportunityForm) => {
       const closedAt = (f.stage === "closed_won" || f.stage === "closed_lost") ? new Date().toISOString() : null;
@@ -68,26 +79,42 @@ export default function Opportunities() {
         partner_id: f.partner_id || null, lead_id: f.lead_id || null,
         contact_id: f.contact_id || null, expected_close_date: f.expected_close_date || null,
       };
+      let oppId = editId;
       if (editId) {
         const { error } = await supabase.from("opportunities").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("opportunities").insert([payload]);
+        const { data, error } = await supabase.from("opportunities").insert([payload]).select("id").single();
         if (error) throw error;
+        oppId = data.id;
+      }
+
+      // Sync opportunity_partners junction
+      if (oppId) {
+        await supabase.from("opportunity_partners" as any).delete().eq("opportunity_id", oppId);
+        if (selectedPartnerIds.length > 0) {
+          const rows = selectedPartnerIds.map(pid => ({
+            opportunity_id: oppId!, partner_id: pid, tenant_id: tenantId!,
+          }));
+          await supabase.from("opportunity_partners" as any).insert(rows);
+        }
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunities"] }); setOpen(false); toast.success(t("success")); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
-  const openEdit = (o: any) => {
+  const openAdd = () => { setEditId(null); setForm(emptyForm); setSelectedPartnerIds([]); setOpen(true); };
+  const openEdit = async (o: any) => {
     setEditId(o.id);
     setForm({
       title: o.title, partner_id: o.partner_id, lead_id: o.lead_id, contact_id: o.contact_id,
       value: o.value, currency: o.currency, probability: o.probability, stage: o.stage,
       expected_close_date: o.expected_close_date || "", description: o.description || "", notes: o.notes || "",
     });
+    // Load linked partners
+    const { data: linked } = await supabase.from("opportunity_partners" as any).select("partner_id").eq("opportunity_id", o.id);
+    setSelectedPartnerIds((linked || []).map((l: any) => l.partner_id));
     setOpen(true);
   };
 
@@ -164,6 +191,30 @@ export default function Opportunities() {
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("title")} *</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
             <div className="grid gap-2"><Label>{t("description")}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+            {/* Multi-partner selector */}
+            <div className="grid gap-2">
+              <Label>{t("opportunityPartners")}</Label>
+              <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                {partnersList.map((p: any) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <Checkbox checked={selectedPartnerIds.includes(p.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedPartnerIds(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id));
+                        if (checked && !form.partner_id) setForm(f => ({ ...f, partner_id: p.id }));
+                      }} />
+                    <span className="text-sm">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+              {selectedPartnerIds.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedPartnerIds.map(pid => {
+                    const p = partnersList.find((x: any) => x.id === pid);
+                    return p ? <Badge key={pid} variant="secondary" className="gap-1">{p.name}<X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedPartnerIds(prev => prev.filter(id => id !== pid))} /></Badge> : null;
+                  })}
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("contactPerson")}</Label>
