@@ -105,6 +105,7 @@ The `wms-slotting` edge function validates JWT authentication and checks tenant 
 ### Short-term
 
 - **Restrict prompt data further**: Filter bins to only those with available capacity (`max_units > current_stock`) before loading.
+- **Purchasing narrative integration**: The new `purchasing` context type in `ai-analytics-narrative` covers supplier dependency analysis, which can inform WMS slotting decisions (e.g., prioritizing bins for products from at-risk suppliers).
 
 ### Medium-term
 

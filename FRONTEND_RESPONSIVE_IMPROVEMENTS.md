@@ -172,6 +172,12 @@ The system uses Tailwind's standard breakpoints:
 
 ## Known Issues & Future Improvements
 
+### ✅ Recently Fixed:
+1. **HrReports Horizontal Overflow**
+   - **File:** `src/pages/tenant/HrReports.tsx`
+   - **Fix:** Added `min-w-0 overflow-hidden` to prevent horizontal overflow on smaller screens
+   - **Impact:** HR Reports page now properly fits within its container without breaking layout
+
 ### Minor Issues (Non-Critical):
 1. **Nested Scroll Containers**
    - Some pages (e.g., Meetings) have nested `overflow-y-auto` containers

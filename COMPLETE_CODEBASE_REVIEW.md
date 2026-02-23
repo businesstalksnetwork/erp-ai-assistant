@@ -208,10 +208,10 @@
 
 ## 7. SUPABASE EDGE FUNCTIONS
 
-**Total Functions:** 68 functions
+**Total Functions:** 69 functions
 
 **Categories:**
-- **AI:** `ai-assistant` (3 tools, 5 rounds, true SSE streaming, dynamic schema), `ai-analytics-narrative` (tool-calling + caching), `ai-insights` (hybrid rules + AI enrichment), `production-ai-planning` (6 actions, scenario persistence), `wms-slotting` (capacity validation, batch tasks, scenario comparison)
+- **AI:** `ai-assistant` (7 tools, 5 rounds, true SSE streaming, dynamic schema), `ai-analytics-narrative` (tool-calling + caching, 21 context types), `ai-insights` (hybrid rules + AI enrichment), `ai-executive-briefing` (role-based briefing with date range filtering), `production-ai-planning` (6 actions, scenario persistence), `wms-slotting` (capacity validation, batch tasks, scenario comparison)
 - **SEF:** 15+ functions for Serbian e-invoicing
 - **Email:** `send-invoice-email`, `send-verification-email`, `send-notification-emails`, `send-admin-bulk-email`
 - **Storage:** `storage-upload`, `storage-download`, `storage-delete`, `storage-cleanup`, `storage-migrate`
@@ -265,11 +265,15 @@
 13. **WMS AI: Scenario Comparison** — Side-by-side KPI diff for comparing optimization runs.
 14. **New DB Tables** — `ai_conversations`, `ai_conversation_messages`, `ai_narrative_cache`, `production_scenarios`.
 
-### New Features (v3.1 — UX Polish)
+### New Features (v3.1 — UX Polish & AI Expansion)
 
 1. **Persistent Layouts** — Suspense boundary moved from App.tsx into layout components. Sidebar and header no longer unmount during page navigation.
 2. **Smooth Page Transitions** — Framer Motion `AnimatePresence` with fade+slide animations (180ms) around `<Outlet />` in both TenantLayout and SuperAdminLayout.
 3. **Skeleton Loading States** — New `PageSkeleton` component replaces spinner fallback, showing shimmer placeholders that mimic page structure for a "no-loading" feel.
+4. **Brzi AI Izveštaj (Quick AI Report)** — New `AiBriefing.tsx` page at `/ai/briefing` with date range presets (Today, 7d, 30d, 90d, Custom). Edge function `ai-executive-briefing` queries KPIs filtered by date range and generates AI executive summary.
+5. **4 New AI Assistant Tools** — `compare_periods`, `what_if_scenario`, `get_kpi_scorecard`, `explain_account` added to `ai-assistant` edge function (total: 7 tools).
+6. **5 New Analytics Narratives** — `production`, `crm_pipeline`, `hr_overview`, `pos_performance`, `purchasing` context types added to `ai-analytics-narrative`.
+7. **HR Clickable Employee Links** — Employee names on 10+ HR pages now link to `/hr/employees/:id`. EmployeeDetail FK hint fix for proper data loading.
 
 ---
 

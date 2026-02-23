@@ -362,6 +362,8 @@ The system is comprehensively built and appears to be compliant with Serbian Acc
 6. ✅ Proper fiscal period and PDV period management
 7. ✅ Complete SEF integration
 8. ✅ All Serbian-specific operations (Kompenzacija, Kalkulacija, Nivelacija)
+9. ✅ **AI Intelligence Hub** — 7-tool AI assistant, role-based executive briefing with date range filtering (Brzi AI Izveštaj), 21 analytics narrative types, hybrid anomaly detection
+10. ✅ **HR Module Enhancements** — Clickable employee links across 10+ pages, improved EmployeeDetail FK handling
 
 ---
 
