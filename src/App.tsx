@@ -176,6 +176,7 @@ const InventoryHealth = React.lazy(() => import("@/pages/tenant/InventoryHealth"
 const EarlyWarningSystem = React.lazy(() => import("@/pages/tenant/EarlyWarningSystem"));
 const PayrollParameters = React.lazy(() => import("@/pages/tenant/PayrollParameters"));
 const AiAuditLog = React.lazy(() => import("@/pages/tenant/AiAuditLog"));
+const AiBriefing = React.lazy(() => import("@/pages/tenant/AiBriefing"));
 const CompanyCategoriesSettings = React.lazy(() => import("@/pages/tenant/CompanyCategoriesSettings"));
 const OpportunityStagesSettings = React.lazy(() => import("@/pages/tenant/OpportunityStagesSettings"));
 const DiscountApprovalRules = React.lazy(() => import("@/pages/tenant/DiscountApprovalRules"));
@@ -375,6 +376,7 @@ const App = () => (
                 <Route path="inventory/wms/cycle-counts" element={<ProtectedRoute requiredModule="inventory"><WmsCycleCounts /></ProtectedRoute>} />
                 <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule="inventory"><WmsSlotting /></ProtectedRoute>} />
                 <Route path="analytics" element={<ProtectedRoute requiredModule="analytics"><AnalyticsDashboard /></ProtectedRoute>} />
+                <Route path="ai/briefing" element={<AiBriefing />} />
                 <Route path="analytics/ratios" element={<ProtectedRoute requiredModule="analytics"><FinancialRatios /></ProtectedRoute>} />
                 <Route path="analytics/profitability" element={<ProtectedRoute requiredModule="analytics"><ProfitabilityAnalysis /></ProtectedRoute>} />
                 <Route path="analytics/cashflow-forecast" element={<ProtectedRoute requiredModule="analytics"><CashFlowForecast /></ProtectedRoute>} />

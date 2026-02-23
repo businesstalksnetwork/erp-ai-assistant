@@ -61,6 +61,7 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { key: "dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { key: "aiBriefing", url: "/ai/briefing", icon: Brain },
 ];
 
 const inventoryNav: NavItem[] = [

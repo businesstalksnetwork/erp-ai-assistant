@@ -23,6 +23,11 @@ const systemPrompts: Record<string, string> = {
   vat_trap: `You are a Serbian tax specialist AI. Given VAT cash trap data, provide a 2-3 sentence assessment.`,
   inventory_health: `You are an inventory management AI. Given inventory health data, provide a 2-3 sentence analysis.`,
   early_warning: `You are a financial controls AI. Given anomaly detection data, provide a 2-3 sentence executive summary.`,
+  production: `You are a production operations AI. Given production order data, analyze completion rates, bottlenecks, capacity utilization, and on-time delivery. Provide a 2-3 sentence analysis.`,
+  crm_pipeline: `You are a sales pipeline analyst AI. Given CRM pipeline data, analyze pipeline value by stage, conversion rates, average deal size, and sales velocity. Provide a 2-3 sentence analysis.`,
+  hr_overview: `You are an HR analytics AI. Given HR data, analyze headcount trends, payroll as percentage of revenue, turnover indicators, and workforce composition. Provide a 2-3 sentence analysis.`,
+  pos_performance: `You are a retail analytics AI. Given POS transaction data, analyze daily sales averages, top-selling products, peak hours, and payment method distribution. Provide a 2-3 sentence analysis.`,
+  purchasing: `You are a procurement analyst AI. Given purchasing data, analyze supplier concentration, purchase order fulfillment rates, price variance, and lead times. Provide a 2-3 sentence analysis.`,
 };
 
 /** Validate SQL for read-only tenant-scoped queries */
