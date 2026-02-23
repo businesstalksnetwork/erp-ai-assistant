@@ -1,51 +1,37 @@
 
 
-# E2E Review Summary - Current State
+# Super Admin: Enter Any Tenant
 
-The comprehensive cleanup was successful. Here's what remains to fix:
+## Problem
+Currently, `useTenant` only fetches tenants where the logged-in user is an active member of `tenant_members`. A super admin can only see tenants they've been explicitly added to (e.g., "AI IT Development"), but cannot enter other tenants like "Uniprom".
 
----
-
-## Current Status: CLEAN
-
-All 88 dead Pausal Box files have been deleted. No imports reference deleted files. The active CRM/ERP system (App.tsx routes, TenantLayout, SuperAdminLayout, active hooks) is intact and functional.
-
----
-
-## 2 Minor Remaining Issues
-
-### 1. Stray `// @ts-nocheck` in `src/pages/Register.tsx` (line 12)
-The comment is placed after imports, not at the top of the file, so it has no effect. It's just noise left over from a previous fix attempt. Remove the line.
-
-### 2. Stray `// @ts-nocheck` in `src/i18n/translations.ts` (line 18)
-This comment is embedded inside the object literal between properties. It does nothing. Remove the line.
-
----
-
-## What's Already Working
-
-| Area | Status |
-|------|--------|
-| Auth system (`useAuth.tsx`) | Single provider, mounted in App.tsx |
-| All tenant pages (100+) | Routed and functional |
-| Super admin pages (7) | Routed and functional |
-| Public pages (Login, Register, Reset) | Working |
-| TenantLayout navigation | Complete with all module groups |
-| Edge functions (50+) | All using correct import patterns |
-| CSS/Tailwind config | `primary-hover` and `secondary-hover` properly registered |
-| No dead imports | Verified - no references to deleted files |
-| No dead lib files | `auth.tsx`, `company-context.tsx`, `theme-context.tsx`, `storage.ts`, `domain.ts`, `ubl-parser.ts` all removed |
-| Remaining lib files | `exportCsv.ts`, `journalUtils.ts`, `utils.ts` -- all used by active code |
+## Solution
+Modify `useTenant` to detect when the user is a super admin and fetch ALL tenants from the `tenants` table instead of filtering by membership. The super admin gets an implicit "admin" role for any tenant they select.
 
 ---
 
 ## Technical Changes
 
-### File: `src/pages/Register.tsx`
-- Remove line 12 (`// @ts-nocheck`) -- it's a no-op comment left from previous cleanup
+### 1. `src/hooks/useTenant.ts`
+- Import `useAuth` to get `isSuperAdmin`
+- Add a second query: when `isSuperAdmin` is true, fetch all tenants from the `tenants` table (not `tenant_members`)
+- When super admin, map each tenant to `{ tenantId, tenantName, role: "admin" }`
+- When regular user, keep the existing `tenant_members` query
+- Merge logic: use the super admin tenant list when `isSuperAdmin`, otherwise use the membership list
 
-### File: `src/i18n/translations.ts`
-- Remove line 18 (`// @ts-nocheck`) -- it's embedded inside an object and does nothing
+### 2. `src/components/TenantSelector.tsx`
+- No changes needed -- it already renders all tenants from the `useTenant()` hook and calls `switchTenant()`. Once useTenant returns all tenants for super admins, the selector will show them all automatically.
 
-No other changes needed. The app is clean and functional.
+### 3. `src/hooks/usePermissions.ts`
+- Already handles super admins correctly: `isSuperAdmin` bypasses tenant module checks (line 49: `if (isSuperAdmin) return true`), so no changes needed.
+
+---
+
+## How It Works After the Change
+
+1. Super admin logs in and goes to `/dashboard`
+2. The TenantSelector dropdown in the header shows ALL tenants (AI IT Development, Uniprom, and any future ones)
+3. Super admin picks any tenant from the dropdown
+4. All tenant-scoped queries automatically use the selected tenant ID
+5. All modules are accessible (existing `usePermissions` logic already grants full access to super admins)
 
