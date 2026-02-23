@@ -53,6 +53,21 @@ export default function Opportunities() {
     enabled: !!tenantId,
   });
 
+  // Fetch tags for all opportunities
+  const { data: allTags = [] } = useQuery({
+    queryKey: ["opportunity-tags-all", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("opportunity_tags" as any)
+        .select("*")
+        .eq("tenant_id", tenantId!);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const getOppTags = (oppId: string) => allTags.filter((t: any) => t.opportunity_id === oppId);
+
   const { data: contactsList = [] } = useQuery({
     queryKey: ["contacts-list", tenantId],
     queryFn: async () => {
@@ -177,6 +192,15 @@ export default function Opportunities() {
                       </div>
                       {o.expected_close_date && (
                         <p className="text-xs text-muted-foreground mt-1">{o.expected_close_date}</p>
+                      )}
+                      {getOppTags(o.id).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {getOppTags(o.id).map((tag: any) => (
+                            <Badge key={tag.id} className="text-[10px] px-1.5 py-0" style={{ backgroundColor: tag.color, color: "#fff" }}>
+                              {tag.tag}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </CardContent>
                   </Card>
