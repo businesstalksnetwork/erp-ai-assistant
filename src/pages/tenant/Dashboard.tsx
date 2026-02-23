@@ -30,46 +30,22 @@ export default function TenantDashboard() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // Revenue
-  const { data: revenue = 0 } = useQuery({
-    queryKey: ["dashboard-revenue", tenantId],
+  // KPI Summary (revenue, expenses, cash balance) via server-side RPC
+  const { data: kpiData } = useQuery({
+    queryKey: ["dashboard-kpi-summary", tenantId],
     queryFn: async () => {
-      const { data: entries } = await supabase.from("journal_entries").select("id").eq("tenant_id", tenantId!).eq("status", "posted");
-      if (!entries?.length) return 0;
-      const { data: revenueAccounts } = await supabase.from("chart_of_accounts").select("id").eq("tenant_id", tenantId!).eq("account_type", "revenue");
-      if (!revenueAccounts?.length) return 0;
-      const { data: lines } = await supabase.from("journal_lines").select("credit").in("journal_entry_id", entries.map((e) => e.id)).in("account_id", revenueAccounts.map((a) => a.id));
-      return lines?.reduce((sum, l) => sum + Number(l.credit), 0) || 0;
+      const { data } = await supabase.rpc("dashboard_kpi_summary", {
+        _tenant_id: tenantId!,
+      });
+      return (data as any)?.[0] ?? { revenue: 0, expenses: 0, cash_balance: 0 };
     },
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Expenses
-  const { data: expenses = 0 } = useQuery({
-    queryKey: ["dashboard-expenses", tenantId],
-    queryFn: async () => {
-      const { data: entries } = await supabase.from("journal_entries").select("id").eq("tenant_id", tenantId!).eq("status", "posted");
-      if (!entries?.length) return 0;
-      const { data: expenseAccounts } = await supabase.from("chart_of_accounts").select("id").eq("tenant_id", tenantId!).eq("account_type", "expense");
-      if (!expenseAccounts?.length) return 0;
-      const { data: lines } = await supabase.from("journal_lines").select("debit").in("journal_entry_id", entries.map((e) => e.id)).in("account_id", expenseAccounts.map((a) => a.id));
-      return lines?.reduce((sum, l) => sum + Number(l.debit), 0) || 0;
-    },
-    enabled: !!tenantId,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Cash balance
-  const { data: cashBalance = 0 } = useQuery({
-    queryKey: ["dashboard-cash", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("status", "paid");
-      return data?.reduce((sum, inv) => sum + Number(inv.total), 0) || 0;
-    },
-    enabled: !!tenantId,
-    staleTime: 1000 * 60 * 5,
-  });
+  const revenue = Number(kpiData?.revenue ?? 0);
+  const expenses = Number(kpiData?.expenses ?? 0);
+  const cashBalance = Number(kpiData?.cash_balance ?? 0);
 
   // Pending actions
   const { data: draftCount = 0 } = useQuery({
