@@ -68,12 +68,53 @@ Implementing all items from the review **except #7** (Payroll 2026 Defaults — 
 
 ---
 
-## Phase 4: Accounting Feature Gaps (Items 21-24) — PENDING
-## Phase 5: WMS, Production, and AI (Items 25-31) — PENDING
+## Phase 4: Accounting Feature Gaps (Items 21-24) ✅ COMPLETE
+
+### Item 21: Bank Reconciliation Auto-Match ✅ DONE
+- Enhanced with confidence scoring (amount ±40pts, reference ±40pts, partner ±15pts, date ±5pts)
+- Matches ≥70% auto-confirmed, 40-70% marked as "suggested"
+
+### Item 22: Opening Balance Journal Entry ✅ DONE
+- Created `generate_opening_balance()` RPC
+- Carries forward Classes 0-4 balances
+- Nets income/expense (Classes 5-8) into retained earnings (3400)
+
+### Item 23: FX Revaluation Journal Entry ✅ ALREADY DONE
+- FxRevaluation.tsx has full preview+post with 5072/6072 accounts
+
+### Item 24: IOS for Kompenzacija ✅ DONE
+- Added IOS PDF template to generate-pdf edge function
+- Download button on Kompenzacija history table
+
+---
+
+## Phase 5: WMS, Production, and AI (Items 25-31) ✅ COMPLETE
+
+### Item 25: WMS Dashboard Throughput Chart ✅ DONE
+- Added 14-day tasks-completed-per-day line chart
+- Uses CartesianGrid for readability
+
+### Item 26: WMS Product Velocity Stats Table ✅ DONE
+- Created `wms_product_stats` precomputation table
+- Created `refresh_wms_product_stats()` RPC for on-demand refresh
+- Tracks velocity (picks/week), last pick, avg daily movement
+
+### Item 27: MRP Auto-PO for Shortages ✅ DONE
+- Added "Create PO for Shortages" button on MRP Engine
+- Creates draft purchase order with all shortage items as lines
+
+### Items 28-31: Verified Existing ✅ ALREADY DONE
+- Production AI Planning: fully implemented with 5 actions + fallback scheduler
+- WMS Slotting AI: fully implemented with dual-mode (AI + local) + scenario management
+- Production Kanban: drag-drop with forward-only transitions
+- WMS Labor analytics: existing page functional
+
+---
+
 ## Phase 6: Housekeeping (Items 32-33) — PENDING
 
 ---
 
 ## Implementation Order
 
-Phases 1 & 2 complete. Remaining: Phase 3 (Items 17, 19) → Phase 4 → Phase 5 → Phase 6.
+Phases 1-5 complete. Remaining: Phase 6 (Items 32-33).

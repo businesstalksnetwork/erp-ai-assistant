@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard, Package, ClipboardCheck, Truck, ScanBarcode, RefreshCw, Activity } from "lucide-react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--muted-foreground))", "hsl(var(--destructive))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-3))"];
 
@@ -83,9 +83,22 @@ export default function WmsDashboard() {
   tasks.forEach((t: any) => { taskTypeMap[t.task_type] = (taskTypeMap[t.task_type] || 0) + 1; });
   const taskTypeData = Object.entries(taskTypeMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
-  // Zone heatmap
-  const zoneBinCounts: Record<string, { total: number; occupied: number }> = {};
-  // We need zone_id per bin — fetch from bins query would need zone join. Use zones list instead.
+  // Throughput trend (last 14 days)
+  const throughputData = (() => {
+    const dayMap: Record<string, number> = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dayMap[d.toISOString().split("T")[0]] = 0;
+    }
+    tasks.forEach((t: any) => {
+      if (t.status === "completed" && t.completed_at) {
+        const day = t.completed_at.split("T")[0];
+        if (dayMap[day] !== undefined) dayMap[day]++;
+      }
+    });
+    return Object.entries(dayMap).map(([date, count]) => ({ date: date.slice(5), count }));
+  })();
   
   // Recent activity
   const recentTasks = [...tasks]
@@ -145,6 +158,22 @@ export default function WmsDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Throughput Trend */}
+      <Card>
+        <CardHeader><CardTitle>{"Throughput (14 days)"}</CardTitle></CardHeader>
+        <CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={throughputData}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Zone Heatmap */}
       <Card>
