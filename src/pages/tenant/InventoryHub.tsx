@@ -42,6 +42,8 @@ const sections = [
     title: "WMS",
     links: [
       { to: "/inventory/wms/dashboard", icon: LayoutDashboard, label: "WMS kontrolna tabla", desc: "Pregled zona, lokacija i zadataka u skladištu" },
+      { to: "/inventory/wms/labor", icon: ClipboardList, label: "Produktivnost radnika", desc: "Analiza performansi skladišnih radnika" },
+      { to: "/inventory/wms/returns", icon: ArrowRightLeft, label: "Povraćaji robe", desc: "Upravljanje povraćajima i dispozicijom" },
     ],
   },
 ];
