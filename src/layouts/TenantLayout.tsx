@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+// AiAssistantPanel removed - deduplicated into AiContextSidebar
 import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -524,7 +524,13 @@ export default function TenantLayout() {
           </div>
         </div>
         <GlobalSearch />
-        {isMobile && <AiAssistantPanel />}
+        {isMobile && aiSidebarOpen && (
+              <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setAiSidebarOpen(false)}>
+                <div className="absolute right-0 top-0 h-full w-[300px]" onClick={e => e.stopPropagation()}>
+                  <AiContextSidebar open={true} onToggle={() => setAiSidebarOpen(false)} />
+                </div>
+              </div>
+            )}
       </div>
     </SidebarProvider>
   );

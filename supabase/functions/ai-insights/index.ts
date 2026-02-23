@@ -14,6 +14,148 @@ interface Insight {
   data: Record<string, unknown>;
 }
 
+/** Log AI action to audit trail */
+async function logAiAction(supabase: any, tenantId: string, userId: string, actionType: string, module: string, reasoning: string) {
+  try {
+    await supabase.from("ai_action_log").insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      action_type: actionType,
+      module,
+      model_version: "gemini-3-flash-preview",
+      user_decision: "auto",
+      reasoning: reasoning.substring(0, 500),
+    });
+  } catch (e) {
+    console.warn("Failed to log AI action:", e);
+  }
+}
+
+/** AI enrichment: send rule-based insights to Gemini for prioritization and correlation */
+async function enrichInsightsWithAI(insights: Insight[], tenantId: string, userId: string, language: string, supabase: any): Promise<{ summary: string; recommendations: string[]; prioritized: Insight[] }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY || insights.length === 0) {
+    return { summary: "", recommendations: [], prioritized: insights };
+  }
+
+  try {
+    const top10 = insights.slice(0, 10);
+    const sr = language === "sr";
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are a business intelligence analyst for a Serbian ERP system. Analyze the detected anomalies/insights and:
+1. Prioritize by business impact (reorder the list)
+2. Find cross-module correlations (e.g. overdue invoices + low stock = supply chain risk)
+3. Generate 2-3 strategic recommendations connecting multiple signals
+4. Provide a 1-sentence executive summary
+
+Respond in ${sr ? "Serbian (Latin script)" : "English"}.`,
+          },
+          {
+            role: "user",
+            content: `Here are the detected insights:\n${JSON.stringify(top10, null, 2)}`,
+          },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "provide_enriched_insights",
+            description: "Return AI-enriched insights analysis",
+            parameters: {
+              type: "object",
+              properties: {
+                summary: { type: "string", description: "1-sentence executive overview" },
+                recommendations: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "2-3 strategic recommendations",
+                },
+                priority_order: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "insight_type values in priority order (highest impact first)",
+                },
+                correlations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      insight_types: { type: "array", items: { type: "string" } },
+                      correlation: { type: "string" },
+                    },
+                    required: ["insight_types", "correlation"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["summary", "recommendations", "priority_order"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "provide_enriched_insights" } },
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      console.warn("AI enrichment failed:", aiResponse.status);
+      return { summary: "", recommendations: [], prioritized: insights };
+    }
+
+    const aiData = await aiResponse.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) return { summary: "", recommendations: [], prioritized: insights };
+
+    const parsed = JSON.parse(toolCall.function.arguments);
+
+    // Re-order insights by AI priority
+    const priorityMap = new Map<string, number>();
+    (parsed.priority_order || []).forEach((type: string, idx: number) => {
+      priorityMap.set(type, idx);
+    });
+    const prioritized = [...insights].sort((a, b) => {
+      const pa = priorityMap.get(a.insight_type) ?? 999;
+      const pb = priorityMap.get(b.insight_type) ?? 999;
+      return pa - pb;
+    });
+
+    // Add correlation insights
+    if (parsed.correlations) {
+      for (const corr of parsed.correlations) {
+        prioritized.push({
+          insight_type: "ai_correlation",
+          severity: "warning",
+          title: sr ? "AI korelacija" : "AI Correlation",
+          description: corr.correlation,
+          data: { related_types: corr.insight_types },
+        });
+      }
+    }
+
+    // Audit log
+    await logAiAction(supabase, tenantId, userId, "insight_generation", "analytics", `Enriched ${top10.length} insights, generated ${parsed.recommendations?.length || 0} recommendations`);
+
+    return {
+      summary: parsed.summary || "",
+      recommendations: parsed.recommendations || [],
+      prioritized,
+    };
+  } catch (e) {
+    console.warn("AI enrichment error:", e);
+    return { summary: "", recommendations: [], prioritized: insights };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -92,7 +234,7 @@ serve(async (req) => {
       .limit(5);
 
     if (overdueCount && overdueCount > 0) {
-      const totalOverdue = overdueInvoices?.reduce((s, i) => s + Number(i.total), 0) || 0;
+      const totalOverdue = overdueInvoices?.reduce((s: number, i: any) => s + Number(i.total), 0) || 0;
       insights.push({
         insight_type: "overdue_invoices",
         severity: overdueCount > 5 ? "critical" : "warning",
@@ -111,8 +253,8 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id).eq("status", "paid");
 
     if (allInvoices && allInvoices.length > 3) {
-      const avg = allInvoices.reduce((s, i) => s + Number(i.total), 0) / allInvoices.length;
-      const large = allInvoices.filter(i => Number(i.total) > avg * 3);
+      const avg = allInvoices.reduce((s: number, i: any) => s + Number(i.total), 0) / allInvoices.length;
+      const large = allInvoices.filter((i: any) => Number(i.total) > avg * 3);
       if (large.length > 0) {
         insights.push({
           insight_type: "large_invoices",
@@ -133,8 +275,8 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id).gt("min_stock_level", 0);
 
     if (lowStock) {
-      const critical = lowStock.filter(s => Number(s.quantity_on_hand) <= 0);
-      const low = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
+      const critical = lowStock.filter((s: any) => Number(s.quantity_on_hand) <= 0);
+      const low = lowStock.filter((s: any) => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
       if (critical.length > 0) {
         insights.push({
           insight_type: "zero_stock",
@@ -208,16 +350,14 @@ serve(async (req) => {
       }
     }
 
-    // ─── Anomaly Detection: Expense spikes ───
+    // 6. Expense spikes
     if (!module || module === "analytics" || module === "accounting") {
-      // Detect month-over-month expense spikes > 50%
       const { data: expenseLines } = await supabase
         .from("journal_lines")
         .select("debit, account_id, journal_entry_id")
         .eq("tenant_id", tenant_id) as any;
 
       if (expenseLines && expenseLines.length > 0) {
-        // Get journal entries to filter by posted + date
         const jeIds = [...new Set(expenseLines.map((l: any) => l.journal_entry_id))];
         const { data: journalEntries } = await supabase
           .from("journal_entries")
@@ -227,9 +367,7 @@ serve(async (req) => {
           .in("id", jeIds.slice(0, 500));
 
         if (journalEntries) {
-          const jeMap = new Map(journalEntries.map(j => [j.id, j]));
-          
-          // Get expense accounts
+          const jeMap = new Map(journalEntries.map((j: any) => [j.id, j]));
           const { data: expenseAccounts } = await supabase
             .from("chart_of_accounts")
             .select("id")
@@ -237,14 +375,14 @@ serve(async (req) => {
             .eq("account_type", "expense");
 
           if (expenseAccounts) {
-            const expenseAccountIds = new Set(expenseAccounts.map(a => a.id));
+            const expenseAccountIds = new Set(expenseAccounts.map((a: any) => a.id));
             const monthlyExpense: Record<string, number> = {};
 
             for (const line of expenseLines) {
               if (!expenseAccountIds.has(line.account_id)) continue;
               const je = jeMap.get(line.journal_entry_id);
               if (!je) continue;
-              const month = je.entry_date.substring(0, 7);
+              const month = (je as any).entry_date.substring(0, 7);
               monthlyExpense[month] = (monthlyExpense[month] || 0) + Number(line.debit || 0);
             }
 
@@ -259,8 +397,8 @@ serve(async (req) => {
                   severity: "critical",
                   title: sr ? `Skok troškova od ${spike}%` : `Expense Spike: ${spike}% Increase`,
                   description: sr
-                    ? `Troškovi u ${months[months.length - 1]} su porasli za ${spike}% u odnosu na prethodni mesec. Proverite neočekivane rashode.`
-                    : `Expenses in ${months[months.length - 1]} spiked ${spike}% vs prior month. Review for unexpected charges.`,
+                    ? `Troškovi u ${months[months.length - 1]} su porasli za ${spike}% u odnosu na prethodni mesec.`
+                    : `Expenses in ${months[months.length - 1]} spiked ${spike}% vs prior month.`,
                   data: { latest_month: months[months.length - 1], latest_amount: latest, previous_amount: prev },
                 });
               }
@@ -269,7 +407,7 @@ serve(async (req) => {
         }
       }
 
-      // Detect potential duplicate supplier invoices (same supplier + same total within 3 days)
+      // Duplicate supplier invoices
       const { data: recentSupplierInvoices } = await supabase
         .from("supplier_invoices")
         .select("id, supplier_name, total, invoice_date, invoice_number")
@@ -286,11 +424,7 @@ serve(async (req) => {
             if (a.supplier_name === b.supplier_name && Number(a.total) === Number(b.total) && Number(a.total) > 0) {
               const daysDiff = Math.abs(new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime()) / (1000 * 60 * 60 * 24);
               if (daysDiff <= 3) {
-                duplicates.push({
-                  supplier: a.supplier_name,
-                  total: Number(a.total),
-                  dates: [a.invoice_date, b.invoice_date],
-                });
+                duplicates.push({ supplier: a.supplier_name, total: Number(a.total), dates: [a.invoice_date, b.invoice_date] });
               }
             }
           }
@@ -309,44 +443,37 @@ serve(async (req) => {
         }
       }
 
-      // Unusual posting patterns: journal entries posted on weekends
+      // Weekend postings
       const { data: weekendPostings } = await supabase
         .from("journal_entries")
         .select("id, entry_date, description")
-        .eq("tenant_id", tenant_id)
-        .eq("status", "posted")
-        .order("entry_date", { ascending: false })
-        .limit(100);
+        .eq("tenant_id", tenant_id).eq("status", "posted")
+        .order("entry_date", { ascending: false }).limit(100);
 
       if (weekendPostings) {
-        const weekendEntries = weekendPostings.filter(je => {
+        const weekendEntries = weekendPostings.filter((je: any) => {
           const day = new Date(je.entry_date).getDay();
           return day === 0 || day === 6;
         });
-
         if (weekendEntries.length >= 5) {
           insights.push({
             insight_type: "weekend_postings",
             severity: "warning",
             title: sr ? `${weekendEntries.length} knjiženja vikendom` : `${weekendEntries.length} Weekend Postings`,
             description: sr
-              ? `${weekendEntries.length} naloga je knjiženo vikendom. Ovo može ukazivati na neovlašćena knjiženja.`
-              : `${weekendEntries.length} journal entries were posted on weekends. This may indicate unauthorized postings.`,
+              ? `${weekendEntries.length} naloga je knjiženo vikendom.`
+              : `${weekendEntries.length} journal entries were posted on weekends.`,
             data: { count: weekendEntries.length },
           });
         }
       }
     }
 
-    // ─── Dormant accounts alert ───
+    // Dormant accounts
     if (!module || module === "crm") {
       const { data: dormantPartners, count: dormantCount } = await supabase
-        .from("partners")
-        .select("id, name", { count: "exact" })
-        .eq("tenant_id", tenant_id)
-        .eq("dormancy_status", "dormant")
-        .eq("is_active", true)
-        .limit(5);
+        .from("partners").select("id, name", { count: "exact" })
+        .eq("tenant_id", tenant_id).eq("dormancy_status", "dormant").eq("is_active", true).limit(5);
 
       if (dormantCount && dormantCount > 0) {
         insights.push({
@@ -354,19 +481,15 @@ serve(async (req) => {
           severity: "warning",
           title: sr ? `${dormantCount} neaktivnih partnera` : `${dormantCount} Dormant Partner Accounts`,
           description: sr
-            ? `${dormantCount} aktivnih partnera je klasifikovano kao neaktivno. Razmotrite reaktivaciju ili deaktivaciju.`
-            : `${dormantCount} active partners are classified as dormant. Consider re-engagement or deactivation.`,
-          data: { count: dormantCount, samples: dormantPartners?.map(p => p.name) },
+            ? `${dormantCount} aktivnih partnera je klasifikovano kao neaktivno.`
+            : `${dormantCount} active partners are classified as dormant.`,
+          data: { count: dormantCount, samples: dormantPartners?.map((p: any) => p.name) },
         });
       }
 
-      const { data: atRiskPartners, count: atRiskCount } = await supabase
-        .from("partners")
-        .select("id, name", { count: "exact" })
-        .eq("tenant_id", tenant_id)
-        .eq("dormancy_status", "at_risk")
-        .eq("is_active", true)
-        .limit(5);
+      const { data: _atRiskPartners, count: atRiskCount } = await supabase
+        .from("partners").select("id, name", { count: "exact" })
+        .eq("tenant_id", tenant_id).eq("dormancy_status", "at_risk").eq("is_active", true).limit(5);
 
       if (atRiskCount && atRiskCount > 0) {
         insights.push({
@@ -374,26 +497,23 @@ serve(async (req) => {
           severity: "warning",
           title: sr ? `${atRiskCount} partnera u riziku` : `${atRiskCount} At-Risk Partners`,
           description: sr
-            ? `${atRiskCount} partnera je u riziku od gubitka. Preporučujemo hitno kontaktiranje.`
-            : `${atRiskCount} partners are at risk of churning. Recommend immediate outreach.`,
+            ? `${atRiskCount} partnera je u riziku od gubitka.`
+            : `${atRiskCount} partners are at risk of churning.`,
           data: { count: atRiskCount },
         });
       }
     }
 
-    // ─── Inventory-specific insights ───
+    // Inventory slow movers
     if (!module || module === "inventory") {
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       const { data: recentMovements } = await supabase
-        .from("inventory_movements")
-        .select("product_id")
-        .eq("tenant_id", tenant_id)
-        .in("movement_type", ["sale", "transfer_out", "production_consume"])
-        .gte("created_at", ninetyDaysAgo);
+        .from("inventory_movements").select("product_id")
+        .eq("tenant_id", tenant_id).in("movement_type", ["sale", "transfer_out", "production_consume"]).gte("created_at", ninetyDaysAgo);
 
       if (recentMovements && lowStock) {
-        const movedProductIds = new Set(recentMovements.map(m => m.product_id));
-        const slowMovers = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && !movedProductIds.has(s.product_id));
+        const movedProductIds = new Set(recentMovements.map((m: any) => m.product_id));
+        const slowMovers = lowStock.filter((s: any) => Number(s.quantity_on_hand) > 0 && !movedProductIds.has(s.product_id));
         if (slowMovers.length > 0) {
           insights.push({
             insight_type: "slow_moving",
@@ -408,32 +528,29 @@ serve(async (req) => {
       }
 
       if (lowStock) {
-        const belowMin = lowStock.filter(s => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
+        const belowMin = lowStock.filter((s: any) => Number(s.quantity_on_hand) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level));
         if (belowMin.length > 3) {
           insights.push({
             insight_type: "reorder_suggestion",
             severity: "warning",
             title: sr ? `${belowMin.length} artikala treba dopuniti` : `${belowMin.length} Items Need Reordering`,
             description: sr
-              ? `${belowMin.length} artikala je ispod minimalnog nivoa. Preporučujemo kreiranje nabavnih naloga.`
-              : `${belowMin.length} items are below minimum levels. Consider creating purchase orders.`,
+              ? `${belowMin.length} artikala je ispod minimalnog nivoa.`
+              : `${belowMin.length} items are below minimum levels.`,
             data: { count: belowMin.length },
           });
         }
       }
     }
 
-    // ─── HR-specific insights ───
+    // HR insights
     if (!module || module === "hr") {
       const { data: overtimeRecords } = await supabase
-        .from("overtime_hours")
-        .select("employee_id, hours")
-        .eq("tenant_id", tenant_id)
-        .eq("year", currentYear)
-        .eq("month", currentMonth);
+        .from("overtime_hours").select("employee_id, hours")
+        .eq("tenant_id", tenant_id).eq("year", currentYear).eq("month", currentMonth);
 
       if (overtimeRecords) {
-        const excessive = overtimeRecords.filter(o => Number(o.hours) > 40);
+        const excessive = overtimeRecords.filter((o: any) => Number(o.hours) > 40);
         if (excessive.length > 0) {
           insights.push({
             insight_type: "excessive_overtime",
@@ -448,13 +565,11 @@ serve(async (req) => {
       }
 
       const { data: leaveBalances } = await supabase
-        .from("annual_leave_balances")
-        .select("employee_id, entitled_days, carried_over_days, used_days")
-        .eq("tenant_id", tenant_id)
-        .eq("year", currentYear);
+        .from("annual_leave_balances").select("employee_id, entitled_days, carried_over_days, used_days")
+        .eq("tenant_id", tenant_id).eq("year", currentYear);
 
       if (leaveBalances) {
-        const lowLeave = leaveBalances.filter(b => (b.entitled_days + b.carried_over_days - b.used_days) <= 3 && (b.entitled_days + b.carried_over_days - b.used_days) >= 0);
+        const lowLeave = leaveBalances.filter((b: any) => (b.entitled_days + b.carried_over_days - b.used_days) <= 3 && (b.entitled_days + b.carried_over_days - b.used_days) >= 0);
         if (lowLeave.length > 0) {
           insights.push({
             insight_type: "leave_balance_warning",
@@ -469,16 +584,12 @@ serve(async (req) => {
       }
     }
 
-    // ─── CRM-specific insights ───
+    // CRM insights
     if (!module || module === "crm") {
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-
       const { count: staleCount } = await supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenant_id)
-        .eq("status", "new")
-        .lt("created_at", fourteenDaysAgo);
+        .from("leads").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).eq("status", "new").lt("created_at", fourteenDaysAgo);
 
       if (staleCount && staleCount > 0) {
         insights.push({
@@ -486,22 +597,19 @@ serve(async (req) => {
           severity: "warning",
           title: sr ? `${staleCount} neaktivnih lead-ova` : `${staleCount} Stale Leads`,
           description: sr
-            ? `${staleCount} lead-ova je u statusu "novi" više od 14 dana bez akcije.`
-            : `${staleCount} leads have been in "new" status for over 14 days without any action.`,
+            ? `${staleCount} lead-ova je u statusu "novi" više od 14 dana.`
+            : `${staleCount} leads have been in "new" status for over 14 days.`,
           data: { count: staleCount },
         });
       }
 
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: atRiskDeals } = await supabase
-        .from("opportunities")
-        .select("id, name, value")
-        .eq("tenant_id", tenant_id)
-        .eq("stage", "negotiation")
-        .lt("updated_at", sevenDaysAgo);
+        .from("opportunities").select("id, name, value")
+        .eq("tenant_id", tenant_id).eq("stage", "negotiation").lt("updated_at", sevenDaysAgo);
 
       if (atRiskDeals && atRiskDeals.length > 0) {
-        const totalAtRisk = atRiskDeals.reduce((s, d) => s + Number(d.value || 0), 0);
+        const totalAtRisk = atRiskDeals.reduce((s: number, d: any) => s + Number(d.value || 0), 0);
         insights.push({
           insight_type: "high_value_at_risk",
           severity: "critical",
@@ -514,13 +622,11 @@ serve(async (req) => {
       }
     }
 
-    // ─── Analytics-specific insights ───
+    // Budget variance + Revenue trend
     if (!module || module === "analytics") {
       const { data: budgets } = await supabase
-        .from("budgets")
-        .select("account_id, amount, month, fiscal_year")
-        .eq("tenant_id", tenant_id)
-        .eq("fiscal_year", currentYear);
+        .from("budgets").select("account_id, amount, month, fiscal_year")
+        .eq("tenant_id", tenant_id).eq("fiscal_year", currentYear);
 
       if (budgets && budgets.length > 0) {
         const { data: journalLines } = await supabase
@@ -537,8 +643,7 @@ serve(async (req) => {
             const entryMonth = parseInt(entryDate.substring(5, 7));
             const key = `${line.account_id}_${entryMonth}`;
             const amt = Number(line.amount) || 0;
-            const net = line.side === "debit" ? amt : -amt;
-            actualsByAccount[key] = (actualsByAccount[key] || 0) + Math.abs(net);
+            actualsByAccount[key] = (actualsByAccount[key] || 0) + Math.abs(amt);
           }
 
           let overBudgetCount = 0;
@@ -546,9 +651,7 @@ serve(async (req) => {
             if (b.month > currentMonth) continue;
             const key = `${b.account_id}_${b.month}`;
             const actual = actualsByAccount[key] || 0;
-            if (b.amount > 0 && actual > b.amount * 1.2) {
-              overBudgetCount++;
-            }
+            if (b.amount > 0 && actual > b.amount * 1.2) overBudgetCount++;
           }
 
           if (overBudgetCount > 0) {
@@ -565,7 +668,6 @@ serve(async (req) => {
         }
       }
 
-      // Revenue trend
       const { data: revLines } = await supabase
         .from("journal_lines")
         .select("amount, side, accounts:account_id(account_type), journal:journal_entry_id(status, entry_date)")
@@ -590,8 +692,8 @@ serve(async (req) => {
               severity: "warning",
               title: sr ? "Prihodi u padu 3 meseca zaredom" : "Revenue Declining 3 Months Straight",
               description: sr
-                ? "Prihodi opadaju u poslednja 3 meseca. Razmotrite analizu uzroka."
-                : "Revenue has been declining for 3 consecutive months. Consider investigating root causes.",
+                ? "Prihodi opadaju u poslednja 3 meseca."
+                : "Revenue has been declining for 3 consecutive months.",
               data: { months, values: vals },
             });
           }
@@ -599,16 +701,21 @@ serve(async (req) => {
       }
     }
 
+    // ─── AI Enrichment: send rule-based insights to Gemini ───
+    const { summary, recommendations, prioritized } = await enrichInsightsWithAI(
+      insights, tenant_id, caller.id, language, supabase
+    );
+
     // Cache insights
     await supabase.from("ai_insights_cache").delete().eq("tenant_id", tenant_id);
-    if (insights.length > 0) {
+    if (prioritized.length > 0) {
       await supabase.from("ai_insights_cache").insert(
-        insights.map(i => ({ tenant_id, ...i }))
+        prioritized.map((i: any) => ({ tenant_id, ...i }))
       );
     }
 
     // Filter by module before returning
-    const filtered = module ? filterByModule(insights, module) : insights;
+    const filtered = module ? filterByModule(prioritized, module) : prioritized;
 
     if (filtered.length === 0) {
       filtered.push({
@@ -622,7 +729,11 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ insights: filtered }), {
+    return new Response(JSON.stringify({
+      insights: filtered,
+      ai_summary: summary || undefined,
+      ai_recommendations: recommendations.length > 0 ? recommendations : undefined,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
@@ -636,13 +747,13 @@ serve(async (req) => {
 /** Filter insights by module context */
 function filterByModule(insights: any[], module: string): any[] {
   const moduleMap: Record<string, string[]> = {
-    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "all_clear"],
-    inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "all_clear"],
-    hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "all_clear"],
-    crm: ["stale_leads", "high_value_at_risk", "dormant_accounts", "at_risk_accounts", "all_clear"],
-    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "all_clear"],
+    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "ai_correlation", "all_clear"],
+    inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "ai_correlation", "all_clear"],
+    hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "ai_correlation", "all_clear"],
+    crm: ["stale_leads", "high_value_at_risk", "dormant_accounts", "at_risk_accounts", "ai_correlation", "all_clear"],
+    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "ai_correlation", "all_clear"],
   };
   const allowed = moduleMap[module];
   if (!allowed) return insights;
-  return insights.filter(i => allowed.includes(i.insight_type));
+  return insights.filter((i: any) => allowed.includes(i.insight_type));
 }

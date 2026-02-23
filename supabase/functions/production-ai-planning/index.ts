@@ -380,6 +380,21 @@ Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
       parsed.suggestions = validSuggestions;
     }
 
+    // Audit log
+    try {
+      const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await adminClient.from("ai_action_log").insert({
+        tenant_id,
+        user_id: caller.id,
+        action_type: action === "generate-schedule" ? "schedule_generation" : action === "predict-bottlenecks" ? "bottleneck_prediction" : action === "simulate-scenario" ? "capacity_simulation" : "dashboard_analysis",
+        module: "production",
+        model_version: "gemini-3-flash-preview",
+        reasoning: `Production AI: ${action} with ${orders.length} orders`,
+      });
+    } catch (logErr) {
+      console.warn("Failed to log AI action:", logErr);
+    }
+
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e) {

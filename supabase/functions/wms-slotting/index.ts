@@ -312,6 +312,20 @@ Use the tool to return your answer.`;
       }
     }
 
+    // Audit log
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id,
+        user_id: caller.id,
+        action_type: "slotting_optimization",
+        module: "wms",
+        model_version: "gemini-3-flash-preview",
+        reasoning: `WMS slotting: ${result.recommendations?.length || 0} recommendations, ${result.estimated_improvement?.travel_reduction_pct || 0}% travel reduction`,
+      });
+    } catch (logErr) {
+      console.warn("Failed to log AI action:", logErr);
+    }
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
