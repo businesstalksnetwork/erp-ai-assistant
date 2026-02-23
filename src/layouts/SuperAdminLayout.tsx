@@ -18,14 +18,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard,
-  Building2,
-  Puzzle,
-  Users,
-  Activity,
-  Plug,
-  LogOut,
-  BarChart3,
+  LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3,
 } from "lucide-react";
 
 const superAdminNav = [
@@ -51,21 +44,21 @@ export default function SuperAdminLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r border-sidebar-border w-64">
-          <div className="p-4 border-b border-sidebar-border">
+        <Sidebar className="border-r border-sidebar-border w-60">
+          <div className="p-4 border-b border-sidebar-border/60">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/15 flex items-center justify-center">
                 <Sparkles className="h-4 w-4 text-sidebar-primary" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
-                <span className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">{t("superAdmin")}</span>
+                <h2 className="text-sm font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
+                <span className="text-[10px] text-sidebar-foreground/40">{t("superAdmin")}</span>
               </div>
             </div>
           </div>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40">Platform</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-[11px] font-medium tracking-wide text-sidebar-foreground/40">Platform</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {superAdminNav.map((item) => (
@@ -73,10 +66,10 @@ export default function SuperAdminLayout() {
                       <SidebarMenuButton asChild>
                         <NavLink
                           to={item.url}
-                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm hover:bg-sidebar-accent transition-colors border-l-2 border-transparent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium border-l-primary"
+                          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                          activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                         >
-                          <item.icon className="h-4 w-4 opacity-70" />
+                          <item.icon className="h-4 w-4 opacity-50" />
                           <span>{t(item.key)}</span>
                         </NavLink>
                       </SidebarMenuButton>
@@ -86,8 +79,8 @@ export default function SuperAdminLayout() {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
-          <div className="mt-auto p-4 border-t border-sidebar-border">
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent">
+          <div className="mt-auto p-3 border-t border-sidebar-border/60">
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent">
               <LogOut className="h-4 w-4" />
               {t("logout")}
             </Button>
@@ -95,7 +88,7 @@ export default function SuperAdminLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col min-h-screen">
-          <header className="h-11 border-b border-border/50 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg sticky top-0 z-10 shadow-sm">
+          <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-background sticky top-0 z-10">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
@@ -104,7 +97,7 @@ export default function SuperAdminLayout() {
               <LanguageToggle />
             </div>
           </header>
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
             <div className="max-w-screen-2xl mx-auto">
               <Outlet />
             </div>

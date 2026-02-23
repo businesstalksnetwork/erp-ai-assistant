@@ -46,7 +46,6 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles,
-  ChevronRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -218,7 +217,6 @@ function CollapsibleNavGroup({
   items,
   currentPath,
   t,
-  accentColor,
   icon: Icon,
 }: {
   label: string;
@@ -233,48 +231,46 @@ function CollapsibleNavGroup({
   return (
     <SidebarGroup className="py-0">
       <Collapsible defaultOpen={isActive}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-medium text-sidebar-foreground/50 tracking-wide hover:text-sidebar-foreground/80 transition-colors group">
           <span className="flex items-center gap-2">
-            {Icon && <Icon className={`h-3.5 w-3.5 ${accentColor ? accentColor.replace('bg-', 'text-') : ''}`} />}
-            {!Icon && accentColor && <span className={`h-1.5 w-1.5 rounded-full ${accentColor}`} />}
+            {Icon && <Icon className="h-3.5 w-3.5 opacity-60" />}
             {label}
           </span>
-          <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+          <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180 opacity-40" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-                    {items.map((item) => {
-                      const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
-                      return (
-                        <React.Fragment key={item.key}>
-                          {item.section && (
-                            <li className="px-3 pt-3 pb-1">
-                              <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-                                {t(item.section as any)}
-                              </span>
-                            </li>
-                          )}
-                          <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                              <NavLink
-                                to={item.url}
-                                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 border-transparent group ${
-                                  itemActive
-                                    ? "bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
-                                    : "hover:bg-sidebar-accent/60 hover:text-sidebar-foreground text-sidebar-foreground/80"
-                                }`}
-                                activeClassName="bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
-                              >
-                                <item.icon className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${itemActive ? "text-primary scale-110" : "opacity-70 group-hover:opacity-100"}`} />
-                                <span className="truncate">{t(item.key as any)}</span>
-                                {itemActive && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-60 animate-in slide-in-right" />}
-                              </NavLink>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        </React.Fragment>
-                      );
-                    })}
+              {items.map((item) => {
+                const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                return (
+                  <React.Fragment key={item.key}>
+                    {item.section && (
+                      <li className="px-3 pt-2.5 pb-0.5">
+                        <span className="text-[10px] font-medium text-sidebar-foreground/30 tracking-wide">
+                          {t(item.section as any)}
+                        </span>
+                      </li>
+                    )}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.url}
+                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+                            itemActive
+                              ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          }`}
+                          activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                        >
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-sidebar-primary" : "opacity-50"}`} />
+                          <span className="truncate">{t(item.key as any)}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </React.Fragment>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
@@ -311,38 +307,27 @@ export default function TenantLayout() {
   })();
 
   const userName = user?.user_metadata?.full_name || user?.email || "";
-  const userRole = user?.user_metadata?.role || "user";
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r-2 border-sidebar-border/60 w-64 bg-sidebar-background">
-          {/* Logo + Search trigger */}
-          <div className="p-5 border-b-2 border-sidebar-border/40 space-y-4 bg-sidebar-background/95 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-lg border-2 border-primary/30 flex-shrink-0">
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
+        <Sidebar className="border-r border-sidebar-border w-60 bg-sidebar-background">
+          {/* Logo */}
+          <div className="p-4 border-b border-sidebar-border/60">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-sidebar-primary/15 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-4 w-4 text-sidebar-primary" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight leading-tight">ERP-AI</h2>
-                <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider leading-tight mt-0.5">Sistem za upravljanje</p>
+                <h2 className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">ERP-AI</h2>
+                <p className="text-[10px] text-sidebar-foreground/40 leading-tight">Sistem za upravljanje</p>
               </div>
             </div>
-            <button
-              onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex w-full items-center gap-2.5 rounded-xl border-2 border-sidebar-border/50 bg-sidebar-accent/40 px-3.5 py-2.5 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:border-sidebar-foreground/30 hover:text-sidebar-foreground transition-all duration-200 group"
-            >
-              <Search className="h-4 w-4 transition-transform group-hover:scale-110" />
-              <span className="flex-1 text-left font-medium">{t("search")}</span>
-              <kbd className="hidden sm:inline-flex h-6 items-center gap-1 rounded-lg border border-sidebar-border/60 bg-sidebar-background/80 px-2 text-[10px] font-semibold text-sidebar-foreground/50 group-hover:border-sidebar-foreground/30 group-hover:text-sidebar-foreground/70 transition-colors">
-                <Command className="h-3 w-3" />K
-              </kbd>
-            </button>
           </div>
 
-          <SidebarContent className="flex-1 overflow-y-auto custom-scrollbar py-1">
+          <SidebarContent className="flex-1 overflow-y-auto custom-scrollbar py-1.5">
             {/* Dashboard */}
-            <SidebarGroup className="py-1">
+            <SidebarGroup className="py-0.5">
               <SidebarGroupContent>
                 <SidebarMenu>
                   {mainNav.map((item) => {
@@ -353,14 +338,14 @@ export default function TenantLayout() {
                           <NavLink
                             to={item.url}
                             end
-                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all border-l-2 border-transparent ${
+                            className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                               itemActive
-                                ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                                : "hover:bg-sidebar-accent"
+                                ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                             }`}
-                            activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                            activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                           >
-                            <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : ""}`} />
+                            <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-sidebar-primary" : "opacity-50"}`} />
                             <span>{t(item.key as any)}</span>
                           </NavLink>
                         </SidebarMenuButton>
@@ -371,43 +356,41 @@ export default function TenantLayout() {
               </SidebarGroupContent>
             </SidebarGroup>
 
-            
-
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} accentColor="bg-blue-500" icon={Users} />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} icon={Users} />
             )}
             {canAccess("sales") && (
-              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} accentColor="bg-amber-500" icon={ShoppingCart} />
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} icon={ShoppingCart} />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} accentColor="bg-teal-500" icon={Monitor} />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} />
             )}
             {canAccess("web") && (
-              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} accentColor="bg-indigo-500" icon={Globe} />
+              <CollapsibleNavGroup label={t("webSales")} items={webNav} currentPath={currentPath} t={t} icon={Globe} />
             )}
             {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} accentColor="bg-yellow-500" icon={Package} />
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} accentColor="bg-violet-500" icon={Truck} />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} icon={Truck} />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} accentColor="bg-cyan-500" icon={Factory} />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} />
             )}
             {canAccess("returns") && (
-              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} accentColor="bg-rose-400" icon={RotateCcw} />
+              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} icon={RotateCcw} />
             )}
             {canAccess("analytics") && (
-              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} accentColor="bg-orange-500" icon={BarChart3} />
+              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} />
             )}
             {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} accentColor="bg-emerald-500" icon={Calculator} />
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} />
             )}
             {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} accentColor="bg-purple-500" icon={UserCheck} />
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} accentColor="bg-pink-500" icon={FolderOpen} />
+              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} />
             )}
           </SidebarContent>
 
@@ -434,8 +417,8 @@ export default function TenantLayout() {
                           return (
                             <React.Fragment key={item.key}>
                               {item.section && (
-                                <li className="px-3 pt-3 pb-1">
-                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                                <li className="px-3 pt-2.5 pb-0.5">
+                                  <span className="text-[10px] font-medium text-sidebar-foreground/30 tracking-wide">
                                     {t(item.section as any)}
                                   </span>
                                 </li>
@@ -444,16 +427,15 @@ export default function TenantLayout() {
                                 <SidebarMenuButton asChild>
                                   <NavLink
                                     to={item.url}
-                                    className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-all border-l-2 border-transparent ${
+                                    className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                                       itemActive
-                                        ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                                        : "hover:bg-sidebar-accent"
+                                        ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                                     }`}
-                                    activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
+                                    activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                                   >
-                                    <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : "opacity-60"}`} />
+                                    <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-sidebar-primary" : "opacity-50"}`} />
                                     <span className="truncate">{t(item.key as any)}</span>
-                                    {itemActive && <ChevronRight className="h-3 w-3 ml-auto opacity-50" />}
                                   </NavLink>
                                 </SidebarMenuButton>
                               </SidebarMenuItem>
@@ -463,12 +445,12 @@ export default function TenantLayout() {
                       </SidebarMenu>
                     </SidebarGroupContent>
                   </CollapsibleContent>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-widest hover:text-sidebar-foreground transition-colors group">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-medium text-sidebar-foreground/50 tracking-wide hover:text-sidebar-foreground/80 transition-colors group">
                     <span className="flex items-center gap-2">
-                      <Settings className="h-3.5 w-3.5 text-slate-400" />
+                      <Settings className="h-3.5 w-3.5 opacity-50" />
                       {t("settings")}
                     </span>
-                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180 opacity-40" />
                   </CollapsibleTrigger>
                 </Collapsible>
               </SidebarGroup>
@@ -477,8 +459,8 @@ export default function TenantLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
-          <header className="h-14 border-b-2 border-border/60 flex items-center justify-between px-5 lg:px-8 bg-background/98 backdrop-blur-xl sticky top-0 z-10 shadow-sm">
-            <div className="flex items-center gap-3">
+          <header className="h-12 border-b border-border flex items-center justify-between px-4 lg:px-6 bg-background sticky top-0 z-10">
+            <div className="flex items-center gap-2.5">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-4" />
               <Breadcrumbs />
@@ -487,8 +469,7 @@ export default function TenantLayout() {
               {isMobile && (
                 <Button
                   variant={aiSidebarOpen ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
+                  size="icon-sm"
                   onClick={() => setAiSidebarOpen(prev => !prev)}
                   title="AI Copilot"
                 >
@@ -500,14 +481,14 @@ export default function TenantLayout() {
               <Separator orientation="vertical" className="h-4" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted transition-colors">
-                    <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                  <button className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-muted transition-colors">
+                    <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium flex-shrink-0">
                       {userInitials}
                     </div>
                     <span className="hidden sm:block text-sm font-medium truncate max-w-[120px]">{userName}</span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="bottom" align="end" className="w-56">
+                <DropdownMenuContent side="bottom" align="end" className="w-52">
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     {t("myAccount")}
@@ -532,8 +513,8 @@ export default function TenantLayout() {
             </div>
           </header>
           <div className="flex-1 flex overflow-hidden">
-            <main className="flex-1 p-5 lg:p-7 xl:p-9 overflow-auto animate-in fade-in duration-300 bg-gradient-to-br from-background via-background to-muted/20">
-              <div className="max-w-screen-2xl mx-auto space-y-8">
+            <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
+              <div className="max-w-screen-2xl mx-auto">
                 <Outlet />
               </div>
             </main>

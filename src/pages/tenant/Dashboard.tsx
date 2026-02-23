@@ -143,10 +143,10 @@ export default function TenantDashboard() {
   const fmt = isMobile ? fmtNumCompact : fmtNum;
 
   const kpis = [
-    { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-accent" },
-    { label: t("expenses"), value: `${fmt(expenses)} RSD`, icon: TrendingDown, borderColor: "border-destructive" },
-    { label: t("profit"), value: `${fmt(profit)} RSD`, icon: DollarSign, borderColor: "border-primary" },
-    { label: t("cashBalance"), value: `${fmt(cashBalance)} RSD`, icon: Wallet, borderColor: "border-primary" },
+    { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-t-accent" },
+    { label: t("expenses"), value: `${fmt(expenses)} RSD`, icon: TrendingDown, borderColor: "border-t-destructive" },
+    { label: t("profit"), value: `${fmt(profit)} RSD`, icon: DollarSign, borderColor: "border-t-primary" },
+    { label: t("cashBalance"), value: `${fmt(cashBalance)} RSD`, icon: Wallet, borderColor: "border-t-primary" },
   ];
 
   const exportAction = () => {
@@ -158,7 +158,7 @@ export default function TenantDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Welcome header */}
       <div className="flex items-center justify-between">
         <WelcomeHeader />
@@ -172,17 +172,17 @@ export default function TenantDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className={`border-t-[3px] ${kpi.borderColor} hover:shadow-lg transition-all hover:-translate-y-0.5`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{kpi.label}</CardTitle>
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center border border-primary/10">
-                <kpi.icon className="h-4 w-4 text-primary" />
+          <Card key={kpi.label} className={`border-t-2 ${kpi.borderColor}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</CardTitle>
+              <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
+                <kpi.icon className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-2xl lg:text-3xl font-bold tabular-nums text-foreground">{kpi.value}</div>
+              <div className="text-xl lg:text-2xl font-bold tabular-nums text-foreground">{kpi.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -196,7 +196,7 @@ export default function TenantDashboard() {
 
       {/* Charts Row 1 */}
       {tenantId && (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
           <RevenueExpensesChart tenantId={tenantId} />
           <InvoiceStatusChart tenantId={tenantId} />
         </div>
@@ -204,7 +204,7 @@ export default function TenantDashboard() {
 
       {/* Charts Row 2 */}
       {tenantId && (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
           <CashFlowChart tenantId={tenantId} />
           <TopCustomersChart tenantId={tenantId} />
         </div>
@@ -212,7 +212,7 @@ export default function TenantDashboard() {
 
       {/* Cashflow Forecast + Compliance Deadlines */}
       {tenantId && (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
           <CashflowForecastWidget tenantId={tenantId} />
           <ComplianceDeadlineWidget tenantId={tenantId} />
         </div>
@@ -222,19 +222,19 @@ export default function TenantDashboard() {
       {tenantId && <ModuleHealthSummary tenantId={tenantId} />}
 
       {/* Pending Actions + Quick Actions */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="border-border/60">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
               <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
               {t("pendingActions")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2.5">
             {draftCount > 0 && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <AlertCircle className="h-4 w-4 text-accent" />
+                  <AlertCircle className="h-4 w-4 text-warning" />
                   <span>{draftCount} {t("draftJournalEntries")}</span>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/journal")}>{t("view")}</Button>
@@ -252,7 +252,7 @@ export default function TenantDashboard() {
             {lowStockCount > 0 && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <Package className="h-4 w-4 text-accent" />
+                  <Package className="h-4 w-4 text-warning" />
                   <span>{lowStockCount} {t("lowStockAlert")}</span>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => navigate("/inventory/stock")}>{t("view")}</Button>
@@ -261,7 +261,7 @@ export default function TenantDashboard() {
             {pendingApprovalCount > 0 && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <ShieldCheck className="h-4 w-4 text-accent" />
+                  <ShieldCheck className="h-4 w-4 text-primary" />
                   <span>{pendingApprovalCount} {t("pendingApprovals")}</span>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => navigate("/settings/pending-approvals")}>{t("view")}</Button>
@@ -270,7 +270,7 @@ export default function TenantDashboard() {
             {upcomingLoanPayments > 0 && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <CreditCard className="h-4 w-4 text-accent" />
+                  <CreditCard className="h-4 w-4 text-primary" />
                   <span>{upcomingLoanPayments} {t("upcomingPayments")}</span>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => navigate("/accounting/loans")}>{t("view")}</Button>
@@ -281,28 +281,28 @@ export default function TenantDashboard() {
             )}
           </CardContent>
         </Card>
-        <Card className="border-border/60">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-muted-foreground" />
               {t("quickActions")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`flex gap-3 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
+            <div className={`flex gap-2 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
               {canAccess("accounting") && (
                 <>
                   <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/accounting/invoices/new")}>
-                    <FileText className="h-4 w-4 mr-2" /> {t("newInvoice")}
+                    <FileText className="h-4 w-4 mr-1.5" /> {t("newInvoice")}
                   </Button>
                   <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/accounting/journal")}>
-                    <Calculator className="h-4 w-4 mr-2" /> {t("newJournalEntry")}
+                    <Calculator className="h-4 w-4 mr-1.5" /> {t("newJournalEntry")}
                   </Button>
                 </>
               )}
               {canAccess("crm") && (
                 <Button variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate("/crm/leads")}>
-                  <TrendingUp className="h-4 w-4 mr-2" /> {t("addLead")}
+                  <TrendingUp className="h-4 w-4 mr-1.5" /> {t("addLead")}
                 </Button>
               )}
             </div>
