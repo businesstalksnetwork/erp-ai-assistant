@@ -3277,6 +3277,7 @@ export type Database = {
           id: string
           is_active: boolean
           net_salary: number
+          position_template_id: string | null
           start_date: string
           tenant_id: string
           updated_at: string
@@ -3292,6 +3293,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           net_salary?: number
+          position_template_id?: string | null
           start_date?: string
           tenant_id: string
           updated_at?: string
@@ -3307,6 +3309,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           net_salary?: number
+          position_template_id?: string | null
           start_date?: string
           tenant_id?: string
           updated_at?: string
@@ -3318,6 +3321,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_contracts_position_template_id_fkey"
+            columns: ["position_template_id"]
+            isOneToOne: false
+            referencedRelation: "position_templates"
             referencedColumns: ["id"]
           },
           {

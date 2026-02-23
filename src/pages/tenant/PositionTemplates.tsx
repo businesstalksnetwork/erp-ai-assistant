@@ -24,7 +24,7 @@ export default function PositionTemplates() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["position-templates", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("position_templates").select("*").eq("tenant_id", tenantId!).order("code");
+      const { data } = await supabase.from("position_templates").select("*, employees(count)").eq("tenant_id", tenantId!).order("code");
       return data || [];
     },
     enabled: !!tenantId,
@@ -58,17 +58,19 @@ export default function PositionTemplates() {
             <TableHead>{t("code")}</TableHead>
             <TableHead>{t("name")}</TableHead>
             <TableHead>{t("description")}</TableHead>
+            <TableHead className="text-right">{t("employees")}</TableHead>
             <TableHead>{t("status")}</TableHead>
             <TableHead>{t("actions")}</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-            : templates.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+            {isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+            : templates.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : templates.map((tp: any) => (
               <TableRow key={tp.id}>
                 <TableCell className="font-mono">{tp.code}</TableCell>
                 <TableCell>{tp.name}</TableCell>
                 <TableCell>{tp.description || "—"}</TableCell>
+                <TableCell className="text-right">{(tp as any).employees?.[0]?.count ?? 0}</TableCell>
                 <TableCell><Badge variant={tp.is_active ? "default" : "secondary"}>{tp.is_active ? t("active") : t("inactive")}</Badge></TableCell>
                 <TableCell><Button size="sm" variant="ghost" onClick={() => { setEditId(tp.id); setForm({ name: tp.name, code: tp.code, description: tp.description || "", is_active: tp.is_active }); setOpen(true); }}>{t("edit")}</Button></TableCell>
               </TableRow>

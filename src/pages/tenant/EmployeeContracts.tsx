@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { FileSignature, Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface ContractForm {
   employee_id: string;
@@ -25,6 +26,7 @@ interface ContractForm {
   working_hours_per_week: number;
   currency: string;
   is_active: boolean;
+  position_template_id: string;
 }
 
 const emptyForm: ContractForm = {
@@ -37,12 +39,14 @@ const emptyForm: ContractForm = {
   working_hours_per_week: 40,
   currency: "RSD",
   is_active: true,
+  position_template_id: "",
 };
 
 export default function EmployeeContracts() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ContractForm>(emptyForm);
@@ -52,7 +56,7 @@ export default function EmployeeContracts() {
     queryFn: async () => {
       const { data } = await supabase
         .from("employee_contracts")
-        .select("*, employees(full_name)")
+        .select("*, employees(full_name, position, department_id, departments(name)), position_templates(name)")
         .eq("tenant_id", tenantId!)
         .order("start_date", { ascending: false });
       return data || [];
@@ -63,12 +67,16 @@ export default function EmployeeContracts() {
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, full_name")
-        .eq("tenant_id", tenantId!)
-        .eq("status", "active")
-        .order("full_name");
+      const { data } = await supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("status", "active").order("full_name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: positionTemplates = [] } = useQuery({
+    queryKey: ["position-templates-list", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("position_templates").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -80,6 +88,7 @@ export default function EmployeeContracts() {
         ...f,
         tenant_id: tenantId!,
         end_date: f.end_date || null,
+        position_template_id: f.position_template_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("employee_contracts").update(payload).eq("id", editId);
@@ -110,6 +119,7 @@ export default function EmployeeContracts() {
       working_hours_per_week: c.working_hours_per_week,
       currency: c.currency,
       is_active: c.is_active,
+      position_template_id: c.position_template_id || "",
     });
     setOpen(true);
   };
@@ -133,30 +143,32 @@ export default function EmployeeContracts() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("employee")}</TableHead>
+                <TableHead>{t("department")}</TableHead>
+                <TableHead>{t("position")}</TableHead>
                 <TableHead>{t("contractTypeLabel")}</TableHead>
                 <TableHead>{t("startDate")}</TableHead>
                 <TableHead>{t("endDate")}</TableHead>
                 <TableHead className="text-right">{t("grossSalary")}</TableHead>
-                <TableHead className="text-right">{t("netSalary")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
               ) : contracts.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
               ) : contracts.map((c: any) => (
-                <TableRow key={c.id}>
+                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/hr/employees/${c.employee_id}`)}>
                   <TableCell className="font-medium">{c.employees?.full_name || "—"}</TableCell>
+                  <TableCell>{c.employees?.departments?.name || "—"}</TableCell>
+                  <TableCell>{c.position_templates?.name || c.employees?.position || "—"}</TableCell>
                   <TableCell>{contractTypeLabel(c.contract_type)}</TableCell>
                   <TableCell>{c.start_date}</TableCell>
                   <TableCell>{c.end_date || "—"}</TableCell>
                   <TableCell className="text-right">{fmt(c.gross_salary, c.currency)}</TableCell>
-                  <TableCell className="text-right">{fmt(c.net_salary, c.currency)}</TableCell>
                   <TableCell><Badge variant={c.is_active ? "default" : "secondary"}>{c.is_active ? t("active") : t("inactive")}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => openEdit(c)}>{t("edit")}</Button></TableCell>
+                  <TableCell><Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>{t("edit")}</Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -191,17 +203,18 @@ export default function EmployeeContracts() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>{t("workingHours")}</Label>
-                <Input type="number" value={form.working_hours_per_week} onChange={(e) => setForm({ ...form, working_hours_per_week: Number(e.target.value) })} />
+                <Label>{t("position")}</Label>
+                <Select value={form.position_template_id || "__none"} onValueChange={(v) => setForm({ ...form, position_template_id: v === "__none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {positionTemplates.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="grid gap-2"><Label>{t("grossSalary")} *</Label><Input type="number" value={form.gross_salary} onChange={(e) => setForm({ ...form, gross_salary: Number(e.target.value) })} /></div>
-              <div className="grid gap-2"><Label>{t("netSalary")}</Label><Input type="number" value={form.net_salary} onChange={(e) => setForm({ ...form, net_salary: Number(e.target.value) })} /></div>
+              <div className="grid gap-2"><Label>{t("workingHours")}</Label><Input type="number" value={form.working_hours_per_week} onChange={(e) => setForm({ ...form, working_hours_per_week: Number(e.target.value) })} /></div>
               <div className="grid gap-2">
                 <Label>{t("currency")}</Label>
                 <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
@@ -213,6 +226,14 @@ export default function EmployeeContracts() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("startDate")} *</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("endDate")}</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>{t("grossSalary")} *</Label><Input type="number" value={form.gross_salary} onChange={(e) => setForm({ ...form, gross_salary: Number(e.target.value) })} /></div>
+              <div className="grid gap-2"><Label>{t("netSalary")}</Label><Input type="number" value={form.net_salary} onChange={(e) => setForm({ ...form, net_salary: Number(e.target.value) })} /></div>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />

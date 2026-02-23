@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +13,8 @@ import { ExportButton } from "@/components/ExportButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
-import { useState } from "react";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { useState, useMemo } from "react";
+import { endOfMonth, format } from "date-fns";
 
 const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave", "paid_leave", "unpaid_leave", "maternity_leave", "holiday_work", "slava"] as const;
 
@@ -32,7 +31,7 @@ export default function HrReports() {
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-report", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, full_name, daily_work_hours").eq("tenant_id", tenantId!).order("full_name");
+      const { data } = await supabase.from("employees").select("id, full_name, daily_work_hours, position, department_id, departments(name), position_template_id, position_templates(name)").eq("tenant_id", tenantId!).order("full_name");
       return data || [];
     },
     enabled: !!tenantId,
@@ -74,7 +73,6 @@ export default function HrReports() {
     enabled: !!tenantId,
   });
 
-  // Build monthly report data
   const monthlyReport = employees.map((emp: any) => {
     const empLogs = workLogs.filter((l: any) => l.employee_id === emp.id);
     const byType: Record<string, number> = {};
@@ -89,11 +87,45 @@ export default function HrReports() {
     const regularHours = Object.values(byType).reduce((a, b) => a + b, 0);
     const totalHours = regularHours - nightHrs + overtimeHrs;
 
-    return { id: emp.id, name: emp.full_name, ...byType, overtime: overtimeHrs, night: nightHrs, regular: regularHours, total: totalHours };
+    return {
+      id: emp.id, name: emp.full_name,
+      department: (emp as any).departments?.name || "—",
+      position: (emp as any).position_templates?.name || emp.position || "—",
+      ...byType, overtime: overtimeHrs, night: nightHrs, regular: regularHours, total: totalHours,
+    };
   });
+
+  // Department breakdown
+  const deptBreakdown = useMemo(() => {
+    const map = new Map<string, { name: string; headcount: number; totalHours: number; overtime: number }>();
+    monthlyReport.forEach(r => {
+      const dept = r.department;
+      const existing = map.get(dept) || { name: dept, headcount: 0, totalHours: 0, overtime: 0 };
+      existing.headcount += 1;
+      existing.totalHours += r.total;
+      existing.overtime += r.overtime;
+      map.set(dept, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.headcount - a.headcount);
+  }, [monthlyReport]);
+
+  // Position breakdown
+  const posBreakdown = useMemo(() => {
+    const map = new Map<string, { name: string; headcount: number; totalHours: number }>();
+    monthlyReport.forEach(r => {
+      const pos = r.position;
+      const existing = map.get(pos) || { name: pos, headcount: 0, totalHours: 0 };
+      existing.headcount += 1;
+      existing.totalHours += r.total;
+      map.set(pos, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.headcount - a.headcount);
+  }, [monthlyReport]);
 
   const exportColumns = [
     { key: "name", label: t("employee") },
+    { key: "department", label: t("department") },
+    { key: "position", label: t("position") },
     ...WORK_LOG_TYPES.map(tp => ({ key: tp, label: t(tp as any) || tp })),
     { key: "overtime", label: t("overtimeHours") },
     { key: "night", label: t("nightWork") },
@@ -153,9 +185,11 @@ export default function HrReports() {
       )}
 
       <Tabs defaultValue="monthly">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="monthly">{t("monthlyReport")}</TabsTrigger>
           <TabsTrigger value="leave">{t("annualLeaveReport")}</TabsTrigger>
+          <TabsTrigger value="byDepartment">{t("department")}</TabsTrigger>
+          <TabsTrigger value="byPosition">{t("position")}</TabsTrigger>
           <TabsTrigger value="analytics">{t("hrAnalytics")}</TabsTrigger>
         </TabsList>
 
@@ -165,6 +199,8 @@ export default function HrReports() {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="sticky left-0 bg-card">{t("employee")}</TableHead>
+                  <TableHead>{t("department")}</TableHead>
+                  <TableHead>{t("position")}</TableHead>
                   {WORK_LOG_TYPES.map(tp => <TableHead key={tp} className="text-right text-xs">{t(tp as any) || tp}</TableHead>)}
                   <TableHead className="text-right">{t("overtimeHours")}</TableHead>
                   <TableHead className="text-right">{t("nightWork")}</TableHead>
@@ -174,6 +210,8 @@ export default function HrReports() {
                   {monthlyReport.map(r => (
                     <TableRow key={r.id}>
                       <TableCell className="sticky left-0 bg-card font-medium">{r.name}</TableCell>
+                      <TableCell>{r.department}</TableCell>
+                      <TableCell>{r.position}</TableCell>
                       {WORK_LOG_TYPES.map(tp => <TableCell key={tp} className="text-right">{(r as any)[tp] || "—"}</TableCell>)}
                       <TableCell className="text-right">{r.overtime || "—"}</TableCell>
                       <TableCell className="text-right">{r.night || "—"}</TableCell>
@@ -205,6 +243,52 @@ export default function HrReports() {
                     <TableCell className="text-right">{b.carried_over_days}</TableCell>
                     <TableCell className="text-right">{b.used_days}</TableCell>
                     <TableCell className="text-right font-semibold">{b.entitled_days + b.carried_over_days - b.used_days}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="byDepartment">
+          <Card><CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t("department")}</TableHead>
+                <TableHead className="text-right">{t("employees")}</TableHead>
+                <TableHead className="text-right">{t("totalHours")}</TableHead>
+                <TableHead className="text-right">{t("overtimeHours")}</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {deptBreakdown.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+                : deptBreakdown.map(d => (
+                  <TableRow key={d.name}>
+                    <TableCell className="font-medium">{d.name}</TableCell>
+                    <TableCell className="text-right">{d.headcount}</TableCell>
+                    <TableCell className="text-right">{d.totalHours}</TableCell>
+                    <TableCell className="text-right">{d.overtime}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="byPosition">
+          <Card><CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t("position")}</TableHead>
+                <TableHead className="text-right">{t("employees")}</TableHead>
+                <TableHead className="text-right">{t("totalHours")}</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {posBreakdown.length === 0 ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+                : posBreakdown.map(p => (
+                  <TableRow key={p.name}>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="text-right">{p.headcount}</TableCell>
+                    <TableCell className="text-right">{p.totalHours}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

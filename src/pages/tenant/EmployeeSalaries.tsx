@@ -12,11 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function EmployeeSalaries() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: "", amount: 0, salary_type: "monthly", amount_type: "gross", meal_allowance: 0, regres: 0, start_date: new Date().toISOString().split("T")[0] });
 
@@ -32,7 +34,7 @@ export default function EmployeeSalaries() {
   const { data: salaries = [], isLoading } = useQuery({
     queryKey: ["employee-salaries", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("employee_salaries").select("*, employees(full_name)").eq("tenant_id", tenantId!).order("start_date", { ascending: false });
+      const { data } = await supabase.from("employee_salaries").select("*, employees(full_name, position, department_id, departments(name))").eq("tenant_id", tenantId!).order("start_date", { ascending: false });
       return data || [];
     },
     enabled: !!tenantId,
@@ -40,7 +42,6 @@ export default function EmployeeSalaries() {
 
   const mutation = useMutation({
     mutationFn: async (f: typeof form) => {
-      // Auto-carry meal_allowance and regres from latest record
       if (!f.meal_allowance && !f.regres) {
         const { data: prev } = await supabase.from("employee_salaries").select("meal_allowance, regres").eq("employee_id", f.employee_id).order("start_date", { ascending: false }).limit(1);
         if (prev?.[0]) { f.meal_allowance = prev[0].meal_allowance; f.regres = prev[0].regres; }
@@ -65,6 +66,8 @@ export default function EmployeeSalaries() {
         <Table>
           <TableHeader><TableRow>
             <TableHead>{t("employee")}</TableHead>
+            <TableHead>{t("department")}</TableHead>
+            <TableHead>{t("position")}</TableHead>
             <TableHead className="text-right">{t("amount")}</TableHead>
             <TableHead>{t("salaryType")}</TableHead>
             <TableHead>{t("amountTypeLabel")}</TableHead>
@@ -73,11 +76,13 @@ export default function EmployeeSalaries() {
             <TableHead>{t("startDate")}</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-            : salaries.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
+            {isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+            : salaries.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : salaries.map((s: any) => (
-              <TableRow key={s.id}>
+              <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/hr/employees/${s.employee_id}`)}>
                 <TableCell>{s.employees?.full_name}</TableCell>
+                <TableCell>{s.employees?.departments?.name || "—"}</TableCell>
+                <TableCell>{s.employees?.position || "—"}</TableCell>
                 <TableCell className="text-right font-semibold">{fmtNum(s.amount)}</TableCell>
                 <TableCell>{s.salary_type === "monthly" ? t("monthlyRate") : t("hourlyRate")}</TableCell>
                 <TableCell>{s.amount_type === "gross" ? t("gross") : t("net")}</TableCell>
@@ -105,7 +110,23 @@ export default function EmployeeSalaries() {
               <div className="grid gap-2"><Label>{t("amount")} *</Label><Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: +e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("salaryType")}</Label>
-...
+                <Select value={form.salary_type} onValueChange={v => setForm({ ...form, salary_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">{t("monthlyRate")}</SelectItem>
+                    <SelectItem value="hourly">{t("hourlyRate")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("amountTypeLabel")}</Label>
+                <Select value={form.amount_type} onValueChange={v => setForm({ ...form, amount_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gross">{t("gross")}</SelectItem>
+                    <SelectItem value="net">{t("net")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
