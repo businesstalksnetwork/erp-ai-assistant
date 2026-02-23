@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Calculator, Plus, CheckCircle, Pencil } from "lucide-react";
+import { Calculator, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -54,6 +54,28 @@ const defaultForm: FormState = {
   min_contribution_base: "45950",
   max_contribution_base: "656425",
 };
+
+// Extracted OUTSIDE the component to maintain stable React identity across renders
+function FormFields({ f, setF, t }: {
+  f: FormState;
+  setF: (fn: (prev: FormState) => FormState) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div><Label className="text-xs">{t("activeFrom")}</Label><Input type="date" value={f.effective_from} onChange={e => setF(p => ({ ...p, effective_from: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("payrollTaxRate")}</Label><Input type="number" step="0.01" value={f.tax_rate} onChange={e => setF(p => ({ ...p, tax_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("nontaxableAmountLabel")}</Label><Input type="number" value={f.nontaxable_amount} onChange={e => setF(p => ({ ...p, nontaxable_amount: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("pioEmployee")}</Label><Input type="number" step="0.01" value={f.pio_employee_rate} onChange={e => setF(p => ({ ...p, pio_employee_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("pioEmployer")}</Label><Input type="number" step="0.01" value={f.pio_employer_rate} onChange={e => setF(p => ({ ...p, pio_employer_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("healthEmployee")}</Label><Input type="number" step="0.01" value={f.health_employee_rate} onChange={e => setF(p => ({ ...p, health_employee_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("healthEmployer")}</Label><Input type="number" step="0.01" value={f.health_employer_rate} onChange={e => setF(p => ({ ...p, health_employer_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("unemploymentRate")}</Label><Input type="number" step="0.01" value={f.unemployment_employee_rate} onChange={e => setF(p => ({ ...p, unemployment_employee_rate: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("minBase")}</Label><Input type="number" value={f.min_contribution_base} onChange={e => setF(p => ({ ...p, min_contribution_base: e.target.value }))} /></div>
+      <div><Label className="text-xs">{t("maxBase")}</Label><Input type="number" value={f.max_contribution_base} onChange={e => setF(p => ({ ...p, max_contribution_base: e.target.value }))} /></div>
+    </div>
+  );
+}
 
 export default function PayrollParameters() {
   const { t } = useLanguage();
@@ -129,6 +151,18 @@ export default function PayrollParameters() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payroll_parameters").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: t("success"), description: t("paramsSavedDesc") });
+      qc.invalidateQueries({ queryKey: ["payroll-parameters"] });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const openEdit = (p: PayrollParams) => {
     setEditForm({
       effective_from: p.effective_from,
@@ -148,21 +182,6 @@ export default function PayrollParameters() {
   const current = params[0];
   const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
   const fmtRSD = (v: number) => `${Number(v).toLocaleString("sr-RS")} RSD`;
-
-  const FormFields = ({ f, setF }: { f: FormState; setF: (fn: (prev: FormState) => FormState) => void }) => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-      <div><Label className="text-xs">{t("activeFrom")}</Label><Input type="date" value={f.effective_from} onChange={e => setF(p => ({ ...p, effective_from: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("payrollTaxRate")}</Label><Input type="number" step="0.01" value={f.tax_rate} onChange={e => setF(p => ({ ...p, tax_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("nontaxableAmountLabel")}</Label><Input type="number" value={f.nontaxable_amount} onChange={e => setF(p => ({ ...p, nontaxable_amount: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("pioEmployee")}</Label><Input type="number" step="0.01" value={f.pio_employee_rate} onChange={e => setF(p => ({ ...p, pio_employee_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("pioEmployer")}</Label><Input type="number" step="0.01" value={f.pio_employer_rate} onChange={e => setF(p => ({ ...p, pio_employer_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("healthEmployee")}</Label><Input type="number" step="0.01" value={f.health_employee_rate} onChange={e => setF(p => ({ ...p, health_employee_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("healthEmployer")}</Label><Input type="number" step="0.01" value={f.health_employer_rate} onChange={e => setF(p => ({ ...p, health_employer_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("unemploymentRate")}</Label><Input type="number" step="0.01" value={f.unemployment_employee_rate} onChange={e => setF(p => ({ ...p, unemployment_employee_rate: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("minBase")}</Label><Input type="number" value={f.min_contribution_base} onChange={e => setF(p => ({ ...p, min_contribution_base: e.target.value }))} /></div>
-      <div><Label className="text-xs">{t("maxBase")}</Label><Input type="number" value={f.max_contribution_base} onChange={e => setF(p => ({ ...p, max_contribution_base: e.target.value }))} /></div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -216,7 +235,7 @@ export default function PayrollParameters() {
           {showForm && (
             <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-4">
               <h3 className="font-medium text-sm">{t("addNewParams")}</h3>
-              <FormFields f={form} setF={setForm} />
+              <FormFields f={form} setF={setForm} t={t} />
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? t("saving") : t("save")}
@@ -259,11 +278,23 @@ export default function PayrollParameters() {
                     <TableCell className="tabular-nums">{fmtRSD(p.min_contribution_base)}</TableCell>
                     <TableCell className="tabular-nums">{fmtRSD(p.max_contribution_base)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {i === 0 && <Badge variant="default">{t("activeParam")}</Badge>}
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
+                        {i !== 0 && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              if (confirm(t("deleteConfirmation"))) deleteMutation.mutate(p.id);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -278,9 +309,9 @@ export default function PayrollParameters() {
       <Dialog open={!!editId} onOpenChange={open => !open && setEditId(null)}>
         <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Uredi parametre</DialogTitle>
+            <DialogTitle>{t("edit")}</DialogTitle>
           </DialogHeader>
-          <FormFields f={editForm} setF={setEditForm} />
+          <FormFields f={editForm} setF={setEditForm} t={t} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditId(null)}>{t("cancel")}</Button>
             <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending}>
