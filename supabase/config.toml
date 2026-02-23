@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.ai-executive-briefing]
 verify_jwt = false
+
+[functions.clear-tenant-data]
+verify_jwt = false
