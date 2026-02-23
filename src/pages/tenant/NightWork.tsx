@@ -13,11 +13,13 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
+import { useNavigate } from "react-router-dom";
 
 export default function NightWork() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function NightWork() {
   });
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "employee", label: t("employee"), primary: true, render: (r) => <span className="text-primary hover:underline cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${r.employee_id}`); }}>{r.employees?.full_name}</span> },
     { key: "hours", label: t("hours"), align: "right", render: (r) => r.hours },
     { key: "tracking", label: t("trackingType"), render: (r) => r.tracking_type === "monthly" ? t("monthlyTracking") : t("dailyTracking") },
     { key: "actions", label: t("actions"), showInCard: false, render: (r) => (

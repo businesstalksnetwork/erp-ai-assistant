@@ -12,10 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fmtNum } from "@/lib/utils";
 
 export default function Allowances() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
   const now = new Date();
@@ -106,7 +108,7 @@ export default function Allowances() {
             : allowances.length === 0 ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : allowances.map((a: any) => (
               <TableRow key={a.id}>
-                <TableCell>{a.employees?.full_name}</TableCell>
+                <TableCell><span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${a.employee_id}`)}>{a.employees?.full_name}</span></TableCell>
                 <TableCell>{a.allowance_types?.name}</TableCell>
                 <TableCell className="text-right">{fmtNum(a.amount)}</TableCell>
               </TableRow>

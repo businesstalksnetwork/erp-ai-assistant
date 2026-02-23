@@ -12,11 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function InsuranceRecords() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ employee_id: "" as string, first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] });
@@ -78,8 +80,8 @@ export default function InsuranceRecords() {
             : records.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : records.map((r: any) => (
               <TableRow key={r.id}>
-                <TableCell>{r.first_name}</TableCell>
-                <TableCell>{r.last_name}</TableCell>
+                <TableCell>{r.employee_id ? <span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${r.employee_id}`)}>{r.first_name}</span> : r.first_name}</TableCell>
+                <TableCell>{r.employee_id ? <span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${r.employee_id}`)}>{r.last_name}</span> : r.last_name}</TableCell>
                 <TableCell className="font-mono">{r.jmbg}</TableCell>
                 <TableCell>{r.lbo || "—"}</TableCell>
                 <TableCell>{r.insurance_start}</TableCell>

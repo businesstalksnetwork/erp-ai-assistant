@@ -82,7 +82,7 @@ export default function EmployeeDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("*, departments(name), locations(name), position_templates(name)")
+        .select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;

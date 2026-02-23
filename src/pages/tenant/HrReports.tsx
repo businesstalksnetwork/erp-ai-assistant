@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { endOfMonth, format } from "date-fns";
 
 const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave", "paid_leave", "unpaid_leave", "maternity_leave", "holiday_work", "slava"] as const;
@@ -21,6 +22,7 @@ const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave
 export default function HrReports() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const navigate = useNavigate();
   const now = new Date();
   const [filterYear, setFilterYear] = useState(now.getFullYear());
   const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
@@ -133,7 +135,7 @@ export default function HrReports() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 overflow-hidden">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("hrReports")}</h1>
         <ExportButton data={monthlyReport} columns={exportColumns} filename="hr-monthly-report" />
@@ -209,7 +211,7 @@ export default function HrReports() {
                 <TableBody>
                   {monthlyReport.map(r => (
                     <TableRow key={r.id}>
-                      <TableCell className="sticky left-0 bg-card font-medium">{r.name}</TableCell>
+                      <TableCell className="sticky left-0 bg-card font-medium"><span className="text-primary hover:underline cursor-pointer" onClick={() => navigate(`/hr/employees/${r.id}`)}>{r.name}</span></TableCell>
                       <TableCell>{r.department}</TableCell>
                       <TableCell>{r.position}</TableCell>
                       {WORK_LOG_TYPES.map(tp => <TableCell key={tp} className="text-right">{(r as any)[tp] || "—"}</TableCell>)}
@@ -238,7 +240,7 @@ export default function HrReports() {
                 {leaveBalances.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
                 : leaveBalances.map((b: any) => (
                   <TableRow key={b.id}>
-                    <TableCell>{b.employees?.full_name}</TableCell>
+                    <TableCell><span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${b.employee_id}`)}>{b.employees?.full_name}</span></TableCell>
                     <TableCell className="text-right">{b.entitled_days}</TableCell>
                     <TableCell className="text-right">{b.carried_over_days}</TableCell>
                     <TableCell className="text-right">{b.used_days}</TableCell>

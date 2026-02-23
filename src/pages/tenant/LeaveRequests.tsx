@@ -14,6 +14,7 @@ import { Plus, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { differenceInCalendarDays } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function LeaveRequests() {
@@ -21,6 +22,7 @@ export default function LeaveRequests() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   type LeaveType = "vacation" | "sick" | "personal" | "maternity" | "paternity" | "unpaid";
   type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
@@ -67,7 +69,7 @@ export default function LeaveRequests() {
   const leaveLabel = (lt: string) => ({ vacation: t("vacation"), sick: t("sickLeave"), personal: t("personalLeave"), maternity: t("maternity"), paternity: t("paternity"), unpaid: t("unpaidLeave") }[lt] || lt);
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "employee", label: t("employee"), primary: true, render: (r) => <span className="text-primary hover:underline cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${r.employee_id}`); }}>{r.employees?.full_name}</span> },
     { key: "type", label: t("leaveType"), render: (r) => leaveLabel(r.leave_type) },
     { key: "start", label: t("startDate"), render: (r) => r.start_date },
     { key: "end", label: t("endDate"), hideOnMobile: true, render: (r) => r.end_date },
