@@ -299,7 +299,7 @@ export default function SupplierInvoices() {
     { key: "actions", label: t("actions"), showInCard: false, render: (inv) => (
       <div className="flex gap-1">
         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(inv); }}>{t("edit")}</Button>
-        {inv.status === "received" && (
+        {(inv.status === "draft" || inv.status === "received") && (
           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); initiateApprove(inv); }} disabled={approveMutation.isPending}>
             <CheckCircle className="h-3 w-3 mr-1" />{t("approveInvoice")}
           </Button>

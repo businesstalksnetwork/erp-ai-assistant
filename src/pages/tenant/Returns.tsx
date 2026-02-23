@@ -284,9 +284,10 @@ export default function Returns() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Credit note mutation
+  // Credit note mutation - creates reversal journal entry when status changes to "issued"
   const cnMutation = useMutation({
     mutationFn: async (f: CreditNoteForm) => {
+      const previousStatus = cnEditId ? creditNotes.find((cn: any) => cn.id === cnEditId)?.status : null;
       const payload = {
         tenant_id: tenantId!, credit_number: f.credit_number,
         return_case_id: f.return_case_id || null, invoice_id: f.invoice_id || null,
@@ -297,8 +298,44 @@ export default function Returns() {
         const { error } = await supabase.from("credit_notes").update(payload).eq("id", cnEditId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("credit_notes").insert([payload]);
+        const { data, error } = await supabase.from("credit_notes").insert([payload]).select("id").single();
         if (error) throw error;
+      }
+
+      // Create reversal journal entry when credit note is issued
+      if (f.status === "issued" && previousStatus !== "issued" && f.amount > 0 && tenantId) {
+        const entryDate = new Date().toISOString().split("T")[0];
+        await createCodeBasedJournalEntry({
+          tenantId,
+          userId: user?.id || null,
+          entryDate,
+          description: `Credit Note ${f.credit_number} - Revenue reversal`,
+          reference: `CN-${f.credit_number}`,
+          lines: [
+            { accountCode: "6000", debit: f.amount, credit: 0, description: `Reverse revenue - ${f.credit_number}`, sortOrder: 0 },
+            { accountCode: "2040", debit: 0, credit: f.amount, description: `Credit AR - ${f.credit_number}`, sortOrder: 1 },
+          ],
+        });
+
+        // Update matching open_item if it exists
+        if (f.invoice_id) {
+          const { data: openItem } = await supabase
+            .from("open_items")
+            .select("id, remaining_amount, paid_amount")
+            .eq("document_id", f.invoice_id)
+            .eq("tenant_id", tenantId)
+            .single();
+          if (openItem) {
+            const newRemaining = Math.max(Number(openItem.remaining_amount) - f.amount, 0);
+            const newPaid = Number(openItem.paid_amount) + f.amount;
+            await supabase.from("open_items").update({
+              remaining_amount: newRemaining,
+              paid_amount: newPaid,
+              status: newRemaining <= 0 ? "closed" : "partial",
+              closed_at: newRemaining <= 0 ? new Date().toISOString() : null,
+            }).eq("id", openItem.id);
+          }
+        }
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["credit-notes"] }); setCnOpen(false); toast.success(t("success")); },

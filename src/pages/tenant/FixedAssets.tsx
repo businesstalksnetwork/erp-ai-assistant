@@ -208,6 +208,31 @@ export default function FixedAssets() {
     },
   });
 
+  // Batch depreciation: run for all active assets, skip already depreciated for current period
+  const batchDepreciationMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantId) return 0;
+      const currentPeriod = format(new Date(), "yyyy-MM");
+      const activeAssets = assets.filter((a: any) => a.status === "active");
+      let processed = 0;
+      for (const asset of activeAssets) {
+        const alreadyDone = depreciations.some((d: any) => d.asset_id === asset.id && d.period === currentPeriod);
+        if (alreadyDone) continue;
+        const accum = getAccumulated(asset.id);
+        const bv = Number(asset.acquisition_cost) - accum;
+        if (bv <= Number(asset.salvage_value)) continue;
+        await depreciationMutation.mutateAsync(asset);
+        processed++;
+      }
+      return processed;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["fixed_asset_depreciation", tenantId] });
+      toast({ title: `${count} ${t("depreciationRun")}` });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const openAdd = () => { setEditId(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (a: any) => {
     setEditId(a.id);
@@ -223,7 +248,12 @@ export default function FixedAssets() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("fixedAssets")}</h1>
-        <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t("addAsset")}</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => batchDepreciationMutation.mutate()} disabled={batchDepreciationMutation.isPending}>
+            <Play className="h-4 w-4 mr-1" />{t("depreciationRun")}
+          </Button>
+          <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t("addAsset")}</Button>
+        </div>
       </div>
       <Card>
         <CardHeader><CardTitle>{t("fixedAssets")}</CardTitle></CardHeader>
@@ -241,8 +271,9 @@ export default function FixedAssets() {
                   <TableHead>{t("acquisitionCost")}</TableHead>
                   <TableHead>{t("depreciationMethod")}</TableHead>
                   <TableHead>{t("usefulLife")}</TableHead>
-                  <TableHead>{t("bookValue")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
+                   <TableHead>{t("bookValue")}</TableHead>
+                   <TableHead>{t("depreciationRun")}</TableHead>
+                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -258,6 +289,13 @@ export default function FixedAssets() {
                       <TableCell>{a.depreciation_method === "straight_line" ? t("straightLine") : t("decliningBalance")}</TableCell>
                       <TableCell>{a.useful_life_months} {t("months")}</TableCell>
                       <TableCell>{bv.toLocaleString()} RSD</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const currentPeriod = format(new Date(), "yyyy-MM");
+                          const done = depreciations.some((d: any) => d.asset_id === a.id && d.period === currentPeriod);
+                          return done ? <Badge variant="default">✓</Badge> : <Badge variant="outline">—</Badge>;
+                        })()}
+                      </TableCell>
                       <TableCell><Badge variant={statusColor(a.status)}>{t(a.status)}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">

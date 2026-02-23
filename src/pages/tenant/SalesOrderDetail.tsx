@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, FileText, Plus, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, FileText, Plus, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -160,7 +160,13 @@ export default function SalesOrderDetail() {
     }
   };
 
-  const createInvoice = () => {
+  const createInvoice = async () => {
+    // Fetch SO lines to pass to invoice form
+    const { data: soLines } = await supabase
+      .from("sales_order_lines")
+      .select("*, products(name)")
+      .eq("sales_order_id", id!)
+      .order("sort_order");
     navigate("/accounting/invoices/new", {
       state: {
         fromSalesOrder: {
@@ -169,6 +175,38 @@ export default function SalesOrderDetail() {
           currency: order!.currency,
           notes: `From Sales Order ${order!.order_number}`,
           sales_order_id: order!.id,
+          lines: (soLines || []).map((l: any) => ({
+            product_id: l.product_id,
+            description: l.products?.name || l.description,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            tax_rate_value: l.tax_rate_value,
+          })),
+        },
+      },
+    });
+  };
+
+  const createDispatchNote = async () => {
+    // Fetch SO lines for dispatch note
+    const { data: soLines } = await supabase
+      .from("sales_order_lines")
+      .select("*, products(name)")
+      .eq("sales_order_id", id!)
+      .order("sort_order");
+    navigate("/inventory/dispatch-notes", {
+      state: {
+        fromSalesOrder: {
+          sales_order_id: order!.id,
+          partner_id: order!.partner_id,
+          partner_name: order!.partners?.name || order!.partner_name,
+          order_number: order!.order_number,
+          lines: (soLines || []).map((l: any) => ({
+            product_id: l.product_id,
+            description: l.products?.name || l.description,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+          })),
         },
       },
     });
@@ -195,9 +233,14 @@ export default function SalesOrderDetail() {
       {/* Action buttons */}
       <div className="flex gap-2 flex-wrap">
         {(order.status === "confirmed" || order.status === "delivered") && (
-          <Button size="sm" onClick={createInvoice}>
-            <FileText className="h-4 w-4 mr-1" /> {t("createInvoiceFromOrder")}
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={createDispatchNote}>
+              <Truck className="h-4 w-4 mr-1" /> {t("dispatchNotes")}
+            </Button>
+            <Button size="sm" onClick={createInvoice}>
+              <FileText className="h-4 w-4 mr-1" /> {t("createInvoiceFromOrder")}
+            </Button>
+          </>
         )}
       </div>
 

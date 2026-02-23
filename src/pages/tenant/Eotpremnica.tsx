@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -63,6 +63,24 @@ export default function Eotpremnica() {
     vehicle_plate: "",
     driver_name: "",
     transport_reason: "",
+    sales_order_id: "" as string,
+    warehouse_id: "" as string,
+  });
+
+  // Handle pre-fill from Sales Order navigation state
+  const location = useLocation();
+  useState(() => {
+    const state = (location.state as any)?.fromSalesOrder;
+    if (state) {
+      setForm(f => ({
+        ...f,
+        receiver_name: state.partner_name || "",
+        sales_order_id: state.sales_order_id || "",
+        notes: `SO: ${state.order_number || ""}`,
+      }));
+      setCreateOpen(true);
+      window.history.replaceState({}, document.title);
+    }
   });
 
   const { data: notes = [], isLoading } = useQuery({
@@ -102,6 +120,8 @@ export default function Eotpremnica() {
         driver_name: form.driver_name || null,
         transport_reason: form.transport_reason || null,
         created_by: user?.id || null,
+        sales_order_id: form.sales_order_id || null,
+        warehouse_id: form.warehouse_id || null,
       });
       if (error) throw error;
     },
@@ -109,7 +129,7 @@ export default function Eotpremnica() {
       queryClient.invalidateQueries({ queryKey: ["dispatch_notes"] });
       toast({ title: t("success") });
       setCreateOpen(false);
-      setForm({ document_number: "", sender_name: "", sender_pib: "", sender_address: "", sender_city: "", receiver_name: "", receiver_pib: "", receiver_address: "", receiver_city: "", legal_entity_id: "", notes: "", vehicle_plate: "", driver_name: "", transport_reason: "" });
+      setForm({ document_number: "", sender_name: "", sender_pib: "", sender_address: "", sender_city: "", receiver_name: "", receiver_pib: "", receiver_address: "", receiver_city: "", legal_entity_id: "", notes: "", vehicle_plate: "", driver_name: "", transport_reason: "", sales_order_id: "", warehouse_id: "" });
     },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });

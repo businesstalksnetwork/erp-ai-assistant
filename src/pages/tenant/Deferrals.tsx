@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Pencil, Trash2, Play } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -26,6 +27,7 @@ interface DeferralForm {
   end_date: string;
   frequency: string;
   status: string;
+  legal_entity_id: string;
 }
 
 const emptyForm: DeferralForm = {
@@ -36,12 +38,14 @@ const emptyForm: DeferralForm = {
   end_date: new Date().toISOString().split("T")[0],
   frequency: "monthly",
   status: "active",
+  legal_entity_id: "",
 };
 
 export default function Deferrals() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
+  const { entities: legalEntities } = useLegalEntities();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -62,7 +66,8 @@ export default function Deferrals() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!tenantId) return;
-      const payload = { ...form, tenant_id: tenantId, recognized_amount: 0 };
+      const { legal_entity_id, ...rest } = form;
+      const payload = { ...rest, tenant_id: tenantId, recognized_amount: 0, legal_entity_id: legal_entity_id || null };
       if (editId) {
         const { recognized_amount, ...updatePayload } = payload;
         const { error } = await supabase.from("deferrals").update(updatePayload).eq("id", editId);
@@ -101,7 +106,7 @@ export default function Deferrals() {
       const periodDate = format(new Date(), "yyyy-MM-dd");
       const periodNum = Math.round(Number(d.recognized_amount) / perPeriod) + 1;
 
-      // Create journal entry for recognition
+      // Create journal entry for recognition with legal entity
       const isRevenue = d.type === "revenue";
       const journalEntryId = await createCodeBasedJournalEntry({
         tenantId,
@@ -111,6 +116,7 @@ export default function Deferrals() {
         reference: isRevenue
           ? `DEF-REV-${d.id.substring(0, 8)}-P${periodNum}`
           : `DEF-EXP-${d.id.substring(0, 8)}-P${periodNum}`,
+        legalEntityId: d.legal_entity_id || undefined,
         lines: isRevenue
           ? [
               { accountCode: "4600", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
@@ -146,7 +152,7 @@ export default function Deferrals() {
   const openAdd = () => { setEditId(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (d: any) => {
     setEditId(d.id);
-    setForm({ type: d.type, description: d.description || "", total_amount: Number(d.total_amount), start_date: d.start_date, end_date: d.end_date, frequency: d.frequency || "monthly", status: d.status });
+    setForm({ type: d.type, description: d.description || "", total_amount: Number(d.total_amount), start_date: d.start_date, end_date: d.end_date, frequency: d.frequency || "monthly", status: d.status, legal_entity_id: d.legal_entity_id || "" });
     setDialogOpen(true);
   };
 
@@ -248,6 +254,18 @@ export default function Deferrals() {
                 </SelectContent>
               </Select>
             </div>
+            {legalEntities.length > 1 && (
+              <div className="grid gap-2">
+                <Label>{t("legalEntity")}</Label>
+                <Select value={form.legal_entity_id || "__none"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none" ? "" : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>

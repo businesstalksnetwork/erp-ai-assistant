@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
@@ -18,7 +19,17 @@ export default function InsuranceRecords() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] });
+  const [form, setForm] = useState({ employee_id: "" as string, first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] });
+
+  // Fetch employees for selector
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-for-insurance", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("employees").select("id, full_name, first_name, last_name, jmbg").eq("tenant_id", tenantId!).eq("status", "active").order("full_name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["insurance-records", tenantId],
@@ -31,7 +42,7 @@ export default function InsuranceRecords() {
 
   const mutation = useMutation({
     mutationFn: async (f: typeof form) => {
-      const payload = { tenant_id: tenantId!, first_name: f.first_name, last_name: f.last_name, middle_name: f.middle_name || null, jmbg: f.jmbg, lbo: f.lbo || null, insurance_start: f.insurance_start, insurance_end: f.insurance_end || null, registration_date: f.registration_date };
+      const payload = { tenant_id: tenantId!, employee_id: f.employee_id || null, first_name: f.first_name, last_name: f.last_name, middle_name: f.middle_name || null, jmbg: f.jmbg, lbo: f.lbo || null, insurance_start: f.insurance_start, insurance_end: f.insurance_end || null, registration_date: f.registration_date };
       if (editId) {
         const { error } = await supabase.from("insurance_records").update(payload).eq("id", editId);
         if (error) throw error;
@@ -48,7 +59,7 @@ export default function InsuranceRecords() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("insuranceRecords")}</h1>
-        <Button onClick={() => { setEditId(null); setForm({ first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <Button onClick={() => { setEditId(null); setForm({ employee_id: "", first_name: "", last_name: "", middle_name: "", jmbg: "", lbo: "", insurance_start: "", insurance_end: "", registration_date: new Date().toISOString().split("T")[0] }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
 
       <Card><CardContent className="p-0">
@@ -73,7 +84,7 @@ export default function InsuranceRecords() {
                 <TableCell>{r.lbo || "—"}</TableCell>
                 <TableCell>{r.insurance_start}</TableCell>
                 <TableCell>{r.insurance_end || "—"}</TableCell>
-                <TableCell><Button size="sm" variant="ghost" onClick={() => { setEditId(r.id); setForm({ first_name: r.first_name, last_name: r.last_name, middle_name: r.middle_name || "", jmbg: r.jmbg, lbo: r.lbo || "", insurance_start: r.insurance_start, insurance_end: r.insurance_end || "", registration_date: r.registration_date }); setOpen(true); }}>{t("edit")}</Button></TableCell>
+                <TableCell><Button size="sm" variant="ghost" onClick={() => { setEditId(r.id); setForm({ employee_id: r.employee_id || "", first_name: r.first_name, last_name: r.last_name, middle_name: r.middle_name || "", jmbg: r.jmbg, lbo: r.lbo || "", insurance_start: r.insurance_start, insurance_end: r.insurance_end || "", registration_date: r.registration_date }); setOpen(true); }}>{t("edit")}</Button></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -84,6 +95,25 @@ export default function InsuranceRecords() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("insuranceRecord")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>{t("employee")}</Label>
+              <Select value={form.employee_id || "__manual"} onValueChange={(v) => {
+                if (v === "__manual") {
+                  setForm({ ...form, employee_id: "" });
+                } else {
+                  const emp = employees.find((e: any) => e.id === v);
+                  if (emp) {
+                    setForm({ ...form, employee_id: v, first_name: emp.first_name || emp.full_name?.split(" ")[0] || "", last_name: emp.last_name || emp.full_name?.split(" ").slice(1).join(" ") || "", jmbg: emp.jmbg || form.jmbg });
+                  }
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder={t("selectEmployee") || "Izaberi zaposlenog"} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__manual">{t("manual") || "Ručni unos"}</SelectItem>
+                  {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name} {e.jmbg ? `(${e.jmbg})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2"><Label>{t("firstName")} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("middleName")}</Label><Input value={form.middle_name} onChange={e => setForm({ ...form, middle_name: e.target.value })} /></div>
