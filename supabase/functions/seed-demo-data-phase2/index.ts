@@ -11,9 +11,38 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Environment guard: block in production
+    if (Deno.env.get("ENVIRONMENT") === "production") {
+      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const sbUrl = Deno.env.get("SUPABASE_URL")!;
     const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(sbUrl, sbKey);
+
+    // Auth: require super_admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const callerClient = createClient(sbUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+    const { data: { user: caller } } = await callerClient.auth.getUser();
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isSA } = await sb.rpc("is_super_admin", { _user_id: caller.id });
+    if (!isSA) {
+      return new Response(JSON.stringify({ error: "Forbidden: Super Admin only" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { tenant_id } = await req.json().catch(() => ({ tenant_id: null }));
 
