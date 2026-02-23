@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard, ClipboardCheck, Sparkles } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
-import { fmtNum, fmtNumCompact } from "@/lib/utils";
+import { fmtNum, fmtNumCompact, fmtNumAuto } from "@/lib/utils";
 import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
 import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
@@ -140,7 +140,7 @@ export default function TenantDashboard() {
   });
 
   const profit = revenue - expenses;
-  const fmt = isMobile ? fmtNumCompact : fmtNum;
+  const fmt = isMobile ? fmtNumCompact : fmtNumAuto;
 
   const kpis = [
     { label: t("revenue"), value: `${fmt(revenue)} RSD`, icon: TrendingUp, borderColor: "border-t-accent" },
@@ -182,7 +182,7 @@ export default function TenantDashboard() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-xl lg:text-2xl font-bold tabular-nums text-foreground">{kpi.value}</div>
+              <div className="text-base lg:text-xl xl:text-2xl font-bold tabular-nums text-foreground whitespace-nowrap">{kpi.value}</div>
             </CardContent>
           </Card>
         ))}
