@@ -13,11 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function AnnualLeaveBalances() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const now = new Date();
   const [filterYear, setFilterYear] = useState(now.getFullYear());
   const [open, setOpen] = useState(false);
@@ -101,7 +103,7 @@ export default function AnnualLeaveBalances() {
               const remaining = b.entitled_days + effectiveCarried - b.used_days;
               return (
                 <TableRow key={b.id}>
-                  <TableCell>{b.employees?.full_name}</TableCell>
+                  <TableCell><span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${b.employee_id}`)}>{b.employees?.full_name}</span></TableCell>
                   <TableCell className="text-right">{b.entitled_days}</TableCell>
                   <TableCell className="text-right">
                     {b.carried_over_days}

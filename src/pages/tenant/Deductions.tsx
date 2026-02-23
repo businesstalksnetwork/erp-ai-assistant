@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fmtNum } from "@/lib/utils";
 
 const DEDUCTION_TYPES = ["credit", "alimony", "other"] as const;
@@ -21,6 +22,7 @@ export default function Deductions() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ employee_id: "", type: "credit" as string, description: "", total_amount: 0, start_date: new Date().toISOString().split("T")[0], end_date: "" });
@@ -85,7 +87,7 @@ export default function Deductions() {
             : deductions.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
             : deductions.map((d: any) => (
               <TableRow key={d.id}>
-                <TableCell>{d.employees?.full_name}</TableCell>
+                <TableCell><span className="text-primary hover:underline cursor-pointer font-medium" onClick={() => navigate(`/hr/employees/${d.employee_id}`)}>{d.employees?.full_name}</span></TableCell>
                 <TableCell>{typeLabel(d.type)}</TableCell>
                 <TableCell>{d.description}</TableCell>
                 <TableCell className="text-right">{fmtNum(d.total_amount)}</TableCell>

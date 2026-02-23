@@ -14,11 +14,13 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { useNavigate } from "react-router-dom";
 
 export default function Attendance() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split("T")[0]);
   type AttendanceStatus = "present" | "absent" | "sick" | "vacation" | "holiday" | "remote";
@@ -60,7 +62,7 @@ export default function Attendance() {
   const statusLabel = (s: string) => ({ present: t("present"), absent: t("absent"), sick: t("sickLeave"), vacation: t("vacation"), holiday: t("holiday"), remote: t("remote") }[s] || s);
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "employee", label: t("employee"), primary: true, render: (r) => r.employees?.full_name },
+    { key: "employee", label: t("employee"), primary: true, render: (r) => <span className="text-primary hover:underline cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${r.employee_id}`); }}>{r.employees?.full_name}</span> },
     { key: "check_in", label: t("checkIn"), render: (r) => r.check_in || "—" },
     { key: "check_out", label: t("checkOut"), render: (r) => r.check_out || "—" },
     { key: "hours", label: t("hoursWorked"), align: "right", render: (r) => `${r.hours_worked}h` },

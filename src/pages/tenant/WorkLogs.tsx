@@ -80,7 +80,7 @@ export default function WorkLogs() {
   const typeLabel = (tp: string) => t(tp as any) || tp;
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "employee", label: t("employee"), primary: true, render: (l) => l.employees?.full_name },
+    { key: "employee", label: t("employee"), primary: true, render: (l) => <span className="text-primary hover:underline cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${l.employee_id}`); }}>{l.employees?.full_name}</span> },
     { key: "date", label: t("date"), render: (l) => l.date },
     { key: "type", label: t("workLogType"), render: (l) => <Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge> },
     { key: "hours", label: t("hours"), align: "right", render: (l) => l.hours },
