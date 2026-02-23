@@ -1,51 +1,74 @@
 
 
-## Rename to "Brzi AI Izveštaj" + Add Date Range Picker
+## Ažuriranje svih MD dokumenata sa najnovijim promenama
 
-### What Changes
-
-1. **Rename the page** from "AI Executive Briefing" to "Brzi AI Izveštaj" (Serbian) / "Quick AI Report" (English)
-2. **Add a date range selector** with presets: Danas (Today), 7 dana, 30 dana, 90 dana, Custom range
-3. **Pass date range to the edge function** so all SQL queries are filtered by the selected period
-4. **Update the nav label** in TenantLayout and translations
+Svi MD fajlovi su zastareli i ne pokrivaju skorašnje AI i HR nadogradnje. Ažuriraćemo svaki fajl sa relevantnim novim informacijama.
 
 ---
 
-### Technical Details
+### 1. ARCHITECTURE_DOCUMENTATION.md
 
-#### File: `src/pages/tenant/AiBriefing.tsx`
+Dodati sledeće sekcije/ažuriranja:
 
-- Change PageHeader title to "Brzi AI Izveštaj" / "Quick AI Report"
-- Add state for date range: `dateFrom` and `dateTo`
-- Add a row of preset buttons (Danas, 7 dana, 30 dana, 90 dana, Prilagodi) using the existing Button component
-- For custom range: show two date inputs (using the existing `DateInput` component) when "Prilagodi" is selected
-- Include `date_from` and `date_to` in the query key and in the body sent to the edge function
-- Auto-trigger refetch when date range changes
+- **Nova ruta**: `/ai/briefing` -- Brzi AI Izveštaj stranica sa date range filterom
+- **Novi edge function**: `ai-executive-briefing` -- Role-based briefing sa SQL KPI upitima + Gemini AI
+- **4 nova AI alata** u `ai-assistant`: `compare_periods`, `what_if_scenario`, `get_kpi_scorecard`, `explain_account`
+- **5 novih narativa** u `ai-analytics-narrative`: `production`, `crm_pipeline`, `hr_overview`, `pos_performance`, `purchasing`
+- **HR modul**: Klikabilni linkovi zaposlenih na 10 stranica, fix za EmployeeDetail FK hint
+- Ažurirati broj edge funkcija (sa 68+ na 69+)
+- Ažurirati Frontend Route Map sa novom `/ai/briefing` rutom
+- Ažurirati AI sekciju u Feature Deep-Dives
 
-#### File: `supabase/functions/ai-executive-briefing/index.ts`
+### 2. COMPLETE_CODEBASE_REVIEW.md
 
-- Parse `date_from` and `date_to` from the request body (default to last 30 days if not provided)
-- Apply date filters to all relevant queries:
-  - `invoices` filtered by `invoice_date` within range
-  - `pos_transactions` filtered by `created_at` within range
-  - `production_orders` filtered by date range
-  - `leave_requests` filtered by date range
-  - Overdue invoices still use `today` for the overdue check but scope to range
-- Pass the date range info to the AI prompt so it knows the period being analyzed
+Dodati:
 
-#### File: `src/layouts/TenantLayout.tsx`
+- Nova stranica `AiBriefing.tsx` u listu tenant stranica
+- Novi edge function `ai-executive-briefing` u listu funkcija
+- Ažurirati opis AI modula sa novim alatima i narativima
+- Dodati napomenu o HR klikabilnim linkovima
 
-- No structural change needed, just the translation key renders the new name
+### 3. ERP_SYSTEM_REVIEW_REPORT.md
 
-#### File: `src/i18n/translations.ts`
+Dodati:
 
-- Update `aiBriefing` key: SR = "Brzi AI Izveštaj", EN = "Quick AI Report"
+- AI sekcija: mention role-based briefing, date range filtering, 4 nova alata
+- HR sekcija: mention klikabilni employee linkovi
 
-### Files to Change
+### 4. WMS_AI_REPORT.md
 
-| File | Change |
+- Dodati kratku napomenu o novom `purchasing` narativu koji pokriva supplier dependency analizu relevantnu za WMS
+
+### 5. COMPREHENSIVE_COMPLIANCE_REVIEW.md
+
+- Dodati napomenu o unapredenom audit trail-u kroz AI activity logging
+- HR sekcija: employee detail FK fix
+
+### 6. FRONTEND_RESPONSIVE_IMPROVEMENTS.md
+
+- Dodati fix za HrReports horizontalni overflow (`min-w-0 overflow-hidden`)
+
+### 7. UX_UI_IMPROVEMENTS.md
+
+- Dodati sekciju o klikabilnim employee linkovima u HR modulu
+- Dodati sekciju o Brzi AI Izveštaj stranici sa date range presetima
+
+### 8. README.md
+
+- Dodati mention AI Intelligence Hub-a i Brzi AI Izveštaj-a u feature listu
+
+---
+
+### Fajlovi za izmenu
+
+| Fajl | Izmena |
 |------|--------|
-| `src/pages/tenant/AiBriefing.tsx` | Rename title, add date range presets + custom date inputs, pass dates to API |
-| `supabase/functions/ai-executive-briefing/index.ts` | Accept `date_from`/`date_to`, filter all queries by date range |
-| `src/i18n/translations.ts` | Update `aiBriefing` translation to "Brzi AI Izveštaj" / "Quick AI Report" |
+| `ARCHITECTURE_DOCUMENTATION.md` | Dodati AI briefing rute, edge function, nove alate, narative, HR linkove |
+| `COMPLETE_CODEBASE_REVIEW.md` | Dodati nove fajlove, AI alate, HR linkove |
+| `ERP_SYSTEM_REVIEW_REPORT.md` | AI i HR sekcije ažurirane |
+| `WMS_AI_REPORT.md` | Purchasing narativ vezan za WMS |
+| `COMPREHENSIVE_COMPLIANCE_REVIEW.md` | Audit trail, HR FK fix |
+| `FRONTEND_RESPONSIVE_IMPROVEMENTS.md` | HrReports overflow fix |
+| `UX_UI_IMPROVEMENTS.md` | Employee linkovi, AI briefing UI |
+| `README.md` | Feature lista ažurirana |
 
