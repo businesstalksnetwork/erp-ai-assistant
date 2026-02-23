@@ -244,37 +244,37 @@ function CollapsibleNavGroup({
         <CollapsibleContent>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
-                const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
-                return (
-                  <React.Fragment key={item.key}>
-                    {item.section && (
-                      <li className="px-3 pt-3 pb-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-                          {t(item.section as any)}
-                        </span>
-                      </li>
-                    )}
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild>
-                        <NavLink
-                          to={item.url}
-                          className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-all border-l-2 border-transparent ${
-                            itemActive
-                              ? "bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                              : "hover:bg-sidebar-accent"
-                          }`}
-                          activeClassName="bg-primary/10 text-primary font-medium border-l-primary shadow-sm"
-                        >
-                          <item.icon className={`h-4 w-4 flex-shrink-0 ${itemActive ? "text-primary" : "opacity-60"}`} />
-                          <span className="truncate">{t(item.key as any)}</span>
-                          {itemActive && <ChevronRight className="h-3 w-3 ml-auto opacity-50" />}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </React.Fragment>
-                );
-              })}
+                    {items.map((item) => {
+                      const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                      return (
+                        <React.Fragment key={item.key}>
+                          {item.section && (
+                            <li className="px-3 pt-3 pb-1">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                                {t(item.section as any)}
+                              </span>
+                            </li>
+                          )}
+                          <SidebarMenuItem>
+                            <SidebarMenuButton asChild>
+                              <NavLink
+                                to={item.url}
+                                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 border-transparent group ${
+                                  itemActive
+                                    ? "bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
+                                    : "hover:bg-sidebar-accent/60 hover:text-sidebar-foreground text-sidebar-foreground/80"
+                                }`}
+                                activeClassName="bg-primary/15 text-primary font-semibold border-l-primary shadow-sm shadow-primary/10"
+                              >
+                                <item.icon className={`h-4.5 w-4.5 flex-shrink-0 transition-transform ${itemActive ? "text-primary scale-110" : "opacity-70 group-hover:opacity-100"}`} />
+                                <span className="truncate">{t(item.key as any)}</span>
+                                {itemActive && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-60 animate-in slide-in-right" />}
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        </React.Fragment>
+                      );
+                    })}
             </SidebarMenu>
           </SidebarGroupContent>
         </CollapsibleContent>
@@ -316,26 +316,26 @@ export default function TenantLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r border-sidebar-border w-64">
+        <Sidebar className="border-r-2 border-sidebar-border/60 w-64 bg-sidebar-background">
           {/* Logo + Search trigger */}
-          <div className="p-4 border-b border-sidebar-border space-y-3">
+          <div className="p-5 border-b-2 border-sidebar-border/40 space-y-4 bg-sidebar-background/95 backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-md border border-primary/20">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-lg border-2 border-primary/30 flex-shrink-0">
                 <Sparkles className="h-5 w-5 text-primary-foreground" />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight">ERP-AI</h2>
-                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Sistem za upravljanje</p>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-sidebar-foreground tracking-tight leading-tight">ERP-AI</h2>
+                <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider leading-tight mt-0.5">Sistem za upravljanje</p>
               </div>
             </div>
             <button
               onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="flex w-full items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-1.5 text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:border-sidebar-foreground/20 transition-all"
+              className="flex w-full items-center gap-2.5 rounded-xl border-2 border-sidebar-border/50 bg-sidebar-accent/40 px-3.5 py-2.5 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:border-sidebar-foreground/30 hover:text-sidebar-foreground transition-all duration-200 group"
             >
-              <Search className="h-3.5 w-3.5" />
-              <span className="flex-1 text-left">{t("search")}</span>
-              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-sidebar-border bg-sidebar-background px-1.5 text-[10px] font-medium text-sidebar-foreground/40">
-                <Command className="h-2.5 w-2.5" />K
+              <Search className="h-4 w-4 transition-transform group-hover:scale-110" />
+              <span className="flex-1 text-left font-medium">{t("search")}</span>
+              <kbd className="hidden sm:inline-flex h-6 items-center gap-1 rounded-lg border border-sidebar-border/60 bg-sidebar-background/80 px-2 text-[10px] font-semibold text-sidebar-foreground/50 group-hover:border-sidebar-foreground/30 group-hover:text-sidebar-foreground/70 transition-colors">
+                <Command className="h-3 w-3" />K
               </kbd>
             </button>
           </div>
@@ -477,7 +477,7 @@ export default function TenantLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-screen">
-          <header className="h-12 border-b border-border/60 flex items-center justify-between px-4 lg:px-6 bg-background/95 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+          <header className="h-14 border-b-2 border-border/60 flex items-center justify-between px-5 lg:px-8 bg-background/98 backdrop-blur-xl sticky top-0 z-10 shadow-sm">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-4" />
@@ -532,8 +532,8 @@ export default function TenantLayout() {
             </div>
           </header>
           <div className="flex-1 flex overflow-hidden">
-            <main className="flex-1 p-4 lg:p-6 xl:p-8 overflow-auto animate-in fade-in duration-300 bg-gradient-to-b from-background to-background/95">
-              <div className="max-w-screen-2xl mx-auto space-y-6">
+            <main className="flex-1 p-5 lg:p-7 xl:p-9 overflow-auto animate-in fade-in duration-300 bg-gradient-to-br from-background via-background to-muted/20">
+              <div className="max-w-screen-2xl mx-auto space-y-8">
                 <Outlet />
               </div>
             </main>

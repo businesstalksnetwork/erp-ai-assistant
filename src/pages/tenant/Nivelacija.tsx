@@ -177,7 +177,7 @@ export default function Nivelacija() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("nivelacija")}</DialogTitle>
             <DialogDescription>{t("nivelacijaDesc")}</DialogDescription>

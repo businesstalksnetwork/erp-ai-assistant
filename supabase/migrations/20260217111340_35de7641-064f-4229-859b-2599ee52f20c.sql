@@ -1,0 +1,1 @@
+ALTER TABLE email_notification_log ALTER COLUMN company_id DROP NOT NULL;

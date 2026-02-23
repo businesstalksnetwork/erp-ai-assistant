@@ -74,8 +74,9 @@ export default function WorkLogsBulkEntry() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-auto">
-          <table className="w-full text-sm">
+        <CardContent className="p-0 overflow-x-auto">
+          <div className="min-w-full inline-block">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
                 <th className="p-2 text-left sticky left-0 bg-card min-w-[180px]">{t("employee")}</th>
@@ -110,6 +111,7 @@ export default function WorkLogsBulkEntry() {
               ))}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

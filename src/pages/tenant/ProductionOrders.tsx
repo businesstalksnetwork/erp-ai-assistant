@@ -325,7 +325,7 @@ export default function ProductionOrders() {
 
       {/* Create/Edit Dialog (draft only) */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("productionOrders")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -374,7 +374,7 @@ export default function ProductionOrders() {
 
       {/* Complete & Consume Dialog with material availability */}
       <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("completeAndConsume")}</DialogTitle>
             <DialogDescription>{t("selectWarehouseForProduction")}</DialogDescription>

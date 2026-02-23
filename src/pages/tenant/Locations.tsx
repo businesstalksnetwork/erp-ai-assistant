@@ -281,7 +281,7 @@ export default function Locations() {
 
       {/* Manage Location Types Dialog */}
       <Dialog open={typesDialogOpen} onOpenChange={setTypesDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("manageTypes")}</DialogTitle>
             <DialogDescription>{t("locationTypesDescription")}</DialogDescription>
