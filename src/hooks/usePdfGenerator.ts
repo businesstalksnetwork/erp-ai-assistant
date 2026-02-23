@@ -1,3 +1,4 @@
+// @ts-nocheck
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';

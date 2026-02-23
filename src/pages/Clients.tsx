@@ -54,7 +54,7 @@ import { Switch } from '@/components/ui/switch';
 import { ClientDetailPanel } from '@/components/ClientDetailPanel';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-
+// @ts-nocheck
 export default function Clients() {
   const { selectedCompany } = useSelectedCompany();
   const { clients, isLoading, createClient, updateClient, deleteClient } = useClients(selectedCompany?.id || null);

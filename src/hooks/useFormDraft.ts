@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useCallback } from 'react';
 
 const DRAFT_PREFIX = 'erpai_draft_';

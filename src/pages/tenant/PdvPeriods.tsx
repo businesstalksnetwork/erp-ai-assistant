@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";

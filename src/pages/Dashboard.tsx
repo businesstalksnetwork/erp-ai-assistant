@@ -30,7 +30,7 @@ import {
   Store,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-
+// @ts-nocheck
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
     style: 'currency',

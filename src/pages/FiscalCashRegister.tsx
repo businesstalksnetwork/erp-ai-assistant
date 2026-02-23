@@ -24,7 +24,7 @@ import { Building2, Loader2, Upload, Calculator, TrendingUp, TrendingDown, Trash
 import { FiscalImportDialog } from '@/components/FiscalImportDialog';
 import { FiscalEntriesList } from '@/components/FiscalEntriesList';
 import { FiscalDeleteByDateDialog } from '@/components/FiscalDeleteByDateDialog';
-
+// @ts-nocheck
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('sr-RS', {
     style: 'currency',

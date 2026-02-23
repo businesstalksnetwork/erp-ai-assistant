@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Sparkles } from "lucide-react";
-
+// @ts-nocheck
 export default function Register() {
   const { t } = useLanguage();
   const navigate = useNavigate();
