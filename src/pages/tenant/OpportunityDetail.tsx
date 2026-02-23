@@ -188,7 +188,7 @@ export default function OpportunityDetail() {
       if (error) throw error;
       await logActivity("quote_created", `Quote created: ${quoteNumber}`);
     },
-    onSuccess: () => { toast.success(t("conversionSuccess")); navigate("/crm/quotes"); },
+    onSuccess: () => { toast.success(t("conversionSuccess")); navigate("/sales/quotes"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
