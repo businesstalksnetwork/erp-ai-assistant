@@ -1,120 +1,175 @@
 
 
-## Implement & Upgrade Production AI Module
+## End-to-End AI Module Upgrade
 
-### Overview
+### Current State Summary
 
-The Production AI module has 4 pages (Dashboard, Schedule, Bottleneck Predictor, Capacity Simulator) and 1 edge function. Several key improvements are missing: no `priority` field on orders, no persistent scenario storage, schedule generation ignores locked orders, no date validation on AI output, no local fallback scheduler, and the edge function lacks order priority/due-date context. This plan addresses all of these.
+The app has 5 AI edge functions and ~10 frontend AI components:
 
----
-
-### 1. Database Migration: Add `priority` to production_orders + Create `production_scenarios` table
-
-**New column on `production_orders`:**
-- `priority` INTEGER DEFAULT 3 (1=highest, 5=lowest) -- enables user-driven priority input to AI
-
-**New table `production_scenarios`:**
-- `id` UUID PK
-- `tenant_id` UUID FK NOT NULL
-- `name` TEXT NOT NULL
-- `scenario_type` TEXT NOT NULL (schedule, simulation, bottleneck)
-- `params` JSONB DEFAULT '{}'
-- `result` JSONB DEFAULT '{}'
-- `status` TEXT DEFAULT 'completed'
-- `created_by` UUID
-- `created_at` TIMESTAMPTZ DEFAULT now()
-
-RLS: tenant-scoped read/write for active members.
+| Component | What it does | Key gaps |
+|-----------|-------------|----------|
+| `ai-assistant` | Copilot chat with SQL tool-calling (3 rounds) | No streaming from AI (fakes SSE by chunking final text), no conversation persistence, limited to 3 tool rounds, schema context is hardcoded/stale |
+| `ai-insights` | Rule-based anomaly detection (overdue invoices, stock, payroll, etc.) | No AI involved (pure SQL checks), no trending/time-series, insights are generic text not actionable |
+| `ai-analytics-narrative` | Sends page KPI data to Gemini for narrative summary | No tool-calling (can't query DB for context), just parrots back what you send it, no caching |
+| `production-ai-planning` | Schedule/bottleneck/simulation via tool-calling | Already upgraded -- good shape |
+| `wms-slotting` | Warehouse slot optimization via tool-calling | Already upgraded -- good shape |
+| `AiContextSidebar` | Persistent sidebar with insights + chat + narrative | Good architecture, but chat uses fake streaming |
+| `AiAssistantPanel` | Floating sheet chat panel | Duplicate of sidebar logic, uses real streaming but duplicates all code |
+| `AiAuditLog` | Reads `ai_action_log` table | No AI actions actually write to this table yet |
 
 ---
 
-### 2. Edge Function Upgrade: `production-ai-planning`
+### Upgrade Plan (8 changes)
 
-**Data enrichment:**
-- Add `priority` and `planned_end` (as due date) to the order data sent to AI
-- Add `today's date` to context so AI doesn't suggest past dates
-- For `generate-schedule`: accept `locked_order_ids` and `excluded_order_ids` arrays from the request body. Filter locked orders out of suggestions and exclude excluded orders from the prompt entirely.
+#### 1. True Streaming for AI Assistant (Backend)
 
-**Date validation (post-AI):**
-- After parsing AI schedule suggestions, validate each: `suggested_start < suggested_end` and `suggested_start >= today`. Filter out invalid entries and log warnings.
+**Problem**: `ai-assistant` currently runs non-streaming AI calls (up to 3 tool rounds), then fakes SSE by chunking the final text into 20-char pieces. This means the user waits for ALL tool calls + AI response before seeing anything.
 
-**New action `local-fallback-schedule`:**
-- A deterministic scheduling algorithm in the edge function itself (no AI call):
-  - Sort non-completed orders by priority ASC, then planned_end ASC (earliest due date first)
-  - Assign sequential start dates with estimated durations based on quantity
-  - Returns same `ScheduleResult` schema as AI
-- Used as fallback when AI fails, or when user explicitly selects "Local" mode
+**Fix**: After tool-calling rounds complete, make the final AI call with `stream: true` and pipe the real SSE stream directly to the client. This gives instant token-by-token output for the final answer while keeping the tool-calling loop non-streaming (which is correct -- you need to parse tool calls synchronously).
 
-**Save scenario action:**
-- New action `save-scenario`: persists params + result to `production_scenarios` table
-- New action `list-scenarios`: returns recent scenarios for tenant
+**File**: `supabase/functions/ai-assistant/index.ts`
 
 ---
 
-### 3. Schedule Page Upgrades (`AiPlanningSchedule.tsx`)
+#### 2. Conversation Persistence (DB + Frontend)
 
-- **Locked orders passed to AI**: When generating, send `locked_order_ids` (from the `locked` Set) so AI skips those orders in suggestions
-- **Exclude orders**: Add checkboxes or a multi-select to exclude specific orders from analysis
-- **Date validation toast**: After receiving suggestions, filter out invalid dates and show a warning toast if any were removed
-- **Local fallback toggle**: Add a Switch "AI / Local" mode toggle (like WMS slotting). Local mode calls `local-fallback-schedule` action
-- **Gantt legend**: Add a color legend bar below the chart explaining status colors (draft, in_progress, completed, late, AI suggestion)
-- **Batch apply**: Change sequential `update` loop to `Promise.all` for accepted suggestions
-- **Priority column display**: Show order priority in the tooltip
+**Problem**: Chat history is lost on page reload. Users can't resume conversations.
 
----
+**Changes**:
+- Create `ai_conversations` table: `id`, `tenant_id`, `user_id`, `title`, `created_at`, `updated_at`
+- Create `ai_conversation_messages` table: `id`, `conversation_id`, `role` (user/assistant/tool), `content`, `created_at`
+- RLS: users can only access their own conversations within their tenant
+- Frontend: Auto-save messages after each exchange, add conversation list in sidebar, "New Chat" button
+- Auto-generate conversation title from first user message (truncated to 50 chars)
 
-### 4. Capacity Simulation Persistence (`AiCapacitySimulation.tsx`)
-
-- Replace client-side `savedScenarios` state with database-backed storage using `production_scenarios` table
-- On "Save Scenario": call `save-scenario` action to persist
-- On page load: query `production_scenarios` where `scenario_type = 'simulation'` to show history
-- Add "Load" button on saved scenarios to restore params + result
-- Add "Compare" mode: select 2 saved scenarios, show side-by-side KPI diff (reuse pattern from WMS slotting comparison)
+**Files**: Migration SQL, `useAiStream.ts`, `AiContextSidebar.tsx`, `AiAssistantPanel.tsx`
 
 ---
 
-### 5. Bottleneck Predictor: Local Material Check (`AiBottleneckPrediction.tsx`)
+#### 3. AI-Powered Insights Engine (Hybrid: Rules + AI)
 
-- Add a local pre-check before AI call: cross-reference BOM lines with inventory stock to find real material shortages
-- Merge local material shortages with AI bottlenecks, deduplicating
-- This provides instant results for material shortages even before AI responds
+**Problem**: `ai-insights` is 100% rule-based SQL checks -- no actual AI. The "AI Insights" branding is misleading.
+
+**Fix**: After collecting all rule-based insights, send the top 10 to Gemini with a system prompt asking it to:
+- Prioritize by business impact
+- Add cross-module correlation (e.g. "overdue invoices + low stock = supply chain risk")
+- Generate 2-3 strategic recommendations connecting multiple signals
+- Return a `summary` field with a 1-sentence executive overview
+
+This makes insights genuinely AI-enhanced without removing the fast deterministic checks.
+
+**File**: `supabase/functions/ai-insights/index.ts`
 
 ---
 
-### 6. Dashboard: Priority Distribution Widget (`AiPlanningDashboard.tsx`)
+#### 4. AI Analytics Narrative with DB Tool-Calling
 
-- Add a small bar chart showing order count by priority (1-5)
-- Add priority to the material readiness check display
+**Problem**: `ai-analytics-narrative` receives KPI data from the frontend and just parrots it back as prose. The AI has no ability to query for additional context (e.g. "which specific account caused the spike?").
+
+**Fix**: Add a `query_tenant_data` tool (reuse the same pattern from `ai-assistant`) so the narrative AI can:
+- Drill into specific accounts driving a ratio
+- Compare with prior period data
+- Look up specific partner/product names
+
+Also add response caching: store results in a new `ai_narrative_cache` table (tenant_id, context_type, narrative, recommendations, expires_at). Cache for 30 minutes.
+
+**Files**: `supabase/functions/ai-analytics-narrative/index.ts`, migration for cache table
 
 ---
 
-### 7. Documentation Update
+#### 5. AI Audit Trail (Actually Write to `ai_action_log`)
+
+**Problem**: The `ai_action_log` table and viewer page exist but nothing writes to it. The audit log is always empty.
+
+**Fix**: Add audit logging calls to all AI edge functions:
+- `ai-assistant`: Log each tool-calling SQL query (action_type: "sql_query", module: detected from query)
+- `ai-insights`: Log the AI enrichment call (action_type: "insight_generation")  
+- `ai-analytics-narrative`: Log each narrative generation (action_type: "narrative_generation", module: context_type)
+- `production-ai-planning`: Log schedule/bottleneck/simulation generations
+- `wms-slotting`: Log slotting optimization runs
+
+Each log entry includes: `tenant_id`, `user_id`, `action_type`, `module`, `model_version` ("gemini-3-flash-preview"), `confidence_score` (null for chat), `user_decision` ("auto" for insights, null for chat), `reasoning` (truncated prompt/response summary).
+
+**Files**: All 5 edge functions
+
+---
+
+#### 6. Deduplicate AI Chat Components
+
+**Problem**: `AiAssistantPanel.tsx` (floating button/sheet) and `AiContextSidebar.tsx` (persistent sidebar) duplicate 90% of the same streaming/chat logic.
+
+**Fix**: 
+- Remove `AiAssistantPanel.tsx` entirely (the sidebar is the canonical chat interface)
+- The sidebar already has all features: suggested questions, module insights, narrative, chat
+- Update `TenantLayout.tsx` to remove the floating button import
+- The floating Sparkles button is redundant when the sidebar toggle exists
+
+**Files**: Delete `AiAssistantPanel.tsx`, update `TenantLayout.tsx`
+
+---
+
+#### 7. Dynamic Schema Context for AI Assistant
+
+**Problem**: The `SCHEMA_CONTEXT` in `ai-assistant` is a hardcoded string listing tables. When new tables are added (e.g. `production_scenarios`, `wms_slotting_scenarios`), the AI doesn't know about them.
+
+**Fix**: Query `information_schema.columns` at runtime (cached for 1 hour in-memory) to build the schema context dynamically. Filter to `public` schema only, exclude system tables. This ensures the AI always knows about all available tables.
+
+**File**: `supabase/functions/ai-assistant/index.ts`
+
+---
+
+#### 8. Enhanced AI Assistant: Multi-Tool Support
+
+**Problem**: The assistant only has one tool (`query_tenant_data`). Users ask questions that need computation or action suggestions but the AI can only query.
+
+**Fix**: Add 2 new tools:
+- `analyze_trend`: Given a metric name and time range, calculates MoM/YoY growth rates and returns trend data. This handles "what's the trend?" questions more precisely than raw SQL.
+- `create_reminder`: Creates a notification/reminder for the user about something the AI flagged (e.g. "Remind me to follow up on overdue invoices next Monday"). Inserts into `notifications` table.
+
+Increase tool rounds from 3 to 5 to allow more complex multi-step reasoning.
+
+**File**: `supabase/functions/ai-assistant/index.ts`
+
+---
+
+### Documentation Update
 
 Update `ARCHITECTURE_DOCUMENTATION.md` with:
-- New `production_scenarios` table schema
-- `priority` field on `production_orders`
-- Local fallback scheduler description
-- Updated edge function actions list
+- New tables: `ai_conversations`, `ai_conversation_messages`, `ai_narrative_cache`
+- Updated edge function capabilities (streaming, audit logging, dynamic schema, multi-tool)
+- Removed component: `AiAssistantPanel.tsx`
+- AI audit trail flow description
 
 ---
 
 ### Technical Details
 
-**Files to create:**
-- None (all changes are modifications)
+**Database migration (1 migration file)**:
+```sql
+-- ai_conversations for chat persistence
+CREATE TABLE ai_conversations (...)
+-- ai_conversation_messages  
+CREATE TABLE ai_conversation_messages (...)
+-- ai_narrative_cache for analytics caching
+CREATE TABLE ai_narrative_cache (...)
+-- RLS policies for all 3 tables
+```
 
-**Files to modify:**
-- `supabase/functions/production-ai-planning/index.ts` -- add locked/excluded order filtering, date validation, local fallback action, save/list scenario actions
-- `src/pages/tenant/AiPlanningSchedule.tsx` -- locked order passthrough, exclude UI, local mode toggle, legend, batch apply
-- `src/pages/tenant/AiCapacitySimulation.tsx` -- DB-backed scenario persistence, load, compare
-- `src/pages/tenant/AiBottleneckPrediction.tsx` -- local material pre-check
-- `src/pages/tenant/AiPlanningDashboard.tsx` -- priority distribution widget
-- `src/pages/tenant/ProductionOrders.tsx` -- priority field in create/edit form
-- `ARCHITECTURE_DOCUMENTATION.md` -- document new schema and features
+**Edge functions to modify** (5 files):
+- `supabase/functions/ai-assistant/index.ts` -- true streaming, dynamic schema, multi-tool, audit logging
+- `supabase/functions/ai-insights/index.ts` -- AI enrichment layer, audit logging
+- `supabase/functions/ai-analytics-narrative/index.ts` -- tool-calling, caching, audit logging
+- `supabase/functions/production-ai-planning/index.ts` -- audit logging only
+- `supabase/functions/wms-slotting/index.ts` -- audit logging only
 
-**Database migration:**
-- ALTER TABLE production_orders ADD COLUMN priority INTEGER DEFAULT 3
-- CREATE TABLE production_scenarios (with RLS policies)
+**Frontend files to modify** (4 files):
+- `src/hooks/useAiStream.ts` -- conversation persistence
+- `src/components/ai/AiContextSidebar.tsx` -- conversation list, new chat
+- `src/layouts/TenantLayout.tsx` -- remove AiAssistantPanel import
+- `ARCHITECTURE_DOCUMENTATION.md` -- documentation sync
 
-**Edge function deployment:** production-ai-planning
+**Frontend file to delete** (1 file):
+- `src/components/ai/AiAssistantPanel.tsx`
+
+**Edge functions to deploy**: ai-assistant, ai-insights, ai-analytics-narrative, production-ai-planning, wms-slotting
 
