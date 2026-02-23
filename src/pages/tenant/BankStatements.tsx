@@ -174,38 +174,72 @@ export default function BankStatements() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // Auto-match by payment reference
+  // Enhanced auto-match with confidence scoring
   const autoMatchMutation = useMutation({
     mutationFn: async (statementId: string) => {
       const { data: lines } = await supabase.from("bank_statement_lines").select("*").eq("statement_id", statementId).eq("match_status", "unmatched");
-      if (!lines?.length) return 0;
+      if (!lines?.length) return { matched: 0, total: 0 };
+
+      // Load all open invoices and supplier invoices for matching
+      const { data: invoices = [] } = await supabase.from("invoices").select("id, invoice_number, total, partner_name, due_date, status").eq("tenant_id", tenantId!).in("status", ["sent", "overdue"]);
+      const { data: supplierInvoices = [] } = await supabase.from("supplier_invoices").select("id, invoice_number, total, supplier_name, due_date, status").eq("tenant_id", tenantId!).in("status", ["received", "approved"]);
 
       let matchCount = 0;
       for (const line of lines) {
-        if (!line.payment_reference) continue;
-        const ref = line.payment_reference.trim();
+        let bestMatch: { id: string; confidence: number; type: "invoice" | "supplier_invoice" } | null = null;
 
-        if (line.direction === "credit") {
-          // Try match to invoice by payment reference
-          const { data: inv } = await supabase.from("invoices").select("id, total").eq("tenant_id", tenantId!).ilike("invoice_number", `%${ref}%`).in("status", ["sent", "overdue"]).limit(1).single();
-          if (inv && Math.abs(inv.total - line.amount) < 0.01) {
-            await supabase.from("bank_statement_lines").update({ match_status: "matched", matched_invoice_id: inv.id }).eq("id", line.id);
-            matchCount++;
+        const candidates = line.direction === "credit" ? invoices : supplierInvoices;
+        for (const doc of candidates) {
+          let confidence = 0;
+          const docTotal = Number(doc.total);
+          const lineAmt = Number(line.amount);
+
+          // 1. Exact amount match: +40 points
+          if (Math.abs(docTotal - lineAmt) < 0.01) confidence += 40;
+          // Near amount match (within 1%): +20 points
+          else if (Math.abs(docTotal - lineAmt) / Math.max(docTotal, 1) < 0.01) confidence += 20;
+          else continue; // Skip if amount doesn't match at all
+
+          // 2. Reference match: +40 points
+          const ref = line.payment_reference?.trim() || "";
+          const invNum = doc.invoice_number?.trim() || "";
+          if (ref && invNum && (ref.includes(invNum) || invNum.includes(ref))) confidence += 40;
+          else if (ref && invNum) {
+            // Partial match
+            const refDigits = ref.replace(/\D/g, "");
+            const invDigits = invNum.replace(/\D/g, "");
+            if (refDigits.length > 3 && invDigits.length > 3 && (refDigits.includes(invDigits) || invDigits.includes(refDigits))) confidence += 25;
           }
-        } else {
-          // Try match to supplier invoice
-          const { data: si } = await supabase.from("supplier_invoices").select("id, total").eq("tenant_id", tenantId!).ilike("invoice_number", `%${ref}%`).in("status", ["received", "approved"]).limit(1).single();
-          if (si && Math.abs(si.total - line.amount) < 0.01) {
-            await supabase.from("bank_statement_lines").update({ match_status: "matched", matched_supplier_invoice_id: si.id }).eq("id", line.id);
-            matchCount++;
+
+          // 3. Partner name match: +15 points
+          const partnerName = line.partner_name?.toLowerCase() || "";
+          const docPartner = ((doc as any).partner_name || (doc as any).supplier_name || "").toLowerCase();
+          if (partnerName && docPartner && (partnerName.includes(docPartner) || docPartner.includes(partnerName))) confidence += 15;
+
+          // 4. Date proximity: +5 points if within 7 days of due date
+          if ((doc as any).due_date && line.line_date) {
+            const daysDiff = Math.abs(new Date(line.line_date).getTime() - new Date((doc as any).due_date).getTime()) / 86400000;
+            if (daysDiff <= 7) confidence += 5;
+          }
+
+          if (confidence >= 40 && (!bestMatch || confidence > bestMatch.confidence)) {
+            bestMatch = { id: doc.id, confidence, type: line.direction === "credit" ? "invoice" : "supplier_invoice" };
           }
         }
+
+        if (bestMatch) {
+          const update: Record<string, any> = { match_status: bestMatch.confidence >= 70 ? "matched" : "suggested" };
+          if (bestMatch.type === "invoice") update.matched_invoice_id = bestMatch.id;
+          else update.matched_supplier_invoice_id = bestMatch.id;
+          await supabase.from("bank_statement_lines").update(update).eq("id", line.id);
+          matchCount++;
+        }
       }
-      return matchCount;
+      return { matched: matchCount, total: lines.length };
     },
-    onSuccess: (count) => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["bank_statement_lines"] });
-      toast({ title: t("autoMatchComplete"), description: `${count} ${t("transactionsMatched")}` });
+      toast({ title: t("autoMatchComplete"), description: `${result.matched}/${result.total} ${t("transactionsMatched")}` });
     },
   });
 

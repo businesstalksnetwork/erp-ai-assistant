@@ -12665,6 +12665,14 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      generate_opening_balance: {
+        Args: {
+          p_fiscal_year?: number
+          p_legal_entity_id?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       generate_opening_balances: {
         Args: { p_fiscal_period_id: string; p_tenant_id: string }
         Returns: string
