@@ -12002,6 +12002,64 @@ export type Database = {
           },
         ]
       }
+      wms_product_stats: {
+        Row: {
+          avg_daily_movement: number | null
+          id: string
+          last_pick_date: string | null
+          product_id: string
+          tenant_id: string
+          total_picks_90d: number | null
+          updated_at: string | null
+          velocity_picks_per_week: number | null
+          warehouse_id: string
+        }
+        Insert: {
+          avg_daily_movement?: number | null
+          id?: string
+          last_pick_date?: string | null
+          product_id: string
+          tenant_id: string
+          total_picks_90d?: number | null
+          updated_at?: string | null
+          velocity_picks_per_week?: number | null
+          warehouse_id: string
+        }
+        Update: {
+          avg_daily_movement?: number | null
+          id?: string
+          last_pick_date?: string | null
+          product_id?: string
+          tenant_id?: string
+          total_picks_90d?: number | null
+          updated_at?: string | null
+          velocity_picks_per_week?: number | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_product_stats_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_product_stats_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_product_stats_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wms_putaway_rules: {
         Row: {
           created_at: string
@@ -12724,6 +12782,10 @@ export type Database = {
       process_pos_sale: {
         Args: { p_tenant_id: string; p_transaction_id: string }
         Returns: string
+      }
+      refresh_wms_product_stats: {
+        Args: { p_tenant_id: string; p_warehouse_id: string }
+        Returns: undefined
       }
       release_stock_for_order: {
         Args: { p_sales_order_id: string; p_tenant_id: string }

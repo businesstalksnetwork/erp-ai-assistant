@@ -2,11 +2,14 @@ import { useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsBar } from "@/components/shared/StatsBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Cog, AlertTriangle, CheckCircle, Package, ShoppingCart } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
@@ -14,6 +17,9 @@ import { fmtNum } from "@/lib/utils";
 export default function MrpEngine() {
   const { t, locale } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
   // Fetch active production orders (planned + in_progress)
   const { data: activeOrders = [] } = useQuery({
@@ -109,6 +115,40 @@ export default function MrpEngine() {
   const shortages = mrpData.filter(m => m.net > 0);
   const totalRequired = mrpData.reduce((s, m) => s + m.required, 0);
   const totalShortage = shortages.reduce((s, m) => s + m.net, 0);
+
+  // Auto-PO mutation: create draft PO from shortage items
+  const createPoMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantId || shortages.length === 0) throw new Error("No shortages");
+      // Create a draft PO
+      const { data: po, error: poErr } = await supabase.from("purchase_orders").insert({
+        tenant_id: tenantId,
+        order_number: `MRP-${Date.now().toString(36).toUpperCase()}`,
+        status: "draft",
+        notes: locale === "sr" ? "Automatski generisano iz MRP" : "Auto-generated from MRP shortages",
+        created_by: user?.id,
+      } as any).select("id").single();
+      if (poErr) throw poErr;
+
+      // Add lines for each shortage
+      const lines = shortages.map((s, i) => ({
+        purchase_order_id: po.id,
+        product_id: s.productId,
+        quantity: Math.ceil(s.net),
+        unit_price: 0,
+        total: 0,
+        sort_order: i + 1,
+      }));
+      const { error: lineErr } = await supabase.from("purchase_order_lines").insert(lines);
+      if (lineErr) throw lineErr;
+      return po.id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase_orders"] });
+      toast({ title: t("success"), description: locale === "sr" ? "Narudžbenica kreirana iz MRP nedostataka" : "Purchase order created from MRP shortages" });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
 
   const stats = [
     { label: locale === "sr" ? "Aktivnih naloga" : "Active Orders", value: activeOrders.length, icon: Cog, color: "text-primary" },
