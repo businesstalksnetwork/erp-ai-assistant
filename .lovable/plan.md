@@ -1,96 +1,125 @@
 
 
-## Implement High-Value Recommendations from the Review Report
+## Update WMS AI Section of the Report
 
-### Overview
-
-Based on the deep research report review against the current codebase, many recommendations are already implemented (unique constraints on `chart_of_accounts.code` and `invoices.invoice_number`, `NUMERIC` types for debit/credit, audit logging via `log_audit_event` trigger, fiscal period validation). The remaining high-impact, feasible improvements fall into 4 categories.
-
----
-
-### 1. useDebounce Hook + Apply Across Search Inputs
-
-**Problem**: 37+ pages perform client-side `.filter()` on search state that updates on every keystroke, causing unnecessary re-renders.
-
-**Solution**: Create a `useDebounce` hook and apply it to the highest-traffic list pages.
-
-**File to create**: `src/hooks/useDebounce.ts`
-- Simple hook: accepts a value and delay (default 300ms), returns debounced value
-
-**Files to modify** (apply debounced search to filtered results):
-- `src/pages/tenant/Invoices.tsx` -- wrap `search` with `useDebounce` before filtering
-- `src/pages/tenant/JournalEntries.tsx` -- same pattern
-- `src/pages/tenant/Products.tsx` -- same pattern
-- `src/pages/tenant/Partners.tsx` -- same pattern (if client-side filtering present)
-
-Each page change is minimal: add import, add `const debouncedSearch = useDebounce(search, 300);`, replace `search` with `debouncedSearch` in the filter logic.
+### Goal
+Rewrite the "WMS AI (Warehouse Management with AI)" section to accurately reflect the current implementation, removing incorrect claims and documenting features that already exist.
 
 ---
 
-### 2. Server-Side Pagination for High-Volume Tables
+### Changes Required
 
-**Problem**: Invoices, journal entries, and products fetch ALL rows with no pagination, hitting the Supabase 1000-row default limit and causing slow loads on large tenants.
+#### 1. Current State -- Complete Rewrite
+Replace the current description with accurate documentation of:
 
-**Solution**: Add server-side pagination using `.range()` to 3 key pages, with Previous/Next controls.
+- **Scenario Management System**: Named scenarios persisted in `wms_slotting_scenarios` with status tracking (analyzing -> completed). Users can browse past scenarios in a sidebar panel and select any to review.
 
-**Files to create**: `src/hooks/usePaginatedQuery.ts`
-- Reusable hook encapsulating page state, PAGE_SIZE (50), and `.range()` query pattern
-- Returns `{ data, page, setPage, hasMore, isLoading }`
+- **Dual-Mode Analysis (AI + Local Heuristic)**:
+  - AI mode: Calls `wms-slotting` edge function which computes velocity scores, co-pick affinity from 90-day pick history, sends top 50 SKUs + 100 bins to Gemini-3 via Lovable AI gateway with tool-calling schema
+  - Local mode: Built-in greedy algorithm that sorts products by pick velocity and assigns them to bins sorted by accessibility score. No external API call.
+  - User toggles between modes via a Switch component in the analysis dialog
 
-**Files to modify**:
-- `src/pages/tenant/Invoices.tsx` -- replace unbounded `select("*")` with paginated query + pagination controls at bottom
-- `src/pages/tenant/JournalEntries.tsx` -- same
-- `src/pages/tenant/Products.tsx` -- same
+- **User-Adjustable Optimization Weights**: Three linked sliders (Travel / Affinity / Space) that auto-balance to 100%. These weights are passed to both AI and local algorithms.
 
-Each page adds pagination state, modifies the query to use `.range()`, and adds `PaginationPrevious`/`PaginationNext` controls from the existing `src/components/ui/pagination.tsx`.
+- **Move Plan with Lifecycle**: AI/local recommendations are saved to `wms_slotting_moves` table with statuses: proposed -> approved -> executed. Each move tracks product_id, from_bin_id, to_bin_id, priority, and linked task_id.
 
----
+- **Task Generation ("Generate Tasks" button)**: Converts proposed moves into `wms_tasks` with type "reslot", creating actionable warehouse tasks with priority ordering. Moves are updated to "approved" status with the linked task ID.
 
-### 3. Lazy Loading (Code Splitting) for App.tsx
+- **Full WMS Module Beyond AI**: Document the complete WMS feature set:
+  - Dashboard: KPI cards (bins, utilization, pending/in-progress/completed tasks), task status pie chart, tasks-by-type bar chart, zone overview grid, recent activity feed, quick action buttons
+  - Tasks: Full lifecycle (pending -> assigned -> in_progress -> completed/exception), manual task creation, batch operations (start/assign/cancel), worker assignment, priority management (1-5 with inline select), performance KPIs (avg completion time)
+  - Receiving: PO linkage, lot/serial tracking, bin assignment
+  - Picking: Wave management
+  - Cycle Counts: Variance approval workflow
+  - Zones & Bins: Zone management with warehouse association, bin detail pages
 
-**Problem**: App.tsx eagerly imports 100+ page components, creating a large initial bundle even for pages the user may never visit.
+#### 2. Issues/Risks -- Update
+Remove these incorrect items:
+- "UI Integration: how does the user apply them? This is unclear -- likely manual" (WRONG: Generate Tasks button exists)
 
-**Solution**: Convert page imports to `React.lazy()` with a `Suspense` fallback.
+Keep/update these valid items:
+- Data Volume: Still valid -- full arrays fetched from DB before slicing for prompt. Add note that local algorithm also fetches all bins/stock/pick history.
+- Heuristic Dependence: Rename to "AI Constraint Validation" -- no post-AI capacity checking exists. The local fallback algorithm also doesn't validate bin capacity before assignment.
+- Error Handling: Still valid but add detail -- on AI error, toast is shown with error message; empty recommendations show "noResults" text in table.
+- Security: Update to note JWT validation + tenant membership check in edge function, plus CORS headers.
 
-**File to modify**: `src/App.tsx`
-- Replace direct imports with `React.lazy(() => import(...))` for all tenant and super-admin pages
-- Wrap `<Routes>` in `<Suspense fallback={<LoadingSpinner />}>`
-- Keep non-page imports (layouts, providers) as eager imports
+Add new issues:
+- Batch task generation loops: `generateTasksMutation` issues one INSERT per move sequentially -- should batch.
+- Local algorithm doesn't consider bin capacity (`max_units`) when assigning -- it only sorts by accessibility score.
+- No scenario comparison view -- users can't easily compare two scenarios side-by-side.
 
-This reduces the initial JS bundle significantly and improves Time to Interactive.
+#### 3. Recommendations -- Update
+Remove items already implemented:
+- "User-adjustable weights" (DONE -- three linked sliders)
+- "Add UI steps to review" (DONE -- scenario list + move plan table + Generate Tasks button)
+- "Handle empty/partial AI output" (DONE -- shows "noResults" in table)
 
----
+Keep valid recommendations:
+- Restrict prompt size with SQL filtering (still fetches all rows)
+- Constraint checking post-AI (still missing)
+- Background/scheduled slotting job
+- `wms_product_stats` precomputation table
+- Affinity graph persistence table
+- Simulation integration
 
-### 4. useMemo for Client-Side Filtering (Consistency Pass)
+Update recommendations:
+- "Hybrid algorithm" should note local fallback already exists, but recommend cross-validation (run both, compare results)
+- Add: Batch INSERT for move plan and task generation instead of sequential loops
+- Add: Bin capacity validation in local algorithm before assignment
+- Add: Scenario comparison view (side-by-side KPIs)
 
-**Problem**: Many pages (37+) call `.filter()` directly in the render path without `useMemo`, causing re-computation on every render even when inputs haven't changed.
+#### 4. Flow Diagram -- Update
+Update the Mermaid diagram to show the dual-path (AI vs Local) architecture and the full workflow through to task generation:
 
-**Solution**: Wrap `filtered` computations in `useMemo` on the highest-traffic pages that don't already use it.
+```text
+flowchart TD
+    User[User configures weights + warehouse] --> Mode{AI or Local?}
+    Mode -->|AI Mode| EdgeFn[Edge Function: wms-slotting]
+    Mode -->|Local Mode| LocalAlgo[Greedy Heuristic: velocity x accessibility]
 
-**Files to modify** (add `useMemo` to the `filtered` variable):
-- `src/pages/tenant/Invoices.tsx`
-- `src/pages/tenant/JournalEntries.tsx`
-- `src/pages/tenant/Products.tsx`
-- `src/pages/tenant/Partners.tsx`
-- `src/pages/tenant/BankStatements.tsx`
+    subgraph EdgeFn[Edge Function]
+      PickHistory[90-day Pick History] --> Velocity[Velocity scores]
+      PickHistory --> Affinity[Co-pick Affinity]
+      BinsData[Bins + Zones] --> Prompt
+      Velocity --> Prompt[Build AI Prompt]
+      Affinity --> Prompt
+      Prompt --> AI[Gemini-3 via AI Gateway]
+      AI -->|Tool Call JSON| Parse[Parse Recommendations]
+    end
 
-Each change wraps the existing `const filtered = data.filter(...)` with `useMemo(() => data.filter(...), [data, search, statusFilter])`.
+    subgraph LocalAlgo[Local Algorithm]
+      FetchData[Fetch bins + stock + picks] --> SortProducts[Sort products by velocity]
+      SortProducts --> SortBins[Sort bins by accessibility]
+      SortBins --> Assign[Greedy assignment]
+    end
+
+    Parse --> SaveScenario[Save to wms_slotting_scenarios]
+    Assign --> SaveScenario
+    SaveScenario --> MovePlan[wms_slotting_moves - proposed]
+    MovePlan -->|User clicks Generate Tasks| Tasks[wms_tasks - type: reslot]
+    Tasks --> Execution[Warehouse workers execute]
+```
+
+#### 5. Comparison Table -- Update
+Add "Local Greedy (current)" row to the approaches table, noting it's already built in. Update "AI-based (LLM)" row to note it's already implemented with Gemini-3. Change "Hybrid" row to note the dual-mode toggle already exists.
+
+#### 6. Testing Section -- Update
+- Add: Test scenario creation + move plan persistence
+- Add: Test Generate Tasks mutation creates correct wms_tasks records
+- Add: Test local algorithm produces valid recommendations with known input
+- Keep: Mock AI gateway test, empty pick history test, performance test
+
+#### 7. Data/Schema Section -- Update
+- Note that `wms_slotting_scenarios` and `wms_slotting_moves` tables already exist
+- Keep recommendation for `wms_product_stats` precomputation
+- Keep recommendation for persisted affinity graph
+- Add: Consider adding `estimated_improvement` columns directly to scenarios (currently stored as JSON)
 
 ---
 
 ### Technical Details
 
-**New files**:
-- `src/hooks/useDebounce.ts` -- ~15 lines, useState + useEffect pattern
-- `src/hooks/usePaginatedQuery.ts` -- ~40 lines, wraps page state + TanStack Query
+**File to modify**: The uploaded `deep-research-report.md` -- rewrite the "WMS AI (Warehouse Management with AI)" section entirely.
 
-**Modified files**:
-- `src/App.tsx` -- Convert ~100 imports to `React.lazy()`
-- `src/pages/tenant/Invoices.tsx` -- debounce + pagination + useMemo
-- `src/pages/tenant/JournalEntries.tsx` -- debounce + pagination + useMemo
-- `src/pages/tenant/Products.tsx` -- debounce + pagination + useMemo
-- `src/pages/tenant/Partners.tsx` -- debounce + useMemo
-- `src/pages/tenant/BankStatements.tsx` -- useMemo
-
-**No database migrations needed** -- unique constraints and NUMERIC types are already in place. No schema changes required.
+No code changes needed -- documentation only.
 
