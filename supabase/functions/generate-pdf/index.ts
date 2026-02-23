@@ -119,6 +119,11 @@ Deno.serve(async (req) => {
     if (type === "aging_report") {
       return await generateAgingReport(admin, body, corsHeaders);
     }
+    if (type === "ios_kompenzacija") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateIosKompenzacija(admin, body, corsHeaders);
+    }
 
     // --- Invoice PDF (default) ---
     const { invoice_id } = body;
@@ -481,4 +486,96 @@ async function generateAgingReport(admin: any, body: any, corsHeaders: Record<st
   </tbody></table>`;
 
   return new Response(wrapHtml(title, content), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+}
+
+// ─── IOS (Izvod Otvorenih Stavki) for Kompenzacija ───
+async function generateIosKompenzacija(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id, kompenzacija_id } = body;
+  if (!tenant_id || !kompenzacija_id) {
+    return new Response(JSON.stringify({ error: "tenant_id and kompenzacija_id required" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+  const { data: komp, error: kompErr } = await admin.from("kompenzacija").select("*, partners(name, pib, address, city)").eq("id", kompenzacija_id).single();
+  if (kompErr || !komp) {
+    return new Response(JSON.stringify({ error: "Kompenzacija not found" }), {
+      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Fetch kompenzacija items with open_items details
+  const { data: items = [] } = await admin.from("kompenzacija_items").select("*, open_items(document_number, original_amount, remaining_amount, currency, direction, due_date)").eq("kompenzacija_id", kompenzacija_id);
+
+  const receivableItems = items.filter((i: any) => i.direction === "receivable");
+  const payableItems = items.filter((i: any) => i.direction === "payable");
+  const partner = (komp as any).partners;
+  const totalAmount = Number(komp.total_amount);
+
+  const itemRows = (list: any[], label: string) => list.map((item: any, idx: number) => {
+    const oi = item.open_items;
+    return `<tr>
+      <td>${idx + 1}</td>
+      <td>${oi?.document_number || "—"}</td>
+      <td>${formatDate(oi?.due_date)}</td>
+      <td class="right">${formatNum(Number(oi?.original_amount || 0))}</td>
+      <td class="right">${formatNum(Number(item.amount))}</td>
+    </tr>`;
+  }).join("");
+
+  const content = `${companyHeader(legalEntity)}
+  <div class="report-title">ИЗВОД ОТВОРЕНИХ СТАВКИ (ИОС)</div>
+  <div class="report-subtitle">Izjava o međusobnom prebijanju potraživanja i obaveza</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <div style="background:#f8f9fa;padding:16px;border-radius:6px;">
+      <div class="summary-label">Poverilac / Naša firma</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:4px;">${legalEntity?.name || "—"}</div>
+      ${legalEntity?.pib ? `<div>PIB: ${legalEntity.pib}</div>` : ""}
+      ${legalEntity?.address ? `<div>${legalEntity.address}</div>` : ""}
+    </div>
+    <div style="background:#f8f9fa;padding:16px;border-radius:6px;">
+      <div class="summary-label">Dužnik / Partner</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:4px;">${partner?.name || "—"}</div>
+      ${partner?.pib ? `<div>PIB: ${partner.pib}</div>` : ""}
+      ${partner?.address ? `<div>${partner.address}${partner?.city ? `, ${partner.city}` : ""}</div>` : ""}
+    </div>
+  </div>
+
+  <div style="margin-bottom:4px;font-size:11px;color:#666;">Dokument br: ${komp.document_number} | Datum: ${formatDate(komp.document_date)}</div>
+
+  <div class="section-header">Naša potraživanja (Receivables)</div>
+  <table><thead><tr><th>#</th><th>Dokument</th><th>Rok</th><th class="right">Iznos</th><th class="right">Prebijeno</th></tr></thead><tbody>
+    ${itemRows(receivableItems, "receivable")}
+    <tr class="totals-row"><td colspan="4" style="text-align:right;font-weight:bold;">Ukupno potraživanja:</td><td class="right" style="font-weight:bold;">${formatNum(receivableItems.reduce((s: number, i: any) => s + Number(i.amount), 0))}</td></tr>
+  </tbody></table>
+
+  <div class="section-header">Naše obaveze (Payables)</div>
+  <table><thead><tr><th>#</th><th>Dokument</th><th>Rok</th><th class="right">Iznos</th><th class="right">Prebijeno</th></tr></thead><tbody>
+    ${itemRows(payableItems, "payable")}
+    <tr class="totals-row"><td colspan="4" style="text-align:right;font-weight:bold;">Ukupno obaveze:</td><td class="right" style="font-weight:bold;">${formatNum(payableItems.reduce((s: number, i: any) => s + Number(i.amount), 0))}</td></tr>
+  </tbody></table>
+
+  <div class="summary-box">
+    <div class="summary-label">Ukupan iznos kompenzacije</div>
+    <div class="summary-value">${formatNum(totalAmount)} RSD</div>
+  </div>
+
+  <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;">
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;">
+      <div style="font-size:11px;color:#666;">Za ${legalEntity?.name || "firmu"}</div>
+      <div style="margin-top:24px;">_________________________</div>
+      <div style="font-size:10px;color:#666;">M.P. i potpis</div>
+    </div>
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;">
+      <div style="font-size:11px;color:#666;">Za ${partner?.name || "partnera"}</div>
+      <div style="margin-top:24px;">_________________________</div>
+      <div style="font-size:10px;color:#666;">M.P. i potpis</div>
+    </div>
+  </div>`;
+
+  return new Response(wrapHtml("IOS - Izvod Otvorenih Stavki", content), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
 }

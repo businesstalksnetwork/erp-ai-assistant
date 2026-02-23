@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, FileText } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 
 interface OffsetItem {
@@ -144,7 +144,21 @@ export default function Kompenzacija() {
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
-  
+  const downloadIos = async (kompId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        body: { type: "ios_kompenzacija", tenant_id: tenantId, kompenzacija_id: kompId },
+      });
+      if (error) throw error;
+      // Open HTML in new tab for printing
+      const blob = new Blob([typeof data === "string" ? data : JSON.stringify(data)], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    }
+  };
+
 
   const updateItem = (list: OffsetItem[], setList: (v: OffsetItem[]) => void, idx: number, field: Partial<OffsetItem>) => {
     const updated = [...list];
@@ -286,6 +300,7 @@ export default function Kompenzacija() {
                     <TableHead>{t("partner")}</TableHead>
                     <TableHead className="text-right">{t("amount")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -296,9 +311,14 @@ export default function Kompenzacija() {
                       <TableCell>{(h.partners as any)?.name || "—"}</TableCell>
                       <TableCell className="text-right font-mono">{fmtNum(Number(h.total_amount))}</TableCell>
                       <TableCell><Badge variant={statusColor(h.status)}>{t(h.status as any) || h.status}</Badge></TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => downloadIos(h.id)} title="IOS">
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {history.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>}
+                  {history.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
