@@ -1,147 +1,113 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Design System: Dark Professional Theme
+   Inspired by Linear, Vercel, modern SaaS tools.
+   All colors MUST be HSL.
+*/
+
 @layer base {
   :root {
-    --background: 40 33% 98%;
-    --foreground: 222 47% 11%;
+    --background: 210 11% 96%;
+    --foreground: 224 24% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 24% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 24% 12%;
 
-    --primary: 45 93% 47%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 234 89% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 20% 94%;
-    --secondary-foreground: 222 47% 20%;
+    --secondary: 214 12% 92%;
+    --secondary-foreground: 224 24% 15%;
 
-    --muted: 40 20% 94%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 214 12% 93%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 45 93% 47%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 350 89% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
+    --border: 214 12% 90%;
+    --input: 214 12% 90%;
+    --ring: 234 89% 60%;
 
+    --radius: 0.5rem;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    --border: 40 20% 90%;
-    --input: 40 20% 90%;
-    --ring: 45 93% 47%;
+    --sidebar-background: 224 30% 8%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 234 89% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 20% 14%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 224 20% 16%;
+    --sidebar-ring: 234 89% 60%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 45 93% 47%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 47% 20%;
-    --sidebar-ring: 45 93% 47%;
-
-    --chart-1: 45 93% 47%;
+    --chart-1: 234 89% 60%;
     --chart-2: 160 84% 39%;
-    --chart-3: 217 91% 50%;
-    --chart-4: 280 70% 50%;
-    --chart-5: 0 84% 60%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(45, 93%, 47%) 0%, hsl(45, 93%, 57%) 100%);
-    --gradient-success: linear-gradient(135deg, hsl(160, 84%, 39%) 0%, hsl(160, 84%, 50%) 100%);
-    --gradient-warning: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(38, 92%, 60%) 100%);
-
-    --font-sans: 'Inter', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --chart-3: 38 92% 50%;
+    --chart-4: 350 89% 60%;
+    --chart-5: 270 70% 55%;
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 96%;
+    --background: 224 24% 6%;
+    --foreground: 220 15% 92%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 96%;
+    --card: 224 24% 10%;
+    --card-foreground: 220 15% 92%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 96%;
+    --popover: 224 24% 10%;
+    --popover-foreground: 220 15% 92%;
 
-    --primary: 45 93% 58%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 234 89% 66%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 16%;
-    --secondary-foreground: 210 40% 90%;
+    --secondary: 224 15% 16%;
+    --secondary-foreground: 220 15% 90%;
 
-    --muted: 222 47% 16%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 224 15% 16%;
+    --muted-foreground: 220 10% 55%;
 
-    --accent: 45 93% 58%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 50%;
+    --destructive: 350 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 92% 55%;
-    --warning-foreground: 222 47% 11%;
+    --border: 224 15% 16%;
+    --input: 224 15% 16%;
+    --ring: 234 89% 66%;
 
-    --success: 160 84% 45%;
-    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 222 47% 18%;
-    --input: 222 47% 18%;
-    --ring: 45 93% 58%;
+    --sidebar-background: 224 30% 4%;
+    --sidebar-foreground: 220 15% 80%;
+    --sidebar-primary: 234 89% 66%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 20% 10%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 224 20% 12%;
+    --sidebar-ring: 234 89% 66%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 45 93% 58%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 47% 14%;
-    --sidebar-accent-foreground: 210 40% 90%;
-    --sidebar-border: 222 47% 16%;
-    --sidebar-ring: 45 93% 58%;
-  }
-
-  /* White calendar icon in dark mode */
-  .dark [data-slot="calendar-icon"],
-  .dark .lucide-calendar {
-    color: hsl(0 0% 100%) !important;
-    opacity: 1 !important;
-  }
-
-  /* Native date input calendar icon in dark mode */
-  .dark input[type="date"]::-webkit-calendar-picker-indicator,
-  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-  .dark input[type="time"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 1;
-    cursor: pointer;
-  }
-
-  /* Hide native calendar icon for custom DateInput component */
-  .date-input-custom::-webkit-calendar-picker-indicator {
-    display: none !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
-  }
-  
-  /* Firefox */
-  .date-input-custom::-moz-calendar-picker-indicator {
-    display: none !important;
-  }
-  
-  /* Also hide inner spin button and clear button */
-  .date-input-custom::-webkit-inner-spin-button,
-  .date-input-custom::-webkit-clear-button {
-    display: none !important;
+    --chart-1: 234 89% 66%;
+    --chart-2: 160 84% 48%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 350 70% 55%;
+    --chart-5: 270 70% 62%;
   }
 }
 
@@ -151,662 +117,111 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+  /* Tabular numbers globally for numeric data */
+  td, th, .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
-}
-
-/* SEF sync protection: never show calendar portals while sync is active */
-body[data-sef-sync-active="1"] .rdp,
-body[data-sef-sync-active="1"] .rdp * {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  .animate-in {
+    animation: animateIn 0.3s ease-out;
   }
 
-  /* Mobile-safe viewport height */
-  .h-screen-safe {
-    height: 100vh;
-    height: 100dvh;
-  }
-
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  /* Hide scrollbar but keep scroll functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Minimum touch target size (44px for accessibility) */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  .gradient-primary {
-    background: var(--gradient-primary);
-  }
-
-  .gradient-success {
-    background: var(--gradient-success);
-  }
-
-  .gradient-warning {
-    background: var(--gradient-warning);
-  }
-
-  /* Card hover effects */
-  .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
-  }
-
-  .card-hover:hover {
-    box-shadow: 0 10px 40px -10px hsl(45 93% 47% / 0.15);
-  }
-
-  /* Interactive hover lift */
-  .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
-  }
-
-  /* Golden glow effect */
-  .glow-primary {
-    box-shadow: 0 0 20px -5px hsl(45 93% 47% / 0.25);
-  }
-
-  /* Shimmer loading effect */
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--muted)) 0%,
-      hsl(45 93% 47% / 0.1) 50%,
-      hsl(var(--muted)) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-
-  /* Link underline animation */
-  .link-hover {
-    @apply relative;
-  }
-
-  .link-hover::after {
-    @apply content-[''] absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
-  }
-
-  .link-hover:hover::after {
-    @apply w-full;
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
-/* Override font-mono za dokumente - Inter ima čistu nulu bez tačke */
-.print-invoice .font-mono {
-  font-family: 'Inter', system-ui, sans-serif !important;
-  font-variant-numeric: tabular-nums !important;
+/* Custom scrollbar — sidebar (thin, 4px) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-border));
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--sidebar-accent));
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-border)) transparent;
 }
 
-/* PDF Export styles - forces pure white/black for maximum contrast */
-/* KRITIČNO: Ovi stilovi moraju garantovati čitljiv PDF na mobilnim uređajima */
-.pdf-export {
-  --background: 0 0% 100% !important;
-  --foreground: 0 0% 0% !important;
-  --card: 0 0% 100% !important;
-  --card-foreground: 0 0% 0% !important;
-  --muted: 0 0% 96% !important;
-  --muted-foreground: 0 0% 10% !important;
-  --secondary: 0 0% 96% !important;
-  --secondary-foreground: 0 0% 0% !important;
-  --border: 0 0% 50% !important;
-  --primary: 0 0% 10% !important;
-  --primary-foreground: 0 0% 100% !important;
-  --popover: 0 0% 100% !important;
-  --popover-foreground: 0 0% 0% !important;
-  --accent: 0 0% 10% !important;
-  --accent-foreground: 0 0% 100% !important;
-  
-  /* Kompaktni stilovi za PDF - manji fontovi i razmaci */
-  font-size: 12px !important;
+/* Global scrollbar — all other scrollable areas (6px) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
 }
 
-.pdf-export .print-invoice {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  color: #000000 !important;
-  overflow: visible !important;
-  height: auto !important;
-  min-height: auto !important;
-}
-
-.pdf-export .print-invoice > * {
-  overflow: visible !important;
-}
-
-/* Sprečiti sečenje sadržaja */
-.pdf-export .print-invoice .border,
-.pdf-export .print-invoice .rounded-lg,
-.pdf-export .print-invoice .rounded-md {
-  overflow: visible !important;
-  break-inside: avoid !important;
-}
-
-.pdf-export .print-invoice *,
-.pdf-export .print-invoice p,
-.pdf-export .print-invoice span,
-.pdf-export .print-invoice td,
-.pdf-export .print-invoice th,
-.pdf-export .print-invoice div,
-.pdf-export .print-invoice h1,
-.pdf-export .print-invoice h2,
-.pdf-export .print-invoice h3,
-.pdf-export .print-invoice h4,
-.pdf-export .print-invoice h5,
-.pdf-export .print-invoice h6,
-.pdf-export .print-invoice label {
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
-}
-
-.pdf-export .print-invoice table,
-.pdf-export .print-invoice tr,
-.pdf-export .print-invoice td,
-.pdf-export .print-invoice th {
-  border-color: #666666 !important;
-}
-
-.pdf-export .print-invoice .border,
-.pdf-export .print-invoice [class*="border"] {
-  border-color: #888888 !important;
-}
-
-.pdf-export .print-invoice .bg-secondary,
-.pdf-export .print-invoice .bg-muted {
-  background-color: #f0f0f0 !important;
-}
-
-.pdf-export .print-invoice .bg-primary {
-  background-color: #222222 !important;
-  color: #ffffff !important;
-}
-
-.pdf-export .print-invoice .bg-primary *,
-.pdf-export .print-invoice .bg-primary span,
-.pdf-export .print-invoice .bg-primary p {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-
-.pdf-export .print-invoice .text-muted-foreground {
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
-}
-
-.pdf-export .print-invoice .text-gray-500,
-.pdf-export .print-invoice .text-gray-600,
-.pdf-export .print-invoice .text-gray-700 {
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
-}
-
-/* KRITIČNO: Sprečiti deljenje Card komponente na više stranica */
-.pdf-export .print-invoice .rounded-lg,
-.pdf-export .print-invoice [class*="Card"],
-.pdf-export .print-invoice > div {
-  break-inside: avoid !important;
-  page-break-inside: avoid !important;
-}
-
-/* Header i Content moraju ostati zajedno */
-.pdf-export .print-invoice [class*="CardHeader"],
-.pdf-export .print-invoice [class*="border-b"] {
-  break-after: avoid !important;
-  page-break-after: avoid !important;
-}
-
-.pdf-export .print-invoice [class*="CardContent"] {
-  break-before: avoid !important;
-  page-break-before: avoid !important;
-}
-
-/* Cela faktura kao jedinstven blok */
-.pdf-export .print-invoice {
-  display: block !important;
-  break-inside: avoid-page !important;
-  page-break-inside: avoid !important;
-}
-
-/* Kompaktni razmaci za PDF - da sve stane na jednu stranu */
-.pdf-export .print-invoice .space-y-6 > * + * {
-  margin-top: 8px !important;
-}
-
-.pdf-export .print-invoice .space-y-4 > * + * {
-  margin-top: 6px !important;
-}
-
-.pdf-export .print-invoice .gap-6 {
-  gap: 10px !important;
-}
-
-.pdf-export .print-invoice .gap-4 {
-  gap: 8px !important;
-}
-
-.pdf-export .print-invoice .p-4 {
-  padding: 10px !important;
-}
-
-.pdf-export .print-invoice .p-3 {
-  padding: 6px 8px !important;
-}
-
-.pdf-export .print-invoice .text-2xl {
-  font-size: 16px !important;
-}
-
-.pdf-export .print-invoice .text-lg {
-  font-size: 13px !important;
-}
-
-.pdf-export .print-invoice .text-sm {
-  font-size: 11px !important;
-}
-
-.pdf-export .print-invoice .text-xs {
-  font-size: 10px !important;
-}
-
-.pdf-export .print-invoice table {
-  font-size: 11px !important;
-}
-
-.pdf-export .print-invoice th,
-.pdf-export .print-invoice td {
-  padding: 4px 6px !important;
-}
-
-/* Badge stilovi za PDF - visok kontrast */
-.pdf-export .print-invoice .badge,
-.pdf-export .print-invoice [class*="badge"] {
-  background-color: #e0e0e0 !important;
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
-  border: 1px solid #888888 !important;
-}
-
-/* Font rendering optimizacija */
-.pdf-export .print-invoice,
-.pdf-export .print-invoice * {
-  -webkit-font-smoothing: antialiased !important;
-  text-rendering: optimizeLegibility !important;
-}
-
-/* Override font-mono za PDF export - Inter ima čistu nulu */
-.pdf-export .print-invoice .font-mono {
-  font-family: 'Inter', system-ui, sans-serif !important;
-  font-variant-numeric: tabular-nums !important;
-}
-
-/* Print styles for invoices */
 @media print {
-  /* KRITIČNO: Sprečiti praznu drugu stranu - Safari/macOS kompatibilno */
-  html {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  
   body {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  #root {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    display: block !important;
-  }
-  
-  #root > div,
-  #root > div > div,
-  main,
-  [class*="Layout"] {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    display: block !important;
-  }
-
-  /* Neutralizuj SVE viewport height klase */
-  .min-h-screen,
-  .h-screen,
-  .h-full,
-  .min-h-full,
-  [class*="h-screen"],
-  [class*="min-h-screen"] {
-    min-height: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-  }
-
-  /* Ukloni flex/grid koji mogu uzrokovati praznu stranu */
-  body > #root {
-    display: block !important;
-    height: auto !important;
-  }
-  
-  /* Safari/WebKit specifično - forsiraj single page */
-  .print-invoice {
-    -webkit-region-break-inside: avoid !important;
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-  
-  /* Sprečiti bilo kakve praznine nakon poslednjeg elementa */
-  .print-invoice::after,
-  .print-invoice > *:last-child::after {
-    content: none !important;
-    display: none !important;
-  }
-
-  /* Hide toasts in print */
-  .toaster,
-  [data-radix-toast-viewport] {
-    display: none !important;
-  }
-
-  /* Force light theme for print - maximum contrast */
-  :root, .dark {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --primary: 0 0% 15%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 5%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 15%;
-    --border: 0 0% 65%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-  }
-
-  /* Eksplicitno forsiranje boja za print elemente */
-  .print-invoice * {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
-  }
-
-  .print-invoice .text-muted-foreground {
-    color: #222222 !important;
-    -webkit-text-fill-color: #222222 !important;
-  }
-
-  .print-invoice .bg-primary,
-  .print-invoice .bg-primary * {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-  }
-
-  .print-invoice table,
-  .print-invoice tr,
-  .print-invoice td,
-  .print-invoice th {
-    border-color: #666666 !important;
-  }
-
-  @page {
-    size: A4;
-    margin: 3mm;
-  }
-
-  /* Sprečava štampanje URL-a iza linkova */
-  a[href]::after {
-    content: "" !important;
-  }
-
-  a[href] {
-    text-decoration: none !important;
-    color: inherit !important;
-  }
-
-  body {
-    font-size: 11px !important;
     background: white !important;
     color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    font-size: 12px;
   }
 
-  /* KRITIČNO: Potpuno ukloni print:hidden elemente iz toka dokumenta */
-  .print\:hidden {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
-  }
-
-  .print\:shadow-none {
-    box-shadow: none !important;
-  }
-
-  .print\:border-0 {
-    border: none !important;
-  }
-
-  /* Resetuj layout klase koje zauzimaju prostor - AGRESIVNO */
-  .min-h-screen,
-  [class*="min-h-screen"] {
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  .lg\\:pl-64,
-  [class*="pl-64"],
-  [class*="lg:pl-"] {
-    padding-left: 0 !important;
-  }
-
-  .pt-16, .pt-banner,
-  [class*="pt-16"],
-  [class*="pt-banner"] {
-    padding-top: 0 !important;
-  }
-
-  main, [class*="main"] {
-    padding: 0 !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  /* Compact invoice layout for single page - SPREČAVA PRAZNU DRUGU STRANU */
-  .print-invoice {
-    position: relative !important;
-    top: auto !important;
-    left: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 3mm !important;
-    margin: 0 !important;
-    background: white !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  /* Sakrij SVE ostale elemente osim fakture prilikom štampe */
-  body > *:not(#root),
-  #root > *:not(:has(.print-invoice)),
-  .print\\:hidden,
   nav,
   aside,
-  header:not(.print-invoice header),
-  footer:not(.print-invoice footer),
-  [class*="Sidebar"],
-  [class*="sidebar"],
-  [class*="Toaster"],
-  [data-radix-toast-viewport] {
+  header,
+  .print\:hidden,
+  [data-sidebar],
+  button:not(.print-visible),
+  .no-print {
     display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+  }
+
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .card, [class*="card"] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  main, [role="main"] {
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
-  }
-
-  /* Cela Card kao jedinstven blok - ne deli se */
-  .print-invoice [class*="Card"],
-  .print-invoice .rounded-lg {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-  
-  /* Header i Content ne smeju da se odvajaju */
-  .print-invoice [class*="CardHeader"],
-  .print-invoice [class*="border-b"] {
-    break-after: avoid !important;
-    page-break-after: avoid !important;
-  }
-  
-  .print-invoice [class*="CardContent"] {
-    break-before: avoid !important;
-    page-break-before: avoid !important;
-  }
-
-  .print-invoice * {
-    background-color: transparent !important;
-  }
-
-  .print-invoice .bg-secondary,
-  .print-invoice .bg-muted {
-    background-color: #f5f5f5 !important;
-  }
-
-  .print-invoice .bg-primary {
-    background-color: #333 !important;
-    color: white !important;
-  }
-
-  /* Kompaktan logo za štampu */
-  .print-invoice img[alt*="logo"] {
-    max-height: 48px !important;
-    height: auto !important;
-  }
-
-  .print-invoice [class*="CardHeader"] {
-    padding: 6px 8px !important;
-  }
-
-  .print-invoice [class*="CardHeader"] .mb-4 {
-    margin-bottom: 4px !important;
-  }
-
-  .print-invoice [class*="CardHeader"] .mb-3 {
-    margin-bottom: 3px !important;
-  }
-
-  /* Manji naslov fakture */
-  .print-invoice h1.text-2xl {
-    font-size: 13px !important;
-    margin: 0 !important;
-  }
-
-  .print-invoice table {
-    font-size: 10px !important;
-  }
-
-  .print-invoice th,
-  .print-invoice td {
-    padding: 4px 6px !important;
-  }
-
-  .print-invoice .text-2xl {
-    font-size: 14px !important;
-  }
-
-  .print-invoice .text-lg {
-    font-size: 12px !important;
-  }
-
-  .print-invoice .space-y-6 > * + * {
-    margin-top: 4px !important;
-  }
-
-  .print-invoice .space-y-4 > * + * {
-    margin-top: 3px !important;
-  }
-
-  .print-invoice {
-    page-break-inside: avoid !important;
-    page-break-after: avoid !important;
-    break-inside: avoid-page !important;
-    break-after: avoid-page !important;
-  }
-
-  .print-invoice .p-4 {
-    padding: 8px !important;
-  }
-
-  .print-invoice .p-3 {
-    padding: 4px 6px !important;
-  }
-
-  .print-invoice .gap-6 {
-    gap: 8px !important;
-  }
-
-  .print-invoice .gap-4 {
-    gap: 6px !important;
-  }
-
-  .print-invoice .pt-6 {
-    padding-top: 8px !important;
-  }
-
-  .print-invoice .mb-3 {
-    margin-bottom: 6px !important;
-  }
-
-  .print-invoice .mb-2 {
-    margin-bottom: 4px !important;
-  }
-
-  /* Override font-mono za štampu - Inter ima čistu nulu */
-  .print-invoice .font-mono {
-    font-family: 'Inter', system-ui, sans-serif !important;
-    font-variant-numeric: tabular-nums !important;
   }
 }

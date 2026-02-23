@@ -1,97 +1,88 @@
-project_id = "kskpmgohvrljbdphyzkw"
+project_id = "hfvoehsrsimvgyyxirwj"
 
-[functions.nbs-exchange-rate]
-verify_jwt = true
-
-[functions.apr-lookup]
+[functions.create-tenant]
 verify_jwt = false
 
-[functions.validate-pib]
+[functions.process-module-event]
 verify_jwt = false
 
-[functions.sef-send-invoice]
-verify_jwt = true
-
-[functions.sef-fetch-invoices]
-verify_jwt = true
-
-[functions.delete-user]
+[functions.ai-assistant]
 verify_jwt = false
 
-[functions.sef-fetch-purchase-invoices]
-verify_jwt = true
-
-[functions.sef-fetch-sales-invoices]
-verify_jwt = true
-
-[functions.sef-get-invoice-xml]
-verify_jwt = true
-
-[functions.sef-accept-reject-invoice]
-verify_jwt = true
-
-[functions.sef-cancel-sales-invoice]
-verify_jwt = true
-
-[functions.sef-enrich-invoices]
-verify_jwt = true
-
-[functions.sef-background-sync]
+[functions.ai-insights]
 verify_jwt = false
 
-[functions.sef-long-sync]
+[functions.create-notification]
 verify_jwt = false
 
-[functions.sef-continue-sync]
+[functions.generate-pdf]
 verify_jwt = false
 
-[functions.parse-pausalni-pdf]
-verify_jwt = true
-
-[functions.sef-registry-import]
-verify_jwt = true
-
-[functions.send-notification-emails]
+[functions.company-lookup]
 verify_jwt = false
 
-[functions.send-invoice-email]
-verify_jwt = true
-
-[functions.sef-registry-auto-update]
+[functions.nbs-exchange-rates]
 verify_jwt = false
 
-[functions.send-verification-email]
+[functions.sef-submit]
 verify_jwt = false
 
-[functions.verify-email]
+[functions.fiscalize-receipt]
 verify_jwt = false
 
-[functions.storage-upload]
-verify_jwt = true
-
-[functions.storage-download]
-verify_jwt = true
-
-[functions.storage-delete]
-verify_jwt = true
-
-[functions.storage-migrate]
-verify_jwt = true
-
-[functions.storage-cleanup]
-verify_jwt = true
-
-[functions.storage-fix-logos]
-verify_jwt = true
-
-[functions.send-admin-bulk-email]
+[functions.web-sync]
 verify_jwt = false
 
-[functions.storage-get-base64]
-verify_jwt = true
-
-[functions.track-invoice-view]
+[functions.web-order-import]
 verify_jwt = false
 
-[functions.get-vapid-public-key]
+[functions.wms-slotting]
+verify_jwt = false
+
+[functions.sef-poll-status]
+verify_jwt = false
+
+[functions.ebolovanje-submit]
+verify_jwt = false
+
+[functions.eotpremnica-submit]
+verify_jwt = false
+
+[functions.fiscalize-retry-offline]
+verify_jwt = false
+
+[functions.production-ai-planning]
+verify_jwt = false
+
+[functions.ai-analytics-narrative]
+verify_jwt = false
+
+[functions.seed-demo-data]
+verify_jwt = false
+
+[functions.seed-demo-data-phase2]
+verify_jwt = false
+
+[functions.seed-demo-data-phase3]
+verify_jwt = false
+
+[functions.daily-data-seed]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.import-legacy-products]
+verify_jwt = false
+
+[functions.import-legacy-partners]
+verify_jwt = false
+
+[functions.import-legacy-contacts]
+verify_jwt = false
+
+[functions.analyze-legacy-zip]
+verify_jwt = false
+
+[functions.import-legacy-zip]
 verify_jwt = false

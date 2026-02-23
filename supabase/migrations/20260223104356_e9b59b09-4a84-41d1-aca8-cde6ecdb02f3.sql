@@ -1,0 +1,1 @@
+ALTER TABLE meeting_participants ADD COLUMN IF NOT EXISTS external_email text;
