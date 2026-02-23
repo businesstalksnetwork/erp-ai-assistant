@@ -64,7 +64,7 @@ export function AiModuleInsights({ tenantId, module, compact }: Props) {
     return compact ? (
       <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
         <Loader2 className="h-3 w-3 animate-spin" />
-        {locale === "sr" ? "Analiziranje..." : "Analyzing..."}
+        {t("analyzingData")}
       </div>
     ) : null;
   }
