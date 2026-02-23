@@ -52,13 +52,16 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 1. Fetch bins with zone info
+    // 1. Fetch ONLY active bins with available capacity (max_units > 0)
     const { data: bins } = await supabase
       .from("wms_bins")
       .select("id, code, bin_type, max_volume, max_weight, max_units, level, accessibility_score, zone_id, aisle_id, sort_order, wms_zones(name, zone_type, pick_method)")
       .eq("warehouse_id", warehouse_id)
       .eq("tenant_id", tenant_id)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .gt("accessibility_score", 0)
+      .order("accessibility_score", { ascending: false })
+      .limit(200);
 
     // 2. Fetch current bin stock
     const { data: binStock } = await supabase
@@ -68,7 +71,7 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("status", "available");
 
-    // 3. Fetch pick history (last 90 days) from completed pick tasks
+    // 3. Fetch pick history (last 90 days) - limit to 5000 rows to prevent slow queries
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: pickHistory } = await supabase
       .from("wms_tasks")
@@ -77,7 +80,9 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("task_type", "pick")
       .eq("status", "completed")
-      .gte("completed_at", ninetyDaysAgo);
+      .gte("completed_at", ninetyDaysAgo)
+      .order("completed_at", { ascending: false })
+      .limit(5000);
 
     // 4. Calculate velocity scores (picks per week per SKU)
     const velocityMap: Record<string, number> = {};
@@ -87,7 +92,6 @@ serve(async (req) => {
       if (!pick.product_id) continue;
       velocityMap[pick.product_id] = (velocityMap[pick.product_id] || 0) + 1;
 
-      // Track co-occurrence by order
       if (pick.order_reference) {
         if (!orderProducts[pick.order_reference]) {
           orderProducts[pick.order_reference] = new Set();
@@ -96,7 +100,7 @@ serve(async (req) => {
       }
     }
 
-    const weeksInRange = 13; // ~90 days
+    const weeksInRange = 13;
     const velocityScores: Record<string, number> = {};
     for (const [pid, count] of Object.entries(velocityMap)) {
       velocityScores[pid] = Math.round((count / weeksInRange) * 100) / 100;
@@ -108,7 +112,6 @@ serve(async (req) => {
       const arr = Array.from(products);
       for (let i = 0; i < arr.length; i++) {
         for (let j = i + 1; j < arr.length; j++) {
-          const key = [arr[i], arr[j]].sort().join("|");
           if (!affinityMap[arr[i]]) affinityMap[arr[i]] = {};
           if (!affinityMap[arr[j]]) affinityMap[arr[j]] = {};
           affinityMap[arr[i]][arr[j]] = (affinityMap[arr[i]][arr[j]] || 0) + 1;
@@ -117,20 +120,24 @@ serve(async (req) => {
       }
     }
 
-    // 6. Build current placement map
+    // 6. Build current placement + stock quantity maps
     const currentPlacement: Record<string, string[]> = {};
+    const binStockQty: Record<string, number> = {}; // bin_id -> total qty
     for (const bs of binStock || []) {
       if (!currentPlacement[bs.product_id]) currentPlacement[bs.product_id] = [];
       currentPlacement[bs.product_id].push(bs.bin_id);
+      binStockQty[bs.bin_id] = (binStockQty[bs.bin_id] || 0) + (bs.quantity || 0);
     }
 
-    // 7. Build bin lookup
+    // 7. Build bin lookup with available capacity
     const binLookup: Record<string, any> = {};
     for (const bin of bins || []) {
-      binLookup[bin.id] = bin;
+      const currentQty = binStockQty[bin.id] || 0;
+      const availableUnits = (bin.max_units || 9999) - currentQty;
+      binLookup[bin.id] = { ...bin, current_qty: currentQty, available_units: availableUnits };
     }
 
-    // 8. Call AI for recommendations
+    // 8. Call AI - only include bins with available capacity in the prompt
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(
@@ -145,7 +152,13 @@ serve(async (req) => {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 50);
 
-    const binSummary = (bins || []).slice(0, 100).map((b: any) => ({
+    // Only include bins with available capacity in the prompt
+    const binsWithCapacity = Object.values(binLookup)
+      .filter((b: any) => b.available_units > 0)
+      .sort((a: any, b: any) => b.accessibility_score - a.accessibility_score)
+      .slice(0, 100);
+
+    const binSummary = binsWithCapacity.map((b: any) => ({
       id: b.id,
       code: b.code,
       zone: b.wms_zones?.name,
@@ -153,16 +166,23 @@ serve(async (req) => {
       level: b.level,
       accessibility: b.accessibility_score,
       type: b.bin_type,
+      available_units: b.available_units,
+      max_units: b.max_units,
     }));
 
     const prompt = `You are a warehouse slotting optimization AI. Analyze this data and recommend SKU-bin reassignments to minimize pick travel time.
 
 OPTIMIZATION WEIGHTS: Travel=${optimizationWeights.travel}, Space=${optimizationWeights.space}, Affinity=${optimizationWeights.affinity}
 
+IMPORTANT CONSTRAINTS:
+- Each recommended bin must have enough available_units for the product
+- Do NOT recommend bins that are at capacity
+- Prefer bins with higher accessibility scores for high-velocity SKUs
+
 TOP SKUs BY VELOCITY (picks/week):
 ${topSkus.map(([id, v]) => `${id}: ${v} picks/week, current bins: ${(currentPlacement[id] || []).join(", ") || "none"}`).join("\n")}
 
-AVAILABLE BINS:
+AVAILABLE BINS (with capacity):
 ${JSON.stringify(binSummary)}
 
 CO-OCCURRENCE (top pairs):
@@ -189,7 +209,7 @@ Use the tool to return your answer.`;
       },
       body: JSON.stringify({
         messages: [
-          { role: "system", content: "You are a warehouse operations optimization AI. Always respond with actionable slotting recommendations." },
+          { role: "system", content: "You are a warehouse operations optimization AI. Always respond with actionable slotting recommendations. Respect bin capacity constraints." },
           { role: "user", content: prompt },
         ],
         tools: [
@@ -259,6 +279,37 @@ Use the tool to return your answer.`;
       result = JSON.parse(toolCall.function.arguments);
     } catch {
       result = { recommendations: [], estimated_improvement: { travel_reduction_pct: 0, summary: "Unable to parse AI response" } };
+    }
+
+    // Post-AI validation: filter out recommendations that violate bin capacity
+    if (result.recommendations?.length > 0) {
+      const validRecs: any[] = [];
+      const rejectedCount = { capacity: 0 };
+      
+      for (const rec of result.recommendations) {
+        const targetBin = binLookup[rec.recommended_bin];
+        if (!targetBin) {
+          // If recommended_bin is a code, not an ID, try to find by code
+          const binByCode = Object.values(binLookup).find((b: any) => b.code === rec.recommended_bin);
+          if (binByCode && (binByCode as any).available_units > 0) {
+            rec.recommended_bin = (binByCode as any).id;
+            validRecs.push(rec);
+          } else {
+            rejectedCount.capacity++;
+          }
+          continue;
+        }
+        if (targetBin.available_units <= 0) {
+          rejectedCount.capacity++;
+          continue;
+        }
+        validRecs.push(rec);
+      }
+
+      result.recommendations = validRecs;
+      if (rejectedCount.capacity > 0) {
+        result.estimated_improvement.summary += ` (${rejectedCount.capacity} recommendations rejected due to bin capacity constraints)`;
+      }
     }
 
     return new Response(JSON.stringify(result), {
