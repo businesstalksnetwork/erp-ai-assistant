@@ -178,6 +178,16 @@ const CompanyCategoriesSettings = React.lazy(() => import("@/pages/tenant/Compan
 const OpportunityStagesSettings = React.lazy(() => import("@/pages/tenant/OpportunityStagesSettings"));
 const DiscountApprovalRules = React.lazy(() => import("@/pages/tenant/DiscountApprovalRules"));
 
+// Module hub pages
+const AccountingHub = React.lazy(() => import("@/pages/tenant/AccountingHub"));
+const ProductionHub = React.lazy(() => import("@/pages/tenant/ProductionHub"));
+const InventoryHub = React.lazy(() => import("@/pages/tenant/InventoryHub"));
+const HrHub = React.lazy(() => import("@/pages/tenant/HrHub"));
+const PurchasingHub = React.lazy(() => import("@/pages/tenant/PurchasingHub"));
+const SalesHub = React.lazy(() => import("@/pages/tenant/SalesHub"));
+const PosHub = React.lazy(() => import("@/pages/tenant/PosHub"));
+const WebHub = React.lazy(() => import("@/pages/tenant/WebHub"));
+
 const queryClient = new QueryClient();
 
 const LoadingFallback = () => (
@@ -237,6 +247,7 @@ const App = () => (
                 <Route path="settings/partner-categories" element={<ProtectedRoute requiredModule="settings"><CompanyCategoriesSettings /></ProtectedRoute>} />
                 <Route path="settings/opportunity-stages" element={<ProtectedRoute requiredModule="settings"><OpportunityStagesSettings /></ProtectedRoute>} />
                 <Route path="settings/discount-rules" element={<ProtectedRoute requiredModule="settings-approvals"><DiscountApprovalRules /></ProtectedRoute>} />
+                <Route path="accounting" element={<ProtectedRoute requiredModule="accounting"><AccountingHub /></ProtectedRoute>} />
                 <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule="accounting"><ChartOfAccounts /></ProtectedRoute>} />
                 <Route path="accounting/journal" element={<ProtectedRoute requiredModule="accounting"><JournalEntries /></ProtectedRoute>} />
                 <Route path="accounting/invoices" element={<ProtectedRoute requiredModule="accounting"><Invoices /></ProtectedRoute>} />
@@ -263,18 +274,22 @@ const App = () => (
                 <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><OpportunityDetail /></ProtectedRoute>} />
                 <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><Meetings /></ProtectedRoute>} />
                 <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><MeetingsCalendar /></ProtectedRoute>} />
+                <Route path="sales" element={<ProtectedRoute requiredModule="sales"><SalesHub /></ProtectedRoute>} />
                 <Route path="sales/quotes" element={<ProtectedRoute requiredModule="sales"><Quotes /></ProtectedRoute>} />
                 <Route path="sales/sales-orders" element={<ProtectedRoute requiredModule="sales"><SalesOrders /></ProtectedRoute>} />
                 <Route path="sales/sales-channels" element={<ProtectedRoute requiredModule="sales"><SalesChannels /></ProtectedRoute>} />
+                <Route path="purchasing" element={<ProtectedRoute requiredModule="purchasing"><PurchasingHub /></ProtectedRoute>} />
                 <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
                 <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><GoodsReceipts /></ProtectedRoute>} />
                 <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoices /></ProtectedRoute>} />
+                <Route path="inventory" element={<ProtectedRoute requiredModule="inventory"><InventoryHub /></ProtectedRoute>} />
                 <Route path="inventory/products" element={<ProtectedRoute requiredModule="inventory"><Products /></ProtectedRoute>} />
                 <Route path="inventory/products/:id" element={<ProtectedRoute requiredModule="inventory"><ProductDetail /></ProtectedRoute>} />
                 <Route path="inventory/stock" element={<ProtectedRoute requiredModule="inventory"><InventoryStock /></ProtectedRoute>} />
                 <Route path="inventory/movements" element={<ProtectedRoute requiredModule="inventory"><InventoryMovements /></ProtectedRoute>} />
                 <Route path="inventory/dispatch-notes" element={<ProtectedRoute requiredModule="inventory"><Eotpremnica /></ProtectedRoute>} />
                 <Route path="inventory/dispatch-notes/:id" element={<ProtectedRoute requiredModule="inventory"><DispatchNoteDetail /></ProtectedRoute>} />
+                <Route path="hr" element={<ProtectedRoute requiredModule="hr"><HrHub /></ProtectedRoute>} />
                 <Route path="hr/employees" element={<ProtectedRoute requiredModule="hr"><Employees /></ProtectedRoute>} />
                 <Route path="hr/employees/:id" element={<ProtectedRoute requiredModule="hr"><EmployeeDetail /></ProtectedRoute>} />
                 <Route path="hr/contracts" element={<ProtectedRoute requiredModule="hr"><EmployeeContracts /></ProtectedRoute>} />
@@ -297,6 +312,7 @@ const App = () => (
                 <Route path="hr/position-templates" element={<ProtectedRoute requiredModule="hr"><PositionTemplates /></ProtectedRoute>} />
                 <Route path="hr/reports" element={<ProtectedRoute requiredModule="hr"><HrReports /></ProtectedRoute>} />
                 <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule="hr"><EBolovanje /></ProtectedRoute>} />
+                <Route path="production" element={<ProtectedRoute requiredModule="production"><ProductionHub /></ProtectedRoute>} />
                 <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
                 <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
                 <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
@@ -314,6 +330,7 @@ const App = () => (
                 <Route path="documents/browser" element={<ProtectedRoute requiredModule="documents"><DocumentBrowser /></ProtectedRoute>} />
                 <Route path="documents/reports" element={<ProtectedRoute requiredModule="documents"><DmsReports /></ProtectedRoute>} />
                 <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><DmsSettings /></ProtectedRoute>} />
+                <Route path="pos" element={<ProtectedRoute requiredModule="pos"><PosHub /></ProtectedRoute>} />
                 <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><PosTerminal /></ProtectedRoute>} />
                 <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
                 <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><FiscalDevices /></ProtectedRoute>} />
@@ -321,6 +338,7 @@ const App = () => (
                 <Route path="sales/salespeople" element={<ProtectedRoute requiredModule="sales"><Salespeople /></ProtectedRoute>} />
                 <Route path="sales/sales-performance" element={<ProtectedRoute requiredModule="sales"><SalesPerformance /></ProtectedRoute>} />
                 <Route path="sales/retail-prices" element={<ProtectedRoute requiredModule="sales"><RetailPrices /></ProtectedRoute>} />
+                <Route path="web" element={<ProtectedRoute requiredModule="web"><WebHub /></ProtectedRoute>} />
                 <Route path="web/settings" element={<ProtectedRoute requiredModule="web"><WebSettings /></ProtectedRoute>} />
                 <Route path="web/prices" element={<ProtectedRoute requiredModule="web"><WebPrices /></ProtectedRoute>} />
                 <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
