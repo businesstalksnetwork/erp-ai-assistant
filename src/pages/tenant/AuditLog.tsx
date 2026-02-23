@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { format } from "date-fns";
 
-const ENTITY_TYPES = ["invoices", "journal_entries", "partners", "products", "inventory_movements", "chart_of_accounts", "fiscal_periods"];
+const ENTITY_TYPES = ["invoices", "journal_entries", "partners", "products", "inventory_movements", "chart_of_accounts", "fiscal_periods", "supplier_invoices", "credit_notes", "fixed_assets", "payroll_runs", "quotes", "sales_orders", "purchase_orders"];
 const ACTION_TYPES = ["insert", "update", "delete"];
 const PAGE_SIZE = 50;
 
@@ -184,9 +184,30 @@ export default function AuditLog() {
                           <CollapsibleContent asChild>
                             <TableRow>
                               <TableCell colSpan={5} className="bg-muted/30 p-4">
-                                <pre className="text-xs overflow-auto max-h-64 whitespace-pre-wrap font-mono">
-                                  {JSON.stringify(log.details, null, 2)}
-                                </pre>
+                                {(log as any).before_state || (log as any).after_state ? (
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {(log as any).before_state && (
+                                      <div>
+                                        <p className="text-xs font-semibold text-destructive mb-1">Pre izmene</p>
+                                        <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap font-mono bg-destructive/5 p-2 rounded">
+                                          {JSON.stringify((log as any).before_state, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                    {(log as any).after_state && (
+                                      <div>
+                                        <p className="text-xs font-semibold text-primary mb-1">Posle izmene</p>
+                                        <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap font-mono bg-primary/5 p-2 rounded">
+                                          {JSON.stringify((log as any).after_state, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <pre className="text-xs overflow-auto max-h-64 whitespace-pre-wrap font-mono">
+                                    {JSON.stringify(log.details, null, 2)}
+                                  </pre>
+                                )}
                               </TableCell>
                             </TableRow>
                           </CollapsibleContent>

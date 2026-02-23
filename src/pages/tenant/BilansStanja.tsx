@@ -19,11 +19,11 @@ import { fmtNum } from "@/lib/utils";
 
 // Serbian account class names
 const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
-  "0": { name: "Dugotrajna imovina", nameSr: "Дуготрајна имовина" },
-  "1": { name: "Kratkotrajna imovina", nameSr: "Краткотрајна имовина" },
-  "2": { name: "Kratkoročne obaveze", nameSr: "Краткорочне обавезе" },
-  "3": { name: "Dugoročne obaveze", nameSr: "Дугорочне обавезе" },
-  "4": { name: "Kapital i rezerve", nameSr: "Капитал и резерве" },
+  "0": { name: "Stalna imovina", nameSr: "Стална имовина" },
+  "1": { name: "Zalihe i kratkotrajna imovina", nameSr: "Залихе и краткотрајна имовина" },
+  "2": { name: "Kratkoročne obaveze i finansijski računi", nameSr: "Краткорочне обавезе и финансијски рачуни" },
+  "3": { name: "Kapital", nameSr: "Капитал" },
+  "4": { name: "Dugoročne obaveze i prihodi", nameSr: "Дугорочне обавезе и приходи" },
 };
 
 export default function BilansStanja() {
