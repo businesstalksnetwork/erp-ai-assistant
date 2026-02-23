@@ -1,129 +1,173 @@
 
 
-# CRM Phase 1: Account Tiering, Dormancy Detection, Contact Roles & Credit Status
+# CRM Phase 2: Partially Won, Quote Versioning & Approvals
 
-## Overview
-
-Add four CRM intelligence features to the existing partner/company system: automatic account tiering based on invoice revenue, dormancy detection with auto-task creation, contact roles per account, and live credit status display.
+Three features implemented sequentially, building on the existing CRM pipeline and quoting system.
 
 ---
 
-## 1. Database Migration
+## Feature 1: Partially Won Stage with Split Logic
 
-### New columns on `partners`
-- `account_tier` TEXT (A/B/C/D) DEFAULT NULL -- computed tier
-- `tier_revenue_12m` NUMERIC DEFAULT 0 -- cached trailing 12-month revenue
-- `tier_updated_at` TIMESTAMPTZ -- when tier was last calculated
-- `last_invoice_date` DATE -- cached for dormancy detection
-- `dormancy_status` TEXT DEFAULT 'active' -- 'active', 'at_risk', 'dormant'
-- `dormancy_detected_at` TIMESTAMPTZ
+### Problem
+Currently, deals can only be fully won or fully lost. In practice, deals are often partially won -- a customer accepts some items but rejects others.
 
-### New column on `contact_company_assignments`
-- `role` TEXT DEFAULT NULL -- e.g. 'decision_maker', 'influencer', 'champion', 'end_user', 'billing', 'technical'
+### Database Changes
 
-### New table: `crm_tasks`
-For storing auto-generated and manual CRM tasks (dormancy alerts, follow-ups, etc.):
+**New columns on `opportunities`:**
+- `won_amount` NUMERIC DEFAULT 0
+- `lost_amount` NUMERIC DEFAULT 0
+- `won_reason` TEXT
+- `lost_reason` TEXT
+- `followup_opportunity_id` UUID (self-reference for auto-created follow-up)
+
+**New column on `opportunity_stages`:**
+- `is_partial` BOOLEAN DEFAULT FALSE -- marks the "Partially Won" stage
+
+**Seed a new stage** for each tenant that already has stages:
+- Code: `partial_won`, Name: "Partially Won" / "Delimicno dobijeno", color: `#f59e0b`, `is_partial = true`, placed before Won/Lost in sort order
+
+### UI Changes
+
+**OpportunityDetail.tsx -- Split Dialog:**
+When a user clicks the "Partially Won" stage button, show a dialog:
+- Won amount (number input, max = deal value)
+- Lost amount (auto-calculated as value - won_amount)
+- Won reason (text)
+- Lost reason (text)
+- Checkbox: "Create follow-up opportunity for lost portion"
+- On submit: update opportunity with split amounts, optionally create a new opportunity with `value = lost_amount`
+
+**OpportunityOverviewTab.tsx:**
+- Show won/lost amounts when stage is `partial_won`
+- Show link to follow-up opportunity if one exists
+
+**Kanban (Opportunities.tsx):**
+- Show split amounts on cards in the partial_won column
+
+### Win Rate Metrics (CRM Dashboard)
+Add three metrics:
+- Full win rate: `won / (won + lost + partial)`
+- Partial win rate: `(won + partial) / total closed`
+- Revenue win rate: `sum(won_amount) / sum(value) for closed deals`
+
+---
+
+## Feature 2: Quote Versioning (Immutable Snapshots)
+
+### Problem
+When a quote is revised after being sent, there's no history of previous versions. Customers and sales teams need to compare versions.
+
+### Database Changes
+
+**New table: `quote_versions`**
 - `id` UUID PK
 - `tenant_id` UUID NOT NULL
-- `partner_id` UUID REFERENCES partners
-- `title` TEXT NOT NULL
-- `description` TEXT
-- `task_type` TEXT NOT NULL (dormancy_alert, follow_up, manual)
-- `status` TEXT DEFAULT 'open' (open, in_progress, completed, dismissed)
-- `priority` TEXT DEFAULT 'medium' (low, medium, high, urgent)
-- `due_date` DATE
-- `assigned_to` UUID (user id)
-- `created_at`, `updated_at` TIMESTAMPTZ
-- RLS: tenant members can manage
+- `quote_id` UUID REFERENCES quotes ON DELETE CASCADE
+- `version_number` INT NOT NULL
+- `snapshot` JSONB NOT NULL -- full quote + lines snapshot
+- `created_by` UUID
+- `created_at` TIMESTAMPTZ DEFAULT now()
+- `notes` TEXT -- what changed
+- RLS: tenant member access
 
-### Database function: `calculate_partner_tiers`
-A PL/pgSQL function that:
-1. For each partner in a tenant, sums `invoices.total` WHERE `invoice_date >= now() - interval '12 months'` AND `status IN ('sent','paid','posted')`
-2. Ranks partners by revenue: Top 20% = A, next 30% = B, next 30% = C, bottom 20% = D
-3. Updates `account_tier`, `tier_revenue_12m`, `tier_updated_at`
+**New columns on `quotes`:**
+- `current_version` INT DEFAULT 1
+- `max_discount_pct` NUMERIC DEFAULT 0 -- highest discount % on any line
 
-### Database function: `detect_partner_dormancy`
-A PL/pgSQL function that:
-1. For each active partner, finds the max `invoice_date` from invoices
-2. Updates `last_invoice_date`
-3. Applies tier-specific thresholds:
-   - Tier A: >60 days = at_risk, >120 days = dormant
-   - Tier B: >90 days = at_risk, >180 days = dormant
-   - Tier C/D: >120 days = at_risk, >240 days = dormant
-4. Creates a `crm_tasks` record (type: dormancy_alert) when status transitions to at_risk or dormant (avoiding duplicates)
+### Logic
 
----
+**Auto-snapshot on status change to 'sent':**
+- When a quote transitions to `sent`, automatically create a `quote_versions` record capturing the current state (quote fields + all quote_lines as JSONB)
+- Increment `current_version`
 
-## 2. Edge Function: `crm-tier-refresh`
+**Manual "Create New Version" button:**
+- Resets status to `draft`, increments version, snapshots current state
+- Available when quote is in `sent` or `expired` status
 
-A callable edge function that invokes `calculate_partner_tiers` and `detect_partner_dormancy` for a given tenant. Can be triggered manually from CRM Dashboard or scheduled via cron.
+### UI Changes
 
----
+**Quotes.tsx:**
+- Show version badge (v1, v2, v3) next to quote number
 
-## 3. UI Changes
-
-### A. Companies List (`Companies.tsx`)
-- Add tier badge column (A/B/C/D) with color coding (A=emerald, B=blue, C=amber, D=gray)
-- Add dormancy status indicator (green dot = active, yellow = at_risk, red = dormant)
-- Add tier filter to the filter bar
-
-### B. Company Detail (`CompanyDetail.tsx`)
-- **Account Health Card** (new card in overview tab):
-  - Account tier badge with 12-month revenue
-  - Dormancy status with last invoice date
-  - Credit status: outstanding balance vs credit limit (from summing unpaid invoices)
-  - Credit utilization progress bar (green <70%, amber 70-90%, red >90%)
-- **Contact Roles**: In the contacts tab, show role badge next to each contact and allow editing the role via a dropdown
-
-### C. CRM Dashboard (`CrmDashboard.tsx`)
-- Add "Accounts at Risk" card showing partners with dormancy_status = 'at_risk' or 'dormant'
-- Add "Tier Distribution" mini chart (count of A/B/C/D)
-- Add "Refresh Tiers" button that calls the edge function
-
-### D. CRM Tasks Widget
-- New small card on CRM Dashboard showing open CRM tasks (dormancy alerts)
-- Click navigates to partner detail
+**New QuoteVersionHistory component:**
+- Side panel or dialog showing all versions
+- Click a version to see the snapshot (read-only rendered table)
+- Diff indicator showing what changed between versions
 
 ---
 
-## 4. Contact Role Assignment
+## Feature 3: Quote Expiry Automation & Discount Approvals
 
-### On `contact_company_assignments`
-Add a `role` column with these predefined values:
-- `decision_maker` -- Final purchasing authority
-- `influencer` -- Influences decisions
-- `champion` -- Internal advocate
-- `end_user` -- Uses the product/service
-- `billing` -- Handles invoices/payments
-- `technical` -- Technical contact
-- `primary` -- Primary point of contact
+### Quote Expiry
 
-### UI: Contact role editing
-- In CompanyDetail contacts tab: add a role dropdown per contact
-- In Contacts form (dialog): add role field when company is selected
+**Database function: `expire_overdue_quotes`**
+- Finds quotes where `valid_until < CURRENT_DATE` AND `status = 'sent'`
+- Updates status to `expired`
+- Creates a CRM task (type: `quote_expired`) for follow-up
+
+**Edge function or cron trigger:**
+- Add to `crm-tier-refresh` edge function as an additional step, or create a dedicated `crm-quote-maintenance` function
+
+**UI: 3-day warning**
+- On quotes list, show amber warning icon for quotes expiring within 3 days
+- On CRM Dashboard, add "Expiring Quotes" widget
+
+### Discount Approval Matrix
+
+**New table: `discount_approval_rules`**
+- `id` UUID PK
+- `tenant_id` UUID NOT NULL
+- `role` TEXT NOT NULL (e.g., 'sales_rep', 'sales_manager', 'admin')
+- `max_discount_pct` NUMERIC NOT NULL (e.g., 10, 25, 100)
+- `requires_approval_above` NUMERIC -- threshold above which approval is needed
+- `created_at` TIMESTAMPTZ
+
+**Logic in Quote save/send:**
+- When saving a quote, calculate the max discount % across all lines
+- Compare against the user's role-based limit from `discount_approval_rules`
+- If discount exceeds limit: create an approval request (using existing `approval_workflows` system)
+- Block status change to `sent` until approved
+
+**UI:**
+- Settings page section for discount rules
+- On quote form: show warning when discount exceeds threshold
+- Badge on quote indicating "Pending Approval" when discount requires sign-off
 
 ---
 
-## 5. Files to Create/Modify
+## Files to Create/Modify
 
 | File | Action | Description |
 |------|--------|-------------|
-| Migration SQL | Create | New columns, table, functions |
-| `supabase/functions/crm-tier-refresh/index.ts` | Create | Edge function to trigger tier calculation |
-| `src/pages/tenant/CompanyDetail.tsx` | Modify | Add Account Health card, contact roles, credit status |
-| `src/pages/tenant/Companies.tsx` | Modify | Add tier/dormancy columns and filters |
-| `src/pages/tenant/CrmDashboard.tsx` | Modify | Add at-risk accounts, tier distribution, tasks widget |
-| `src/pages/tenant/Contacts.tsx` | Modify | Add role field in contact form |
-| `src/i18n/translations.ts` | Modify | Add translations for tiers, roles, dormancy |
+| Migration SQL | Create | New columns, tables, functions, seed data |
+| `src/pages/tenant/OpportunityDetail.tsx` | Modify | Add split dialog for partial won |
+| `src/components/opportunity/OpportunityOverviewTab.tsx` | Modify | Show split amounts |
+| `src/components/opportunity/PartialWonDialog.tsx` | Create | Split amount dialog component |
+| `src/pages/tenant/Opportunities.tsx` | Modify | Show split amounts on Kanban cards |
+| `src/pages/tenant/CrmDashboard.tsx` | Modify | Add win rate metrics, expiring quotes widget |
+| `src/pages/tenant/Quotes.tsx` | Modify | Version badge, expiry warnings, discount indicators |
+| `src/components/quotes/QuoteVersionHistory.tsx` | Create | Version history viewer |
+| `src/components/quotes/DiscountApprovalBadge.tsx` | Create | Discount status indicator |
+| `src/pages/tenant/Settings.tsx` | Modify | Add discount approval rules section |
+| `src/i18n/translations.ts` | Modify | New translation keys |
+| `supabase/functions/crm-tier-refresh/index.ts` | Modify | Add quote expiry step |
+
+---
+
+## Implementation Order
+
+1. **Migration** -- all schema changes in one migration (new columns, tables, seed partial_won stage, functions)
+2. **Feature 1 UI** -- PartialWonDialog, OpportunityDetail changes, Kanban updates, dashboard metrics
+3. **Feature 2 UI** -- Quote versioning logic, QuoteVersionHistory component, version badges
+4. **Feature 3 UI** -- Expiry warnings, discount approval rules, approval integration
 
 ---
 
 ## Technical Notes
 
-- **Credit status** is computed client-side by summing unpaid invoices (`status IN ('sent','overdue')`) for a partner -- no new DB column needed
-- **Tier calculation** uses `NTILE(10)` or `PERCENT_RANK()` window functions for percentile-based ranking
-- **Dormancy thresholds** are hardcoded initially but could be moved to `tenant_settings` later
-- **No cron setup** in this phase -- manual trigger via button. Cron can be added as a follow-up
-- All new columns have defaults so existing data is unaffected
-- RLS on `crm_tasks` follows the standard tenant-member pattern
+- The `snapshot` JSONB in `quote_versions` stores: `{ quote: {...}, lines: [...] }` -- a complete point-in-time copy
+- Discount approval reuses the existing `approval_workflows` + `approval_requests` tables with `entity_type = 'quote_discount'`
+- The partial_won stage uses `is_partial` flag on `opportunity_stages` (not hardcoded stage code) so tenants can rename it
+- Follow-up opportunities reference the parent via `followup_opportunity_id` for traceability
+- Quote expiry function is idempotent and safe to run multiple times
 
