@@ -1850,6 +1850,17 @@ export const translations = {
     isWon: "Won stage",
     isLost: "Lost stage",
     cannotDeleteStageInUse: "Cannot delete: stage is assigned to opportunities",
+
+    // Opportunity Enhancement
+    discussion: "Discussion",
+    activityLog: "Activity Log",
+    addTag: "Add tag",
+    addFollower: "Add follower",
+    followers: "Followers",
+    uploadDocument: "Upload",
+    writeComment: "Write a comment...",
+    uploadedBy: "Uploaded by",
+    size: "Size",
   },
   sr: {
     // Auth
@@ -3660,6 +3671,17 @@ export const translations = {
     isWon: "Faza dobitka",
     isLost: "Faza gubitka",
     cannotDeleteStageInUse: "Ne može se obrisati: faza je dodeljena prilikama",
+
+    // Opportunity Enhancement
+    discussion: "Diskusija",
+    activityLog: "Aktivnosti",
+    addTag: "Dodaj oznaku",
+    addFollower: "Dodaj pratioca",
+    followers: "Pratioci",
+    uploadDocument: "Otpremi",
+    writeComment: "Napišite komentar...",
+    uploadedBy: "Otpremio",
+    size: "Veličina",
   },
 } as const;
 
