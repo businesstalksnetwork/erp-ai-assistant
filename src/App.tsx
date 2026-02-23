@@ -99,6 +99,7 @@ import CompanyDetail from "@/pages/tenant/CompanyDetail";
 import Contacts from "@/pages/tenant/Contacts";
 import ContactDetail from "@/pages/tenant/ContactDetail";
 import Meetings from "@/pages/tenant/Meetings";
+import MeetingsCalendar from "@/pages/tenant/MeetingsCalendar";
 import Eotpremnica from "@/pages/tenant/Eotpremnica";
 import FxRevaluation from "@/pages/tenant/FxRevaluation";
 import Kompenzacija from "@/pages/tenant/Kompenzacija";
@@ -239,6 +240,7 @@ const App = () => (
                 <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><Opportunities /></ProtectedRoute>} />
                 <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><OpportunityDetail /></ProtectedRoute>} />
                 <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><Meetings /></ProtectedRoute>} />
+                <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><MeetingsCalendar /></ProtectedRoute>} />
                 <Route path="sales/quotes" element={<ProtectedRoute requiredModule="sales"><Quotes /></ProtectedRoute>} />
                 <Route path="sales/sales-orders" element={<ProtectedRoute requiredModule="sales"><SalesOrders /></ProtectedRoute>} />
                 <Route path="sales/sales-channels" element={<ProtectedRoute requiredModule="sales"><SalesChannels /></ProtectedRoute>} />

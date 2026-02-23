@@ -12,31 +12,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Loader2, Video, Phone, Mail, MapPin, Users, X } from "lucide-react";
+import { Plus, Loader2, Video, Phone, Mail, MapPin, Users, X, CalendarDays, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useNavigate } from "react-router-dom";
 
 const CHANNELS = ["in_person", "video_call", "phone_call", "email", "hybrid"] as const;
 const STATUSES = ["scheduled", "in_progress", "completed", "cancelled"] as const;
 
+type DialogMode = "schedule" | "log";
+
 interface MeetingForm {
   title: string; description: string; scheduled_at: string; duration_minutes: number;
   location: string; communication_channel: string; status: string; notes: string;
-  partner_id: string | null; opportunity_id: string | null;
+  opportunity_id: string | null;
   outcome: string; next_steps: string;
 }
 
 const emptyForm: MeetingForm = {
   title: "", description: "", scheduled_at: "", duration_minutes: 60,
   location: "", communication_channel: "in_person", status: "scheduled", notes: "",
-  partner_id: null, opportunity_id: null, outcome: "", next_steps: "",
+  opportunity_id: null, outcome: "", next_steps: "",
 };
 
 interface Attendee {
   contact_id?: string;
   partner_id?: string;
+  employee_id?: string;
   external_name?: string;
+  external_email?: string;
+  is_internal: boolean;
   label: string;
 }
 
@@ -50,18 +56,30 @@ const channelIcon = (ch: string) => {
   }
 };
 
+const statusColor = (s: string) => {
+  if (s === "completed") return "default";
+  if (s === "cancelled") return "destructive";
+  if (s === "in_progress") return "secondary";
+  return "outline";
+};
+
 export default function Meetings() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<DialogMode>("schedule");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<MeetingForm>(emptyForm);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [externalName, setExternalName] = useState("");
+  const [externalEmail, setExternalEmail] = useState("");
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
+  // Data queries
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ["meetings", tenantId],
     queryFn: async () => {
@@ -93,37 +111,54 @@ export default function Meetings() {
     enabled: !!tenantId,
   });
 
-  const { data: partnerContacts = [] } = useQuery({
-    queryKey: ["partner-contacts-for-meeting", form.partner_id],
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-active", tenantId],
     queryFn: async () => {
-      if (!form.partner_id) return [];
-      const { data } = await supabase
-        .from("contact_company_assignments")
-        .select("contact_id, contacts(id, first_name, last_name)")
-        .eq("partner_id", form.partner_id);
-      return data || [];
-    },
-    enabled: !!form.partner_id,
-  });
-
-  const { data: meetingTypes = [] } = useQuery({
-    queryKey: ["meeting-types", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase.from("meeting_types").select("*").eq("tenant_id", tenantId!);
+      const { data } = await supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("status", "active").order("full_name");
       return data || [];
     },
     enabled: !!tenantId,
   });
 
+  // Contacts for selected partners
+  const { data: partnerContacts = [] } = useQuery({
+    queryKey: ["partner-contacts-multi", selectedPartnerIds],
+    queryFn: async () => {
+      if (selectedPartnerIds.length === 0) return [];
+      const { data } = await supabase
+        .from("contact_company_assignments")
+        .select("contact_id, partner_id, contacts(id, first_name, last_name, email)")
+        .in("partner_id", selectedPartnerIds);
+      return data || [];
+    },
+    enabled: selectedPartnerIds.length > 0,
+  });
+
+  // Meeting participants for current meeting (edit)
+  const { data: meetingParticipants = [] } = useQuery({
+    queryKey: ["meeting-participants", editId],
+    queryFn: async () => {
+      if (!editId) return [];
+      const { data } = await supabase
+        .from("meeting_participants")
+        .select("*, contacts(first_name, last_name, email), employees(full_name)")
+        .eq("meeting_id", editId);
+      return data || [];
+    },
+    enabled: !!editId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: MeetingForm) => {
+      const primaryPartnerId = selectedPartnerIds.length > 0 ? selectedPartnerIds[0] : null;
       const payload: any = {
         title: f.title, description: f.description || null, scheduled_at: f.scheduled_at,
         duration_minutes: f.duration_minutes || 60, location: f.location || null,
         communication_channel: f.communication_channel, status: f.status,
         notes: f.notes || null, tenant_id: tenantId!,
-        partner_id: f.partner_id || null, opportunity_id: f.opportunity_id || null,
-        outcome: f.outcome || null, next_steps: f.next_steps || null,
+        partner_id: primaryPartnerId, opportunity_id: f.opportunity_id || null,
+        outcome: dialogMode === "log" ? (f.outcome || null) : null,
+        next_steps: dialogMode === "log" ? (f.next_steps || null) : null,
       };
 
       let meetingId = editId;
@@ -144,8 +179,10 @@ export default function Meetings() {
           tenant_id: tenantId!,
           contact_id: a.contact_id || null,
           partner_id: a.partner_id || null,
+          employee_id: a.employee_id || null,
           external_name: a.external_name || null,
-          is_internal: false,
+          external_email: a.external_email || null,
+          is_internal: a.is_internal,
         }));
         if (participants.length > 0) {
           const { error } = await supabase.from("meeting_participants").insert(participants);
@@ -157,59 +194,119 @@ export default function Meetings() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openAdd = useCallback((prefill?: Partial<MeetingForm>) => {
+  const openSchedule = useCallback(() => {
     setEditId(null);
-    setForm({ ...emptyForm, ...prefill });
+    setDialogMode("schedule");
+    setForm({ ...emptyForm, status: "scheduled" });
     setAttendees([]);
-    setExternalName("");
+    setSelectedPartnerIds([]);
+    setExternalName(""); setExternalEmail("");
+    setOpen(true);
+  }, []);
+
+  const openLog = useCallback(() => {
+    setEditId(null);
+    setDialogMode("log");
+    setForm({ ...emptyForm, status: "completed", scheduled_at: new Date().toISOString().slice(0, 16) });
+    setAttendees([]);
+    setSelectedPartnerIds([]);
+    setExternalName(""); setExternalEmail("");
     setOpen(true);
   }, []);
 
   const openEdit = async (m: any) => {
     setEditId(m.id);
+    setDialogMode(m.status === "completed" ? "log" : "schedule");
     setForm({
       title: m.title, description: m.description || "", scheduled_at: m.scheduled_at?.slice(0, 16) || "",
       duration_minutes: m.duration_minutes || 60, location: m.location || "",
       communication_channel: m.communication_channel || "in_person", status: m.status || "scheduled",
-      notes: m.notes || "", partner_id: m.partner_id || null, opportunity_id: m.opportunity_id || null,
+      notes: m.notes || "", opportunity_id: m.opportunity_id || null,
       outcome: m.outcome || "", next_steps: m.next_steps || "",
     });
-    // Load existing participants
+    // Load participants to get partner IDs
     const { data: parts } = await supabase
       .from("meeting_participants")
-      .select("*, contacts(first_name, last_name)")
+      .select("*, contacts(first_name, last_name, email), employees(full_name)")
       .eq("meeting_id", m.id);
-    setAttendees((parts || []).map((p: any) => ({
-      contact_id: p.contact_id || undefined,
-      partner_id: p.partner_id || undefined,
-      external_name: p.external_name || undefined,
-      label: p.contacts ? `${p.contacts.first_name} ${p.contacts.last_name || ""}` : p.external_name || "—",
-    })));
-    setExternalName("");
+    const partnerIds = new Set<string>();
+    if (m.partner_id) partnerIds.add(m.partner_id);
+    const loadedAttendees: Attendee[] = (parts || []).map((p: any) => {
+      if (p.partner_id) partnerIds.add(p.partner_id);
+      return {
+        contact_id: p.contact_id || undefined,
+        partner_id: p.partner_id || undefined,
+        employee_id: p.employee_id || undefined,
+        external_name: p.external_name || undefined,
+        external_email: p.external_email || undefined,
+        is_internal: p.is_internal || false,
+        label: p.is_internal && p.employees
+          ? p.employees.full_name
+          : p.contacts
+            ? `${p.contacts.first_name} ${p.contacts.last_name || ""}`
+            : p.external_name || "—",
+      };
+    });
+    setAttendees(loadedAttendees);
+    setSelectedPartnerIds(Array.from(partnerIds));
+    setExternalName(""); setExternalEmail("");
     setOpen(true);
   };
 
+  // Partner toggle
+  const togglePartner = (partnerId: string) => {
+    setSelectedPartnerIds(prev =>
+      prev.includes(partnerId)
+        ? prev.filter(id => id !== partnerId)
+        : [...prev, partnerId]
+    );
+  };
+
+  // Contact toggle
   const toggleContact = (c: any) => {
-    const exists = attendees.find(a => a.contact_id === c.contacts?.id);
+    const cId = c.contacts?.id;
+    if (!cId) return;
+    const exists = attendees.find(a => a.contact_id === cId);
     if (exists) {
-      setAttendees(prev => prev.filter(a => a.contact_id !== c.contacts?.id));
+      setAttendees(prev => prev.filter(a => a.contact_id !== cId));
     } else {
       setAttendees(prev => [...prev, {
-        contact_id: c.contacts?.id,
-        partner_id: form.partner_id || undefined,
+        contact_id: cId,
+        partner_id: c.partner_id || undefined,
+        is_internal: false,
         label: `${c.contacts?.first_name} ${c.contacts?.last_name || ""}`,
+      }]);
+    }
+  };
+
+  // Employee toggle
+  const toggleEmployee = (emp: any) => {
+    const exists = attendees.find(a => a.employee_id === emp.id);
+    if (exists) {
+      setAttendees(prev => prev.filter(a => a.employee_id !== emp.id));
+    } else {
+      setAttendees(prev => [...prev, {
+        employee_id: emp.id,
+        is_internal: true,
+        label: emp.full_name,
       }]);
     }
   };
 
   const addExternal = () => {
     if (!externalName.trim()) return;
-    setAttendees(prev => [...prev, { external_name: externalName.trim(), label: externalName.trim() }]);
-    setExternalName("");
+    setAttendees(prev => [...prev, {
+      external_name: externalName.trim(),
+      external_email: externalEmail.trim() || undefined,
+      is_internal: false,
+      label: externalName.trim(),
+    }]);
+    setExternalName(""); setExternalEmail("");
   };
 
   const removeAttendee = (idx: number) => setAttendees(prev => prev.filter((_, i) => i !== idx));
 
+  // Stats
   const now = new Date();
   const today = meetings.filter((m: any) => {
     const d = new Date(m.scheduled_at);
@@ -223,12 +320,22 @@ export default function Meetings() {
     return m.title?.toLowerCase().includes(search.toLowerCase()) || m.partners?.name?.toLowerCase().includes(search.toLowerCase());
   });
 
-  const statusColor = (s: string) => {
-    if (s === "completed") return "default";
-    if (s === "cancelled") return "destructive";
-    if (s === "in_progress") return "secondary";
-    return "outline";
-  };
+  // Group contacts by partner for display
+  const contactsByPartner = new Map<string, any[]>();
+  partnerContacts.forEach((pc: any) => {
+    const pid = pc.partner_id;
+    if (!contactsByPartner.has(pid)) contactsByPartner.set(pid, []);
+    contactsByPartner.get(pid)!.push(pc);
+  });
+
+  // Collect emails for invite preview
+  const attendeeEmails = attendees
+    .map(a => {
+      if (a.external_email) return a.external_email;
+      const pc = partnerContacts.find((c: any) => c.contacts?.id === a.contact_id);
+      return pc?.contacts?.email;
+    })
+    .filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -236,7 +343,19 @@ export default function Meetings() {
         title={t("meetings")}
         description="Schedule and track meetings with partners and opportunities"
         icon={Users}
-        actions={<Button onClick={() => openAdd()}><Plus className="h-4 w-4 mr-2" />{t("addMeeting")}</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/crm/meetings/calendar")}>
+              <CalendarDays className="h-4 w-4 mr-2" />{t("meetingsCalendar")}
+            </Button>
+            <Button variant="outline" onClick={openLog}>
+              <ClipboardCheck className="h-4 w-4 mr-2" />{t("evidentirajSastanak")}
+            </Button>
+            <Button onClick={openSchedule}>
+              <Plus className="h-4 w-4 mr-2" />{t("zakaziSastanak")}
+            </Button>
+          </div>
+        }
       />
 
       {/* Stats */}
@@ -305,38 +424,35 @@ export default function Meetings() {
       {/* Meeting Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editId ? t("editMeeting") : t("addMeeting")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {editId
+                ? t("editMeeting")
+                : dialogMode === "schedule"
+                  ? t("zakaziSastanak")
+                  : t("evidentirajSastanak")}
+            </DialogTitle>
+          </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-2"><Label>{t("title")} *</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
+            {/* Title */}
+            <div className="grid gap-2">
+              <Label>{t("title")} *</Label>
+              <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+            </div>
 
+            {/* Date + Duration */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("partner")}</Label>
-                <Select value={form.partner_id || "__none"} onValueChange={v => setForm({ ...form, partner_id: v === "__none" ? null : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {partners.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>{t("date")} *</Label>
+                <Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("linkedOpportunity")}</Label>
-                <Select value={form.opportunity_id || "__none"} onValueChange={v => setForm({ ...form, opportunity_id: v === "__none" ? null : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {opportunities.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.title} {o.partners?.name ? `(${o.partners.name})` : ""}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>{t("duration")} (min)</Label>
+                <Input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>{t("date")} *</Label><Input type="datetime-local" value={form.scheduled_at} onChange={e => setForm({ ...form, scheduled_at: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("duration")} (min)</Label><Input type="number" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
-            </div>
-
+            {/* Channel + Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("channel")}</Label>
@@ -354,53 +470,145 @@ export default function Meetings() {
               </div>
             </div>
 
-            <div className="grid gap-2"><Label>{t("location")}</Label><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>{t("description")}</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} /></div>
-
-            {/* Attendees section */}
+            {/* Location */}
             <div className="grid gap-2">
-              <Label>{t("attendees")}</Label>
-              {form.partner_id && partnerContacts.length > 0 && (
-                <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                  {partnerContacts.map((pc: any) => {
-                    const cName = `${pc.contacts?.first_name} ${pc.contacts?.last_name || ""}`;
-                    const checked = attendees.some(a => a.contact_id === pc.contacts?.id);
+              <Label>{t("location")}</Label>
+              <Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
+            </div>
+
+            {/* Opportunity */}
+            <div className="grid gap-2">
+              <Label>{t("linkedOpportunity")}</Label>
+              <Select value={form.opportunity_id || "__none"} onValueChange={v => setForm({ ...form, opportunity_id: v === "__none" ? null : v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {opportunities.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.title} {o.partners?.name ? `(${o.partners.name})` : ""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Multi-Partner Selector */}
+            <div className="grid gap-2">
+              <Label>{t("selectPartners")}</Label>
+              <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                {partners.length === 0 && <p className="text-xs text-muted-foreground">{t("noResults")}</p>}
+                {partners.map((p: any) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedPartnerIds.includes(p.id)}
+                      onCheckedChange={() => togglePartner(p.id)}
+                    />
+                    <span className="text-sm">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Contacts from selected partners */}
+            {selectedPartnerIds.length > 0 && (
+              <div className="grid gap-2">
+                <Label>{t("attendees")} — {t("contacts")}</Label>
+                <div className="border rounded-md p-3 space-y-3 max-h-48 overflow-y-auto">
+                  {selectedPartnerIds.map(pid => {
+                    const pName = partners.find((p: any) => p.id === pid)?.name || pid;
+                    const contacts = contactsByPartner.get(pid) || [];
                     return (
-                      <div key={pc.contact_id} className="flex items-center gap-2">
-                        <Checkbox checked={checked} onCheckedChange={() => toggleContact(pc)} />
-                        <span className="text-sm">{cName}</span>
+                      <div key={pid}>
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">{pName}</div>
+                        {contacts.length === 0 && <p className="text-xs text-muted-foreground italic">Nema kontakata</p>}
+                        {contacts.map((pc: any) => {
+                          const cName = `${pc.contacts?.first_name} ${pc.contacts?.last_name || ""}`;
+                          const checked = attendees.some(a => a.contact_id === pc.contacts?.id);
+                          return (
+                            <div key={pc.contact_id} className="flex items-center gap-2 ml-2">
+                              <Checkbox checked={checked} onCheckedChange={() => toggleContact(pc)} />
+                              <span className="text-sm">{cName}</span>
+                              {pc.contacts?.email && <span className="text-xs text-muted-foreground">({pc.contacts.email})</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
                 </div>
-              )}
-              {!form.partner_id && <p className="text-xs text-muted-foreground">{t("noPartnerSelected")}</p>}
+              </div>
+            )}
 
-              {/* External attendee input */}
+            {/* Internal Staff */}
+            <div className="grid gap-2">
+              <Label>{t("internalAttendees")}</Label>
+              <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                {employees.length === 0 && <p className="text-xs text-muted-foreground">{t("noResults")}</p>}
+                {employees.map((emp: any) => {
+                  const checked = attendees.some(a => a.employee_id === emp.id);
+                  return (
+                    <div key={emp.id} className="flex items-center gap-2">
+                      <Checkbox checked={checked} onCheckedChange={() => toggleEmployee(emp)} />
+                      <span className="text-sm">{emp.full_name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* External Attendees */}
+            <div className="grid gap-2">
+              <Label>{t("externalAttendee")}</Label>
               <div className="flex gap-2">
-                <Input placeholder={t("addExternalAttendee")} value={externalName} onChange={e => setExternalName(e.target.value)}
+                <Input placeholder={t("fullName")} value={externalName} onChange={e => setExternalName(e.target.value)} className="flex-1" />
+                <Input placeholder={t("externalEmail")} value={externalEmail} onChange={e => setExternalEmail(e.target.value)} className="flex-1"
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addExternal(); } }} />
                 <Button type="button" variant="outline" size="sm" onClick={addExternal} disabled={!externalName.trim()}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-
-              {/* Selected attendees */}
-              {attendees.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {attendees.map((a, i) => (
-                    <Badge key={i} variant="secondary" className="gap-1">
-                      {a.label}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeAttendee(i)} />
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
 
-            <div className="grid gap-2"><Label>{t("outcome")}</Label><Textarea value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })} rows={2} /></div>
-            <div className="grid gap-2"><Label>{t("nextSteps")}</Label><Textarea value={form.next_steps} onChange={e => setForm({ ...form, next_steps: e.target.value })} rows={2} /></div>
-            <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+            {/* Selected attendees badges */}
+            {attendees.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {attendees.map((a, i) => (
+                  <Badge key={i} variant={a.is_internal ? "default" : "secondary"} className="gap-1">
+                    {a.is_internal ? "👤 " : ""}{a.label}
+                    {a.external_email && <span className="text-[10px] opacity-70">({a.external_email})</span>}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeAttendee(i)} />
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Invite preview (schedule mode only) */}
+            {dialogMode === "schedule" && attendeeEmails.length > 0 && (
+              <div className="bg-muted/50 rounded-md p-3 text-xs">
+                <span className="font-medium">{t("inviteWillBeSent")}</span>{" "}
+                {attendeeEmails.join(", ")}
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label>{t("description")}</Label>
+              <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
+            </div>
+
+            {/* Outcome & Next Steps (log mode only) */}
+            {dialogMode === "log" && (
+              <>
+                <div className="grid gap-2">
+                  <Label>{t("outcome")}</Label>
+                  <Textarea value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })} rows={2} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("nextSteps")}</Label>
+                  <Textarea value={form.next_steps} onChange={e => setForm({ ...form, next_steps: e.target.value })} rows={2} />
+                </div>
+              </>
+            )}
+
+            <div className="grid gap-2">
+              <Label>{t("notes")}</Label>
+              <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>

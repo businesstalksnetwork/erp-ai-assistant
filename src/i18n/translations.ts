@@ -1813,6 +1813,7 @@ export const translations = {
     outcome: "Outcome",
     nextSteps: "Next Steps",
     logMeeting: "Log Meeting",
+    scheduleMeeting: "Schedule Meeting",
     attendees: "Attendees",
     externalAttendee: "External Attendee",
     addExternalAttendee: "Add external attendee",
@@ -1824,6 +1825,14 @@ export const translations = {
     meetingOutcome: "Meeting Outcome",
     meetingNextSteps: "Next Steps",
     opportunityPartners: "Opportunity Partners",
+    internalAttendees: "Internal Staff",
+    externalEmail: "Email",
+    meetingsCalendar: "Meetings Calendar",
+    evidentirajSastanak: "Log Meeting",
+    zakaziSastanak: "Schedule Meeting",
+    inviteWillBeSent: "Invite will be sent to:",
+    selectPartners: "Select partners",
+    noPartnersSelected: "No partners selected",
   },
   sr: {
     // Auth
@@ -3596,7 +3605,8 @@ export const translations = {
     // Meetings Enhancement
     outcome: "Ishod",
     nextSteps: "Sledeći koraci",
-    logMeeting: "Zakaži sastanak",
+    logMeeting: "Evidentiraj sastanak",
+    scheduleMeeting: "Zakaži sastanak",
     attendees: "Učesnici",
     externalAttendee: "Spoljni učesnik",
     addExternalAttendee: "Dodaj spoljnog učesnika",
@@ -3608,6 +3618,14 @@ export const translations = {
     meetingOutcome: "Ishod sastanka",
     meetingNextSteps: "Sledeći koraci",
     opportunityPartners: "Partneri prilike",
+    internalAttendees: "Interni učesnici",
+    externalEmail: "Email",
+    meetingsCalendar: "Kalendar sastanaka",
+    evidentirajSastanak: "Evidentiraj sastanak",
+    zakaziSastanak: "Zakaži sastanak",
+    inviteWillBeSent: "Pozivnica će biti poslata na:",
+    selectPartners: "Izaberi partnere",
+    noPartnersSelected: "Nema izabranih partnera",
   },
 } as const;
 
