@@ -1,104 +1,140 @@
 
 
-## Add Product/Service Picker to All Line Item Dialogs
+## Fix Dashboard KPIs Showing 0 - Query Overflow Bug
 
-### Problem
-Three modules currently use only a free-text "Opis" (Description) field when adding line items, instead of a product/service picker dropdown. This means products are not linked to line items, breaking inventory tracking, reporting, and data consistency.
+### Root Cause
 
-**Affected modules:**
-- Quote Detail (`QuoteDetail.tsx`) -- no product picker, no `product_id` saved
-- Sales Order Detail (`SalesOrderDetail.tsx`) -- no product picker, no `product_id` saved
-- Dispatch Note Detail (`DispatchNoteDetail.tsx`) -- DB column `product_id` exists but UI doesn't use it
+The dashboard revenue and expenses queries use a **broken multi-step pattern**:
 
-**Already correct (reference pattern):**
-- Invoice Form (`InvoiceForm.tsx`) -- full product Select with auto-fill
-- Purchase Orders (`PurchaseOrders.tsx`) -- product Select per line
-- Returns (`Returns.tsx`) -- product_id in line form
-- Internal Transfers (`InternalTransfers.tsx`) -- product Select per line
+1. Fetch ALL posted journal entry IDs (currently 612+, growing daily)
+2. Fetch ALL revenue/expense account IDs
+3. Pass both ID arrays into `.in()` filters on `journal_lines`
+
+With 612 UUIDs (each 36 chars), the `.in()` clause generates a URL over **22KB long**. Supabase REST API has URL length limits, causing **silent failures** that return empty results, which the code interprets as `0`.
+
+This is **intermittent** because:
+- Sometimes the browser caches a valid result (staleTime = 5 min)
+- Page refreshes trigger new queries that hit the URL limit and return 0
+- The charts (RevenueExpensesChart) have the same bug but filter by 6-month date range first, so fewer IDs
 
 ### Solution
 
-Apply the same product picker pattern from `InvoiceForm.tsx` to all three affected modules.
+Create a **database RPC function** that computes revenue, expenses, and cash balance in a single server-side query using proper JOINs -- no client-side ID arrays needed.
 
-### Changes per File
+### Changes
 
-#### 1. `src/pages/tenant/QuoteDetail.tsx`
+#### 1. New Supabase Migration: `dashboard_kpi_summary` RPC
 
-- Add `product_id` to the `LineForm` interface
-- Add a `useQuery` to fetch tenant products (with `tax_rates` join), same as InvoiceForm
-- Replace the free-text "Opis" `Input` with:
-  - A **"Proizvod/Usluga"** `Select` dropdown listing all active products, plus a "Rucni unos" (Manual entry) option
-  - When a product is selected: auto-fill `description` (product name), `unit_price` (`default_sale_price`), `tax_rate_value` (from product's tax rate)
-  - Keep the "Opis" text `Input` below for optional notes/override
-- Include `product_id` in the insert/update payload for `quote_lines`
-- When editing an existing line, pre-select the product in the dropdown
-- Update table column header from "OPIS" to "PROIZVOD / USLUGA"
+Create an RPC that returns all 4 KPI values in one call:
 
-#### 2. `src/pages/tenant/SalesOrderDetail.tsx`
-
-- Exact same changes as QuoteDetail:
-  - Add `product_id` to `LineForm`
-  - Fetch products query
-  - Product Select dropdown with auto-fill
-  - Save `product_id` to `sales_order_lines`
-  - Pre-select product when editing
-  - Update table header
-
-#### 3. `src/pages/tenant/DispatchNoteDetail.tsx`
-
-- Add a `useQuery` to fetch tenant products
-- Add `product_id` to the line form state
-- Add a **"Proizvod"** `Select` dropdown above the description field in the add-line dialog
-- When a product is selected: auto-fill `description` with product name
-- Include `product_id` in the insert payload for `dispatch_note_lines`
-- Update the lines table to show product name when available
-
-### Technical Details
-
-**Product query pattern** (copied from InvoiceForm lines 122-136):
-```typescript
-const { data: products = [] } = useQuery({
-  queryKey: ["products", tenantId],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("*, tax_rates(id, rate)")
-      .eq("tenant_id", tenantId!)
-      .eq("is_active", true)
-      .order("name");
-    return data || [];
-  },
-  enabled: !!tenantId,
-});
+```sql
+CREATE OR REPLACE FUNCTION dashboard_kpi_summary(_tenant_id uuid)
+RETURNS TABLE(revenue numeric, expenses numeric, cash_balance numeric)
+LANGUAGE sql STABLE SECURITY DEFINER
+AS $$
+  SELECT
+    COALESCE((
+      SELECT SUM(jl.credit - jl.debit)
+      FROM journal_lines jl
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON jl.account_id = coa.id
+      WHERE je.tenant_id = _tenant_id
+        AND je.status = 'posted'
+        AND coa.tenant_id = _tenant_id
+        AND coa.account_type = 'revenue'
+    ), 0) AS revenue,
+    COALESCE((
+      SELECT SUM(jl.debit - jl.credit)
+      FROM journal_lines jl
+      JOIN journal_entries je ON jl.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON jl.account_id = coa.id
+      WHERE je.tenant_id = _tenant_id
+        AND je.status = 'posted'
+        AND coa.tenant_id = _tenant_id
+        AND coa.account_type = 'expense'
+    ), 0) AS expenses,
+    COALESCE((
+      SELECT SUM(total)
+      FROM invoices
+      WHERE tenant_id = _tenant_id
+        AND status = 'paid'
+    ), 0) AS cash_balance;
+$$;
 ```
 
-**Auto-fill on product selection** (for Quote and Sales Order):
-- `description` = product name
-- `unit_price` = `default_sale_price`
-- `tax_rate_value` = product's linked `tax_rates.rate` (or keep current value)
+#### 2. Update `src/pages/tenant/Dashboard.tsx`
 
-**Dialog layout** changes from:
-- Opis (text input)
-- Kolicina | Jedinicna cena | PDV %
+Replace the 3 separate broken queries (revenue, expenses, cashBalance) with a **single** `useQuery` that calls the RPC:
 
-To:
-- Proizvod/Usluga (Select dropdown)
-- Opis (text input, auto-filled, editable for notes)
-- Kolicina | Jedinicna cena | PDV %
+```typescript
+const { data: kpiData } = useQuery({
+  queryKey: ["dashboard-kpi-summary", tenantId],
+  queryFn: async () => {
+    const { data } = await supabase.rpc("dashboard_kpi_summary", {
+      _tenant_id: tenantId!,
+    });
+    return data?.[0] ?? { revenue: 0, expenses: 0, cash_balance: 0 };
+  },
+  enabled: !!tenantId,
+  staleTime: 1000 * 60 * 5,
+});
 
-**No database migrations needed** -- all three tables already have `product_id` columns with foreign keys to `products`.
+const revenue = Number(kpiData?.revenue ?? 0);
+const expenses = Number(kpiData?.expenses ?? 0);
+const cashBalance = Number(kpiData?.cash_balance ?? 0);
+```
+
+Remove the 3 old `useQuery` blocks for revenue, expenses, and cashBalance.
+
+#### 3. Fix `RevenueExpensesChart.tsx` - Same `.in()` overflow bug
+
+Replace the multi-step query with a single RPC:
+
+```sql
+CREATE OR REPLACE FUNCTION dashboard_revenue_expenses_monthly(
+  _tenant_id uuid, _months int DEFAULT 6
+)
+RETURNS TABLE(month_label text, revenue numeric, expenses numeric)
+LANGUAGE sql STABLE SECURITY DEFINER
+AS $$
+  WITH months AS (
+    SELECT generate_series(
+      date_trunc('month', CURRENT_DATE) - ((_months - 1) || ' months')::interval,
+      date_trunc('month', CURRENT_DATE),
+      '1 month'::interval
+    )::date AS month_start
+  )
+  SELECT
+    to_char(m.month_start, 'Mon YY') AS month_label,
+    COALESCE(SUM(CASE WHEN coa.account_type = 'revenue' THEN jl.credit - jl.debit ELSE 0 END), 0) AS revenue,
+    COALESCE(SUM(CASE WHEN coa.account_type = 'expense' THEN jl.debit - jl.credit ELSE 0 END), 0) AS expenses
+  FROM months m
+  LEFT JOIN journal_entries je ON je.tenant_id = _tenant_id
+    AND je.status = 'posted'
+    AND je.entry_date >= m.month_start
+    AND je.entry_date < (m.month_start + '1 month'::interval)
+  LEFT JOIN journal_lines jl ON jl.journal_entry_id = je.id
+  LEFT JOIN chart_of_accounts coa ON jl.account_id = coa.id
+    AND coa.tenant_id = _tenant_id
+    AND coa.account_type IN ('revenue', 'expense')
+  GROUP BY m.month_start
+  ORDER BY m.month_start;
+$$;
+```
+
+Then simplify `RevenueExpensesChart.tsx` to call this RPC instead of the 3-step client-side query.
 
 ### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/tenant/QuoteDetail.tsx` | Add product query, product Select in line dialog, auto-fill, save product_id |
-| `src/pages/tenant/SalesOrderDetail.tsx` | Same product picker changes as QuoteDetail |
-| `src/pages/tenant/DispatchNoteDetail.tsx` | Add product query, product Select in add-line dialog, save product_id |
+| New migration SQL | Create `dashboard_kpi_summary` and `dashboard_revenue_expenses_monthly` RPCs |
+| `src/pages/tenant/Dashboard.tsx` | Replace 3 broken queries with single RPC call |
+| `src/components/dashboard/RevenueExpensesChart.tsx` | Replace multi-step query with RPC call |
 
-### Import additions needed
-All three files will need:
-```typescript
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-```
+### Why This Fixes the Zeros
 
+- **No more `.in()` with hundreds of UUIDs** -- the database does the JOIN server-side
+- **Single query per widget** instead of 3 sequential queries that can each fail
+- **Consistent results** -- the RPC returns data atomically, no race conditions
+- **Faster** -- one round-trip instead of 3-6 sequential Supabase calls per KPI
