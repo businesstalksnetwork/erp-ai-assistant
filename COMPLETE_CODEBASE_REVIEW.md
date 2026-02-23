@@ -275,6 +275,12 @@
 6. **5 New Analytics Narratives** — `production`, `crm_pipeline`, `hr_overview`, `pos_performance`, `purchasing` context types added to `ai-analytics-narrative`.
 7. **HR Clickable Employee Links** — Employee names on 10+ HR pages now link to `/hr/employees/:id`. EmployeeDetail FK hint fix for proper data loading.
 
+### New Features (v3.2 — Bug Fixes & UX Polish)
+
+1. **QuoteVersionHistory Inline Mode** — Nova `inline` prop opcija za `QuoteVersionHistory` komponentu. Kada je `inline={true}`, renderuje listu verzija direktno bez Dialog omotača. Rešava problem gde tab "Istorija verzija" otvara nezatvoriv popup.
+2. **CompanyDetail Quote Navigation Fix** — Ispravljena navigacija sa nepostojeće `/crm/quotes` na `/sales/quotes`. Klik na red ponude sada vodi na detalj te ponude (`/sales/quotes/${q.id}`).
+3. **QuoteDetail forwardRef Fix** — Dodat wrapper `<div>` oko `QuoteVersionHistory` u TabsContent da se izbegne React "Function components cannot be given refs" upozorenje.
+
 ---
 
 ## 9. DESIGN SYSTEM IMPLEMENTATION
@@ -305,12 +311,14 @@
 
 ### Critical Issues
 
-1. **Dual Auth Implementation**
+1. **Dual Auth Implementation** *(still open)*
    - Two auth implementations exist:
      - `/src/hooks/useAuth.tsx` (newer, simpler)
      - `/src/lib/auth.tsx` (older, more complex)
    - **Impact:** Potential inconsistencies
    - **Recommendation:** Consolidate to single implementation
+
+> **v3.2 resolved:** Quote navigation bug (CompanyDetail → `/crm/quotes` 404) and QuoteDetail forwardRef warning are now fixed.
 
 2. **App.css File Exists**
    - `src/App.css` contains old Vite template styles
