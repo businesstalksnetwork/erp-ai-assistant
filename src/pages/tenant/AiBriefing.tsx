@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -7,12 +8,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Brain, RefreshCw, AlertCircle, AlertTriangle, Info,
   CheckCircle2, TrendingUp, Users, Package, DollarSign,
   Lightbulb, Shield, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format, subDays } from "date-fns";
+
+/* ── helpers ── */
+const fmtDate = (d: Date) => format(d, "yyyy-MM-dd");
+
+type Preset = "today" | "7d" | "30d" | "90d" | "custom";
 
 const statusColors = {
   green: "text-emerald-600 bg-emerald-500/10 border-emerald-500/30",
@@ -41,16 +49,86 @@ const severityBadge = {
   info: "outline" as const,
 };
 
+/* ── Date range bar ── */
+function DateRangeBar({
+  preset,
+  setPreset,
+  dateFrom,
+  dateTo,
+  setDateFrom,
+  setDateTo,
+  sr,
+}: {
+  preset: Preset;
+  setPreset: (p: Preset) => void;
+  dateFrom: string;
+  dateTo: string;
+  setDateFrom: (v: string) => void;
+  setDateTo: (v: string) => void;
+  sr: boolean;
+}) {
+  const presets: { key: Preset; label: string }[] = [
+    { key: "today", label: sr ? "Danas" : "Today" },
+    { key: "7d", label: sr ? "7 dana" : "7 days" },
+    { key: "30d", label: sr ? "30 dana" : "30 days" },
+    { key: "90d", label: sr ? "90 dana" : "90 days" },
+    { key: "custom", label: sr ? "Prilagodi" : "Custom" },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      {presets.map((p) => (
+        <Button
+          key={p.key}
+          size="sm"
+          variant={preset === p.key ? "default" : "outline"}
+          onClick={() => setPreset(p.key)}
+        >
+          {p.label}
+        </Button>
+      ))}
+      {preset === "custom" && (
+        <div className="flex items-center gap-2">
+          <DateInput value={dateFrom} onChange={(e) => setDateFrom((e.target as HTMLInputElement).value)} className="w-36" />
+          <span className="text-muted-foreground text-sm">–</span>
+          <DateInput value={dateTo} onChange={(e) => setDateTo((e.target as HTMLInputElement).value)} className="w-36" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main page ── */
 export default function AiBriefing() {
   const { tenantId } = useTenant();
   const { t, locale } = useLanguage();
   const sr = locale === "sr";
 
+  const [preset, setPreset] = useState<Preset>("30d");
+  const [customFrom, setCustomFrom] = useState(fmtDate(subDays(new Date(), 30)));
+  const [customTo, setCustomTo] = useState(fmtDate(new Date()));
+
+  const { dateFrom, dateTo } = useMemo(() => {
+    const now = new Date();
+    switch (preset) {
+      case "today":
+        return { dateFrom: fmtDate(now), dateTo: fmtDate(now) };
+      case "7d":
+        return { dateFrom: fmtDate(subDays(now, 7)), dateTo: fmtDate(now) };
+      case "30d":
+        return { dateFrom: fmtDate(subDays(now, 30)), dateTo: fmtDate(now) };
+      case "90d":
+        return { dateFrom: fmtDate(subDays(now, 90)), dateTo: fmtDate(now) };
+      case "custom":
+        return { dateFrom: customFrom, dateTo: customTo };
+    }
+  }, [preset, customFrom, customTo]);
+
   const { data: briefing, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["ai-executive-briefing", tenantId],
+    queryKey: ["ai-executive-briefing", tenantId, dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("ai-executive-briefing", {
-        body: { tenant_id: tenantId, language: locale },
+        body: { tenant_id: tenantId, language: locale, date_from: dateFrom, date_to: dateTo },
       });
       if (error) {
         if (error.message?.includes("429")) toast.error(sr ? "AI preopterećen. Pokušajte ponovo." : "AI rate limited. Try again later.");
@@ -70,7 +148,6 @@ export default function AiBriefing() {
   const actions = briefing?.actions || [];
   const sections = briefing?.sections || [];
 
-  // Group scorecard by category
   const categories = ["financial", "operations", "people", "sales"];
   const groupedScorecard = categories.map(cat => ({
     category: cat,
@@ -80,21 +157,29 @@ export default function AiBriefing() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={sr ? "AI Executive Briefing" : "AI Executive Briefing"}
+        title={sr ? "Brzi AI Izveštaj" : "Quick AI Report"}
         description={sr ? "Personalizovani pregled kompanije zasnovan na vašoj ulozi" : "Role-based company intelligence dashboard"}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DateRangeBar
+          preset={preset}
+          setPreset={setPreset}
+          dateFrom={customFrom}
+          dateTo={customTo}
+          setDateFrom={setCustomFrom}
+          setDateTo={setCustomTo}
+          sr={sr}
+        />
         <div className="flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" />
           {briefing?.role && (
             <Badge variant="outline" className="capitalize">{briefing.role}</Badge>
           )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            {sr ? "Osveži" : "Refresh"}
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-          {sr ? "Osveži" : "Refresh"}
-        </Button>
       </div>
 
       {isLoading ? (
@@ -172,7 +257,6 @@ export default function AiBriefing() {
 
           {/* Risks & Actions side by side */}
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-            {/* Risks */}
             {risks.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
@@ -200,7 +284,6 @@ export default function AiBriefing() {
               </Card>
             )}
 
-            {/* Recommended Actions */}
             {actions.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">

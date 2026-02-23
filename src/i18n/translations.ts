@@ -1944,6 +1944,7 @@ export const translations = {
     released: "Released",
     not_submitted: "Not Submitted",
     companyCategories: "Company Categories",
+    aiBriefing: "Quick AI Report",
   },
   sr: {
     // Auth
@@ -3846,6 +3847,7 @@ export const translations = {
     released: "Pušteno",
     not_submitted: "Nije poslato",
     companyCategories: "Kategorije firmi",
+    aiBriefing: "Brzi AI Izveštaj",
   },
 } as const;
 
