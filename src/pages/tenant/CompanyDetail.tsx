@@ -13,9 +13,10 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, Pencil, Save, X, Plus, Calendar, ShieldCheck, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Save, X, Plus, Calendar, ShieldCheck, AlertTriangle, ShieldAlert, CheckCircle2, DollarSign, FileText, Target, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
 
 const TIER_COLORS: Record<string, string> = {
   A: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -126,6 +127,34 @@ export default function CompanyDetail() {
     enabled: !!id,
   });
 
+  const { data: relatedOpportunities = [] } = useQuery({
+    queryKey: ["partner-opportunities", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("opportunities")
+        .select("id, title, stage, value, expected_close_date, salesperson_id")
+        .eq("partner_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  const { data: relatedQuotes = [] } = useQuery({
+    queryKey: ["partner-quotes", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quotes")
+        .select("id, quote_number, quote_date, total, status, currency, current_version, valid_until")
+        .eq("partner_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
   const updateMutation = useMutation({
     mutationFn: async (f: any) => {
       const { error } = await supabase.from("partners").update(f).eq("id", id!);
@@ -180,6 +209,19 @@ export default function CompanyDetail() {
 
   const txCount = relatedInvoices.length + relatedPOs.length;
 
+  // Quick stats
+  const totalRevenue = relatedInvoices
+    .filter((inv: any) => inv.status === "paid" || inv.status === "posted")
+    .reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
+  const activeQuotes = relatedQuotes.filter((q: any) => q.status === "draft" || q.status === "sent").length;
+
+  const quickStats: StatItem[] = [
+    { label: t("totalRevenue"), value: fmt(totalRevenue), icon: DollarSign, color: "text-emerald-500" },
+    { label: t("remainingBalance"), value: fmt(outstandingBalance), icon: BarChart3, color: outstandingBalance > 0 ? "text-amber-500" : "text-muted-foreground" },
+    { label: t("opportunities"), value: relatedOpportunities.length, icon: Target, color: "text-primary" },
+    { label: t("quotes"), value: activeQuotes, icon: FileText, color: "text-primary" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
@@ -199,9 +241,11 @@ export default function CompanyDetail() {
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">{t("companyInfo")}</TabsTrigger>
           <TabsTrigger value="contacts">{t("contacts")} ({linkedContacts.length})</TabsTrigger>
+          <TabsTrigger value="opportunities">{t("opportunities")} ({relatedOpportunities.length})</TabsTrigger>
+          <TabsTrigger value="quotes">{t("quotes")} ({relatedQuotes.length})</TabsTrigger>
           <TabsTrigger value="meetings">{t("meetings")} ({relatedMeetings.length})</TabsTrigger>
           <TabsTrigger value="transactions">{t("invoices")} ({txCount})</TabsTrigger>
           <TabsTrigger value="activities">{t("activities")} ({relatedActivities.length})</TabsTrigger>
@@ -209,6 +253,9 @@ export default function CompanyDetail() {
 
         <TabsContent value="overview">
           <div className="space-y-4">
+            {/* Quick Stats */}
+            <StatsBar stats={quickStats} />
+
             {/* Account Health Card */}
             <Card>
               <CardHeader>
@@ -300,6 +347,7 @@ export default function CompanyDetail() {
                     <div className="grid gap-2"><Label>{t("contactPerson")}</Label><Input value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} /></div>
                     <div className="grid gap-2"><Label>{t("address")}</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
                     <div className="grid gap-2"><Label>{t("city")}</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+                    <div className="grid gap-2"><Label>{t("postalCode")}</Label><Input value={form.postal_code} onChange={e => setForm({ ...form, postal_code: e.target.value })} /></div>
                     <div className="grid gap-2 md:col-span-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
                   </div>
                 ) : (
@@ -366,6 +414,87 @@ export default function CompanyDetail() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Opportunities Tab */}
+        <TabsContent value="opportunities">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">{t("opportunities")}</CardTitle>
+              <Button size="sm" onClick={() => navigate("/crm/opportunities")}>
+                <Plus className="h-4 w-4 mr-1" />{t("add")}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {relatedOpportunities.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">{t("noResults")}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("title")}</TableHead>
+                      <TableHead>{t("stage")}</TableHead>
+                      <TableHead className="text-right">{t("value")}</TableHead>
+                      <TableHead>{t("expectedCloseDate")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {relatedOpportunities.map((opp: any) => (
+                      <TableRow key={opp.id} className="cursor-pointer" onClick={() => navigate(`/crm/opportunities/${opp.id}`)}>
+                        <TableCell className="font-medium">{opp.title}</TableCell>
+                        <TableCell><Badge variant="secondary">{opp.stage}</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums">{opp.value ? fmt(opp.value) : "—"}</TableCell>
+                        <TableCell>{opp.expected_close_date ? new Date(opp.expected_close_date).toLocaleDateString("sr-RS") : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Quotes Tab */}
+        <TabsContent value="quotes">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">{t("quotes")}</CardTitle>
+              <Button size="sm" onClick={() => navigate("/crm/quotes")}>
+                <Plus className="h-4 w-4 mr-1" />{t("add")}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {relatedQuotes.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">{t("noResults")}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("quoteNumber")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead className="text-right">{t("total")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead>{t("validUntil")}</TableHead>
+                      <TableHead>V.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {relatedQuotes.map((q: any) => (
+                      <TableRow key={q.id} className="cursor-pointer" onClick={() => navigate("/crm/quotes")}>
+                        <TableCell className="font-medium">{q.quote_number}</TableCell>
+                        <TableCell>{q.quote_date ? new Date(q.quote_date).toLocaleDateString("sr-RS") : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{q.total ? fmt(q.total) : "—"}</TableCell>
+                        <TableCell><Badge variant="secondary">{q.status}</Badge></TableCell>
+                        <TableCell>{q.valid_until ? new Date(q.valid_until).toLocaleDateString("sr-RS") : "—"}</TableCell>
+                        <TableCell><Badge variant="outline">v{q.current_version || 1}</Badge></TableCell>
+
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
