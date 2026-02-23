@@ -19,8 +19,11 @@ import { fmtNum } from "@/lib/utils";
 
 // Serbian account class names
 const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
-  "5": { name: "Prihodi", nameSr: "Приходи" },
-  "6": { name: "Rashodi", nameSr: "Раходи" },
+  "4": { name: "Prihodi od prodaje", nameSr: "Приходи од продаје" },
+  "5": { name: "Rashodi proizvodnje", nameSr: "Расходи производње" },
+  "6": { name: "Prihodi od prodaje", nameSr: "Приходи од продаје" },
+  "7": { name: "Poslovni rashodi", nameSr: "Пословни расходи" },
+  "8": { name: "Vanredni rashodi", nameSr: "Ванредни расходи" },
 };
 
 export default function BilansUspeha() {

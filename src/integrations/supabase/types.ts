@@ -106,6 +106,112 @@ export type Database = {
           },
         ]
       }
+      advance_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          partner_id: string | null
+          received_at: string
+          reference: string | null
+          settled_at: string | null
+          settlement_journal_entry_id: string | null
+          status: string
+          tax_amount: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          received_at?: string
+          reference?: string | null
+          settled_at?: string | null
+          settlement_journal_entry_id?: string | null
+          status?: string
+          tax_amount?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          received_at?: string
+          reference?: string | null
+          settled_at?: string | null
+          settlement_journal_entry_id?: string | null
+          status?: string
+          tax_amount?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_payments_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_payments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_payments_settlement_journal_entry_id_fkey"
+            columns: ["settlement_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_action_log: {
         Row: {
           action_type: string
@@ -883,31 +989,40 @@ export type Database = {
       audit_log: {
         Row: {
           action: string
+          after_state: Json | null
+          before_state: Json | null
           created_at: string
           details: Json
           entity_id: string | null
           entity_type: string | null
           id: string
+          ip_address: string | null
           tenant_id: string | null
           user_id: string | null
         }
         Insert: {
           action: string
+          after_state?: Json | null
+          before_state?: Json | null
           created_at?: string
           details?: Json
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           tenant_id?: string | null
           user_id?: string | null
         }
         Update: {
           action?: string
+          after_state?: Json | null
+          before_state?: Json | null
           created_at?: string
           details?: Json
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           tenant_id?: string | null
           user_id?: string | null
         }
@@ -1026,6 +1141,125 @@ export type Database = {
           },
           {
             foreignKeyName: "bank_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_reconciliation_lines: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          match_type: string
+          reconciliation_id: string
+          statement_line_id: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          match_type?: string
+          reconciliation_id: string
+          statement_line_id?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          match_type?: string
+          reconciliation_id?: string
+          statement_line_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_reconciliation_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliation_lines_reconciliation_id_fkey"
+            columns: ["reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "bank_reconciliations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliation_lines_statement_line_id_fkey"
+            columns: ["statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_reconciliations: {
+        Row: {
+          bank_account_id: string
+          closing_balance: number
+          created_at: string
+          id: string
+          notes: string | null
+          opening_balance: number
+          reconciled_at: string | null
+          reconciled_by: string | null
+          statement_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          closing_balance?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          statement_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          closing_balance?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          statement_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_reconciliations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1811,9 +2045,15 @@ export type Database = {
           id: string
           invoice_id: string | null
           issued_at: string | null
+          journal_entry_id: string | null
+          legal_entity_id: string | null
           notes: string | null
+          partner_id: string | null
           return_case_id: string | null
+          sef_status: string | null
           status: string
+          subtotal: number
+          tax_amount: number
           tenant_id: string
           updated_at: string
         }
@@ -1825,9 +2065,15 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           issued_at?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
+          partner_id?: string | null
           return_case_id?: string | null
+          sef_status?: string | null
           status?: string
+          subtotal?: number
+          tax_amount?: number
           tenant_id: string
           updated_at?: string
         }
@@ -1839,9 +2085,15 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           issued_at?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
+          partner_id?: string | null
           return_case_id?: string | null
+          sef_status?: string | null
           status?: string
+          subtotal?: number
+          tax_amount?: number
           tenant_id?: string
           updated_at?: string
         }
@@ -1851,6 +2103,27 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -5200,6 +5473,8 @@ export type Database = {
         Row: {
           advance_amount_applied: number
           advance_invoice_id: string | null
+          amount_paid: number
+          balance_due: number | null
           created_at: string
           created_by: string | null
           currency: string
@@ -5216,6 +5491,7 @@ export type Database = {
           partner_id: string | null
           partner_name: string
           partner_pib: string | null
+          proforma_id: string | null
           sale_type: string
           sales_channel_id: string | null
           sales_order_id: string | null
@@ -5232,6 +5508,8 @@ export type Database = {
         Insert: {
           advance_amount_applied?: number
           advance_invoice_id?: string | null
+          amount_paid?: number
+          balance_due?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -5248,6 +5526,7 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          proforma_id?: string | null
           sale_type?: string
           sales_channel_id?: string | null
           sales_order_id?: string | null
@@ -5264,6 +5543,8 @@ export type Database = {
         Update: {
           advance_amount_applied?: number
           advance_invoice_id?: string | null
+          amount_paid?: number
+          balance_due?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -5280,6 +5561,7 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          proforma_id?: string | null
           sale_type?: string
           sales_channel_id?: string | null
           sales_order_id?: string | null
@@ -5370,6 +5652,7 @@ export type Database = {
           status: string
           storno_by_id: string | null
           storno_of_id: string | null
+          storno_reason: string | null
           tenant_id: string
           updated_at: string
         }
@@ -5390,6 +5673,7 @@ export type Database = {
           status?: string
           storno_by_id?: string | null
           storno_of_id?: string | null
+          storno_reason?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -5410,6 +5694,7 @@ export type Database = {
           status?: string
           storno_by_id?: string | null
           storno_of_id?: string | null
+          storno_reason?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -7814,6 +8099,70 @@ export type Database = {
           },
         ]
       }
+      payment_allocations: {
+        Row: {
+          allocated_at: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          journal_entry_id: string | null
+          notes: string | null
+          payment_method: string
+          reference: string | null
+          tenant_id: string
+        }
+        Insert: {
+          allocated_at?: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          reference?: string | null
+          tenant_id: string
+        }
+        Update: {
+          allocated_at?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_method?: string
+          reference?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_items: {
         Row: {
           actual_working_days: number
@@ -8919,6 +9268,152 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      proforma_invoice_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          product_id: string | null
+          proforma_id: string
+          quantity: number
+          sort_order: number
+          tax_rate: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          product_id?: string | null
+          proforma_id: string
+          quantity?: number
+          sort_order?: number
+          tax_rate?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          product_id?: string | null
+          proforma_id?: string
+          quantity?: number
+          sort_order?: number
+          tax_rate?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proforma_invoice_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoice_lines_proforma_id_fkey"
+            columns: ["proforma_id"]
+            isOneToOne: false
+            referencedRelation: "proforma_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proforma_invoices: {
+        Row: {
+          converted_invoice_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          issue_date: string
+          legal_entity_id: string | null
+          notes: string | null
+          partner_id: string | null
+          partner_name: string | null
+          proforma_number: string
+          status: string
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          converted_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          issue_date?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          proforma_number: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          converted_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          issue_date?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          proforma_number?: string
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proforma_invoices_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoices_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchase_order_lines: {
         Row: {
@@ -11548,6 +12043,17 @@ export type Database = {
         }
         Returns: string
       }
+      allocate_payment: {
+        Args: {
+          p_amount: number
+          p_invoice_id: string
+          p_notes?: string
+          p_payment_method?: string
+          p_reference?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       calculate_partner_tiers: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -11631,6 +12137,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      generate_opening_balances: {
+        Args: { p_fiscal_period_id: string; p_tenant_id: string }
+        Returns: string
+      }
       generate_protocol_number: {
         Args: { p_category_code: string; p_tenant_id: string }
         Returns: string
@@ -11658,6 +12168,19 @@ export type Database = {
       }
       post_kalkulacija: { Args: { p_kalkulacija_id: string }; Returns: string }
       post_nivelacija: { Args: { p_nivelacija_id: string }; Returns: string }
+      process_advance_payment: {
+        Args: {
+          p_amount: number
+          p_legal_entity_id?: string
+          p_partner_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      process_credit_note_post: {
+        Args: { p_credit_note_id: string }
+        Returns: string
+      }
       process_invoice_post: {
         Args: { p_default_warehouse_id?: string; p_invoice_id: string }
         Returns: string
@@ -11673,6 +12196,10 @@ export type Database = {
       reserve_stock_for_order: {
         Args: { p_sales_order_id: string; p_tenant_id: string }
         Returns: undefined
+      }
+      run_monthly_depreciation: {
+        Args: { p_month: number; p_tenant_id: string; p_year: number }
+        Returns: string
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
@@ -11693,6 +12220,14 @@ export type Database = {
       storno_journal_entry: {
         Args: { p_journal_entry_id: string }
         Returns: string
+      }
+      three_way_match: {
+        Args: { p_supplier_invoice_id: string }
+        Returns: Json
+      }
+      validate_popdv_completeness: {
+        Args: { p_pdv_period_id: string; p_tenant_id: string }
+        Returns: Json
       }
     }
     Enums: {
