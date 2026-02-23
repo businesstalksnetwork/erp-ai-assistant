@@ -325,6 +325,42 @@ Comprehensive UX/UI improvements to create the best and most logical ERP solutio
 
 ---
 
+## 🔗 HR Clickable Employee Links *(New in v3.1)*
+
+Employee names across 10+ HR module pages are now interactive `<Link>` components:
+
+**Pages Updated:**
+- Attendance, Work Logs, Overtime Hours, Night Work
+- Leave Requests, Payroll, Deductions, Allowances
+- Annual Leave Balances, Employee Contracts
+
+**Implementation:**
+- ✅ Employee names rendered as `<Link to={/hr/employees/${id}}>` with hover underline styling
+- ✅ Consistent behavior across all HR pages
+- ✅ EmployeeDetail FK hint fix ensures proper data loading when navigating
+
+**Impact:** Users can quickly navigate from any HR list to the employee's detailed profile, improving workflow efficiency.
+
+---
+
+## 🤖 Brzi AI Izveštaj (Quick AI Report) *(New in v3.1)*
+
+New AI-powered executive briefing page at `/ai/briefing`:
+
+**Features:**
+- ✅ Date range presets: Danas (Today), 7 dana, 30 dana, 90 dana
+- ✅ Custom date range with `DateInput` components
+- ✅ Auto-refetch when date range changes
+- ✅ AI-generated executive summary based on filtered KPI data
+- ✅ Covers: invoices, POS transactions, production orders, leave requests
+
+**Implementation:**
+- Frontend: `AiBriefing.tsx` with preset buttons + custom range inputs
+- Backend: `ai-executive-briefing` edge function with `date_from`/`date_to` parameters
+- All SQL queries filtered by selected period for accurate time-scoped analysis
+
+---
+
 ## 🎉 Conclusion
 
 The ERP system now features:

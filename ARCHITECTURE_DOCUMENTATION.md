@@ -46,7 +46,7 @@ ProERP AI is a comprehensive, multi-tenant SaaS ERP system purpose-built for the
 | **Charts** | Recharts 2.15 |
 | **Animation** | Framer Motion 12.34 |
 | **Backend** | Supabase (PostgreSQL 15, Auth, Edge Functions, Storage, Realtime) |
-| **Edge Functions** | Deno runtime (68+ functions) |
+| **Edge Functions** | Deno runtime (69+ functions) |
 | **Auth** | Supabase Auth (email/password, magic link) |
 | **Markdown** | react-markdown 10.1 |
 | **i18n** | Custom LanguageContext (EN/SR toggle) |
@@ -478,9 +478,10 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
 
 | Function | Method | JWT | Purpose |
 |----------|--------|-----|---------|
-| `ai-assistant` | POST | ❌ | Conversational AI copilot with **3 tools** (`query_tenant_data`, `analyze_trend`, `create_reminder`), **5 tool-calling rounds**, **true SSE streaming**, **dynamic schema context** from `information_schema.columns` (cached 1hr), **audit logging** to `ai_action_log` |
+| `ai-assistant` | POST | ❌ | Conversational AI copilot with **7 tools** (`query_tenant_data`, `analyze_trend`, `create_reminder`, `compare_periods`, `what_if_scenario`, `get_kpi_scorecard`, `explain_account`), **5 tool-calling rounds**, **true SSE streaming**, **dynamic schema context** from `information_schema.columns` (cached 1hr), **audit logging** to `ai_action_log` |
 | `ai-insights` | POST | ❌ | **Hybrid rules + AI enrichment**: 7 rule-based anomaly checks + Gemini AI prioritization, cross-module correlation, strategic recommendations, executive summary. **Audit logging** |
-| `ai-analytics-narrative` | POST | ❌ | AI-generated analytics narrative with **DB tool-calling** (`query_tenant_data` for drill-down), **response caching** in `ai_narrative_cache` (30min TTL), **audit logging** |
+| `ai-analytics-narrative` | POST | ❌ | AI-generated analytics narrative with **DB tool-calling** (`query_tenant_data` for drill-down), **response caching** in `ai_narrative_cache` (30min TTL), **audit logging**. **Supported narratives:** dashboard, ratios, cashflow, planning, budget, breakeven, profitability, expenses, working_capital, customer_risk, supplier_risk, margin_bridge, payroll_benchmark, vat_trap, inventory_health, early_warning, **production**, **crm_pipeline**, **hr_overview**, **pos_performance**, **purchasing** |
+| `ai-executive-briefing` | POST | ❌ | **Role-based AI briefing** with date range filtering (`date_from`/`date_to`). Queries KPIs from invoices, POS, production, leave requests within selected period. Gemini AI generates executive summary with recommendations. |
 | `production-ai-planning` | POST | ❌ | AI production planning: 6 actions (`generate-schedule`, `predict-bottlenecks`, `simulate-scenario`, `local-fallback-schedule`, `save-scenario`, `list-scenarios`). Locked/excluded order filtering, post-AI date validation, **scenario persistence** in `production_scenarios`, **audit logging** |
 | `wms-slotting` | POST | ❌ | AI/local warehouse slot optimization with **bin capacity validation**, **SQL-filtered data** (top 100 bins, 5000 picks limit), **batch task generation**, **scenario comparison view**, **audit logging** |
 
@@ -844,12 +845,17 @@ All under `/` with `TenantLayout`. Requires authenticated user with active tenan
 | `/analytics/inventory-health` | analytics | InventoryHealth |
 | `/analytics/early-warning` | analytics | EarlyWarningSystem |
 
+#### AI Intelligence Hub
+| Path | Module | Component |
+|------|--------|-----------|
+| `/ai/briefing` | analytics | **AiBriefing** *(new)* — Brzi AI Izveštaj / Quick AI Report with date range presets (Today, 7d, 30d, 90d, Custom) |
+
 #### Other
 | Path | Module | Component |
 |------|--------|-----------|
 | `/returns` | returns | Returns |
 
-**Total: ~150+ routes**
+**Total: ~155+ routes**
 
 ---
 
@@ -1309,7 +1315,7 @@ User message → ai-assistant edge function
     │
     ├─► Send to Gemini 3 Flash via Lovable AI Gateway
     │
-    ├─► Tool-calling loop (up to 5 rounds, 3 tools available):
+    ├─► Tool-calling loop (up to 5 rounds, 7 tools available):
     │     │
     │     ├─► query_tenant_data: Execute read-only SQL against tenant data
     │     │     └─► validateSql(): block mutations, enforce SELECT, inject tenant_id
@@ -1324,6 +1330,22 @@ User message → ai-assistant edge function
     │     ├─► create_reminder: Create notification for the user
     │     │     └─► Inserts into notifications table
     │     │     └─► Sets due date, link, priority from AI parameters
+    │     │
+    │     ├─► compare_periods: Compare two date periods side-by-side
+    │     │     └─► Queries revenue, expenses, margins for both periods
+    │     │     └─► Returns delta and percentage change
+    │     │
+    │     ├─► what_if_scenario: Run hypothetical business scenario
+    │     │     └─► Adjusts parameters (e.g. price, volume) and recalculates
+    │     │     └─► Returns projected outcomes
+    │     │
+    │     ├─► get_kpi_scorecard: Retrieve key performance indicators
+    │     │     └─► Aggregates KPIs across modules (revenue, cash, headcount)
+    │     │     └─► Returns structured scorecard data
+    │     │
+    │     ├─► explain_account: Explain a chart of accounts entry
+    │     │     └─► Looks up account by code, shows balance and recent entries
+    │     │     └─► Returns educational explanation in context
     │     │
     │     └─► AI may chain multiple tool calls across rounds
     │
@@ -1399,7 +1421,7 @@ Analytics page sends KPI data → ai-analytics-narrative
     └─► Audit log entry (action_type: "narrative_generation", module: context_type)
 ```
 
-**Supported context types:** dashboard, ratios, cashflow, planning, budget, breakeven, profitability, expenses, working_capital, customer_risk, supplier_risk, margin_bridge, payroll_benchmark, vat_trap, inventory_health, early_warning
+**Supported context types:** dashboard, ratios, cashflow, planning, budget, breakeven, profitability, expenses, working_capital, customer_risk, supplier_risk, margin_bridge, payroll_benchmark, vat_trap, inventory_health, early_warning, **production**, **crm_pipeline**, **hr_overview**, **pos_performance**, **purchasing**
 
 ### 8.13 AI Audit Trail *(New in v3.0)*
 
@@ -1434,7 +1456,21 @@ The `production-ai-planning` edge function supports 6 actions:
 - `AiBottleneckPrediction.tsx`: Local material pre-check (BOM vs inventory), AI enrichment
 - `ProductionOrders.tsx`: Priority field (1-5) in create/edit dialogs
 
-### 8.15 WMS AI Slotting *(Upgraded in v3.0)*
+### 8.15 AI Executive Briefing — Brzi AI Izveštaj *(New in v3.1)*
+
+The `ai-executive-briefing` edge function provides a **role-based AI briefing** with **date range filtering**:
+
+- Accepts `date_from` and `date_to` parameters (defaults to last 30 days)
+- Queries KPIs: invoices (revenue, overdue), POS transactions, production orders, leave requests — all filtered by the selected period
+- Sends aggregated data to Gemini AI for executive summary generation
+- Frontend (`AiBriefing.tsx`) provides preset buttons: Danas (Today), 7 dana, 30 dana, 90 dana, Prilagodi (Custom range with DateInput)
+- Auto-refetches when date range changes
+
+### 8.16 HR Clickable Employee Links *(New in v3.1)*
+
+Employee names across 10+ HR pages (Attendance, Work Logs, Overtime, Night Work, Leave Requests, Payroll, Deductions, Allowances, Annual Leave, Contracts) are now clickable `<Link>` components navigating to `/hr/employees/:id`. EmployeeDetail page FK hint fix ensures proper data loading.
+
+### 8.17 WMS AI Slotting *(Upgraded in v3.0)*
 
 The `wms-slotting` edge function provides dual-mode warehouse slot optimization:
 
@@ -1840,5 +1876,5 @@ pandoc ARCHITECTURE_DOCUMENTATION.md -o ARCHITECTURE_DOCUMENTATION.docx --toc --
 ---
 
 *Document generated: February 23, 2026*  
-*System version: ProERP AI v3.0*  
-*Total routes: ~155+ | Edge functions: 68+ | Database tables: 110+*
+*System version: ProERP AI v3.1*  
+*Total routes: ~155+ | Edge functions: 69+ | Database tables: 110+*

@@ -59,6 +59,9 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase (PostgreSQL + Edge Functions)
+- TanStack Query
+- AI Intelligence Hub (7-tool AI assistant, Brzi AI Izveštaj / Quick AI Report with date range filtering, 21 analytics narrative types)
 
 ## How can I deploy this project?
 

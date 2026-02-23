@@ -371,6 +371,10 @@
 - No audit trail for account changes
 - Missing reason/justification for storno entries
 
+**Recent Improvement (v3.0+):**
+- ✅ **AI Activity Logging**: All 5 AI edge functions now write to `ai_action_log` table (action_type, module, model_version, input/output, confidence_score), providing comprehensive audit trail for AI-assisted decisions
+- ✅ **HR EmployeeDetail FK Fix**: Foreign key hint corrected for proper employee data loading, ensuring reliable employee record access across all HR pages
+
 **Recommendation:**
 - Add audit_log table with comprehensive tracking
 - Require authorization for storno entries
