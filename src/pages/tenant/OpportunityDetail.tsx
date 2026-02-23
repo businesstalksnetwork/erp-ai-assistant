@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ArrowLeft, FileText, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
-
-const STAGES = ["qualification", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
+import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 
 export default function OpportunityDetail() {
   const { t } = useLanguage();
@@ -18,6 +17,7 @@ export default function OpportunityDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { data: stages = [] } = useOpportunityStages();
 
   const { data: opp, isLoading } = useQuery({
     queryKey: ["opportunity", id],
@@ -61,7 +61,8 @@ export default function OpportunityDetail() {
 
   const stageMutation = useMutation({
     mutationFn: async (newStage: string) => {
-      const closedAt = (newStage === "closed_won" || newStage === "closed_lost") ? new Date().toISOString() : null;
+      const stageObj = stages.find(s => s.code === newStage);
+      const closedAt = (stageObj?.is_won || stageObj?.is_lost) ? new Date().toISOString() : null;
       const { error } = await supabase.from("opportunities").update({ stage: newStage, closed_at: closedAt }).eq("id", id!);
       if (error) throw error;
     },
@@ -93,7 +94,8 @@ export default function OpportunityDetail() {
   if (!opp) return <div className="text-center py-20 text-muted-foreground">{t("noResults")}</div>;
 
   const fmt = (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: opp.currency || "RSD" }).format(n);
-  const isClosed = opp.stage === "closed_won" || opp.stage === "closed_lost";
+  const isClosed = stages.some(s => s.code === opp.stage && (s.is_won || s.is_lost));
+  const currentStage = stages.find(s => s.code === opp.stage);
   const contactName = opp.contacts ? `${opp.contacts.first_name} ${opp.contacts.last_name || ""}` : opp.leads ? (opp.leads.first_name || opp.leads.name) : opp.partners?.name || "—";
 
   return (
@@ -101,8 +103,9 @@ export default function OpportunityDetail() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/opportunities")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
         <h1 className="text-2xl font-bold">{opp.title}</h1>
-        <Badge variant={opp.stage === "closed_won" ? "default" : opp.stage === "closed_lost" ? "destructive" : "secondary"}>
-          {t(opp.stage as any)}
+        <Badge variant={currentStage?.is_won ? "default" : currentStage?.is_lost ? "destructive" : "secondary"}
+          style={currentStage?.color ? { backgroundColor: currentStage.color, color: "#fff" } : undefined}>
+          {currentStage?.name_sr || currentStage?.name || opp.stage}
         </Badge>
       </div>
 
@@ -112,10 +115,11 @@ export default function OpportunityDetail() {
           <CardHeader><CardTitle className="text-base">{t("stage")}</CardTitle></CardHeader>
           <CardContent>
             <div className="flex gap-2 flex-wrap">
-              {STAGES.map(s => (
-                <Button key={s} variant={opp.stage === s ? "default" : "outline"} size="sm"
-                  onClick={() => stageMutation.mutate(s)} disabled={stageMutation.isPending}>
-                  {t(s as any)}
+              {stages.map(s => (
+                <Button key={s.code} variant={opp.stage === s.code ? "default" : "outline"} size="sm"
+                  style={opp.stage === s.code && s.color ? { backgroundColor: s.color, color: "#fff" } : undefined}
+                  onClick={() => stageMutation.mutate(s.code)} disabled={stageMutation.isPending}>
+                  {s.name_sr || s.name}
                 </Button>
               ))}
             </div>

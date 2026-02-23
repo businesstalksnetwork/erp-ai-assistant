@@ -16,8 +16,7 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
-
-const STAGES = ["qualification", "proposal", "negotiation", "closed_won", "closed_lost"] as const;
+import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 
 interface OpportunityForm {
   title: string; partner_id: string | null; lead_id: string | null; contact_id: string | null;
@@ -39,6 +38,7 @@ export default function Opportunities() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<OpportunityForm>(emptyForm);
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+  const { data: stages = [] } = useOpportunityStages();
 
   const { data: opps = [], isLoading } = useQuery({
     queryKey: ["opportunities", tenantId],
@@ -73,7 +73,9 @@ export default function Opportunities() {
 
   const mutation = useMutation({
     mutationFn: async (f: OpportunityForm) => {
-      const closedAt = (f.stage === "closed_won" || f.stage === "closed_lost") ? new Date().toISOString() : null;
+      const wonStage = stages.find(s => s.is_won);
+      const lostStage = stages.find(s => s.is_lost);
+      const closedAt = (wonStage && f.stage === wonStage.code) || (lostStage && f.stage === lostStage.code) ? new Date().toISOString() : null;
       const payload = {
         ...f, tenant_id: tenantId!, closed_at: closedAt,
         partner_id: f.partner_id || null, lead_id: f.lead_id || null,
@@ -121,16 +123,19 @@ export default function Opportunities() {
   const fmt = (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: "RSD", maximumFractionDigits: 0 }).format(n);
 
   const stageColor = (s: string) => {
-    if (s === "closed_won") return "default";
-    if (s === "closed_lost") return "destructive";
+    const stage = stages.find(st => st.code === s);
+    if (stage?.is_won) return "default";
+    if (stage?.is_lost) return "destructive";
     return "secondary";
   };
 
   // Group by stage for Kanban
-  const grouped = STAGES.map(stage => ({
-    stage,
-    items: opps.filter((o: any) => o.stage === stage),
-    total: opps.filter((o: any) => o.stage === stage).reduce((sum: number, o: any) => sum + (o.value || 0), 0),
+  const grouped = stages.map(stage => ({
+    stage: stage.code,
+    label: stage.name_sr || stage.name,
+    color: stage.color,
+    items: opps.filter((o: any) => o.stage === stage.code),
+    total: opps.filter((o: any) => o.stage === stage.code).reduce((sum: number, o: any) => sum + (o.value || 0), 0),
   }));
 
   const getContactName = (o: any) => {
@@ -156,7 +161,7 @@ export default function Opportunities() {
           {grouped.map(g => (
             <div key={g.stage} className="space-y-3">
               <div className="flex items-center justify-between">
-                <Badge variant={stageColor(g.stage) as any} className="text-xs">{t(g.stage as any)}</Badge>
+                <Badge variant={stageColor(g.stage) as any} className="text-xs" style={g.color ? { backgroundColor: g.color, color: "#fff" } : undefined}>{g.label}</Badge>
                 <span className="text-xs text-muted-foreground">{g.items.length}</span>
               </div>
               <div className="text-xs font-medium text-muted-foreground">{fmt(g.total)}</div>
@@ -230,7 +235,7 @@ export default function Opportunities() {
                 <Label>{t("stage")}</Label>
                 <Select value={form.stage} onValueChange={v => setForm({ ...form, stage: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STAGES.map(s => <SelectItem key={s} value={s}>{t(s as any)}</SelectItem>)}</SelectContent>
+                  <SelectContent>{stages.map(s => <SelectItem key={s.code} value={s.code}>{s.name_sr || s.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

@@ -1843,6 +1843,13 @@ export const translations = {
     zakaziteNovi: "Schedule a new meeting",
     evidentirajteOdrzani: "Record a meeting that took place",
     backToList: "Back to list",
+
+    // Opportunity Stages Settings
+    opportunityStages: "Opportunity Stages",
+    stageCode: "Code",
+    isWon: "Won stage",
+    isLost: "Lost stage",
+    cannotDeleteStageInUse: "Cannot delete: stage is assigned to opportunities",
   },
   sr: {
     // Auth
@@ -3646,6 +3653,13 @@ export const translations = {
     zakaziteNovi: "Zakažite novi sastanak",
     evidentirajteOdrzani: "Evidentirajte održani sastanak",
     backToList: "Nazad na listu",
+
+    // Opportunity Stages Settings
+    opportunityStages: "Faze prilika",
+    stageCode: "Kod",
+    isWon: "Faza dobitka",
+    isLost: "Faza gubitka",
+    cannotDeleteStageInUse: "Ne može se obrisati: faza je dodeljena prilikama",
   },
 } as const;
 

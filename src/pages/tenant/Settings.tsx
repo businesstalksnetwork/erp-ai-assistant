@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -40,6 +40,7 @@ export default function TenantSettings() {
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
         { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/web/settings" }] : []),
+        { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
       ],
     },
     {

@@ -6767,6 +6767,56 @@ export type Database = {
           },
         ]
       }
+      opportunity_stages: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string | null
+          id: string
+          is_lost: boolean | null
+          is_system: boolean | null
+          is_won: boolean | null
+          name: string
+          name_sr: string | null
+          sort_order: number | null
+          tenant_id: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_lost?: boolean | null
+          is_system?: boolean | null
+          is_won?: boolean | null
+          name: string
+          name_sr?: string | null
+          sort_order?: number | null
+          tenant_id: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_lost?: boolean | null
+          is_system?: boolean | null
+          is_won?: boolean | null
+          name?: string
+          name_sr?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_stages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       overtime_daily_entries: {
         Row: {
           created_at: string

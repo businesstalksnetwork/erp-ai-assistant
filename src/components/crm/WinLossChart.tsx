@@ -1,6 +1,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useOpportunityStages } from "@/hooks/useOpportunityStages";
 
 interface Props {
   opportunities: Array<{ stage: string }>;
@@ -8,9 +9,15 @@ interface Props {
 
 export function WinLossChart({ opportunities }: Props) {
   const { t } = useLanguage();
+  const { data: stages = [] } = useOpportunityStages();
 
-  const won = opportunities.filter((o) => o.stage === "closed_won").length;
-  const lost = opportunities.filter((o) => o.stage === "closed_lost").length;
+  const wonStages = stages.filter(s => s.is_won).map(s => s.code);
+  const lostStages = stages.filter(s => s.is_lost).map(s => s.code);
+  const wonColor = stages.find(s => s.is_won)?.color || "hsl(var(--accent))";
+  const lostColor = stages.find(s => s.is_lost)?.color || "hsl(var(--destructive))";
+
+  const won = opportunities.filter((o) => wonStages.includes(o.stage)).length;
+  const lost = opportunities.filter((o) => lostStages.includes(o.stage)).length;
 
   const data = [
     { name: t("closed_won"), value: won },
@@ -35,8 +42,8 @@ export function WinLossChart({ opportunities }: Props) {
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
-              <Cell fill="hsl(var(--accent))" />
-              <Cell fill="hsl(var(--destructive))" />
+              <Cell fill={wonColor} />
+              <Cell fill={lostColor} />
             </Pie>
             <Tooltip />
             <Legend />
