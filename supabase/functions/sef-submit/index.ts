@@ -29,10 +29,17 @@ function formatPrice(n: number): string {
   return s.replace(/0{1,2}$/, '');
 }
 
-/** Map our tax_rate_value (e.g. 20, 10, 0) to UBL TaxCategory ID per Serbian eFaktura spec */
-function getTaxCategoryId(taxRateValue: number): string {
+/** Map tax_rate_value to UBL TaxCategory ID per Serbian eFaktura 2026 spec.
+ *  2026 change (Sl. glasnik RS 109/2025): S split into S10/S20, AE split into AE10/AE20.
+ *  Effective for tax periods starting after March 31, 2026. */
+function getTaxCategoryId(taxRateValue: number, isReverseCharge = false): string {
   if (taxRateValue === 0) return "O"; // Zero-rated / exempt
-  return "S"; // Standard rated
+  if (isReverseCharge) {
+    // Reverse charge: AE10 for 10%, AE20 for 20%
+    return taxRateValue === 10 ? "AE10" : "AE20";
+  }
+  // Standard rated: S10 for 10%, S20 for 20%
+  return taxRateValue === 10 ? "S10" : "S20";
 }
 
 interface InvoiceLine {
@@ -87,7 +94,8 @@ function buildUblXml(
   invoice: InvoiceData,
   supplier: SupplierInfo,
   buyer: BuyerInfo,
-  lines: InvoiceLine[]
+  lines: InvoiceLine[],
+  isReverseCharge = false
 ): string {
   // Group lines by tax rate for TaxSubtotal
   const taxGroups = new Map<number, { taxable: number; tax: number }>();
@@ -106,7 +114,7 @@ function buildUblXml(
         <cbc:TaxableAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.taxable)}</cbc:TaxableAmount>
         <cbc:TaxAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.tax)}</cbc:TaxAmount>
         <cac:TaxCategory>
-          <cbc:ID>${getTaxCategoryId(rate)}</cbc:ID>
+          <cbc:ID>${getTaxCategoryId(rate, isReverseCharge)}</cbc:ID>
           <cbc:Percent>${rate}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -134,7 +142,7 @@ function buildUblXml(
           : ""
       }
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>${getTaxCategoryId(line.tax_rate_value)}</cbc:ID>
+          <cbc:ID>${getTaxCategoryId(line.tax_rate_value, isReverseCharge)}</cbc:ID>
           <cbc:Percent>${line.tax_rate_value}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -492,8 +500,9 @@ Deno.serve(async (req) => {
       product_id: line.product_id,
     }));
 
-    // Generate UBL 2.1 XML
-    const ublXml = buildUblXml(invoiceData, supplierInfo, buyerInfo, invoiceLines);
+    // Generate UBL 2.1 XML — detect reverse charge from sale_type
+    const isReverseCharge = invoice.sale_type === 'reverse_charge';
+    const ublXml = buildUblXml(invoiceData, supplierInfo, buyerInfo, invoiceLines, isReverseCharge);
 
     // Create submission record
     const { data: submission, error: subErr } = await supabase
