@@ -111,10 +111,17 @@ Implementing all items from the review **except #7** (Payroll 2026 Defaults — 
 
 ---
 
-## Phase 6: Housekeeping (Items 32-33) — PENDING
+## Phase 6: Housekeeping (Items 32-33) ✅ COMPLETE
+
+### Item 32: Remove App.css ✅ ALREADY DONE
+- File does not exist in codebase (previously removed)
+
+### Item 33: Fix Duplicate Translation Key ✅ ALREADY DONE
+- `allLegalEntities` appears exactly once per locale (not duplicated)
+- Auth is consolidated in single `useAuth` hook
 
 ---
 
 ## Implementation Order
 
-Phases 1-5 complete. Remaining: Phase 6 (Items 32-33).
+All 6 phases complete. All 32 items (excluding #7) resolved.
