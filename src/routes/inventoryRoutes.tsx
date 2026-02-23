@@ -25,6 +25,8 @@ const WmsReceiving = React.lazy(() => import("@/pages/tenant/WmsReceiving"));
 const WmsPicking = React.lazy(() => import("@/pages/tenant/WmsPicking"));
 const WmsCycleCounts = React.lazy(() => import("@/pages/tenant/WmsCycleCounts"));
 const WmsSlotting = React.lazy(() => import("@/pages/tenant/WmsSlotting"));
+const WmsLabor = React.lazy(() => import("@/pages/tenant/WmsLabor"));
+const WmsReturns = React.lazy(() => import("@/pages/tenant/WmsReturns"));
 
 const m = "inventory";
 
@@ -53,5 +55,7 @@ export const inventoryRoutes = (
     <Route path="inventory/wms/picking" element={<ProtectedRoute requiredModule={m}><WmsPicking /></ProtectedRoute>} />
     <Route path="inventory/wms/cycle-counts" element={<ProtectedRoute requiredModule={m}><WmsCycleCounts /></ProtectedRoute>} />
     <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule={m}><WmsSlotting /></ProtectedRoute>} />
+    <Route path="inventory/wms/labor" element={<ProtectedRoute requiredModule={m}><WmsLabor /></ProtectedRoute>} />
+    <Route path="inventory/wms/returns" element={<ProtectedRoute requiredModule={m}><WmsReturns /></ProtectedRoute>} />
   </>
 );

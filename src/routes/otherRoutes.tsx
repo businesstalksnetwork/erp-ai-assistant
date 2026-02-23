@@ -13,6 +13,12 @@ const ProductionHub = React.lazy(() => import("@/pages/tenant/ProductionHub"));
 const BomTemplates = React.lazy(() => import("@/pages/tenant/BomTemplates"));
 const ProductionOrders = React.lazy(() => import("@/pages/tenant/ProductionOrders"));
 const ProductionOrderDetail = React.lazy(() => import("@/pages/tenant/ProductionOrderDetail"));
+const ProductionKanban = React.lazy(() => import("@/pages/tenant/ProductionKanban"));
+const ProductionGantt = React.lazy(() => import("@/pages/tenant/ProductionGantt"));
+const QualityControl = React.lazy(() => import("@/pages/tenant/QualityControl"));
+const CostVarianceAnalysis = React.lazy(() => import("@/pages/tenant/CostVarianceAnalysis"));
+const MrpEngine = React.lazy(() => import("@/pages/tenant/MrpEngine"));
+const ProductionMaintenance = React.lazy(() => import("@/pages/tenant/ProductionMaintenance"));
 const AiPlanningDashboard = React.lazy(() => import("@/pages/tenant/AiPlanningDashboard"));
 const AiPlanningSchedule = React.lazy(() => import("@/pages/tenant/AiPlanningSchedule"));
 const AiBottleneckPrediction = React.lazy(() => import("@/pages/tenant/AiBottleneckPrediction"));
@@ -78,6 +84,12 @@ export const productionRoutes = (
     <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
     <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
     <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
+    <Route path="production/kanban" element={<ProtectedRoute requiredModule="production"><ProductionKanban /></ProtectedRoute>} />
+    <Route path="production/gantt" element={<ProtectedRoute requiredModule="production"><ProductionGantt /></ProtectedRoute>} />
+    <Route path="production/quality" element={<ProtectedRoute requiredModule="production"><QualityControl /></ProtectedRoute>} />
+    <Route path="production/cost-variance" element={<ProtectedRoute requiredModule="production"><CostVarianceAnalysis /></ProtectedRoute>} />
+    <Route path="production/mrp" element={<ProtectedRoute requiredModule="production"><MrpEngine /></ProtectedRoute>} />
+    <Route path="production/maintenance" element={<ProtectedRoute requiredModule="production"><ProductionMaintenance /></ProtectedRoute>} />
     <Route path="production/ai-planning" element={<ProtectedRoute requiredModule="production"><AiPlanningDashboard /></ProtectedRoute>} />
     <Route path="production/ai-planning/schedule" element={<ProtectedRoute requiredModule="production"><AiPlanningSchedule /></ProtectedRoute>} />
     <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><AiBottleneckPrediction /></ProtectedRoute>} />

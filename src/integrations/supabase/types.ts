@@ -9096,6 +9096,62 @@ export type Database = {
           },
         ]
       }
+      production_maintenance: {
+        Row: {
+          assigned_to: string | null
+          completed_date: string | null
+          cost: number | null
+          created_at: string
+          downtime_hours: number | null
+          equipment_name: string
+          id: string
+          maintenance_type: string
+          notes: string | null
+          scheduled_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          cost?: number | null
+          created_at?: string
+          downtime_hours?: number | null
+          equipment_name: string
+          id?: string
+          maintenance_type?: string
+          notes?: string | null
+          scheduled_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          cost?: number | null
+          created_at?: string
+          downtime_hours?: number | null
+          equipment_name?: string
+          id?: string
+          maintenance_type?: string
+          notes?: string | null
+          scheduled_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_maintenance_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_orders: {
         Row: {
           actual_end: string | null
@@ -9674,6 +9730,126 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_check_items: {
+        Row: {
+          actual_value: string | null
+          expected_value: string | null
+          id: string
+          is_pass: boolean | null
+          notes: string | null
+          parameter_name: string
+          quality_check_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          actual_value?: string | null
+          expected_value?: string | null
+          id?: string
+          is_pass?: boolean | null
+          notes?: string | null
+          parameter_name: string
+          quality_check_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          actual_value?: string | null
+          expected_value?: string | null
+          id?: string
+          is_pass?: boolean | null
+          notes?: string | null
+          parameter_name?: string
+          quality_check_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_check_items_quality_check_id_fkey"
+            columns: ["quality_check_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_checks: {
+        Row: {
+          check_number: string
+          check_type: string
+          checked_at: string | null
+          created_at: string
+          defect_rate: number | null
+          id: string
+          inspector_id: string | null
+          notes: string | null
+          product_id: string | null
+          production_order_id: string | null
+          quantity_failed: number | null
+          quantity_inspected: number | null
+          quantity_passed: number | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          check_number: string
+          check_type?: string
+          checked_at?: string | null
+          created_at?: string
+          defect_rate?: number | null
+          id?: string
+          inspector_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          production_order_id?: string | null
+          quantity_failed?: number | null
+          quantity_inspected?: number | null
+          quantity_passed?: number | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          check_number?: string
+          check_type?: string
+          checked_at?: string | null
+          created_at?: string
+          defect_rate?: number | null
+          id?: string
+          inspector_id?: string | null
+          notes?: string | null
+          product_id?: string | null
+          production_order_id?: string | null
+          quantity_failed?: number | null
+          quantity_inspected?: number | null
+          quantity_passed?: number | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_checks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_checks_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_checks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -11644,6 +11820,70 @@ export type Database = {
           },
         ]
       }
+      wms_labor_log: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          items_processed: number | null
+          started_at: string
+          task_id: string | null
+          task_type: string | null
+          tenant_id: string
+          warehouse_id: string | null
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          items_processed?: number | null
+          started_at?: string
+          task_id?: string | null
+          task_type?: string | null
+          tenant_id: string
+          warehouse_id?: string | null
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          items_processed?: number | null
+          started_at?: string
+          task_id?: string | null
+          task_type?: string | null
+          tenant_id?: string
+          warehouse_id?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_labor_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "wms_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_labor_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_labor_log_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wms_pick_wave_orders: {
         Row: {
           created_at: string
@@ -11783,6 +12023,150 @@ export type Database = {
           },
           {
             foreignKeyName: "wms_putaway_rules_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_return_lines: {
+        Row: {
+          bin_id: string | null
+          condition: string | null
+          disposition: string | null
+          id: string
+          notes: string | null
+          product_id: string | null
+          quantity: number
+          return_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          bin_id?: string | null
+          condition?: string | null
+          disposition?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          return_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          bin_id?: string | null
+          condition?: string | null
+          disposition?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          return_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_return_lines_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "wms_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_return_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_return_lines_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "wms_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wms_returns: {
+        Row: {
+          created_at: string
+          id: string
+          partner_id: string | null
+          reason: string | null
+          received_at: string | null
+          received_by: string | null
+          restocked_quantity: number | null
+          return_number: string
+          return_type: string
+          sales_order_id: string | null
+          scrapped_quantity: number | null
+          status: string
+          tenant_id: string
+          total_quantity: number | null
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partner_id?: string | null
+          reason?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          restocked_quantity?: number | null
+          return_number: string
+          return_type?: string
+          sales_order_id?: string | null
+          scrapped_quantity?: number | null
+          status?: string
+          tenant_id: string
+          total_quantity?: number | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partner_id?: string | null
+          reason?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          restocked_quantity?: number | null
+          return_number?: string
+          return_type?: string
+          sales_order_id?: string | null
+          scrapped_quantity?: number | null
+          status?: string
+          tenant_id?: string
+          total_quantity?: number | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_returns_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_returns_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_returns_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
