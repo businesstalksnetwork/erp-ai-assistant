@@ -41,9 +41,9 @@ interface AiInsightsWidgetProps {
 }
 
 const severityConfig = {
-  critical: { icon: AlertCircle, color: "text-destructive", badge: "destructive" as const },
-  warning: { icon: AlertTriangle, color: "text-amber-500", badge: "secondary" as const },
-  info: { icon: Info, color: "text-primary", badge: "outline" as const },
+  critical: { icon: AlertCircle, color: "text-destructive", badge: "destructive" as const, bg: "bg-destructive/5" },
+  warning: { icon: AlertTriangle, color: "text-amber-500", badge: "warning" as const, bg: "bg-warning/5" },
+  info: { icon: Info, color: "text-blue-500", badge: "info" as const, bg: "bg-blue-50 dark:bg-blue-950/20" },
 };
 
 export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
@@ -101,7 +101,7 @@ export function AiInsightsWidget({ tenantId }: AiInsightsWidgetProps) {
                   key={i}
                   onClick={() => route && navigate(route)}
                   disabled={!isClickable}
-                  className={`flex items-start gap-3 p-2 rounded-md w-full text-left transition-colors ${
+                  className={`flex items-start gap-3 p-2 rounded-md w-full text-left transition-colors ${config.bg} ${
                     isClickable ? "hover:bg-muted/50 cursor-pointer" : "cursor-default"
                   }`}
                 >
