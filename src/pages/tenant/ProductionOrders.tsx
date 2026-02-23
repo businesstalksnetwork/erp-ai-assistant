@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { fmtNum } from "@/lib/utils";
 
 export default function ProductionOrders() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -27,7 +27,7 @@ export default function ProductionOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, planned_start: "", planned_end: "", notes: "" });
+  const [form, setForm] = useState({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [completeOrder, setCompleteOrder] = useState<any>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
@@ -136,6 +136,7 @@ export default function ProductionOrders() {
         product_id: form.product_id || null,
         bom_template_id: form.bom_template_id || null,
         quantity: form.quantity,
+        priority: form.priority,
         status: "draft" as string,
         planned_start: form.planned_start || null,
         planned_end: form.planned_end || null,
@@ -196,10 +197,10 @@ export default function ProductionOrders() {
   useEffect(() => {
     const bomParam = searchParams.get("bom");
     if (bomParam && boms.length > 0) {
-      const selectedBom = boms.find((b: any) => b.id === bomParam);
-      if (selectedBom) {
-        setEditId(null);
-        setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, planned_start: "", planned_end: "", notes: "" });
+        const selectedBom = boms.find((b: any) => b.id === bomParam);
+        if (selectedBom) {
+          setEditId(null);
+          setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
         setOpen(true);
         setSearchParams({}, { replace: true });
       }
@@ -208,7 +209,7 @@ export default function ProductionOrders() {
 
   const openCreate = () => {
     setEditId(null);
-    setForm({ product_id: "", bom_template_id: "", quantity: 1, planned_start: "", planned_end: "", notes: "" });
+    setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "" });
     setOpen(true);
   };
 
@@ -219,6 +220,7 @@ export default function ProductionOrders() {
       product_id: o.product_id || "",
       bom_template_id: o.bom_template_id || "",
       quantity: Number(o.quantity),
+      priority: o.priority || 3,
       planned_start: o.planned_start || "",
       planned_end: o.planned_end || "",
       notes: o.notes || "",
@@ -256,6 +258,7 @@ export default function ProductionOrders() {
             <TableHead>{t("product")}</TableHead>
             <TableHead>{t("bomTemplate")}</TableHead>
             <TableHead>{t("quantity")}</TableHead>
+            <TableHead>{locale === "sr" ? "Prioritet" : "Priority"}</TableHead>
             <TableHead>{t("completed")}</TableHead>
             <TableHead>{t("status")}</TableHead>
             <TableHead>{t("plannedStart")}</TableHead>
@@ -264,13 +267,14 @@ export default function ProductionOrders() {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={8}>{t("loading")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9}>{t("loading")}</TableCell></TableRow>
           ) : orders.map((o: any) => (
             <TableRow key={o.id}>
               <TableCell className="font-mono text-sm">{o.order_number || o.id.substring(0, 8)}</TableCell>
               <TableCell>{o.products?.name || "-"}</TableCell>
               <TableCell>{o.bom_templates?.name || "-"}</TableCell>
               <TableCell>{o.quantity}</TableCell>
+              <TableCell><Badge variant="outline">{o.priority || 3}</Badge></TableCell>
               <TableCell>{o.completed_quantity || 0}</TableCell>
               <TableCell><Badge variant={statusColor(o.status)}>{t(o.status as any)}</Badge></TableCell>
               <TableCell>{o.planned_start || "-"}</TableCell>
@@ -362,6 +366,19 @@ export default function ProductionOrders() {
               </div>
             )}
             <div><Label>{t("quantity")}</Label><Input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
+            <div>
+              <Label>{locale === "sr" ? "Prioritet" : "Priority"} (1-5)</Label>
+              <Select value={String(form.priority)} onValueChange={v => setForm({ ...form, priority: Number(v) })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 — {locale === "sr" ? "Najviši" : "Highest"}</SelectItem>
+                  <SelectItem value="2">2 — {locale === "sr" ? "Visok" : "High"}</SelectItem>
+                  <SelectItem value="3">3 — {locale === "sr" ? "Srednji" : "Medium"}</SelectItem>
+                  <SelectItem value="4">4 — {locale === "sr" ? "Nizak" : "Low"}</SelectItem>
+                  <SelectItem value="5">5 — {locale === "sr" ? "Najniži" : "Lowest"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><Label>{t("plannedStart")}</Label><Input type="date" value={form.planned_start} onChange={e => setForm({ ...form, planned_start: e.target.value })} /></div>
               <div><Label>{t("plannedEnd")}</Label><Input type="date" value={form.planned_end} onChange={e => setForm({ ...form, planned_end: e.target.value })} /></div>

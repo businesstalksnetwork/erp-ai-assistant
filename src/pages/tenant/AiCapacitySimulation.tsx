@@ -2,14 +2,16 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Brain, Loader2, ArrowRight, TrendingUp, TrendingDown, Trash2, Sparkles } from "lucide-react";
+import { Brain, Loader2, ArrowRight, TrendingUp, TrendingDown, Trash2, Sparkles, RotateCcw, GitCompare } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { formatDistanceToNow } from "date-fns";
 
 interface SimKPIs {
   utilization_pct: number;
@@ -25,15 +27,17 @@ interface SimResult {
 }
 
 interface SavedScenario {
+  id: string;
   name: string;
-  timestamp: Date;
-  params: { shifts: number; priorityBoost: string; delayDays: number; overtimeHours: number; outsourcePct: number; maintenanceDays: number; demandChangePct: number };
+  created_at: string;
+  params: any;
   result: SimResult;
 }
 
 export default function AiCapacitySimulation() {
   const { t, locale } = useLanguage();
   const { tenantId } = useTenant();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
   const [shifts, setShifts] = useState(1);
@@ -44,7 +48,21 @@ export default function AiCapacitySimulation() {
   const [maintenanceDays, setMaintenanceDays] = useState(0);
   const [demandChangePct, setDemandChangePct] = useState(0);
   const [scenarioName, setScenarioName] = useState("");
-  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [savingScenario, setSavingScenario] = useState(false);
+  const [compareIds, setCompareIds] = useState<[string | null, string | null]>([null, null]);
+
+  // DB-backed saved scenarios
+  const { data: savedScenarios = [] } = useQuery({
+    queryKey: ["production-scenarios-simulation", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("production-ai-planning", {
+        body: { action: "list-scenarios", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      return ((data as any).scenarios || []).filter((s: any) => s.scenario_type === "simulation") as SavedScenario[];
+    },
+    enabled: !!tenantId,
+  });
 
   const simulate = async () => {
     if (!tenantId) return;
@@ -69,15 +87,46 @@ export default function AiCapacitySimulation() {
     } finally { setLoading(false); }
   };
 
-  const saveScenario = () => {
-    if (!result || !scenarioName.trim()) return;
-    setSavedScenarios(prev => [...prev, {
-      name: scenarioName.trim(), timestamp: new Date(),
-      params: { shifts, priorityBoost, delayDays, overtimeHours, outsourcePct, maintenanceDays, demandChangePct },
-      result,
-    }]);
-    setScenarioName("");
-    toast.success(t("scenarioSaved"));
+  const saveScenario = async () => {
+    if (!result || !scenarioName.trim() || !tenantId) return;
+    setSavingScenario(true);
+    try {
+      const { error } = await supabase.functions.invoke("production-ai-planning", {
+        body: {
+          action: "save-scenario", tenant_id: tenantId,
+          scenario_name: scenarioName.trim(),
+          scenario_data: {
+            scenario_type: "simulation",
+            params: { shifts, priorityBoost, delayDays, overtimeHours, outsourcePct, maintenanceDays, demandChangePct },
+            result,
+          },
+        },
+      });
+      if (error) throw error;
+      setScenarioName("");
+      qc.invalidateQueries({ queryKey: ["production-scenarios-simulation"] });
+      toast.success(t("scenarioSaved"));
+    } catch {
+      toast.error(locale === "sr" ? "Greška pri čuvanju" : "Error saving scenario");
+    } finally { setSavingScenario(false); }
+  };
+
+  const loadScenario = (s: SavedScenario) => {
+    const p = s.params || {};
+    setShifts(p.shifts || 1);
+    setPriorityBoost(p.priorityBoost || "");
+    setDelayDays(p.delayDays || 0);
+    setOvertimeHours(p.overtimeHours || 0);
+    setOutsourcePct(p.outsourcePct || 0);
+    setMaintenanceDays(p.maintenanceDays || 0);
+    setDemandChangePct(p.demandChangePct || 0);
+    setResult(s.result);
+    toast.info(locale === "sr" ? "Scenario učitan" : "Scenario loaded");
+  };
+
+  const deleteScenario = async (id: string) => {
+    await supabase.from("production_scenarios").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["production-scenarios-simulation"] });
   };
 
   const clearAll = () => { setResult(null); setShifts(1); setPriorityBoost(""); setDelayDays(0); setOvertimeHours(0); setOutsourcePct(0); setMaintenanceDays(0); setDemandChangePct(0); };
@@ -93,12 +142,16 @@ export default function AiCapacitySimulation() {
 
   const formatVal = (key: keyof SimKPIs, val: number) => key.endsWith("_pct") ? `${val}%` : val.toString();
 
-  // Chart data for comparison
   const chartData = result ? (Object.keys(result.baseline) as (keyof SimKPIs)[]).map(key => ({
     name: kpiLabel(key),
     [locale === "sr" ? "Osnova" : "Baseline"]: result.baseline[key],
     [locale === "sr" ? "Scenario" : "Scenario"]: result.scenario[key],
   })) : [];
+
+  // Compare mode
+  const scenarioA = compareIds[0] ? savedScenarios.find(s => s.id === compareIds[0]) : null;
+  const scenarioB = compareIds[1] ? savedScenarios.find(s => s.id === compareIds[1]) : null;
+  const showCompare = scenarioA && scenarioB;
 
   return (
     <div className="space-y-6">
@@ -145,7 +198,7 @@ export default function AiCapacitySimulation() {
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               <Brain className="h-4 w-4" /> {t("simulateScenario")}
             </Button>
-            <Button variant="outline" onClick={clearAll}>{locale === "sr" ? "Resetuj" : "Reset"}</Button>
+            <Button variant="outline" onClick={clearAll}><RotateCcw className="h-4 w-4" /> {locale === "sr" ? "Resetuj" : "Reset"}</Button>
           </div>
         </CardContent>
       </Card>
@@ -204,7 +257,10 @@ export default function AiCapacitySimulation() {
               <div className="flex-1"><Label className="text-xs">{t("scenarioName")}</Label>
                 <Input value={scenarioName} onChange={e => setScenarioName(e.target.value)} placeholder={locale === "sr" ? "Naziv scenarija..." : "Scenario name..."} />
               </div>
-              <Button onClick={saveScenario} disabled={!scenarioName.trim()}>{t("save")}</Button>
+              <Button onClick={saveScenario} disabled={!scenarioName.trim() || savingScenario}>
+                {savingScenario && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("save")}
+              </Button>
             </CardContent>
           </Card>
 
@@ -219,23 +275,79 @@ export default function AiCapacitySimulation() {
       {/* Saved Scenarios */}
       {savedScenarios.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">{t("scenarioHistory")}</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              {t("scenarioHistory")}
+              {savedScenarios.length >= 2 && (
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] ml-auto"
+                  onClick={() => setCompareIds(compareIds[0] ? [null, null] : [savedScenarios[0]?.id, savedScenarios[1]?.id])}>
+                  <GitCompare className="h-3 w-3 mr-1" />
+                  {compareIds[0] ? (locale === "sr" ? "Zatvori" : "Close") : (locale === "sr" ? "Uporedi" : "Compare")}
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-2">
-            {savedScenarios.map((s, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-2 bg-muted/50 rounded text-sm">
+            {savedScenarios.map((s: any) => (
+              <div key={s.id} className={`flex items-center justify-between px-3 py-2 rounded text-sm ${compareIds.includes(s.id) ? "bg-primary/10 border border-primary/20" : "bg-muted/50"}`}>
                 <div>
                   <span className="font-medium">{s.name}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{s.timestamp.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{formatDistanceToNow(new Date(s.created_at), { addSuffix: true })}</span>
                 </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span>{t("capacityUtilization")}: {s.result.scenario.utilization_pct}%</span>
-                  <span>{t("scheduleAdherence")}: {s.result.scenario.on_time_rate_pct}%</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSavedScenarios(prev => prev.filter((_, j) => j !== i))}>
+                <div className="flex items-center gap-2 text-xs">
+                  <span>{t("capacityUtilization")}: {s.result?.scenario?.utilization_pct}%</span>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => loadScenario(s)}>
+                    {locale === "sr" ? "Učitaj" : "Load"}
+                  </Button>
+                  {compareIds[0] !== null && (
+                    <Button variant={compareIds.includes(s.id) ? "secondary" : "ghost"} size="sm" className="h-6 text-[10px]"
+                      onClick={() => {
+                        if (compareIds[0] === s.id) setCompareIds([compareIds[1], null]);
+                        else if (compareIds[1] === s.id) setCompareIds([compareIds[0], null]);
+                        else if (!compareIds[0]) setCompareIds([s.id, compareIds[1]]);
+                        else setCompareIds([compareIds[0], s.id]);
+                      }}>
+                      {compareIds.includes(s.id) ? "✓" : locale === "sr" ? "Izaberi" : "Select"}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteScenario(s.id)}>
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Compare View */}
+      {showCompare && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <GitCompare className="h-4 w-4 text-primary" />
+              {locale === "sr" ? "Poređenje scenarija" : "Scenario Comparison"}: {scenarioA.name} vs {scenarioB.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {(["utilization_pct", "on_time_rate_pct", "wip_count", "throughput_per_day"] as (keyof SimKPIs)[]).map(key => {
+                const a = scenarioA.result?.scenario?.[key] ?? 0;
+                const b = scenarioB.result?.scenario?.[key] ?? 0;
+                const diff = b - a;
+                return (
+                  <div key={key} className="text-center space-y-1">
+                    <p className="text-[10px] text-muted-foreground uppercase">{kpiLabel(key)}</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-bold">{formatVal(key, a)}</span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm font-bold">{formatVal(key, b)}</span>
+                    </div>
+                    {diff !== 0 && <p className={`text-[10px] ${diff > 0 ? "text-primary" : "text-destructive"}`}>{diff > 0 ? "+" : ""}{key.endsWith("_pct") ? `${diff.toFixed(1)}%` : diff}</p>}
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

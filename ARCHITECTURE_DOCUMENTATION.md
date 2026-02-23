@@ -363,8 +363,9 @@ CRM ───────────► Partners (tier calculation, dormancy de
 |-------|---------|-------------|
 | `bom_templates` | Bill of materials | name, product_id, version, is_active |
 | `bom_lines` | BOM components | bom_template_id, material_product_id, quantity, unit |
-| `production_orders` | Manufacturing | order_number, product_id, bom_template_id, planned_quantity, status (draft/in_progress/completed) |
+| `production_orders` | Manufacturing | order_number, product_id, bom_template_id, planned_quantity, status (draft/in_progress/completed), **priority** (1-5, default 3) |
 | `production_order_lines` | Material consumption | production_order_id, product_id, planned_quantity, actual_quantity |
+| `production_scenarios` | Saved AI scenarios (simulation, schedule, bottleneck) | name, scenario_type, params (JSONB), result (JSONB), created_by, tenant_id |
 
 #### 4.1.9 POS & Fiscal
 
@@ -480,7 +481,7 @@ Super admins bypass via `is_super_admin(auth.uid())` in some policies.
 | `ai-assistant` | POST | ❌ | Conversational AI assistant with ERP context |
 | `ai-insights` | POST | ❌ | Module-specific AI insights generation |
 | `ai-analytics-narrative` | POST | ❌ | AI-generated narrative for analytics dashboards |
-| `production-ai-planning` | POST | ❌ | AI production planning (schedule, bottleneck, capacity) |
+| `production-ai-planning` | POST | ❌ | AI production planning (schedule, bottleneck, capacity, local-fallback-schedule, save/list-scenarios) |
 
 **Request format (ai-assistant):**
 ```json
