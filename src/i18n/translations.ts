@@ -15,7 +15,7 @@ export const translations = {
     hasAccount: "Already have an account?",
     loggingIn: "Logging in...",
     registering: "Registering...",
-// @ts-nocheck
+
     // Nav & Layout
     dashboard: "Dashboard",
     settings: "Settings",
