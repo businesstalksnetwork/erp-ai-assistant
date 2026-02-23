@@ -461,7 +461,7 @@ export default function CompanyDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">{t("quotes")}</CardTitle>
-              <Button size="sm" onClick={() => navigate("/crm/quotes")}>
+              <Button size="sm" onClick={() => navigate("/sales/quotes")}>
                 <Plus className="h-4 w-4 mr-1" />{t("add")}
               </Button>
             </CardHeader>
@@ -482,7 +482,7 @@ export default function CompanyDetail() {
                   </TableHeader>
                   <TableBody>
                     {relatedQuotes.map((q: any) => (
-                      <TableRow key={q.id} className="cursor-pointer" onClick={() => navigate("/crm/quotes")}>
+                      <TableRow key={q.id} className="cursor-pointer" onClick={() => navigate(`/sales/quotes/${q.id}`)}>
                         <TableCell className="font-medium">{q.quote_number}</TableCell>
                         <TableCell>{q.quote_date ? new Date(q.quote_date).toLocaleDateString("sr-RS") : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{q.total ? fmt(q.total) : "—"}</TableCell>
