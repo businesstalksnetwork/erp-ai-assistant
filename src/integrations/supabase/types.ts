@@ -2253,6 +2253,41 @@ export type Database = {
           },
         ]
       }
+      discount_approval_rules: {
+        Row: {
+          created_at: string | null
+          id: string
+          max_discount_pct: number
+          requires_approval_above: number | null
+          role: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          max_discount_pct?: number
+          requires_approval_above?: number | null
+          role: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          max_discount_pct?: number
+          requires_approval_above?: number | null
+          role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_approval_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dms_activity_log: {
         Row: {
           action: string
@@ -6691,8 +6726,11 @@ export type Database = {
           currency: string
           description: string | null
           expected_close_date: string | null
+          followup_opportunity_id: string | null
           id: string
           lead_id: string | null
+          lost_amount: number | null
+          lost_reason: string | null
           notes: string | null
           partner_id: string | null
           probability: number
@@ -6702,6 +6740,8 @@ export type Database = {
           title: string
           updated_at: string
           value: number
+          won_amount: number | null
+          won_reason: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -6711,8 +6751,11 @@ export type Database = {
           currency?: string
           description?: string | null
           expected_close_date?: string | null
+          followup_opportunity_id?: string | null
           id?: string
           lead_id?: string | null
+          lost_amount?: number | null
+          lost_reason?: string | null
           notes?: string | null
           partner_id?: string | null
           probability?: number
@@ -6722,6 +6765,8 @@ export type Database = {
           title: string
           updated_at?: string
           value?: number
+          won_amount?: number | null
+          won_reason?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -6731,8 +6776,11 @@ export type Database = {
           currency?: string
           description?: string | null
           expected_close_date?: string | null
+          followup_opportunity_id?: string | null
           id?: string
           lead_id?: string | null
+          lost_amount?: number | null
+          lost_reason?: string | null
           notes?: string | null
           partner_id?: string | null
           probability?: number
@@ -6742,6 +6790,8 @@ export type Database = {
           title?: string
           updated_at?: string
           value?: number
+          won_amount?: number | null
+          won_reason?: string | null
         }
         Relationships: [
           {
@@ -6749,6 +6799,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_followup_opportunity_id_fkey"
+            columns: ["followup_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
             referencedColumns: ["id"]
           },
           {
@@ -7058,6 +7115,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_lost: boolean | null
+          is_partial: boolean | null
           is_system: boolean | null
           is_won: boolean | null
           name: string
@@ -7071,6 +7129,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_lost?: boolean | null
+          is_partial?: boolean | null
           is_system?: boolean | null
           is_won?: boolean | null
           name: string
@@ -7084,6 +7143,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_lost?: boolean | null
+          is_partial?: boolean | null
           is_system?: boolean | null
           is_won?: boolean | null
           name?: string
@@ -8626,12 +8686,62 @@ export type Database = {
           },
         ]
       }
+      quote_versions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          notes: string | null
+          quote_id: string
+          snapshot: Json
+          tenant_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          quote_id: string
+          snapshot: Json
+          tenant_id: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          quote_id?: string
+          snapshot?: Json
+          tenant_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_versions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           created_at: string
           created_by: string | null
           currency: string
+          current_version: number | null
           id: string
+          max_discount_pct: number | null
           notes: string | null
           opportunity_id: string | null
           partner_id: string | null
@@ -8651,7 +8761,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          current_version?: number | null
           id?: string
+          max_discount_pct?: number | null
           notes?: string | null
           opportunity_id?: string | null
           partner_id?: string | null
@@ -8671,7 +8783,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          current_version?: number | null
           id?: string
+          max_discount_pct?: number | null
           notes?: string | null
           opportunity_id?: string | null
           partner_id?: string | null
@@ -11028,6 +11142,7 @@ export type Database = {
         }
         Returns: string
       }
+      expire_overdue_quotes: { Args: { p_tenant_id: string }; Returns: number }
       force_delete_journal_entries: {
         Args: { p_tenant_id: string }
         Returns: undefined

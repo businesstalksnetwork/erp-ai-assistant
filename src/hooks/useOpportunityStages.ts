@@ -13,6 +13,7 @@ export interface OpportunityStage {
   is_won: boolean;
   is_lost: boolean;
   is_system: boolean;
+  is_partial: boolean;
   created_at: string;
 }
 

@@ -9,12 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, ArrowRight, FileText } from "lucide-react";
+import { Plus, Loader2, ArrowRight, FileText, AlertTriangle, History } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { QuoteVersionHistory } from "@/components/quotes/QuoteVersionHistory";
+import { useAuth } from "@/hooks/useAuth";
 
 const STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
 
@@ -40,11 +42,13 @@ const emptyForm: QuoteForm = {
 export default function Quotes() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<QuoteForm>(emptyForm);
+  const [versionHistoryQuoteId, setVersionHistoryQuoteId] = useState<string | null>(null);
 
   const { data: quotes = [], isLoading } = useQuery({
     queryKey: ["quotes", tenantId],
@@ -138,6 +142,22 @@ export default function Quotes() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const createVersionMutation = useMutation({
+    mutationFn: async (q: any) => {
+      // Fetch quote lines for snapshot
+      const { data: lines } = await supabase.from("quote_lines").select("*").eq("quote_id", q.id);
+      const snapshot = { quote: q, lines: lines || [] };
+      const newVersion = (q.current_version || 1) + 1;
+      await supabase.from("quote_versions" as any).insert([{
+        tenant_id: tenantId!, quote_id: q.id, version_number: q.current_version || 1,
+        snapshot, created_by: user?.id,
+      }]);
+      await supabase.from("quotes").update({ current_version: newVersion, status: "draft" }).eq("id", q.id);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["quotes"] }); toast.success(t("snapshotCreated")); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (q: any) => {
     setEditId(q.id);
@@ -158,8 +178,20 @@ export default function Quotes() {
   const fmt = (n: number, cur: string) =>
     new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
+  const isExpiringSoon = (q: any) => {
+    if (q.status !== "sent" || !q.valid_until) return false;
+    const diff = (new Date(q.valid_until).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 3;
+  };
+
   const columns: ResponsiveColumn<any>[] = [
-    { key: "quote_number", label: t("quoteNumber"), primary: true, render: (q) => q.quote_number },
+    { key: "quote_number", label: t("quoteNumber"), primary: true, render: (q) => (
+      <div className="flex items-center gap-1.5">
+        {q.quote_number}
+        {(q.current_version || 1) > 1 && <Badge variant="outline" className="text-[10px] px-1">v{q.current_version}</Badge>}
+        {isExpiringSoon(q) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+      </div>
+    ) },
     { key: "partner", label: t("partner"), render: (q) => q.partners?.name || q.partner_name || "—" },
     { key: "salesperson", label: t("salesperson"), hideOnMobile: true, render: (q) => q.salespeople ? `${q.salespeople.first_name} ${q.salespeople.last_name}` : "—" },
     { key: "opportunity", label: t("opportunity"), hideOnMobile: true, render: (q) => q.opportunities?.title || "—" },
@@ -169,6 +201,14 @@ export default function Quotes() {
     { key: "actions", label: t("actions"), showInCard: false, render: (q) => (
       <div className="flex gap-1">
         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(q); }}>{t("edit")}</Button>
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setVersionHistoryQuoteId(q.id); }} title={t("versionHistory")}>
+          <History className="h-3.5 w-3.5" />
+        </Button>
+        {(q.status === "sent" || q.status === "expired") && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); createVersionMutation.mutate(q); }} disabled={createVersionMutation.isPending}>
+            {t("createNewVersion")}
+          </Button>
+        )}
         {q.status === "accepted" && (
           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); convertToSOmutation.mutate(q); }} disabled={convertToSOmutation.isPending}>
             <ArrowRight className="h-3 w-3 mr-1" />{t("convertToSalesOrder")}
@@ -271,6 +311,14 @@ export default function Quotes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {versionHistoryQuoteId && (
+        <QuoteVersionHistory
+          open={!!versionHistoryQuoteId}
+          onOpenChange={(o) => { if (!o) setVersionHistoryQuoteId(null); }}
+          quoteId={versionHistoryQuoteId}
+        />
+      )}
     </div>
   );
 }

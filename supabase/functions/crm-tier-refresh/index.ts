@@ -84,8 +84,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Run quote expiry
+    const { data: expiredCount, error: expiryError } = await userClient.rpc("expire_overdue_quotes", {
+      p_tenant_id: tenant_id,
+    });
+    if (expiryError) {
+      console.error("Quote expiry error:", expiryError);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, message: "Tiers calculated and dormancy detected" }),
+      JSON.stringify({ success: true, message: "Tiers calculated, dormancy detected, quotes expired", expired_quotes: expiredCount || 0 }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

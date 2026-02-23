@@ -16,7 +16,8 @@ import { OpportunityDocumentsTab } from "@/components/opportunity/OpportunityDoc
 import { OpportunityDiscussionTab } from "@/components/opportunity/OpportunityDiscussionTab";
 import { OpportunityActivityTab } from "@/components/opportunity/OpportunityActivityTab";
 import { OpportunityTagsBar } from "@/components/opportunity/OpportunityTagsBar";
-import { useCallback, useMemo } from "react";
+import { PartialWonDialog } from "@/components/opportunity/PartialWonDialog";
+import { useCallback, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export default function OpportunityDetail() {
@@ -27,6 +28,7 @@ export default function OpportunityDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: stages = [] } = useOpportunityStages();
+  const [partialWonOpen, setPartialWonOpen] = useState(false);
 
   const { data: opp, isLoading } = useQuery({
     queryKey: ["opportunity", id],
@@ -125,6 +127,50 @@ export default function OpportunityDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const partialWonMutation = useMutation({
+    mutationFn: async (data: { won_amount: number; lost_amount: number; won_reason: string; lost_reason: string; create_followup: boolean }) => {
+      const partialStage = stages.find(s => (s as any).is_partial);
+      if (!partialStage) throw new Error("Partial won stage not found");
+
+      const updates: any = {
+        stage: partialStage.code,
+        won_amount: data.won_amount,
+        lost_amount: data.lost_amount,
+        won_reason: data.won_reason || null,
+        lost_reason: data.lost_reason || null,
+        closed_at: new Date().toISOString(),
+      };
+
+      // Create follow-up opportunity if requested
+      if (data.create_followup && data.lost_amount > 0) {
+        const { data: followup, error: fErr } = await supabase.from("opportunities").insert([{
+          tenant_id: tenantId!,
+          title: `${opp!.title} — Follow-up`,
+          partner_id: opp!.partner_id,
+          contact_id: opp!.contact_id,
+          lead_id: opp!.lead_id,
+          value: data.lost_amount,
+          currency: opp!.currency || "RSD",
+          probability: 30,
+          stage: stages[0]?.code || "qualification",
+          description: `Follow-up from partially won deal. Lost reason: ${data.lost_reason || "—"}`,
+        }]).select("id").single();
+        if (fErr) throw fErr;
+        if (followup) updates.followup_opportunity_id = followup.id;
+      }
+
+      const { error } = await supabase.from("opportunities").update(updates).eq("id", id!);
+      if (error) throw error;
+      await logActivity("partial_won", `Deal partially won: ${data.won_amount} won, ${data.lost_amount} lost`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opportunity", id] });
+      setPartialWonOpen(false);
+      toast.success(t("success"));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const createQuoteMutation = useMutation({
     mutationFn: async () => {
       const quoteNumber = `QT-${Date.now().toString().slice(-8)}`;
@@ -175,7 +221,7 @@ export default function OpportunityDetail() {
     return (n: number) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: opp.currency || "RSD" }).format(n);
   }, [opp?.currency]);
 
-  const isClosed = useMemo(() => stages.some(s => s.code === opp?.stage && (s.is_won || s.is_lost)), [stages, opp?.stage]);
+  const isClosed = useMemo(() => stages.some(s => s.code === opp?.stage && (s.is_won || s.is_lost || (s as any).is_partial)), [stages, opp?.stage]);
   const currentStage = useMemo(() => stages.find(s => s.code === opp?.stage), [stages, opp?.stage]);
   const currentStageIdx = useMemo(() => stages.findIndex(s => s.code === opp?.stage), [stages, opp?.stage]);
   const contactName = useMemo(() => {
@@ -224,7 +270,13 @@ export default function OpportunityDetail() {
                       size="sm"
                       className={cn("relative gap-1.5", isPast && "opacity-80")}
                       style={isActive && s.color ? { backgroundColor: s.color, color: "#fff" } : undefined}
-                      onClick={() => stageMutation.mutate(s.code)}
+                      onClick={() => {
+                        if ((s as any).is_partial) {
+                          setPartialWonOpen(true);
+                        } else {
+                          stageMutation.mutate(s.code);
+                        }
+                      }}
                       disabled={stageMutation.isPending}
                     >
                       {isPast && <Check className="h-3 w-3" />}
@@ -279,6 +331,17 @@ export default function OpportunityDetail() {
           <OpportunityActivityTab opportunityId={id!} />
         </TabsContent>
       </Tabs>
+
+      {opp && (
+        <PartialWonDialog
+          open={partialWonOpen}
+          onOpenChange={setPartialWonOpen}
+          dealValue={opp.value || 0}
+          currency={opp.currency || "RSD"}
+          onSubmit={(data) => partialWonMutation.mutate(data)}
+          isPending={partialWonMutation.isPending}
+        />
+      )}
     </div>
   );
 }
