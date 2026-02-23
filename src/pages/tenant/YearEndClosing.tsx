@@ -48,56 +48,38 @@ export default function YearEndClosing() {
     queryFn: async () => {
       if (!tenantId || !selectedPeriod) return null;
 
-      // Revenue accounts
-      const { data: revenueAccounts } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name")
-        .eq("tenant_id", tenantId)
-        .eq("account_type", "revenue")
-        .eq("is_active", true);
-
-      // Expense accounts
-      const { data: expenseAccounts } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name")
-        .eq("tenant_id", tenantId)
-        .eq("account_type", "expense")
-        .eq("is_active", true);
-
-      const allAccounts = [...(revenueAccounts || []), ...(expenseAccounts || [])];
-      const accountIds = allAccounts.map(a => a.id);
-
-      if (accountIds.length === 0) return { revenue: [], expense: [], revenueTotal: 0, expenseTotal: 0, netIncome: 0 };
-
-      // Get journal lines for the period
+      // Single query with !inner JOINs — no .in() with ID arrays
       const { data: lines } = await supabase
         .from("journal_lines")
-        .select("account_id, debit, credit, journal_entries!inner(tenant_id, status, entry_date)")
-        .in("account_id", accountIds);
-
-      // Filter by period and tenant in JS (supabase nested filters)
-      const filteredLines = (lines || []).filter((l: any) => {
-        const je = l.journal_entries;
-        return je.tenant_id === tenantId
-          && je.status === "posted"
-          && je.entry_date >= selectedPeriod.start_date
-          && je.entry_date <= selectedPeriod.end_date;
-      });
+        .select(`
+          account_id, debit, credit,
+          account:chart_of_accounts!inner(id, code, name, account_type),
+          journal_entry:journal_entries!inner(tenant_id, status, entry_date)
+        `)
+        .eq("journal_entry.tenant_id", tenantId)
+        .eq("journal_entry.status", "posted")
+        .in("account.account_type", ["revenue", "expense"])
+        .gte("journal_entry.entry_date", selectedPeriod.start_date)
+        .lte("journal_entry.entry_date", selectedPeriod.end_date);
 
       // Aggregate by account
-      const balanceMap: Record<string, number> = {};
-      for (const l of filteredLines) {
-        if (!balanceMap[l.account_id]) balanceMap[l.account_id] = 0;
-        balanceMap[l.account_id] += Number(l.credit) - Number(l.debit);
+      const balanceMap: Record<string, { code: string; name: string; account_type: string; balance: number }> = {};
+      for (const l of (lines || []) as any[]) {
+        const acct = l.account;
+        const key = acct.id;
+        if (!balanceMap[key]) {
+          balanceMap[key] = { code: acct.code, name: acct.name, account_type: acct.account_type, balance: 0 };
+        }
+        balanceMap[key].balance += Number(l.credit) - Number(l.debit);
       }
 
-      const revenueItems = (revenueAccounts || [])
-        .map(a => ({ ...a, balance: balanceMap[a.id] || 0 }))
-        .filter(a => Math.abs(a.balance) > 0.001);
+      const revenueItems = Object.entries(balanceMap)
+        .filter(([, a]) => a.account_type === "revenue" && Math.abs(a.balance) > 0.001)
+        .map(([id, a]) => ({ id, code: a.code, name: a.name, balance: a.balance }));
 
-      const expenseItems = (expenseAccounts || [])
-        .map(a => ({ ...a, balance: -(balanceMap[a.id] || 0) })) // expenses have debit balances
-        .filter(a => Math.abs(a.balance) > 0.001);
+      const expenseItems = Object.entries(balanceMap)
+        .filter(([, a]) => a.account_type === "expense" && Math.abs(a.balance) > 0.001)
+        .map(([id, a]) => ({ id, code: a.code, name: a.name, balance: -a.balance })); // expenses have debit balances
 
       const revenueTotal = revenueItems.reduce((s, a) => s + a.balance, 0);
       const expenseTotal = expenseItems.reduce((s, a) => s + a.balance, 0);
