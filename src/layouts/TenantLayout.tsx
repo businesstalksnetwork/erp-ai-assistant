@@ -6,9 +6,10 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
-// AiAssistantPanel removed - deduplicated into AiContextSidebar
 import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { TenantSelector } from "@/components/TenantSelector";
 import { NavLink } from "@/components/NavLink";
@@ -289,6 +290,7 @@ export default function TenantLayout() {
   const currentPath = location.pathname;
   const isMobile = useIsMobile();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
+  useKeyboardShortcuts();
 
   useEffect(() => {
     setAiSidebarOpen(!isMobile);
@@ -510,19 +512,21 @@ export default function TenantLayout() {
           <div className="flex-1 flex overflow-hidden">
             <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
               <div className="max-w-screen-2xl mx-auto">
-                <Suspense fallback={<PageSkeleton />}>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentPath}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
-                    >
-                      <Outlet />
-                    </motion.div>
-                  </AnimatePresence>
-                </Suspense>
+                <ErrorBoundary>
+                  <Suspense fallback={<PageSkeleton />}>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentPath}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <Outlet />
+                      </motion.div>
+                    </AnimatePresence>
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             </main>
             {!isMobile && (
