@@ -117,6 +117,26 @@ export default function CrmDashboard() {
     enabled: !!tenantId,
   });
 
+  // Expiring Quotes (within 3 days)
+  const { data: expiringQuotes = [] } = useQuery({
+    queryKey: ["crm-expiring-quotes", tenantId],
+    queryFn: async () => {
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+      const { data } = await supabase
+        .from("quotes")
+        .select("id, quote_number, partner_name, valid_until, total, currency, partners(name)")
+        .eq("tenant_id", tenantId!)
+        .eq("status", "sent")
+        .lte("valid_until", threeDaysFromNow.toISOString().split("T")[0])
+        .gte("valid_until", new Date().toISOString().split("T")[0])
+        .order("valid_until", { ascending: true })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   // CRM Tasks
   const { data: crmTasks = [], refetch: refetchTasks } = useQuery({
     queryKey: ["crm-open-tasks", tenantId],
@@ -284,6 +304,44 @@ export default function CrmDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expiring Quotes Widget */}
+      {expiringQuotes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {t("expiringQuotes" as any) || "Expiring Quotes"} ({expiringQuotes.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {expiringQuotes.map((q: any) => {
+                const daysLeft = Math.ceil((new Date(q.valid_until).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div
+                    key={q.id}
+                    className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors"
+                    onClick={() => navigate("/sales/quotes")}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-sm font-medium">{q.quote_number}</span>
+                      <span className="text-xs text-muted-foreground">{(q as any).partners?.name || q.partner_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{fmt(q.total)}</span>
+                      <Badge variant="warning" className="text-xs">
+                        {daysLeft <= 0 ? t("expired") : `${daysLeft}d`}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* CRM Tasks Widget */}
       {crmTasks.length > 0 && (
