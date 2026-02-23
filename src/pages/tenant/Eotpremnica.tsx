@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useAuth } from "@/hooks/useAuth";
+import { useStatusWorkflow } from "@/hooks/useStatusWorkflow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +18,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Truck, CheckCircle, ArrowRight, X, Send } from "lucide-react";
 import { format } from "date-fns";
+import type { Database } from "@/integrations/supabase/types";
+
+type DispatchNote = Database["public"]["Tables"]["dispatch_notes"]["Row"];
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -37,6 +42,7 @@ export default function Eotpremnica() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { entities: legalEntities } = useLegalEntities();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -47,79 +53,76 @@ export default function Eotpremnica() {
     sender_name: "",
     sender_pib: "",
     sender_address: "",
+    sender_city: "",
     receiver_name: "",
     receiver_pib: "",
     receiver_address: "",
+    receiver_city: "",
     legal_entity_id: "",
     notes: "",
     vehicle_plate: "",
     driver_name: "",
-    total_weight: "",
+    transport_reason: "",
   });
 
   const { data: notes = [], isLoading } = useQuery({
-    queryKey: ["eotpremnica", tenantId, statusFilter],
+    queryKey: ["dispatch_notes", tenantId, statusFilter],
     queryFn: async () => {
       let query = supabase
-        .from("eotpremnica")
+        .from("dispatch_notes")
         .select("*, legal_entities(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data as (DispatchNote & { legal_entities: { name: string } | null })[];
     },
     enabled: !!tenantId,
   });
 
+  const statusMutation = useStatusWorkflow({ table: "dispatch_notes", queryKey: ["dispatch_notes"] });
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("eotpremnica").insert({
+      const { error } = await supabase.from("dispatch_notes").insert({
         tenant_id: tenantId!,
         document_number: form.document_number || `OTP-${Date.now()}`,
-        sender_name: form.sender_name,
+        sender_name: form.sender_name || null,
         sender_pib: form.sender_pib || null,
         sender_address: form.sender_address || null,
-        receiver_name: form.receiver_name,
+        sender_city: form.sender_city || null,
+        receiver_name: form.receiver_name || null,
         receiver_pib: form.receiver_pib || null,
         receiver_address: form.receiver_address || null,
+        receiver_city: form.receiver_city || null,
         legal_entity_id: form.legal_entity_id || null,
         notes: form.notes || null,
         vehicle_plate: form.vehicle_plate || null,
         driver_name: form.driver_name || null,
-        total_weight: form.total_weight ? Number(form.total_weight) : null,
+        transport_reason: form.transport_reason || null,
         created_by: user?.id || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eotpremnica"] });
+      queryClient.invalidateQueries({ queryKey: ["dispatch_notes"] });
       toast({ title: t("success") });
       setCreateOpen(false);
-      setForm({ document_number: "", sender_name: "", sender_pib: "", sender_address: "", receiver_name: "", receiver_pib: "", receiver_address: "", legal_entity_id: "", notes: "", vehicle_plate: "", driver_name: "", total_weight: "" });
+      setForm({ document_number: "", sender_name: "", sender_pib: "", sender_address: "", sender_city: "", receiver_name: "", receiver_pib: "", receiver_address: "", receiver_city: "", legal_entity_id: "", notes: "", vehicle_plate: "", driver_name: "", transport_reason: "" });
     },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
-      const { error } = await supabase.from("eotpremnica").update({ status: newStatus }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eotpremnica"] });
-      toast({ title: t("success") });
-    },
-    onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
-  });
-
-  const filtered = notes.filter((n: any) => {
-    if (!search) return true;
-    return n.document_number.toLowerCase().includes(search.toLowerCase()) ||
-      n.sender_name.toLowerCase().includes(search.toLowerCase()) ||
-      n.receiver_name.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = useMemo(() => {
+    if (!search) return notes;
+    const s = search.toLowerCase();
+    return notes.filter((n) =>
+      n.document_number.toLowerCase().includes(s) ||
+      (n.sender_name || "").toLowerCase().includes(s) ||
+      (n.receiver_name || "").toLowerCase().includes(s)
+    );
+  }, [notes, search]);
 
   return (
     <div className="space-y-6">
@@ -158,32 +161,32 @@ export default function Eotpremnica() {
               <TableHead>{t("receiverName")}</TableHead>
               {legalEntities.length > 1 && <TableHead>{t("legalEntity")}</TableHead>}
               <TableHead>{t("status")}</TableHead>
-              <TableHead>API</TableHead>
+              <TableHead>eOtp</TableHead>
               <TableHead>{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((n: any) => (
-              <TableRow key={n.id}>
+            {filtered.map((n) => (
+              <TableRow key={n.id} className="cursor-pointer" onClick={() => navigate(`/inventory/dispatch-notes/${n.id}`)}>
                 <TableCell className="font-medium">{n.document_number}</TableCell>
                 <TableCell>{format(new Date(n.document_date), "dd.MM.yyyy")}</TableCell>
-                <TableCell>{n.sender_name}</TableCell>
-                <TableCell>{n.receiver_name}</TableCell>
+                <TableCell>{n.sender_name || "—"}</TableCell>
+                <TableCell>{n.receiver_name || "—"}</TableCell>
                 {legalEntities.length > 1 && <TableCell>{n.legal_entities?.name || "—"}</TableCell>}
                 <TableCell><Badge className={statusColors[n.status] || ""}>{t(n.status as any)}</Badge></TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-xs">{(n as any).api_status || "not_submitted"}</Badge>
+                  <Badge variant="outline" className="text-xs">{n.eotpremnica_status || "—"}</Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
-                    {n.status === "confirmed" && ((n as any).api_status === "not_submitted" || !(n as any).api_status) && (
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    {n.status === "confirmed" && (!n.eotpremnica_status || n.eotpremnica_status === "not_submitted") && (
                       <Button size="sm" variant="outline" onClick={async () => {
                         try {
-                          const { data, error } = await supabase.functions.invoke("eotpremnica-submit", {
-                            body: { eotpremnica_id: n.id, tenant_id: tenantId },
+                          const { error } = await supabase.functions.invoke("eotpremnica-submit", {
+                            body: { dispatch_note_id: n.id, tenant_id: tenantId },
                           });
                           if (error) throw error;
-                          queryClient.invalidateQueries({ queryKey: ["eotpremnica"] });
+                          queryClient.invalidateQueries({ queryKey: ["dispatch_notes"] });
                           toast({ title: t("success") });
                         } catch (err: any) {
                           toast({ title: t("error"), description: err.message, variant: "destructive" });
@@ -226,26 +229,32 @@ export default function Eotpremnica() {
                 </Select>
               </div>
             )}
+            <div><Label>{t("transportReason")}</Label><Input value={form.transport_reason} onChange={(e) => setForm(f => ({ ...f, transport_reason: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("senderName")}</Label><Input value={form.sender_name} onChange={(e) => setForm(f => ({ ...f, sender_name: e.target.value }))} /></div>
               <div><Label>{t("senderName")} PIB</Label><Input value={form.sender_pib} onChange={(e) => setForm(f => ({ ...f, sender_pib: e.target.value }))} /></div>
             </div>
-            <div><Label>{t("address")} ({t("senderName")})</Label><Input value={form.sender_address} onChange={(e) => setForm(f => ({ ...f, sender_address: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("address")} ({t("senderName")})</Label><Input value={form.sender_address} onChange={(e) => setForm(f => ({ ...f, sender_address: e.target.value }))} /></div>
+              <div><Label>{t("senderCity")}</Label><Input value={form.sender_city} onChange={(e) => setForm(f => ({ ...f, sender_city: e.target.value }))} /></div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("receiverName")}</Label><Input value={form.receiver_name} onChange={(e) => setForm(f => ({ ...f, receiver_name: e.target.value }))} /></div>
               <div><Label>{t("receiverName")} PIB</Label><Input value={form.receiver_pib} onChange={(e) => setForm(f => ({ ...f, receiver_pib: e.target.value }))} /></div>
             </div>
-            <div><Label>{t("address")} ({t("receiverName")})</Label><Input value={form.receiver_address} onChange={(e) => setForm(f => ({ ...f, receiver_address: e.target.value }))} /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("address")} ({t("receiverName")})</Label><Input value={form.receiver_address} onChange={(e) => setForm(f => ({ ...f, receiver_address: e.target.value }))} /></div>
+              <div><Label>{t("receiverCity")}</Label><Input value={form.receiver_city} onChange={(e) => setForm(f => ({ ...f, receiver_city: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("vehiclePlate")}</Label><Input value={form.vehicle_plate} onChange={(e) => setForm(f => ({ ...f, vehicle_plate: e.target.value }))} /></div>
               <div><Label>{t("driverName")}</Label><Input value={form.driver_name} onChange={(e) => setForm(f => ({ ...f, driver_name: e.target.value }))} /></div>
-              <div><Label>{t("totalWeight")}</Label><Input type="number" value={form.total_weight} onChange={(e) => setForm(f => ({ ...f, total_weight: e.target.value }))} /></div>
             </div>
             <div><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.sender_name || !form.receiver_name || createMutation.isPending}>{t("save")}</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>{t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
