@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if ((event as string) === 'TOKEN_REFRESH_FAILED') {
           showSessionExpiredToast();
           supabase.auth.signOut();
-          localStorage.removeItem('pausalbox_login_at');
+          localStorage.removeItem('erpai_login_at');
           setProfile(null);
           setIsAdmin(false);
           setProfileLoading(false);
@@ -176,8 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Store login timestamp when user freshly signs in
         if (event === 'SIGNED_IN' && session) {
           // Only set login_at if it doesn't exist yet (first login, not token refresh)
-          if (!localStorage.getItem('pausalbox_login_at')) {
-            localStorage.setItem('pausalbox_login_at', String(Date.now()));
+          if (!localStorage.getItem('erpai_login_at')) {
+            localStorage.setItem('erpai_login_at', String(Date.now()));
           }
           // Reset the toast deduplication ref so it can fire again on next expiry
           sessionExpiredToastRef.current = false;
@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Clear login timestamp on explicit sign-out
         if (event === 'SIGNED_OUT') {
-          localStorage.removeItem('pausalbox_login_at');
+          localStorage.removeItem('erpai_login_at');
         }
 
         setSession(session);
@@ -220,12 +220,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Enforce 24-hour login requirement: check stored login timestamp
-      const loginAt = localStorage.getItem('pausalbox_login_at');
+      const loginAt = localStorage.getItem('erpai_login_at');
       const twentyFourHours = 24 * 60 * 60 * 1000;
       if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
         // More than 24 hours since login — force sign out
         showSessionExpiredToast();
-        localStorage.removeItem('pausalbox_login_at');
+        localStorage.removeItem('erpai_login_at');
         await supabase.auth.signOut();
         setLoading(false);
         return;
@@ -241,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           // Refresh failed — wipe the stale token immediately, don't wait for an event
           showSessionExpiredToast();
-          localStorage.removeItem('pausalbox_login_at');
+          localStorage.removeItem('erpai_login_at');
           await supabase.auth.signOut();
           setLoading(false);
         }
@@ -254,11 +254,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // Check 24-hour limit on tab focus
-        const loginAt = localStorage.getItem('pausalbox_login_at');
+        const loginAt = localStorage.getItem('erpai_login_at');
         const twentyFourHours = 24 * 60 * 60 * 1000;
         if (loginAt && Date.now() - parseInt(loginAt) > twentyFourHours) {
           showSessionExpiredToast();
-          localStorage.removeItem('pausalbox_login_at');
+          localStorage.removeItem('erpai_login_at');
           supabase.auth.signOut();
           return;
         }
@@ -330,8 +330,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    localStorage.removeItem('pausalbox_selected_company_id');
-    localStorage.removeItem('pausalbox_login_at');
+    localStorage.removeItem('erpai_selected_company_id');
+    localStorage.removeItem('erpai_login_at');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

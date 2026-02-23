@@ -12,8 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Building2, Calculator, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import { useTheme } from '@/lib/theme-context';
-import logoLight from '@/assets/pausal-box-logo-light.png';
-import logoDark from '@/assets/pausal-box-logo-dark.png';
+// Logo imports removed - using ERP-AI branding
 const emailSchema = z.string().email('Unesite validnu email adresu');
 const passwordSchema = z.string()
   .min(8, 'Lozinka mora imati najmanje 8 karaktera')
@@ -441,7 +440,7 @@ export default function Auth() {
         } else {
           toast({
             title: 'Potvrdite email adresu',
-            description: 'Poslali smo vam email sa verification@pausalbox.rs. Proverite inbox i potvrdite email adresu pre prijave.',
+            description: 'Poslali smo vam email sa verification@erp-ai-assistant.rs. Proverite inbox i potvrdite email adresu pre prijave.',
             duration: 10000,
           });
           setLastResendTime(Date.now());
@@ -622,7 +621,7 @@ export default function Auth() {
               </div>
               <CardTitle className="text-xl">Potvrdite email adresu</CardTitle>
               <CardDescription className="text-base">
-                Poslali smo vam email sa <span className="font-medium">verification@pausalbox.rs</span>
+                Poslali smo vam email sa <span className="font-medium">verification@erp-ai-assistant.rs</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-center">

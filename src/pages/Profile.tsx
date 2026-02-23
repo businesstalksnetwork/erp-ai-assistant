@@ -509,7 +509,7 @@ export default function Profile() {
                         paymentRecipient.name,
                         paymentRecipient.account,
                         getDiscountedPrice(subscriptionPlans.find(p => p.key === selectedPlan)?.price || 0),
-                        `Pretplata PausalBox ${subscriptionPlans.find(p => p.key === selectedPlan)?.months}m`,
+                        `Pretplata ERP-AI ${subscriptionPlans.find(p => p.key === selectedPlan)?.months}m`,
                         profile?.full_name || ''
                       )}
                       size={160}
@@ -537,7 +537,7 @@ export default function Profile() {
                       </span>
                       
                       <span className="text-muted-foreground">Svrha:</span>
-                      <span>Pretplata PausalBox {subscriptionPlans.find(p => p.key === selectedPlan)?.months} {
+                      <span>Pretplata ERP-AI {subscriptionPlans.find(p => p.key === selectedPlan)?.months} {
                         subscriptionPlans.find(p => p.key === selectedPlan)?.months === 1 ? 'mesec' : 'meseci'
                       }</span>
                     </div>
@@ -1029,7 +1029,7 @@ export default function Profile() {
                     <div className="space-y-0.5">
                       <Label className="text-base">Omogući push notifikacije</Label>
                       <p className="text-sm text-muted-foreground">
-                        Primajte obaveštenja na desktop čak i kada je PausalBox zatvoren
+                        Primajte obaveštenja na desktop čak i kada je aplikacija zatvorena
                       </p>
                     </div>
                     <Switch

@@ -4,5 +4,5 @@
  * regardless of the current environment (preview, localhost, etc.)
  */
 export function getProductionUrl(): string {
-  return 'https://pausalbox.aiknjigovodja.rs';
+  return 'https://erp-ai-assistant.aiknjigovodja.rs';
 }

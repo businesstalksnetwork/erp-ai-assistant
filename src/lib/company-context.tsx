@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 
-const SELECTED_COMPANY_KEY = 'pausalbox_selected_company_id';
+const SELECTED_COMPANY_KEY = 'erpai_selected_company_id';
 
 // Sinhrono čitanje sačuvanog ID-ja pri inicijalizaciji
 const getSavedCompanyId = () => localStorage.getItem(SELECTED_COMPANY_KEY);

@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useTheme } from '@/lib/theme-context';
-import logoLight from '@/assets/pausal-box-logo-light.png';
-import logoDark from '@/assets/pausal-box-logo-dark.png';
+// Logo imports removed - using ERP-AI branding
 
 type VerificationStatus = 'loading' | 'success' | 'error' | 'expired' | 'used';
 
@@ -14,7 +13,7 @@ export default function VerifyEmail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { theme } = useTheme();
-  const logo = theme === 'dark' ? logoDark : logoLight;
+  // Logo removed - using ERP-AI branding
   
   const [status, setStatus] = useState<VerificationStatus>('loading');
   const [message, setMessage] = useState<string>('');

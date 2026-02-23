@@ -13,7 +13,7 @@ import { ArrowLeft, Building2, Loader2, Download, Mail, CheckCircle, Clock } fro
 import { CreateTemplateDialog } from '@/components/CreateTemplateDialog';
 import { SendInvoiceDialog } from '@/components/SendInvoiceDialog';
 import { QRCodeSVG } from 'qrcode.react';
-import pausalBoxLogo from '@/assets/pausal-box-logo-light.png';
+// Logo removed - using ERP-AI branding
 import { generateInvoicePdf } from '@/hooks/usePdfGenerator';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatNumberSr } from '@/lib/utils';
@@ -839,13 +839,11 @@ export default function InvoiceDetail() {
             </div>
           </div>
 
-          {/* Paušal box logo - na dnu */}
+          {/* ERP-AI branding - na dnu */}
           <div className="flex justify-center pt-4 print:pt-2">
-            <img
-              src={pausalBoxLogo}
-              alt="Paušal box"
-              className="h-8 max-w-[120px] object-contain opacity-70 print:opacity-60 print:h-6"
-            />
+            <div className="text-xs text-muted-foreground font-medium">
+              ERP-AI Assistant
+            </div>
           </div>
         </CardContent>
       </Card>
