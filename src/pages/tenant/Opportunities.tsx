@@ -202,6 +202,12 @@ export default function Opportunities() {
                         <span className="text-sm font-bold">{fmt(o.value)}</span>
                         <span className="text-xs text-muted-foreground">{o.probability}%</span>
                       </div>
+                      {(o.won_amount > 0 || o.lost_amount > 0) && (
+                        <div className="flex gap-2 mt-1 text-xs">
+                          {o.won_amount > 0 && <span className="text-emerald-600 font-medium">✓ {fmt(o.won_amount)}</span>}
+                          {o.lost_amount > 0 && <span className="text-destructive font-medium">✗ {fmt(o.lost_amount)}</span>}
+                        </div>
+                      )}
                       {o.expected_close_date && (
                         <p className="text-xs text-muted-foreground mt-1">{o.expected_close_date}</p>
                       )}

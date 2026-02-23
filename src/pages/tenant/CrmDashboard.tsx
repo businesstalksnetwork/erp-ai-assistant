@@ -48,7 +48,7 @@ export default function CrmDashboard() {
   const { data: opps = [], isLoading: oppsLoading } = useQuery({
     queryKey: ["crm-opps-stats", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("opportunities").select("stage, value, salesperson_id").eq("tenant_id", tenantId!);
+      const { data } = await supabase.from("opportunities").select("stage, value, salesperson_id, won_amount, lost_amount").eq("tenant_id", tenantId!);
       return data || [];
     },
     enabled: !!tenantId,
@@ -137,11 +137,17 @@ export default function CrmDashboard() {
   const convertedLeads = leads.filter((l: any) => l.status === "converted").length;
   const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
-  const openOpps = opps.filter((o: any) => o.stage !== "closed_won" && o.stage !== "closed_lost");
+  const openOpps = opps.filter((o: any) => o.stage !== "closed_won" && o.stage !== "closed_lost" && o.stage !== "partial_won");
   const pipelineValue = openOpps.reduce((sum: number, o: any) => sum + (o.value || 0), 0);
   const wonOpps = opps.filter((o: any) => o.stage === "closed_won");
   const lostOpps = opps.filter((o: any) => o.stage === "closed_lost");
-  const winRate = wonOpps.length + lostOpps.length > 0 ? Math.round((wonOpps.length / (wonOpps.length + lostOpps.length)) * 100) : 0;
+  const partialOpps = opps.filter((o: any) => o.stage === "partial_won");
+  const totalClosed = wonOpps.length + lostOpps.length + partialOpps.length;
+  const winRate = totalClosed > 0 ? Math.round((wonOpps.length / totalClosed) * 100) : 0;
+  const partialWinRate = totalClosed > 0 ? Math.round(((wonOpps.length + partialOpps.length) / totalClosed) * 100) : 0;
+  const closedValueSum = [...wonOpps, ...lostOpps, ...partialOpps].reduce((s: number, o: any) => s + (o.value || 0), 0);
+  const wonValueSum = wonOpps.reduce((s: number, o: any) => s + (o.value || 0), 0) + partialOpps.reduce((s: number, o: any) => s + (o.won_amount || 0), 0);
+  const revenueWinRate = closedValueSum > 0 ? Math.round((wonValueSum / closedValueSum) * 100) : 0;
 
   const topKom = wholesaleSP.map((sp: any) => {
     const spOpps = openOpps.filter((o: any) => o.salesperson_id === sp.id);
@@ -186,7 +192,9 @@ export default function CrmDashboard() {
         { label: t("totalContacts"), value: contactsCount, icon: Users, color: "text-primary" },
         { label: t("totalLeads"), value: totalLeads, icon: Target, color: "text-accent" },
         { label: t("pipelineValue"), value: fmt(pipelineValue), icon: TrendingUp, color: "text-primary" },
-        { label: t("winRate"), value: `${winRate}%`, icon: Building2, color: "text-accent" },
+        { label: t("fullWinRate"), value: `${winRate}%`, icon: Building2, color: "text-accent" },
+        { label: t("partialWinRate"), value: `${partialWinRate}%`, icon: TrendingUp, color: "text-primary" },
+        { label: t("revenueWinRate"), value: `${revenueWinRate}%`, icon: Target, color: "text-accent" },
       ]}
     >
       {tenantId && <AiModuleInsights tenantId={tenantId} module="crm" />}

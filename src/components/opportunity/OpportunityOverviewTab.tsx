@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Calendar, X } from "lucide-react";
+import { FileText, Calendar, X, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 
@@ -43,11 +43,26 @@ export function OpportunityOverviewTab({
           <CardContent className="text-sm space-y-2">
             <div><span className="text-muted-foreground">{t("value")}:</span> <strong>{fmt(opp.value)}</strong></div>
             <div><span className="text-muted-foreground">{t("probability")}:</span> {opp.probability}%</div>
+            {opp.won_amount > 0 && (
+              <div><span className="text-muted-foreground">{t("wonAmount")}:</span> <strong className="text-emerald-600">{fmt(opp.won_amount)}</strong></div>
+            )}
+            {opp.lost_amount > 0 && (
+              <div><span className="text-muted-foreground">{t("lostAmount")}:</span> <strong className="text-destructive">{fmt(opp.lost_amount)}</strong></div>
+            )}
+            {opp.won_reason && <div><span className="text-muted-foreground">{t("wonReason")}:</span> {opp.won_reason}</div>}
+            {opp.lost_reason && <div><span className="text-muted-foreground">{t("lostReason")}:</span> {opp.lost_reason}</div>}
             <div><span className="text-muted-foreground">{t("contactPerson")}:</span> {contactName}</div>
             <div><span className="text-muted-foreground">{t("expectedCloseDate")}:</span> {opp.expected_close_date || "—"}</div>
             {opp.closed_at && <div><span className="text-muted-foreground">{t("closedAt")}:</span> {new Date(opp.closed_at).toLocaleDateString("sr-RS")}</div>}
             {opp.description && <div><span className="text-muted-foreground">{t("description")}:</span> {opp.description}</div>}
             {opp.notes && <div><span className="text-muted-foreground">{t("notes")}:</span> {opp.notes}</div>}
+            {opp.followup_opportunity_id && (
+              <div className="pt-1">
+                <Button variant="link" className="h-auto p-0 text-sm gap-1" onClick={() => navigate(`/crm/opportunities/${opp.followup_opportunity_id}`)}>
+                  <ExternalLink className="h-3 w-3" /> {t("followupOpportunity")}
+                </Button>
+              </div>
+            )}
             {oppPartners.length > 0 && (
               <div>
                 <span className="text-muted-foreground">{t("opportunityPartners")}:</span>
