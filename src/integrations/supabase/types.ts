@@ -355,6 +355,7 @@ export type Database = {
           generated_at: string
           id: string
           insight_type: string
+          language: string | null
           severity: string
           tenant_id: string
           title: string
@@ -366,6 +367,7 @@ export type Database = {
           generated_at?: string
           id?: string
           insight_type: string
+          language?: string | null
           severity?: string
           tenant_id: string
           title: string
@@ -377,6 +379,7 @@ export type Database = {
           generated_at?: string
           id?: string
           insight_type?: string
+          language?: string | null
           severity?: string
           tenant_id?: string
           title?: string
