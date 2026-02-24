@@ -1,28 +1,36 @@
 
-# Law Compliance Updates — COMPLETED ✅
 
-All 3 steps implemented successfully.
+# Fix: AI Insights Always in Serbian
 
-## Step 1: CIT Accrual in Year-End Closing ✅
-- Updated `perform_year_end_closing` RPC to accrue 15% CIT (Debit 7200, Credit 4810)
-- Gracefully skips if accounts 7200/4810 don't exist
-- Reduces retained earnings by CIT amount
-- Updated `YearEndClosing.tsx` preview with CIT accrual table
+## Problem
+The AI insights edge function already generates bilingual text (Serbian/English) based on the `language` parameter. However, the **cache table (`ai_insights_cache`) doesn't store or filter by language**. This means:
+1. First user loads insights in English -- they get cached
+2. Serbian user loads the same page -- gets cached English results
+3. Only after cache expires do they see Serbian
 
-## Step 2: PDPA (Serbian GDPR) Compliance Module ✅
-- Created `data_subject_requests` and `consent_records` tables with RLS
-- Added `data_retention_expiry` and `anonymized_at` columns to contacts/employees
-- Built `DataProtection.tsx` page with tabs for requests and consent records
-- Added route at `/settings/data-protection` and nav entry
-- Supports: create requests, export data (JSON), anonymize subjects
+The screenshots confirm this: badge labels ("Kritican", "Upozorenje", "Informacija") are translated client-side, but insight titles and descriptions come from the server in English.
 
-## Step 3: Voucher PDV Treatment ✅
-- Added `voucher_type` column to invoices and pos_transactions
-- Added voucher_original_invoice_id/transaction_id for redemption linking
-- Updated InvoiceForm.tsx with voucher type selector
-- Updated PosTerminal.tsx with voucher type buttons when payment=voucher
-- Updated fiscalize-receipt edge function: multi-purpose vouchers use tax category "O"
+## Solution
 
-## Skipped (per user request)
-- PayrollParameters defaults (28,423 → 34,221, PIO 11%→12%, etc.)
-- Contribution base clamping (already implemented in RPC)
+### 1. Add `language` column to `ai_insights_cache` (Migration)
+- Add a `language varchar(5) DEFAULT 'en'` column to `ai_insights_cache`
+- Update the cache index to include language
+
+### 2. Update `ai-insights` edge function
+- **Cache read** (line ~198): Add `.eq("language", language || "en")` to the cache query
+- **Cache write** (line ~710): Delete only matching language rows: `.eq("language", language || "en")` and include `language` in each inserted row
+- This allows both English and Serbian caches to coexist independently
+
+### 3. Redeploy the edge function
+
+## Files Changed
+| File | Change |
+|------|--------|
+| New migration SQL | Add `language` column to `ai_insights_cache` |
+| `supabase/functions/ai-insights/index.ts` | Filter cache by language on read/write |
+
+## Impact
+- Existing cached English insights will remain but won't be served to Serbian users (they'll get a fresh generation)
+- Both language versions cache independently with their own expiry
+- No UI changes needed -- the widgets already pass `locale` correctly
+
