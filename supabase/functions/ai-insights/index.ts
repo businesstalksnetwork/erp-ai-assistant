@@ -194,11 +194,14 @@ serve(async (req) => {
       }
     }
 
-    // Check cache
+    const lang = language || "en";
+
+    // Check cache (language-aware)
     const { data: cached } = await supabase
       .from("ai_insights_cache")
       .select("*")
       .eq("tenant_id", tenant_id)
+      .eq("language", lang)
       .gt("expires_at", new Date().toISOString())
       .order("generated_at", { ascending: false });
 
@@ -706,11 +709,11 @@ serve(async (req) => {
       insights, tenant_id, caller.id, language, supabase
     );
 
-    // Cache insights
-    await supabase.from("ai_insights_cache").delete().eq("tenant_id", tenant_id);
+    // Cache insights (per language)
+    await supabase.from("ai_insights_cache").delete().eq("tenant_id", tenant_id).eq("language", lang);
     if (prioritized.length > 0) {
       await supabase.from("ai_insights_cache").insert(
-        prioritized.map((i: any) => ({ tenant_id, ...i }))
+        prioritized.map((i: any) => ({ tenant_id, language: lang, ...i }))
       );
     }
 
