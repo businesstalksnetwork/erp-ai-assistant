@@ -102,15 +102,26 @@ export default function CompanyCategoriesSettings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('partner_category_assignments')
-        .select('category_id')
+        .select('category_id, partners(id, name, display_name, type)')
         .eq('tenant_id', tenantId!);
       if (error) throw error;
-      const countMap = new Map<string, number>();
-      data?.forEach(a => countMap.set(a.category_id, (countMap.get(a.category_id) || 0) + 1));
-      return countMap;
+      const map = new Map<string, Array<{ id: string; name: string; type: string }>>();
+      data?.forEach((a: any) => {
+        if (!a.partners) return;
+        const list = map.get(a.category_id) || [];
+        list.push({ id: a.partners.id, name: a.partners.display_name || a.partners.name, type: a.partners.type });
+        map.set(a.category_id, list);
+      });
+      return map;
     },
     enabled: !!tenantId,
   });
+
+  const TYPE_BADGE_COLORS: Record<string, string> = {
+    customer: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    supplier: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+    both: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  };
 
   const hierarchicalCategories = useMemo(() => {
     if (!categories) return [];
@@ -256,13 +267,14 @@ export default function CompanyCategoriesSettings() {
   const canDelete = (category: CompanyCategory) => {
     if (category.is_system) return false;
     if (hasChildren(category.id)) return false;
-    return !(categoriesInUse?.get(category.id));
+    const partners = categoriesInUse?.get(category.id);
+    return !partners || partners.length === 0;
   };
 
   const getDeleteTooltip = (category: CompanyCategory) => {
     if (category.is_system) return t('cannotDeleteSystem');
     if (hasChildren(category.id)) return t('cannotDeleteHasChildren');
-    if (categoriesInUse?.get(category.id)) return t('cannotDeleteInUse');
+    if (categoriesInUse?.get(category.id)?.length) return t('cannotDeleteInUse');
     return t('delete');
   };
 
@@ -401,7 +413,7 @@ export default function CompanyCategoriesSettings() {
                 <TableHead>{t('categoryCode')}</TableHead>
                 <TableHead>{t('categoryColor')}</TableHead>
                 <TableHead>Tip</TableHead>
-                <TableHead>U upotrebi</TableHead>
+                <TableHead>Partneri</TableHead>
                 <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -437,13 +449,22 @@ export default function CompanyCategoriesSettings() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {(categoriesInUse?.get(category.id) || 0) > 0 ? (
-                      <Badge variant="secondary" className="text-xs">
-                        {categoriesInUse?.get(category.id)} {categoriesInUse?.get(category.id) === 1 ? 'partner' : 'partnera'}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    {(() => {
+                      const partners = categoriesInUse?.get(category.id) || [];
+                      if (partners.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+                      return (
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {partners.slice(0, 5).map(p => (
+                            <Badge key={p.id} className={`text-xs ${TYPE_BADGE_COLORS[p.type] || ''}`}>
+                              {p.name}
+                            </Badge>
+                          ))}
+                          {partners.length > 5 && (
+                            <span className="text-xs text-muted-foreground">+{partners.length - 5}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
