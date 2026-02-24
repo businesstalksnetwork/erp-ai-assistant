@@ -105,7 +105,9 @@ export default function CompanyCategoriesSettings() {
         .select('category_id')
         .eq('tenant_id', tenantId!);
       if (error) throw error;
-      return new Set(data?.map(a => a.category_id) || []);
+      const countMap = new Map<string, number>();
+      data?.forEach(a => countMap.set(a.category_id, (countMap.get(a.category_id) || 0) + 1));
+      return countMap;
     },
     enabled: !!tenantId,
   });
@@ -254,13 +256,13 @@ export default function CompanyCategoriesSettings() {
   const canDelete = (category: CompanyCategory) => {
     if (category.is_system) return false;
     if (hasChildren(category.id)) return false;
-    return !categoriesInUse?.has(category.id);
+    return !(categoriesInUse?.get(category.id));
   };
 
   const getDeleteTooltip = (category: CompanyCategory) => {
     if (category.is_system) return t('cannotDeleteSystem');
     if (hasChildren(category.id)) return t('cannotDeleteHasChildren');
-    if (categoriesInUse?.has(category.id)) return t('cannotDeleteInUse');
+    if (categoriesInUse?.get(category.id)) return t('cannotDeleteInUse');
     return t('delete');
   };
 
@@ -399,6 +401,7 @@ export default function CompanyCategoriesSettings() {
                 <TableHead>{t('categoryCode')}</TableHead>
                 <TableHead>{t('categoryColor')}</TableHead>
                 <TableHead>Tip</TableHead>
+                <TableHead>U upotrebi</TableHead>
                 <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -433,6 +436,15 @@ export default function CompanyCategoriesSettings() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    {(categoriesInUse?.get(category.id) || 0) > 0 ? (
+                      <Badge variant="secondary" className="text-xs">
+                        {categoriesInUse?.get(category.id)} {categoriesInUse?.get(category.id) === 1 ? 'partner' : 'partnera'}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(category)}>
@@ -453,7 +465,7 @@ export default function CompanyCategoriesSettings() {
               ))}
               {(!categories || categories.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     Nema kategorija. Dodajte prvu kategoriju.
                   </TableCell>
                 </TableRow>
