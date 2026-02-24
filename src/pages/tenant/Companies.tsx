@@ -18,6 +18,12 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
+const TYPE_COLORS: Record<string, string> = {
+  customer: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  supplier: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  both: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+};
+
 const TIER_COLORS: Record<string, string> = {
   A: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   B: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -211,7 +217,7 @@ export default function Companies() {
     }},
     { key: "pib", label: t("pib"), hideOnMobile: true, render: (p) => p.pib || "—" },
     { key: "city", label: t("city"), hideOnMobile: true, render: (p) => p.city || "—" },
-    { key: "type", label: t("type"), render: (p) => <Badge variant="outline">{typeLabel(p.type)}</Badge> },
+    { key: "type", label: t("type"), render: (p) => <Badge className={TYPE_COLORS[p.type] || ""}>{typeLabel(p.type)}</Badge> },
     { key: "categories", label: t("categories"), hideOnMobile: true, render: (p) => (
       <div className="flex gap-1 flex-wrap">
         {p.partner_category_assignments?.map((a: any) => (
