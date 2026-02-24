@@ -1,36 +1,22 @@
 
 
-# Fix: AI Insights Always in Serbian
+# Add Colors to Partner Type Badges
 
-## Problem
-The AI insights edge function already generates bilingual text (Serbian/English) based on the `language` parameter. However, the **cache table (`ai_insights_cache`) doesn't store or filter by language**. This means:
-1. First user loads insights in English -- they get cached
-2. Serbian user loads the same page -- gets cached English results
-3. Only after cache expires do they see Serbian
+## What Changes
 
-The screenshots confirm this: badge labels ("Kritican", "Upozorenje", "Informacija") are translated client-side, but insight titles and descriptions come from the server in English.
+The partner type column ("Tip") currently shows plain gray outline badges for "Dobavljač", "Kupac", and "Oba". This update adds distinct colors to each type for better visual distinction.
 
-## Solution
+## Changes
 
-### 1. Add `language` column to `ai_insights_cache` (Migration)
-- Add a `language varchar(5) DEFAULT 'en'` column to `ai_insights_cache`
-- Update the cache index to include language
+### 1. Update `src/pages/tenant/Companies.tsx`
+- Add a `TYPE_COLORS` map assigning each partner type a color scheme:
+  - **customer (Kupac)**: Blue badge (e.g., `bg-blue-100 text-blue-800`)
+  - **supplier (Dobavljac)**: Purple badge (e.g., `bg-purple-100 text-purple-800`)
+  - **both (Oba)**: Green badge (e.g., `bg-emerald-100 text-emerald-800`)
+- Update the type column render (line 214) to use colored `Badge` instead of plain `variant="outline"`
 
-### 2. Update `ai-insights` edge function
-- **Cache read** (line ~198): Add `.eq("language", language || "en")` to the cache query
-- **Cache write** (line ~710): Delete only matching language rows: `.eq("language", language || "en")` and include `language` in each inserted row
-- This allows both English and Serbian caches to coexist independently
+### 2. Update `src/pages/tenant/CompanyDetail.tsx`
+- Apply the same colored type badge on the partner detail page for consistency
 
-### 3. Redeploy the edge function
-
-## Files Changed
-| File | Change |
-|------|--------|
-| New migration SQL | Add `language` column to `ai_insights_cache` |
-| `supabase/functions/ai-insights/index.ts` | Filter cache by language on read/write |
-
-## Impact
-- Existing cached English insights will remain but won't be served to Serbian users (they'll get a fresh generation)
-- Both language versions cache independently with their own expiry
-- No UI changes needed -- the widgets already pass `locale` correctly
+No database changes needed -- this is purely a UI styling update. Existing partners will automatically display the correct color based on their `type` field.
 
