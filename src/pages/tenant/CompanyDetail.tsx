@@ -18,6 +18,12 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
 
+const TYPE_COLORS: Record<string, string> = {
+  customer: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  supplier: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  both: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+};
+
 const TIER_COLORS: Record<string, string> = {
   A: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   B: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -227,7 +233,7 @@ export default function CompanyDetail() {
       <div className="flex items-center gap-4 flex-wrap">
         <Button variant="ghost" size="sm" onClick={() => navigate("/crm/companies")}><ArrowLeft className="h-4 w-4 mr-1" />{t("back")}</Button>
         <h1 className="text-2xl font-bold">{partner.display_name || partner.name}</h1>
-        <Badge variant="outline">{typeLabel(partner.type)}</Badge>
+        <Badge className={TYPE_COLORS[partner.type] || ""}>{typeLabel(partner.type)}</Badge>
         {partner.account_tier && (
           <Badge className={TIER_COLORS[partner.account_tier] || ""}>{t("accountTier")}: {partner.account_tier}</Badge>
         )}
