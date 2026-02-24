@@ -413,7 +413,7 @@ export default function CompanyCategoriesSettings() {
                 <TableHead>{t('categoryCode')}</TableHead>
                 <TableHead>{t('categoryColor')}</TableHead>
                 <TableHead>Tip</TableHead>
-                <TableHead>Partneri</TableHead>
+                
                 <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -447,24 +447,6 @@ export default function CompanyCategoriesSettings() {
                         <Badge variant="outline" className="text-xs">{t('subcategory')}</Badge>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const partners = categoriesInUse?.get(category.id) || [];
-                      if (partners.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
-                      return (
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {partners.slice(0, 5).map(p => (
-                            <Badge key={p.id} className={`text-xs ${TYPE_BADGE_COLORS[p.type] || ''}`}>
-                              {p.name}
-                            </Badge>
-                          ))}
-                          {partners.length > 5 && (
-                            <span className="text-xs text-muted-foreground">+{partners.length - 5}</span>
-                          )}
-                        </div>
-                      );
-                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
