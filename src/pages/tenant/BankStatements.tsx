@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Search, Link2, Check, X, Eye, FileText } from "lucide-react";
+import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck } from "lucide-react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useSearchParams } from "react-router-dom";
 
 export default function BankStatements() {
   const { t } = useLanguage();
@@ -24,6 +25,7 @@ export default function BankStatements() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
@@ -33,6 +35,15 @@ export default function BankStatements() {
   const [matchingLine, setMatchingLine] = useState<any>(null);
   const [matchType, setMatchType] = useState<"invoice" | "supplier_invoice">("invoice");
   const [matchId, setMatchId] = useState("");
+  const [lineFilter, setLineFilter] = useState<"all" | "unmatched" | "suggested" | "matched" | "posted">("all");
+
+  // Pre-select bank account from URL query param
+  useEffect(() => {
+    const accountId = searchParams.get("account_id");
+    if (accountId) {
+      setImportForm(f => ({ ...f, bank_account_id: accountId }));
+    }
+  }, [searchParams]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({
@@ -260,6 +271,22 @@ export default function BankStatements() {
     },
   });
 
+  // Bulk confirm all suggested matches
+  const bulkConfirmMutation = useMutation({
+    mutationFn: async (statementId: string) => {
+      const { data: lines } = await supabase.from("bank_statement_lines").select("id").eq("statement_id", statementId).eq("match_status", "suggested");
+      if (!lines?.length) return 0;
+      const { error } = await supabase.from("bank_statement_lines").update({ match_status: "matched" }).eq("statement_id", statementId).eq("match_status", "suggested");
+      if (error) throw error;
+      return lines.length;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["bank_statement_lines"] });
+      toast({ title: t("success"), description: `${count} ${t("transactionsMatched")}` });
+    },
+    onError: () => toast({ title: t("error"), variant: "destructive" }),
+  });
+
   // Post matched lines as journal entries
   const postMatchedMutation = useMutation({
     mutationFn: async (statementId: string) => {
@@ -343,8 +370,18 @@ export default function BankStatements() {
   ), [statements, debouncedSearch]);
 
   const unmatchedCount = statementLines.filter(l => l.match_status === "unmatched").length;
-  const matchedCount = statementLines.filter(l => l.match_status !== "unmatched").length;
+  const matchedCount = statementLines.filter(l => ["matched", "manually_matched"].includes(l.match_status)).length;
   const postedCount = statementLines.filter(l => l.journal_entry_id).length;
+  const suggestedCount = statementLines.filter(l => l.match_status === "suggested").length;
+
+  const filteredLines = useMemo(() => {
+    if (lineFilter === "all") return statementLines;
+    if (lineFilter === "unmatched") return statementLines.filter(l => l.match_status === "unmatched");
+    if (lineFilter === "suggested") return statementLines.filter(l => l.match_status === "suggested");
+    if (lineFilter === "matched") return statementLines.filter(l => ["matched", "manually_matched"].includes(l.match_status));
+    if (lineFilter === "posted") return statementLines.filter(l => l.journal_entry_id);
+    return statementLines;
+  }, [statementLines, lineFilter]);
 
   if (isLoading) return <p className="p-6">{t("loading")}</p>;
 
@@ -401,21 +438,35 @@ export default function BankStatements() {
               <h2 className="text-xl font-semibold">{t("statementNumber")}: {selectedStatement.statement_number || "—"}</h2>
               <p className="text-sm text-muted-foreground">{selectedStatement.statement_date} — {(selectedStatement as any).bank_accounts?.bank_name}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => autoMatchMutation.mutate(selectedStatement.id)} disabled={autoMatchMutation.isPending}>
                 <Link2 className="h-4 w-4 mr-2" />{t("autoMatch")}
               </Button>
+              {suggestedCount > 0 && (
+                <Button variant="outline" onClick={() => bulkConfirmMutation.mutate(selectedStatement.id)} disabled={bulkConfirmMutation.isPending}>
+                  <CheckCheck className="h-4 w-4 mr-2" />Confirm {suggestedCount} suggested
+                </Button>
+              )}
               <Button onClick={() => postMatchedMutation.mutate(selectedStatement.id)} disabled={postMatchedMutation.isPending || matchedCount === 0}>
                 <Check className="h-4 w-4 mr-2" />{t("postMatched")}
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("totalLines")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{statementLines.length}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("matched")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-green-600">{matchedCount}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("unmatched")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-orange-600">{unmatchedCount}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("matched")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-primary">{matchedCount}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Suggested</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-accent-foreground">{suggestedCount}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("unmatched")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold text-destructive">{unmatchedCount}</p></CardContent></Card>
           </div>
+
+          <TabsList>
+            <TabsTrigger value="all" onClick={() => setLineFilter("all")}>All ({statementLines.length})</TabsTrigger>
+            <TabsTrigger value="unmatched" onClick={() => setLineFilter("unmatched")}>Unmatched ({unmatchedCount})</TabsTrigger>
+            <TabsTrigger value="suggested" onClick={() => setLineFilter("suggested")}>Suggested ({suggestedCount})</TabsTrigger>
+            <TabsTrigger value="matched" onClick={() => setLineFilter("matched")}>Matched ({matchedCount})</TabsTrigger>
+            <TabsTrigger value="posted" onClick={() => setLineFilter("posted")}>Posted ({postedCount})</TabsTrigger>
+          </TabsList>
 
           <div className="rounded-md border">
             <Table>
@@ -432,7 +483,7 @@ export default function BankStatements() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {statementLines.map(l => (
+                {filteredLines.map(l => (
                   <TableRow key={l.id}>
                     <TableCell>{l.line_date}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{l.description || "—"}</TableCell>
