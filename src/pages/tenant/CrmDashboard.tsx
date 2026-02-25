@@ -222,7 +222,7 @@ export default function CrmDashboard() {
       {tenantId && (
         <AiAnalyticsNarrative
           tenantId={tenantId}
-          contextType="planning"
+          contextType="crm_pipeline"
           data={{
             totalLeads, convertedLeads, conversionRate, pipelineValue,
             openDeals: openOpps.length, winRate,
