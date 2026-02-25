@@ -3984,6 +3984,341 @@ export type Database = {
           },
         ]
       }
+      drive_audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          id: string
+          ip_address: unknown
+          new_value: Json | null
+          occurred_at: string
+          old_value: Json | null
+          resource_id: string
+          resource_name: string | null
+          resource_type: string
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          id?: string
+          ip_address?: unknown
+          new_value?: Json | null
+          occurred_at?: string
+          old_value?: Json | null
+          resource_id: string
+          resource_name?: string | null
+          resource_type: string
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          id?: string
+          ip_address?: unknown
+          new_value?: Json | null
+          occurred_at?: string
+          old_value?: Json | null
+          resource_id?: string
+          resource_name?: string | null
+          resource_type?: string
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drive_files: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          drive_id: string
+          folder_id: string
+          id: string
+          is_deleted: boolean
+          mime_type: string
+          original_name: string
+          s3_key: string | null
+          s3_version_id: string | null
+          sha256_hash: string | null
+          size_bytes: number
+          status: string
+          tags: string[] | null
+          tenant_id: string
+          thumbnail_s3_key: string | null
+          updated_at: string
+          uploaded_by: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          drive_id: string
+          folder_id: string
+          id?: string
+          is_deleted?: boolean
+          mime_type: string
+          original_name: string
+          s3_key?: string | null
+          s3_version_id?: string | null
+          sha256_hash?: string | null
+          size_bytes: number
+          status?: string
+          tags?: string[] | null
+          tenant_id: string
+          thumbnail_s3_key?: string | null
+          updated_at?: string
+          uploaded_by: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          drive_id?: string
+          folder_id?: string
+          id?: string
+          is_deleted?: boolean
+          mime_type?: string
+          original_name?: string
+          s3_key?: string | null
+          s3_version_id?: string | null
+          sha256_hash?: string | null
+          size_bytes?: number
+          status?: string
+          tags?: string[] | null
+          tenant_id?: string
+          thumbnail_s3_key?: string | null
+          updated_at?: string
+          uploaded_by?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_files_drive_id_fkey"
+            columns: ["drive_id"]
+            isOneToOne: false
+            referencedRelation: "drives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "drive_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drive_folders: {
+        Row: {
+          allowed_mime_types: string[] | null
+          color: string | null
+          created_at: string
+          created_by: string | null
+          depth: number
+          drive_id: string
+          full_path: string | null
+          id: string
+          inherit_permissions: boolean
+          is_system: boolean
+          name: string
+          parent_folder_id: string | null
+          s3_prefix: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_mime_types?: string[] | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          depth?: number
+          drive_id: string
+          full_path?: string | null
+          id?: string
+          inherit_permissions?: boolean
+          is_system?: boolean
+          name: string
+          parent_folder_id?: string | null
+          s3_prefix?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_mime_types?: string[] | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          depth?: number
+          drive_id?: string
+          full_path?: string | null
+          id?: string
+          inherit_permissions?: boolean
+          is_system?: boolean
+          name?: string
+          parent_folder_id?: string | null
+          s3_prefix?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_folders_drive_id_fkey"
+            columns: ["drive_id"]
+            isOneToOne: false
+            referencedRelation: "drives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "drive_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_folders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drive_permissions: {
+        Row: {
+          can_reshare: boolean
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          note: string | null
+          permission_level: string
+          propagate_to_children: boolean
+          resource_id: string
+          resource_type: string
+          subject_id: string | null
+          subject_type: string
+          tenant_id: string
+        }
+        Insert: {
+          can_reshare?: boolean
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          permission_level: string
+          propagate_to_children?: boolean
+          resource_id: string
+          resource_type: string
+          subject_id?: string | null
+          subject_type: string
+          tenant_id: string
+        }
+        Update: {
+          can_reshare?: boolean
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          permission_level?: string
+          propagate_to_children?: boolean
+          resource_id?: string
+          resource_type?: string
+          subject_id?: string | null
+          subject_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drives: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_permission: string
+          drive_type: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          quota_bytes: number | null
+          s3_prefix: string | null
+          tenant_id: string
+          updated_at: string
+          used_bytes: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_permission?: string
+          drive_type?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          quota_bytes?: number | null
+          s3_prefix?: string | null
+          tenant_id: string
+          updated_at?: string
+          used_bytes?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_permission?: string
+          drive_type?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          quota_bytes?: number | null
+          s3_prefix?: string | null
+          tenant_id?: string
+          updated_at?: string
+          used_bytes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drives_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ebolovanje_claims: {
         Row: {
           amount: number | null
