@@ -21,6 +21,7 @@ import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
 import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
 import { CashflowForecastWidget } from "@/components/dashboard/CashflowForecastWidget";
 import { ComplianceDeadlineWidget } from "@/components/dashboard/ComplianceDeadlineWidget";
+import { PayrollCostWidget } from "@/components/dashboard/PayrollCostWidget";
 import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 import { addDays } from "date-fns";
 
@@ -205,6 +206,11 @@ export default function TenantDashboard() {
           <CashflowForecastWidget tenantId={tenantId} />
           <ComplianceDeadlineWidget tenantId={tenantId} />
         </div>
+      )}
+
+      {/* Payroll Cost Trend */}
+      {tenantId && canAccess("hr") && (
+        <PayrollCostWidget tenantId={tenantId} />
       )}
 
       {/* Module Health */}
