@@ -1,104 +1,96 @@
 
 
-# Plan: Drive + DMS Integration, Sidebar Reorganization, and DMS Settings Fix
+# Plan: Drive Share Dialog and Version History
 
-## Summary
+## Scope
 
-Three interconnected improvements: (1) reorganize sidebar to show Drive prominently below DMS, (2) connect DMS documents/files to Drive storage with organized per-tenant subfolder structure, (3) add DMS Settings as a tab in main Settings page, and fix the standalone DMS Settings route.
+Two features added to the Drive module:
 
-## Root Cause: DMS Settings Issue
+1. **Share Dialog** -- UI to manage the existing `drive_permissions` table, allowing granting read/write/admin access to employees
+2. **Version History** -- new `drive_file_versions` table + UI to view and restore previous file versions, plus edge function updates
 
-The `documents/settings` route is defined after `documents/:id` in `otherRoutes.tsx` (lines 111 vs 118). While React Router v6 should handle static vs dynamic ranking correctly, there may be a module-gating issue where the `documents` module isn't enabled for the tenant, causing a redirect. The DMS Settings page code itself is correct. To make it reliably accessible, we'll also add it as a tab in the main Settings page.
+## Database
 
-## Changes
+### New table: `drive_file_versions`
 
-### 1. Sidebar Reorganization (`TenantLayout.tsx`)
-
-Restructure `documentsNav` array to clearly separate Drive and DMS:
-- Rename the group label from "documents" to "Documents & Drive" (with i18n)
-- Ensure Drive appears first with its own section label "fileManagement"
-- DMS items follow under section "registry"
-- Remove `dmsSettings` from the documents nav (moved to main Settings)
-
-### 2. Drive Default Folder Structure Enhancement (`Drive.tsx`)
-
-Update the auto-create drive logic to create organized per-tenant subfolders matching ERP modules:
-
-```text
-Company Drive
-├── Računovodstvo (Accounting)
-│   ├── Fakture (Invoices)
-│   ├── Izvodi (Bank Statements)
-│   └── Izveštaji (Reports)
-├── HR
-│   ├── Ugovori (Contracts)
-│   ├── Plate (Payroll)
-│   └── Dokumenta zaposlenih (Employee Docs)
-├── Prodaja (Sales)
-│   ├── Ponude (Quotes)
-│   ├── Narudžbine (Orders)
-│   └── Otpremnice (Dispatch Notes)
-├── Nabavka (Purchasing)
-│   ├── Nabavke (Purchase Orders)
-│   └── Prijemnice (Goods Receipts)
-├── Projekti (Projects)
-├── Opšte (General)
-└── Menadžment (Management)
-```
-
-This replaces the current flat 5-folder default structure.
-
-### 3. Connect DMS to Drive (`Documents.tsx` + `Drive.tsx`)
-
-- Add a "View in Drive" button on DMS document detail that navigates to the corresponding Drive folder
-- When DMS registers a new document, optionally link it to a `drive_file` record (via `dms_document_id` column on `drive_files`)
-- Add a "DMS Documents" system folder in Drive that mirrors the DMS registry structure
-
-**Database migration**: Add `dms_document_id` nullable column to `drive_files` table:
 ```sql
-ALTER TABLE drive_files ADD COLUMN dms_document_id uuid REFERENCES documents(id) ON DELETE SET NULL;
-CREATE INDEX idx_drive_files_dms_doc ON drive_files(dms_document_id) WHERE dms_document_id IS NOT NULL;
+CREATE TABLE public.drive_file_versions (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  file_id UUID NOT NULL REFERENCES public.drive_files(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  version_number INT NOT NULL,
+  s3_key TEXT NOT NULL,
+  size_bytes BIGINT NOT NULL DEFAULT 0,
+  mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  uploaded_by UUID NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note TEXT
+);
 ```
 
-### 4. DMS Settings in Main Settings Page (`Settings.tsx`)
+RLS: tenant members can SELECT; admin/manager roles can INSERT/UPDATE/DELETE. Index on `file_id`.
 
-Add a new "DMS" section to the Settings page with a link card:
-```typescript
-{
-  title: t("dmsSettings"),
-  links: [
-    { label: t("dmsSettings"), icon: FolderOpen, to: "/settings/dms" },
-  ],
-}
-```
+No other schema changes needed -- `drive_permissions` and `drive_files.version` already exist.
 
-Also add a new settings route `/settings/dms` that renders the `DmsSettings` component.
+## Frontend Changes (`Drive.tsx`)
 
-### 5. Settings Route Addition (`settingsRoutes.tsx`)
+### Share Dialog
 
-Add:
-```typescript
-const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
-// ...
-<Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><DmsSettings /></ProtectedRoute>} />
-```
+- Add `Share` and `History` lucide icons to imports
+- New state: `shareDialogOpen`, `shareTarget` (type + id + name)
+- Add "Share" menu item to file and folder dropdown menus
+- Dialog content:
+  - Fetch existing permissions from `drive_permissions` where `resource_id = target.id`
+  - List current grants with badge (READ/WRITE/ADMIN) and delete button
+  - Add form: employee selector (query `employees` table), permission level radio group (Read/Write/Admin), checkbox for "Apply to subfolders"
+  - Insert into `drive_permissions` on save
+- Uses existing table columns: `resource_type`, `resource_id`, `subject_type` (USER), `subject_id`, `permission_level`, `tenant_id`, `granted_by`, `propagate_to_children`
 
-### 6. Translation Keys (`translations.ts`)
+### Version History Dialog
 
-Add/update:
-- `documentsAndDrive` / `Dokumenti i Drive`
-- `fileManagement` / `Upravljanje fajlovima` (if not present)
-- `viewInDrive` / `Prikaži u Drive-u`
+- New state: `versionDialogOpen`, `versionFileId`
+- Add "Version History" menu item to file dropdown
+- Dialog content:
+  - Current version info (version number from `drive_files.version`, upload date)
+  - List of previous versions from `drive_file_versions` ordered by `version_number DESC`
+  - Each row: version number, date, size, uploader
+  - "Restore" button calls edge function `restore_version` action
+  - "Download" button calls edge function with version's `s3_key`
+  - "Upload New Version" button triggers file input, calls `upload_new_version` action
+
+## Edge Function (`drive-presign/index.ts`)
+
+### New action: `upload_new_version`
+
+1. Fetch current file's `s3_key`, `version`, `size_bytes`, `mime_type`
+2. Insert current state into `drive_file_versions` (archiving it)
+3. Generate new `s3_key` and presigned PUT URL
+4. Update `drive_files` with new `s3_key`, increment `version`, update `size_bytes`
+5. Return `{ presignedUrl, fileId, s3Key, newVersion }`
+
+### New action: `restore_version`
+
+1. Fetch current file and target version from `drive_file_versions`
+2. Archive current state into `drive_file_versions`
+3. Copy restored version's `s3_key` back to `drive_files`, increment `version`
+4. Return `{ success: true, restoredVersion }`
+
+### New action: `download_version`
+
+1. Fetch version record from `drive_file_versions`
+2. Generate presigned GET URL for that version's `s3_key`
+3. Return `{ presignedUrl }`
+
+## Translations (`translations.ts`)
+
+Add keys: `share`, `shareWith`, `permissionLevel`, `readAccess`, `writeAccess`, `adminAccess`, `applyToSubfolders`, `versionHistory`, `currentVersion`, `restoreVersion`, `uploadNewVersion`, `noVersions`, `removeAccess`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/layouts/TenantLayout.tsx` | Remove `dmsSettings` from `documentsNav`, ensure Drive is first with clear sections |
-| `src/pages/tenant/Drive.tsx` | Enhanced default folder structure with nested subfolders per ERP module |
-| `src/pages/tenant/Settings.tsx` | Add DMS section with link to `/settings/dms` |
-| `src/routes/settingsRoutes.tsx` | Add `/settings/dms` route pointing to DmsSettings |
-| `src/routes/otherRoutes.tsx` | Keep `documents/settings` route for backward compat |
-| `src/i18n/translations.ts` | Add new translation keys |
-| `supabase/migrations/...` | Add `dms_document_id` column to `drive_files` |
+| `supabase/migrations/...` | Create `drive_file_versions` table with RLS |
+| `supabase/functions/drive-presign/index.ts` | Add `upload_new_version`, `restore_version`, `download_version` actions |
+| `src/pages/tenant/Drive.tsx` | Add Share dialog, Version History dialog, new menu items |
+| `src/i18n/translations.ts` | Add translation keys |
 
