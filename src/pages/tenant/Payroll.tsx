@@ -102,7 +102,22 @@ export default function Payroll() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Serbian GL mapping per PRD: 520/521 Expense, 525 Employer Contrib, 4620 Net, 4631 Tax, 4632 Employee Contrib, 4633 Employer Contrib
+  // GL posting uses configurable posting rules from posting_rule_catalog
+  const { data: postingRules = [] } = useQuery({
+    queryKey: ["posting_rules_payroll", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("posting_rule_catalog")
+        .select("rule_code, debit_account_code, credit_account_code")
+        .eq("tenant_id", tenantId!)
+        .in("rule_code", ["payroll_gross_exp", "payroll_net_payable", "payroll_tax", "payroll_employee_contrib", "payroll_employer_exp", "payroll_employer_contrib", "payroll_bank"]);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const getRule = (code: string) => postingRules.find((r: any) => r.rule_code === code);
+
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const run = runs.find((r: any) => r.id === id);
@@ -112,6 +127,17 @@ export default function Payroll() {
       const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
 
       if (status === "approved") {
+        const rGross = getRule("payroll_gross_exp");
+        const rNet = getRule("payroll_net_payable");
+        const rTax = getRule("payroll_tax");
+        const rEmpContrib = getRule("payroll_employee_contrib");
+        const rErExp = getRule("payroll_employer_exp");
+        const rErContrib = getRule("payroll_employer_contrib");
+
+        if (!rGross?.debit_account_code || !rNet?.credit_account_code || !rTax?.credit_account_code) {
+          throw new Error("Payroll posting rules not configured. Go to Settings → Posting Rules.");
+        }
+
         const { data: items } = await supabase.from("payroll_items").select("*").eq("payroll_run_id", id);
         const totalPioE = items?.reduce((s, i) => s + Number(i.pension_contribution), 0) || 0;
         const totalHealthE = items?.reduce((s, i) => s + Number(i.health_contribution), 0) || 0;
@@ -121,39 +147,46 @@ export default function Payroll() {
         const totalEmployeeContrib = totalPioE + totalHealthE + totalUnempE;
         const totalEmployerContrib = totalPioR + totalHealthR;
 
-        // Employee accrual: D:5200 Bruto / P:4620 Net / P:4631 Tax / P:4632 Employee Contributions
+        const accrualLines: any[] = [
+          { accountCode: rGross.debit_account_code, debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
+          { accountCode: rNet.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
+          { accountCode: rTax.credit_account_code, debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
+        ];
+        if (rEmpContrib?.credit_account_code && totalEmployeeContrib > 0) {
+          accrualLines.push({ accountCode: rEmpContrib.credit_account_code, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
+        }
+
         await createCodeBasedJournalEntry({
           tenantId, userId: user?.id || null, entryDate,
           description: `Obračun zarada ${periodLabel}`,
           reference: `PR-${periodLabel}`,
-          lines: [
-            { accountCode: "5200", debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "4620", debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
-            { accountCode: "4631", debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
-            { accountCode: "4632", debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 },
-          ],
+          lines: accrualLines,
         });
-        // Employer contributions: D:5250 / P:4633
-        if (totalEmployerContrib > 0) {
+
+        if (totalEmployerContrib > 0 && rErExp?.debit_account_code && rErContrib?.credit_account_code) {
           await createCodeBasedJournalEntry({
             tenantId, userId: user?.id || null, entryDate,
             description: `Doprinosi poslodavca ${periodLabel}`,
             reference: `PR-EC-${periodLabel}`,
             lines: [
-              { accountCode: "5250", debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
-              { accountCode: "4633", debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
+              { accountCode: rErExp.debit_account_code, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
+              { accountCode: rErContrib.credit_account_code, debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
             ],
           });
         }
       } else if (status === "paid") {
-        // Payment: D:4620 Net / P:2410 Bank
+        const rBank = getRule("payroll_bank");
+        const rNet = getRule("payroll_net_payable");
+        if (!rBank?.debit_account_code || !rBank?.credit_account_code) {
+          throw new Error("Payroll bank posting rule not configured. Go to Settings → Posting Rules.");
+        }
         await createCodeBasedJournalEntry({
           tenantId, userId: user?.id || null, entryDate,
           description: `Isplata zarada ${periodLabel}`,
           reference: `PR-PAY-${periodLabel}`,
           lines: [
-            { accountCode: "4620", debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "2410", debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
+            { accountCode: rBank.debit_account_code, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
+            { accountCode: rBank.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
         });
       }

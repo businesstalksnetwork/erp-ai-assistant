@@ -16,7 +16,7 @@ import { BookOpen, Save } from "lucide-react";
 const MODULE_GROUPS = [
   { key: "pos", rules: ["pos_cash_receipt", "pos_card_receipt", "pos_revenue", "pos_output_vat", "pos_cogs", "pos_retail_inv", "pos_reverse_markup", "pos_embedded_vat"] },
   { key: "invoicing", rules: ["invoice_ar", "invoice_revenue", "invoice_output_vat", "invoice_cogs", "invoice_inventory"] },
-  { key: "payroll", rules: ["payroll_gross_exp", "payroll_net_payable", "payroll_tax", "payroll_bank"] },
+  { key: "payroll", rules: ["payroll_gross_exp", "payroll_net_payable", "payroll_tax", "payroll_employee_contrib", "payroll_employer_exp", "payroll_employer_contrib", "payroll_bank"] },
 ];
 
 export default function PostingRules() {
