@@ -14,7 +14,7 @@ import { ArrowLeft, FileText, Download, Check, Banknote, CreditCard } from "luci
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { exportToCsv } from "@/lib/exportCsv";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PayrollRunDetail() {
@@ -97,19 +97,23 @@ export default function PayrollRunDetail() {
           accrualLines.push({ accountCode: rEmpContrib.credit_account_code, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
         }
 
-        await createCodeBasedJournalEntry({
-          tenantId, userId: user?.id || null, entryDate,
+        await postWithRuleOrFallback({
+          tenantId: tenantId!, userId: user?.id || null, entryDate,
+          modelCode: "PAYROLL_NET", amount: Number(run.total_gross),
           description: `Obračun zarada ${periodLabel}`,
           reference: `PR-${periodLabel}`,
-          lines: accrualLines,
+          context: {},
+          fallbackLines: accrualLines,
         });
 
         if (totalEmployerContrib > 0 && rErExp?.debit_account_code && rErContrib?.credit_account_code) {
-          await createCodeBasedJournalEntry({
-            tenantId, userId: user?.id || null, entryDate,
+          await postWithRuleOrFallback({
+            tenantId: tenantId!, userId: user?.id || null, entryDate,
+            modelCode: "PAYROLL_TAX", amount: totalEmployerContrib,
             description: `Doprinosi poslodavca ${periodLabel}`,
             reference: `PR-EC-${periodLabel}`,
-            lines: [
+            context: {},
+            fallbackLines: [
               { accountCode: rErExp.debit_account_code, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
               { accountCode: rErContrib.credit_account_code, debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
             ],
@@ -120,11 +124,13 @@ export default function PayrollRunDetail() {
         if (!rBank?.debit_account_code || !rBank?.credit_account_code) {
           throw new Error("Payroll bank posting rule not configured.");
         }
-        await createCodeBasedJournalEntry({
-          tenantId, userId: user?.id || null, entryDate,
+        await postWithRuleOrFallback({
+          tenantId: tenantId!, userId: user?.id || null, entryDate,
+          modelCode: "PAYROLL_NET", amount: Number(run.total_net),
           description: `Isplata zarada ${periodLabel}`,
           reference: `PR-PAY-${periodLabel}`,
-          lines: [
+          context: {},
+          fallbackLines: [
             { accountCode: rBank.debit_account_code, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
             { accountCode: rBank.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
