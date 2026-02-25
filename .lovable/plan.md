@@ -1,139 +1,60 @@
 
 
-# Implementation Plan: Bank Accounts Module Upgrade (PRD)
+# Next Improvements for the Bank Module & Broader System
 
-This PRD describes a comprehensive bank account management and document import system. Comparing against what already exists, here is what needs to be built.
-
-## What Already Exists
-
-```text
-FEATURE                          STATUS
-────────────────────────────     ──────
-bank_accounts table              ✅ Basic (name, number, currency, primary, active, gl_account_id)
-bank_statements table            ✅ With import, number, balances, status
-bank_statement_lines table       ✅ With matching (invoice, supplier_invoice, journal_entry)
-Auto-matching algorithm          ✅ 4-step confidence scoring (amount, reference, partner, date)
-Manual matching UI               ✅ Dialog-based
-GL posting of matched lines      ✅ Via createCodeBasedJournalEntry
-CSV import                       ✅ Basic (auto-detect columns)
-Bank reconciliation tables       ✅ bank_reconciliations + bank_reconciliation_lines
-BankAccounts page                ✅ CRUD table with search, legal entity, primary flag
-BankStatements page              ✅ List + detail + import + match + post
-```
-
-## What's Missing (from the PRD)
-
-### PHASE 1: Enhanced Bank Account Model
-
-**1.1 New columns on `bank_accounts`:**
-- `iban` (text) — IBAN number with RS validation
-- `account_type` (text) — CURRENT, FOREIGN, SAVINGS, LOAN
-- `swift_code` (text) — SWIFT/BIC code
-- `bank_code` (text, 3 chars) — NBS bank code (auto-detected from IBAN)
-- `opening_date` (date)
-- `closing_date` (date)
-- `purpose` (text) — Account purpose description
-- `updated_at` (timestamptz)
-
-**1.2 New table: `banks` (bank registry)**
-- id, name, swift_code, bank_code (3-digit NBS), country, email_domain
-- Seed with major Serbian banks (Intesa, UniCredit, Raiffeisen, OTP, Addiko, Erste, ProCredit, Halkbank, etc.)
-
-**1.3 Updated BankAccounts UI:**
-- Card view (not just table) showing IBAN, type, currency, last sync status
-- IBAN validation (Mod 97 algorithm) on form
-- Auto-detect bank from IBAN first 3 digits
-- Bank selector from `banks` registry
-- Quick action buttons: "Import statement" | "Transactions" | "Settings"
-
-### PHASE 2: Document Import Pipeline
-
-**2.1 New table: `document_imports`**
-- id, tenant_id, source_type (EMAIL/MANUAL_UPLOAD), original_filename, file_format (CAMT053/MT940/NBS_XML/CSV/PDF), file_size_bytes, sha256_hash, storage_path, status (PENDING/PROCESSING/PARSED/MATCHED/ERROR/QUARANTINE), parser_used, ocr_confidence_avg, transactions_count, bank_account_id, error_message, imported_at, processed_at
-
-**2.2 Enhanced CSV Parser with bank-specific profiles:**
-- New table: `csv_import_profiles` — id, tenant_id, bank_id, profile_name, separator, encoding, header_row, date_format, decimal_separator, column_mappings (jsonb)
-- Pre-seeded profiles for major Serbian banks
-- Profile selection during import instead of auto-detect only
-
-**2.3 XML Parser edge function: `parse-bank-xml`**
-- Support camt.053.001.02, camt.053.001.06, MT940, NBS-XML
-- Extract: IBAN, statement number, period, opening/closing balance, all transactions with counterparty details
-- SHA-256 deduplication
-
-**2.4 Document Import UI:**
-- Drag & drop upload zone (XML, CSV, PDF)
-- Import history with status badges
-- Quarantine tab for failed imports
-- Bank account auto-detection from IBAN in document
-
-### PHASE 3: Enhanced Matching & Reconciliation
-
-**3.1 Additional columns on `bank_statement_lines`:**
-- `value_date` (date) — Settlement date
-- `counterparty_iban` (text)
-- `counterparty_bank` (text)  
-- `transaction_type` (text) — WIRE, DIRECT_DEBIT, FEE, CARD, INTERNAL, SALARY, TAX
-- `match_confidence` (numeric) — Store the confidence score
-- `document_import_id` (uuid FK) — Link back to source document
-
-**3.2 Enhanced match_status enum:**
-- Add `suggested` and `excluded` statuses (suggested already used in code but not formally defined)
-
-**3.3 Bulk match confirmation UI:**
-- "Confirm all suggestions" button for batch approval
-- Filter by match_status in transaction list
+After reviewing the current state of `BankAccounts.tsx`, `BankStatements.tsx`, `BankDocumentImport.tsx`, and `AccountingHub.tsx`, here are the most impactful improvements ranked by value.
 
 ---
 
-## Recommended Implementation Order
+## 1. Auto-detect bank from RSD account number (HIGH)
 
-```text
-STEP   SCOPE                                    EFFORT
-─────  ──────────────────────────────────────    ──────
-  1    DB: Enhance bank_accounts + create        Medium
-       banks registry + document_imports +
-       csv_import_profiles + enhance
-       bank_statement_lines
+Serbian dinar accounts don't use IBAN, but the account number format `XXX-XXXXXXXXX-XX` still contains the 3-digit bank code in the first segment. Currently, bank auto-detection only works via IBAN (which is now hidden for RSD). We should parse the bank code from the RSD account number too.
 
-  2    UI: Upgrade BankAccounts page to card      Medium
-       view with IBAN validation, bank
-       registry selector, account types
+**Change**: In `BankAccounts.tsx`, when `currency === "RSD"` and the user types an account number matching `^\d{3}-`, extract the first 3 digits and auto-fill bank from the `banks` registry — same as the IBAN flow does.
 
-  3    Edge function: parse-bank-xml for          Large
-       camt.053 / MT940 / NBS-XML parsing
+---
 
-  4    UI: Document Import page with drag &       Medium
-       drop, import history, quarantine
+## 2. Account number format validation for RSD (HIGH)
 
-  5    UI: Enhanced BankStatements with            Small
-       confidence scores, bulk confirm,
-       transaction type badges
-```
+Serbian RSD accounts follow the format `XXX-XXXXXXXXXX-XX` (3 digits, dash, 10+ digits, dash, 2 digits). Add real-time validation with a visual indicator, similar to how IBAN validation works for foreign currency accounts.
 
-## What is Out of Scope (per PRD v1.0)
-- Email/IMAP integration (Phase 3 of PRD — complex, requires external services)
-- PDF/OCR processing (Phase 4 of PRD — requires Tesseract, heavy infra)
-- Direct bank API (PSD2/Open Banking)
-- These are noted for future phases.
+**Change**: Add a `validateRSDAccount()` function and show check/error below the account number input when `currency === "RSD"`.
 
-## Technical Details
+---
 
-**Database migration** will:
-1. Create `banks` table with RLS + seed 10 Serbian banks
-2. Add columns to `bank_accounts`: iban, account_type, swift_code, bank_code, opening_date, closing_date, purpose, bank_id FK, updated_at
-3. Create `document_imports` table with RLS
-4. Create `csv_import_profiles` table with RLS + seed default profiles
-5. Add columns to `bank_statement_lines`: value_date, counterparty_iban, counterparty_bank, transaction_type, match_confidence, document_import_id
+## 3. Bulk confirm suggested matches on BankStatements (MEDIUM)
 
-**Files to create:**
-- `supabase/functions/parse-bank-xml/index.ts` — XML parser for camt.053/MT940/NBS
-- `src/pages/tenant/DocumentBrowser.tsx` — Already exists, needs enhancement or new `BankDocumentImport.tsx`
+The auto-match algorithm already produces `suggested` status lines (confidence 40-69%), but there's no way to approve them in bulk. Users must manually match each one.
 
-**Files to modify:**
-- `src/pages/tenant/BankAccounts.tsx` — Card view, IBAN validation, bank registry, account types
-- `src/pages/tenant/BankStatements.tsx` — Confidence badges, bulk confirm, document import link
-- `src/pages/tenant/AccountingHub.tsx` — Add "Document Import" link
-- `src/routes/accountingRoutes.tsx` — Add new route if needed
-- `src/integrations/supabase/types.ts` — Auto-updated by migration
+**Change**: In `BankStatements.tsx`, add a "Confirm all suggestions" button that upgrades all `suggested` lines to `matched` status in one operation.
+
+---
+
+## 4. Filter statement lines by match status (MEDIUM)
+
+The statement detail view shows all lines in a single list. For statements with 100+ lines, users need to quickly see only unmatched or suggested lines.
+
+**Change**: Add a `TabsList` or filter dropdown above the statement lines table to filter by `unmatched`, `suggested`, `matched`, `posted`.
+
+---
+
+## 5. Link "Izvodi" and "Uvoz" buttons on account cards to that specific account (LOW)
+
+Currently, the card buttons navigate to `/accounting/bank-statements` and `/accounting/document-import` without any account context. They should pre-filter for the specific bank account.
+
+**Change**: Pass `?account_id=XXX` query param and read it on the target pages to pre-select the account filter.
+
+---
+
+## Proposed Implementation Order
+
+| Step | What | Files |
+|------|-------|-------|
+| 1 | RSD account number bank auto-detection | `BankAccounts.tsx` |
+| 2 | RSD format validation (`XXX-XXXXXXXXXX-XX`) | `BankAccounts.tsx` |
+| 3 | Bulk confirm suggested matches | `BankStatements.tsx` |
+| 4 | Statement lines filter by match status | `BankStatements.tsx` |
+| 5 | Account-specific navigation from cards | `BankAccounts.tsx`, `BankStatements.tsx`, `BankDocumentImport.tsx` |
+
+All changes are UI-only, no database migrations needed.
 
