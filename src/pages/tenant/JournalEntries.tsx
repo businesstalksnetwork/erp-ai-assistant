@@ -212,7 +212,7 @@ export default function JournalEntries() {
     <div className="space-y-5 animate-in fade-in duration-300">
       <PageHeader
         title={t("journalEntries")}
-        description={"Double-entry bookkeeping journal"}
+        description={t("journalEntriesDesc")}
         icon={Calculator}
         actions={
           <div className="flex gap-2">

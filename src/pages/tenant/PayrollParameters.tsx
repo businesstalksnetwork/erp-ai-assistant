@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calculator, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -197,6 +198,7 @@ export default function PayrollParameters() {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(defaultForm);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: params = [], isLoading } = useQuery({
     queryKey: ["payroll-parameters", tenantId],
@@ -386,7 +388,7 @@ export default function PayrollParameters() {
                               size="icon"
                               variant="ghost"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => { if (confirm(t("deleteConfirmation"))) deleteMutation.mutate(p.id); }}
+                              onClick={() => setDeleteId(p.id)}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -417,6 +419,19 @@ export default function PayrollParameters() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }}>{t("delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

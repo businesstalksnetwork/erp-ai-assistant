@@ -236,7 +236,7 @@ export default function Invoices() {
     <div className="space-y-5 animate-in fade-in duration-300">
       <PageHeader
         title={t("invoices")}
-        description={"Create and manage invoices"}
+        description={t("invoicesDesc")}
         icon={Receipt}
         actions={
           <div className="flex gap-2">

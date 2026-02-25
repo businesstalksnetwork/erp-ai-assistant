@@ -22,13 +22,13 @@ export function DiscountApprovalBadge({ quoteId, tenantId, maxDiscountPct }: Dis
     return <Badge variant="success">{t("approved")}</Badge>;
   }
   if (approvalStatus === "pending") {
-    return <Badge variant="warning">{t("pendingDiscountApproval" as any)}</Badge>;
+    return <Badge variant="warning">{t("pendingDiscountApproval")}</Badge>;
   }
   if (approvalStatus === "rejected") {
     return <Badge variant="destructive">{t("rejected")}</Badge>;
   }
   if (needsApproval) {
-    return <Badge variant="destructive">{t("discountExceedsLimit" as any)}</Badge>;
+    return <Badge variant="destructive">{t("discountExceedsLimit")}</Badge>;
   }
 
   return null;

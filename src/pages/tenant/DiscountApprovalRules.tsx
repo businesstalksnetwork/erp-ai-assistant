@@ -99,14 +99,14 @@ export default function DiscountApprovalRules() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("discountApprovalRules" as any)}
+        title={t("discountApprovalRules")}
         icon={Percent}
-        description={t("discountApprovalRules" as any)}
-        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addRule" as any)}</Button>}
+        description={t("discountApprovalRules")}
+        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addRule")}</Button>}
       />
 
       <Card>
-        <CardHeader><CardTitle>{t("discountApprovalRules" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("discountApprovalRules")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">{t("loading")}</p>
@@ -117,8 +117,8 @@ export default function DiscountApprovalRules() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("roles")}</TableHead>
-                  <TableHead>{t("maxDiscountPct" as any)}</TableHead>
-                  <TableHead>{t("requiresApprovalAbove" as any)}</TableHead>
+                   <TableHead>{t("maxDiscountPct")}</TableHead>
+                   <TableHead>{t("requiresApprovalAbove")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -144,7 +144,7 @@ export default function DiscountApprovalRules() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? t("edit") : t("addRule" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? t("edit") : t("addRule")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>{t("roles")}</Label>
@@ -157,11 +157,11 @@ export default function DiscountApprovalRules() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("maxDiscountPct" as any)}</Label>
+                <Label>{t("maxDiscountPct")}</Label>
                 <Input type="number" min={0} max={100} value={form.max_discount_pct} onChange={(e) => setForm({ ...form, max_discount_pct: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("requiresApprovalAbove" as any)}</Label>
+                <Label>{t("requiresApprovalAbove")}</Label>
                 <Input type="number" min={0} max={100} value={form.requires_approval_above} onChange={(e) => setForm({ ...form, requires_approval_above: e.target.value })} placeholder={t("optional")} />
               </div>
             </div>

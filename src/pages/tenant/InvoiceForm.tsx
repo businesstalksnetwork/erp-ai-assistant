@@ -427,7 +427,7 @@ export default function InvoiceForm() {
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isReadOnly} />
           </div>
           <div>
-            <Label>{t("invoiceType" as any)}</Label>
+            <Label>{t("invoiceType")}</Label>
             <Select value={invoiceType} onValueChange={(v) => setInvoiceType(v as any)} disabled={isReadOnly}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
