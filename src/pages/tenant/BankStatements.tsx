@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck } from "lucide-react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { findPostingRule, resolvePostingRuleToJournalLines } from "@/lib/postingRuleEngine";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSearchParams } from "react-router-dom";
 
@@ -296,15 +297,23 @@ export default function BankStatements() {
       let posted = 0;
       for (const line of lines) {
         try {
-          // Credit (inflow) = payment received: Debit Bank, Credit AR
-          // Debit (outflow) = payment made: Debit AP, Credit Bank
-          const jeId = await createCodeBasedJournalEntry({
-            tenantId: tenantId!,
-            userId: user?.id || null,
-            entryDate: line.line_date,
-            description: `${t("bankPayment")}: ${line.description || line.partner_name || ""}`,
-            reference: `BS-${line.payment_reference || line.id.slice(0, 8)}`,
-            lines: line.direction === "credit"
+          // Try new posting rules engine first, fall back to hardcoded accounts
+          const modelCode = line.direction === "credit" ? "CUSTOMER_PAYMENT" : "VENDOR_PAYMENT";
+          let journalLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }>;
+
+          const rule = await findPostingRule(tenantId!, modelCode);
+          if (rule) {
+            journalLines = await resolvePostingRuleToJournalLines(
+              tenantId!, rule.lines, line.amount,
+              {
+                bankAccountGlCode: "2410",
+                partnerReceivableCode: "2040",
+                partnerPayableCode: "4350",
+              }
+            );
+          } else {
+            // Legacy fallback: hardcoded account codes
+            journalLines = line.direction === "credit"
               ? [
                   { accountCode: "2410", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
                   { accountCode: "2040", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
@@ -312,7 +321,16 @@ export default function BankStatements() {
               : [
                   { accountCode: "4350", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
                   { accountCode: "2410", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
-                ],
+                ];
+          }
+
+          const jeId = await createCodeBasedJournalEntry({
+            tenantId: tenantId!,
+            userId: user?.id || null,
+            entryDate: line.line_date,
+            description: `${t("bankPayment")}: ${line.description || line.partner_name || ""}`,
+            reference: `BS-${line.payment_reference || line.id.slice(0, 8)}`,
+            lines: journalLines,
           });
 
           await supabase.from("bank_statement_lines").update({ journal_entry_id: jeId }).eq("id", line.id);

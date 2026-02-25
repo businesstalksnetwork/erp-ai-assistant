@@ -104,7 +104,9 @@ export default function Payroll() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // GL posting uses configurable posting rules from posting_rule_catalog
+  // GL posting uses configurable posting rules from posting_rule_catalog (legacy)
+  // TODO: Migrate to new posting_rules engine with SALARY_PAYMENT / TAX_PAYMENT models
+  // when all tenants have seeded default rules via seed_default_posting_rules()
   const { data: postingRules = [] } = useQuery({
     queryKey: ["posting_rules_payroll", tenantId],
     queryFn: async () => {

@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Plus, AlertTriangle, ChevronDown, Play, Trash2, ArrowRightLeft } from "lucide-react";
+import { BookOpen, Plus, AlertTriangle, ChevronDown, Play, Trash2, ArrowRightLeft, Sparkles } from "lucide-react";
 import { PAYMENT_MODEL_KEYS, simulatePosting } from "@/lib/postingRuleEngine";
 import { TAccountDisplay } from "@/components/posting-rules/TAccountDisplay";
 import { RuleWizard } from "@/components/posting-rules/RuleWizard";
@@ -153,6 +153,55 @@ export default function PostingRules() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  // Seed default rules
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("seed_default_posting_rules", { p_tenant_id: tenantId! });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["posting_rules_v2"] });
+      toast({ title: t("success"), description: `${count} ${t("postingRules").toLowerCase()}` });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  // Account mapping mutations
+  const [addMappingOpen, setAddMappingOpen] = useState(false);
+  const [newMapping, setNewMapping] = useState({ bank_account_id: "", gl_account_id: "", mapping_type: "PRIMARY" });
+
+  const addMappingMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("account_mappings").insert({
+        tenant_id: tenantId!,
+        bank_account_id: newMapping.bank_account_id,
+        gl_account_id: newMapping.gl_account_id,
+        mapping_type: newMapping.mapping_type,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account_mappings"] });
+      setAddMappingOpen(false);
+      setNewMapping({ bank_account_id: "", gl_account_id: "", mapping_type: "PRIMARY" });
+      toast({ title: t("success") });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMappingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("account_mappings").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account_mappings"] });
+      toast({ title: t("success") });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   // Group rules by payment model
   const rulesByModel = new Map<string, typeof rules>();
   for (const rule of rules) {
@@ -221,8 +270,12 @@ export default function PostingRules() {
             <p className="text-muted-foreground">{t("loading")}</p>
           ) : rules.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                {t("coverageWarning")}. {t("addPostingRule")}?
+              <CardContent className="py-8 text-center space-y-4">
+                <p className="text-muted-foreground">{t("coverageWarning")}</p>
+                <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {locale === "sr" ? "Generiši standardna srpska pravila" : "Generate standard Serbian rules"}
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -356,18 +409,61 @@ export default function PostingRules() {
         {/* ACCOUNT MAPPINGS TAB */}
         <TabsContent value="mappings">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t("accountMappings")}</CardTitle>
-              <CardDescription>
-                {locale === "sr" ? "Mapiranje bankovnih računa na konta glavne knjige" : "Map bank accounts to general ledger accounts"}
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">{t("accountMappings")}</CardTitle>
+                <CardDescription>
+                  {locale === "sr" ? "Mapiranje bankovnih računa na konta glavne knjige" : "Map bank accounts to general ledger accounts"}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setAddMappingOpen(!addMappingOpen)}>
+                <Plus className="h-4 w-4 mr-1" />{t("addMapping")}
+              </Button>
             </CardHeader>
-            <CardContent>
-              {mappings.length === 0 ? (
+            <CardContent className="space-y-4">
+              {addMappingOpen && (
+                <div className="flex flex-wrap items-end gap-3 p-3 border rounded-md bg-muted/30">
+                  <div className="min-w-[180px]">
+                    <label className="text-xs font-medium">{t("bankAccountFilter")}</label>
+                    <Select value={newMapping.bank_account_id || "__none__"} onValueChange={(v) => setNewMapping((p) => ({ ...p, bank_account_id: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {bankAccounts.map((b) => <SelectItem key={b.id} value={b.id}>{b.account_number} ({b.bank_name})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="min-w-[180px]">
+                    <label className="text-xs font-medium">{t("glAccount")}</label>
+                    <Select value={newMapping.gl_account_id || "__none__"} onValueChange={(v) => setNewMapping((p) => ({ ...p, gl_account_id: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="min-w-[120px]">
+                    <label className="text-xs font-medium">{t("mappingType")}</label>
+                    <Select value={newMapping.mapping_type} onValueChange={(v) => setNewMapping((p) => ({ ...p, mapping_type: v }))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PRIMARY">{t("primaryMapping")}</SelectItem>
+                        <SelectItem value="CLEARING">{t("clearingMapping")}</SelectItem>
+                        <SelectItem value="FEE">{t("feeMapping")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button size="sm" className="h-8" onClick={() => addMappingMutation.mutate()} disabled={!newMapping.bank_account_id || !newMapping.gl_account_id || addMappingMutation.isPending}>
+                    {t("save")}
+                  </Button>
+                </div>
+              )}
+              {mappings.length === 0 && !addMappingOpen ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
                   {locale === "sr" ? "Nema mapiranja. Koristite GL konto na bankovnom računu." : "No mappings. Use the GL account on bank accounts."}
                 </p>
-              ) : (
+              ) : mappings.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -375,6 +471,7 @@ export default function PostingRules() {
                       <TableHead>{t("glAccount")}</TableHead>
                       <TableHead>{t("mappingType")}</TableHead>
                       <TableHead>{t("validFromRule")}</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -384,11 +481,16 @@ export default function PostingRules() {
                         <TableCell className="font-mono text-xs">{m.chart_of_accounts?.code} — {m.chart_of_accounts?.name}</TableCell>
                         <TableCell><Badge variant="outline" className="text-[10px]">{m.mapping_type}</Badge></TableCell>
                         <TableCell className="text-xs">{m.valid_from}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteMappingMutation.mutate(m.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>
