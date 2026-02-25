@@ -11,17 +11,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DollarSign, TrendingUp, TrendingDown, Wallet, FileText, Calculator, AlertCircle, Package, Download, ShieldCheck, CreditCard, ClipboardCheck, Sparkles } from "lucide-react";
 import { exportToCsv } from "@/lib/exportCsv";
 import { fmtNum, fmtNumCompact, fmtNumAuto } from "@/lib/utils";
-import { RevenueExpensesChart } from "@/components/dashboard/RevenueExpensesChart";
-import { InvoiceStatusChart } from "@/components/dashboard/InvoiceStatusChart";
-import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
-import { TopCustomersChart } from "@/components/dashboard/TopCustomersChart";
+import React, { Suspense } from "react";
+
+const RevenueExpensesChart = React.lazy(() => import("@/components/dashboard/RevenueExpensesChart").then(m => ({ default: m.RevenueExpensesChart })));
+const InvoiceStatusChart = React.lazy(() => import("@/components/dashboard/InvoiceStatusChart").then(m => ({ default: m.InvoiceStatusChart })));
+const CashFlowChart = React.lazy(() => import("@/components/dashboard/CashFlowChart").then(m => ({ default: m.CashFlowChart })));
+const TopCustomersChart = React.lazy(() => import("@/components/dashboard/TopCustomersChart").then(m => ({ default: m.TopCustomersChart })));
+const AiInsightsWidget = React.lazy(() => import("@/components/ai/AiInsightsWidget").then(m => ({ default: m.AiInsightsWidget })));
+const CashflowForecastWidget = React.lazy(() => import("@/components/dashboard/CashflowForecastWidget").then(m => ({ default: m.CashflowForecastWidget })));
+const ComplianceDeadlineWidget = React.lazy(() => import("@/components/dashboard/ComplianceDeadlineWidget").then(m => ({ default: m.ComplianceDeadlineWidget })));
+const PayrollCostWidget = React.lazy(() => import("@/components/dashboard/PayrollCostWidget").then(m => ({ default: m.PayrollCostWidget })));
+
 import { ModuleHealthSummary } from "@/components/dashboard/ModuleHealthSummary";
 import { FiscalReceiptStatusWidget } from "@/components/dashboard/FiscalReceiptStatusWidget";
 import { WelcomeHeader } from "@/components/dashboard/WelcomeHeader";
-import { AiInsightsWidget } from "@/components/ai/AiInsightsWidget";
-import { CashflowForecastWidget } from "@/components/dashboard/CashflowForecastWidget";
-import { ComplianceDeadlineWidget } from "@/components/dashboard/ComplianceDeadlineWidget";
-import { PayrollCostWidget } from "@/components/dashboard/PayrollCostWidget";
 import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 import { addDays } from "date-fns";
 
@@ -182,35 +185,47 @@ export default function TenantDashboard() {
       {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
 
       {/* AI Insights */}
-      {tenantId && <AiInsightsWidget tenantId={tenantId} />}
+      {tenantId && (
+        <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+          <AiInsightsWidget tenantId={tenantId} />
+        </Suspense>
+      )}
 
       {/* Charts Row 1 */}
       {tenantId && (
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-          <RevenueExpensesChart tenantId={tenantId} />
-          <InvoiceStatusChart tenantId={tenantId} />
-        </div>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+            <RevenueExpensesChart tenantId={tenantId} />
+            <InvoiceStatusChart tenantId={tenantId} />
+          </div>
+        </Suspense>
       )}
 
       {/* Charts Row 2 */}
       {tenantId && (
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-          <CashFlowChart tenantId={tenantId} />
-          <TopCustomersChart tenantId={tenantId} />
-        </div>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+            <CashFlowChart tenantId={tenantId} />
+            <TopCustomersChart tenantId={tenantId} />
+          </div>
+        </Suspense>
       )}
 
       {/* Cashflow Forecast + Compliance Deadlines */}
       {tenantId && (
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-          <CashflowForecastWidget tenantId={tenantId} />
-          <ComplianceDeadlineWidget tenantId={tenantId} />
-        </div>
+        <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+            <CashflowForecastWidget tenantId={tenantId} />
+            <ComplianceDeadlineWidget tenantId={tenantId} />
+          </div>
+        </Suspense>
       )}
 
       {/* Payroll Cost Trend */}
       {tenantId && canAccess("hr") && (
-        <PayrollCostWidget tenantId={tenantId} />
+        <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+          <PayrollCostWidget tenantId={tenantId} />
+        </Suspense>
       )}
 
       {/* Module Health */}
