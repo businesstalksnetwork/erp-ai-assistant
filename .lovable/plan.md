@@ -1,94 +1,101 @@
 
 
-# Plan: Add `sales_performance` AI Context + KPI Cards on Hub Pages
+# Fix: Sticky Layout — Sidebar, Header & AI Sidebar Scroll Issues
 
-## Part 1: Add `sales_performance` AI Narrative Context
+## Problem
 
-### 1A. Edge function — add system prompt
-**File**: `supabase/functions/ai-analytics-narrative/index.ts` (line 30, after `purchasing`)
+From the screenshot and code analysis, the root issue is the outer container uses `min-h-screen` which allows the entire page (sidebar + header + AI panel) to grow beyond the viewport and scroll together. Only the `<main>` content area should scroll — sidebar, header, and AI sidebar must remain fixed.
 
-Add new entry to `systemPrompts`:
+## Root Cause
+
+In `TenantLayout.tsx` line 333:
 ```
-sales_performance: `You are a sales performance analyst AI. Given sales data including quotes, sales orders, invoices, and dispatch notes, analyze conversion rates (quote→order→invoice), average deal size, revenue trends, top customers by volume, salesperson performance, and channel effectiveness. Provide a 2-3 sentence analysis.`
+<div className="min-h-screen flex w-full">
+```
+This allows the entire layout to exceed viewport height. While the inner content area has `overflow-hidden` and `overflow-auto`, the parent doesn't constrain height, so the browser can scroll the whole page.
+
+Additionally:
+- The header uses `sticky top-0` but within a flex-col container with `h-screen`, sticky is redundant and can cause confusion — it should be a static flex child with `shrink-0`.
+- The AI sidebar's `h-full` works but lacks `overflow-hidden` on its wrapper, so long AI content can push the layout.
+- On mobile, the AI sidebar overlay needs proper safe-area handling.
+
+## Changes
+
+### File: `src/layouts/TenantLayout.tsx`
+
+**Change 1 — Outer container: lock to viewport**
+Line 333: `min-h-screen` → `h-screen overflow-hidden`
+```
+<div className="h-screen flex w-full overflow-hidden">
+```
+This prevents the browser from ever scrolling the entire page.
+
+**Change 2 — Right panel: ensure height constraint**
+Line 475: Already has `h-screen` — change to `h-full` since parent is now `h-screen`:
+```
+<div className="flex-1 flex flex-col h-full min-h-0">
+```
+Adding `min-h-0` prevents flex children from overflowing.
+
+**Change 3 — Header: use shrink-0 instead of sticky**
+Line 476: Remove `sticky top-0`, add `shrink-0`:
+```
+<header className="h-12 border-b border-border flex items-center justify-between px-4 lg:px-6 bg-background shrink-0 z-10">
+```
+In a flex-col layout, `shrink-0` is the correct way to keep the header fixed — `sticky` is for scroll containers.
+
+**Change 4 — Content area: ensure min-h-0**
+Line 529: Add `min-h-0` to prevent flex overflow:
+```
+<div className="flex-1 flex overflow-hidden min-h-0">
 ```
 
-### 1B. Update `AiAnalyticsNarrative` type union
-**File**: `src/components/ai/AiAnalyticsNarrative.tsx` (line 10)
+**Change 5 — Main content: ensure scroll isolation**
+Line 530: Already has `overflow-auto` — this is correct. No change needed.
 
-Add `"sales_performance"` to the `contextType` union type.
+**Change 6 — Mobile AI sidebar overlay: full height with safe area**
+Lines 556-560: Add `overflow-hidden` and safe area support:
+```
+<div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setAiSidebarOpen(false)}>
+  <div className="absolute right-0 top-0 h-full w-[300px] max-w-[85vw] overflow-hidden" onClick={e => e.stopPropagation()}>
+    <AiContextSidebar open={true} onToggle={() => setAiSidebarOpen(false)} />
+  </div>
+</div>
+```
 
-### 1C. Wire sidebar context map
-**File**: `src/components/ai/AiContextSidebar.tsx` (line 109)
+### File: `src/components/ai/AiContextSidebar.tsx`
 
-Change `"/sales": "dashboard"` → `"/sales": "sales_performance"`.
+**Change 7 — Collapsed rail: fix height**
+Line 171: Change `h-full` to use sticky positioning within flex:
+```
+<aside className="w-10 border-l bg-card/50 backdrop-blur-sm flex flex-col items-center py-3 gap-3 shrink-0 print:hidden">
+```
+Remove `h-full` since the flex parent controls height.
 
----
+**Change 8 — Expanded panel: fix height**  
+Line 192: Same fix — remove explicit `h-full`, rely on flex:
+```
+<aside className="w-[280px] xl:w-[300px] border-l bg-card/50 backdrop-blur-sm flex flex-col shrink-0 print:hidden overflow-hidden">
+```
 
-## Part 2: AI-Powered KPI Summary Cards on Hub Pages
+### File: `src/layouts/TenantLayout.tsx` — Sidebar inner container
 
-Each of the 4 hub pages (SalesHub, PosHub, InventoryHub, PurchasingHub) will be enhanced with:
-1. `useTenant()` hook to get `tenantId`
-2. A `useQuery` call fetching 3-4 lightweight KPI counts/sums from existing tables
-3. `StatsBar` component (already exists) to render the KPI cards
-4. `AiAnalyticsNarrative` component with the appropriate context type and fetched data
+**Change 9 — Sidebar content container**
+Line 335: The sidebar inner div already has `h-full` and `overflow-hidden` which is correct. The `SidebarContent` on line 344 has `overflow-y-auto` which is also correct.
 
-### 2A. SalesHub KPI Cards
-**File**: `src/pages/tenant/SalesHub.tsx`
+No sidebar changes needed — the Shadcn `<Sidebar>` component manages its own height within the flex layout. The fix is entirely about the outer container constraints.
 
-Queries:
-- `quotes` table: count where `status='draft'` → "Aktivne ponude"
-- `sales_orders` table: count where `status='confirmed'` → "Potvrđeni nalozi"
-- `invoices` table: sum of `total_amount` for current month → "Prihod (mesec)"
-- `invoices` table: count where `status='sent'` → "Poslate fakture"
+## Summary of Changes
 
-Stats passed to `StatsBar`. Data object passed to `AiAnalyticsNarrative` with `contextType="sales_performance"`.
+| File | Line(s) | What | Why |
+|------|---------|------|-----|
+| `TenantLayout.tsx` | 333 | `min-h-screen` → `h-screen overflow-hidden` | Lock viewport, prevent page-level scroll |
+| `TenantLayout.tsx` | 475 | `h-screen` → `h-full min-h-0` | Proper flex child height |
+| `TenantLayout.tsx` | 476 | Remove `sticky top-0`, add `shrink-0` | Header stays fixed via flex, not sticky |
+| `TenantLayout.tsx` | 529 | Add `min-h-0` | Prevent flex overflow |
+| `TenantLayout.tsx` | 557 | Add `max-w-[85vw]` | Mobile AI panel doesn't exceed screen |
+| `AiContextSidebar.tsx` | 171 | Remove `h-full`, keep `shrink-0` | Height from flex parent |
+| `AiContextSidebar.tsx` | 192 | Remove `h-full` | Height from flex parent |
 
-### 2B. PosHub KPI Cards
-**File**: `src/pages/tenant/PosHub.tsx`
-
-Queries:
-- `pos_sessions` table: count where `status='open'` → "Otvorene sesije"
-- `pos_transactions` table: count for today → "Danas transakcija"
-- `pos_transactions` table: sum `total_amount` for today → "Danas promet"
-- `pos_transactions` table: count for current month → "Mesec transakcija"
-
-`AiAnalyticsNarrative` with `contextType="pos_performance"`.
-
-### 2C. InventoryHub KPI Cards
-**File**: `src/pages/tenant/InventoryHub.tsx`
-
-Queries:
-- `products` table: total count → "Ukupno proizvoda"
-- `inventory_stock` table: count where `quantity <= min_quantity` (or `quantity <= 0`) → "Niske zalihe"
-- `inventory_stock` table: sum of `quantity * unit_cost` (if available) or just total stock rows → "Stavki na stanju"
-- `products` table: count where `is_active = true` → "Aktivni artikli"
-
-`AiAnalyticsNarrative` with `contextType="inventory_health"`.
-
-### 2D. PurchasingHub KPI Cards
-**File**: `src/pages/tenant/PurchasingHub.tsx`
-
-Queries:
-- `purchase_orders` table: count where `status='draft'` → "Nacrt narudžbina"
-- `purchase_orders` table: count where `status='sent'` → "Poslate narudžbine"
-- `goods_receipts` table: count for current month → "Prijemnice (mesec)"
-- `purchase_orders` table: sum of `total_amount` for current month → "Nabavka (mesec)"
-
-`AiAnalyticsNarrative` with `contextType="purchasing"`.
-
----
-
-## Files Changed Summary
-
-| File | Change |
-|------|--------|
-| `supabase/functions/ai-analytics-narrative/index.ts` | Add `sales_performance` system prompt |
-| `src/components/ai/AiAnalyticsNarrative.tsx` | Add `"sales_performance"` to contextType union |
-| `src/components/ai/AiContextSidebar.tsx` | Change `/sales` mapping to `sales_performance` |
-| `src/pages/tenant/SalesHub.tsx` | Add KPI queries, StatsBar, AiAnalyticsNarrative |
-| `src/pages/tenant/PosHub.tsx` | Add KPI queries, StatsBar, AiAnalyticsNarrative |
-| `src/pages/tenant/InventoryHub.tsx` | Add KPI queries, StatsBar, AiAnalyticsNarrative |
-| `src/pages/tenant/PurchasingHub.tsx` | Add KPI queries, StatsBar, AiAnalyticsNarrative |
-
-Each hub page will import `useTenant`, `useQuery`, `supabase`, `StatsBar`, and `AiAnalyticsNarrative`. The hub pages keep their existing navigation grid but gain a stats row at the top (via `BiPageLayout`'s `stats` prop) and an AI narrative card below the header.
+These 7 targeted class changes fix the scroll issue across all pages — sidebar, header, and AI panel will remain fixed while only the main content area scrolls.
 
