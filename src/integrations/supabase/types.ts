@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_mappings: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          gl_account_id: string
+          id: string
+          mapping_type: string
+          tenant_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          gl_account_id: string
+          id?: string
+          mapping_type?: string
+          tenant_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          gl_account_id?: string
+          id?: string
+          mapping_type?: string
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_mappings_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_mappings_gl_account_id_fkey"
+            columns: ["gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_mappings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activities: {
         Row: {
           company_id: string | null
@@ -9552,6 +9610,48 @@ export type Database = {
           },
         ]
       }
+      payment_models: {
+        Row: {
+          affects_bank: boolean
+          allows_partial: boolean
+          code: string
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          is_system: boolean
+          name_en: string
+          name_sr: string
+          requires_invoice: boolean
+        }
+        Insert: {
+          affects_bank?: boolean
+          allows_partial?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          is_system?: boolean
+          name_en: string
+          name_sr: string
+          requires_invoice?: boolean
+        }
+        Update: {
+          affects_bank?: boolean
+          allows_partial?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          is_system?: boolean
+          name_en?: string
+          name_sr?: string
+          requires_invoice?: boolean
+        }
+        Relationships: []
+      }
       payroll_income_categories: {
         Row: {
           ben_code: string
@@ -10619,6 +10719,148 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "posting_rule_catalog_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posting_rule_lines: {
+        Row: {
+          account_id: string | null
+          account_source: string
+          amount_factor: number | null
+          amount_source: string
+          created_at: string
+          description_template: string | null
+          dynamic_source: string | null
+          id: string
+          is_tax_line: boolean
+          line_number: number
+          posting_rule_id: string
+          side: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_source?: string
+          amount_factor?: number | null
+          amount_source?: string
+          created_at?: string
+          description_template?: string | null
+          dynamic_source?: string | null
+          id?: string
+          is_tax_line?: boolean
+          line_number?: number
+          posting_rule_id: string
+          side: string
+        }
+        Update: {
+          account_id?: string | null
+          account_source?: string
+          amount_factor?: number | null
+          amount_source?: string
+          created_at?: string
+          description_template?: string | null
+          dynamic_source?: string | null
+          id?: string
+          is_tax_line?: boolean
+          line_number?: number
+          posting_rule_id?: string
+          side?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posting_rule_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_rule_lines_posting_rule_id_fkey"
+            columns: ["posting_rule_id"]
+            isOneToOne: false
+            referencedRelation: "posting_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posting_rules: {
+        Row: {
+          auto_post: boolean
+          bank_account_id: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          partner_type: string | null
+          payment_model_id: string
+          priority: number
+          require_approval: boolean
+          tenant_id: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          auto_post?: boolean
+          bank_account_id?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          partner_type?: string | null
+          payment_model_id: string
+          priority?: number
+          require_approval?: boolean
+          tenant_id: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          auto_post?: boolean
+          bank_account_id?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          partner_type?: string | null
+          payment_model_id?: string
+          priority?: number
+          require_approval?: boolean
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posting_rules_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_rules_payment_model_id_fkey"
+            columns: ["payment_model_id"]
+            isOneToOne: false
+            referencedRelation: "payment_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_rules_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -14762,6 +15004,21 @@ export type Database = {
       }
       execute_readonly_query: { Args: { query_text: string }; Returns: Json }
       expire_overdue_quotes: { Args: { p_tenant_id: string }; Returns: number }
+      find_posting_rule: {
+        Args: {
+          p_bank_account_id?: string
+          p_currency?: string
+          p_model_code: string
+          p_partner_type?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          lines: Json
+          rule_description: string
+          rule_id: string
+          rule_name: string
+        }[]
+      }
       force_delete_journal_entries: {
         Args: { p_tenant_id: string }
         Returns: undefined
