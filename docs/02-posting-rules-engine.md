@@ -68,8 +68,9 @@ Both paths converge to:
 | `src/pages/tenant/PostingRules.tsx` | Settings UI: rules CRUD, lines CRUD, account mappings, rule seeding, simulation |
 | `src/pages/tenant/BankStatements.tsx` | Primary consumer of new engine (findPostingRule → resolve → create) |
 
-## 14 Standard Payment Models
+## 35 Payment Models
 
+### Original Bank Statement Models (14)
 | Code | Description |
 |------|-------------|
 | CUSTOMER_PAYMENT | Customer pays invoice |
@@ -86,6 +87,31 @@ Both paths converge to:
 | INTERNAL_COMPENSATION | Mutual debt offset |
 | CUSTOMER_REFUND | Refund to customer |
 | VENDOR_REFUND | Refund from supplier |
+
+### Extended Models (21) — Added 2026-02-25
+| Code | Module | Description |
+|------|--------|-------------|
+| GOODS_RECEIPT | GoodsReceipts.tsx | Inventory receipt GL posting |
+| SUPPLIER_INVOICE_POST | SupplierInvoices.tsx | Invoice approval GL posting |
+| SUPPLIER_INVOICE_PAYMENT | SupplierInvoices.tsx | Invoice payment GL posting |
+| CUSTOMER_RETURN_RESTOCK | Returns.tsx | COGS reversal on customer return |
+| CUSTOMER_RETURN_CREDIT | Returns.tsx | Credit note to customer |
+| SUPPLIER_RETURN | Returns.tsx | Return goods to supplier |
+| CREDIT_NOTE_ISSUED | Returns.tsx | Credit note issuance |
+| LOAN_PAYMENT_PAYABLE | Loans.tsx | Loan repayment |
+| LOAN_PAYMENT_RECEIVABLE | Loans.tsx | Loan disbursement |
+| COMPENSATION | Kompenzacija.tsx | Mutual debt offset |
+| ASSET_DEPRECIATION | FixedAssets.tsx | Monthly depreciation |
+| ASSET_DISPOSAL | FixedAssets.tsx | Asset disposal/sale |
+| FX_GAIN | FxRevaluation.tsx | Foreign exchange gain |
+| FX_LOSS | FxRevaluation.tsx | Foreign exchange loss |
+| DEFERRAL_REVENUE | Deferrals.tsx | Deferred revenue recognition |
+| DEFERRAL_EXPENSE | Deferrals.tsx | Deferred expense recognition |
+| CASH_IN | CashRegister.tsx | Cash register receipt |
+| CASH_OUT | CashRegister.tsx | Cash register disbursement |
+| INTERCOMPANY_POST | IntercompanyTransactions.tsx | Intercompany GL posting |
+| PAYROLL_NET | Payroll.tsx | Net salary posting |
+| PAYROLL_TAX | Payroll.tsx | Tax & contributions posting |
 
 ## Dynamic Account Sources
 
@@ -105,12 +131,14 @@ When `account_source = 'DYNAMIC'`, the account is resolved at runtime from conte
 
 ## Amount Sources
 
+Tax rate is now **dynamic** via `context.taxRate` (defaults to 0.20 if not provided).
+
 | Source | Calculation |
 |--------|------------|
 | FULL | Full transaction amount |
-| TAX_BASE | amount / 1.2 (net of 20% VAT) |
-| TAX_AMOUNT | amount × 0.2 |
-| NET | amount × 0.8 |
+| TAX_BASE | amount / (1 + taxRate) |
+| TAX_AMOUNT | amount × taxRate |
+| NET | amount × (1 - taxRate) |
 | GROSS | Same as FULL |
 
 ## Waterfall Matching (find_posting_rule RPC)

@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
 export default function CashRegister() {
   const { tenantId } = useTenant();
@@ -67,15 +68,48 @@ export default function CashRegister() {
   const createMut = useMutation({
     mutationFn: async () => {
       const entryNumber = `BL-${Date.now().toString(36).toUpperCase()}`;
+      const amount = Number(form.amount);
+      const entryDate = format(new Date(), "yyyy-MM-dd");
+      const isIn = form.direction === "in";
+      const modelCode = isIn ? "CASH_IN" : "CASH_OUT";
+
+      // Cash account 1000, counterpart depends on direction
+      // CASH_IN: DR 1000 (cash) / CR counterpart
+      // CASH_OUT: DR counterpart / CR 1000 (cash)
+      const fallbackLines = isIn
+        ? [
+            { accountCode: "1000", debit: amount, credit: 0, description: form.description, sortOrder: 1 },
+            { accountCode: "6990", debit: 0, credit: amount, description: form.description, sortOrder: 2 },
+          ]
+        : [
+            { accountCode: "5790", debit: amount, credit: 0, description: form.description, sortOrder: 1 },
+            { accountCode: "1000", debit: 0, credit: amount, description: form.description, sortOrder: 2 },
+          ];
+
+      // Create GL journal entry via posting rules engine (or fallback)
+      const journalEntryId = await postWithRuleOrFallback({
+        tenantId: tenantId!,
+        userId: user?.id || null,
+        modelCode,
+        amount,
+        entryDate,
+        description: `${t("cashRegister")}: ${form.description}`,
+        reference: entryNumber,
+        context: {},
+        fallbackLines,
+      });
+
+      // Insert the cash register record with journal reference
       const { error } = await supabase.from("cash_register").insert({
         tenant_id: tenantId!,
         entry_number: entryNumber,
-        entry_date: format(new Date(), "yyyy-MM-dd"),
+        entry_date: entryDate,
         direction: form.direction,
-        amount: Number(form.amount),
+        amount,
         description: form.description,
         document_ref: form.document_ref || null,
         created_by: user?.id || null,
+        journal_entry_id: journalEntryId,
       });
       if (error) throw error;
     },
