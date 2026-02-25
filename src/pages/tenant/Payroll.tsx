@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Loader2, Calculator, Check, Banknote, Settings } from "lucide-react";
+import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -173,6 +173,38 @@ export default function Payroll() {
   const statusColor = (s: string) => ({ draft: "secondary", calculated: "default", approved: "default", paid: "default" }[s] || "secondary") as any;
   const monthName = (m: number) => new Date(2024, m - 1).toLocaleString("en", { month: "long" });
 
+  const downloadPppdXml = async (runId: string) => {
+    try {
+      toast.info("Generisanje PPP-PD XML...");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
+      );
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `PPP-PD.xml`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const downloadPaymentOrders = async (runId: string) => {
+    try {
+      toast.info("Generisanje naloga za plaćanje...");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
+      );
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `NaloziZaPlacanje.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -180,6 +212,9 @@ export default function Payroll() {
         <div className="flex gap-2">
           <Link to="/hr/payroll/categories">
             <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories") || "Kategorije"}</Button>
+          </Link>
+          <Link to="/hr/payroll/payment-types">
+            <Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />Vrste isplate</Button>
           </Link>
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
         </div>
@@ -233,10 +268,20 @@ export default function Payroll() {
                           <Check className="h-4 w-4 mr-2" />{t("approvePayroll")}
                         </Button>
                       )}
-                      {run.status === "approved" && (
+                       {run.status === "approved" && (
                         <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "paid" })} disabled={statusMutation.isPending}>
                           <Banknote className="h-4 w-4 mr-2" />{t("markAsPaidPayroll")}
                         </Button>
+                      )}
+                      {(run.status === "approved" || run.status === "paid") && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => downloadPppdXml(run.id)}>
+                            <FileText className="h-4 w-4 mr-2" />PPP-PD XML
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => downloadPaymentOrders(run.id)}>
+                            <CreditCard className="h-4 w-4 mr-2" />Nalozi za plaćanje
+                          </Button>
+                        </>
                       )}
                     </div>
 
@@ -244,17 +289,17 @@ export default function Payroll() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                             <TableHead>{t("employee")}</TableHead>
+                           <TableHead>{t("employee")}</TableHead>
                              <TableHead>{t("department")}</TableHead>
-                             <TableHead>{t("position")}</TableHead>
+                             <TableHead>OVP</TableHead>
                              <TableHead className="text-right">{t("grossSalary")}</TableHead>
                             <TableHead className="text-right">PIO {params ? `${Number(params.pio_employee_rate)}%` : "14%"}</TableHead>
                             <TableHead className="text-right">Zdrav. {params ? `${Number(params.health_employee_rate)}%` : "5.15%"}</TableHead>
-                            <TableHead className="text-right">Nezap. {params ? `${Number(params.unemployment_employee_rate)}%` : "0.75%"}</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
-                            <TableHead className="text-right">PIO posl. {params ? `${Number(params.pio_employer_rate)}%` : "12%"}</TableHead>
-                            <TableHead className="text-right">Zdrav. posl. {params ? `${Number(params.health_employer_rate)}%` : "5.15%"}</TableHead>
+                            <TableHead className="text-right">PIO posl.</TableHead>
+                            <TableHead className="text-right">Zdrav. posl.</TableHead>
+                            <TableHead className="text-right">Subvencija</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                             <TableHead className="text-right">{t("actions")}</TableHead>
                            </TableRow>
@@ -264,15 +309,15 @@ export default function Payroll() {
                             <TableRow key={item.id}>
                                <TableCell>{item.employees?.full_name}</TableCell>
                                <TableCell>{item.employees?.departments?.name || "—"}</TableCell>
-                               <TableCell>{item.employees?.position || "—"}</TableCell>
+                               <TableCell><Badge variant="outline" className="text-xs">{item.ovp_code || "101"}</Badge></TableCell>
                                <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.pension_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_contribution))}</TableCell>
-                              <TableCell className="text-right">{fmtNum(Number(item.unemployment_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.income_tax))}</TableCell>
                               <TableCell className="text-right font-semibold">{fmtNum(Number(item.net_salary))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.pension_employer || 0))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_employer || 0))}</TableCell>
+                              <TableCell className="text-right">{fmtNum(Number(item.subsidy_amount || 0))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.total_cost))}</TableCell>
                               <TableCell className="text-right">
                                 <DownloadPdfButton type="payslip" params={{ payroll_item_id: item.id }} />

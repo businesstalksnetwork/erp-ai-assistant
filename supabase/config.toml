@@ -98,3 +98,9 @@ verify_jwt = false
 
 [functions.import-bcility-data]
 verify_jwt = false
+
+[functions.generate-pppd-xml]
+verify_jwt = false
+
+[functions.generate-payment-orders]
+verify_jwt = false
