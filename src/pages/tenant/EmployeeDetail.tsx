@@ -42,6 +42,11 @@ interface EmployeeForm {
   slava_date: string;
   daily_work_hours: number;
   is_archived: boolean;
+  payroll_category_id: string | null;
+  bank_account_iban: string;
+  bank_name: string;
+  recipient_code: string;
+  pib: string;
 }
 
 const formatDate = (d: string | null | undefined) => {
@@ -89,6 +94,20 @@ export default function EmployeeDetail() {
       return data;
     },
     enabled: !!id && !!tenantId,
+  });
+
+  const { data: payrollCategories = [] } = useQuery({
+    queryKey: ["payroll-categories-list", tenantId],
+    queryFn: async () => {
+      const { data } = await (supabase
+        .from("payroll_income_categories")
+        .select("id, code, name")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("code") as any);
+      return data || [];
+    },
+    enabled: !!tenantId,
   });
 
   const { data: contracts = [] } = useQuery({
@@ -188,14 +207,24 @@ export default function EmployeeDetail() {
   const mutation = useMutation({
     mutationFn: async (f: EmployeeForm) => {
       const full_name = `${f.first_name} ${f.last_name}`.trim();
-      const payload = {
-        ...f, full_name, tenant_id: tenantId!, department_id: f.department_id || null, location_id: f.location_id || null,
-        position_template_id: f.position_template_id || null,
-        status: f.is_archived ? "inactive" as const : "active" as const,
+      const payload: any = {
+        first_name: f.first_name, last_name: f.last_name, full_name,
+        email: f.email, phone: f.phone, jmbg: f.jmbg, address: f.address, city: f.city,
+        position: f.position, position_template_id: f.position_template_id || null,
+        department_id: f.department_id || null, location_id: f.location_id || null,
+        employment_type: f.employment_type, start_date: f.start_date,
+        hire_date: f.hire_date || f.start_date || null,
         termination_date: f.termination_date || null,
         early_termination_date: f.early_termination_date || null,
-        slava_date: f.slava_date || null,
-        hire_date: f.hire_date || f.start_date || null,
+        annual_leave_days: f.annual_leave_days, slava_date: f.slava_date || null,
+        daily_work_hours: f.daily_work_hours, is_archived: f.is_archived,
+        status: f.is_archived ? "inactive" : "active",
+        tenant_id: tenantId!,
+        payroll_category_id: f.payroll_category_id || null,
+        bank_account_iban: f.bank_account_iban || null,
+        bank_name: f.bank_name || null,
+        recipient_code: f.recipient_code || null,
+        pib: f.pib || null,
       };
       const { error } = await supabase.from("employees").update(payload).eq("id", id!);
       if (error) throw error;
@@ -250,6 +279,11 @@ export default function EmployeeDetail() {
       slava_date: employee.slava_date || "",
       daily_work_hours: employee.daily_work_hours || 8,
       is_archived: employee.is_archived || false,
+      payroll_category_id: (employee as any).payroll_category_id || null,
+      bank_account_iban: (employee as any).bank_account_iban || "",
+      bank_name: (employee as any).bank_name || "",
+      recipient_code: (employee as any).recipient_code || "",
+      pib: (employee as any).pib || "",
     });
     setEditOpen(true);
   };
@@ -356,6 +390,24 @@ export default function EmployeeDetail() {
                 <InfoField label={t("annualLeaveDays")} value={String(employee.annual_leave_days)} />
                 <InfoField label={t("slavaDate")} value={formatDate(employee.slava_date)} />
                 <InfoField label={t("dailyWorkHoursLabel")} value={String(employee.daily_work_hours)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payroll Data Section */}
+          <Card className="mt-4">
+            <CardHeader><CardTitle className="text-base">Podaci za obračun zarada</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <InfoField label="Kategorija prihoda" value={
+                  payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id)
+                    ? `${(payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id) as any).code} – ${(payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id) as any).name}`
+                    : "—"
+                } />
+                <InfoField label="IBAN" value={(employee as any).bank_account_iban} />
+                <InfoField label="Banka" value={(employee as any).bank_name} />
+                <InfoField label="Šifra primaoca" value={(employee as any).recipient_code} />
+                <InfoField label="PIB" value={(employee as any).pib} />
               </div>
             </CardContent>
           </Card>
@@ -663,6 +715,29 @@ export default function EmployeeDetail() {
                 <Checkbox checked={form.is_archived} onCheckedChange={v => setForm({ ...form, is_archived: !!v })} />
                 {t("isArchived")}
               </label>
+
+              {/* Payroll Data Fields */}
+              <div className="border-t pt-4 mt-2">
+                <p className="text-sm font-semibold mb-3">Podaci za obračun zarada</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Kategorija prihoda</Label>
+                    <Select value={form.payroll_category_id || "__none"} onValueChange={v => setForm({ ...form, payroll_category_id: v === "__none" ? null : v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">—</SelectItem>
+                        {payrollCategories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code} – {c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2"><Label>IBAN</Label><Input value={form.bank_account_iban} onChange={e => setForm({ ...form, bank_account_iban: e.target.value })} placeholder="RS35..." /></div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-3">
+                  <div className="grid gap-2"><Label>Banka</Label><Input value={form.bank_name} onChange={e => setForm({ ...form, bank_name: e.target.value })} /></div>
+                  <div className="grid gap-2"><Label>Šifra primaoca</Label><Input value={form.recipient_code} onChange={e => setForm({ ...form, recipient_code: e.target.value })} /></div>
+                  <div className="grid gap-2"><Label>PIB</Label><Input value={form.pib} onChange={e => setForm({ ...form, pib: e.target.value })} /></div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditOpen(false)}>{t("cancel")}</Button>
