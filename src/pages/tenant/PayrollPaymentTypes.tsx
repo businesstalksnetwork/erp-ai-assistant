@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, List, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, List, Sparkles, ChevronDown, ChevronRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface PaymentType {
@@ -40,6 +41,14 @@ interface PaymentType {
   is_storno: boolean;
 }
 
+interface GlOverride {
+  id?: string;
+  payment_type_id: string;
+  legal_entity_id: string;
+  gl_debit: string;
+  gl_credit: string;
+}
+
 const emptyForm = {
   code: "", name: "", type: "zarada",
   is_hourly: false, is_benefit: false,
@@ -54,11 +63,13 @@ const emptyForm = {
 export default function PayrollPaymentTypes() {
   const { locale } = useLanguage();
   const { tenantId } = useTenant();
+  const { entities: legalEntities } = useLegalEntities();
   const qc = useQueryClient();
   const sr = locale === "sr";
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["payroll-payment-types", tenantId],
@@ -69,6 +80,34 @@ export default function PayrollPaymentTypes() {
         .eq("tenant_id", tenantId!)
         .order("code") as any);
       return (data || []) as PaymentType[];
+    },
+    enabled: !!tenantId,
+  });
+
+  // Chart of accounts for dropdowns
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["coa_codes", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("chart_of_accounts")
+        .select("code, name")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .order("code");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  // GL overrides per legal entity
+  const { data: glOverrides = [] } = useQuery({
+    queryKey: ["pt-gl-overrides", tenantId],
+    queryFn: async () => {
+      const { data } = await (supabase
+        .from("payroll_pt_gl_overrides")
+        .select("*")
+        .eq("tenant_id", tenantId!) as any);
+      return (data || []) as (GlOverride & { id: string; tenant_id: string })[];
     },
     enabled: !!tenantId,
   });
@@ -122,6 +161,31 @@ export default function PayrollPaymentTypes() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const saveOverrideMutation = useMutation({
+    mutationFn: async (override: GlOverride & { id?: string }) => {
+      const payload = {
+        tenant_id: tenantId!,
+        payment_type_id: override.payment_type_id,
+        legal_entity_id: override.legal_entity_id,
+        gl_debit: override.gl_debit,
+        gl_credit: override.gl_credit,
+        updated_at: new Date().toISOString(),
+      };
+      if (override.id) {
+        const { error } = await (supabase.from("payroll_pt_gl_overrides").update(payload).eq("id", override.id) as any);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase.from("payroll_pt_gl_overrides").insert(payload) as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pt-gl-overrides"] });
+      toast.success(sr ? "Konto sačuvan" : "GL mapping saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openEdit = (pt: PaymentType) => {
     setEditId(pt.id);
     setForm({
@@ -154,12 +218,27 @@ export default function PayrollPaymentTypes() {
     Z: "default", B: "secondary", N: "outline", A: "destructive", S: "destructive"
   }[t] || "outline") as any;
 
+  const AccountSelect = ({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) => (
+    <Select value={value || "__none__"} onValueChange={v => onChange(v === "__none__" ? "" : v)}>
+      <SelectTrigger className={className || "w-[160px] h-8 text-xs"}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">—</SelectItem>
+        {accounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+
+  const getOverride = (ptId: string, leId: string) =>
+    glOverrides.find((o: any) => o.payment_type_id === ptId && o.legal_entity_id === leId);
+
+  const colSpan = 10;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={sr ? "Vrste isplate" : "Payment Types"}
         icon={List}
-        description={sr ? "Šifarnik vrsta isplata sa koeficijentima, GL kontima i statusom oporezivanja" : "Payment type catalog with rate multipliers, GL accounts, and tax status"}
+        description={sr ? "Šifarnik vrsta isplata sa koeficijentima, GL kontima i statusom oporezivanja. Kliknite red za konta po pravnom licu." : "Payment type catalog with rate multipliers, GL accounts, and tax status. Click a row for per-entity GL mappings."}
         actions={
           <div className="flex gap-2">
             {types.length === 0 && (
@@ -184,42 +263,102 @@ export default function PayrollPaymentTypes() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>{sr ? "Šifra" : "Code"}</TableHead>
                   <TableHead>{sr ? "Naziv" : "Name"}</TableHead>
                   <TableHead>{sr ? "Kat." : "Cat."}</TableHead>
                   <TableHead className="text-center">{sr ? "Tab." : "Tab."}</TableHead>
                   <TableHead className="text-right">{sr ? "%Nakn." : "%Comp."}</TableHead>
                   <TableHead className="text-right">{sr ? "%Dod." : "%Surch."}</TableHead>
-                  <TableHead>{sr ? "Duguje" : "Debit"}</TableHead>
-                  <TableHead>{sr ? "Potražuje" : "Credit"}</TableHead>
-                  <TableHead className="text-center">{sr ? "Neopor." : "Nontax"}</TableHead>
+                  <TableHead>{sr ? "Duguje (default)" : "Debit (default)"}</TableHead>
+                  <TableHead>{sr ? "Potražuje (default)" : "Credit (default)"}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {types.map((pt) => (
-                  <TableRow key={pt.id} className={!pt.is_active ? "opacity-50" : ""}>
-                    <TableCell className="font-mono font-semibold">{pt.code}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{pt.name}</TableCell>
-                    <TableCell><Badge variant={categoryColor(pt.payment_category)}>{categoryLabel(pt.payment_category)}</Badge></TableCell>
-                    <TableCell className="text-center">{pt.osnovna_tabela}</TableCell>
-                    <TableCell className="text-right tabular-nums">{pt.compensation_pct > 0 ? `${pt.compensation_pct}%` : ""}</TableCell>
-                    <TableCell className="text-right tabular-nums">{pt.surcharge_pct > 0 ? `${pt.surcharge_pct}%` : ""}</TableCell>
-                    <TableCell className="font-mono text-xs">{pt.gl_debit}</TableCell>
-                    <TableCell className="font-mono text-xs">{pt.gl_credit}</TableCell>
-                    <TableCell className="text-center">{pt.is_nontaxable ? "✓" : ""}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(pt)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(sr ? "Obrisati?" : "Delete?")) deleteMutation.mutate(pt.id); }}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {types.map((pt) => {
+                  const isExpanded = expandedRow === pt.id;
+                  const entityOverrides = legalEntities || [];
+                  return (
+                    <>
+                      <TableRow
+                        key={pt.id}
+                        className={`${!pt.is_active ? "opacity-50" : ""} cursor-pointer hover:bg-muted/50`}
+                        onClick={() => setExpandedRow(isExpanded ? null : pt.id)}
+                      >
+                        <TableCell className="w-8 px-2">
+                          {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell className="font-mono font-semibold">{pt.code}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{pt.name}</TableCell>
+                        <TableCell><Badge variant={categoryColor(pt.payment_category)}>{categoryLabel(pt.payment_category)}</Badge></TableCell>
+                        <TableCell className="text-center">{pt.osnovna_tabela}</TableCell>
+                        <TableCell className="text-right tabular-nums">{pt.compensation_pct > 0 ? `${pt.compensation_pct}%` : ""}</TableCell>
+                        <TableCell className="text-right tabular-nums">{pt.surcharge_pct > 0 ? `${pt.surcharge_pct}%` : ""}</TableCell>
+                        <TableCell className="font-mono text-xs">{pt.gl_debit}</TableCell>
+                        <TableCell className="font-mono text-xs">{pt.gl_credit}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(pt)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(sr ? "Obrisati?" : "Delete?")) deleteMutation.mutate(pt.id); }}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow key={`${pt.id}-expanded`}>
+                          <TableCell colSpan={colSpan} className="bg-muted/30 p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <Building2 className="h-4 w-4" />
+                                {sr ? "GL konta po pravnom licu" : "GL accounts per legal entity"}
+                              </div>
+                              {entityOverrides.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">{sr ? "Nema pravnih lica" : "No legal entities configured"}</p>
+                              ) : (
+                                <div className="grid gap-2">
+                                  {entityOverrides.map((le: any) => {
+                                    const ov = getOverride(pt.id, le.id);
+                                    return (
+                                      <EntityGlRow
+                                        key={le.id}
+                                        entityName={le.name}
+                                        entityPib={le.pib}
+                                        debit={ov?.gl_debit || ""}
+                                        credit={ov?.gl_credit || ""}
+                                        defaultDebit={pt.gl_debit}
+                                        defaultCredit={pt.gl_credit}
+                                        accounts={accounts}
+                                        sr={sr}
+                                        onSave={(debit, credit) => {
+                                          saveOverrideMutation.mutate({
+                                            id: ov?.id,
+                                            payment_type_id: pt.id,
+                                            legal_entity_id: le.id,
+                                            gl_debit: debit,
+                                            gl_credit: credit,
+                                          });
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              <p className="text-xs text-muted-foreground italic">
+                                {sr
+                                  ? "Ako konto nije podešen za pravno lice, koristi se podrazumevani (gore)."
+                                  : "If no override is set, the default GL accounts (shown above) are used."}
+                              </p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -277,8 +416,14 @@ export default function PayrollPaymentTypes() {
             <div className="grid grid-cols-4 gap-3">
               <div><Label className="text-xs">{sr ? "% Naknade" : "% Compensation"}</Label><Input type="number" step="1" value={form.compensation_pct} onChange={e => setForm({ ...form, compensation_pct: e.target.value })} /></div>
               <div><Label className="text-xs">{sr ? "% Dodatak" : "% Surcharge"}</Label><Input type="number" step="1" value={form.surcharge_pct} onChange={e => setForm({ ...form, surcharge_pct: e.target.value })} /></div>
-              <div><Label className="text-xs">{sr ? "Konto Dug." : "GL Debit"}</Label><Input value={form.gl_debit} onChange={e => setForm({ ...form, gl_debit: e.target.value })} /></div>
-              <div><Label className="text-xs">{sr ? "Konto Pot." : "GL Credit"}</Label><Input value={form.gl_credit} onChange={e => setForm({ ...form, gl_credit: e.target.value })} /></div>
+              <div>
+                <Label className="text-xs">{sr ? "Konto Dug. (default)" : "GL Debit (default)"}</Label>
+                <AccountSelect value={form.gl_debit} onChange={v => setForm({ ...form, gl_debit: v })} />
+              </div>
+              <div>
+                <Label className="text-xs">{sr ? "Konto Pot. (default)" : "GL Credit (default)"}</Label>
+                <AccountSelect value={form.gl_credit} onChange={v => setForm({ ...form, gl_credit: v })} />
+              </div>
             </div>
             <div className="flex flex-wrap gap-4 pt-2">
               <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_nontaxable} onCheckedChange={v => setForm({ ...form, is_nontaxable: v })} />{sr ? "Neoporezivo" : "Nontaxable"}</label>
@@ -296,6 +441,62 @@ export default function PayrollPaymentTypes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** Inline row for a single legal entity's GL override */
+function EntityGlRow({ entityName, entityPib, debit, credit, defaultDebit, defaultCredit, accounts, sr, onSave }: {
+  entityName: string;
+  entityPib?: string;
+  debit: string;
+  credit: string;
+  defaultDebit: string;
+  defaultCredit: string;
+  accounts: { code: string; name: string }[];
+  sr: boolean;
+  onSave: (debit: string, credit: string) => void;
+}) {
+  const [localDebit, setLocalDebit] = useState(debit);
+  const [localCredit, setLocalCredit] = useState(credit);
+  const isDirty = localDebit !== debit || localCredit !== credit;
+  const hasOverride = !!debit || !!credit;
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap bg-background rounded-md border p-2">
+      <div className="flex items-center gap-2 min-w-[180px]">
+        <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium truncate">{entityName}</span>
+        {entityPib && <span className="text-xs text-muted-foreground">({entityPib})</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{sr ? "Dug:" : "Dr:"}</span>
+        <Select value={localDebit || "__none__"} onValueChange={v => setLocalDebit(v === "__none__" ? "" : v)}>
+          <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{sr ? "— podrazumevano" : "— default"} ({defaultDebit})</SelectItem>
+            {accounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{sr ? "Pot:" : "Cr:"}</span>
+        <Select value={localCredit || "__none__"} onValueChange={v => setLocalCredit(v === "__none__" ? "" : v)}>
+          <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{sr ? "— podrazumevano" : "— default"} ({defaultCredit})</SelectItem>
+            {accounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {isDirty && (
+        <Button size="sm" className="h-7 text-xs" onClick={() => onSave(localDebit, localCredit)}>
+          {sr ? "Sačuvaj" : "Save"}
+        </Button>
+      )}
+      {hasOverride && !isDirty && (
+        <Badge variant="outline" className="text-xs">{sr ? "Podešeno" : "Custom"}</Badge>
+      )}
     </div>
   );
 }

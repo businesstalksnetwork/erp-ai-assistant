@@ -8890,6 +8890,61 @@ export type Database = {
           },
         ]
       }
+      payroll_pt_gl_overrides: {
+        Row: {
+          created_at: string
+          gl_credit: string
+          gl_debit: string
+          id: string
+          legal_entity_id: string
+          payment_type_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          gl_credit?: string
+          gl_debit?: string
+          id?: string
+          legal_entity_id: string
+          payment_type_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          gl_credit?: string
+          gl_debit?: string
+          id?: string
+          legal_entity_id?: string
+          payment_type_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_pt_gl_overrides_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_pt_gl_overrides_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_pt_gl_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_runs: {
         Row: {
           approved_at: string | null
