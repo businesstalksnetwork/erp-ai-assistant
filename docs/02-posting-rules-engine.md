@@ -136,7 +136,12 @@ Priority order for matching a posting rule:
 | `Deferrals.tsx` | **Legacy** | hardcoded |
 | `Kompenzacija.tsx` | **Legacy** | hardcoded |
 | `IntercompanyTransactions.tsx` | **Legacy** | hardcoded |
+| `Loans.tsx` | **Legacy** | hardcoded (loan disbursement/repayment) |
+| `Returns.tsx` | **Legacy** | hardcoded (COGS reversal, credit notes, supplier returns — up to 4 entries) |
+| `GoodsReceipts.tsx` | **Legacy** | hardcoded (inventory receipt GL) + `adjust_inventory_stock` |
 | `RecurringJournals.tsx` | **Legacy** | template-based |
+| `Kalkulacija.tsx` | **RPC** | post_kalkulacija (server-side) |
+| `Nivelacija.tsx` | **RPC** | post_nivelacija (server-side) |
 | `Invoices.tsx` | **RPC** | process_invoice_post (server-side) |
 | `PosTerminal.tsx` | **RPC** | process_pos_sale (server-side) |
 | `JournalEntries.tsx` | **RPC** | create_journal_entry_with_lines (direct) |

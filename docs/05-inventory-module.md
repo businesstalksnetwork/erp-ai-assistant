@@ -81,12 +81,12 @@
 | Source | File | Method | GL Codes |
 |--------|------|--------|----------|
 | Supplier Invoice | `SupplierInvoices.tsx` | `createCodeBasedJournalEntry` | 5xxx (expense) / 2100 (AP) |
-| Kalkulacija | `Kalkulacija.tsx` | `createCodeBasedJournalEntry` | Cost markup adjustment entries |
-| Nivelacija | `Nivelacija.tsx` | `createCodeBasedJournalEntry` | Price level adjustment entries |
+| Kalkulacija | `Kalkulacija.tsx` | `post_kalkulacija` RPC | Cost markup adjustment entries (server-side) |
+| Nivelacija | `Nivelacija.tsx` | `post_nivelacija` RPC | Price level adjustment entries (server-side) |
 | Sales Invoice Post | `Invoices.tsx` | `process_invoice_post` RPC | Server-side: adjusts stock AND creates journal |
 | Production Complete | `ProductionOrders.tsx` | `complete_production_order` RPC | Adjusts stock only (no direct GL yet) |
-| Goods Receipt | `GoodsReceipts.tsx` | `adjust_inventory_stock` RPC | Stock adjustment only (GL via supplier invoice) |
-| Returns | `Returns.tsx` | `adjust_inventory_stock` RPC | Stock adjustment (restock) |
+| Goods Receipt | `GoodsReceipts.tsx` | `adjust_inventory_stock` + `createCodeBasedJournalEntry` | Stock adjustment AND GL posting (hardcoded) |
+| Returns | `Returns.tsx` | `adjust_inventory_stock` + `createCodeBasedJournalEntry` | Stock restock AND GL posting (COGS reversal, credit notes — up to 4 entries) |
 
 ## Cross-Module Dependencies
 
@@ -96,12 +96,15 @@
 - **Sales**: `sales_orders` linked to pick lists
 
 ### Writes To
-- **Accounting**: `journal_entries` via supplier invoice posting, kalkulacija, nivelacija
+- **Accounting**: `journal_entries` via supplier invoice posting, kalkulacija (RPC), nivelacija (RPC)
+- **Accounting**: `journal_entries` via goods receipt confirmation (`createCodeBasedJournalEntry`)
+- **Accounting**: `journal_entries` via returns processing (`createCodeBasedJournalEntry` — COGS reversal, credit notes)
 - **Accounting**: `process_invoice_post` adjusts `inventory_stock` when posting sales invoices
 - **Stock**: `inventory_stock.quantity_on_hand` modified by receipts, production, returns
 
 ## Known Gaps
-- Production order completion adjusts stock but does NOT create GL journal entries (WIP → FG accounting missing)
-- Goods receipt does NOT create GL entry — GL happens later via supplier invoice posting
-- Kalkulacija/Nivelacija GL codes are hardcoded — not on posting rules engine
+- Production order completion creates WIP journal entries via `complete_production_order` RPC (server-side)
+- Goods receipt creates GL entry via hardcoded `createCodeBasedJournalEntry` — planned migration to posting rules engine
+- Returns creates up to 4 GL entries via hardcoded `createCodeBasedJournalEntry` — planned migration to posting rules engine
+- Kalkulacija/Nivelacija use server-side RPCs (`post_kalkulacija`, `post_nivelacija`)
 - No automated COGS journal creation when sales invoice is posted
