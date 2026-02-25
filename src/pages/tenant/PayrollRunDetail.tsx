@@ -15,7 +15,7 @@ import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { exportToCsv } from "@/lib/exportCsv";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PayrollRunDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +23,7 @@ export default function PayrollRunDetail() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const { data: run, isLoading: runLoading } = useQuery({
     queryKey: ["payroll-run", id],
@@ -138,14 +139,14 @@ export default function PayrollRunDetail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll-run", id] });
       qc.invalidateQueries({ queryKey: ["payroll-runs"] });
-      toast.success(t("success"));
+      toast({ title: t("success") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const downloadPppdXml = async () => {
     try {
-      toast.info("Generisanje PPP-PD XML...");
+      toast({ title: t("generatingPppdXml") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
@@ -156,12 +157,12 @@ export default function PayrollRunDetail() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `PPP-PD.xml`; a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
 
   const downloadPaymentOrders = async () => {
     try {
-      toast.info("Generisanje naloga za plaćanje...");
+      toast({ title: t("generatingPaymentOrders") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
@@ -172,7 +173,7 @@ export default function PayrollRunDetail() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `NaloziZaPlacanje.csv`; a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
 
   const isLoading = runLoading || itemsLoading;
@@ -242,8 +243,8 @@ export default function PayrollRunDetail() {
               { label: t("totalGross"), value: totals.gross },
               { label: t("totalNet"), value: totals.net },
               { label: t("totalTaxes"), value: totals.tax },
-              { label: "PIO (zaposl.)", value: totals.pioE },
-              { label: "PIO (posl.)", value: totals.pioR },
+              { label: t("pioEmployeeShort"), value: totals.pioE },
+              { label: t("pioEmployerShort"), value: totals.pioR },
               { label: t("totalCost"), value: totals.totalCost },
             ].map((s) => (
               <Card key={s.label}>
@@ -273,7 +274,7 @@ export default function PayrollRunDetail() {
                   <FileText className="h-4 w-4 mr-2" />PPP-PD XML
                 </Button>
                 <Button variant="outline" size="sm" onClick={downloadPaymentOrders}>
-                  <CreditCard className="h-4 w-4 mr-2" />Nalozi za plaćanje
+                  <CreditCard className="h-4 w-4 mr-2" />{t("paymentOrders")}
                 </Button>
               </>
             )}
@@ -296,13 +297,13 @@ export default function PayrollRunDetail() {
                     <TableHead>{t("department")}</TableHead>
                     <TableHead>OVP</TableHead>
                     <TableHead className="text-right">{t("grossSalary")}</TableHead>
-                    <TableHead className="text-right">PIO</TableHead>
-                    <TableHead className="text-right">Zdrav.</TableHead>
-                    <TableHead className="text-right">{t("incomeTax")}</TableHead>
-                    <TableHead className="text-right">{t("netSalary")}</TableHead>
-                    <TableHead className="text-right">PIO posl.</TableHead>
-                    <TableHead className="text-right">Zdrav. posl.</TableHead>
-                    <TableHead className="text-right">Subvencija</TableHead>
+                     <TableHead className="text-right">{t("pioEmployeeShort")}</TableHead>
+                     <TableHead className="text-right">{t("healthShort")}</TableHead>
+                     <TableHead className="text-right">{t("incomeTax")}</TableHead>
+                     <TableHead className="text-right">{t("netSalary")}</TableHead>
+                     <TableHead className="text-right">{t("pioEmployerShort")}</TableHead>
+                     <TableHead className="text-right">{t("healthEmployerShort")}</TableHead>
+                     <TableHead className="text-right">{t("subsidyAmount")}</TableHead>
                     <TableHead className="text-right">{t("totalCost")}</TableHead>
                     <TableHead className="text-right">PDF</TableHead>
                   </TableRow>

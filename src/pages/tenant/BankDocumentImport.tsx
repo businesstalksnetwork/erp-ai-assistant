@@ -16,17 +16,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Upload, FileText, AlertTriangle, CheckCircle, Clock, XCircle, FileUp } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
-const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; color: string; labelSr: string; labelEn: string }> = {
-  PENDING: { icon: Clock, color: "text-yellow-500", labelSr: "Na čekanju", labelEn: "Pending" },
-  PROCESSING: { icon: Clock, color: "text-blue-500", labelSr: "Obrada", labelEn: "Processing" },
-  PARSED: { icon: CheckCircle, color: "text-primary", labelSr: "Obrađen", labelEn: "Parsed" },
-  MATCHED: { icon: CheckCircle, color: "text-primary", labelSr: "Upareno", labelEn: "Matched" },
-  ERROR: { icon: XCircle, color: "text-destructive", labelSr: "Greška", labelEn: "Error" },
-  QUARANTINE: { icon: AlertTriangle, color: "text-destructive", labelSr: "Karantin", labelEn: "Quarantine" },
-};
-
 export default function BankDocumentImport() {
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -35,13 +26,19 @@ export default function BankDocumentImport() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Pre-select bank account from URL query param
   useEffect(() => {
     const accountId = searchParams.get("account_id");
     if (accountId) setSelectedAccountId(accountId);
   }, [searchParams]);
 
-  const isSr = locale === "sr";
+  const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; color: string; label: string }> = {
+    PENDING: { icon: Clock, color: "text-yellow-500", label: t("pending") },
+    PROCESSING: { icon: Clock, color: "text-blue-500", label: t("processing") },
+    PARSED: { icon: CheckCircle, color: "text-primary", label: t("parsed") },
+    MATCHED: { icon: CheckCircle, color: "text-primary", label: t("matched") },
+    ERROR: { icon: XCircle, color: "text-destructive", label: t("error") },
+    QUARANTINE: { icon: AlertTriangle, color: "text-destructive", label: t("quarantine") },
+  };
 
   const { data: imports = [], isLoading } = useQuery({
     queryKey: ["document_imports", tenantId],
@@ -101,7 +98,7 @@ export default function BankDocumentImport() {
         const { data: existing } = await supabase.from("document_imports")
           .select("id").eq("tenant_id", tenantId!).eq("sha256_hash", sha256).maybeSingle();
         if (existing) {
-          toast({ title: isSr ? "Duplikat" : "Duplicate", description: file.name, variant: "destructive" });
+          toast({ title: t("duplicateFile"), description: file.name, variant: "destructive" });
           continue;
         }
 
@@ -138,11 +135,11 @@ export default function BankDocumentImport() {
     },
     onSuccess: (results) => {
       qc.invalidateQueries({ queryKey: ["document_imports"] });
-      const parsed = results.filter(r => r.status === "parsed").length;
-      const pending = results.filter(r => r.status === "pending").length;
+      const parsedCount = results.filter(r => r.status === "parsed").length;
+      const pendingCount = results.filter(r => r.status === "pending").length;
       toast({
-        title: isSr ? "Uvoz završen" : "Import complete",
-        description: `${parsed} ${isSr ? "obrađeno" : "parsed"}, ${pending} ${isSr ? "na čekanju" : "pending"}`,
+        title: t("importComplete"),
+        description: `${parsedCount} ${t("parsed")}, ${pendingCount} ${t("pending")}`,
       });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -175,7 +172,7 @@ export default function BankDocumentImport() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={isSr ? "Uvoz bankovnih dokumenata" : "Bank Document Import"} />
+      <PageHeader title={t("bankDocumentImport")} />
 
       <div
         onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
@@ -184,15 +181,15 @@ export default function BankDocumentImport() {
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
       >
         <FileUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-        <p className="text-sm font-medium">{isSr ? "Prevucite XML, CSV ili PDF fajlove ovde" : "Drop XML, CSV, or PDF files here"}</p>
-        <p className="text-xs text-muted-foreground mt-1">{isSr ? "ili kliknite da izaberete" : "or click to select"}</p>
+        <p className="text-sm font-medium">{t("dropFilesHere")}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t("orClickToSelect")}</p>
         <div className="flex items-center justify-center gap-4 mt-4">
           <div>
-            <Label>{isSr ? "Račun" : "Account"}</Label>
+            <Label>{t("account")}</Label>
             <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{isSr ? "Auto-detekcija" : "Auto-detect"}</SelectItem>
+                <SelectItem value="all">{t("autoDetect")}</SelectItem>
                 {bankAccounts.map(ba => <SelectItem key={ba.id} value={ba.id}>{ba.bank_name} — {ba.account_number}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -200,36 +197,36 @@ export default function BankDocumentImport() {
           <div className="pt-5">
             <label>
               <input type="file" multiple accept=".xml,.csv,.pdf" className="hidden" onChange={handleFileInput} />
-              <Button variant="outline" asChild><span><Upload className="h-4 w-4 mr-2" />{isSr ? "Izaberite fajlove" : "Select files"}</span></Button>
+              <Button variant="outline" asChild><span><Upload className="h-4 w-4 mr-2" />{t("selectFiles")}</span></Button>
             </label>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold">{imports.length}</p><p className="text-xs text-muted-foreground">{isSr ? "Ukupno" : "Total"}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-primary">{imports.filter(i => i.status === "PARSED" || i.status === "MATCHED").length}</p><p className="text-xs text-muted-foreground">{isSr ? "Obrađeno" : "Parsed"}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-accent-foreground">{imports.filter(i => i.status === "PENDING").length}</p><p className="text-xs text-muted-foreground">{isSr ? "Na čekanju" : "Pending"}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-destructive">{errorCount}</p><p className="text-xs text-muted-foreground">{isSr ? "Greške" : "Errors"}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold">{imports.length}</p><p className="text-xs text-muted-foreground">{t("total")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-primary">{imports.filter(i => i.status === "PARSED" || i.status === "MATCHED").length}</p><p className="text-xs text-muted-foreground">{t("parsed")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-accent-foreground">{imports.filter(i => i.status === "PENDING").length}</p><p className="text-xs text-muted-foreground">{t("pending")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-2xl font-bold text-destructive">{errorCount}</p><p className="text-xs text-muted-foreground">{t("errors")}</p></CardContent></Card>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="all">{isSr ? "Svi" : "All"} ({imports.length})</TabsTrigger>
-          <TabsTrigger value="parsed">{isSr ? "Obrađeni" : "Parsed"}</TabsTrigger>
-          <TabsTrigger value="quarantine">{isSr ? "Karantin" : "Quarantine"} ({errorCount})</TabsTrigger>
+          <TabsTrigger value="all">{t("oiAll")} ({imports.length})</TabsTrigger>
+          <TabsTrigger value="parsed">{t("parsed")}</TabsTrigger>
+          <TabsTrigger value="quarantine">{t("quarantine")} ({errorCount})</TabsTrigger>
         </TabsList>
         <TabsContent value={tab}>
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{isSr ? "Fajl" : "File"}</TableHead>
-                  <TableHead>{isSr ? "Format" : "Format"}</TableHead>
-                  <TableHead>{isSr ? "Račun" : "Account"}</TableHead>
-                  <TableHead>{isSr ? "Transakcije" : "Transactions"}</TableHead>
-                  <TableHead>{isSr ? "Status" : "Status"}</TableHead>
-                  <TableHead>{isSr ? "Datum" : "Date"}</TableHead>
+                  <TableHead>{t("file")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("account")}</TableHead>
+                  <TableHead>{t("transactions")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -252,7 +249,7 @@ export default function BankDocumentImport() {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           <StIcon className={`h-3.5 w-3.5 ${st.color}`} />
-                          <span className="text-xs">{isSr ? st.labelSr : st.labelEn}</span>
+                          <span className="text-xs">{st.label}</span>
                         </div>
                         {imp.error_message && <p className="text-xs text-destructive mt-1 truncate max-w-[200px]">{imp.error_message}</p>}
                       </TableCell>
@@ -268,7 +265,7 @@ export default function BankDocumentImport() {
 
       {csvProfiles.length > 0 && (
         <div className="text-xs text-muted-foreground">
-          {isSr ? "Dostupni CSV profili" : "Available CSV profiles"}: {csvProfiles.map(p => p.profile_name).join(", ")}
+          {t("availableCsvProfiles")}: {csvProfiles.map(p => p.profile_name).join(", ")}
         </div>
       )}
     </div>
