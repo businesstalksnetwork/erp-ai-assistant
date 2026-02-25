@@ -51,7 +51,7 @@ async function checkRateLimit(supabase: any, userId: string, tenantId: string): 
 
   await supabase.from("ai_rate_limits").insert({
     user_id: userId, tenant_id: tenantId, window_start: new Date().toISOString(),
-  }).catch(() => {});
+  });
 
   return true;
 }
