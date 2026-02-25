@@ -5,6 +5,7 @@ import {
   BookOpen, FileText, Receipt, Library, Landmark, ListChecks,
   Calculator, CalendarCheck, Building, Clock, Wallet, DollarSign,
   RefreshCw, ArrowLeftRight, Lock, BarChart3, Repeat, RotateCw,
+  FileCheck, PieChart, Banknote,
 } from "lucide-react";
 
 const sections = [
@@ -22,6 +23,8 @@ const sections = [
     links: [
       { to: "/accounting/bank-statements", icon: Landmark, label: "Izvodi", desc: "Uvoz i usklađivanje bankovnih izvoda" },
       { to: "/accounting/open-items", icon: ListChecks, label: "Otvorene stavke", desc: "Nenaplaćena potraživanja i obaveze" },
+      { to: "/accounting/ios", icon: FileCheck, label: "IOS", desc: "Izvod otvorenih stavki — potvrda salda sa partnerima" },
+      { to: "/accounting/cash-register", icon: Banknote, label: "Blagajna", desc: "Blagajnički dnevnik — gotovinske uplate i isplate" },
     ],
   },
   {
@@ -54,6 +57,7 @@ const sections = [
       { to: "/accounting/kompenzacija", icon: ArrowLeftRight, label: "Kompenzacija", desc: "Međusobno prebijanje potraživanja i obaveza" },
       { to: "/accounting/year-end", icon: Lock, label: "Zaključak godine", desc: "Godišnji obračun i zatvaranje knjiga" },
       { to: "/accounting/reports", icon: BarChart3, label: "Izveštaji", desc: "Bilans stanja, bilans uspeha i bruto bilans" },
+      { to: "/accounting/reports/cost-center-pl", icon: PieChart, label: "P&L po MT", desc: "Profitabilnost po mestima troškova" },
     ],
   },
 ];

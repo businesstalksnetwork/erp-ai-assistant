@@ -28,6 +28,9 @@ const FxRevaluation = React.lazy(() => import("@/pages/tenant/FxRevaluation"));
 const Kompenzacija = React.lazy(() => import("@/pages/tenant/Kompenzacija"));
 const RecurringInvoices = React.lazy(() => import("@/pages/tenant/RecurringInvoices"));
 const RecurringJournals = React.lazy(() => import("@/pages/tenant/RecurringJournals"));
+const IosBalanceConfirmation = React.lazy(() => import("@/pages/tenant/IosBalanceConfirmation"));
+const CostCenterPL = React.lazy(() => import("@/pages/tenant/CostCenterPL"));
+const CashRegister = React.lazy(() => import("@/pages/tenant/CashRegister"));
 
 const m = "accounting";
 
@@ -49,8 +52,10 @@ export const accountingRoutes = (
     <Route path="accounting/reports/bilans-uspeha" element={<ProtectedRoute requiredModule={m}><BilansUspeha /></ProtectedRoute>} />
     <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule={m}><BilansStanja /></ProtectedRoute>} />
     <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule={m}><AgingReports /></ProtectedRoute>} />
+    <Route path="accounting/reports/cost-center-pl" element={<ProtectedRoute requiredModule={m}><CostCenterPL /></ProtectedRoute>} />
     <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule={m}><BankStatements /></ProtectedRoute>} />
     <Route path="accounting/open-items" element={<ProtectedRoute requiredModule={m}><OpenItems /></ProtectedRoute>} />
+    <Route path="accounting/ios" element={<ProtectedRoute requiredModule={m}><IosBalanceConfirmation /></ProtectedRoute>} />
     <Route path="accounting/pdv" element={<ProtectedRoute requiredModule={m}><PdvPeriods /></ProtectedRoute>} />
     <Route path="accounting/year-end" element={<ProtectedRoute requiredModule={m}><YearEndClosing /></ProtectedRoute>} />
     <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule={m}><FixedAssets /></ProtectedRoute>} />
@@ -58,6 +63,7 @@ export const accountingRoutes = (
     <Route path="accounting/loans" element={<ProtectedRoute requiredModule={m}><Loans /></ProtectedRoute>} />
     <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule={m}><FxRevaluation /></ProtectedRoute>} />
     <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><Kompenzacija /></ProtectedRoute>} />
+    <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><CashRegister /></ProtectedRoute>} />
     <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><RecurringInvoices /></ProtectedRoute>} />
     <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><RecurringJournals /></ProtectedRoute>} />
   </>

@@ -29,6 +29,7 @@ const PayrollCategories = React.lazy(() => import("@/pages/tenant/PayrollCategor
 const PayrollPaymentTypes = React.lazy(() => import("@/pages/tenant/PayrollPaymentTypes"));
 const PayrollRunDetail = React.lazy(() => import("@/pages/tenant/PayrollRunDetail"));
 const NonEmploymentIncome = React.lazy(() => import("@/pages/tenant/NonEmploymentIncome"));
+const PppdReview = React.lazy(() => import("@/pages/tenant/PppdReview"));
 
 const m = "hr";
 
@@ -44,6 +45,7 @@ export const hrRoutes = (
     <Route path="hr/payroll" element={<ProtectedRoute requiredModule={m}><Payroll /></ProtectedRoute>} />
     <Route path="hr/payroll/categories" element={<ProtectedRoute requiredModule={m}><PayrollCategories /></ProtectedRoute>} />
     <Route path="hr/payroll/payment-types" element={<ProtectedRoute requiredModule={m}><PayrollPaymentTypes /></ProtectedRoute>} />
+    <Route path="hr/payroll/pppd" element={<ProtectedRoute requiredModule={m}><PppdReview /></ProtectedRoute>} />
     <Route path="hr/payroll/:id" element={<ProtectedRoute requiredModule={m}><PayrollRunDetail /></ProtectedRoute>} />
     <Route path="hr/work-logs" element={<ProtectedRoute requiredModule={m}><WorkLogs /></ProtectedRoute>} />
     <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule={m}><WorkLogsBulkEntry /></ProtectedRoute>} />

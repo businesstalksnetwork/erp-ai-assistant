@@ -1700,6 +1700,86 @@ export type Database = {
           },
         ]
       }
+      cash_register: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          direction: string
+          document_ref: string | null
+          entry_date: string
+          entry_number: string
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          partner_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          direction: string
+          document_ref?: string | null
+          entry_date?: string
+          entry_number: string
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          partner_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          direction?: string
+          document_ref?: string | null
+          entry_date?: string
+          entry_number?: string
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          partner_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_register_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_type: string

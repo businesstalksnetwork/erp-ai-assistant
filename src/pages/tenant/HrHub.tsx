@@ -6,6 +6,7 @@ import {
   ClipboardList, Timer, Moon, Palmtree, Calendar, MinusCircle,
   PlusCircle, UserPlus, DollarSign, ShieldCheck, LayoutTemplate,
   HeartPulse, BarChart3, List, CreditCard, TrendingUp, Settings,
+  FileSpreadsheet,
 } from "lucide-react";
 
 const sections = [
@@ -49,6 +50,12 @@ const sections = [
       { to: "/hr/allowances", icon: PlusCircle, label: "Dodaci", desc: "Dodaci na zaradu (topli obrok, prevoz...)" },
       { to: "/hr/insurance", icon: ShieldCheck, label: "Osiguranje", desc: "Evidencija osiguranja zaposlenih" },
       { to: "/settings/payroll-parameters", icon: Settings, label: "Parametri obračuna", desc: "Stope poreza, doprinosa, neoporezivi iznos" },
+    ],
+  },
+  {
+    title: "Poreske prijave",
+    links: [
+      { to: "/hr/payroll/pppd", icon: FileSpreadsheet, label: "PPP-PD", desc: "Pregled i generisanje PPP-PD XML prijave" },
     ],
   },
   {
