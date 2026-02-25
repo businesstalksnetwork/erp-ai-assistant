@@ -1,94 +1,141 @@
 
 
-# Audit: Settings Pages CRUD and Seed Data Status
+# Settings Pages -- Comprehensive Issues and Improvements
 
-## Summary of Findings
+## Summary
 
-I reviewed all settings pages referenced from the Settings hub. Here is the status of each:
+After reviewing all settings pages, the database seed data status, and the code quality across ~25 settings-related files, here are the issues organized by severity.
 
-### Pages with Full CRUD -- No Action Needed
+---
 
-| Page | Table | Has Add | Has Edit | Has Delete | Seed Data |
-|------|-------|---------|----------|------------|-----------|
-| Legal Entities | `legal_entities` | Yes | Yes | Yes | 3 rows |
-| Locations | `locations` | Yes | Yes | Yes | 3 rows |
-| Warehouses | `warehouses` | Yes | Yes | Yes | 3 rows |
-| Cost Centers | `cost_centers` | Yes | Yes | Yes | 5 rows |
-| Bank Accounts | `bank_accounts` | Yes | Yes | Yes | 1 row |
-| Tax Rates | `tax_rates` | Yes | Yes | No (edit only) | 8 rows |
-| Payroll Parameters | `payroll_parameters` | Yes | Yes | Yes | 3 rows |
-| Integrations | `sef/ebol/eotp_connections` | Yes | Yes | Toggle | N/A (config) |
-| Business Rules | `tenant_settings` | Save form | Save form | N/A | Settings JSON |
-| Opportunity Stages | `opportunity_stages` | Yes | Yes | Yes | 6 rows |
-| Discount Approval Rules | `discount_approval_rules` | Yes | Yes | Yes | 0 rows |
-| Approval Workflows | `approval_workflows` | Yes | Yes | Yes | 0 rows |
-| Data Protection | `data_subject_requests` | Yes | Complete | N/A | 0 rows |
-| Posting Rules | `posting_rule_catalog` | Yes (just added) | Yes | N/A | 20 rows |
-| DMS Settings | `document_categories` etc. | Yes (just added) | Yes | Yes | Just seeded |
-| Partner Categories | `company_categories` | Yes | Yes | Yes | Seeded |
-| Accounting Architecture | N/A (visual flowchart) | N/A | N/A | N/A | N/A |
-| Event Monitor | `domain_events` | N/A (read-only log) | Retry action | N/A | 0 rows |
-| Audit Log | `audit_log` | N/A (read-only log) | N/A | N/A | Generated |
-| AI Audit Log | `ai_audit_log` | N/A (read-only log) | N/A | N/A | Generated |
-| Legacy Import | N/A (upload wizard) | N/A | N/A | N/A | N/A |
+## Critical Issues
 
-### Pages with Issues
+### 1. Hardcoded Serbian strings (no i18n) -- 16 files affected
 
-**1. Currencies -- Add button is disabled (line 66)**
-- The "Add" button has `disabled` prop hardcoded to `true`: `<Button size="sm" disabled>`
-- There is no add/edit dialog at all -- it's read-only
-- Has 5 rows of seed data and NBS import works, but users cannot manually add or edit currencies
-- **Fix needed**: Add CRUD dialog for currencies (code, name, symbol, is_base, is_active)
+Many pages bypass the `t()` translation system entirely, using hardcoded Serbian strings for toast messages, labels, descriptions, and button text. This breaks the app for English-language users.
 
-**2. Approval Workflows -- no seed data (0 rows)**
-- Full CRUD UI exists and works correctly
-- Empty by default -- users see "No results" with no guidance
-- **Fix needed**: Seed default workflows (e.g., Invoice approval above threshold, Journal entry approval, Purchase order approval)
+**Affected files and examples:**
+- `CompanyCategoriesSettings.tsx` -- `toast.success('Kategorija je uspešno kreirana')`, `'Čuvanje...'`, `'Upravljajte kategorijama...'`, `'Nema kategorija. Dodajte prvu kategoriju.'`, `'Greška: '`
+- `CashRegister.tsx` -- `toast.success("Stavka blagajne kreirana")`
+- `RecurringJournals.tsx` -- `toast.success("Šablon kreiran")`, `"Šablon obrisan"`
+- `RecurringInvoices.tsx` -- `toast.success("Šablon kreiran")`, `"Otkaži"` button
+- `TransferPricing.tsx` -- `toast.success("Povezano lice dodato")`
+- `WithholdingTax.tsx` -- `toast.success("Obračun kreiran")`, `"Otkaži"`, `"Čuvanje..."`
+- `IntercompanyTransactions.tsx` -- `toast.success("Intercompany transakcija kreirana")`
+- `ReportSnapshots.tsx` -- `toast.success("Snapshot obrisan")`
+- `EmployeeDetail.tsx` -- `"Kategorija prihoda"` label
 
-**3. Discount Approval Rules -- no seed data (0 rows)**
-- Full CRUD UI exists and works correctly
-- Empty by default
-- **Fix needed**: Seed default rules (e.g., admin: 50% max, manager: 20%, sales: 10%, user: 5%)
+**Fix:** Replace all hardcoded Serbian strings with `t("key")` calls and add corresponding keys to `translations.ts`.
 
-**4. Location Types -- no seed data (0 rows)**
-- CRUD exists inside the Locations page (Manage Types dialog)
-- Empty by default, so the Location Type selector in the add/edit dialog shows nothing
-- **Fix needed**: Seed default types (Kancelarija/Office, Prodavnica/Shop, Magacin/Warehouse, Proizvodnja/Production)
+### 2. Missing translation keys -- `as any` type casts (14 files, 159 occurrences)
+
+Many translation calls use `t("key" as any)`, meaning the keys exist at runtime but are not in the TypeScript type definition. This hides missing-key errors and indicates keys that were added to `translations.ts` but not to the type union.
+
+**Most affected:**
+- `DiscountApprovalRules.tsx` -- `t("discountApprovalRules" as any)`, `t("maxDiscountPct" as any)`, `t("requiresApprovalAbove" as any)`, `t("addRule" as any)`
+- `PdvPeriods.tsx` -- `t("pdvSubmitted" as any)`, `t("partnerName" as any)`
+- `Leads.tsx` -- `t("firstName" as any)`, `t("lastName" as any)`, `t("jobTitle" as any)`
+- `InvoiceForm.tsx` -- `t("invoiceType" as any)`
+
+**Fix:** Add the missing keys to the `TranslationKey` type definition so TypeScript catches real missing keys.
+
+---
+
+## UX Issues
+
+### 3. Browser `confirm()` used instead of AlertDialog -- 4 files
+
+Using the native `confirm()` dialog breaks the visual consistency and doesn't work well on mobile. Other pages correctly use `<AlertDialog>` for deletions.
+
+**Affected:**
+- `DmsSettings.tsx` -- 3 delete actions use `confirm()`
+- `PayrollPaymentTypes.tsx` -- delete uses `confirm(sr ? "Obrisati?" : "Delete?")`
+- `PayrollParameters.tsx` -- delete uses `confirm(t("deleteConfirmation"))`
+- `PayrollCategories.tsx` -- delete uses `confirm(sr ? "Obrisati?" : "Delete?")`
+
+**Fix:** Replace `confirm()` with `<AlertDialog>` component (pattern used in `Locations.tsx`, `ApprovalWorkflows.tsx`, etc.).
+
+### 4. Inconsistent toast libraries
+
+Some pages use `import { toast } from "sonner"` (direct sonner), others use `import { useToast } from "@/hooks/use-toast"` (shadcn wrapper). This causes inconsistent toast positioning and styling.
+
+**Pages using sonner directly:** `DiscountApprovalRules.tsx`, `CompanyCategoriesSettings.tsx`, `BusinessRules.tsx`, `OpportunityStagesSettings.tsx`, `CashRegister.tsx`, `RecurringJournals.tsx`, `RecurringInvoices.tsx`
+
+**Pages using `useToast`:** `Currencies.tsx`, `Locations.tsx`, `BankAccounts.tsx`, `TaxRates.tsx`, `PostingRules.tsx`, `DmsSettings.tsx`
+
+**Fix:** Standardize on one approach. `useToast` (shadcn wrapper) is the dominant pattern.
+
+### 5. Tax Rates page missing delete functionality
+
+The `TaxRates.tsx` page has Add and Edit but no Delete button. Users cannot remove obsolete tax rates.
+
+**Fix:** Add a delete button with `AlertDialog` confirmation, similar to other CRUD pages.
+
+### 6. Currencies page -- no delete capability
+
+`Currencies.tsx` has Add and Edit but no way to delete a currency. Users who accidentally add a wrong currency cannot remove it.
+
+**Fix:** Add delete button with protection against deleting the base currency or currencies referenced in exchange rates.
+
+### 7. Posting Rules -- no delete capability for custom rules
+
+Users can add custom rules but cannot delete them if they were created in error.
+
+**Fix:** Add a delete action for non-system rules (rules not in the predefined `MODULE_GROUPS` arrays).
+
+---
+
+## Data Quality Issues
+
+### 8. Seed data verified -- all tables populated
+
+Database counts confirm all previously-empty tables now have seed data:
+- `location_types`: 12 rows
+- `approval_workflows`: 9 rows
+- `discount_approval_rules`: 12 rows
+- `document_categories`: 54 rows
+- `confidentiality_levels`: 12 rows
+- `role_confidentiality_access`: 27 rows
+
+No further seeding needed.
+
+---
 
 ## Proposed Plan
 
-### Migration: Seed missing default data
+### Phase 1: Fix hardcoded strings and missing types (highest impact)
 
-Seed for all existing tenants + add to `seed_dms_defaults` trigger (or create new trigger):
+1. **`translations.ts`** -- Add ~30 missing keys and fix the `TranslationKey` type to include all keys used with `as any`
+2. **16 files** -- Replace hardcoded Serbian strings with `t()` calls
 
-**Location Types** (4 types):
-- Kancelarija (office) -- no warehouse, no sellers
-- Prodavnica (shop) -- has warehouse, has sellers
-- Magacin (warehouse) -- has warehouse, no sellers
-- Proizvodnja (production) -- has warehouse, no sellers
+### Phase 2: Fix UX consistency
 
-**Approval Workflows** (3 defaults):
-- Invoice approval (entity_type: invoice, threshold: 500000, min_approvers: 1, roles: [admin, manager])
-- Journal entry approval (entity_type: journal_entry, threshold: 1000000, min_approvers: 1, roles: [admin, accountant])
-- Purchase order approval (entity_type: purchase_order, threshold: 200000, min_approvers: 1, roles: [admin, manager])
-
-**Discount Approval Rules** (4 defaults):
-- admin: max 50%, no approval needed
-- manager: max 20%, approval above 15%
-- sales: max 10%, approval above 5%
-- user: max 5%, approval above 3%
-
-### Currencies page: Enable CRUD
-
-- Remove `disabled` from Add button
-- Add Dialog with fields: code, name, symbol, is_base (switch), is_active (switch)
-- Add Edit button to each table row
-- Add save mutation (insert/update to `currencies` table)
+3. **4 files** -- Replace `confirm()` with `<AlertDialog>` component
+4. **7 files** -- Standardize toast imports to `useToast`
+5. **`TaxRates.tsx`** -- Add delete button with confirmation
+6. **`Currencies.tsx`** -- Add delete button (protected for base currency)
+7. **`PostingRules.tsx`** -- Add delete button for custom rules
 
 ### Files Changed
 
-| File | Change |
-|------|--------|
-| `supabase/migrations/...` | Seed location_types, approval_workflows, discount_approval_rules |
-| `src/pages/tenant/Currencies.tsx` | Enable Add button, add CRUD dialog with edit capability |
+| File | Changes |
+|------|---------|
+| `src/i18n/translations.ts` | Add ~30 keys, fix `TranslationKey` type |
+| `src/pages/tenant/CompanyCategoriesSettings.tsx` | Replace ~15 hardcoded strings with `t()`, switch to `useToast` |
+| `src/pages/tenant/RecurringJournals.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/RecurringInvoices.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/CashRegister.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/TransferPricing.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/WithholdingTax.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/IntercompanyTransactions.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/ReportSnapshots.tsx` | Replace hardcoded strings |
+| `src/pages/tenant/EmployeeDetail.tsx` | Replace hardcoded label |
+| `src/pages/tenant/DmsSettings.tsx` | Replace `confirm()` with `AlertDialog` |
+| `src/pages/tenant/PayrollPaymentTypes.tsx` | Replace `confirm()` with `AlertDialog`, fix toast |
+| `src/pages/tenant/PayrollParameters.tsx` | Replace `confirm()` with `AlertDialog` |
+| `src/pages/tenant/PayrollCategories.tsx` | Replace `confirm()` with `AlertDialog`, fix toast |
+| `src/pages/tenant/DiscountApprovalRules.tsx` | Remove `as any` casts, switch to `useToast` |
+| `src/pages/tenant/TaxRates.tsx` | Add delete button |
+| `src/pages/tenant/Currencies.tsx` | Add delete button |
+| `src/pages/tenant/PostingRules.tsx` | Add delete for custom rules |
 
