@@ -28,6 +28,7 @@ const systemPrompts: Record<string, string> = {
   hr_overview: `You are an HR analytics AI. Given HR data, analyze headcount trends, payroll as percentage of revenue, turnover indicators, and workforce composition. Provide a 2-3 sentence analysis.`,
   pos_performance: `You are a retail analytics AI. Given POS transaction data, analyze daily sales averages, top-selling products, peak hours, and payment method distribution. Provide a 2-3 sentence analysis.`,
   purchasing: `You are a procurement analyst AI. Given purchasing data, analyze supplier concentration, purchase order fulfillment rates, price variance, and lead times. Provide a 2-3 sentence analysis.`,
+  sales_performance: `You are a sales performance analyst AI. Given sales data including quotes, sales orders, invoices, and dispatch notes, analyze conversion rates (quote→order→invoice), average deal size, revenue trends, top customers by volume, salesperson performance, and channel effectiveness. Provide a 2-3 sentence analysis.`,
 };
 
 /** Validate SQL for read-only tenant-scoped queries */
