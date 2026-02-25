@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Calculator, Eye, Send, FileDown } from "lucide-react";
+import { Plus, Calculator, Eye, Send, FileDown, BookOpen } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
@@ -282,6 +282,59 @@ export default function PdvPeriods() {
     },
   });
 
+  const generatePppdvXml = useMutation({
+    mutationFn: async (periodId: string) => {
+      const { data, error } = await supabase.functions.invoke("generate-pppdv-xml", {
+        body: { tenant_id: tenantId, pdv_period_id: periodId },
+      });
+      if (error) throw error;
+      const blob = new Blob([data.xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = data.filename; a.click();
+      URL.revokeObjectURL(url);
+    },
+    onSuccess: () => toast({ title: t("success") }),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const settlePdvMutation = useMutation({
+    mutationFn: async (periodId: string) => {
+      const { data, error } = await supabase.rpc("create_pdv_settlement_journal" as any, {
+        p_pdv_period_id: periodId,
+        p_tenant_id: tenantId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pdv_periods"] });
+      toast({ title: "PDV knjiženje kreirano", description: "Nalog za knjiženje PDV obaveze/pretplate je automatski generisan." });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const generateTaxPaymentOrder = useMutation({
+    mutationFn: async (period: any) => {
+      const startDate = new Date(period.start_date);
+      const { data, error } = await supabase.functions.invoke("generate-tax-payment-orders", {
+        body: {
+          tenant_id: tenantId,
+          tax_type: "pdv",
+          amount: period.vat_liability,
+          period_month: startDate.getMonth() + 1,
+          period_year: startDate.getFullYear(),
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Nalog za plaćanje generisan", description: `Poziv na broj: ${data?.paymentOrder?.reference || "—"}` });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const fmt = (n: number) => fmtNum(Number(n));
 
   const statusBadge = (status: string) => {
@@ -367,26 +420,41 @@ export default function PdvPeriods() {
         <>
           <Button variant="outline" onClick={() => setSelectedPeriod(null)}>← {t("back")}</Button>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-xl font-semibold">{selectedPeriod.period_name}</h2>
               <p className="text-sm text-muted-foreground">{selectedPeriod.start_date} — {selectedPeriod.end_date}</p>
             </div>
-            <ExportButton
-              data={entries.map(e => ({ ...e }))}
-              columns={[
-                { key: "popdv_section", label: t("popdvSection") },
-                { key: "document_number", label: t("oiDocumentNumber") },
-                { key: "document_date", label: t("date") },
-                { key: "partner_name", label: t("partnerName") },
-                { key: "partner_pib", label: "PIB" },
-                { key: "base_amount", label: t("pdvBaseAmount") },
-                { key: "vat_amount", label: t("pdvVatAmount") },
-                { key: "vat_rate", label: t("pdvVatRate") },
-              ]}
-              filename={`popdv_${selectedPeriod.period_name}`}
-            />
-            <DownloadPdfButton type="pdv_return" params={{ pdv_period_id: selectedPeriod.id }} />
+            <div className="flex gap-2 flex-wrap">
+              <ExportButton
+                data={entries.map(e => ({ ...e }))}
+                columns={[
+                  { key: "popdv_section", label: t("popdvSection") },
+                  { key: "document_number", label: t("oiDocumentNumber") },
+                  { key: "document_date", label: t("date") },
+                  { key: "partner_name", label: t("partnerName") },
+                  { key: "partner_pib", label: "PIB" },
+                  { key: "base_amount", label: t("pdvBaseAmount") },
+                  { key: "vat_amount", label: t("pdvVatAmount") },
+                  { key: "vat_rate", label: t("pdvVatRate") },
+                ]}
+                filename={`popdv_${selectedPeriod.period_name}`}
+              />
+              <DownloadPdfButton type="pdv_return" params={{ pdv_period_id: selectedPeriod.id }} />
+              <Button variant="outline" size="sm" onClick={() => generatePppdvXml.mutate(selectedPeriod.id)} disabled={generatePppdvXml.isPending}>
+                <FileDown className="h-4 w-4 mr-2" />PP-PDV XML
+              </Button>
+              {selectedPeriod.status === "submitted" && (
+                <Button variant="outline" size="sm" onClick={() => settlePdvMutation.mutate(selectedPeriod.id)} disabled={settlePdvMutation.isPending}>
+                  <BookOpen className="h-4 w-4 mr-2" />Zatvori PDV
+                </Button>
+              )}
+              {(selectedPeriod.status === "submitted" || selectedPeriod.status === "closed") && Number(selectedPeriod.vat_liability) > 0 && (
+                <Button variant="outline" size="sm" onClick={() => generateTaxPaymentOrder.mutate(selectedPeriod)} disabled={generateTaxPaymentOrder.isPending}>
+                  <FileDown className="h-4 w-4 mr-2" />Nalog za plaćanje
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Summary cards */}

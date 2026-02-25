@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
@@ -14,7 +15,8 @@ import { ExportButton } from "@/components/ExportButton";
 import { PrintButton } from "@/components/PrintButton";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, FileDown } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 
 // Serbian account class names
@@ -32,6 +34,24 @@ export default function BilansUspeha() {
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
   const [legalEntityId, setLegalEntityId] = useState<string>("");
+  const { toast } = useToast();
+  const [aprExporting, setAprExporting] = useState(false);
+
+  const handleAprXmlExport = async () => {
+    setAprExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-apr-xml", {
+        body: { tenant_id: tenantId, report_type: "bilans_uspeha", year: new Date(dateTo).getFullYear(), legal_entity_id: legalEntityId || null },
+      });
+      if (error) throw error;
+      const blob = new Blob([data.xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = data.filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast({ title: "Greška", description: e.message, variant: "destructive" });
+    } finally { setAprExporting(false); }
+  };
 
   const { data: lines = [], isLoading } = useQuery({
     queryKey: ["bilans_uspeha", tenantId, dateFrom, dateTo, legalEntityId],
@@ -117,6 +137,9 @@ export default function BilansUspeha() {
                 legal_entity_id: legalEntityId || null,
               }}
             />
+            <Button variant="outline" size="sm" onClick={handleAprXmlExport} disabled={aprExporting}>
+              <FileDown className="h-4 w-4 mr-2" />APR XML
+            </Button>
             <PrintButton />
           </div>
         }

@@ -167,6 +167,20 @@ export default function PostingRules() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  // Seed extended rules
+  const seedExtendedMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("seed_extended_posting_rules" as any, { p_tenant_id: tenantId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["posting_rules_v2"] });
+      qc.invalidateQueries({ queryKey: ["payment_models"] });
+      toast({ title: "Uspešno", description: "Proširena pravila knjiženja su generisana za sve nove tipove dokumenata." });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   // Account mapping mutations
   const [addMappingOpen, setAddMappingOpen] = useState(false);
   const [newMapping, setNewMapping] = useState({ bank_account_id: "", gl_account_id: "", mapping_type: "PRIMARY" });
@@ -241,9 +255,14 @@ export default function PostingRules() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <BookOpen className="h-6 w-6" /> {t("postingRuleCatalog")}
         </h1>
-        <Button onClick={() => setWizardOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> {t("addPostingRule")}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => seedExtendedMutation.mutate()} disabled={seedExtendedMutation.isPending}>
+            <Sparkles className="h-4 w-4 mr-2" />Generiši pravila
+          </Button>
+          <Button onClick={() => setWizardOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> {t("addPostingRule")}
+          </Button>
+        </div>
       </div>
 
       {/* Coverage Warning */}
