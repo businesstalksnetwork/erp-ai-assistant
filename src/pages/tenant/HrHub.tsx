@@ -5,7 +5,7 @@ import {
   Users, FileText, Building2, Clock, CalendarOff, Wallet,
   ClipboardList, Timer, Moon, Palmtree, Calendar, MinusCircle,
   PlusCircle, UserPlus, DollarSign, ShieldCheck, LayoutTemplate,
-  HeartPulse, BarChart3, List, CreditCard, TrendingUp,
+  HeartPulse, BarChart3, List, CreditCard, TrendingUp, Settings,
 } from "lucide-react";
 
 const sections = [
@@ -42,11 +42,13 @@ const sections = [
     links: [
       { to: "/hr/payroll", icon: Wallet, label: "Obračun zarada", desc: "Mesečni obračun plata i doprinosa" },
       { to: "/hr/payroll/categories", icon: List, label: "Kategorije obračuna", desc: "OVP kategorije prihoda za PPP-PD" },
-      { to: "/hr/payroll/payment-types", icon: CreditCard, label: "Vrste isplate", desc: "Tipovi isplate sa multiplikatorima" },
+      { to: "/hr/payroll/payment-types", icon: CreditCard, label: "Vrste isplate", desc: "Tipovi isplate sa multiplikatorima i GL kontima" },
+      { to: "/hr/non-employment-income", icon: FileText, label: "Vanradni prihodi", desc: "Autorski ugovori, ugovor o delu, dividende, zakup" },
       { to: "/hr/salaries", icon: DollarSign, label: "Istorija plata", desc: "Pregled istorije zarada po zaposlenima" },
       { to: "/hr/deductions", icon: MinusCircle, label: "Odbici", desc: "Administrativne zabrane i odbici" },
       { to: "/hr/allowances", icon: PlusCircle, label: "Dodaci", desc: "Dodaci na zaradu (topli obrok, prevoz...)" },
       { to: "/hr/insurance", icon: ShieldCheck, label: "Osiguranje", desc: "Evidencija osiguranja zaposlenih" },
+      { to: "/settings/payroll-parameters", icon: Settings, label: "Parametri obračuna", desc: "Stope poreza, doprinosa, neoporezivi iznos" },
     ],
   },
   {

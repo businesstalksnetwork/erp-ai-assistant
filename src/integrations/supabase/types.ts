@@ -7432,6 +7432,115 @@ export type Database = {
           },
         ]
       }
+      non_employment_income: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          gross_amount: number
+          health_amount: number
+          id: string
+          income_date: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          net_amount: number
+          normalized_expense_pct: number
+          notes: string | null
+          ovp_code: string
+          payment_date: string | null
+          period_month: number
+          period_year: number
+          pio_amount: number
+          recipient_jmbg: string | null
+          recipient_name: string
+          recipient_pib: string | null
+          recipient_type_code: string | null
+          status: string
+          tax_amount: number
+          tax_base: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          gross_amount?: number
+          health_amount?: number
+          id?: string
+          income_date?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          net_amount?: number
+          normalized_expense_pct?: number
+          notes?: string | null
+          ovp_code?: string
+          payment_date?: string | null
+          period_month?: number
+          period_year?: number
+          pio_amount?: number
+          recipient_jmbg?: string | null
+          recipient_name: string
+          recipient_pib?: string | null
+          recipient_type_code?: string | null
+          status?: string
+          tax_amount?: number
+          tax_base?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          gross_amount?: number
+          health_amount?: number
+          id?: string
+          income_date?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          net_amount?: number
+          normalized_expense_pct?: number
+          notes?: string | null
+          ovp_code?: string
+          payment_date?: string | null
+          period_month?: number
+          period_year?: number
+          pio_amount?: number
+          recipient_jmbg?: string | null
+          recipient_name?: string
+          recipient_pib?: string | null
+          recipient_type_code?: string | null
+          status?: string
+          tax_amount?: number
+          tax_base?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "non_employment_income_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "non_employment_income_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "non_employment_income_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           category: string
@@ -13177,6 +13286,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      calculate_non_employment_income: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       calculate_partner_tiers: {
         Args: { p_tenant_id: string }
