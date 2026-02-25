@@ -230,7 +230,7 @@ export default function NonEmploymentIncome() {
                         </Button>
                         {rec.status === "draft" && (
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                            onClick={() => { if (confirm(sr ? "Obrisati?" : "Delete?")) deleteMutation.mutate(rec.id); }}>
+                            onClick={() => { if (window.confirm(sr ? "Da li ste sigurni da želite da obrišete ovaj zapis?" : "Are you sure you want to delete this record?")) deleteMutation.mutate(rec.id); }}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}

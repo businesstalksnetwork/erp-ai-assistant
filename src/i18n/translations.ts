@@ -874,7 +874,26 @@ export const translations = {
     yearEndAlreadyClosed: "This fiscal period has been closed and locked.",
     // balance already defined above
 
-    // Phase 23: CRM
+    // Phase A-D: New accounting/HR sidebar items
+    recurringJournals: "Recurring Journals",
+    recurringInvoices: "Recurring Invoices",
+    cashRegister: "Cash Register",
+    iosBalanceConfirmation: "IOS Balance Confirmation",
+    costCenterPL: "Cost Center P&L",
+    citTaxReturn: "CIT Tax Return",
+    withholdingTax: "Withholding Tax",
+    intercompanyTransactions: "Intercompany",
+    consolidatedStatements: "Consolidated Statements",
+    transferPricing: "Transfer Pricing",
+    multiPeriodReports: "Multi-Period Reports",
+    statistickiAneks: "Statistical Annex",
+    kpoBook: "KPO Book",
+    reportSnapshots: "Report Snapshots",
+    nonEmploymentIncome: "Non-Employment Income",
+    pppdReview: "PPP-PD Review",
+    consolidation: "Consolidation",
+    reporting: "Reporting",
+
     companies: "Companies",
     addCompany: "Add Company",
     editCompany: "Edit Company",
@@ -2879,7 +2898,26 @@ export const translations = {
     yearEndAlreadyClosed: "Ovaj fiskalni period je zatvoren i zaključan.",
     // balance already defined above
 
-    // Phase 23: CRM
+    // Phase A-D: New accounting/HR sidebar items
+    recurringJournals: "Ponavljajuća knjiženja",
+    recurringInvoices: "Ponavljajuće fakture",
+    cashRegister: "Blagajna",
+    iosBalanceConfirmation: "IOS potvrda salda",
+    costCenterPL: "P&L po troškovnim centrima",
+    citTaxReturn: "Porez na dobit (PDP)",
+    withholdingTax: "Porez po odbitku",
+    intercompanyTransactions: "Međukompanijski promet",
+    consolidatedStatements: "Konsolidovani izveštaji",
+    transferPricing: "Transferne cene",
+    multiPeriodReports: "Višeperiodični izveštaji",
+    statistickiAneks: "Statistički aneks",
+    kpoBook: "KPO knjiga",
+    reportSnapshots: "Arhiva izveštaja",
+    nonEmploymentIncome: "Prihodi van radnog odnosa",
+    pppdReview: "PPP-PD pregled",
+    consolidation: "Konsolidacija",
+    reporting: "Izveštavanje",
+
     companies: "Kompanije",
     addCompany: "Dodaj kompaniju",
     editCompany: "Izmeni kompaniju",

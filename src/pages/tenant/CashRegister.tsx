@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 export default function CashRegister() {
@@ -85,7 +86,7 @@ export default function CashRegister() {
   });
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Blagajna"
         description="Blagajnički dnevnik — evidencija gotovinskih uplata i isplata"
@@ -130,10 +131,11 @@ export default function CashRegister() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-sm">Učitavanje...</p>
+            <Skeleton className="h-60" />
           ) : entries.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nema stavki za izabrani mesec.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -177,6 +179,7 @@ export default function CashRegister() {
                 </TableRow>
               </TableFooter>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Play, Pause, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
 const FREQ_LABELS: Record<string, string> = {
@@ -94,7 +95,7 @@ export default function RecurringJournals() {
   });
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Ponavljajuća knjiženja"
         description="Automatsko generisanje periodičnih temeljnica (mesečna razgraničenja, obračun troškova)"
@@ -112,10 +113,11 @@ export default function RecurringJournals() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-sm">Učitavanje...</p>
+            <Skeleton className="h-60" />
           ) : templates.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nema šablona.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -153,6 +155,7 @@ export default function RecurringJournals() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
