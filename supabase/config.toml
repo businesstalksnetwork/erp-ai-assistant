@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.parse-bank-xml]
 verify_jwt = false
+
+[functions.drive-presign]
+verify_jwt = false

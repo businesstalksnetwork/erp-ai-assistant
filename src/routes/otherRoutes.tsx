@@ -25,6 +25,9 @@ const AiBottleneckPrediction = React.lazy(() => import("@/pages/tenant/AiBottlen
 const AiCapacitySimulation = React.lazy(() => import("@/pages/tenant/AiCapacitySimulation"));
 const AiPlanningCalendar = React.lazy(() => import("@/pages/tenant/AiPlanningCalendar"));
 
+// Drive
+const Drive = React.lazy(() => import("@/pages/tenant/Drive"));
+
 // Documents
 const Documents = React.lazy(() => import("@/pages/tenant/Documents"));
 const DocumentDetail = React.lazy(() => import("@/pages/tenant/DocumentDetail"));
@@ -96,6 +99,10 @@ export const productionRoutes = (
     <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><AiCapacitySimulation /></ProtectedRoute>} />
     <Route path="production/ai-planning/calendar" element={<ProtectedRoute requiredModule="production"><AiPlanningCalendar /></ProtectedRoute>} />
   </>
+);
+
+export const driveRoutes = (
+  <Route path="drive" element={<ProtectedRoute requiredModule="documents"><Drive /></ProtectedRoute>} />
 );
 
 export const documentsRoutes = (

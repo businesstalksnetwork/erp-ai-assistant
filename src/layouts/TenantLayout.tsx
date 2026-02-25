@@ -49,7 +49,7 @@ import {
   ClipboardCheck, FileInput, RotateCcw, Landmark, Timer, Coins, CheckSquare, DollarSign,
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
-  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles,
+  ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -202,6 +202,7 @@ const productionNav: NavItem[] = [
 ];
 
 const documentsNav: NavItem[] = [
+  { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
   { key: "dmsRegistry", url: "/documents", icon: FolderOpen, section: "registry" },
   { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },

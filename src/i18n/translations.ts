@@ -939,7 +939,9 @@ export const translations = {
     procurement: "Procurement",
     new: "New",
 
-    // DMS
+    // DMS & Drive
+    erpDrive: "ERP Drive",
+    fileManagement: "File Management",
     dmsRegistry: "Document Registry",
     dmsRegistryDesc: "Delovodnik — Document management with protocol numbers",
     dmsNewDocument: "New Document",
@@ -2963,7 +2965,9 @@ export const translations = {
     procurement: "Nabavka",
     new: "Novo",
 
-    // DMS
+    // DMS & Drive
+    erpDrive: "ERP Drive",
+    fileManagement: "Upravljanje fajlovima",
     dmsRegistry: "Delovodnik",
     dmsRegistryDesc: "Delovodnik — Upravljanje dokumentima sa delovodnim brojevima",
     dmsNewDocument: "Novi dokument",
