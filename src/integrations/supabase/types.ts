@@ -3934,6 +3934,7 @@ export type Database = {
           position: string | null
           position_template_id: string | null
           recipient_code: string | null
+          recipient_type_code: string | null
           slava_date: string | null
           start_date: string
           status: Database["public"]["Enums"]["employee_status"]
@@ -3973,6 +3974,7 @@ export type Database = {
           position?: string | null
           position_template_id?: string | null
           recipient_code?: string | null
+          recipient_type_code?: string | null
           slava_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["employee_status"]
@@ -4012,6 +4014,7 @@ export type Database = {
           position?: string | null
           position_template_id?: string | null
           recipient_code?: string | null
+          recipient_type_code?: string | null
           slava_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["employee_status"]
@@ -5083,6 +5086,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      income_recipient_types: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       insurance_records: {
         Row: {
@@ -8222,6 +8249,39 @@ export type Database = {
           },
         ]
       }
+      ovp_catalog: {
+        Row: {
+          ben: string
+          created_at: string | null
+          description: string
+          id: string
+          income_source: string
+          is_active: boolean | null
+          ola: string
+          ovp: string
+        }
+        Insert: {
+          ben?: string
+          created_at?: string | null
+          description: string
+          id?: string
+          income_source?: string
+          is_active?: boolean | null
+          ola?: string
+          ovp: string
+        }
+        Update: {
+          ben?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          income_source?: string
+          is_active?: boolean | null
+          ola?: string
+          ovp?: string
+        }
+        Relationships: []
+      }
       partner_category_assignments: {
         Row: {
           category_id: string
@@ -8447,6 +8507,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          notes: string | null
           ola_code: string
           ovp_code: string
           pio_employee_rate: number
@@ -8456,9 +8517,12 @@ export type Database = {
           subsidy_pio_employee_pct: number
           subsidy_pio_employer_pct: number
           subsidy_tax_pct: number
+          subsidy_unemployment_employee_pct: number | null
+          subsidy_unemployment_employer_pct: number | null
           tax_rate: number
           tenant_id: string
           unemployment_employee_rate: number
+          unemployment_employer_rate: number | null
         }
         Insert: {
           ben_code?: string
@@ -8473,6 +8537,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          notes?: string | null
           ola_code?: string
           ovp_code?: string
           pio_employee_rate?: number
@@ -8482,9 +8547,12 @@ export type Database = {
           subsidy_pio_employee_pct?: number
           subsidy_pio_employer_pct?: number
           subsidy_tax_pct?: number
+          subsidy_unemployment_employee_pct?: number | null
+          subsidy_unemployment_employer_pct?: number | null
           tax_rate?: number
           tenant_id: string
           unemployment_employee_rate?: number
+          unemployment_employer_rate?: number | null
         }
         Update: {
           ben_code?: string
@@ -8499,6 +8567,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          notes?: string | null
           ola_code?: string
           ovp_code?: string
           pio_employee_rate?: number
@@ -8508,9 +8577,12 @@ export type Database = {
           subsidy_pio_employee_pct?: number
           subsidy_pio_employer_pct?: number
           subsidy_tax_pct?: number
+          subsidy_unemployment_employee_pct?: number | null
+          subsidy_unemployment_employer_pct?: number | null
           tax_rate?: number
           tenant_id?: string
           unemployment_employee_rate?: number
+          unemployment_employer_rate?: number | null
         }
         Relationships: [
           {
@@ -8732,40 +8804,79 @@ export type Database = {
       payroll_payment_types: {
         Row: {
           affects_benefits: boolean
+          affects_m4: boolean | null
           code: string
+          compensation_pct: number | null
           created_at: string
+          gl_credit: string | null
+          gl_debit: string | null
           id: string
+          includes_hot_meal: boolean | null
           is_active: boolean
+          is_advance: boolean | null
+          is_benefit: boolean | null
           is_hourly: boolean
           is_nontaxable: boolean
+          is_storno: boolean | null
           name: string
+          osnovna_tabela: number | null
+          payment_category: string | null
           rate_multiplier: number
+          reduces_regular: boolean | null
+          satnica_tip: string | null
+          surcharge_pct: number | null
           tenant_id: string
           type: string
         }
         Insert: {
           affects_benefits?: boolean
+          affects_m4?: boolean | null
           code: string
+          compensation_pct?: number | null
           created_at?: string
+          gl_credit?: string | null
+          gl_debit?: string | null
           id?: string
+          includes_hot_meal?: boolean | null
           is_active?: boolean
+          is_advance?: boolean | null
+          is_benefit?: boolean | null
           is_hourly?: boolean
           is_nontaxable?: boolean
+          is_storno?: boolean | null
           name: string
+          osnovna_tabela?: number | null
+          payment_category?: string | null
           rate_multiplier?: number
+          reduces_regular?: boolean | null
+          satnica_tip?: string | null
+          surcharge_pct?: number | null
           tenant_id: string
           type?: string
         }
         Update: {
           affects_benefits?: boolean
+          affects_m4?: boolean | null
           code?: string
+          compensation_pct?: number | null
           created_at?: string
+          gl_credit?: string | null
+          gl_debit?: string | null
           id?: string
+          includes_hot_meal?: boolean | null
           is_active?: boolean
+          is_advance?: boolean | null
+          is_benefit?: boolean | null
           is_hourly?: boolean
           is_nontaxable?: boolean
+          is_storno?: boolean | null
           name?: string
+          osnovna_tabela?: number | null
+          payment_category?: string | null
           rate_multiplier?: number
+          reduces_regular?: boolean | null
+          satnica_tip?: string | null
+          surcharge_pct?: number | null
           tenant_id?: string
           type?: string
         }
