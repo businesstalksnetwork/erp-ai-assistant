@@ -26,6 +26,8 @@ const Deferrals = React.lazy(() => import("@/pages/tenant/Deferrals"));
 const Loans = React.lazy(() => import("@/pages/tenant/Loans"));
 const FxRevaluation = React.lazy(() => import("@/pages/tenant/FxRevaluation"));
 const Kompenzacija = React.lazy(() => import("@/pages/tenant/Kompenzacija"));
+const RecurringInvoices = React.lazy(() => import("@/pages/tenant/RecurringInvoices"));
+const RecurringJournals = React.lazy(() => import("@/pages/tenant/RecurringJournals"));
 
 const m = "accounting";
 
@@ -56,5 +58,7 @@ export const accountingRoutes = (
     <Route path="accounting/loans" element={<ProtectedRoute requiredModule={m}><Loans /></ProtectedRoute>} />
     <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule={m}><FxRevaluation /></ProtectedRoute>} />
     <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><Kompenzacija /></ProtectedRoute>} />
+    <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><RecurringInvoices /></ProtectedRoute>} />
+    <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><RecurringJournals /></ProtectedRoute>} />
   </>
 );

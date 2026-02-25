@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   BookOpen, FileText, Receipt, Library, Landmark, ListChecks,
   Calculator, CalendarCheck, Building, Clock, Wallet, DollarSign,
-  RefreshCw, ArrowLeftRight, Lock, BarChart3,
+  RefreshCw, ArrowLeftRight, Lock, BarChart3, Repeat, RotateCw,
 } from "lucide-react";
 
 const sections = [
@@ -38,6 +38,13 @@ const sections = [
       { to: "/accounting/deferrals", icon: Clock, label: "Razgraničenja", desc: "Vremenska razgraničenja prihoda i rashoda" },
       { to: "/accounting/loans", icon: Wallet, label: "Krediti", desc: "Evidencija kredita i otplatnih planova" },
       { to: "/accounting/expenses", icon: DollarSign, label: "Troškovi", desc: "Pregled i klasifikacija troškova" },
+    ],
+  },
+  {
+    title: "Automatizacija",
+    links: [
+      { to: "/accounting/recurring-invoices", icon: Repeat, label: "Ponavljajuće fakture", desc: "Automatsko generisanje periodičnih faktura" },
+      { to: "/accounting/recurring-journals", icon: RotateCw, label: "Ponavljajuća knjiženja", desc: "Automatske periodične temeljnice" },
     ],
   },
   {
