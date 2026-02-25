@@ -1,196 +1,112 @@
 
 
-# Accounting & Finance Gap Analysis — What's Missing
+# UX/UI Review & Next Upgrades Plan
 
-After a thorough review of the codebase (routes, pages, DB schema, RPCs, and analytics), here is a complete inventory of what exists and what is still missing to have a production-grade Serbian accounting and finance system.
+## Current UX/UI Issues Found
 
----
+### 1. Inconsistent Page Layout Patterns (HIGH)
+Several recently-added pages use different layout patterns than the established standard:
 
-## What Already Exists (Solid Foundation)
+- **`RecurringInvoices.tsx`**, **`CashRegister.tsx`**: Use `<div className="space-y-6 p-4 md:p-6">` with their own padding, while the `TenantLayout` already provides `p-4 lg:p-6` on `<main>`. This causes **double padding** on these pages.
+- **`Payroll.tsx`**: Uses raw `<h1 className="text-2xl font-bold">` instead of the `PageHeader` component, breaking the visual hierarchy established across other pages like `Invoices.tsx` which correctly uses `<PageHeader>`.
+- **`NonEmploymentIncome.tsx`**: Correctly uses `PageHeader` but doesn't use `BiPageLayout` — which is fine for data pages, but the pattern is inconsistent with hub pages.
 
-```text
-CORE ACCOUNTING          STATUS
-─────────────────────    ──────
-Chart of Accounts        ✅ Full (Serbian 2026 classes 0-9)
-Journal Entries           ✅ Draft/Posted/Storno, atomic RPC
-General Ledger            ✅ Synth/analytic view
-Invoices (AR)             ✅ With lines, advance linking, proforma conversion
-Supplier Invoices (AP)    ✅ Three-way match, approval workflow
-Credit Notes              ✅ With reversal journals
-Bank Statements           ✅ Import, AI matching, confidence scoring
-Open Items                ✅ Auto-created on post, auto-closed on payment
-Payment Allocations       ✅ Partial payments table exists
-Fixed Assets              ✅ Depreciation (straight-line), disposal, GL posting
-Deferrals                 ✅ Revenue/expense, monthly recognition, GL posting
-Loans                     ✅ Amortization schedule, GL posting
-FX Revaluation            ✅ Batch revaluation with journal entries
-Kompenzacija              ✅ Mutual offset
-PDV/POPDV                 ✅ Full sections, auto-collect from invoices
-Fiscal Periods            ✅ Open/Closed/Locked
-Year-End Closing          ✅ CIT 15%, revenue/expense zeroing, lock
-Opening Balances          ✅ RPC: generate_opening_balance(s)
-Posting Rules             ✅ POS/Invoicing/Payroll configurable
-Cost Centers              ✅ Table + journal_lines.cost_center_id FK
-Currencies + FX Rates     ✅ NBS import
-Budgets vs Actuals        ✅ Per-account, per-month, with chart
-SEF e-Invoice             ✅ UBL 2.1, status polling, idempotent
-Advance Settlement        ✅ settle_advance_payment RPC
+**Fix**: Remove extra `p-4 md:p-6` from `RecurringInvoices`, `RecurringJournals`, `CashRegister`, and any other Phase A-D pages. Replace raw `<h1>` in `Payroll.tsx` with `PageHeader`.
 
-ANALYTICS                STATUS
-─────────────────────    ──────
-Financial Ratios          ✅
-Cash Flow Forecast        ✅ AR bucket probabilities
-Break-Even Analysis       ✅
-Profitability             ✅
-Margin Bridge             ✅ Waterfall
-Working Capital Stress    ✅
-Customer Risk Scoring     ✅
-Supplier Dependency       ✅
-VAT Cash Trap             ✅
-Inventory Health          ✅
-Early Warning System      ✅
-Business Planning         ✅ Scenario simulator
-Payroll Benchmark         ✅
-```
+### 2. New Accounting Routes Missing from Sidebar Nav (HIGH)
+All Phase A-D pages (16+ routes) are accessible via `AccountingHub` card links but are **not in the sidebar `accountingNav`** array in `TenantLayout.tsx`. Users navigating to these pages lose sidebar context — the sidebar shows no active item, making it confusing which section they're in.
 
----
+Missing from sidebar:
+- Recurring Invoices/Journals
+- Cash Register (Blagajna)
+- IOS Balance Confirmation
+- CIT Tax Return, Withholding Tax
+- Intercompany, Transfer Pricing
+- Consolidation, Multi-Period Reports
+- Statistički Aneks, KPO Book, Report Snapshots
+- Cost Center P&L
+- PPP-PD Review
 
-## What's Missing — Prioritized Upgrade Plan
+**Fix**: Add the most important routes to `accountingNav` and `hrNav` arrays with appropriate `section` labels. Hub pages serve as discovery; sidebar serves as quick access.
 
-### TIER 1: Core Gaps (High Business Impact)
+### 3. Hardcoded Serbian Strings (MEDIUM)
+Many Phase A-D pages have hardcoded Serbian strings instead of using the `t()` translation system:
+- `RecurringInvoices.tsx`: "Novi šablon", "Šabloni", "Učitavanje...", "Otkaži", "Čuvanje..."
+- `CashRegister.tsx`: "Blagajna", "Nova stavka", "Primanja", "Izdavanja", "Saldo", "Uplata", "Isplata"
+- `IntercompanyTransactions.tsx`, `ConsolidatedStatements.tsx`, `CitTaxReturn.tsx`, `WithholdingTax.tsx`, `StatistickiAneks.tsx`, `KpoBook.tsx`, `MultiPeriodReports.tsx`, `TransferPricing.tsx`, `ReportSnapshots.tsx`: All use hardcoded strings
 
-**1. Recurring Invoices / Recurring Journals**
-- No `recurring_invoices` or `recurring_journals` table exists
-- No cron/edge function to auto-generate periodic invoices (rent, subscriptions) or periodic journal entries (monthly accruals)
-- Need: DB tables + edge function + UI for template management
+**Fix**: Extract all user-facing strings to `translations.ts` and wrap with `t()`.
 
-**2. Multi-Currency on Invoices (exchange_rate column missing)**
-- `invoices` table has `currency` but no `exchange_rate` column
-- Invoice posting doesn't convert to base currency (RSD) or create exchange difference entries
-- Need: Add `exchange_rate` column, update `process_invoice_post` to create dual-currency journal entries
+### 4. Payroll Table Not Responsive (MEDIUM)
+`Payroll.tsx` uses a raw `<Table>` with 13 columns inside an accordion. On mobile, this overflows without any horizontal scroll wrapper or card mode. Compare with `Invoices.tsx` which uses the `ResponsiveTable` component correctly.
 
-**3. Budget Lines (Monthly Granularity)**
-- Current `budgets` table is flat (account + year + month + amount) — works for basic use
-- Missing: budget versioning, departmental budgets, budget approval workflow, budget-to-PO commitment tracking
+**Fix**: Either wrap the payroll items table in `overflow-x-auto` or refactor to use `ResponsiveTable` with `mobileMode="card"`.
 
-**4. Intercompany Transactions**
-- Multi-legal-entity tenants exist, but no intercompany elimination or transfer tracking
-- No `intercompany_transactions` table to record cross-entity charges
-- Need: Table + auto-balanced journal entries in both entities + elimination report for consolidated view
+### 5. Missing `overflow-x-auto` on Several Tables (MEDIUM)
+Pages with wide tables that don't use `ResponsiveTable`:
+- `RecurringInvoices.tsx` — 7 columns, no scroll wrapper
+- `CashRegister.tsx` — 7 columns, no scroll wrapper
+- `NonEmploymentIncome.tsx` — has `overflow-x-auto` (good)
 
-**5. Consolidation / Combined Financial Statements**
-- BalanceSheet and IncomeStatement exist but are single-entity
-- No consolidation engine to merge multiple legal entities, eliminate intercompany, and produce group-level financials
+**Fix**: Add `overflow-x-auto` wrapper to all raw table usages.
 
-### TIER 2: Compliance & Reporting Gaps
+### 6. No Loading Skeletons on Some Pages (LOW)
+- `RecurringInvoices.tsx`: Shows plain text "Učitavanje..." instead of `<Skeleton>`
+- `CashRegister.tsx`: Same plain text loading
+- Compare with `NonEmploymentIncome.tsx` which correctly uses `<Skeleton className="h-80" />`
 
-**6. PPP-PD XML Export (Payroll Tax Return)**
-- `generate-pppd-xml` edge function exists but needs to be connected to the new K01-K52 categories and OVP catalog
-- UI for reviewing and submitting PPP-PD is missing
+**Fix**: Replace text loading indicators with `Skeleton` components.
 
-**7. Poreska Prijava PDP (Annual CIT Return)**
-- No tax return preparation page for the annual corporate income tax declaration (PDP form)
-- Need: Page that pulls from year-end closing data, calculates adjustments, and generates XML
+### 7. Delete Without Confirmation (LOW)
+- `RecurringInvoices.tsx`: Delete button has no confirmation dialog
+- `NonEmploymentIncome.tsx`: Uses `confirm()` (browser native) instead of a proper dialog
 
-**8. IOS (Izvod Otvorenih Stavki) — Confirmation of Balances**
-- Serbian businesses must send periodic balance confirmations to partners
-- No page or PDF generation for IOS documents
-- Need: Partner balance summary page + PDF export
+**Fix**: Use `AlertDialog` component for destructive actions.
 
-**9. KPO Book (Knjiga Prihoda i Rashoda) for Paušalci**
-- `parse-pausalni-pdf` edge function exists but no dedicated KPO book page
-- Need: Simple income/expense ledger view for flat-rate taxpayers
+### 8. SalesHub Has No Sections (LOW)
+`SalesHub.tsx` uses a flat grid (no sections) unlike `HrHub`, `AccountingHub`, and `InventoryHub` which all group links into titled sections. This makes Sales feel less organized.
 
-**10. Statistički Aneks / Notes to Financial Statements**
-- Bilans Stanja and Bilans Uspeha exist, but the mandatory "Statistički Aneks" (statistical annex) and notes are missing
-- Required for annual filing with APR
-
-### TIER 3: Operational Enhancements
-
-**11. Bank Account ↔ GL Account Linking**
-- `bank_accounts` table exists but has no `gl_account_id` column
-- Bank statement reconciliation doesn't know which GL account maps to which bank account
-- Need: FK to chart_of_accounts, update bank matching to auto-post to correct account
-
-**12. Depreciation Batch Run (Automated)**
-- Fixed assets have manual "Run depreciation" button per asset
-- No batch depreciation RPC (`calculate_depreciation_batch` doesn't exist)
-- Need: Single-click monthly depreciation for all active assets
-
-**13. Cost Center Reporting**
-- `cost_center_id` exists on `journal_lines` but no dedicated P&L-by-cost-center report
-- Need: Cost center profitability report page
-
-**14. Withholding Tax (Porez po odbitku)**
-- No table or logic for withholding tax on services from non-residents
-- Serbian companies must withhold 20% on certain cross-border payments
-- Need: Table + calculation + integration with supplier invoice posting
-
-**15. Transfer Pricing Documentation**
-- No support for related-party transaction tracking or transfer pricing reports
-- Required for companies with connected entities
-
-### TIER 4: Nice-to-Have / Advanced
-
-**16. Cash Register (Blagajna — Physical Cash Book)**
-- Separate from POS; this is the accounting cash register for petty cash
-- No `cash_register` or `blagajnicki_dnevnik` table
-- Need: Daily cash book with receipts/disbursements and GL posting
-
-**17. Audit Trail on Financial Reports**
-- Reports are generated on-the-fly; no snapshot/archive of submitted reports
-- Need: Ability to "freeze" a report version with timestamp for regulatory proof
-
-**18. Multi-Period Comparative Reports**
-- Trial Balance, Income Statement, Balance Sheet show single period
-- No side-by-side comparison (e.g., 2025 vs 2024, or Q1 vs Q2)
-
-**19. Document Attachments on Journal Entries**
-- Journal entries have no file attachment support
-- Auditors need to see scanned source documents linked to entries
-
-**20. Automated Bank Statement Import via API**
-- Current import is manual CSV/XML
-- No integration with Serbian bank APIs (Halcom, etc.)
+**Fix**: Group Sales links into sections (e.g., "Documents", "Team & Performance", "Web Sales").
 
 ---
 
-## Recommended Implementation Order
+## Proposed Implementation
 
-```text
-PHASE    ITEMS                                    EFFORT
-──────   ──────────────────────────────────────    ──────
-Phase A  #1 Recurring Invoices/Journals            Medium
-         #2 Multi-Currency Invoice Posting          Medium
-         #11 Bank Account ↔ GL Linking              Small
-         #12 Depreciation Batch Run                 Small
+### Step 1: Fix Double Padding
+Remove `p-4 md:p-6` from `RecurringInvoices`, `RecurringJournals`, `CashRegister`, and other Phase A-D pages that added their own padding.
 
-Phase B  #6 PPP-PD Review/Submit UI                 Medium
-         #8 IOS (Balance Confirmation)              Small
-         #13 Cost Center P&L Report                 Small
-         #16 Cash Register (Blagajna)               Medium
+### Step 2: Add Missing Routes to Sidebar
+Add key Phase A-D routes to `accountingNav` and `hrNav` in `TenantLayout.tsx`:
+- Accounting sidebar: IOS, Cash Register, Recurring Invoices, CIT Return, Withholding Tax, Intercompany, Consolidated Reports, Cost Center P&L
+- HR sidebar: PPP-PD Review, Non-Employment Income
 
-Phase C  #4 Intercompany Transactions               Large
-         #5 Consolidation Reports                   Large
-         #7 PDP Annual CIT Return                   Medium
-         #14 Withholding Tax                        Medium
+### Step 3: Fix Payroll Page Header
+Replace raw `<h1>` with `PageHeader` component in `Payroll.tsx` for consistency.
 
-Phase D  #10 Statistički Aneks                      Medium
-         #18 Multi-Period Comparative Reports       Small
-         #19 Document Attachments on JE             Small
-         #9 KPO Book                                Small
-         #15 Transfer Pricing                       Large
-         #17 Report Snapshots                       Small
-         #20 Bank API Integration                   Large
-```
+### Step 4: Add Table Responsiveness
+Wrap raw `<Table>` usages in `overflow-x-auto` divs in `RecurringInvoices`, `CashRegister`, and `Payroll` (accordion items table).
+
+### Step 5: Add Loading Skeletons
+Replace text loading states with `<Skeleton>` components in `RecurringInvoices` and `CashRegister`.
+
+### Step 6: Organize SalesHub into Sections
+Group `SalesHub` links into titled sections matching the pattern of other hub pages.
+
+### Step 7: Add Delete Confirmations
+Add `AlertDialog` to `RecurringInvoices` delete action and replace `confirm()` in `NonEmploymentIncome`.
 
 ---
 
-## Technical Notes
+## Technical Details
 
-- All new tables must include `tenant_id` with RLS policies matching existing patterns
-- Financial mutations must use atomic RPCs (no client-side multi-table writes)
-- Recurring invoice/journal generation should be an edge function triggered by pg_cron or external scheduler
-- Intercompany and consolidation features require a `legal_entity_id` filter on all existing report queries (most already have this)
-- PPP-PD XML must pull from `payroll_items` joined with `ovp_catalog` and `income_recipient_types` (tables already exist from recent migration)
+**Files to modify:**
+- `src/layouts/TenantLayout.tsx` — Add ~12 new items to `accountingNav` and ~2 to `hrNav`
+- `src/pages/tenant/RecurringInvoices.tsx` — Remove padding, add overflow-x-auto, skeleton, delete confirmation
+- `src/pages/tenant/RecurringJournals.tsx` — Same padding fix
+- `src/pages/tenant/CashRegister.tsx` — Same padding fix, overflow-x-auto, skeleton
+- `src/pages/tenant/Payroll.tsx` — Replace h1 with PageHeader, add overflow-x-auto to items table
+- `src/pages/tenant/SalesHub.tsx` — Restructure into sections
+- `src/pages/tenant/NonEmploymentIncome.tsx` — Replace `confirm()` with AlertDialog
+
+**No new dependencies required. Estimated: ~7 files modified.**
 
