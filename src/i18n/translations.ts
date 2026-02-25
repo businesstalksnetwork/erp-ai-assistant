@@ -2146,6 +2146,34 @@ export const translations = {
 
     semiAnnual: "Semi-annual",
     cannotDeleteBaseCurrency: "Cannot delete the base currency",
+
+    // Missing translation keys - general
+    direction: "Direction",
+    from: "From",
+    to: "To",
+    weekly: "Weekly",
+    quarterly: "Quarterly",
+    annual: "Annual",
+    templates: "Templates",
+    yes: "Yes",
+    no: "No",
+    pause: "Pause",
+    note: "Note",
+    method: "Method",
+    services: "Services",
+    interest: "Interest",
+    dividends: "Dividends",
+    reported: "Reported",
+
+    // Invoice
+    invoiceType: "Invoice Type",
+
+    // Page descriptions
+    contactsDesc: "Your contacts directory",
+    leadsDesc: "Track and convert your sales leads",
+    journalEntriesDesc: "Double-entry bookkeeping journal",
+    invoicesDesc: "Create and manage invoices",
+    opportunitiesDesc: "Sales pipeline and deal tracking",
   },
   sr: {
     // Auth
@@ -4250,6 +4278,32 @@ export const translations = {
 
     semiAnnual: "Polugodišnje",
     cannotDeleteBaseCurrency: "Ne možete obrisati osnovnu valutu",
+
+    // Missing translation keys - general
+    direction: "Smer",
+    from: "Od",
+    to: "Do",
+    weekly: "Nedeljno",
+    quarterly: "Kvartalno",
+    annual: "Godišnje",
+    templates: "Šabloni",
+    yes: "Da",
+    no: "Ne",
+    pause: "Pauziraj",
+    note: "Napomena",
+    method: "Metod",
+    services: "Usluge",
+    interest: "Kamata",
+    dividends: "Dividende",
+    reported: "Prijavljeno",
+    invoiceType: "Tip fakture",
+
+    // Page descriptions
+    contactsDesc: "Direktorijum vaših kontakata",
+    leadsDesc: "Pratite i konvertujte prodajne lidove",
+    journalEntriesDesc: "Dnevnik dvojnog knjigovodstva",
+    invoicesDesc: "Kreirajte i upravljajte fakturama",
+    opportunitiesDesc: "Prodajni pipeline i praćenje poslova",
   },
 } as const;
 

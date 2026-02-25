@@ -155,7 +155,7 @@ export default function Contacts() {
     <div className="space-y-5 animate-in fade-in duration-300">
       <PageHeader
         title={t("contacts")}
-        description={"Your contacts directory"}
+        description={t("contactsDesc")}
         icon={Users}
         actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addContact")}</Button>}
       />

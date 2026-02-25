@@ -189,7 +189,7 @@ export default function Opportunities() {
     <div className="space-y-5 animate-in fade-in duration-300">
       <PageHeader
         title={t("opportunities")}
-        description={"Sales pipeline and deal tracking"}
+        description={t("opportunitiesDesc")}
         icon={TrendingUp}
         actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addOpportunity")}</Button>}
       />

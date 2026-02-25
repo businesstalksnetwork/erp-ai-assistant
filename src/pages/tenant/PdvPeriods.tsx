@@ -271,12 +271,12 @@ export default function PdvPeriods() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
       qc.invalidateQueries({ queryKey: ["pdv_entries"] });
-      toast({ title: t("pdvSubmitted" as any), description: t("pdvPeriodSubmittedSuccessfully" as any) });
+      toast({ title: t("pdvSubmitted"), description: t("pdvPeriodSubmittedSuccessfully") });
     },
     onError: (e: Error) => {
       toast({
         title: t("error"),
-        description: e.message || t("pdvSubmissionFailed" as any),
+        description: e.message || t("pdvSubmissionFailed"),
         variant: "destructive",
       });
     },
@@ -378,7 +378,7 @@ export default function PdvPeriods() {
                 { key: "popdv_section", label: t("popdvSection") },
                 { key: "document_number", label: t("oiDocumentNumber") },
                 { key: "document_date", label: t("date") },
-                { key: "partner_name", label: t("partnerName" as any) },
+                { key: "partner_name", label: t("partnerName") },
                 { key: "partner_pib", label: "PIB" },
                 { key: "base_amount", label: t("pdvBaseAmount") },
                 { key: "vat_amount", label: t("pdvVatAmount") },
@@ -453,7 +453,7 @@ export default function PdvPeriods() {
                       <TableHead>{t("popdvSection")}</TableHead>
                       <TableHead>{t("oiDocumentNumber")}</TableHead>
                       <TableHead>{t("date")}</TableHead>
-                      <TableHead>{t("partnerName" as any)}</TableHead>
+                      <TableHead>{t("partnerName")}</TableHead>
                       <TableHead>PIB</TableHead>
                       <TableHead className="text-right">{t("pdvBaseAmount")}</TableHead>
                       <TableHead className="text-right">{t("pdvVatAmount")}</TableHead>

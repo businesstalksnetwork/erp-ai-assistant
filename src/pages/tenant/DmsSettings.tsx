@@ -10,6 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +65,9 @@ export default function DmsSettings() {
   const [accessOpen, setAccessOpen] = useState(false);
   const [accessForm, setAccessForm] = useState<AccessRuleForm>(emptyAccess);
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "cat" | "conf" | "access"; id: string } | null>(null);
+
   const { data: categories = [] } = useQuery({
     queryKey: ["document_categories", tenantId],
     queryFn: async () => {
@@ -86,7 +99,6 @@ export default function DmsSettings() {
     enabled: !!tenantId,
   });
 
-  // --- Category mutations ---
   const saveCatMutation = useMutation({
     mutationFn: async () => {
       if (catEditId) {
@@ -119,7 +131,6 @@ export default function DmsSettings() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // --- Conf level mutations ---
   const saveConfMutation = useMutation({
     mutationFn: async () => {
       if (confEditId) {
@@ -152,7 +163,6 @@ export default function DmsSettings() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // --- Access rule mutations ---
   const saveAccessMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("role_confidentiality_access").insert({
@@ -181,6 +191,14 @@ export default function DmsSettings() {
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === "cat") deleteCatMutation.mutate(deleteTarget.id);
+    else if (deleteTarget.type === "conf") deleteConfMutation.mutate(deleteTarget.id);
+    else if (deleteTarget.type === "access") deleteAccessMutation.mutate(deleteTarget.id);
+    setDeleteTarget(null);
+  };
 
   // Group categories by group_name_sr
   const grouped = categories.reduce((acc: any, c: any) => {
@@ -239,7 +257,7 @@ export default function DmsSettings() {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditCat(c)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(t("confirmDelete"))) deleteCatMutation.mutate(c.id); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget({ type: "cat", id: c.id })}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -304,7 +322,7 @@ export default function DmsSettings() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditConf(l)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(t("confirmDelete"))) deleteConfMutation.mutate(l.id); }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget({ type: "conf", id: l.id })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
@@ -345,7 +363,7 @@ export default function DmsSettings() {
                       <TableCell>{a.can_read ? "✓" : "✗"}</TableCell>
                       <TableCell>{a.can_edit ? "✓" : "✗"}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => { if (confirm(t("confirmDelete"))) deleteAccessMutation.mutate(a.id); }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget({ type: "access", id: a.id })}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
@@ -358,6 +376,20 @@ export default function DmsSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ===== DELETE CONFIRMATION ===== */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>{t("delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ===== CATEGORY DIALOG ===== */}
       <Dialog open={catOpen} onOpenChange={setCatOpen}>
@@ -385,17 +417,17 @@ export default function DmsSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== CONFIDENTIALITY LEVEL DIALOG ===== */}
+      {/* ===== CONF LEVEL DIALOG ===== */}
       <Dialog open={confOpen} onOpenChange={setConfOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{confEditId ? t("editLevel") : t("addConfLevel")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{confEditId ? t("edit") : t("addConfLevel")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>{t("categoryNameSr")}</Label><Input value={confForm.name_sr} onChange={e => setConfForm(p => ({ ...p, name_sr: e.target.value }))} /></div>
               <div><Label>{t("categoryNameEn")}</Label><Input value={confForm.name} onChange={e => setConfForm(p => ({ ...p, name: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>{t("colorCode")}</Label><Input type="color" value={confForm.color} onChange={e => setConfForm(p => ({ ...p, color: e.target.value }))} className="h-11 p-1" /></div>
+              <div><Label>{t("colorCode")}</Label><Input type="color" value={confForm.color} onChange={e => setConfForm(p => ({ ...p, color: e.target.value }))} /></div>
               <div><Label>{t("sortOrder")}</Label><Input type="number" value={confForm.sort_order} onChange={e => setConfForm(p => ({ ...p, sort_order: Number(e.target.value) }))} /></div>
             </div>
           </div>
@@ -415,7 +447,7 @@ export default function DmsSettings() {
             <div>
               <Label>{t("dmsRole")}</Label>
               <Select value={accessForm.role} onValueChange={v => setAccessForm(p => ({ ...p, role: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("dmsRole")} /></SelectTrigger>
                 <SelectContent>
                   {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
@@ -424,13 +456,13 @@ export default function DmsSettings() {
             <div>
               <Label>{t("dmsConfidentiality")}</Label>
               <Select value={accessForm.confidentiality_level_id} onValueChange={v => setAccessForm(p => ({ ...p, confidentiality_level_id: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("dmsConfidentiality")} /></SelectTrigger>
                 <SelectContent>
                   {confLevels.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name_sr}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <Checkbox checked={accessForm.can_read} onCheckedChange={v => setAccessForm(p => ({ ...p, can_read: !!v }))} />
                 <Label>{t("dmsCanRead")}</Label>

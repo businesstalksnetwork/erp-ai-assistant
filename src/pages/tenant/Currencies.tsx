@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, RefreshCw, Pencil } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ export default function Currencies() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CurrencyForm>(emptyForm);
   const [nbsImporting, setNbsImporting] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: currencies = [], isLoading: currLoading } = useQuery({
     queryKey: ["currencies", tenantId],
@@ -80,6 +82,20 @@ export default function Currencies() {
       qc.invalidateQueries({ queryKey: ["currencies", tenantId] });
       toast({ title: t("success") });
       setOpen(false);
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const cur = currencies.find((c: any) => c.id === id);
+      if (cur?.is_base) throw new Error(t("cannotDeleteBaseCurrency"));
+      const { error } = await supabase.from("currencies").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["currencies", tenantId] });
+      toast({ title: t("success") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -147,7 +163,10 @@ export default function Currencies() {
                         <TableCell>{c.is_base ? <Badge>{t("baseCurrency")}</Badge> : "—"}</TableCell>
                         <TableCell><Badge variant={c.is_active ? "default" : "secondary"}>{c.is_active ? t("active") : t("inactive")}</Badge></TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                            {!c.is_base && <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4" /></Button>}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -223,6 +242,19 @@ export default function Currencies() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }}>{t("delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -150,7 +150,7 @@ export default function Leads() {
     <div className="space-y-5 animate-in fade-in duration-300">
       <PageHeader
         title={t("leads")}
-        description={"Track and convert your sales leads"}
+        description={t("leadsDesc")}
         icon={Target}
         actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addLead")}</Button>}
       />
@@ -182,8 +182,8 @@ export default function Leads() {
           <DialogHeader><DialogTitle>{editId ? t("editLead") : t("addLead")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>{t("firstName" as any)} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("lastName" as any)}</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("firstName")} *</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("lastName")}</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("email")}</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
@@ -191,7 +191,7 @@ export default function Leads() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("company")}</Label><Input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("jobTitle" as any)}</Label><Input value={form.job_title} onChange={e => setForm({ ...form, job_title: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("jobTitle")}</Label><Input value={form.job_title} onChange={e => setForm({ ...form, job_title: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
