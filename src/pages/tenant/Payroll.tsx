@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { fmtNum } from "@/lib/utils";
@@ -26,6 +26,7 @@ export default function Payroll() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const now = new Date();
   const [form, setForm] = useState({ period_month: now.getMonth() + 1, period_year: now.getFullYear() });
@@ -84,12 +85,12 @@ export default function Payroll() {
       }]);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-runs"] }); setOpen(false); toast.success(t("success")); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-runs"] }); setOpen(false); toast({ title: t("success") }); },
     onError: (e: Error) => {
       if (e.message.includes("payroll_runs_tenant_id_period_month_period_year_key")) {
-        toast.error(t("payrollRunAlreadyExists"));
+        toast({ title: t("payrollRunAlreadyExists"), variant: "destructive" });
       } else {
-        toast.error(e.message);
+        toast({ title: t("error"), description: e.message, variant: "destructive" });
       }
     },
   });
@@ -99,8 +100,8 @@ export default function Payroll() {
       const { error } = await supabase.rpc("calculate_payroll_for_run", { p_payroll_run_id: runId });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-runs"] }); qc.invalidateQueries({ queryKey: ["payroll-items"] }); toast.success(t("payrollCalculated")); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-runs"] }); qc.invalidateQueries({ queryKey: ["payroll-items"] }); toast({ title: t("payrollCalculated") }); },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   // GL posting uses configurable posting rules from posting_rule_catalog
@@ -199,9 +200,9 @@ export default function Payroll() {
     },
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["payroll-runs"] });
-      toast.success(v.status === "approved" ? t("payrollPosted") : t("payrollPaymentPosted"));
+      toast({ title: v.status === "approved" ? t("payrollPosted") : t("payrollPaymentPosted") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const statusColor = (s: string) => ({ draft: "secondary", calculated: "default", approved: "default", paid: "default" }[s] || "secondary") as any;
@@ -209,7 +210,7 @@ export default function Payroll() {
 
   const downloadPppdXml = async (runId: string) => {
     try {
-      toast.info("Generisanje PPP-PD XML...");
+      toast({ title: t("generatingPppdXml") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
@@ -220,12 +221,12 @@ export default function Payroll() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `PPP-PD.xml`; a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
 
   const downloadPaymentOrders = async (runId: string) => {
     try {
-      toast.info("Generisanje naloga za plaćanje...");
+      toast({ title: t("generatingPaymentOrders") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
         `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
@@ -236,7 +237,7 @@ export default function Payroll() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `NaloziZaPlacanje.csv`; a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
 
   return (
@@ -247,10 +248,10 @@ export default function Payroll() {
         actions={
           <div className="flex gap-2">
             <Link to="/hr/payroll/categories">
-              <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories") || "Kategorije"}</Button>
+              <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories")}</Button>
             </Link>
             <Link to="/hr/payroll/payment-types">
-              <Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />Vrste isplate</Button>
+              <Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />{t("paymentTypesList")}</Button>
             </Link>
             <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
           </div>
@@ -315,12 +316,12 @@ export default function Payroll() {
                       )}
                       {(run.status === "approved" || run.status === "paid") && (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => downloadPppdXml(run.id)}>
-                            <FileText className="h-4 w-4 mr-2" />PPP-PD XML
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => downloadPaymentOrders(run.id)}>
-                            <CreditCard className="h-4 w-4 mr-2" />Nalozi za plaćanje
-                          </Button>
+                         <Button size="sm" variant="outline" onClick={() => downloadPppdXml(run.id)}>
+                             <FileText className="h-4 w-4 mr-2" />PPP-PD XML
+                           </Button>
+                           <Button size="sm" variant="outline" onClick={() => downloadPaymentOrders(run.id)}>
+                             <CreditCard className="h-4 w-4 mr-2" />{t("paymentOrders")}
+                           </Button>
                         </>
                       )}
                     </div>
@@ -338,9 +339,9 @@ export default function Payroll() {
                             <TableHead className="text-right">Zdrav. {params ? `${Number(params.health_employee_rate)}%` : "5.15%"}</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
-                            <TableHead className="text-right">PIO posl.</TableHead>
-                            <TableHead className="text-right">Zdrav. posl.</TableHead>
-                            <TableHead className="text-right">Subvencija</TableHead>
+                             <TableHead className="text-right">{t("pioEmployerShort")}</TableHead>
+                             <TableHead className="text-right">{t("healthEmployerShort")}</TableHead>
+                             <TableHead className="text-right">{t("subsidyAmount")}</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                             <TableHead className="text-right">{t("actions")}</TableHead>
                            </TableRow>

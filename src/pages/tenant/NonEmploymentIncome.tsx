@@ -5,6 +5,7 @@ import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,11 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, FileText, Calculator, Trash2, Pencil } from "lucide-react";
-import { toast } from "sonner";
 
 const OVP_OPTIONS = [
   { code: "301", label: "Autorski - 50% troškovi, osiguran", norm: 50 },
@@ -60,12 +61,12 @@ const emptyForm = {
 };
 
 export default function NonEmploymentIncome() {
-  const { locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { entities: legalEntities } = useLegalEntities();
+  const { toast } = useToast();
   const qc = useQueryClient();
-  const sr = locale === "sr";
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -114,9 +115,9 @@ export default function NonEmploymentIncome() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["non-employment-income"] });
       setOpen(false); setEditId(null); setForm(emptyForm);
-      toast.success(sr ? "Sačuvano" : "Saved");
+      toast({ title: t("saved") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const calcMutation = useMutation({
@@ -126,9 +127,9 @@ export default function NonEmploymentIncome() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["non-employment-income"] });
-      toast.success(sr ? "Obračunato" : "Calculated");
+      toast({ title: t("calculated") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -138,9 +139,9 @@ export default function NonEmploymentIncome() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["non-employment-income"] });
-      toast.success(sr ? "Obrisano" : "Deleted");
+      toast({ title: t("deleted") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const openEdit = (rec: any) => {
@@ -168,19 +169,19 @@ export default function NonEmploymentIncome() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={sr ? "Prihodi van radnog odnosa" : "Non-Employment Income"}
+        title={t("nonEmploymentIncome")}
         icon={FileText}
-        description={sr ? "Autorski ugovori, ugovori o delu, dividende, zakup i ostali prihodi" : "Author fees, service contracts, dividends, rent and other income"}
+        description={t("nonEmploymentIncomeDesc")}
         actions={
           <Button onClick={() => { setEditId(null); setForm(emptyForm); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />{sr ? "Novi prihod" : "New Income"}
+            <Plus className="h-4 w-4 mr-2" />{t("newIncome")}
           </Button>
         }
       />
 
       {isLoading ? <Skeleton className="h-80" /> : records.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
-          {sr ? "Nema evidencije prihoda van radnog odnosa." : "No non-employment income records."}
+          {t("noNonEmploymentRecords")}
         </CardContent></Card>
       ) : (
         <Card>
@@ -188,14 +189,14 @@ export default function NonEmploymentIncome() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{sr ? "Datum" : "Date"}</TableHead>
-                  <TableHead>{sr ? "Primalac" : "Recipient"}</TableHead>
-                  <TableHead>OVP</TableHead>
-                  <TableHead className="text-right">{sr ? "Bruto" : "Gross"}</TableHead>
-                  <TableHead className="text-right">{sr ? "Porez" : "Tax"}</TableHead>
-                  <TableHead className="text-right">{sr ? "Doprinosi" : "Contrib."}</TableHead>
-                  <TableHead className="text-right">{sr ? "Neto" : "Net"}</TableHead>
-                  <TableHead>{sr ? "Status" : "Status"}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("recipient")}</TableHead>
+                  <TableHead>{t("ovpCode")}</TableHead>
+                  <TableHead className="text-right">{t("gross")}</TableHead>
+                  <TableHead className="text-right">{t("tax")}</TableHead>
+                  <TableHead className="text-right">{t("contrib")}</TableHead>
+                  <TableHead className="text-right">{t("net")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,16 +212,16 @@ export default function NonEmploymentIncome() {
                     <TableCell className="text-right tabular-nums">{fmtAmt(rec.net_amount)}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[rec.status] as any || "outline"}>
-                        {rec.status === "draft" ? (sr ? "Nacrt" : "Draft") :
-                         rec.status === "calculated" ? (sr ? "Obračunat" : "Calculated") :
-                         rec.status === "paid" ? (sr ? "Isplaćen" : "Paid") :
-                         sr ? "Otkazano" : "Cancelled"}
+                        {rec.status === "draft" ? t("draft") :
+                         rec.status === "calculated" ? t("calculated") :
+                         rec.status === "paid" ? t("paid") :
+                         t("cancelled")}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {rec.status === "draft" && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title={sr ? "Obračunaj" : "Calculate"}
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title={t("calculate")}
                             onClick={() => calcMutation.mutate(rec.id)} disabled={calcMutation.isPending}>
                             <Calculator className="h-3.5 w-3.5" />
                           </Button>
@@ -229,10 +230,23 @@ export default function NonEmploymentIncome() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         {rec.status === "draft" && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                            onClick={() => { if (window.confirm(sr ? "Da li ste sigurni da želite da obrišete ovaj zapis?" : "Are you sure you want to delete this record?")) deleteMutation.mutate(rec.id); }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t("confirmation")}</AlertDialogTitle>
+                                <AlertDialogDescription>{t("confirmDeleteRecord")}</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(rec.id)}>{t("delete")}</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         )}
                       </div>
                     </TableCell>
@@ -247,36 +261,36 @@ export default function NonEmploymentIncome() {
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setEditId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editId ? (sr ? "Izmeni prihod" : "Edit Income") : (sr ? "Novi prihod" : "New Income")}</DialogTitle>
+            <DialogTitle>{editId ? t("editIncome") : t("newIncome")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <Label className="text-xs">{sr ? "Primalac" : "Recipient"}</Label>
+                <Label className="text-xs">{t("recipientName")}</Label>
                 <Input value={form.recipient_name} onChange={e => setForm({ ...form, recipient_name: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label className="text-xs">JMBG</Label><Input value={form.recipient_jmbg} onChange={e => setForm({ ...form, recipient_jmbg: e.target.value })} /></div>
-              <div><Label className="text-xs">PIB</Label><Input value={form.recipient_pib} onChange={e => setForm({ ...form, recipient_pib: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("recipientJmbg")}</Label><Input value={form.recipient_jmbg} onChange={e => setForm({ ...form, recipient_jmbg: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("recipientPib")}</Label><Input value={form.recipient_pib} onChange={e => setForm({ ...form, recipient_pib: e.target.value })} /></div>
               <div>
-                <Label className="text-xs">{sr ? "Tip primaoca" : "Recipient type"}</Label>
+                <Label className="text-xs">{t("recipientType")}</Label>
                 <Select value={form.recipient_type_code} onValueChange={v => setForm({ ...form, recipient_type_code: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="01">01 - {sr ? "Zaposleni" : "Employee"}</SelectItem>
-                    <SelectItem value="02">02 - {sr ? "Osnivač" : "Founder"}</SelectItem>
-                    <SelectItem value="03">03 - {sr ? "Penzioner" : "Pensioner"}</SelectItem>
-                    <SelectItem value="04">04 - {sr ? "Neosigurano lice" : "Uninsured"}</SelectItem>
-                    <SelectItem value="05">05 - {sr ? "Nerezident" : "Non-resident"}</SelectItem>
-                    <SelectItem value="06">06 - {sr ? "Ostalo" : "Other"}</SelectItem>
+                    <SelectItem value="01">01 - {t("employeeRecipient")}</SelectItem>
+                    <SelectItem value="02">02 - {t("founder")}</SelectItem>
+                    <SelectItem value="03">03 - {t("pensioner")}</SelectItem>
+                    <SelectItem value="04">04 - {t("uninsured")}</SelectItem>
+                    <SelectItem value="05">05 - {t("nonResident")}</SelectItem>
+                    <SelectItem value="06">06 - {t("other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">{sr ? "Vrsta prihoda (OVP)" : "Income type (OVP)"}</Label>
+                <Label className="text-xs">{t("incomeTypeOvp")}</Label>
                 <Select value={form.ovp_code} onValueChange={v => {
                   const opt = OVP_OPTIONS.find(o => o.code === v);
                   setForm({ ...form, ovp_code: v, normalized_expense_pct: String(opt?.norm ?? 0) });
@@ -291,7 +305,7 @@ export default function NonEmploymentIncome() {
               </div>
               {legalEntities.length > 0 && (
                 <div>
-                  <Label className="text-xs">{sr ? "Pravno lice" : "Legal entity"}</Label>
+                  <Label className="text-xs">{t("legalEntity")}</Label>
                   <Select value={form.legal_entity_id || "__none__"} onValueChange={v => setForm({ ...form, legal_entity_id: v === "__none__" ? "" : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -305,27 +319,27 @@ export default function NonEmploymentIncome() {
               )}
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <div><Label className="text-xs">{sr ? "Bruto iznos" : "Gross amount"}</Label><Input type="number" step="0.01" value={form.gross_amount} onChange={e => setForm({ ...form, gross_amount: e.target.value })} /></div>
-              <div><Label className="text-xs">{sr ? "% Norm. troškovi" : "% Norm. expenses"}</Label><Input type="number" step="1" value={form.normalized_expense_pct} onChange={e => setForm({ ...form, normalized_expense_pct: e.target.value })} /></div>
-              <div><Label className="text-xs">{sr ? "Datum prihoda" : "Income date"}</Label><Input type="date" value={form.income_date} onChange={e => setForm({ ...form, income_date: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("grossAmount")}</Label><Input type="number" step="0.01" value={form.gross_amount} onChange={e => setForm({ ...form, gross_amount: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("normalizedExpenses")}</Label><Input type="number" step="1" value={form.normalized_expense_pct} onChange={e => setForm({ ...form, normalized_expense_pct: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("incomeDate")}</Label><Input type="date" value={form.income_date} onChange={e => setForm({ ...form, income_date: e.target.value })} /></div>
               <div className="flex gap-2">
-                <div className="flex-1"><Label className="text-xs">{sr ? "Mesec" : "Month"}</Label><Input type="number" min="1" max="12" value={form.period_month} onChange={e => setForm({ ...form, period_month: e.target.value })} /></div>
-                <div className="flex-1"><Label className="text-xs">{sr ? "Godina" : "Year"}</Label><Input type="number" value={form.period_year} onChange={e => setForm({ ...form, period_year: e.target.value })} /></div>
+                <div className="flex-1"><Label className="text-xs">{t("periodMonth")}</Label><Input type="number" min="1" max="12" value={form.period_month} onChange={e => setForm({ ...form, period_month: e.target.value })} /></div>
+                <div className="flex-1"><Label className="text-xs">{t("periodYear")}</Label><Input type="number" value={form.period_year} onChange={e => setForm({ ...form, period_year: e.target.value })} /></div>
               </div>
             </div>
             <div>
-              <Label className="text-xs">{sr ? "Opis" : "Description"}</Label>
+              <Label className="text-xs">{t("description")}</Label>
               <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
             </div>
             <div>
-              <Label className="text-xs">{sr ? "Napomena" : "Notes"}</Label>
+              <Label className="text-xs">{t("notes")}</Label>
               <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>{sr ? "Otkaži" : "Cancel"}</Button>
+            <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>{t("cancel")}</Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.recipient_name || !form.gross_amount}>
-              {sr ? "Sačuvaj" : "Save"}
+              {t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
