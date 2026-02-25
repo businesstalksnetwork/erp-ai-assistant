@@ -330,7 +330,7 @@ export default function TenantLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="h-screen flex w-full overflow-hidden">
         <Sidebar className="border-r border-sidebar-border w-64">
           <div className="sidebar-grid-pattern relative flex flex-col h-full w-full overflow-hidden bg-gradient-to-b from-[hsl(225,50%,12%)] via-[hsl(225,55%,15%)] to-[hsl(230,45%,10%)]">
           {/* Subtle animated orbs */}
@@ -472,8 +472,8 @@ export default function TenantLayout() {
           </div>
         </Sidebar>
 
-        <div className="flex-1 flex flex-col h-screen">
-          <header className="h-12 border-b border-border flex items-center justify-between px-4 lg:px-6 bg-background sticky top-0 z-10">
+        <div className="flex-1 flex flex-col h-full min-h-0">
+          <header className="h-12 border-b border-border flex items-center justify-between px-4 lg:px-6 bg-background shrink-0 z-10">
             <div className="flex items-center gap-2.5">
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-4" />
@@ -526,7 +526,7 @@ export default function TenantLayout() {
               </DropdownMenu>
             </div>
           </header>
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-hidden min-h-0">
             <main className="flex-1 p-4 lg:p-6 overflow-auto bg-background">
               <div className="max-w-screen-2xl mx-auto">
                 <ErrorBoundary>
@@ -554,7 +554,7 @@ export default function TenantLayout() {
         <GlobalSearch />
         {isMobile && aiSidebarOpen && (
               <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setAiSidebarOpen(false)}>
-                <div className="absolute right-0 top-0 h-full w-[300px]" onClick={e => e.stopPropagation()}>
+                <div className="absolute right-0 top-0 h-full w-[300px] max-w-[85vw] overflow-hidden" onClick={e => e.stopPropagation()}>
                   <AiContextSidebar open={true} onToggle={() => setAiSidebarOpen(false)} />
                 </div>
               </div>

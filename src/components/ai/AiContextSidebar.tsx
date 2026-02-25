@@ -168,7 +168,7 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
   if (!open) {
     return (
       <TooltipProvider>
-        <aside className="w-10 border-l bg-card/50 backdrop-blur-sm flex flex-col items-center py-3 gap-3 h-full shrink-0 print:hidden">
+        <aside className="w-10 border-l bg-card/50 backdrop-blur-sm flex flex-col items-center py-3 gap-3 shrink-0 print:hidden">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggle}>
@@ -189,7 +189,7 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
 
   // Expanded panel
   return (
-    <aside className="w-[280px] xl:w-[300px] border-l bg-card/50 backdrop-blur-sm flex flex-col h-full shrink-0 print:hidden overflow-hidden">
+    <aside className="w-[280px] xl:w-[300px] border-l bg-card/50 backdrop-blur-sm flex flex-col shrink-0 print:hidden overflow-hidden">
       {/* Header */}
       <div className="h-12 flex items-center justify-between px-3 border-b shrink-0">
         <div className="flex items-center gap-2 text-sm font-semibold">
