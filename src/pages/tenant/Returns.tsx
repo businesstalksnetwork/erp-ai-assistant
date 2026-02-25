@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
 const RETURN_STATUSES = ["draft", "inspecting", "approved", "resolved", "cancelled"] as const;
 const REASONS = ["defective", "wrong_item", "damaged", "not_needed", "other"] as const;
@@ -193,11 +193,13 @@ export default function Returns() {
 
         // COGS reversal: Debit 1200 (Inventory) / Credit 7000 (COGS)
         if (costValue > 0) {
-          await createCodeBasedJournalEntry({
-            tenantId, userId: user?.id || null, entryDate,
+          await postWithRuleOrFallback({
+            tenantId: tenantId!, userId: user?.id || null, entryDate,
+            modelCode: "CUSTOMER_RETURN_RESTOCK", amount: costValue,
             description: `Return Restock - ${product?.name || line.product_id}`,
             reference: `RET-RESTOCK-${caseId}`,
-            lines: [
+            context: {},
+            fallbackLines: [
               { accountCode: "1200", debit: costValue, credit: 0, description: `Restock inventory`, sortOrder: 0 },
               { accountCode: "7000", debit: 0, credit: costValue, description: `Reverse COGS`, sortOrder: 1 },
             ],
@@ -206,11 +208,13 @@ export default function Returns() {
 
         // Credit note journal: Debit 4000 (Revenue) / Credit 1200 (AR)
         if (revenueValue > 0) {
-          await createCodeBasedJournalEntry({
-            tenantId, userId: user?.id || null, entryDate,
+          await postWithRuleOrFallback({
+            tenantId: tenantId!, userId: user?.id || null, entryDate,
+            modelCode: "CUSTOMER_RETURN_CREDIT", amount: revenueValue,
             description: `Credit Note - ${product?.name || line.product_id}`,
             reference: `RET-CN-${caseId}`,
-            lines: [
+            context: {},
+            fallbackLines: [
               { accountCode: "4000", debit: revenueValue, credit: 0, description: `Reverse revenue`, sortOrder: 0 },
               { accountCode: "1200", debit: 0, credit: revenueValue, description: `Credit AR`, sortOrder: 1 },
             ],
@@ -226,11 +230,13 @@ export default function Returns() {
       }
 
       if (totalValue > 0) {
-        await createCodeBasedJournalEntry({
-          tenantId, userId: user?.id || null, entryDate,
+        await postWithRuleOrFallback({
+          tenantId: tenantId!, userId: user?.id || null, entryDate,
+          modelCode: "SUPPLIER_RETURN", amount: totalValue,
           description: `Supplier Return - ${caseId}`,
           reference: `RET-SUPP-${caseId}`,
-          lines: [
+          context: {},
+          fallbackLines: [
             { accountCode: "2100", debit: totalValue, credit: 0, description: `Clear AP for return`, sortOrder: 0 },
             { accountCode: "1200", debit: 0, credit: totalValue, description: `Remove returned inventory`, sortOrder: 1 },
           ],
@@ -305,13 +311,15 @@ export default function Returns() {
       // Create reversal journal entry when credit note is issued
       if (f.status === "issued" && previousStatus !== "issued" && f.amount > 0 && tenantId) {
         const entryDate = new Date().toISOString().split("T")[0];
-        await createCodeBasedJournalEntry({
-          tenantId,
+        await postWithRuleOrFallback({
+          tenantId: tenantId!,
           userId: user?.id || null,
           entryDate,
+          modelCode: "CREDIT_NOTE_ISSUED", amount: f.amount,
           description: `Credit Note ${f.credit_number} - Revenue reversal`,
           reference: `CN-${f.credit_number}`,
-          lines: [
+          context: {},
+          fallbackLines: [
             { accountCode: "6000", debit: f.amount, credit: 0, description: `Reverse revenue - ${f.credit_number}`, sortOrder: 0 },
             { accountCode: "2040", debit: 0, credit: f.amount, description: `Credit AR - ${f.credit_number}`, sortOrder: 1 },
           ],

@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { addMonths, format } from "date-fns";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
 interface LoanForm {
   type: string;
@@ -142,7 +142,7 @@ export default function Loans() {
         ? `LOAN-PAY-${loan.id.substring(0, 8)}-${scheduleRow.period}`
         : `LOAN-RCV-${loan.id.substring(0, 8)}-${scheduleRow.period}`;
 
-      const lines = isPayable
+      const fallbackLines = isPayable
         ? [
             { accountCode: "4200", debit: scheduleRow.principal, credit: 0, description: "Loan principal payment", sortOrder: 0 },
             { accountCode: "5330", debit: scheduleRow.interest, credit: 0, description: "Interest expense", sortOrder: 1 },
@@ -154,13 +154,16 @@ export default function Loans() {
             { accountCode: "6020", debit: 0, credit: scheduleRow.interest, description: "Interest income", sortOrder: 2 },
           ];
 
-      const journalEntryId = await createCodeBasedJournalEntry({
-        tenantId,
+      const journalEntryId = await postWithRuleOrFallback({
+        tenantId: tenantId!,
         userId: user?.id || null,
         entryDate,
+        modelCode: isPayable ? "LOAN_PAYMENT_PAYABLE" : "LOAN_PAYMENT_RECEIVABLE",
+        amount: scheduleRow.payment,
         description: `Loan payment: ${loan.description || loan.type} - Period ${scheduleRow.period}`,
         reference: ref,
-        lines,
+        context: {},
+        fallbackLines,
       });
 
       // Record the payment

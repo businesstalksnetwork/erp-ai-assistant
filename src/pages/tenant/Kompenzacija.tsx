@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { ArrowLeftRight, FileText } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 
@@ -93,13 +93,15 @@ export default function Kompenzacija() {
       const offsetAmount = totalReceivableOffset;
       const docNumber = `KOMP-${Date.now().toString(36).toUpperCase()}`;
 
-      // Create journal: Debit 4320 (AP), Credit 2020 (AR)
-      const journalId = await createCodeBasedJournalEntry({
+      // Create journal: Debit AP, Credit AR
+      const journalId = await postWithRuleOrFallback({
         tenantId: tenantId!, userId: user?.id || null,
         entryDate: new Date().toISOString().split("T")[0],
+        modelCode: "COMPENSATION", amount: offsetAmount,
         description: `Kompenzacija - ${partners.find(p => p.id === partnerId)?.name}`,
         reference: docNumber,
-        lines: [
+        context: {},
+        fallbackLines: [
           { accountCode: "4350", debit: offsetAmount, credit: 0, description: "Offset AP", sortOrder: 0 },
           { accountCode: "2040", debit: 0, credit: offsetAmount, description: "Offset AR", sortOrder: 1 },
         ],
