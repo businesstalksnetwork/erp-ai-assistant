@@ -59,6 +59,7 @@ export default function PdvPeriods() {
       return data;
     },
     enabled: !!tenantId,
+    staleTime: 1000 * 60 * 3,
   });
 
   const { data: entries = [] } = useQuery({
@@ -69,6 +70,7 @@ export default function PdvPeriods() {
       return data;
     },
     enabled: !!selectedPeriod?.id,
+    staleTime: 1000 * 60 * 3,
   });
 
   const createMutation = useMutation({
@@ -106,16 +108,34 @@ export default function PdvPeriods() {
         .gte("invoice_date", period.start_date)
         .lte("invoice_date", period.end_date);
 
-      // Fetch invoice lines to get per-rate breakdown
+      // Batch-fetch all invoice lines for the period (avoids N+1)
+      const invoiceIds = (invoices || []).map(inv => inv.id);
+      const allLines: any[] = [];
+      if (invoiceIds.length > 0) {
+        // Supabase .in() has a limit, batch in chunks of 200
+        for (let i = 0; i < invoiceIds.length; i += 200) {
+          const chunk = invoiceIds.slice(i, i + 200);
+          const { data: lines } = await supabase.from("invoice_lines")
+            .select("invoice_id, line_total, tax_amount, tax_rate_value")
+            .in("invoice_id", chunk);
+          if (lines) allLines.push(...lines);
+        }
+      }
+
+      // Group lines by invoice_id
+      const linesByInvoice: Record<string, any[]> = {};
+      for (const l of allLines) {
+        if (!linesByInvoice[l.invoice_id]) linesByInvoice[l.invoice_id] = [];
+        linesByInvoice[l.invoice_id].push(l);
+      }
+
       const outputEntries: any[] = [];
       for (const inv of invoices || []) {
-        const { data: lines } = await supabase.from("invoice_lines")
-          .select("line_total, tax_amount, tax_rate_value")
-          .eq("invoice_id", inv.id);
+        const lines = linesByInvoice[inv.id] || [];
 
         // Group by rate
         const rateGroups: Record<number, { base: number; vat: number }> = {};
-        for (const l of lines || []) {
+        for (const l of lines) {
           const rate = Number(l.tax_rate_value);
           if (!rateGroups[rate]) rateGroups[rate] = { base: 0, vat: 0 };
           rateGroups[rate].base += Number(l.line_total);
@@ -458,7 +478,7 @@ export default function PdvPeriods() {
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("pdvOutputVat")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(selectedPeriod.output_vat)} RSD</p></CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("pdvInputVat")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{fmt(selectedPeriod.input_vat)} RSD</p></CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("pdvLiability")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold ${Number(selectedPeriod.vat_liability) >= 0 ? "text-red-600" : "text-green-600"}`}>{fmt(selectedPeriod.vat_liability)} RSD</p></CardContent></Card>
