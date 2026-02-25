@@ -51,13 +51,15 @@ export async function findPostingRule(
 /** Simulate a posting rule with a test amount - returns debit/credit entries */
 export function simulatePosting(
   lines: PostingRuleLine[],
-  testAmount: number
+  testAmount: number,
+  taxRate?: number
 ): { side: string; amount: number; source: string; description: string }[] {
   return lines.map((line) => {
     let amount = testAmount;
-    if (line.amount_source === "TAX_AMOUNT") amount = testAmount * 0.2; // 20% VAT default
-    if (line.amount_source === "TAX_BASE") amount = testAmount * 0.8;
-    if (line.amount_source === "NET") amount = testAmount * 0.8;
+    const rate = taxRate ?? 0.2;
+    if (line.amount_source === "TAX_AMOUNT") amount = testAmount * rate;
+    if (line.amount_source === "TAX_BASE") amount = testAmount / (1 + rate);
+    if (line.amount_source === "NET") amount = testAmount * (1 - rate);
     amount *= line.amount_factor || 1;
 
     const source =
@@ -76,6 +78,7 @@ export function simulatePosting(
 
 /** Map payment model code to i18n translation key */
 export const PAYMENT_MODEL_KEYS: Record<string, string> = {
+  // Original bank statement models
   CUSTOMER_PAYMENT: "customerPayment",
   VENDOR_PAYMENT: "vendorPayment",
   ADVANCE_RECEIVED: "advanceReceived",
@@ -90,6 +93,37 @@ export const PAYMENT_MODEL_KEYS: Record<string, string> = {
   INTERNAL_COMPENSATION: "internalCompensation",
   CUSTOMER_REFUND: "customerRefund",
   VENDOR_REFUND: "vendorRefund",
+  // Inventory & purchasing
+  GOODS_RECEIPT: "goodsReceipt",
+  SUPPLIER_INVOICE_POST: "supplierInvoicePost",
+  SUPPLIER_INVOICE_PAYMENT: "supplierInvoicePayment",
+  // Returns
+  CUSTOMER_RETURN_RESTOCK: "customerReturnRestock",
+  CUSTOMER_RETURN_CREDIT: "customerReturnCredit",
+  SUPPLIER_RETURN: "supplierReturn",
+  CREDIT_NOTE_ISSUED: "creditNoteIssued",
+  // Loans
+  LOAN_PAYMENT_PAYABLE: "loanPaymentPayable",
+  LOAN_PAYMENT_RECEIVABLE: "loanPaymentReceivable",
+  // Compensation
+  COMPENSATION: "compensation",
+  // Fixed assets
+  ASSET_DEPRECIATION: "assetDepreciation",
+  ASSET_DISPOSAL: "assetDisposal",
+  // FX
+  FX_GAIN: "fxGain",
+  FX_LOSS: "fxLoss",
+  // Deferrals
+  DEFERRAL_REVENUE: "deferralRevenue",
+  DEFERRAL_EXPENSE: "deferralExpense",
+  // Cash register
+  CASH_IN: "cashIn",
+  CASH_OUT: "cashOut",
+  // Intercompany
+  INTERCOMPANY_POST: "intercompanyPost",
+  // Payroll (new engine)
+  PAYROLL_NET: "payrollNet",
+  PAYROLL_TAX: "payrollTax",
 };
 
 export const DYNAMIC_SOURCES = [
@@ -120,6 +154,8 @@ export interface DynamicContext {
   advanceReceivedCode?: string;
   advancePaidCode?: string;
   clearingCode?: string;
+  /** Tax rate as decimal (0.20 for 20%, 0.10 for 10%, 0 for exempt). Defaults to 0.20. */
+  taxRate?: number;
 }
 
 const DYNAMIC_MAP: Record<string, keyof DynamicContext> = {
@@ -162,20 +198,22 @@ export async function resolvePostingRuleToJournalLines(
       }
     } else if (line.account_source === "DYNAMIC" && line.dynamic_source) {
       const ctxKey = DYNAMIC_MAP[line.dynamic_source];
-      if (!ctxKey || !context[ctxKey]) {
+      const ctxValue = ctxKey ? context[ctxKey] : undefined;
+      if (!ctxKey || !ctxValue || typeof ctxValue !== "string") {
         throw new Error(`Dynamic source ${line.dynamic_source} not provided in context`);
       }
-      accountCode = context[ctxKey]!;
+      accountCode = ctxValue;
     } else {
       throw new Error(`Invalid posting rule line: source=${line.account_source}, dynamic=${line.dynamic_source}`);
     }
 
-    // Calculate amount based on source
+    // Calculate amount based on source — use dynamic tax rate from context
+    const rate = context.taxRate ?? 0.2;
     let lineAmount = amount;
     switch (line.amount_source) {
-      case "TAX_AMOUNT": lineAmount = amount * 0.2; break; // default 20% VAT
-      case "TAX_BASE": lineAmount = amount / 1.2; break;
-      case "NET": lineAmount = amount * 0.8; break;
+      case "TAX_AMOUNT": lineAmount = amount * rate; break;
+      case "TAX_BASE": lineAmount = amount / (1 + rate); break;
+      case "NET": lineAmount = amount * (1 - rate); break;
       case "GROSS": break; // same as FULL
       case "FULL": break;
     }

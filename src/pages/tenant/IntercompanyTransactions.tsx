@@ -16,7 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ArrowRightLeft, Trash2 } from "lucide-react";
+import { Plus, ArrowRightLeft, Trash2, BookOpen } from "lucide-react";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import { format } from "date-fns";
 
 export default function IntercompanyTransactions() {
   const { tenantId } = useTenant();
@@ -73,6 +75,47 @@ export default function IntercompanyTransactions() {
     },
   });
 
+  /** Post a draft intercompany transaction: create GL journal entry + update status */
+  const postMut = useMutation({
+    mutationFn: async (tr: any) => {
+      const amount = Number(tr.amount);
+      const fromName = (tr.from_entity as any)?.name || "?";
+      const toName = (tr.to_entity as any)?.name || "?";
+      const desc = `${t("intercompanyTransactions")}: ${fromName} → ${toName}`;
+
+      // Default intercompany posting: DR 2040 (receivable from entity) / CR 4350 (payable to entity)
+      const journalEntryId = await postWithRuleOrFallback({
+        tenantId: tenantId!,
+        userId: user?.id || null,
+        modelCode: "INTERCOMPANY_POST",
+        amount,
+        entryDate: tr.transaction_date || format(new Date(), "yyyy-MM-dd"),
+        description: desc,
+        reference: tr.reference || `IC-${tr.id.substring(0, 8)}`,
+        context: {
+          partnerReceivableCode: "2040",
+          partnerPayableCode: "4350",
+        },
+        fallbackLines: [
+          { accountCode: "2040", debit: amount, credit: 0, description: `${desc} (receivable)`, sortOrder: 1 },
+          { accountCode: "4350", debit: 0, credit: amount, description: `${desc} (payable)`, sortOrder: 2 },
+        ],
+      });
+
+      // Update transaction status to posted
+      const { error } = await supabase
+        .from("intercompany_transactions")
+        .update({ status: "posted", journal_entry_id: journalEntryId } as any)
+        .eq("id", tr.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: t("success") });
+      qc.invalidateQueries({ queryKey: ["intercompany-transactions"] });
+    },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const statusColors: Record<string, "default" | "secondary" | "destructive"> = { draft: "secondary", posted: "default", eliminated: "destructive" };
   const totalAmount = transactions.reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
 
@@ -122,9 +165,14 @@ export default function IntercompanyTransactions() {
                     <TableCell><Badge variant={statusColors[tr.status] || "secondary"}>{tr.status}</Badge></TableCell>
                     <TableCell className="text-right">
                       {tr.status === "draft" && (
-                        <Button size="icon" variant="ghost" onClick={() => deleteMut.mutate(tr.id)} className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => postMut.mutate(tr)} title={t("postEntry")} disabled={postMut.isPending}>
+                            <BookOpen className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => deleteMut.mutate(tr.id)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
