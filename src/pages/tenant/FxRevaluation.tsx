@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { DollarSign, TrendingUp, TrendingDown, ArrowLeftRight, Download, AlertTriangle, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
@@ -211,13 +211,16 @@ export default function FxRevaluation() {
         if (apLoss > 0) journalLines.push({ accountCode: "4350", debit: 0, credit: apLoss, description: `FX Reval Loss - AP`, sortOrder: sortOrder++ });
       }
 
-      const journalId = await createCodeBasedJournalEntry({
+      const journalId = await postWithRuleOrFallback({
         tenantId: tenantId!,
         userId: user?.id || null,
         entryDate: revalDate,
+        modelCode: totalGain >= totalLoss ? "FX_GAIN" : "FX_LOSS",
+        amount: Math.max(totalGain, totalLoss),
         description: `FX Revaluation - ${revalDate}`,
         reference: `FXREVAL-${revalDate}`,
-        lines: journalLines,
+        context: {},
+        fallbackLines: journalLines,
       });
 
       // Create revaluation record

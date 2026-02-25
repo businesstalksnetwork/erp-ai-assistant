@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 
 interface AssetForm {
@@ -123,11 +123,13 @@ export default function FixedAssets() {
           }
 
           if (lines.length > 0) {
-            await createCodeBasedJournalEntry({
-              tenantId, userId: user?.id || null, entryDate,
+            await postWithRuleOrFallback({
+              tenantId: tenantId!, userId: user?.id || null, entryDate,
+              modelCode: "ASSET_DISPOSAL", amount: cost,
               description: `Asset Disposal (${form.disposal_type || "scrapped"}) - ${form.name}`,
               reference: `DISP-${form.name}`,
-              lines,
+              context: {},
+              fallbackLines: lines,
             });
           }
 
@@ -180,12 +182,14 @@ export default function FixedAssets() {
       const period = format(new Date(), "yyyy-MM");
       const entryDate = new Date().toISOString().split("T")[0];
 
-      // Create journal entry: Debit 8100 (Depreciation Expense) / Credit 1290 (Accumulated Depreciation)
-      const journalId = await createCodeBasedJournalEntry({
-        tenantId, userId: user?.id || null, entryDate,
+      // Create journal entry: Debit Depreciation Expense / Credit Accumulated Depreciation
+      const journalId = await postWithRuleOrFallback({
+        tenantId: tenantId!, userId: user?.id || null, entryDate,
+        modelCode: "ASSET_DEPRECIATION", amount,
         description: `Depreciation - ${asset.name} - ${period}`,
         reference: `DEP-${asset.name}-${period}`,
-        lines: [
+        context: {},
+        fallbackLines: [
           { accountCode: "5310", debit: amount, credit: 0, description: `Depreciation expense - ${asset.name}`, sortOrder: 0 },
           { accountCode: "0121", debit: 0, credit: amount, description: `Accum. depreciation - ${asset.name}`, sortOrder: 1 },
         ],

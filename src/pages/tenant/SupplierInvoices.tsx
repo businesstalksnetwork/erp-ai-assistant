@@ -17,7 +17,7 @@ import { Plus, Loader2, CheckCircle, CreditCard, AlertTriangle, FileInput } from
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
@@ -191,17 +191,21 @@ export default function SupplierInvoices() {
     mutationFn: async (inv: any) => {
       if (!tenantId) throw new Error("No tenant");
       const entryDate = new Date().toISOString().split("T")[0];
-      const lines: any[] = [
+      const fallbackLines: any[] = [
         { accountCode: "7000", debit: inv.amount, credit: 0, description: `COGS - ${inv.invoice_number}`, sortOrder: 0 },
       ];
       if (inv.tax_amount > 0) {
-        lines.push({ accountCode: "4700", debit: inv.tax_amount, credit: 0, description: `Input VAT - ${inv.invoice_number}`, sortOrder: 1 });
+        fallbackLines.push({ accountCode: "4700", debit: inv.tax_amount, credit: 0, description: `Input VAT - ${inv.invoice_number}`, sortOrder: 1 });
       }
-      lines.push({ accountCode: "2100", debit: 0, credit: inv.total, description: `AP - ${inv.invoice_number}`, sortOrder: 2 });
-      await createCodeBasedJournalEntry({
+      fallbackLines.push({ accountCode: "2100", debit: 0, credit: inv.total, description: `AP - ${inv.invoice_number}`, sortOrder: 2 });
+      const taxRate = inv.tax_amount > 0 && inv.amount > 0 ? inv.tax_amount / inv.amount : 0;
+      await postWithRuleOrFallback({
         tenantId, userId: user?.id || null, entryDate,
+        modelCode: "SUPPLIER_INVOICE_POST", amount: inv.total,
         description: `Supplier Invoice ${inv.invoice_number} - Approval`,
-        reference: `SI-${inv.invoice_number}`, lines,
+        reference: `SI-${inv.invoice_number}`,
+        context: { taxRate },
+        fallbackLines,
       });
       const { error } = await supabase.from("supplier_invoices").update({ status: "approved" }).eq("id", inv.id);
       if (error) throw error;
@@ -219,11 +223,13 @@ export default function SupplierInvoices() {
     mutationFn: async (inv: any) => {
       if (!tenantId) throw new Error("No tenant");
       const entryDate = new Date().toISOString().split("T")[0];
-      await createCodeBasedJournalEntry({
+      await postWithRuleOrFallback({
         tenantId, userId: user?.id || null, entryDate,
+        modelCode: "SUPPLIER_INVOICE_PAYMENT", amount: inv.total,
         description: `Supplier Invoice ${inv.invoice_number} - Payment`,
         reference: `SI-PAY-${inv.invoice_number}`,
-        lines: [
+        context: {},
+        fallbackLines: [
           { accountCode: "2100", debit: inv.total, credit: 0, description: `Clear AP - ${inv.invoice_number}`, sortOrder: 0 },
           { accountCode: "1000", debit: 0, credit: inv.total, description: `Payment - ${inv.invoice_number}`, sortOrder: 1 },
         ],

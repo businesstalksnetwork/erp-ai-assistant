@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { differenceInMonths, format } from "date-fns";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
 interface DeferralForm {
   type: string;
@@ -108,24 +108,29 @@ export default function Deferrals() {
 
       // Create journal entry for recognition with legal entity
       const isRevenue = d.type === "revenue";
-      const journalEntryId = await createCodeBasedJournalEntry({
-        tenantId,
+      const modelCode = isRevenue ? "DEFERRAL_REVENUE" : "DEFERRAL_EXPENSE";
+      const reference = isRevenue
+        ? `DEF-REV-${d.id.substring(0, 8)}-P${periodNum}`
+        : `DEF-EXP-${d.id.substring(0, 8)}-P${periodNum}`;
+      const fallbackLines = isRevenue
+        ? [
+            { accountCode: "4600", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
+            { accountCode: "6010", debit: 0, credit: perPeriod, description: "Revenue recognized", sortOrder: 1 },
+          ]
+        : [
+            { accountCode: "5400", debit: perPeriod, credit: 0, description: "Expense recognized", sortOrder: 0 },
+            { accountCode: "1500", debit: 0, credit: perPeriod, description: "Prepaid Expense recognition", sortOrder: 1 },
+          ];
+      const journalEntryId = await postWithRuleOrFallback({
+        tenantId: tenantId!,
         userId: user?.id || null,
         entryDate: periodDate,
+        modelCode, amount: perPeriod,
         description: `Deferral recognition: ${d.description || d.type}`,
-        reference: isRevenue
-          ? `DEF-REV-${d.id.substring(0, 8)}-P${periodNum}`
-          : `DEF-EXP-${d.id.substring(0, 8)}-P${periodNum}`,
+        reference,
         legalEntityId: d.legal_entity_id || undefined,
-        lines: isRevenue
-          ? [
-              { accountCode: "4600", debit: perPeriod, credit: 0, description: "Deferred Revenue recognition", sortOrder: 0 },
-              { accountCode: "6010", debit: 0, credit: perPeriod, description: "Revenue recognized", sortOrder: 1 },
-            ]
-          : [
-              { accountCode: "5400", debit: perPeriod, credit: 0, description: "Expense recognized", sortOrder: 0 },
-              { accountCode: "1500", debit: 0, credit: perPeriod, description: "Prepaid Expense recognition", sortOrder: 1 },
-            ],
+        context: {},
+        fallbackLines,
       });
 
       // Insert schedule entry with journal link

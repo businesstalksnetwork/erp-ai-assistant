@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Trash2, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
@@ -161,11 +161,13 @@ export default function GoodsReceipts() {
         }
         if (totalValue > 0) {
           const entryDate = new Date().toISOString().split("T")[0];
-          await createCodeBasedJournalEntry({
+          await postWithRuleOrFallback({
             tenantId: tenantId!, userId: user?.id || null, entryDate,
+            modelCode: "GOODS_RECEIPT", amount: totalValue,
             description: `Goods Receipt ${f.receipt_number}`,
             reference: `GRN-${f.receipt_number}`,
-            lines: [
+            context: {},
+            fallbackLines: [
               { accountCode: "1200", debit: totalValue, credit: 0, description: `Inventory - GRN ${f.receipt_number}`, sortOrder: 0 },
               { accountCode: "2100", debit: 0, credit: totalValue, description: `AP/GRNI - GRN ${f.receipt_number}`, sortOrder: 1 },
             ],
