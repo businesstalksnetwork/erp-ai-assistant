@@ -2,19 +2,15 @@ import { test, expect } from "../playwright-fixture";
 
 const mobileViewport = { width: 375, height: 812 };
 
-const pages = [
-  { path: "/auth", name: "Auth" },
-  { path: "/dashboard", name: "Dashboard" },
-  { path: "/invoices", name: "Invoices" },
-  { path: "/kpo", name: "KPO" },
-  { path: "/reminders", name: "Reminders" },
-  { path: "/documents", name: "Documents" },
-  { path: "/profile", name: "Profile" },
-  { path: "/invoice-analytics", name: "Analytics" },
+// Only public pages can be tested without auth; protected pages redirect to /login
+const publicPages = [
+  { path: "/login", name: "Login" },
+  { path: "/register", name: "Register" },
+  { path: "/reset-password", name: "Reset Password" },
 ];
 
-test.describe("Responsive - No horizontal scroll", () => {
-  for (const p of pages) {
+test.describe("Responsive - No horizontal scroll on public pages", () => {
+  for (const p of publicPages) {
     test(`${p.name} (${p.path}) has no horizontal overflow at 375px`, async ({ page }) => {
       await page.setViewportSize(mobileViewport);
       await page.goto(p.path);
@@ -22,32 +18,39 @@ test.describe("Responsive - No horizontal scroll", () => {
 
       const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
-      
-      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 5); // 5px tolerance
+
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 5);
     });
   }
 });
 
-test.describe("Responsive - Mobile bottom navigation", () => {
-  test("bottom navigation is visible on mobile", async ({ page }) => {
-    await page.setViewportSize(mobileViewport);
-    await page.goto("/dashboard");
-    await page.waitForTimeout(500);
-    
-    const bottomNav = page.locator("nav.fixed.bottom-0, [data-testid='mobile-bottom-nav']");
-    if (await bottomNav.count() > 0) {
-      await expect(bottomNav.first()).toBeVisible();
-    }
-  });
+test.describe("Responsive - Protected pages redirect at mobile viewport", () => {
+  const protectedPages = [
+    { path: "/dashboard", name: "Dashboard" },
+    { path: "/crm", name: "CRM" },
+    { path: "/sales", name: "Sales" },
+    { path: "/inventory", name: "Inventory" },
+    { path: "/accounting", name: "Accounting" },
+  ];
+
+  for (const p of protectedPages) {
+    test(`${p.name} redirects to /login at mobile viewport`, async ({ page }) => {
+      await page.setViewportSize(mobileViewport);
+      await page.goto(p.path);
+      await expect(page).toHaveURL(/\/login/);
+    });
+  }
 });
 
-test.describe("Responsive - Dashboard cards", () => {
-  test("dashboard renders cards stacked on mobile", async ({ page }) => {
+test.describe("Responsive - Login page renders correctly on mobile", () => {
+  test("login form is usable on mobile", async ({ page }) => {
     await page.setViewportSize(mobileViewport);
-    await page.goto("/dashboard");
-    await page.waitForTimeout(1000);
-    
-    // No horizontal scroll
+    await page.goto("/login");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('input[id="email"]')).toBeVisible();
+    await expect(page.locator('input[id="password"]')).toBeVisible();
+
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 5);

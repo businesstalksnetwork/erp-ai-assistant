@@ -1,36 +1,27 @@
 import { test, expect } from "../playwright-fixture";
 
 test.describe("Authentication", () => {
-  test("root redirects to auth page", async ({ page }) => {
+  test("root redirects to login page", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveURL(/\/auth/);
-    await expect(page.getByText("Prijavi se")).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("login form is displayed", async ({ page }) => {
-    await page.goto("/auth");
-    await expect(page.getByText("Prijava")).toBeVisible();
-    await expect(page.locator('input[type="email"]').first()).toBeVisible();
-    await expect(page.locator('input[type="password"]').first()).toBeVisible();
+    await page.goto("/login");
+    await expect(page.locator('input[id="email"]')).toBeVisible();
+    await expect(page.locator('input[id="password"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: /login|prijav/i })).toBeVisible();
   });
 
-  test("signup tab switch works", async ({ page }) => {
-    await page.goto("/auth");
-    const registerTab = page.getByRole("tab", { name: /registracija/i });
-    if (await registerTab.isVisible()) {
-      await registerTab.click();
-      await expect(page.getByText(/ime i prezime|puno ime/i)).toBeVisible();
-    }
+  test("register link is visible on login page", async ({ page }) => {
+    await page.goto("/login");
+    const registerLink = page.getByRole("link", { name: /registr|no.*account|nalog/i });
+    await expect(registerLink).toBeVisible();
   });
 
-  test("login validates empty fields", async ({ page }) => {
-    await page.goto("/auth");
-    const submitBtn = page.getByRole("button", { name: /prijavi se|uloguj/i });
-    if (await submitBtn.isVisible()) {
-      await submitBtn.click();
-      // Expect some validation feedback (could be native or custom)
-      const emailInput = page.locator('input[type="email"]').first();
-      await expect(emailInput).toBeVisible();
-    }
+  test("forgot password link is visible on login page", async ({ page }) => {
+    await page.goto("/login");
+    const resetLink = page.getByRole("link", { name: /forgot|zaborav|reset/i });
+    await expect(resetLink).toBeVisible();
   });
 });
