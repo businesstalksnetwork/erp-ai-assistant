@@ -110,3 +110,12 @@ verify_jwt = false
 
 [functions.drive-presign]
 verify_jwt = false
+
+[functions.generate-pppdv-xml]
+verify_jwt = false
+
+[functions.generate-tax-payment-orders]
+verify_jwt = false
+
+[functions.generate-apr-xml]
+verify_jwt = false

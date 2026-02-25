@@ -1898,6 +1898,10 @@ export const translations = {
     allPdvSubmitted: "All periods submitted",
     deadlineSubmitted: "Submitted",
     deadlineLate: "Late",
+    taxCalendarGenerated: "Tax calendar generated",
+    deadlinesCreated: "deadlines created",
+    noTaxCalendarData: "No tax calendar data. Generate deadlines for this year.",
+    generateTaxCalendar: "Generate Tax Calendar",
 
     // Settings section headings
     auditData: "Audit & Data",
@@ -4310,6 +4314,10 @@ export const translations = {
     allPdvSubmitted: "Svi periodi podneti",
     deadlineSubmitted: "Podneto",
     deadlineLate: "Kasni",
+    taxCalendarGenerated: "Poreski kalendar generisan",
+    deadlinesCreated: "rokova kreirano",
+    noTaxCalendarData: "Nema podataka u poreskom kalendaru. Generišite rokove za ovu godinu.",
+    generateTaxCalendar: "Generiši poreski kalendar",
 
     // Settings section headings
     auditData: "Revizija i podaci",
