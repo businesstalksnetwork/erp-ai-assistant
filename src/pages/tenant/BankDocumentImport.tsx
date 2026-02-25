@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Upload, FileText, AlertTriangle, CheckCircle, Clock, XCircle, FileUp } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; color: string; labelSr: string; labelEn: string }> = {
   PENDING: { icon: Clock, color: "text-yellow-500", labelSr: "Na čekanju", labelEn: "Pending" },
@@ -29,9 +30,16 @@ export default function BankDocumentImport() {
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("all");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Pre-select bank account from URL query param
+  useEffect(() => {
+    const accountId = searchParams.get("account_id");
+    if (accountId) setSelectedAccountId(accountId);
+  }, [searchParams]);
 
   const isSr = locale === "sr";
 

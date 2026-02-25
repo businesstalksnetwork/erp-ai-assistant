@@ -55,6 +55,16 @@ function extractBankCode(iban: string): string | null {
   return null;
 }
 
+// RSD account number validation: XXX-XXXXXXXXXX-XX (3 digits, dash, variable digits, dash, 2 digits)
+function validateRSDAccount(accountNumber: string): boolean {
+  return /^\d{3}-\d{6,18}-\d{2}$/.test(accountNumber.trim());
+}
+
+function extractBankCodeFromRSD(accountNumber: string): string | null {
+  const match = accountNumber.trim().match(/^(\d{3})-/);
+  return match ? match[1] : null;
+}
+
 const emptyForm = {
   bank_name: "", account_number: "", currency: "RSD", is_primary: false, is_active: true,
   legal_entity_id: "" as string | null, iban: "", account_type: "CURRENT", swift_code: "",
@@ -73,6 +83,7 @@ export default function BankAccounts() {
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [ibanError, setIbanError] = useState("");
+  const [accountNumberError, setAccountNumberError] = useState("");
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["bank_accounts", tenantId],
@@ -141,10 +152,40 @@ export default function BankAccounts() {
       purpose: a.purpose || "", bank_id: a.bank_id || null,
     });
     setIbanError("");
+    setAccountNumberError("");
     setDialogOpen(true);
   };
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setIbanError(""); setDialogOpen(true); };
-  const closeDialog = () => { setDialogOpen(false); setEditing(null); setIbanError(""); };
+  const openAdd = () => { setEditing(null); setForm(emptyForm); setIbanError(""); setAccountNumberError(""); setDialogOpen(true); };
+  const closeDialog = () => { setDialogOpen(false); setEditing(null); setIbanError(""); setAccountNumberError(""); };
+
+  const handleAccountNumberChange = (accountNumber: string) => {
+    setForm(f => ({ ...f, account_number: accountNumber }));
+    if (form.currency === "RSD" && accountNumber.length > 0) {
+      if (accountNumber.includes("-") && accountNumber.length >= 8) {
+        if (!validateRSDAccount(accountNumber)) {
+          setAccountNumberError(locale === "sr" ? "Format: XXX-XXXXXXXXXX-XX" : "Format: XXX-XXXXXXXXXX-XX");
+        } else {
+          setAccountNumberError("");
+        }
+      } else {
+        setAccountNumberError("");
+      }
+      // Auto-detect bank from first 3 digits
+      const bankCode = extractBankCodeFromRSD(accountNumber);
+      if (bankCode) {
+        const bank = banks.find(b => b.bank_code === bankCode);
+        if (bank) {
+          setForm(f => ({ ...f, account_number: accountNumber, bank_code: bankCode, bank_id: bank.id, bank_name: bank.name, swift_code: bank.swift_code || f.swift_code }));
+          return;
+        } else {
+          setForm(f => ({ ...f, account_number: accountNumber, bank_code: bankCode }));
+          return;
+        }
+      }
+    } else {
+      setAccountNumberError("");
+    }
+  };
 
   const handleIbanChange = (iban: string) => {
     setForm(f => ({ ...f, iban }));
@@ -236,10 +277,10 @@ export default function BankAccounts() {
                   {a.swift_code && <p className="text-xs text-muted-foreground">SWIFT: {a.swift_code}</p>}
 
                   <div className="flex gap-1 pt-2 border-t">
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/accounting/bank-statements")} className="text-xs">
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/accounting/bank-statements?account_id=${a.id}`)} className="text-xs">
                       <Upload className="h-3 w-3 mr-1" />{locale === "sr" ? "Izvodi" : "Statements"}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/accounting/document-import")} className="text-xs">
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/accounting/document-import?account_id=${a.id}`)} className="text-xs">
                       <FileText className="h-3 w-3 mr-1" />{locale === "sr" ? "Uvoz" : "Import"}
                     </Button>
                     <div className="ml-auto flex gap-1">
@@ -285,7 +326,14 @@ export default function BankAccounts() {
             </div>
 
             <div><Label>{t("bankName")}</Label><Input value={form.bank_name} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} /></div>
-            <div><Label>{t("accountNumber")}</Label><Input value={form.account_number} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} /></div>
+            <div>
+              <Label>{t("accountNumber")}</Label>
+              <Input value={form.account_number} onChange={e => handleAccountNumberChange(e.target.value)} placeholder={form.currency === "RSD" ? "265-1234567890-12" : ""} />
+              {form.currency === "RSD" && accountNumberError && <p className="text-xs text-destructive mt-1">{accountNumberError}</p>}
+              {form.currency === "RSD" && !accountNumberError && form.account_number && validateRSDAccount(form.account_number) && (
+                <p className="text-xs mt-1 text-primary">✓ {locale === "sr" ? "Validan format" : "Valid format"}</p>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -330,7 +378,7 @@ export default function BankAccounts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>{t("cancel")}</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.bank_name || !form.account_number || saveMutation.isPending || !!ibanError}>{t("save")}</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.bank_name || !form.account_number || saveMutation.isPending || !!ibanError || !!accountNumberError}>{t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
