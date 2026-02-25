@@ -24,6 +24,8 @@ const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave
 const WORK_LOG_TYPE_TO_PT_CODE: Record<string, string> = {
   holiday_work: "PRA",
   slava: "PRA",
+  weekend: "VIK",
+  workday: "RED",
 };
 
 const typeColors: Record<string, string> = {
@@ -170,7 +172,7 @@ export default function WorkLogs() {
                 <Select value={form.type} onValueChange={v => {
                   const suggestedCode = WORK_LOG_TYPE_TO_PT_CODE[v];
                   const suggestedPt = suggestedCode ? paymentTypes.find((pt: any) => pt.code === suggestedCode) : null;
-                  setForm({ ...form, type: v, ...(suggestedPt && !form.payment_type_id ? { payment_type_id: suggestedPt.id } : {}) });
+                  setForm({ ...form, type: v, payment_type_id: suggestedPt ? suggestedPt.id : "" });
                 }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{WORK_LOG_TYPES.map(tp => <SelectItem key={tp} value={tp}>{typeLabel(tp)}</SelectItem>)}</SelectContent>
