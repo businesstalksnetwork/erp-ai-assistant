@@ -202,14 +202,13 @@ const productionNav: NavItem[] = [
 ];
 
 const documentsNav: NavItem[] = [
-  { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
   { key: "dmsRegistry", url: "/documents", icon: FolderOpen, section: "registry" },
   { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
   { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
   { key: "dmsBrowser", url: "/documents/browser", icon: Search },
   { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
-  { key: "dmsSettings", url: "/documents/settings", icon: Settings },
+  { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
 ];
 
 const posNav: NavItem[] = [
@@ -404,7 +403,7 @@ export default function TenantLayout() {
               <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documents")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} />
+              <CollapsibleNavGroup label={t("documentsAndDrive")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} />
             )}
           </SidebarContent>
 

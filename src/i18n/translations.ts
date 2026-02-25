@@ -940,8 +940,10 @@ export const translations = {
     new: "New",
 
     // DMS & Drive
+    documentsAndDrive: "Documents & Drive",
     erpDrive: "ERP Drive",
     fileManagement: "File Management",
+    viewInDrive: "View in Drive",
     dmsRegistry: "Document Registry",
     dmsRegistryDesc: "Delovodnik — Document management with protocol numbers",
     dmsNewDocument: "New Document",
@@ -2966,8 +2968,10 @@ export const translations = {
     new: "Novo",
 
     // DMS & Drive
+    documentsAndDrive: "Dokumenti i Drive",
     erpDrive: "ERP Drive",
     fileManagement: "Upravljanje fajlovima",
+    viewInDrive: "Prikaži u Drive-u",
     dmsRegistry: "Delovodnik",
     dmsRegistryDesc: "Delovodnik — Upravljanje dokumentima sa delovodnim brojevima",
     dmsNewDocument: "Novi dokument",

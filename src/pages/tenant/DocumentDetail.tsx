@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Save, Eye, RotateCcw } from "lucide-react";
+import { ArrowLeft, Download, Save, Eye, RotateCcw, HardDrive } from "lucide-react";
 
 export default function DocumentDetail() {
   const { id } = useParams();
@@ -217,6 +217,7 @@ export default function DocumentDetail() {
             </>
           )}
           {!editing && <Button size="sm" onClick={startEditing}>{t("edit")}</Button>}
+          <Button variant="outline" size="sm" onClick={() => navigate("/drive")}><HardDrive className="h-4 w-4 mr-1" />{t("viewInDrive")}</Button>
         </div>
       </div>
 

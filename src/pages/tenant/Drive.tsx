@@ -165,23 +165,48 @@ export default function Drive() {
       }).select("id").single();
       if (error) throw error;
 
-      // Create default folders
-      const defaultFolders = [
-        { name: "Računovodstvo", color: "#1F4E79" },
-        { name: "HR", color: "#2E7D32" },
-        { name: "Projekti", color: "#E65100" },
+      // Create organized default folder structure with subfolders
+      const topFolders: { name: string; color: string; children?: { name: string }[] }[] = [
+        { name: "Računovodstvo", color: "#1F4E79", children: [
+          { name: "Fakture" }, { name: "Izvodi" }, { name: "Izveštaji" },
+        ]},
+        { name: "HR", color: "#2E7D32", children: [
+          { name: "Ugovori" }, { name: "Plate" }, { name: "Dokumenta zaposlenih" },
+        ]},
+        { name: "Prodaja", color: "#E65100", children: [
+          { name: "Ponude" }, { name: "Narudžbine" }, { name: "Otpremnice" },
+        ]},
+        { name: "Nabavka", color: "#6A1B9A", children: [
+          { name: "Nabavke" }, { name: "Prijemnice" },
+        ]},
+        { name: "Projekti", color: "#00838F" },
         { name: "Opšte", color: "#5C6BC0" },
         { name: "Menadžment", color: "#880E4F" },
+        { name: "DMS Dokumenti", color: "#37474F" },
       ];
-      for (const f of defaultFolders) {
-        await supabase.from("drive_folders").insert({
+
+      for (const f of topFolders) {
+        const { data: parentData } = await supabase.from("drive_folders").insert({
           drive_id: data.id,
           tenant_id: tenantId!,
           name: f.name,
           color: f.color,
           is_system: true,
           created_by: user?.id,
-        });
+        }).select("id").single();
+
+        if (parentData && f.children) {
+          for (const child of f.children) {
+            await supabase.from("drive_folders").insert({
+              drive_id: data.id,
+              tenant_id: tenantId!,
+              parent_folder_id: parentData.id,
+              name: child.name,
+              is_system: true,
+              created_by: user?.id,
+            });
+          }
+        }
       }
       return data.id;
     },

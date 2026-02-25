@@ -4043,6 +4043,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
+          dms_document_id: string | null
           drive_id: string
           folder_id: string
           id: string
@@ -4066,6 +4067,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          dms_document_id?: string | null
           drive_id: string
           folder_id: string
           id?: string
@@ -4089,6 +4091,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          dms_document_id?: string | null
           drive_id?: string
           folder_id?: string
           id?: string
@@ -4108,6 +4111,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "drive_files_dms_document_id_fkey"
+            columns: ["dms_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "drive_files_drive_id_fkey"
             columns: ["drive_id"]

@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -57,6 +57,12 @@ export default function TenantSettings() {
         { label: t("eventMonitor"), icon: Clock, to: "/settings/events" },
         { label: t("legacyImport"), icon: Upload, to: "/settings/legacy-import" },
         { label: t("dataProtection"), icon: Lock, to: "/settings/data-protection" },
+      ],
+    },
+    {
+      title: t("dmsSettings"),
+      links: [
+        { label: t("dmsSettings"), icon: FolderOpen, to: "/settings/dms" },
       ],
     },
   ];
