@@ -1226,6 +1226,7 @@ export type Database = {
           bank_name: string
           created_at: string
           currency: string
+          gl_account_id: string | null
           id: string
           is_active: boolean
           is_primary: boolean
@@ -1237,6 +1238,7 @@ export type Database = {
           bank_name: string
           created_at?: string
           currency?: string
+          gl_account_id?: string | null
           id?: string
           is_active?: boolean
           is_primary?: boolean
@@ -1248,6 +1250,7 @@ export type Database = {
           bank_name?: string
           created_at?: string
           currency?: string
+          gl_account_id?: string | null
           id?: string
           is_active?: boolean
           is_primary?: boolean
@@ -1255,6 +1258,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bank_accounts_gl_account_id_fkey"
+            columns: ["gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bank_accounts_legal_entity_id_fkey"
             columns: ["legal_entity_id"]
@@ -5759,10 +5769,12 @@ export type Database = {
           advance_invoice_id: string | null
           amount_paid: number
           balance_due: number | null
+          base_currency_total: number | null
           created_at: string
           created_by: string | null
           currency: string
           due_date: string | null
+          exchange_rate: number | null
           id: string
           invoice_date: string
           invoice_number: string
@@ -5796,10 +5808,12 @@ export type Database = {
           advance_invoice_id?: string | null
           amount_paid?: number
           balance_due?: number | null
+          base_currency_total?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
           due_date?: string | null
+          exchange_rate?: number | null
           id?: string
           invoice_date?: string
           invoice_number: string
@@ -5833,10 +5847,12 @@ export type Database = {
           advance_invoice_id?: string | null
           amount_paid?: number
           balance_due?: number | null
+          base_currency_total?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string
           due_date?: string | null
+          exchange_rate?: number | null
           id?: string
           invoice_date?: string
           invoice_number?: string
@@ -10699,6 +10715,160 @@ export type Database = {
           },
         ]
       }
+      recurring_invoices: {
+        Row: {
+          auto_post: boolean
+          created_at: string
+          created_by: string | null
+          currency: string
+          end_date: string | null
+          exchange_rate: number | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run_date: string | null
+          legal_entity_id: string | null
+          lines: Json
+          next_run_date: string
+          notes: string | null
+          partner_id: string | null
+          template_name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_post?: boolean
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          end_date?: string | null
+          exchange_rate?: number | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_date?: string | null
+          legal_entity_id?: string | null
+          lines?: Json
+          next_run_date: string
+          notes?: string | null
+          partner_id?: string | null
+          template_name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_post?: boolean
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          end_date?: string | null
+          exchange_rate?: number | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_date?: string | null
+          legal_entity_id?: string | null
+          lines?: Json
+          next_run_date?: string
+          notes?: string | null
+          partner_id?: string | null
+          template_name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_invoices_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_invoices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_journals: {
+        Row: {
+          auto_post: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run_date: string | null
+          legal_entity_id: string | null
+          lines: Json
+          next_run_date: string
+          template_name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_post?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_date?: string | null
+          legal_entity_id?: string | null
+          lines?: Json
+          next_run_date: string
+          template_name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_post?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_date?: string | null
+          legal_entity_id?: string | null
+          lines?: Json
+          next_run_date?: string
+          template_name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_journals_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_journals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retail_price_lists: {
         Row: {
           created_at: string
@@ -13286,6 +13456,14 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      calculate_depreciation_batch: {
+        Args: { p_period_date?: string; p_tenant_id: string }
+        Returns: {
+          asset_id: string
+          depreciation_amount: number
+          journal_entry_id: string
+        }[]
       }
       calculate_non_employment_income: {
         Args: { p_id: string }
