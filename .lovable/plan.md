@@ -1,112 +1,139 @@
 
 
-# UX/UI Review & Next Upgrades Plan
+# Implementation Plan: Bank Accounts Module Upgrade (PRD)
 
-## Current UX/UI Issues Found
+This PRD describes a comprehensive bank account management and document import system. Comparing against what already exists, here is what needs to be built.
 
-### 1. Inconsistent Page Layout Patterns (HIGH)
-Several recently-added pages use different layout patterns than the established standard:
+## What Already Exists
 
-- **`RecurringInvoices.tsx`**, **`CashRegister.tsx`**: Use `<div className="space-y-6 p-4 md:p-6">` with their own padding, while the `TenantLayout` already provides `p-4 lg:p-6` on `<main>`. This causes **double padding** on these pages.
-- **`Payroll.tsx`**: Uses raw `<h1 className="text-2xl font-bold">` instead of the `PageHeader` component, breaking the visual hierarchy established across other pages like `Invoices.tsx` which correctly uses `<PageHeader>`.
-- **`NonEmploymentIncome.tsx`**: Correctly uses `PageHeader` but doesn't use `BiPageLayout` — which is fine for data pages, but the pattern is inconsistent with hub pages.
+```text
+FEATURE                          STATUS
+────────────────────────────     ──────
+bank_accounts table              ✅ Basic (name, number, currency, primary, active, gl_account_id)
+bank_statements table            ✅ With import, number, balances, status
+bank_statement_lines table       ✅ With matching (invoice, supplier_invoice, journal_entry)
+Auto-matching algorithm          ✅ 4-step confidence scoring (amount, reference, partner, date)
+Manual matching UI               ✅ Dialog-based
+GL posting of matched lines      ✅ Via createCodeBasedJournalEntry
+CSV import                       ✅ Basic (auto-detect columns)
+Bank reconciliation tables       ✅ bank_reconciliations + bank_reconciliation_lines
+BankAccounts page                ✅ CRUD table with search, legal entity, primary flag
+BankStatements page              ✅ List + detail + import + match + post
+```
 
-**Fix**: Remove extra `p-4 md:p-6` from `RecurringInvoices`, `RecurringJournals`, `CashRegister`, and any other Phase A-D pages. Replace raw `<h1>` in `Payroll.tsx` with `PageHeader`.
+## What's Missing (from the PRD)
 
-### 2. New Accounting Routes Missing from Sidebar Nav (HIGH)
-All Phase A-D pages (16+ routes) are accessible via `AccountingHub` card links but are **not in the sidebar `accountingNav`** array in `TenantLayout.tsx`. Users navigating to these pages lose sidebar context — the sidebar shows no active item, making it confusing which section they're in.
+### PHASE 1: Enhanced Bank Account Model
 
-Missing from sidebar:
-- Recurring Invoices/Journals
-- Cash Register (Blagajna)
-- IOS Balance Confirmation
-- CIT Tax Return, Withholding Tax
-- Intercompany, Transfer Pricing
-- Consolidation, Multi-Period Reports
-- Statistički Aneks, KPO Book, Report Snapshots
-- Cost Center P&L
-- PPP-PD Review
+**1.1 New columns on `bank_accounts`:**
+- `iban` (text) — IBAN number with RS validation
+- `account_type` (text) — CURRENT, FOREIGN, SAVINGS, LOAN
+- `swift_code` (text) — SWIFT/BIC code
+- `bank_code` (text, 3 chars) — NBS bank code (auto-detected from IBAN)
+- `opening_date` (date)
+- `closing_date` (date)
+- `purpose` (text) — Account purpose description
+- `updated_at` (timestamptz)
 
-**Fix**: Add the most important routes to `accountingNav` and `hrNav` arrays with appropriate `section` labels. Hub pages serve as discovery; sidebar serves as quick access.
+**1.2 New table: `banks` (bank registry)**
+- id, name, swift_code, bank_code (3-digit NBS), country, email_domain
+- Seed with major Serbian banks (Intesa, UniCredit, Raiffeisen, OTP, Addiko, Erste, ProCredit, Halkbank, etc.)
 
-### 3. Hardcoded Serbian Strings (MEDIUM)
-Many Phase A-D pages have hardcoded Serbian strings instead of using the `t()` translation system:
-- `RecurringInvoices.tsx`: "Novi šablon", "Šabloni", "Učitavanje...", "Otkaži", "Čuvanje..."
-- `CashRegister.tsx`: "Blagajna", "Nova stavka", "Primanja", "Izdavanja", "Saldo", "Uplata", "Isplata"
-- `IntercompanyTransactions.tsx`, `ConsolidatedStatements.tsx`, `CitTaxReturn.tsx`, `WithholdingTax.tsx`, `StatistickiAneks.tsx`, `KpoBook.tsx`, `MultiPeriodReports.tsx`, `TransferPricing.tsx`, `ReportSnapshots.tsx`: All use hardcoded strings
+**1.3 Updated BankAccounts UI:**
+- Card view (not just table) showing IBAN, type, currency, last sync status
+- IBAN validation (Mod 97 algorithm) on form
+- Auto-detect bank from IBAN first 3 digits
+- Bank selector from `banks` registry
+- Quick action buttons: "Import statement" | "Transactions" | "Settings"
 
-**Fix**: Extract all user-facing strings to `translations.ts` and wrap with `t()`.
+### PHASE 2: Document Import Pipeline
 
-### 4. Payroll Table Not Responsive (MEDIUM)
-`Payroll.tsx` uses a raw `<Table>` with 13 columns inside an accordion. On mobile, this overflows without any horizontal scroll wrapper or card mode. Compare with `Invoices.tsx` which uses the `ResponsiveTable` component correctly.
+**2.1 New table: `document_imports`**
+- id, tenant_id, source_type (EMAIL/MANUAL_UPLOAD), original_filename, file_format (CAMT053/MT940/NBS_XML/CSV/PDF), file_size_bytes, sha256_hash, storage_path, status (PENDING/PROCESSING/PARSED/MATCHED/ERROR/QUARANTINE), parser_used, ocr_confidence_avg, transactions_count, bank_account_id, error_message, imported_at, processed_at
 
-**Fix**: Either wrap the payroll items table in `overflow-x-auto` or refactor to use `ResponsiveTable` with `mobileMode="card"`.
+**2.2 Enhanced CSV Parser with bank-specific profiles:**
+- New table: `csv_import_profiles` — id, tenant_id, bank_id, profile_name, separator, encoding, header_row, date_format, decimal_separator, column_mappings (jsonb)
+- Pre-seeded profiles for major Serbian banks
+- Profile selection during import instead of auto-detect only
 
-### 5. Missing `overflow-x-auto` on Several Tables (MEDIUM)
-Pages with wide tables that don't use `ResponsiveTable`:
-- `RecurringInvoices.tsx` — 7 columns, no scroll wrapper
-- `CashRegister.tsx` — 7 columns, no scroll wrapper
-- `NonEmploymentIncome.tsx` — has `overflow-x-auto` (good)
+**2.3 XML Parser edge function: `parse-bank-xml`**
+- Support camt.053.001.02, camt.053.001.06, MT940, NBS-XML
+- Extract: IBAN, statement number, period, opening/closing balance, all transactions with counterparty details
+- SHA-256 deduplication
 
-**Fix**: Add `overflow-x-auto` wrapper to all raw table usages.
+**2.4 Document Import UI:**
+- Drag & drop upload zone (XML, CSV, PDF)
+- Import history with status badges
+- Quarantine tab for failed imports
+- Bank account auto-detection from IBAN in document
 
-### 6. No Loading Skeletons on Some Pages (LOW)
-- `RecurringInvoices.tsx`: Shows plain text "Učitavanje..." instead of `<Skeleton>`
-- `CashRegister.tsx`: Same plain text loading
-- Compare with `NonEmploymentIncome.tsx` which correctly uses `<Skeleton className="h-80" />`
+### PHASE 3: Enhanced Matching & Reconciliation
 
-**Fix**: Replace text loading indicators with `Skeleton` components.
+**3.1 Additional columns on `bank_statement_lines`:**
+- `value_date` (date) — Settlement date
+- `counterparty_iban` (text)
+- `counterparty_bank` (text)  
+- `transaction_type` (text) — WIRE, DIRECT_DEBIT, FEE, CARD, INTERNAL, SALARY, TAX
+- `match_confidence` (numeric) — Store the confidence score
+- `document_import_id` (uuid FK) — Link back to source document
 
-### 7. Delete Without Confirmation (LOW)
-- `RecurringInvoices.tsx`: Delete button has no confirmation dialog
-- `NonEmploymentIncome.tsx`: Uses `confirm()` (browser native) instead of a proper dialog
+**3.2 Enhanced match_status enum:**
+- Add `suggested` and `excluded` statuses (suggested already used in code but not formally defined)
 
-**Fix**: Use `AlertDialog` component for destructive actions.
-
-### 8. SalesHub Has No Sections (LOW)
-`SalesHub.tsx` uses a flat grid (no sections) unlike `HrHub`, `AccountingHub`, and `InventoryHub` which all group links into titled sections. This makes Sales feel less organized.
-
-**Fix**: Group Sales links into sections (e.g., "Documents", "Team & Performance", "Web Sales").
-
----
-
-## Proposed Implementation
-
-### Step 1: Fix Double Padding
-Remove `p-4 md:p-6` from `RecurringInvoices`, `RecurringJournals`, `CashRegister`, and other Phase A-D pages that added their own padding.
-
-### Step 2: Add Missing Routes to Sidebar
-Add key Phase A-D routes to `accountingNav` and `hrNav` in `TenantLayout.tsx`:
-- Accounting sidebar: IOS, Cash Register, Recurring Invoices, CIT Return, Withholding Tax, Intercompany, Consolidated Reports, Cost Center P&L
-- HR sidebar: PPP-PD Review, Non-Employment Income
-
-### Step 3: Fix Payroll Page Header
-Replace raw `<h1>` with `PageHeader` component in `Payroll.tsx` for consistency.
-
-### Step 4: Add Table Responsiveness
-Wrap raw `<Table>` usages in `overflow-x-auto` divs in `RecurringInvoices`, `CashRegister`, and `Payroll` (accordion items table).
-
-### Step 5: Add Loading Skeletons
-Replace text loading states with `<Skeleton>` components in `RecurringInvoices` and `CashRegister`.
-
-### Step 6: Organize SalesHub into Sections
-Group `SalesHub` links into titled sections matching the pattern of other hub pages.
-
-### Step 7: Add Delete Confirmations
-Add `AlertDialog` to `RecurringInvoices` delete action and replace `confirm()` in `NonEmploymentIncome`.
+**3.3 Bulk match confirmation UI:**
+- "Confirm all suggestions" button for batch approval
+- Filter by match_status in transaction list
 
 ---
+
+## Recommended Implementation Order
+
+```text
+STEP   SCOPE                                    EFFORT
+─────  ──────────────────────────────────────    ──────
+  1    DB: Enhance bank_accounts + create        Medium
+       banks registry + document_imports +
+       csv_import_profiles + enhance
+       bank_statement_lines
+
+  2    UI: Upgrade BankAccounts page to card      Medium
+       view with IBAN validation, bank
+       registry selector, account types
+
+  3    Edge function: parse-bank-xml for          Large
+       camt.053 / MT940 / NBS-XML parsing
+
+  4    UI: Document Import page with drag &       Medium
+       drop, import history, quarantine
+
+  5    UI: Enhanced BankStatements with            Small
+       confidence scores, bulk confirm,
+       transaction type badges
+```
+
+## What is Out of Scope (per PRD v1.0)
+- Email/IMAP integration (Phase 3 of PRD — complex, requires external services)
+- PDF/OCR processing (Phase 4 of PRD — requires Tesseract, heavy infra)
+- Direct bank API (PSD2/Open Banking)
+- These are noted for future phases.
 
 ## Technical Details
 
-**Files to modify:**
-- `src/layouts/TenantLayout.tsx` — Add ~12 new items to `accountingNav` and ~2 to `hrNav`
-- `src/pages/tenant/RecurringInvoices.tsx` — Remove padding, add overflow-x-auto, skeleton, delete confirmation
-- `src/pages/tenant/RecurringJournals.tsx` — Same padding fix
-- `src/pages/tenant/CashRegister.tsx` — Same padding fix, overflow-x-auto, skeleton
-- `src/pages/tenant/Payroll.tsx` — Replace h1 with PageHeader, add overflow-x-auto to items table
-- `src/pages/tenant/SalesHub.tsx` — Restructure into sections
-- `src/pages/tenant/NonEmploymentIncome.tsx` — Replace `confirm()` with AlertDialog
+**Database migration** will:
+1. Create `banks` table with RLS + seed 10 Serbian banks
+2. Add columns to `bank_accounts`: iban, account_type, swift_code, bank_code, opening_date, closing_date, purpose, bank_id FK, updated_at
+3. Create `document_imports` table with RLS
+4. Create `csv_import_profiles` table with RLS + seed default profiles
+5. Add columns to `bank_statement_lines`: value_date, counterparty_iban, counterparty_bank, transaction_type, match_confidence, document_import_id
 
-**No new dependencies required. Estimated: ~7 files modified.**
+**Files to create:**
+- `supabase/functions/parse-bank-xml/index.ts` — XML parser for camt.053/MT940/NBS
+- `src/pages/tenant/DocumentBrowser.tsx` — Already exists, needs enhancement or new `BankDocumentImport.tsx`
+
+**Files to modify:**
+- `src/pages/tenant/BankAccounts.tsx` — Card view, IBAN validation, bank registry, account types
+- `src/pages/tenant/BankStatements.tsx` — Confidence badges, bulk confirm, document import link
+- `src/pages/tenant/AccountingHub.tsx` — Add "Document Import" link
+- `src/routes/accountingRoutes.tsx` — Add new route if needed
+- `src/integrations/supabase/types.ts` — Auto-updated by migration
 
