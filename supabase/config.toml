@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.clear-tenant-data]
 verify_jwt = false
+
+[functions.import-bcility-data]
+verify_jwt = false
