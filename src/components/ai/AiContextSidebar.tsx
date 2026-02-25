@@ -106,7 +106,7 @@ function getNarrativeContext(path: string): string | null {
     "/analytics/break-even": "breakeven", "/dashboard": "dashboard",
     "/crm": "crm_pipeline", "/pos": "pos_performance", "/production": "production",
     "/hr": "hr_overview", "/purchasing": "purchasing", "/inventory": "inventory_health",
-    "/sales": "dashboard", "/accounting/expenses": "expenses",
+    "/sales": "sales_performance", "/accounting/expenses": "expenses",
   };
   for (const [prefix, ctx] of Object.entries(contextMap)) {
     if (path.startsWith(prefix)) return ctx;

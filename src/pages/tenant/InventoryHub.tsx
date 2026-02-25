@@ -3,8 +3,13 @@ import { BiPageLayout } from "@/components/shared/BiPageLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Package, Boxes, ArrowRightLeft, Truck, Layers, ClipboardList,
-  ArrowLeftRight, PackageOpen, Calculator, BarChart3, LayoutDashboard, Tag,
+  ArrowLeftRight, PackageOpen, Calculator, BarChart3, LayoutDashboard, Tag, AlertTriangle, CheckCircle,
 } from "lucide-react";
+import { useTenant } from "@/hooks/useTenant";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
+import type { StatItem } from "@/components/shared/StatsBar";
 
 const sections = [
   {
@@ -49,12 +54,49 @@ const sections = [
 ];
 
 export default function InventoryHub() {
+  const { tenantId } = useTenant();
+
+  const { data: kpi } = useQuery({
+    queryKey: ["inventory-hub-kpi", tenantId],
+    queryFn: async () => {
+      const [totalProducts, activeProducts, lowStock, stockRows] = await Promise.all([
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("is_active", true),
+        supabase.from("inventory_stock").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).lte("quantity", 0),
+        supabase.from("inventory_stock").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!),
+      ]);
+
+      return {
+        totalProducts: totalProducts.count || 0,
+        activeProducts: activeProducts.count || 0,
+        lowStock: lowStock.count || 0,
+        stockEntries: stockRows.count || 0,
+      };
+    },
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  });
+
+  const stats: StatItem[] = kpi
+    ? [
+        { label: "Ukupno proizvoda", value: kpi.totalProducts, icon: Package, color: "text-primary" },
+        { label: "Aktivni artikli", value: kpi.activeProducts, icon: CheckCircle, color: "text-accent" },
+        { label: "Niske zalihe", value: kpi.lowStock, icon: AlertTriangle, color: "text-destructive" },
+        { label: "Stavki na stanju", value: kpi.stockEntries, icon: Boxes, color: "text-primary" },
+      ]
+    : [];
+
   return (
     <BiPageLayout
       title="Magacin"
       description="Centralno upravljanje zalihama, kretanjem robe, kalkulacijama i skladišnim operacijama."
       icon={Package}
+      stats={stats}
     >
+      {tenantId && kpi && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="inventory_health" data={kpi as unknown as Record<string, unknown>} />
+      )}
+
       {sections.map((section) => (
         <div key={section.title} className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{section.title}</h2>
