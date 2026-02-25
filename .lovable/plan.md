@@ -1,96 +1,74 @@
 
 
-# Plan: Drive Share Dialog and Version History
+# Plan: Add CRUD Capabilities and Seed Data to Empty Settings Pages
 
-## Scope
+## Problem
 
-Two features added to the Drive module:
+Several settings pages are read-only shells with no way to add, edit, or delete records. When there's no seed data, users see empty screens with no action they can take:
 
-1. **Share Dialog** -- UI to manage the existing `drive_permissions` table, allowing granting read/write/admin access to employees
-2. **Version History** -- new `drive_file_versions` table + UI to view and restore previous file versions, plus edge function updates
+1. **DMS Settings** -- `document_categories`, `confidentiality_levels`, `role_confidentiality_access` are all empty (0 rows). No add/edit/delete UI exists.
+2. **Posting Rules** -- 20 rules exist but many have `NULL` debit/credit codes. The page has edit capability but no way to add new custom rules.
 
-## Database
+## Solution
 
-### New table: `drive_file_versions`
+Two-pronged approach: (A) add seed data via migration so pages aren't empty on first load, and (B) add CRUD UI so users can manage records themselves.
 
-```sql
-CREATE TABLE public.drive_file_versions (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  file_id UUID NOT NULL REFERENCES public.drive_files(id) ON DELETE CASCADE,
-  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  version_number INT NOT NULL,
-  s3_key TEXT NOT NULL,
-  size_bytes BIGINT NOT NULL DEFAULT 0,
-  mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
-  uploaded_by UUID NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  note TEXT
-);
-```
+## Changes
 
-RLS: tenant members can SELECT; admin/manager roles can INSERT/UPDATE/DELETE. Index on `file_id`.
+### 1. Database Migration: Seed DMS Default Data
 
-No other schema changes needed -- `drive_permissions` and `drive_files.version` already exist.
+Seed data for all existing tenants + trigger for new tenants:
 
-## Frontend Changes (`Drive.tsx`)
+**Document Categories** (~20 categories in 5 groups):
+- Opšta administracija (General): Dopisi, Rešenja, Ugovori, Pravilnici
+- Finansije (Finance): Fakture, Izvodi, Obračuni, Poreske prijave
+- Kadrovi (HR): Ugovori o radu, Rešenja o odmorima, Dosijei
+- Komercijala (Sales): Ponude, Narudžbine, Otpremnice, Reklamacije
+- Projekti (Projects): Projektna dokumentacija, Izveštaji
 
-### Share Dialog
+**Confidentiality Levels** (4 levels):
+- Javno (Public) -- green, sort 1
+- Interno (Internal) -- blue, sort 2
+- Poverljivo (Confidential) -- orange, sort 3
+- Strogo poverljivo (Top Secret) -- red, sort 4
 
-- Add `Share` and `History` lucide icons to imports
-- New state: `shareDialogOpen`, `shareTarget` (type + id + name)
-- Add "Share" menu item to file and folder dropdown menus
-- Dialog content:
-  - Fetch existing permissions from `drive_permissions` where `resource_id = target.id`
-  - List current grants with badge (READ/WRITE/ADMIN) and delete button
-  - Add form: employee selector (query `employees` table), permission level radio group (Read/Write/Admin), checkbox for "Apply to subfolders"
-  - Insert into `drive_permissions` on save
-- Uses existing table columns: `resource_type`, `resource_id`, `subject_type` (USER), `subject_id`, `permission_level`, `tenant_id`, `granted_by`, `propagate_to_children`
+**Access Matrix** (default rules):
+- admin: all levels, can_read + can_edit
+- manager: Javno + Interno + Poverljivo, can_read + can_edit
+- user: Javno + Interno, can_read only
 
-### Version History Dialog
+### 2. DMS Settings CRUD UI (`DmsSettings.tsx`)
 
-- New state: `versionDialogOpen`, `versionFileId`
-- Add "Version History" menu item to file dropdown
-- Dialog content:
-  - Current version info (version number from `drive_files.version`, upload date)
-  - List of previous versions from `drive_file_versions` ordered by `version_number DESC`
-  - Each row: version number, date, size, uploader
-  - "Restore" button calls edge function `restore_version` action
-  - "Download" button calls edge function with version's `s3_key`
-  - "Upload New Version" button triggers file input, calls `upload_new_version` action
+Add management capabilities to each tab:
 
-## Edge Function (`drive-presign/index.ts`)
+**Categories tab:**
+- "Add Category" button opens a dialog with fields: code, name_sr, name, group_name_sr, sort_order
+- Edit button on each row to modify
+- Delete button (with confirmation) for non-system categories
 
-### New action: `upload_new_version`
+**Confidentiality tab:**
+- "Add Level" button with fields: name_sr, name, color (color picker), sort_order
+- Edit/delete buttons on each row
 
-1. Fetch current file's `s3_key`, `version`, `size_bytes`, `mime_type`
-2. Insert current state into `drive_file_versions` (archiving it)
-3. Generate new `s3_key` and presigned PUT URL
-4. Update `drive_files` with new `s3_key`, increment `version`, update `size_bytes`
-5. Return `{ presignedUrl, fileId, s3Key, newVersion }`
+**Access Matrix tab:**
+- "Add Rule" button with selects: role (from TenantRole list), confidentiality_level (from existing levels), can_read checkbox, can_edit checkbox
+- Delete button on each row
 
-### New action: `restore_version`
+### 3. Posting Rules Enhancement (`PostingRules.tsx`)
 
-1. Fetch current file and target version from `drive_file_versions`
-2. Archive current state into `drive_file_versions`
-3. Copy restored version's `s3_key` back to `drive_files`, increment `version`
-4. Return `{ success: true, restoredVersion }`
+- Add "Add Custom Rule" button that opens a form with: rule_code, description, module_group, debit/credit account selects
+- This allows tenants to extend beyond the seeded rules
 
-### New action: `download_version`
+### 4. Translation Keys
 
-1. Fetch version record from `drive_file_versions`
-2. Generate presigned GET URL for that version's `s3_key`
-3. Return `{ presignedUrl }`
-
-## Translations (`translations.ts`)
-
-Add keys: `share`, `shareWith`, `permissionLevel`, `readAccess`, `writeAccess`, `adminAccess`, `applyToSubfolders`, `versionHistory`, `currentVersion`, `restoreVersion`, `uploadNewVersion`, `noVersions`, `removeAccess`
+Add: `addCategory`, `editCategory`, `deleteCategory`, `addConfLevel`, `addAccessRule`, `categoryCode`, `categoryName`, `groupName`, `addCustomRule`, `confirmDelete`, `seedDataLoaded`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/...` | Create `drive_file_versions` table with RLS |
-| `supabase/functions/drive-presign/index.ts` | Add `upload_new_version`, `restore_version`, `download_version` actions |
-| `src/pages/tenant/Drive.tsx` | Add Share dialog, Version History dialog, new menu items |
-| `src/i18n/translations.ts` | Add translation keys |
+| `supabase/migrations/...` | Seed DMS categories, confidentiality levels, access matrix for all tenants + trigger |
+| `src/pages/tenant/DmsSettings.tsx` | Add CRUD dialogs for categories, confidentiality levels, and access matrix |
+| `src/pages/tenant/PostingRules.tsx` | Add "Add Custom Rule" button and dialog |
+| `src/i18n/translations.ts` | Add ~15 new translation keys |
 
