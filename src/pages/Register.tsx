@@ -36,7 +36,7 @@ export default function Register() {
       setLoading(false);
       return;
     }
-    toast.success("Check your email to confirm your account!");
+    toast.success(t("checkEmailConfirm"));
     navigate("/login");
     setLoading(false);
   };

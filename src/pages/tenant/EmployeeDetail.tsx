@@ -396,10 +396,10 @@ export default function EmployeeDetail() {
 
           {/* Payroll Data Section */}
           <Card className="mt-4">
-            <CardHeader><CardTitle className="text-base">Podaci za obračun zarada</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{t("payrollDataSection")}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <InfoField label="Kategorija prihoda" value={
+                <InfoField label={t("incomeCategory")} value={
                   payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id)
                     ? `${(payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id) as any).code} – ${(payrollCategories.find((c: any) => c.id === (employee as any).payroll_category_id) as any).name}`
                     : "—"

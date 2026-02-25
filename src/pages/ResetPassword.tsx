@@ -24,7 +24,7 @@ export default function ResetPassword() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Check your email for the reset link!");
+      toast.success(t("checkEmailReset"));
     }
     setLoading(false);
   };
