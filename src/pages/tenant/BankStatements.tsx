@@ -228,7 +228,7 @@ export default function BankStatements() {
         }
 
         if (bestMatch) {
-          const update: Record<string, any> = { match_status: bestMatch.confidence >= 70 ? "matched" : "suggested" };
+          const update: Record<string, any> = { match_status: bestMatch.confidence >= 70 ? "matched" : "suggested", match_confidence: bestMatch.confidence };
           if (bestMatch.type === "invoice") update.matched_invoice_id = bestMatch.id;
           else update.matched_supplier_invoice_id = bestMatch.id;
           await supabase.from("bank_statement_lines").update(update).eq("id", line.id);
@@ -317,10 +317,22 @@ export default function BankStatements() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  const matchStatusBadge = (status: string) => {
-    if (status === "matched") return <Badge className="bg-green-600">{t("matched")}</Badge>;
-    if (status === "manually_matched") return <Badge className="bg-blue-600">{t("manuallyMatched")}</Badge>;
+  const matchStatusBadge = (status: string, confidence?: number | null) => {
+    if (status === "matched") return <Badge className="bg-primary text-primary-foreground">{t("matched")} {confidence ? `(${confidence}%)` : ""}</Badge>;
+    if (status === "manually_matched") return <Badge variant="secondary">{t("manuallyMatched")}</Badge>;
+    if (status === "suggested") return <Badge variant="outline" className="border-primary text-primary">Suggested {confidence ? `(${confidence}%)` : ""}</Badge>;
+    if (status === "excluded") return <Badge variant="destructive">Excluded</Badge>;
     return <Badge variant="secondary">{t("unmatched")}</Badge>;
+  };
+
+  const txTypeBadge = (type: string | null) => {
+    if (!type) return null;
+    const colors: Record<string, string> = {
+      WIRE: "bg-muted text-muted-foreground", FEE: "bg-destructive/10 text-destructive",
+      SALARY: "bg-primary/10 text-primary", TAX: "bg-accent text-accent-foreground",
+      CARD: "bg-secondary text-secondary-foreground", INTERNAL: "bg-muted text-muted-foreground",
+    };
+    return <Badge variant="outline" className={`text-[10px] ${colors[type] || ""}`}>{type}</Badge>;
   };
 
   const debouncedSearch = useDebounce(search, 300);
@@ -428,7 +440,7 @@ export default function BankStatements() {
                     <TableCell className="font-mono text-xs">{l.payment_reference || "—"}</TableCell>
                     <TableCell className="text-right font-mono">{Number(l.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell><Badge variant={l.direction === "credit" ? "default" : "destructive"}>{l.direction === "credit" ? "↓ " + t("inflow") : "↑ " + t("outflow")}</Badge></TableCell>
-                    <TableCell>{matchStatusBadge(l.match_status)}</TableCell>
+                    <TableCell>{matchStatusBadge(l.match_status, l.match_confidence)}</TableCell>
                     <TableCell>
                       {l.match_status === "unmatched" && !l.journal_entry_id && (
                         <Button variant="ghost" size="sm" onClick={() => { setMatchingLine(l); setMatchType(l.direction === "credit" ? "invoice" : "supplier_invoice"); setMatchId(""); setMatchDialogOpen(true); }}>

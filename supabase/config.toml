@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.generate-payment-orders]
 verify_jwt = false
+
+[functions.parse-bank-xml]
+verify_jwt = false

@@ -6,7 +6,7 @@ import {
   Calculator, CalendarCheck, Building, Clock, Wallet, DollarSign,
   RefreshCw, ArrowLeftRight, Lock, BarChart3, Repeat, RotateCw,
   FileCheck, PieChart, Banknote, Building2, Scale, FileSpreadsheet, Layers,
-  BookText, Columns, Archive, FileBarChart,
+  BookText, Columns, Archive, FileBarChart, Upload,
 } from "lucide-react";
 
 const sections = [
@@ -22,7 +22,9 @@ const sections = [
   {
     title: "Banka i potraživanja",
     links: [
-      { to: "/accounting/bank-statements", icon: Landmark, label: "Izvodi", desc: "Uvoz i usklađivanje bankovnih izvoda" },
+      { to: "/accounting/bank-accounts", icon: Landmark, label: "Računi", desc: "Pregled bankovnih računa sa IBAN validacijom" },
+      { to: "/accounting/bank-statements", icon: FileText, label: "Izvodi", desc: "Uvoz i usklađivanje bankovnih izvoda" },
+      { to: "/accounting/document-import", icon: Upload, label: "Uvoz dokumenata", desc: "XML/CSV/PDF uvoz sa auto-detekcijom formata" },
       { to: "/accounting/open-items", icon: ListChecks, label: "Otvorene stavke", desc: "Nenaplaćena potraživanja i obaveze" },
       { to: "/accounting/ios", icon: FileCheck, label: "IOS", desc: "Izvod otvorenih stavki — potvrda salda sa partnerima" },
       { to: "/accounting/cash-register", icon: Banknote, label: "Blagajna", desc: "Blagajnički dnevnik — gotovinske uplate i isplate" },
