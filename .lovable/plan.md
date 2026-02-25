@@ -1,22 +1,27 @@
 
 
-# Add Colors to Partner Type Badges
+# Create Tenant: BCILITY DOO Čačak
 
-## What Changes
+## What Will Be Done
 
-The partner type column ("Tip") currently shows plain gray outline badges for "Dobavljač", "Kupac", and "Oba". This update adds distinct colors to each type for better visual distinction.
+Create a new tenant "BCILITY DOO" based in Čačak with bogdan@aiitdevelopment.com as the admin user, using the existing `create-tenant` edge function.
 
-## Changes
+## Steps
 
-### 1. Update `src/pages/tenant/Companies.tsx`
-- Add a `TYPE_COLORS` map assigning each partner type a color scheme:
-  - **customer (Kupac)**: Blue badge (e.g., `bg-blue-100 text-blue-800`)
-  - **supplier (Dobavljac)**: Purple badge (e.g., `bg-purple-100 text-purple-800`)
-  - **both (Oba)**: Green badge (e.g., `bg-emerald-100 text-emerald-800`)
-- Update the type column render (line 214) to use colored `Badge` instead of plain `variant="outline"`
+### 1. Call the `create-tenant` Edge Function
+The existing edge function handles the full provisioning flow:
+- Creates the tenant record (name: "BCILITY DOO", slug: "bcility-doo", plan: professional, status: trial)
+- Creates the legal entity (city: Čačak, country: RS)
+- Creates the auth user for bogdan@aiitdevelopment.com with a secure password
+- Assigns admin role and tenant membership
+- Seeds modules based on the "professional" plan (accounting, sales, inventory, hr, crm)
 
-### 2. Update `src/pages/tenant/CompanyDetail.tsx`
-- Apply the same colored type badge on the partner detail page for consistency
+### 2. Authentication Requirement
+You need to be logged in as the super admin (aleksandar@aiitdevelopment.com) in the preview for the edge function call to succeed, since it verifies super admin privileges. Please log in first, then approve this plan.
 
-No database changes needed -- this is purely a UI styling update. Existing partners will automatically display the correct color based on their `type` field.
+### Technical Details
+- Edge function: `create-tenant` (already deployed)
+- Tenant plan: `professional`
+- Admin user password will be set to a secure default (you can share it with Bogdan or he can use "Forgot password")
+- The function automatically handles: profile creation, role assignment, tenant membership, and module seeding
 
