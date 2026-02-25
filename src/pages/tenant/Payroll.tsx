@@ -19,6 +19,7 @@ import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Payroll() {
   const { t } = useLanguage();
@@ -240,18 +241,21 @@ export default function Payroll() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("payroll")}</h1>
-        <div className="flex gap-2">
-          <Link to="/hr/payroll/categories">
-            <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories") || "Kategorije"}</Button>
-          </Link>
-          <Link to="/hr/payroll/payment-types">
-            <Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />Vrste isplate</Button>
-          </Link>
-          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t("payroll")}
+        icon={Banknote}
+        actions={
+          <div className="flex gap-2">
+            <Link to="/hr/payroll/categories">
+              <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories") || "Kategorije"}</Button>
+            </Link>
+            <Link to="/hr/payroll/payment-types">
+              <Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />Vrste isplate</Button>
+            </Link>
+            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
+          </div>
+        }
+      />
 
       {/* Active Payroll Parameters */}
       {params && (
@@ -322,6 +326,7 @@ export default function Payroll() {
                     </div>
 
                     {expandedRun === run.id && runItems.length > 0 ? (
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -362,6 +367,7 @@ export default function Payroll() {
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     ) : expandedRun === run.id ? (
                       <p className="text-sm text-muted-foreground">{run.status === "draft" ? t("calculatePayroll") + " to see details" : t("noResults")}</p>
                     ) : null}

@@ -15,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Play, Pause, Trash2, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 
 const FREQ_LABELS: Record<string, string> = {
@@ -96,7 +98,7 @@ export default function RecurringInvoices() {
   });
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Ponavljajuće fakture"
         description="Automatsko generisanje periodičnih faktura (kirija, pretplate, mesečne usluge)"
@@ -114,10 +116,11 @@ export default function RecurringInvoices() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-sm">Učitavanje...</p>
+            <Skeleton className="h-60" />
           ) : templates.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nema šablona. Kreirajte prvi.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -152,19 +155,29 @@ export default function RecurringInvoices() {
                       >
                         {t.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteMut.mutate(t.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Obrisati šablon?</AlertDialogTitle>
+                            <AlertDialogDescription>Ova akcija je nepovratna. Šablon će biti trajno obrisan.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Otkaži</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteMut.mutate(t.id)}>Obriši</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
