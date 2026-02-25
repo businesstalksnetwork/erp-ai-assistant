@@ -4037,6 +4037,60 @@ export type Database = {
           },
         ]
       }
+      drive_file_versions: {
+        Row: {
+          created_at: string
+          file_id: string
+          id: string
+          mime_type: string
+          note: string | null
+          s3_key: string
+          size_bytes: number
+          tenant_id: string
+          uploaded_by: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          file_id: string
+          id?: string
+          mime_type?: string
+          note?: string | null
+          s3_key: string
+          size_bytes?: number
+          tenant_id: string
+          uploaded_by: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          file_id?: string
+          id?: string
+          mime_type?: string
+          note?: string | null
+          s3_key?: string
+          size_bytes?: number
+          tenant_id?: string
+          uploaded_by?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_file_versions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "drive_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drive_file_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drive_files: {
         Row: {
           created_at: string
