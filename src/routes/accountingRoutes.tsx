@@ -31,6 +31,10 @@ const RecurringJournals = React.lazy(() => import("@/pages/tenant/RecurringJourn
 const IosBalanceConfirmation = React.lazy(() => import("@/pages/tenant/IosBalanceConfirmation"));
 const CostCenterPL = React.lazy(() => import("@/pages/tenant/CostCenterPL"));
 const CashRegister = React.lazy(() => import("@/pages/tenant/CashRegister"));
+const IntercompanyTransactions = React.lazy(() => import("@/pages/tenant/IntercompanyTransactions"));
+const ConsolidatedStatements = React.lazy(() => import("@/pages/tenant/ConsolidatedStatements"));
+const WithholdingTax = React.lazy(() => import("@/pages/tenant/WithholdingTax"));
+const CitTaxReturn = React.lazy(() => import("@/pages/tenant/CitTaxReturn"));
 
 const m = "accounting";
 
@@ -53,16 +57,20 @@ export const accountingRoutes = (
     <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule={m}><BilansStanja /></ProtectedRoute>} />
     <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule={m}><AgingReports /></ProtectedRoute>} />
     <Route path="accounting/reports/cost-center-pl" element={<ProtectedRoute requiredModule={m}><CostCenterPL /></ProtectedRoute>} />
+    <Route path="accounting/reports/consolidated" element={<ProtectedRoute requiredModule={m}><ConsolidatedStatements /></ProtectedRoute>} />
     <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule={m}><BankStatements /></ProtectedRoute>} />
     <Route path="accounting/open-items" element={<ProtectedRoute requiredModule={m}><OpenItems /></ProtectedRoute>} />
     <Route path="accounting/ios" element={<ProtectedRoute requiredModule={m}><IosBalanceConfirmation /></ProtectedRoute>} />
     <Route path="accounting/pdv" element={<ProtectedRoute requiredModule={m}><PdvPeriods /></ProtectedRoute>} />
+    <Route path="accounting/withholding-tax" element={<ProtectedRoute requiredModule={m}><WithholdingTax /></ProtectedRoute>} />
+    <Route path="accounting/cit-return" element={<ProtectedRoute requiredModule={m}><CitTaxReturn /></ProtectedRoute>} />
     <Route path="accounting/year-end" element={<ProtectedRoute requiredModule={m}><YearEndClosing /></ProtectedRoute>} />
     <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule={m}><FixedAssets /></ProtectedRoute>} />
     <Route path="accounting/deferrals" element={<ProtectedRoute requiredModule={m}><Deferrals /></ProtectedRoute>} />
     <Route path="accounting/loans" element={<ProtectedRoute requiredModule={m}><Loans /></ProtectedRoute>} />
     <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule={m}><FxRevaluation /></ProtectedRoute>} />
     <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><Kompenzacija /></ProtectedRoute>} />
+    <Route path="accounting/intercompany" element={<ProtectedRoute requiredModule={m}><IntercompanyTransactions /></ProtectedRoute>} />
     <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><CashRegister /></ProtectedRoute>} />
     <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><RecurringInvoices /></ProtectedRoute>} />
     <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><RecurringJournals /></ProtectedRoute>} />

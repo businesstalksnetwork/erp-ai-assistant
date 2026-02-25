@@ -1846,6 +1846,93 @@ export type Database = {
           },
         ]
       }
+      cit_tax_returns: {
+        Row: {
+          accounting_profit: number
+          adjustment_details: Json | null
+          created_at: string
+          created_by: string | null
+          final_tax: number
+          fiscal_year: number
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          status: string
+          submitted_at: string | null
+          tax_adjustments_decrease: number
+          tax_adjustments_increase: number
+          tax_amount: number
+          tax_credits: number
+          tax_rate: number
+          taxable_base: number
+          tenant_id: string
+          total_expenses: number
+          total_revenue: number
+          updated_at: string
+        }
+        Insert: {
+          accounting_profit?: number
+          adjustment_details?: Json | null
+          created_at?: string
+          created_by?: string | null
+          final_tax?: number
+          fiscal_year: number
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          tax_adjustments_decrease?: number
+          tax_adjustments_increase?: number
+          tax_amount?: number
+          tax_credits?: number
+          tax_rate?: number
+          taxable_base?: number
+          tenant_id: string
+          total_expenses?: number
+          total_revenue?: number
+          updated_at?: string
+        }
+        Update: {
+          accounting_profit?: number
+          adjustment_details?: Json | null
+          created_at?: string
+          created_by?: string | null
+          final_tax?: number
+          fiscal_year?: number
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          tax_adjustments_decrease?: number
+          tax_adjustments_increase?: number
+          tax_amount?: number
+          tax_credits?: number
+          tax_rate?: number
+          taxable_base?: number
+          tenant_id?: string
+          total_expenses?: number
+          total_revenue?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cit_tax_returns_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cit_tax_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -5257,6 +5344,99 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intercompany_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          from_journal_entry_id: string | null
+          from_legal_entity_id: string
+          id: string
+          notes: string | null
+          reference: string | null
+          status: string
+          tenant_id: string
+          to_journal_entry_id: string | null
+          to_legal_entity_id: string
+          transaction_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description: string
+          from_journal_entry_id?: string | null
+          from_legal_entity_id: string
+          id?: string
+          notes?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id: string
+          to_journal_entry_id?: string | null
+          to_legal_entity_id: string
+          transaction_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          from_journal_entry_id?: string | null
+          from_legal_entity_id?: string
+          id?: string
+          notes?: string | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string
+          to_journal_entry_id?: string | null
+          to_legal_entity_id?: string
+          transaction_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intercompany_transactions_from_journal_entry_id_fkey"
+            columns: ["from_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_transactions_from_legal_entity_id_fkey"
+            columns: ["from_legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_transactions_to_journal_entry_id_fkey"
+            columns: ["to_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_transactions_to_legal_entity_id_fkey"
+            columns: ["to_legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
         ]
@@ -12355,6 +12535,111 @@ export type Database = {
           },
           {
             foreignKeyName: "web_sync_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      withholding_tax: {
+        Row: {
+          country_code: string | null
+          created_at: string
+          created_by: string | null
+          gross_amount: number
+          id: string
+          income_type: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          net_amount: number
+          notes: string | null
+          partner_id: string | null
+          payment_date: string
+          status: string
+          supplier_invoice_id: string | null
+          tax_amount: number
+          tax_rate: number
+          tenant_id: string
+          treaty_applied: boolean
+          treaty_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          gross_amount: number
+          id?: string
+          income_type?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          net_amount: number
+          notes?: string | null
+          partner_id?: string | null
+          payment_date?: string
+          status?: string
+          supplier_invoice_id?: string | null
+          tax_amount: number
+          tax_rate?: number
+          tenant_id: string
+          treaty_applied?: boolean
+          treaty_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          gross_amount?: number
+          id?: string
+          income_type?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          net_amount?: number
+          notes?: string | null
+          partner_id?: string | null
+          payment_date?: string
+          status?: string
+          supplier_invoice_id?: string | null
+          tax_amount?: number
+          tax_rate?: number
+          tenant_id?: string
+          treaty_applied?: boolean
+          treaty_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withholding_tax_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withholding_tax_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withholding_tax_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withholding_tax_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withholding_tax_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
