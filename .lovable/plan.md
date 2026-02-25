@@ -1,59 +1,36 @@
 
-# ERP Drive Module – Implementation Status
 
-## ✅ Completed
+# Fix: AI Assistant Edge Function Crash
 
-### Phase 1: Database Model
-- `drives` table with auto-generated S3 prefix
-- `drive_folders` with auto path/depth calculation triggers
-- `drive_files` with status lifecycle (PENDING → ACTIVE → DELETED)
-- `drive_permissions` with multi-level permission model (DENY→LIST→READ→COMMENT→WRITE→MANAGE→ADMIN)
-- `drive_audit_log` for append-only action tracking
-- RLS policies for all tables (tenant member isolation)
-- Indexes on all foreign keys, status, tags (GIN), audit timestamps
+## Root Cause
 
-### Phase 2: Storage Integration (DigitalOcean Spaces)
-- Edge function `drive-presign` with 3 actions: `upload_init`, `upload_confirm`, `download`, `preview`
-- Presigned PUT URLs (15 min TTL) for direct browser-to-S3 uploads
-- Presigned GET URLs (5 min TTL) for downloads with Content-Disposition
-- SHA-256 file deduplication ready (column exists)
-- Audit logging on upload and download
+In `supabase/functions/ai-assistant/index.ts`, line 52-54:
 
-### Phase 3: Drive UI
-- Split-panel layout: folder tree sidebar + content area
-- Folder tree with expand/collapse, depth indicators, color-coded icons
-- Breadcrumb navigation
-- File listing in list and grid view modes
-- Drag & drop upload with progress indicators
-- File preview (presigned URL opens in new tab)
-- File download
-- Soft delete with visual feedback
-- Search files by name
-- New folder creation dialog
-- Auto-creation of Company Drive with default system folders on first load
-- Storage quota indicator
+```typescript
+await supabase.from("ai_rate_limits").insert({
+  user_id: userId, tenant_id: tenantId, window_start: new Date().toISOString(),
+}).catch(() => {});
+```
 
-### Phase 4: Navigation
-- Route `/drive` added to tenant routes
-- "ERP Drive" nav item in Documents section of sidebar
-- Translation keys for SR/EN
+The Supabase JS client's `.insert()` returns a `PostgrestFilterBuilder`, not a standard Promise. It does not have a `.catch()` method. This crashes the entire function before it even reaches the AI call.
 
-## 🔲 Remaining (Phase 5+)
+## Fix
 
-### Permissions UI (Share Dialog)
-- Share dialog with 3 tabs: Positions, Employees, Settings
-- Permission level selector dropdown
-- "Who can access?" consolidated view
-- Expiration date picker for temporary permissions
-- `can_reshare` checkbox
+Replace `.catch(() => {})` with proper Supabase error handling pattern -- just ignore the error from the result object instead:
 
-### Advanced Features
-- Version history UI
-- File rename/move
-- Trash/recycle bin view
-- Personal Drive (per-employee)
-- Employee folder auto-creation on HR record creation
-- Permission propagation on position change
-- Full-text search across tags, description
-- Antivirus scan integration
-- Thumbnail generation for images/PDFs
+```typescript
+await supabase.from("ai_rate_limits").insert({
+  user_id: userId, tenant_id: tenantId, window_start: new Date().toISOString(),
+});
+```
+
+Since we don't care about errors on this insert (it's non-critical rate limit tracking), simply removing `.catch()` is sufficient. The Supabase client swallows errors into `{ error }` without throwing.
+
+## File Changed
+
+| File | Change |
+|------|--------|
+| `supabase/functions/ai-assistant/index.ts` line 52-54 | Remove `.catch(() => {})` from rate limit insert |
+
+One-line fix. No other files affected. Edge function will be redeployed automatically.
+
