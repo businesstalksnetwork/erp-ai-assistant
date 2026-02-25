@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -21,6 +22,8 @@ import { format } from "date-fns";
 export default function CashRegister() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [filterMonth, setFilterMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -77,47 +80,47 @@ export default function CashRegister() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Stavka blagajne kreirana");
+      toast({ title: t("success") });
       qc.invalidateQueries({ queryKey: ["cash-register"] });
       setOpen(false);
       setForm({ direction: "in", amount: "", description: "", document_ref: "" });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Blagajna"
-        description="Blagajnički dnevnik — evidencija gotovinskih uplata i isplata"
+        title={t("cashRegister")}
+        description={t("cashRegisterDesc")}
       />
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div>
-          <Label>Mesec</Label>
+          <Label>{t("month")}</Label>
           <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-48" />
         </div>
         <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nova stavka
+          <Plus className="h-4 w-4 mr-2" /> {t("newEntry")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Primanja</p>
+            <p className="text-xs text-muted-foreground">{t("receipts")}</p>
             <p className="text-lg font-bold text-green-600">{totalIn.toLocaleString("sr-RS")} RSD</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Izdavanja</p>
+            <p className="text-xs text-muted-foreground">{t("disbursements")}</p>
             <p className="text-lg font-bold text-red-600">{totalOut.toLocaleString("sr-RS")} RSD</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Saldo</p>
+            <p className="text-xs text-muted-foreground">{t("balance")}</p>
             <p className="text-lg font-bold">{(totalIn - totalOut).toLocaleString("sr-RS")} RSD</p>
           </CardContent>
         </Card>
@@ -126,26 +129,26 @@ export default function CashRegister() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Wallet className="h-4 w-4" /> Blagajnički dnevnik
+            <Wallet className="h-4 w-4" /> {t("cashRegisterJournal")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-60" />
           ) : entries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nema stavki za izabrani mesec.</p>
+            <p className="text-muted-foreground text-sm">{t("noResults")}</p>
           ) : (
             <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Broj</TableHead>
-                  <TableHead>Datum</TableHead>
-                  <TableHead>Smer</TableHead>
-                  <TableHead>Opis</TableHead>
-                  <TableHead>Dokument</TableHead>
-                  <TableHead className="text-right">Primanje</TableHead>
-                  <TableHead className="text-right">Izdavanje</TableHead>
+                  <TableHead>{t("entryNumber")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("direction")}</TableHead>
+                  <TableHead>{t("description")}</TableHead>
+                  <TableHead>{t("documentRef")}</TableHead>
+                  <TableHead className="text-right">{t("receipt")}</TableHead>
+                  <TableHead className="text-right">{t("disbursement")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,9 +158,9 @@ export default function CashRegister() {
                     <TableCell>{e.entry_date}</TableCell>
                     <TableCell>
                       {e.direction === "in" ? (
-                        <Badge variant="default" className="gap-1"><ArrowDownLeft className="h-3 w-3" /> Uplata</Badge>
+                        <Badge variant="default" className="gap-1"><ArrowDownLeft className="h-3 w-3" /> {t("receipt")}</Badge>
                       ) : (
-                        <Badge variant="secondary" className="gap-1"><ArrowUpRight className="h-3 w-3" /> Isplata</Badge>
+                        <Badge variant="secondary" className="gap-1"><ArrowUpRight className="h-3 w-3" /> {t("disbursement")}</Badge>
                       )}
                     </TableCell>
                     <TableCell>{e.description}</TableCell>
@@ -173,7 +176,7 @@ export default function CashRegister() {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={5} className="font-semibold">UKUPNO</TableCell>
+                  <TableCell colSpan={5} className="font-semibold">{t("total")}</TableCell>
                   <TableCell className="text-right font-semibold text-green-600">{totalIn.toLocaleString("sr-RS")}</TableCell>
                   <TableCell className="text-right font-semibold text-red-600">{totalOut.toLocaleString("sr-RS")}</TableCell>
                 </TableRow>
@@ -187,36 +190,36 @@ export default function CashRegister() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova blagajnička stavka</DialogTitle>
+            <DialogTitle>{t("newCashEntry")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Smer</Label>
+              <Label>{t("direction")}</Label>
               <Select value={form.direction} onValueChange={(v: "in" | "out") => setForm({ ...form, direction: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="in">Uplata (primanje)</SelectItem>
-                  <SelectItem value="out">Isplata (izdavanje)</SelectItem>
+                  <SelectItem value="in">{t("receipt")}</SelectItem>
+                  <SelectItem value="out">{t("disbursement")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Iznos (RSD)</Label>
+              <Label>{t("amountRSD")}</Label>
               <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </div>
             <div>
-              <Label>Opis</Label>
+              <Label>{t("description")}</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="npr. Nabavka kancelarijskog materijala" />
             </div>
             <div>
-              <Label>Broj dokumenta (opciono)</Label>
+              <Label>{t("documentRefOptional")}</Label>
               <Input value={form.document_ref} onChange={(e) => setForm({ ...form, document_ref: e.target.value })} placeholder="npr. RN-001/26" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Otkaži</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
             <Button onClick={() => createMut.mutate()} disabled={!form.description || !form.amount || createMut.isPending}>
-              {createMut.isPending ? "Čuvanje..." : "Sačuvaj"}
+              {createMut.isPending ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

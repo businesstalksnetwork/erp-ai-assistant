@@ -1,5 +1,6 @@
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -9,20 +10,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Archive, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ReportSnapshots() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: snapshots = [], isLoading } = useQuery({
     queryKey: ["report-snapshots", tenantId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("report_snapshots")
-        .select("*")
-        .eq("tenant_id", tenantId!)
+        .from("report_snapshots").select("*").eq("tenant_id", tenantId!)
         .order("frozen_at", { ascending: false });
       return data || [];
     },
@@ -34,8 +35,8 @@ export default function ReportSnapshots() {
       const { error } = await supabase.from("report_snapshots").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["report-snapshots"] }); toast.success("Snapshot obrisan"); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["report-snapshots"] }); toast({ title: t("snapshotDeleted") }); },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const typeLabel: Record<string, string> = {
@@ -47,7 +48,7 @@ export default function ReportSnapshots() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Arhiva izveštaja" icon={Archive} description="Zamrznute verzije finansijskih izveštaja za regulatorne potrebe" />
+      <PageHeader title={t("reportArchive")} icon={Archive} description={t("reportArchiveDesc")} />
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : (
         <Card>
@@ -55,11 +56,11 @@ export default function ReportSnapshots() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Naziv</TableHead>
-                  <TableHead>Tip</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Zamrznuto</TableHead>
-                  <TableHead>Napomena</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("period")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("note")}</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -79,7 +80,7 @@ export default function ReportSnapshots() {
                   </TableRow>
                 ))}
                 {snapshots.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nema sačuvanih izveštaja. Koristite dugme "Zamrzni" na stranicama Bilans stanja ili Bilans uspeha.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

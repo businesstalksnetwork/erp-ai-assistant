@@ -42,7 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Tag, GripVertical, Check, CornerDownRight } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 
@@ -72,6 +72,7 @@ export default function CompanyCategoriesSettings() {
   const { tenantId } = useTenant();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CompanyCategory | null>(null);
   const [deleteCategory, setDeleteCategory] = useState<CompanyCategory | null>(null);
@@ -176,15 +177,15 @@ export default function CompanyCategoriesSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-categories'] });
-      toast.success('Kategorija je uspešno kreirana');
+      toast({ title: t("categoryCreated") });
       setIsAddOpen(false);
       resetForm();
     },
     onError: (error: any) => {
       if (error.message?.includes('unique')) {
-        toast.error('Kategorija sa ovim kodom već postoji');
+        toast({ title: t("error"), description: t("duplicateCode"), variant: "destructive" });
       } else {
-        toast.error('Greška: ' + error.message);
+        toast({ title: t("error"), description: error.message, variant: "destructive" });
       }
     },
   });
@@ -205,12 +206,12 @@ export default function CompanyCategoriesSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-categories'] });
-      toast.success('Kategorija je uspešno ažurirana');
+      toast({ title: t("categoryUpdated") });
       setEditingCategory(null);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error('Greška: ' + error.message);
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -222,11 +223,11 @@ export default function CompanyCategoriesSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-categories'] });
       queryClient.invalidateQueries({ queryKey: ['categories-in-use'] });
-      toast.success('Kategorija je uspešno obrisana');
+      toast({ title: t("categoryDeleted") });
       setDeleteCategory(null);
     },
     onError: (error: any) => {
-      toast.error('Greška: ' + error.message);
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -254,7 +255,7 @@ export default function CompanyCategoriesSettings() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.code.trim() || !formData.name.trim() || !formData.name_sr.trim()) {
-      toast.error('Kod, naziv (EN) i naziv (SR) su obavezni');
+      toast({ title: t("error"), description: t("codeNameRequired"), variant: "destructive" });
       return;
     }
     if (editingCategory) {
@@ -311,19 +312,17 @@ export default function CompanyCategoriesSettings() {
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Naziv (srpski) *</Label>
+        <Label>{t('categoryNameSr')} *</Label>
         <Input
           value={formData.name_sr}
           onChange={(e) => setFormData({ ...formData, name_sr: e.target.value })}
-          placeholder="npr. Dobavljači"
         />
       </div>
       <div className="space-y-2">
-        <Label>Naziv (engleski) *</Label>
+        <Label>{t('categoryNameEn')} *</Label>
         <Input
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="e.g. Suppliers"
         />
       </div>
       <div className="space-y-2">
@@ -331,13 +330,12 @@ export default function CompanyCategoriesSettings() {
         <Input
           value={formData.code}
           onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-          placeholder="npr. supplier"
           disabled={isEdit && editingCategory?.is_system === true}
         />
         {isEdit && editingCategory?.is_system ? (
-          <p className="text-xs text-muted-foreground">Kod sistemskih kategorija se ne može menjati</p>
+          <p className="text-xs text-muted-foreground">{t("systemCodeNote")}</p>
         ) : (
-          <p className="text-xs text-muted-foreground">Jedinstveni identifikator (mala slova, bez razmaka)</p>
+          <p className="text-xs text-muted-foreground">{t("uniqueIdNote")}</p>
         )}
       </div>
       <div className="space-y-2">
@@ -376,7 +374,7 @@ export default function CompanyCategoriesSettings() {
                 {t('partnerCategories')}
               </CardTitle>
               <CardDescription>
-                Upravljajte kategorijama i potkategorijama za klasifikaciju partnera
+                {t("manageCategoriesDesc")}
               </CardDescription>
             </div>
             <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
@@ -390,13 +388,13 @@ export default function CompanyCategoriesSettings() {
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>{t('newCategory')}</DialogTitle>
-                    <DialogDescription>Kreirajte novu kategoriju ili potkategoriju za klasifikaciju partnera</DialogDescription>
+                    <DialogDescription>{t("createCategoryDesc")}</DialogDescription>
                   </DialogHeader>
                   <CategoryForm />
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>{t('cancel')}</Button>
                     <Button type="submit" disabled={createMutation.isPending}>
-                      {createMutation.isPending ? 'Čuvanje...' : t('save')}
+                      {createMutation.isPending ? t('saving') : t('save')}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -409,11 +407,10 @@ export default function CompanyCategoriesSettings() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12"></TableHead>
-                <TableHead>Naziv</TableHead>
+                <TableHead>{t('name')}</TableHead>
                 <TableHead>{t('categoryCode')}</TableHead>
                 <TableHead>{t('categoryColor')}</TableHead>
-                <TableHead>Tip</TableHead>
-                
+                <TableHead>{t('type')}</TableHead>
                 <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -469,7 +466,7 @@ export default function CompanyCategoriesSettings() {
               {(!categories || categories.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Nema kategorija. Dodajte prvu kategoriju.
+                    {t("noCategories")}
                   </TableCell>
                 </TableRow>
               )}
@@ -483,38 +480,29 @@ export default function CompanyCategoriesSettings() {
         <DialogContent>
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Izmeni kategoriju</DialogTitle>
-              <DialogDescription>Izmenite podatke o kategoriji</DialogDescription>
+              <DialogTitle>{t('editCategory')}</DialogTitle>
             </DialogHeader>
             <CategoryForm isEdit />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditingCategory(null)}>{t('cancel')}</Button>
+              <Button type="button" variant="outline" onClick={() => { setEditingCategory(null); resetForm(); }}>{t('cancel')}</Button>
               <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? 'Čuvanje...' : t('save')}
+                {updateMutation.isPending ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteCategory} onOpenChange={(open) => !open && setDeleteCategory(null)}>
+      {/* Delete Alert */}
+      <AlertDialog open={!!deleteCategory} onOpenChange={() => setDeleteCategory(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Obrisati kategoriju?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Da li ste sigurni da želite da obrišete kategoriju "{deleteCategory?.name_sr || deleteCategory?.name}"?
-              Ova akcija se ne može poništiti.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('confirmation')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteConfirmation')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteCategory && deleteMutation.mutate(deleteCategory.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t('delete')}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => deleteCategory && deleteMutation.mutate(deleteCategory.id)}>{t('delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
