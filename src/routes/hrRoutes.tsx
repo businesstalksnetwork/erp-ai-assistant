@@ -28,6 +28,7 @@ const EBolovanje = React.lazy(() => import("@/pages/tenant/EBolovanje"));
 const PayrollCategories = React.lazy(() => import("@/pages/tenant/PayrollCategories"));
 const PayrollPaymentTypes = React.lazy(() => import("@/pages/tenant/PayrollPaymentTypes"));
 const PayrollRunDetail = React.lazy(() => import("@/pages/tenant/PayrollRunDetail"));
+const NonEmploymentIncome = React.lazy(() => import("@/pages/tenant/NonEmploymentIncome"));
 
 const m = "hr";
 
@@ -59,5 +60,6 @@ export const hrRoutes = (
     <Route path="hr/position-templates" element={<ProtectedRoute requiredModule={m}><PositionTemplates /></ProtectedRoute>} />
     <Route path="hr/reports" element={<ProtectedRoute requiredModule={m}><HrReports /></ProtectedRoute>} />
     <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule={m}><EBolovanje /></ProtectedRoute>} />
+    <Route path="hr/non-employment-income" element={<ProtectedRoute requiredModule={m}><NonEmploymentIncome /></ProtectedRoute>} />
   </>
 );
