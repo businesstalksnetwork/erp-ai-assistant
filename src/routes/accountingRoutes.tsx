@@ -40,6 +40,8 @@ const KpoBook = React.lazy(() => import("@/pages/tenant/KpoBook"));
 const MultiPeriodReports = React.lazy(() => import("@/pages/tenant/MultiPeriodReports"));
 const TransferPricing = React.lazy(() => import("@/pages/tenant/TransferPricing"));
 const ReportSnapshots = React.lazy(() => import("@/pages/tenant/ReportSnapshots"));
+const BankAccounts = React.lazy(() => import("@/pages/tenant/BankAccounts"));
+const BankDocumentImport = React.lazy(() => import("@/pages/tenant/BankDocumentImport"));
 
 const m = "accounting";
 
@@ -84,5 +86,7 @@ export const accountingRoutes = (
     <Route path="accounting/reports/multi-period" element={<ProtectedRoute requiredModule={m}><MultiPeriodReports /></ProtectedRoute>} />
     <Route path="accounting/transfer-pricing" element={<ProtectedRoute requiredModule={m}><TransferPricing /></ProtectedRoute>} />
     <Route path="accounting/report-snapshots" element={<ProtectedRoute requiredModule={m}><ReportSnapshots /></ProtectedRoute>} />
+    <Route path="accounting/bank-accounts" element={<ProtectedRoute requiredModule={m}><BankAccounts /></ProtectedRoute>} />
+    <Route path="accounting/document-import" element={<ProtectedRoute requiredModule={m}><BankDocumentImport /></ProtectedRoute>} />
   </>
 );

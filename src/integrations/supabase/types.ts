@@ -1223,41 +1223,75 @@ export type Database = {
       bank_accounts: {
         Row: {
           account_number: string
+          account_type: string
+          bank_code: string | null
+          bank_id: string | null
           bank_name: string
+          closing_date: string | null
           created_at: string
           currency: string
           gl_account_id: string | null
+          iban: string | null
           id: string
           is_active: boolean
           is_primary: boolean
           legal_entity_id: string | null
+          opening_date: string | null
+          purpose: string | null
+          swift_code: string | null
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           account_number: string
+          account_type?: string
+          bank_code?: string | null
+          bank_id?: string | null
           bank_name: string
+          closing_date?: string | null
           created_at?: string
           currency?: string
           gl_account_id?: string | null
+          iban?: string | null
           id?: string
           is_active?: boolean
           is_primary?: boolean
           legal_entity_id?: string | null
+          opening_date?: string | null
+          purpose?: string | null
+          swift_code?: string | null
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           account_number?: string
+          account_type?: string
+          bank_code?: string | null
+          bank_id?: string | null
           bank_name?: string
+          closing_date?: string | null
           created_at?: string
           currency?: string
           gl_account_id?: string | null
+          iban?: string | null
           id?: string
           is_active?: boolean
           is_primary?: boolean
           legal_entity_id?: string | null
+          opening_date?: string | null
+          purpose?: string | null
+          swift_code?: string | null
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bank_accounts_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bank_accounts_gl_account_id_fkey"
             columns: ["gl_account_id"]
@@ -1403,12 +1437,16 @@ export type Database = {
       bank_statement_lines: {
         Row: {
           amount: number
+          counterparty_bank: string | null
+          counterparty_iban: string | null
           created_at: string
           description: string | null
           direction: string
+          document_import_id: string | null
           id: string
           journal_entry_id: string | null
           line_date: string
+          match_confidence: number | null
           match_status: string
           matched_invoice_id: string | null
           matched_supplier_invoice_id: string | null
@@ -1418,15 +1456,21 @@ export type Database = {
           payment_reference: string | null
           statement_id: string
           tenant_id: string
+          transaction_type: string | null
+          value_date: string | null
         }
         Insert: {
           amount?: number
+          counterparty_bank?: string | null
+          counterparty_iban?: string | null
           created_at?: string
           description?: string | null
           direction?: string
+          document_import_id?: string | null
           id?: string
           journal_entry_id?: string | null
           line_date: string
+          match_confidence?: number | null
           match_status?: string
           matched_invoice_id?: string | null
           matched_supplier_invoice_id?: string | null
@@ -1436,15 +1480,21 @@ export type Database = {
           payment_reference?: string | null
           statement_id: string
           tenant_id: string
+          transaction_type?: string | null
+          value_date?: string | null
         }
         Update: {
           amount?: number
+          counterparty_bank?: string | null
+          counterparty_iban?: string | null
           created_at?: string
           description?: string | null
           direction?: string
+          document_import_id?: string | null
           id?: string
           journal_entry_id?: string | null
           line_date?: string
+          match_confidence?: number | null
           match_status?: string
           matched_invoice_id?: string | null
           matched_supplier_invoice_id?: string | null
@@ -1454,8 +1504,17 @@ export type Database = {
           payment_reference?: string | null
           statement_id?: string
           tenant_id?: string
+          transaction_type?: string | null
+          value_date?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_document_import_id_fkey"
+            columns: ["document_import_id"]
+            isOneToOne: false
+            referencedRelation: "document_imports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bank_statement_lines_journal_entry_id_fkey"
             columns: ["journal_entry_id"]
@@ -1558,6 +1617,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      banks: {
+        Row: {
+          bank_code: string
+          country: string
+          created_at: string
+          email_domain: string | null
+          id: string
+          name: string
+          swift_code: string | null
+        }
+        Insert: {
+          bank_code: string
+          country?: string
+          created_at?: string
+          email_domain?: string | null
+          id?: string
+          name: string
+          swift_code?: string | null
+        }
+        Update: {
+          bank_code?: string
+          country?: string
+          created_at?: string
+          email_domain?: string | null
+          id?: string
+          name?: string
+          swift_code?: string | null
+        }
+        Relationships: []
       }
       bom_lines: {
         Row: {
@@ -2552,6 +2641,66 @@ export type Database = {
           },
         ]
       }
+      csv_import_profiles: {
+        Row: {
+          bank_id: string | null
+          column_mappings: Json
+          created_at: string
+          date_format: string
+          decimal_separator: string
+          encoding: string
+          header_row: number
+          id: string
+          is_system: boolean
+          profile_name: string
+          separator: string
+          tenant_id: string | null
+        }
+        Insert: {
+          bank_id?: string | null
+          column_mappings?: Json
+          created_at?: string
+          date_format?: string
+          decimal_separator?: string
+          encoding?: string
+          header_row?: number
+          id?: string
+          is_system?: boolean
+          profile_name: string
+          separator?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          bank_id?: string | null
+          column_mappings?: Json
+          created_at?: string
+          date_format?: string
+          decimal_separator?: string
+          encoding?: string
+          header_row?: number
+          id?: string
+          is_system?: boolean
+          profile_name?: string
+          separator?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csv_import_profiles_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csv_import_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       currencies: {
         Row: {
           code: string
@@ -3503,6 +3652,81 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "document_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_imports: {
+        Row: {
+          bank_account_id: string | null
+          created_at: string
+          error_message: string | null
+          file_format: string
+          file_size_bytes: number | null
+          id: string
+          imported_at: string
+          ocr_confidence_avg: number | null
+          original_filename: string
+          parser_used: string | null
+          processed_at: string | null
+          sha256_hash: string | null
+          source_type: string
+          status: string
+          storage_path: string | null
+          tenant_id: string
+          transactions_count: number | null
+        }
+        Insert: {
+          bank_account_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_format?: string
+          file_size_bytes?: number | null
+          id?: string
+          imported_at?: string
+          ocr_confidence_avg?: number | null
+          original_filename: string
+          parser_used?: string | null
+          processed_at?: string | null
+          sha256_hash?: string | null
+          source_type?: string
+          status?: string
+          storage_path?: string | null
+          tenant_id: string
+          transactions_count?: number | null
+        }
+        Update: {
+          bank_account_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_format?: string
+          file_size_bytes?: number | null
+          id?: string
+          imported_at?: string
+          ocr_confidence_avg?: number | null
+          original_filename?: string
+          parser_used?: string | null
+          processed_at?: string | null
+          sha256_hash?: string | null
+          source_type?: string
+          status?: string
+          storage_path?: string | null
+          tenant_id?: string
+          transactions_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_imports_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_imports_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
