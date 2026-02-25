@@ -3907,6 +3907,8 @@ export type Database = {
           address: string | null
           annual_leave_days: number
           anonymized_at: string | null
+          bank_account_iban: string | null
+          bank_name: string | null
           city: string | null
           company_id: string | null
           created_at: string
@@ -3926,9 +3928,12 @@ export type Database = {
           last_name: string | null
           location_id: string | null
           municipal_tax_rate: number | null
+          payroll_category_id: string | null
           phone: string | null
+          pib: string | null
           position: string | null
           position_template_id: string | null
+          recipient_code: string | null
           slava_date: string | null
           start_date: string
           status: Database["public"]["Enums"]["employee_status"]
@@ -3941,6 +3946,8 @@ export type Database = {
           address?: string | null
           annual_leave_days?: number
           anonymized_at?: string | null
+          bank_account_iban?: string | null
+          bank_name?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
@@ -3960,9 +3967,12 @@ export type Database = {
           last_name?: string | null
           location_id?: string | null
           municipal_tax_rate?: number | null
+          payroll_category_id?: string | null
           phone?: string | null
+          pib?: string | null
           position?: string | null
           position_template_id?: string | null
+          recipient_code?: string | null
           slava_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["employee_status"]
@@ -3975,6 +3985,8 @@ export type Database = {
           address?: string | null
           annual_leave_days?: number
           anonymized_at?: string | null
+          bank_account_iban?: string | null
+          bank_name?: string | null
           city?: string | null
           company_id?: string | null
           created_at?: string
@@ -3994,9 +4006,12 @@ export type Database = {
           last_name?: string | null
           location_id?: string | null
           municipal_tax_rate?: number | null
+          payroll_category_id?: string | null
           phone?: string | null
+          pib?: string | null
           position?: string | null
           position_template_id?: string | null
+          recipient_code?: string | null
           slava_date?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["employee_status"]
@@ -4025,6 +4040,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_payroll_category_id_fkey"
+            columns: ["payroll_category_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_income_categories"
             referencedColumns: ["id"]
           },
           {
@@ -8411,12 +8433,104 @@ export type Database = {
           },
         ]
       }
+      payroll_income_categories: {
+        Row: {
+          ben_code: string
+          ben_coefficient: number
+          code: string
+          created_at: string
+          employer_health_exempt: boolean
+          employer_pio_exempt: boolean
+          employer_tax_exempt: boolean
+          health_employee_rate: number
+          health_employer_rate: number
+          id: string
+          is_active: boolean
+          name: string
+          ola_code: string
+          ovp_code: string
+          pio_employee_rate: number
+          pio_employer_rate: number
+          subsidy_health_employee_pct: number
+          subsidy_health_employer_pct: number
+          subsidy_pio_employee_pct: number
+          subsidy_pio_employer_pct: number
+          subsidy_tax_pct: number
+          tax_rate: number
+          tenant_id: string
+          unemployment_employee_rate: number
+        }
+        Insert: {
+          ben_code?: string
+          ben_coefficient?: number
+          code: string
+          created_at?: string
+          employer_health_exempt?: boolean
+          employer_pio_exempt?: boolean
+          employer_tax_exempt?: boolean
+          health_employee_rate?: number
+          health_employer_rate?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          ola_code?: string
+          ovp_code?: string
+          pio_employee_rate?: number
+          pio_employer_rate?: number
+          subsidy_health_employee_pct?: number
+          subsidy_health_employer_pct?: number
+          subsidy_pio_employee_pct?: number
+          subsidy_pio_employer_pct?: number
+          subsidy_tax_pct?: number
+          tax_rate?: number
+          tenant_id: string
+          unemployment_employee_rate?: number
+        }
+        Update: {
+          ben_code?: string
+          ben_coefficient?: number
+          code?: string
+          created_at?: string
+          employer_health_exempt?: boolean
+          employer_pio_exempt?: boolean
+          employer_tax_exempt?: boolean
+          health_employee_rate?: number
+          health_employer_rate?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          ola_code?: string
+          ovp_code?: string
+          pio_employee_rate?: number
+          pio_employer_rate?: number
+          subsidy_health_employee_pct?: number
+          subsidy_health_employer_pct?: number
+          subsidy_pio_employee_pct?: number
+          subsidy_pio_employer_pct?: number
+          subsidy_tax_pct?: number
+          tax_rate?: number
+          tenant_id?: string
+          unemployment_employee_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_income_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_items: {
         Row: {
           actual_working_days: number
+          ben_code: string | null
           created_at: string
           dlp_amount: number
           employee_id: string
+          employer_health: number | null
+          employer_pio: number | null
           gross_salary: number
           health_contribution: number
           health_employer: number
@@ -8425,13 +8539,18 @@ export type Database = {
           leave_days_deducted: number
           leave_deduction_amount: number
           meal_allowance: number | null
+          municipal_tax: number
           net_salary: number
           night_work_hours_count: number
+          ola_code: string | null
           overtime_hours_count: number
           overtime_multiplier: number | null
+          ovp_code: string | null
+          payroll_category_id: string | null
           payroll_run_id: string
           pension_contribution: number
           pension_employer: number
+          subsidy_amount: number
           taxable_base: number
           total_cost: number
           transport_allowance: number | null
@@ -8440,9 +8559,12 @@ export type Database = {
         }
         Insert: {
           actual_working_days?: number
+          ben_code?: string | null
           created_at?: string
           dlp_amount?: number
           employee_id: string
+          employer_health?: number | null
+          employer_pio?: number | null
           gross_salary?: number
           health_contribution?: number
           health_employer?: number
@@ -8451,13 +8573,18 @@ export type Database = {
           leave_days_deducted?: number
           leave_deduction_amount?: number
           meal_allowance?: number | null
+          municipal_tax?: number
           net_salary?: number
           night_work_hours_count?: number
+          ola_code?: string | null
           overtime_hours_count?: number
           overtime_multiplier?: number | null
+          ovp_code?: string | null
+          payroll_category_id?: string | null
           payroll_run_id: string
           pension_contribution?: number
           pension_employer?: number
+          subsidy_amount?: number
           taxable_base?: number
           total_cost?: number
           transport_allowance?: number | null
@@ -8466,9 +8593,12 @@ export type Database = {
         }
         Update: {
           actual_working_days?: number
+          ben_code?: string | null
           created_at?: string
           dlp_amount?: number
           employee_id?: string
+          employer_health?: number | null
+          employer_pio?: number | null
           gross_salary?: number
           health_contribution?: number
           health_employer?: number
@@ -8477,13 +8607,18 @@ export type Database = {
           leave_days_deducted?: number
           leave_deduction_amount?: number
           meal_allowance?: number | null
+          municipal_tax?: number
           net_salary?: number
           night_work_hours_count?: number
+          ola_code?: string | null
           overtime_hours_count?: number
           overtime_multiplier?: number | null
+          ovp_code?: string | null
+          payroll_category_id?: string | null
           payroll_run_id?: string
           pension_contribution?: number
           pension_employer?: number
+          subsidy_amount?: number
           taxable_base?: number
           total_cost?: number
           transport_allowance?: number | null
@@ -8496,6 +8631,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_items_payroll_category_id_fkey"
+            columns: ["payroll_category_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_income_categories"
             referencedColumns: ["id"]
           },
           {
@@ -8580,6 +8722,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "payroll_parameters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payment_types: {
+        Row: {
+          affects_benefits: boolean
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_hourly: boolean
+          is_nontaxable: boolean
+          name: string
+          rate_multiplier: number
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          affects_benefits?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_hourly?: boolean
+          is_nontaxable?: boolean
+          name: string
+          rate_multiplier?: number
+          tenant_id: string
+          type?: string
+        }
+        Update: {
+          affects_benefits?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_hourly?: boolean
+          is_nontaxable?: boolean
+          name?: string
+          rate_multiplier?: number
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payment_types_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -12939,6 +13131,14 @@ export type Database = {
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_payroll_income_categories: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
+      seed_payroll_payment_types: {
+        Args: { p_tenant_id: string }
         Returns: undefined
       }
       seed_posting_rules_for_tenant: {

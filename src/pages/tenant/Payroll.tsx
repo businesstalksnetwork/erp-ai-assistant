@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Loader2, Calculator, Check, Banknote } from "lucide-react";
+import { Plus, Loader2, Calculator, Check, Banknote, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
 import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
@@ -101,7 +102,7 @@ export default function Payroll() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // PRC 14.6: Approve → Debit 8000 (Salary Expense) / Credit 2100 (Net Payable) + Credit 4700 (Tax+Contributions)
+  // Serbian GL mapping per PRD: 520/521 Expense, 525 Employer Contrib, 4620 Net, 4631 Tax, 4632 Employee Contrib, 4633 Employer Contrib
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const run = runs.find((r: any) => r.id === id);
@@ -111,50 +112,48 @@ export default function Payroll() {
       const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
 
       if (status === "approved") {
-        // Fetch items to get employer contributions
         const { data: items } = await supabase.from("payroll_items").select("*").eq("payroll_run_id", id);
         const totalPioE = items?.reduce((s, i) => s + Number(i.pension_contribution), 0) || 0;
         const totalHealthE = items?.reduce((s, i) => s + Number(i.health_contribution), 0) || 0;
         const totalUnempE = items?.reduce((s, i) => s + Number(i.unemployment_contribution), 0) || 0;
-        const totalPioR = items?.reduce((s, i) => s + Number(i.pension_employer || 0), 0) || 0;
-        const totalHealthR = items?.reduce((s, i) => s + Number(i.health_employer || 0), 0) || 0;
+        const totalPioR = items?.reduce((s, i) => s + Number(i.employer_pio || i.pension_employer || 0), 0) || 0;
+        const totalHealthR = items?.reduce((s, i) => s + Number(i.employer_health || i.health_employer || 0), 0) || 0;
+        const totalEmployeeContrib = totalPioE + totalHealthE + totalUnempE;
+        const totalEmployerContrib = totalPioR + totalHealthR;
 
-        // Employee accrual: D:5200 Bruto / P:4500 Net / P:4510 Tax / P:4520-4540 contributions
+        // Employee accrual: D:5200 Bruto / P:4620 Net / P:4631 Tax / P:4632 Employee Contributions
         await createCodeBasedJournalEntry({
           tenantId, userId: user?.id || null, entryDate,
-          description: `Payroll ${periodLabel} - Accrual`,
+          description: `Obračun zarada ${periodLabel}`,
           reference: `PR-${periodLabel}`,
           lines: [
-            { accountCode: "5200", debit: Number(run.total_gross), credit: 0, description: `Gross salary ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "4500", debit: 0, credit: Number(run.total_net), description: `Net payable ${periodLabel}`, sortOrder: 1 },
-            { accountCode: "4510", debit: 0, credit: Number(run.total_taxes), description: `Income tax ${periodLabel}`, sortOrder: 2 },
-            { accountCode: "4520", debit: 0, credit: totalPioE, description: `PIO employee ${periodLabel}`, sortOrder: 3 },
-            { accountCode: "4530", debit: 0, credit: totalHealthE, description: `Health employee ${periodLabel}`, sortOrder: 4 },
-            { accountCode: "4540", debit: 0, credit: totalUnempE, description: `Unemployment employee ${periodLabel}`, sortOrder: 5 },
+            { accountCode: "5200", debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "4620", debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
+            { accountCode: "4631", debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
+            { accountCode: "4632", debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 },
           ],
         });
-        // Employer contributions: D:5201 / P:4521 PIO / P:4531 Health
-        if (totalPioR + totalHealthR > 0) {
+        // Employer contributions: D:5250 / P:4633
+        if (totalEmployerContrib > 0) {
           await createCodeBasedJournalEntry({
             tenantId, userId: user?.id || null, entryDate,
-            description: `Payroll ${periodLabel} - Employer contributions`,
+            description: `Doprinosi poslodavca ${periodLabel}`,
             reference: `PR-EC-${periodLabel}`,
             lines: [
-              { accountCode: "5201", debit: totalPioR + totalHealthR, credit: 0, description: `Employer contributions ${periodLabel}`, sortOrder: 0 },
-              { accountCode: "4521", debit: 0, credit: totalPioR, description: `PIO employer ${periodLabel}`, sortOrder: 1 },
-              { accountCode: "4531", debit: 0, credit: totalHealthR, description: `Health employer ${periodLabel}`, sortOrder: 2 },
+              { accountCode: "5250", debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
+              { accountCode: "4633", debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
             ],
           });
         }
       } else if (status === "paid") {
-        // Payment: D:4500 Net / P:2431 Bank
+        // Payment: D:4620 Net / P:2410 Bank
         await createCodeBasedJournalEntry({
           tenantId, userId: user?.id || null, entryDate,
-          description: `Payroll ${periodLabel} - Payment`,
+          description: `Isplata zarada ${periodLabel}`,
           reference: `PR-PAY-${periodLabel}`,
           lines: [
-            { accountCode: "4500", debit: Number(run.total_net), credit: 0, description: `Pay employees ${periodLabel}`, sortOrder: 0 },
-            { accountCode: "2431", debit: 0, credit: Number(run.total_net), description: `Bank payment ${periodLabel}`, sortOrder: 1 },
+            { accountCode: "4620", debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
+            { accountCode: "2410", debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
         });
       }
@@ -178,7 +177,12 @@ export default function Payroll() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("payroll")}</h1>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
+        <div className="flex gap-2">
+          <Link to="/hr/payroll/categories">
+            <Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2" />{t("categories") || "Kategorije"}</Button>
+          </Link>
+          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("createPayrollRun")}</Button>
+        </div>
       </div>
 
       {/* Active Payroll Parameters */}
