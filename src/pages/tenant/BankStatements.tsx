@@ -15,8 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck } from "lucide-react";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
-import { findPostingRule, resolvePostingRuleToJournalLines } from "@/lib/postingRuleEngine";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSearchParams } from "react-router-dom";
 
@@ -297,40 +296,31 @@ export default function BankStatements() {
       let posted = 0;
       for (const line of lines) {
         try {
-          // Try new posting rules engine first, fall back to hardcoded accounts
+          // Use posting rules engine with fallback
           const modelCode = line.direction === "credit" ? "CUSTOMER_PAYMENT" : "VENDOR_PAYMENT";
-          let journalLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }>;
+          const fallbackLines = line.direction === "credit"
+            ? [
+                { accountCode: "2410", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
+                { accountCode: "2040", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
+              ]
+            : [
+                { accountCode: "4350", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
+                { accountCode: "2410", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
+              ];
 
-          const rule = await findPostingRule(tenantId!, modelCode);
-          if (rule) {
-            journalLines = await resolvePostingRuleToJournalLines(
-              tenantId!, rule.lines, line.amount,
-              {
-                bankAccountGlCode: "2410",
-                partnerReceivableCode: "2040",
-                partnerPayableCode: "4350",
-              }
-            );
-          } else {
-            // Legacy fallback: hardcoded account codes
-            journalLines = line.direction === "credit"
-              ? [
-                  { accountCode: "2410", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
-                  { accountCode: "2040", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
-                ]
-              : [
-                  { accountCode: "4350", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
-                  { accountCode: "2410", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
-                ];
-          }
-
-          const jeId = await createCodeBasedJournalEntry({
+          const jeId = await postWithRuleOrFallback({
             tenantId: tenantId!,
             userId: user?.id || null,
             entryDate: line.line_date,
+            modelCode, amount: line.amount,
             description: `${t("bankPayment")}: ${line.description || line.partner_name || ""}`,
             reference: `BS-${line.payment_reference || line.id.slice(0, 8)}`,
-            lines: journalLines,
+            context: {
+              bankAccountGlCode: "2410",
+              partnerReceivableCode: "2040",
+              partnerPayableCode: "4350",
+            },
+            fallbackLines,
           });
 
           await supabase.from("bank_statement_lines").update({ journal_entry_id: jeId }).eq("id", line.id);
