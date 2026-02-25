@@ -5,7 +5,7 @@ import {
   BookOpen, FileText, Receipt, Library, Landmark, ListChecks,
   Calculator, CalendarCheck, Building, Clock, Wallet, DollarSign,
   RefreshCw, ArrowLeftRight, Lock, BarChart3, Repeat, RotateCw,
-  FileCheck, PieChart, Banknote,
+  FileCheck, PieChart, Banknote, Building2, Scale, FileSpreadsheet, Layers,
 } from "lucide-react";
 
 const sections = [
@@ -32,6 +32,8 @@ const sections = [
     links: [
       { to: "/accounting/pdv", icon: Calculator, label: "PDV periodi", desc: "Obračun i prijava poreza na dodatu vrednost" },
       { to: "/accounting/fiscal-periods", icon: CalendarCheck, label: "Fiskalni periodi", desc: "Upravljanje fiskalnim periodima" },
+      { to: "/accounting/withholding-tax", icon: Scale, label: "Porez po odbitku", desc: "Obračun poreza na isplate nerezidentima" },
+      { to: "/accounting/cit-return", icon: FileSpreadsheet, label: "PDP prijava", desc: "Godišnji porez na dobit (15%)" },
     ],
   },
   {
@@ -55,9 +57,11 @@ const sections = [
     links: [
       { to: "/accounting/fx-revaluation", icon: RefreshCw, label: "Revalorizacija", desc: "Kursne razlike i revalorizacija deviznih stavki" },
       { to: "/accounting/kompenzacija", icon: ArrowLeftRight, label: "Kompenzacija", desc: "Međusobno prebijanje potraživanja i obaveza" },
+      { to: "/accounting/intercompany", icon: Building2, label: "Intercompany", desc: "Međukompanijske transakcije između pravnih lica" },
       { to: "/accounting/year-end", icon: Lock, label: "Zaključak godine", desc: "Godišnji obračun i zatvaranje knjiga" },
       { to: "/accounting/reports", icon: BarChart3, label: "Izveštaji", desc: "Bilans stanja, bilans uspeha i bruto bilans" },
       { to: "/accounting/reports/cost-center-pl", icon: PieChart, label: "P&L po MT", desc: "Profitabilnost po mestima troškova" },
+      { to: "/accounting/reports/consolidated", icon: Layers, label: "Konsolidacija", desc: "Konsolidovani finansijski izveštaji grupe" },
     ],
   },
 ];
