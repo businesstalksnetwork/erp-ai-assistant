@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List } from "lucide-react";
+import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -290,7 +290,10 @@ export default function Payroll() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="px-6 pb-4">
-                    <div className="flex gap-2 mb-4">
+                     <div className="flex gap-2 mb-4 flex-wrap">
+                       <Link to={`/hr/payroll/${run.id}`}>
+                         <Button size="sm" variant="outline"><ExternalLink className="h-4 w-4 mr-2" />{t("details")}</Button>
+                       </Link>
                       {run.status === "draft" && (
                         <Button size="sm" variant="outline" onClick={() => calculateMutation.mutate(run.id)} disabled={calculateMutation.isPending}>
                           <Calculator className="h-4 w-4 mr-2" />{t("calculatePayroll")}

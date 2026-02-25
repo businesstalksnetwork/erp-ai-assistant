@@ -36,7 +36,16 @@ export default function WorkLogs() {
   const [editId, setEditId] = useState<string | null>(null);
   const [filterEmp, setFilterEmp] = useState<string>("__all");
   const [filterType, setFilterType] = useState<string>("__all");
-  const [form, setForm] = useState({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday" as string, hours: 8, note: "", vacation_year: "" as string });
+  const [form, setForm] = useState({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday" as string, hours: 8, note: "", vacation_year: "" as string, payment_type_id: "" as string });
+
+  const { data: paymentTypes = [] } = useQuery({
+    queryKey: ["payroll-payment-types", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("payroll_payment_types").select("id, code, name, rate_multiplier").eq("tenant_id", tenantId!).eq("is_active", true).order("code");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-active", tenantId],
@@ -64,7 +73,7 @@ export default function WorkLogs() {
 
   const mutation = useMutation({
     mutationFn: async (f: typeof form) => {
-      const payload = { tenant_id: tenantId!, employee_id: f.employee_id, date: f.date, type: f.type, hours: f.hours, note: f.note || null, vacation_year: f.vacation_year ? Number(f.vacation_year) : null, created_by: user?.id || null };
+      const payload = { tenant_id: tenantId!, employee_id: f.employee_id, date: f.date, type: f.type, hours: f.hours, note: f.note || null, vacation_year: f.vacation_year ? Number(f.vacation_year) : null, created_by: user?.id || null, payment_type_id: f.payment_type_id || null };
       if (editId) {
         const { error } = await supabase.from("work_logs").update(payload).eq("id", editId);
         if (error) throw error;
@@ -84,10 +93,11 @@ export default function WorkLogs() {
     { key: "date", label: t("date"), render: (l) => l.date },
     { key: "type", label: t("workLogType"), render: (l) => <Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge> },
     { key: "hours", label: t("hours"), align: "right", render: (l) => l.hours },
+    { key: "paymentType", label: t("paymentType" as any), hideOnMobile: true, render: (l) => { const pt = paymentTypes.find((p: any) => p.id === l.payment_type_id); return pt ? <Badge variant="outline">{pt.code}</Badge> : <span className="text-muted-foreground">—</span>; } },
     { key: "note", label: t("notes"), hideOnMobile: true, render: (l) => <span className="max-w-[200px] truncate block">{l.note || "—"}</span> },
     { key: "actions", label: t("actions"), showInCard: false, render: (l) => (
       <MobileActionMenu actions={[
-        { label: t("edit"), onClick: () => { setEditId(l.id); setForm({ employee_id: l.employee_id, date: l.date, type: l.type, hours: l.hours, note: l.note || "", vacation_year: l.vacation_year?.toString() || "" }); setOpen(true); } },
+        { label: t("edit"), onClick: () => { setEditId(l.id); setForm({ employee_id: l.employee_id, date: l.date, type: l.type, hours: l.hours, note: l.note || "", vacation_year: l.vacation_year?.toString() || "", payment_type_id: l.payment_type_id || "" }); setOpen(true); } },
       ]} />
     )},
   ];
@@ -121,7 +131,7 @@ export default function WorkLogs() {
           <>
             <Button variant="outline" size="sm" onClick={() => navigate("/hr/work-logs/bulk")}><Grid3X3 className="h-4 w-4 mr-2" />{t("bulkEntry")}</Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/hr/work-logs/calendar")}><Calendar className="h-4 w-4 mr-2" />{t("workLogsCalendar")}</Button>
-            <Button size="sm" onClick={() => { setEditId(null); setForm({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday", hours: 8, note: "", vacation_year: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+            <Button size="sm" onClick={() => { setEditId(null); setForm({ employee_id: "", date: new Date().toISOString().split("T")[0], type: "workday", hours: 8, note: "", vacation_year: "", payment_type_id: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
           </>
         }
       />
@@ -160,6 +170,16 @@ export default function WorkLogs() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("hours")}</Label><Input type="number" step="0.5" value={form.hours} onChange={e => setForm({ ...form, hours: +e.target.value })} /></div>
               <div className="grid gap-2"><Label>{t("vacationYear")}</Label><Input type="number" placeholder="e.g. 2026" value={form.vacation_year} onChange={e => setForm({ ...form, vacation_year: e.target.value })} /></div>
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("paymentType" as any)}</Label>
+              <Select value={form.payment_type_id} onValueChange={v => setForm({ ...form, payment_type_id: v === "__none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {paymentTypes.map((pt: any) => <SelectItem key={pt.id} value={pt.id}>{pt.code} – {pt.name} (×{pt.rate_multiplier})</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></div>
           </div>

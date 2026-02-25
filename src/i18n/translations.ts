@@ -635,6 +635,9 @@ export const translations = {
     accessDeniedMessage: "You don't have permission to view this page.",
 
     // Phase 13: Export & Reports
+    payrollPaymentTypes: "Payment Types",
+    payrollCategories: "Payroll Categories",
+    paymentType: "Payment Type",
     exportCsv: "Export CSV",
     downloadPdf: "Download PDF",
     printReport: "Print",
@@ -2637,6 +2640,9 @@ export const translations = {
     accessDeniedMessage: "Nemate dozvolu za pregled ove stranice.",
 
     // Phase 13: Export & Reports
+    payrollPaymentTypes: "Vrste isplate",
+    payrollCategories: "Kategorije obračuna",
+    paymentType: "Vrsta isplate",
     exportCsv: "Izvezi CSV",
     downloadPdf: "Preuzmi PDF",
     printReport: "Štampaj",
