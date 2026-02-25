@@ -27,12 +27,28 @@ interface PaymentType {
   rate_multiplier: number;
   is_nontaxable: boolean;
   is_active: boolean;
+  osnovna_tabela: number;
+  satnica_tip: string;
+  payment_category: string;
+  compensation_pct: number;
+  surcharge_pct: number;
+  gl_debit: string;
+  gl_credit: string;
+  reduces_regular: boolean;
+  includes_hot_meal: boolean;
+  is_advance: boolean;
+  is_storno: boolean;
 }
 
 const emptyForm = {
-  code: "", name: "", type: "earning",
+  code: "", name: "", type: "zarada",
   is_hourly: false, is_benefit: false,
   rate_multiplier: "1.0", is_nontaxable: false, is_active: true,
+  osnovna_tabela: "1", satnica_tip: "K", payment_category: "Z",
+  compensation_pct: "0", surcharge_pct: "0",
+  gl_debit: "5200", gl_credit: "4500",
+  reduces_regular: false, includes_hot_meal: true,
+  is_advance: false, is_storno: false,
 };
 
 export default function PayrollPaymentTypes() {
@@ -73,6 +89,13 @@ export default function PayrollPaymentTypes() {
         is_hourly: form.is_hourly, is_benefit: form.is_benefit,
         rate_multiplier: parseFloat(form.rate_multiplier),
         is_nontaxable: form.is_nontaxable, is_active: form.is_active,
+        osnovna_tabela: parseInt(form.osnovna_tabela),
+        satnica_tip: form.satnica_tip, payment_category: form.payment_category,
+        compensation_pct: parseFloat(form.compensation_pct),
+        surcharge_pct: parseFloat(form.surcharge_pct),
+        gl_debit: form.gl_debit, gl_credit: form.gl_credit,
+        reduces_regular: form.reduces_regular, includes_hot_meal: form.includes_hot_meal,
+        is_advance: form.is_advance, is_storno: form.is_storno,
       };
       if (editId) {
         const { error } = await (supabase.from("payroll_payment_types").update(payload).eq("id", editId) as any);
@@ -106,18 +129,37 @@ export default function PayrollPaymentTypes() {
       is_hourly: pt.is_hourly, is_benefit: pt.is_benefit,
       rate_multiplier: String(pt.rate_multiplier),
       is_nontaxable: pt.is_nontaxable, is_active: pt.is_active,
+      osnovna_tabela: String(pt.osnovna_tabela || 1),
+      satnica_tip: pt.satnica_tip || "K",
+      payment_category: pt.payment_category || "Z",
+      compensation_pct: String(pt.compensation_pct || 0),
+      surcharge_pct: String(pt.surcharge_pct || 0),
+      gl_debit: pt.gl_debit || "5200",
+      gl_credit: pt.gl_credit || "4500",
+      reduces_regular: pt.reduces_regular ?? false,
+      includes_hot_meal: pt.includes_hot_meal ?? true,
+      is_advance: pt.is_advance ?? false,
+      is_storno: pt.is_storno ?? false,
     });
     setOpen(true);
   };
 
-  const typeLabel = (t: string) => ({ earning: sr ? "Zarada" : "Earning", deduction: sr ? "Obustava" : "Deduction", benefit: sr ? "Naknada" : "Benefit" }[t] || t);
+  const categoryLabel = (t: string) => ({
+    Z: sr ? "Zarada" : "Earning", B: sr ? "Bolovanje" : "Sick leave",
+    N: sr ? "Naknada" : "Compensation", A: sr ? "Akontacija" : "Advance",
+    S: sr ? "Storno" : "Reversal"
+  }[t] || t);
+
+  const categoryColor = (t: string) => ({
+    Z: "default", B: "secondary", N: "outline", A: "destructive", S: "destructive"
+  }[t] || "outline") as any;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={sr ? "Vrste isplate" : "Payment Types"}
         icon={List}
-        description={sr ? "Šifarnik vrsta isplata sa koeficijentima i statusom oporezivanja" : "Payment type catalog with rate multipliers and tax status"}
+        description={sr ? "Šifarnik vrsta isplata sa koeficijentima, GL kontima i statusom oporezivanja" : "Payment type catalog with rate multipliers, GL accounts, and tax status"}
         actions={
           <div className="flex gap-2">
             {types.length === 0 && (
@@ -144,11 +186,13 @@ export default function PayrollPaymentTypes() {
                 <TableRow>
                   <TableHead>{sr ? "Šifra" : "Code"}</TableHead>
                   <TableHead>{sr ? "Naziv" : "Name"}</TableHead>
-                  <TableHead>{sr ? "Vrsta" : "Type"}</TableHead>
-                  <TableHead className="text-center">{sr ? "Časovni" : "Hourly"}</TableHead>
-                  <TableHead className="text-center">{sr ? "Naknada" : "Benefit"}</TableHead>
-                  <TableHead className="text-right">{sr ? "Koeficijent" : "Rate"}</TableHead>
-                  <TableHead className="text-center">{sr ? "Neoporezivo" : "Nontaxable"}</TableHead>
+                  <TableHead>{sr ? "Kat." : "Cat."}</TableHead>
+                  <TableHead className="text-center">{sr ? "Tab." : "Tab."}</TableHead>
+                  <TableHead className="text-right">{sr ? "%Nakn." : "%Comp."}</TableHead>
+                  <TableHead className="text-right">{sr ? "%Dod." : "%Surch."}</TableHead>
+                  <TableHead>{sr ? "Duguje" : "Debit"}</TableHead>
+                  <TableHead>{sr ? "Potražuje" : "Credit"}</TableHead>
+                  <TableHead className="text-center">{sr ? "Neopor." : "Nontax"}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -156,11 +200,13 @@ export default function PayrollPaymentTypes() {
                 {types.map((pt) => (
                   <TableRow key={pt.id} className={!pt.is_active ? "opacity-50" : ""}>
                     <TableCell className="font-mono font-semibold">{pt.code}</TableCell>
-                    <TableCell>{pt.name}</TableCell>
-                    <TableCell><Badge variant="outline">{typeLabel(pt.type)}</Badge></TableCell>
-                    <TableCell className="text-center">{pt.is_hourly ? "✓" : ""}</TableCell>
-                    <TableCell className="text-center">{pt.is_benefit ? "✓" : ""}</TableCell>
-                    <TableCell className="text-right tabular-nums">{pt.rate_multiplier}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{pt.name}</TableCell>
+                    <TableCell><Badge variant={categoryColor(pt.payment_category)}>{categoryLabel(pt.payment_category)}</Badge></TableCell>
+                    <TableCell className="text-center">{pt.osnovna_tabela}</TableCell>
+                    <TableCell className="text-right tabular-nums">{pt.compensation_pct > 0 ? `${pt.compensation_pct}%` : ""}</TableCell>
+                    <TableCell className="text-right tabular-nums">{pt.surcharge_pct > 0 ? `${pt.surcharge_pct}%` : ""}</TableCell>
+                    <TableCell className="font-mono text-xs">{pt.gl_debit}</TableCell>
+                    <TableCell className="font-mono text-xs">{pt.gl_credit}</TableCell>
                     <TableCell className="text-center">{pt.is_nontaxable ? "✓" : ""}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -181,33 +227,64 @@ export default function PayrollPaymentTypes() {
       )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setEditId(null); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? (sr ? "Izmeni vrstu" : "Edit Payment Type") : (sr ? "Nova vrsta" : "New Payment Type")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div><Label className="text-xs">{sr ? "Šifra" : "Code"}</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="100" /></div>
-              <div><Label className="text-xs">{sr ? "Naziv" : "Name"}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+              <div className="col-span-2"><Label className="text-xs">{sr ? "Naziv" : "Name"}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs">{sr ? "Vrsta" : "Type"}</Label>
-                <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
+                <Label className="text-xs">{sr ? "Kategorija" : "Category"}</Label>
+                <Select value={form.payment_category} onValueChange={v => setForm({ ...form, payment_category: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="earning">{sr ? "Zarada" : "Earning"}</SelectItem>
-                    <SelectItem value="deduction">{sr ? "Obustava" : "Deduction"}</SelectItem>
-                    <SelectItem value="benefit">{sr ? "Naknada" : "Benefit"}</SelectItem>
+                    <SelectItem value="Z">{sr ? "Zarada" : "Earning"}</SelectItem>
+                    <SelectItem value="B">{sr ? "Bolovanje" : "Sick leave"}</SelectItem>
+                    <SelectItem value="N">{sr ? "Naknada" : "Compensation"}</SelectItem>
+                    <SelectItem value="A">{sr ? "Akontacija" : "Advance"}</SelectItem>
+                    <SelectItem value="S">{sr ? "Storno" : "Reversal"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">{sr ? "Koeficijent" : "Rate multiplier"}</Label><Input type="number" step="0.01" value={form.rate_multiplier} onChange={e => setForm({ ...form, rate_multiplier: e.target.value })} /></div>
+              <div>
+                <Label className="text-xs">{sr ? "Osnovna tabela" : "Base table"}</Label>
+                <Select value={form.osnovna_tabela} onValueChange={v => setForm({ ...form, osnovna_tabela: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 - {sr ? "Poslodavac" : "Employer"}</SelectItem>
+                    <SelectItem value="2">2 - {sr ? "RFZO" : "Health fund"}</SelectItem>
+                    <SelectItem value="3">3 - {sr ? "Porodiljsko" : "Maternity"}</SelectItem>
+                    <SelectItem value="4">4 - {sr ? "Invalidnost" : "Disability"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">{sr ? "Satnica" : "Rate type"}</Label>
+                <Select value={form.satnica_tip} onValueChange={v => setForm({ ...form, satnica_tip: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="K">{sr ? "Časovni" : "Hourly"}</SelectItem>
+                    <SelectItem value="N">{sr ? "Mesečni" : "Monthly"}</SelectItem>
+                    <SelectItem value="P">{sr ? "Prosečni" : "Average"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-6 pt-2">
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_hourly} onCheckedChange={v => setForm({ ...form, is_hourly: v })} />{sr ? "Časovni" : "Hourly"}</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_benefit} onCheckedChange={v => setForm({ ...form, is_benefit: v })} />{sr ? "Naknada" : "Benefit"}</label>
+            <div className="grid grid-cols-4 gap-3">
+              <div><Label className="text-xs">{sr ? "% Naknade" : "% Compensation"}</Label><Input type="number" step="1" value={form.compensation_pct} onChange={e => setForm({ ...form, compensation_pct: e.target.value })} /></div>
+              <div><Label className="text-xs">{sr ? "% Dodatak" : "% Surcharge"}</Label><Input type="number" step="1" value={form.surcharge_pct} onChange={e => setForm({ ...form, surcharge_pct: e.target.value })} /></div>
+              <div><Label className="text-xs">{sr ? "Konto Dug." : "GL Debit"}</Label><Input value={form.gl_debit} onChange={e => setForm({ ...form, gl_debit: e.target.value })} /></div>
+              <div><Label className="text-xs">{sr ? "Konto Pot." : "GL Credit"}</Label><Input value={form.gl_credit} onChange={e => setForm({ ...form, gl_credit: e.target.value })} /></div>
+            </div>
+            <div className="flex flex-wrap gap-4 pt-2">
               <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_nontaxable} onCheckedChange={v => setForm({ ...form, is_nontaxable: v })} />{sr ? "Neoporezivo" : "Nontaxable"}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.reduces_regular} onCheckedChange={v => setForm({ ...form, reduces_regular: v })} />{sr ? "Umanjuje red. rad" : "Reduces regular"}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.includes_hot_meal} onCheckedChange={v => setForm({ ...form, includes_hot_meal: v })} />{sr ? "Topli obrok" : "Hot meal"}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_benefit} onCheckedChange={v => setForm({ ...form, is_benefit: v })} />{sr ? "Naknada" : "Benefit"}</label>
               <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />{sr ? "Aktivna" : "Active"}</label>
             </div>
           </div>
