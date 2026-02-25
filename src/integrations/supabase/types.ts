@@ -12887,6 +12887,38 @@ export type Database = {
           },
         ]
       }
+      work_log_payment_type_map: {
+        Row: {
+          created_at: string
+          id: string
+          payment_type_code: string
+          tenant_id: string
+          work_log_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_type_code: string
+          tenant_id: string
+          work_log_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_type_code?: string
+          tenant_id?: string
+          work_log_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_log_payment_type_map_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_logs: {
         Row: {
           created_at: string
@@ -12896,6 +12928,7 @@ export type Database = {
           hours: number
           id: string
           note: string | null
+          payment_type_id: string | null
           tenant_id: string
           type: string
           vacation_year: number | null
@@ -12908,6 +12941,7 @@ export type Database = {
           hours?: number
           id?: string
           note?: string | null
+          payment_type_id?: string | null
           tenant_id: string
           type?: string
           vacation_year?: number | null
@@ -12920,6 +12954,7 @@ export type Database = {
           hours?: number
           id?: string
           note?: string | null
+          payment_type_id?: string | null
           tenant_id?: string
           type?: string
           vacation_year?: number | null
@@ -12930,6 +12965,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_logs_payment_type_id_fkey"
+            columns: ["payment_type_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payment_types"
             referencedColumns: ["id"]
           },
           {
