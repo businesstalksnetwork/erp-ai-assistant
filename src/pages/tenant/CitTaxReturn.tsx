@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,14 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Calculator, FileText, Plus } from "lucide-react";
 
 export default function CitTaxReturn() {
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { entities: legalEntities } = useLegalEntities();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(String(currentYear - 1));
   const [selectedEntity, setSelectedEntity] = useState("");
@@ -38,26 +41,18 @@ export default function CitTaxReturn() {
     enabled: !!tenantId,
   });
 
-  // Fetch P&L data for calculation
   const { data: plData = [] } = useQuery({
     queryKey: ["cit-pl-data", tenantId, selectedYear, selectedEntity],
     queryFn: async () => {
       if (!tenantId || !selectedYear) return [];
       let query = supabase
         .from("journal_lines")
-        .select(`
-          debit, credit,
-          account:account_id(code, account_class),
-          journal_entry:journal_entry_id(entry_date, status, tenant_id, legal_entity_id)
-        `)
+        .select(`debit, credit, account:account_id(code, account_class), journal_entry:journal_entry_id(entry_date, status, tenant_id, legal_entity_id)`)
         .eq("journal_entry.tenant_id", tenantId)
         .eq("journal_entry.status", "posted")
         .gte("journal_entry.entry_date", `${selectedYear}-01-01`)
         .lte("journal_entry.entry_date", `${selectedYear}-12-31`);
-      
-      if (selectedEntity) {
-        query = query.eq("journal_entry.legal_entity_id", selectedEntity);
-      }
+      if (selectedEntity) query = query.eq("journal_entry.legal_entity_id", selectedEntity);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -70,11 +65,8 @@ export default function CitTaxReturn() {
     for (const line of plData) {
       const account = (line as any).account as any;
       if (!account?.code) continue;
-      if (account.code.startsWith("6")) {
-        totalRevenue += Number(line.credit || 0) - Number(line.debit || 0);
-      } else if (account.code.startsWith("5")) {
-        totalExpenses += Number(line.debit || 0) - Number(line.credit || 0);
-      }
+      if (account.code.startsWith("6")) totalRevenue += Number(line.credit || 0) - Number(line.debit || 0);
+      else if (account.code.startsWith("5")) totalExpenses += Number(line.debit || 0) - Number(line.credit || 0);
     }
     const accountingProfit = totalRevenue - totalExpenses;
     const taxableBase = Math.max(accountingProfit, 0);
@@ -86,40 +78,28 @@ export default function CitTaxReturn() {
   const createReturnMut = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("cit_tax_returns").insert({
-        tenant_id: tenantId!,
-        legal_entity_id: selectedEntity || null,
-        fiscal_year: Number(selectedYear),
-        total_revenue: calculated.totalRevenue,
-        total_expenses: calculated.totalExpenses,
-        accounting_profit: calculated.accountingProfit,
-        taxable_base: calculated.taxableBase,
-        tax_rate: calculated.taxRate,
-        tax_amount: calculated.taxAmount,
-        final_tax: calculated.taxAmount,
+        tenant_id: tenantId!, legal_entity_id: selectedEntity || null, fiscal_year: Number(selectedYear),
+        total_revenue: calculated.totalRevenue, total_expenses: calculated.totalExpenses,
+        accounting_profit: calculated.accountingProfit, taxable_base: calculated.taxableBase,
+        tax_rate: calculated.taxRate, tax_amount: calculated.taxAmount, final_tax: calculated.taxAmount,
         created_by: user?.id || null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("PDP prijava kreirana");
-      qc.invalidateQueries({ queryKey: ["cit-returns"] });
-    },
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: () => { toast({ title: t("citCreated") }); qc.invalidateQueries({ queryKey: ["cit-returns"] }); },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const existingReturn = returns.find((r: any) => r.fiscal_year === Number(selectedYear) && (r.legal_entity_id || "") === selectedEntity);
-  const statusLabels: Record<string, string> = { draft: "Nacrt", calculated: "Obračunato", submitted: "Podneto", accepted: "Prihvaćeno" };
+  const statusLabels: Record<string, string> = { draft: t("draft"), calculated: t("calculated"), submitted: t("submitted"), accepted: t("approved") };
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <PageHeader
-        title="PDP — Poreska prijava poreza na dobit"
-        description="Godišnji obračun poreza na dobit pravnih lica (15%)"
-      />
+      <PageHeader title={t("citTaxReturnTitle")} description={t("citTaxReturnDesc")} />
 
       <div className="flex flex-col sm:flex-row gap-4 items-end">
         <div>
-          <Label>Fiskalna godina</Label>
+          <Label>{t("fiscalYear")}</Label>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -131,11 +111,11 @@ export default function CitTaxReturn() {
         </div>
         {legalEntities.length > 1 && (
           <div>
-            <Label>Pravno lice</Label>
+            <Label>{t("legalEntity")}</Label>
             <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-              <SelectTrigger className="w-60"><SelectValue placeholder="Sva pravna lica" /></SelectTrigger>
+              <SelectTrigger className="w-60"><SelectValue placeholder={t("allEntities")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sva pravna lica</SelectItem>
+                <SelectItem value="">{t("allEntities")}</SelectItem>
                 {legalEntities.map((le: any) => (
                   <SelectItem key={le.id} value={le.id}>{le.name}</SelectItem>
                 ))}
@@ -147,15 +127,15 @@ export default function CitTaxReturn() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">Ukupni prihodi</p>
+          <p className="text-xs text-muted-foreground">{t("totalRevenueLabel")}</p>
           <p className="text-lg font-bold">{calculated.totalRevenue.toLocaleString("sr-RS")} RSD</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">Ukupni rashodi</p>
+          <p className="text-xs text-muted-foreground">{t("totalExpensesLabel")}</p>
           <p className="text-lg font-bold">{calculated.totalExpenses.toLocaleString("sr-RS")} RSD</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">Računovodstvena dobit</p>
+          <p className="text-xs text-muted-foreground">{t("accountingProfitLabel")}</p>
           <p className={`text-lg font-bold ${calculated.accountingProfit >= 0 ? "text-primary" : "text-destructive"}`}>
             {calculated.accountingProfit.toLocaleString("sr-RS")} RSD
           </p>
@@ -163,24 +143,24 @@ export default function CitTaxReturn() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4" /> Obračun PDP</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4" /> {t("citCalculation")}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <span className="text-muted-foreground">Oporeziva osnovica:</span>
+            <span className="text-muted-foreground">{t("taxableBaseLabel")}:</span>
             <span className="text-right font-semibold">{calculated.taxableBase.toLocaleString("sr-RS")} RSD</span>
-            <span className="text-muted-foreground">Stopa poreza:</span>
+            <span className="text-muted-foreground">{t("taxRateLabel")}:</span>
             <span className="text-right font-semibold">{calculated.taxRate}%</span>
-            <span className="text-muted-foreground">Iznos poreza:</span>
+            <span className="text-muted-foreground">{t("taxAmountLabel")}:</span>
             <span className="text-right font-bold text-lg">{calculated.taxAmount.toLocaleString("sr-RS")} RSD</span>
           </div>
           {!existingReturn && calculated.taxableBase > 0 && (
             <Button className="w-full" onClick={() => createReturnMut.mutate()} disabled={createReturnMut.isPending}>
-              <Plus className="h-4 w-4 mr-2" /> {createReturnMut.isPending ? "Kreiranje..." : "Kreiraj PDP prijavu"}
+              <Plus className="h-4 w-4 mr-2" /> {createReturnMut.isPending ? t("creating") : t("createCitReturn")}
             </Button>
           )}
           {existingReturn && (
             <Badge variant="default" className="text-sm">
-              Prijava već postoji — {statusLabels[existingReturn.status] || existingReturn.status}
+              {t("returnAlreadyExists")} — {statusLabels[existingReturn.status] || existingReturn.status}
             </Badge>
           )}
         </CardContent>
@@ -188,24 +168,22 @@ export default function CitTaxReturn() {
 
       {returns.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Kreirane prijave</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> {t("createdReturns")}</CardTitle></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Godina</TableHead>
-                  <TableHead>Pravno lice</TableHead>
-                  <TableHead className="text-right">Prihodi</TableHead>
-                  <TableHead className="text-right">Rashodi</TableHead>
-                  <TableHead className="text-right">Porez</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
+              <TableHeader><TableRow>
+                <TableHead>{t("fiscalYear")}</TableHead>
+                <TableHead>{t("legalEntity")}</TableHead>
+                <TableHead className="text-right">{t("totalRevenueLabel")}</TableHead>
+                <TableHead className="text-right">{t("totalExpensesLabel")}</TableHead>
+                <TableHead className="text-right">{t("tax")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+              </TableRow></TableHeader>
               <TableBody>
                 {returns.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-semibold">{r.fiscal_year}</TableCell>
-                    <TableCell>{(r.legal_entity as any)?.name || "Svi"}</TableCell>
+                    <TableCell>{(r.legal_entity as any)?.name || t("allEntities")}</TableCell>
                     <TableCell className="text-right">{Number(r.total_revenue).toLocaleString("sr-RS")}</TableCell>
                     <TableCell className="text-right">{Number(r.total_expenses).toLocaleString("sr-RS")}</TableCell>
                     <TableCell className="text-right font-semibold">{Number(r.final_tax).toLocaleString("sr-RS")}</TableCell>

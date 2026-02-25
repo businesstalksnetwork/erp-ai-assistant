@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, List, Sparkles, ChevronDown, ChevronRight, Building2 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface PaymentType {
   id: string;
@@ -62,11 +62,11 @@ const emptyForm = {
 };
 
 export default function PayrollPaymentTypes() {
-  const { locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { entities: legalEntities } = useLegalEntities();
   const qc = useQueryClient();
-  const sr = locale === "sr";
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -86,7 +86,6 @@ export default function PayrollPaymentTypes() {
     enabled: !!tenantId,
   });
 
-  // Chart of accounts for dropdowns
   const { data: accounts = [] } = useQuery({
     queryKey: ["coa_codes", tenantId],
     queryFn: async () => {
@@ -101,7 +100,6 @@ export default function PayrollPaymentTypes() {
     enabled: !!tenantId,
   });
 
-  // GL overrides per legal entity
   const { data: glOverrides = [] } = useQuery({
     queryKey: ["pt-gl-overrides", tenantId],
     queryFn: async () => {
@@ -119,8 +117,8 @@ export default function PayrollPaymentTypes() {
       const { error } = await supabase.rpc("seed_payroll_payment_types" as any, { p_tenant_id: tenantId! });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast.success(sr ? "Vrste isplate kreirane" : "Payment types seeded"); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast({ title: t("paymentTypesSeeded") }); },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const saveMutation = useMutation({
@@ -149,9 +147,9 @@ export default function PayrollPaymentTypes() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll-payment-types"] });
       setOpen(false); setEditId(null); setForm(emptyForm);
-      toast.success(sr ? "Sačuvano" : "Saved");
+      toast({ title: t("success") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -159,8 +157,8 @@ export default function PayrollPaymentTypes() {
       const { error } = await (supabase.from("payroll_payment_types").delete().eq("id", id) as any);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast.success(sr ? "Obrisano" : "Deleted"); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast({ title: t("success") }); },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const saveOverrideMutation = useMutation({
@@ -183,9 +181,9 @@ export default function PayrollPaymentTypes() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pt-gl-overrides"] });
-      toast.success(sr ? "Konto sačuvan" : "GL mapping saved");
+      toast({ title: t("glMappingSaved") });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const openEdit = (pt: PaymentType) => {
@@ -210,15 +208,15 @@ export default function PayrollPaymentTypes() {
     setOpen(true);
   };
 
-  const categoryLabel = (t: string) => ({
-    Z: sr ? "Zarada" : "Earning", B: sr ? "Bolovanje" : "Sick leave",
-    N: sr ? "Naknada" : "Compensation", A: sr ? "Akontacija" : "Advance",
-    S: sr ? "Storno" : "Reversal"
-  }[t] || t);
+  const categoryLabel = (c: string) => ({
+    Z: t("earning"), B: t("sickLeave"),
+    N: t("compensation"), A: t("advance"),
+    S: t("reversal")
+  }[c] || c);
 
-  const categoryColor = (t: string) => ({
+  const categoryColor = (c: string) => ({
     Z: "default", B: "secondary", N: "outline", A: "destructive", S: "destructive"
-  }[t] || "outline") as any;
+  }[c] || "outline") as any;
 
   const AccountSelect = ({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) => (
     <Select value={value || "__none__"} onValueChange={v => onChange(v === "__none__" ? "" : v)}>
@@ -238,18 +236,18 @@ export default function PayrollPaymentTypes() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={sr ? "Vrste isplate" : "Payment Types"}
+        title={t("payrollPaymentTypes")}
         icon={List}
-        description={sr ? "Šifarnik vrsta isplata sa koeficijentima, GL kontima i statusom oporezivanja. Kliknite red za konta po pravnom licu." : "Payment type catalog with rate multipliers, GL accounts, and tax status. Click a row for per-entity GL mappings."}
+        description={t("paymentTypesDesc")}
         actions={
           <div className="flex gap-2">
             {types.length === 0 && (
               <Button variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
-                <Sparkles className="h-4 w-4 mr-2" />{sr ? "Učitaj standardne" : "Seed defaults"}
+                <Sparkles className="h-4 w-4 mr-2" />{t("seedDefaults")}
               </Button>
             )}
             <Button onClick={() => { setEditId(null); setForm(emptyForm); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />{sr ? "Nova vrsta" : "New Type"}
+              <Plus className="h-4 w-4 mr-2" />{t("newType")}
             </Button>
           </div>
         }
@@ -257,7 +255,7 @@ export default function PayrollPaymentTypes() {
 
       {isLoading ? <Skeleton className="h-80" /> : types.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
-          {sr ? 'Nema vrsta isplata. Kliknite "Učitaj standardne" za početnu konfiguraciju.' : 'No payment types. Click "Seed defaults" to create standard types.'}
+          {t("noPaymentTypes")}
         </CardContent></Card>
       ) : (
         <Card>
@@ -266,14 +264,14 @@ export default function PayrollPaymentTypes() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>{sr ? "Šifra" : "Code"}</TableHead>
-                  <TableHead>{sr ? "Naziv" : "Name"}</TableHead>
-                  <TableHead>{sr ? "Kat." : "Cat."}</TableHead>
-                  <TableHead className="text-center">{sr ? "Tab." : "Tab."}</TableHead>
-                  <TableHead className="text-right">{sr ? "%Nakn." : "%Comp."}</TableHead>
-                  <TableHead className="text-right">{sr ? "%Dod." : "%Surch."}</TableHead>
-                  <TableHead>{sr ? "Duguje (default)" : "Debit (default)"}</TableHead>
-                  <TableHead>{sr ? "Potražuje (default)" : "Credit (default)"}</TableHead>
+                  <TableHead>{t("code")}</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("paymentCategory")}</TableHead>
+                  <TableHead className="text-center">{t("baseTable")}</TableHead>
+                  <TableHead className="text-right">{t("compensationPct")}</TableHead>
+                  <TableHead className="text-right">{t("surchargePct")}</TableHead>
+                  <TableHead>{t("glDebitDefault")}</TableHead>
+                  <TableHead>{t("glCreditDefault")}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -316,10 +314,10 @@ export default function PayrollPaymentTypes() {
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                 <Building2 className="h-4 w-4" />
-                                {sr ? "GL konta po pravnom licu" : "GL accounts per legal entity"}
+                                {t("glAccountsPerEntity")}
                               </div>
                               {entityOverrides.length === 0 ? (
-                                <p className="text-xs text-muted-foreground">{sr ? "Nema pravnih lica" : "No legal entities configured"}</p>
+                                <p className="text-xs text-muted-foreground">{t("noLegalEntities")}</p>
                               ) : (
                                 <div className="grid gap-2">
                                   {entityOverrides.map((le: any) => {
@@ -334,7 +332,7 @@ export default function PayrollPaymentTypes() {
                                         defaultDebit={pt.gl_debit}
                                         defaultCredit={pt.gl_credit}
                                         accounts={accounts}
-                                        sr={sr}
+                                        t={t}
                                         onSave={(debit, credit) => {
                                           saveOverrideMutation.mutate({
                                             id: ov?.id,
@@ -350,9 +348,7 @@ export default function PayrollPaymentTypes() {
                                 </div>
                               )}
                               <p className="text-xs text-muted-foreground italic">
-                                {sr
-                                  ? "Ako konto nije podešen za pravno lice, koristi se podrazumevani (gore)."
-                                  : "If no override is set, the default GL accounts (shown above) are used."}
+                                {t("defaultGlNote")}
                               </p>
                             </div>
                           </TableCell>
@@ -370,75 +366,75 @@ export default function PayrollPaymentTypes() {
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setEditId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editId ? (sr ? "Izmeni vrstu" : "Edit Payment Type") : (sr ? "Nova vrsta" : "New Payment Type")}</DialogTitle>
+            <DialogTitle>{editId ? t("editPaymentType") : t("newType")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-3 gap-3">
-              <div><Label className="text-xs">{sr ? "Šifra" : "Code"}</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="100" /></div>
-              <div className="col-span-2"><Label className="text-xs">{sr ? "Naziv" : "Name"}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("code")}</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="100" /></div>
+              <div className="col-span-2"><Label className="text-xs">{t("name")}</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs">{sr ? "Kategorija" : "Category"}</Label>
+                <Label className="text-xs">{t("paymentCategory")}</Label>
                 <Select value={form.payment_category} onValueChange={v => setForm({ ...form, payment_category: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Z">{sr ? "Zarada" : "Earning"}</SelectItem>
-                    <SelectItem value="B">{sr ? "Bolovanje" : "Sick leave"}</SelectItem>
-                    <SelectItem value="N">{sr ? "Naknada" : "Compensation"}</SelectItem>
-                    <SelectItem value="A">{sr ? "Akontacija" : "Advance"}</SelectItem>
-                    <SelectItem value="S">{sr ? "Storno" : "Reversal"}</SelectItem>
+                    <SelectItem value="Z">{t("earning")}</SelectItem>
+                    <SelectItem value="B">{t("sickLeave")}</SelectItem>
+                    <SelectItem value="N">{t("compensation")}</SelectItem>
+                    <SelectItem value="A">{t("advance")}</SelectItem>
+                    <SelectItem value="S">{t("reversal")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{sr ? "Osnovna tabela" : "Base table"}</Label>
+                <Label className="text-xs">{t("baseTable")}</Label>
                 <Select value={form.osnovna_tabela} onValueChange={v => setForm({ ...form, osnovna_tabela: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 - {sr ? "Poslodavac" : "Employer"}</SelectItem>
-                    <SelectItem value="2">2 - {sr ? "RFZO" : "Health fund"}</SelectItem>
-                    <SelectItem value="3">3 - {sr ? "Porodiljsko" : "Maternity"}</SelectItem>
-                    <SelectItem value="4">4 - {sr ? "Invalidnost" : "Disability"}</SelectItem>
+                    <SelectItem value="1">1 - {t("employer")}</SelectItem>
+                    <SelectItem value="2">2 - {t("healthFund")}</SelectItem>
+                    <SelectItem value="3">3 - {t("maternityBase")}</SelectItem>
+                    <SelectItem value="4">4 - {t("disabilityBase")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{sr ? "Satnica" : "Rate type"}</Label>
+                <Label className="text-xs">{t("rateType")}</Label>
                 <Select value={form.satnica_tip} onValueChange={v => setForm({ ...form, satnica_tip: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="K">{sr ? "Časovni" : "Hourly"}</SelectItem>
-                    <SelectItem value="N">{sr ? "Mesečni" : "Monthly"}</SelectItem>
-                    <SelectItem value="P">{sr ? "Prosečni" : "Average"}</SelectItem>
+                    <SelectItem value="K">{t("hourlyRate2")}</SelectItem>
+                    <SelectItem value="N">{t("monthlyRate2")}</SelectItem>
+                    <SelectItem value="P">{t("averageRate")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <div><Label className="text-xs">{sr ? "% Naknade" : "% Compensation"}</Label><Input type="number" step="1" value={form.compensation_pct} onChange={e => setForm({ ...form, compensation_pct: e.target.value })} /></div>
-              <div><Label className="text-xs">{sr ? "% Dodatak" : "% Surcharge"}</Label><Input type="number" step="1" value={form.surcharge_pct} onChange={e => setForm({ ...form, surcharge_pct: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("compensationPct")}</Label><Input type="number" step="1" value={form.compensation_pct} onChange={e => setForm({ ...form, compensation_pct: e.target.value })} /></div>
+              <div><Label className="text-xs">{t("surchargePct")}</Label><Input type="number" step="1" value={form.surcharge_pct} onChange={e => setForm({ ...form, surcharge_pct: e.target.value })} /></div>
               <div>
-                <Label className="text-xs">{sr ? "Konto Dug. (default)" : "GL Debit (default)"}</Label>
+                <Label className="text-xs">{t("glDebitDefault")}</Label>
                 <AccountSelect value={form.gl_debit} onChange={v => setForm({ ...form, gl_debit: v })} />
               </div>
               <div>
-                <Label className="text-xs">{sr ? "Konto Pot. (default)" : "GL Credit (default)"}</Label>
+                <Label className="text-xs">{t("glCreditDefault")}</Label>
                 <AccountSelect value={form.gl_credit} onChange={v => setForm({ ...form, gl_credit: v })} />
               </div>
             </div>
             <div className="flex flex-wrap gap-4 pt-2">
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_nontaxable} onCheckedChange={v => setForm({ ...form, is_nontaxable: v })} />{sr ? "Neoporezivo" : "Nontaxable"}</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.reduces_regular} onCheckedChange={v => setForm({ ...form, reduces_regular: v })} />{sr ? "Umanjuje red. rad" : "Reduces regular"}</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.includes_hot_meal} onCheckedChange={v => setForm({ ...form, includes_hot_meal: v })} />{sr ? "Topli obrok" : "Hot meal"}</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_benefit} onCheckedChange={v => setForm({ ...form, is_benefit: v })} />{sr ? "Naknada" : "Benefit"}</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />{sr ? "Aktivna" : "Active"}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_nontaxable} onCheckedChange={v => setForm({ ...form, is_nontaxable: v })} />{t("nontaxable")}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.reduces_regular} onCheckedChange={v => setForm({ ...form, reduces_regular: v })} />{t("reducesRegular")}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.includes_hot_meal} onCheckedChange={v => setForm({ ...form, includes_hot_meal: v })} />{t("hotMeal")}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_benefit} onCheckedChange={v => setForm({ ...form, is_benefit: v })} />{t("benefit")}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} />{t("active")}</label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>{sr ? "Otkaži" : "Cancel"}</Button>
+            <Button variant="outline" onClick={() => { setOpen(false); setEditId(null); }}>{t("cancel")}</Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.code || !form.name}>
-              {sr ? "Sačuvaj" : "Save"}
+              {t("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -447,12 +443,12 @@ export default function PayrollPaymentTypes() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{sr ? "Potvrda" : "Confirmation"}</AlertDialogTitle>
-            <AlertDialogDescription>{sr ? "Da li ste sigurni da želite da obrišete ovu stavku?" : "Are you sure you want to delete this item?"}</AlertDialogDescription>
+            <AlertDialogTitle>{t("confirmation")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirmation")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{sr ? "Otkaži" : "Cancel"}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }}>{sr ? "Obriši" : "Delete"}</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }}>{t("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -461,7 +457,7 @@ export default function PayrollPaymentTypes() {
 }
 
 /** Inline row for a single legal entity's GL override */
-function EntityGlRow({ entityName, entityPib, debit, credit, defaultDebit, defaultCredit, accounts, sr, onSave }: {
+function EntityGlRow({ entityName, entityPib, debit, credit, defaultDebit, defaultCredit, accounts, t, onSave }: {
   entityName: string;
   entityPib?: string;
   debit: string;
@@ -469,7 +465,7 @@ function EntityGlRow({ entityName, entityPib, debit, credit, defaultDebit, defau
   defaultDebit: string;
   defaultCredit: string;
   accounts: { code: string; name: string }[];
-  sr: boolean;
+  t: (key: any) => string;
   onSave: (debit: string, credit: string) => void;
 }) {
   const [localDebit, setLocalDebit] = useState(debit);
@@ -485,32 +481,32 @@ function EntityGlRow({ entityName, entityPib, debit, credit, defaultDebit, defau
         {entityPib && <span className="text-xs text-muted-foreground">({entityPib})</span>}
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{sr ? "Dug:" : "Dr:"}</span>
+        <span className="text-xs text-muted-foreground">{t("debit")}:</span>
         <Select value={localDebit || "__none__"} onValueChange={v => setLocalDebit(v === "__none__" ? "" : v)}>
           <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">{sr ? "— podrazumevano" : "— default"} ({defaultDebit})</SelectItem>
+            <SelectItem value="__none__">{t("defaultLabel")} ({defaultDebit})</SelectItem>
             {accounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{sr ? "Pot:" : "Cr:"}</span>
+        <span className="text-xs text-muted-foreground">{t("credit")}:</span>
         <Select value={localCredit || "__none__"} onValueChange={v => setLocalCredit(v === "__none__" ? "" : v)}>
           <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">{sr ? "— podrazumevano" : "— default"} ({defaultCredit})</SelectItem>
+            <SelectItem value="__none__">{t("defaultLabel")} ({defaultCredit})</SelectItem>
             {accounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       {isDirty && (
         <Button size="sm" className="h-7 text-xs" onClick={() => onSave(localDebit, localCredit)}>
-          {sr ? "Sačuvaj" : "Save"}
+          {t("save")}
         </Button>
       )}
       {hasOverride && !isDirty && (
-        <Badge variant="outline" className="text-xs">{sr ? "Podešeno" : "Custom"}</Badge>
+        <Badge variant="outline" className="text-xs">{t("customOverride")}</Badge>
       )}
     </div>
   );

@@ -135,7 +135,7 @@ export default function OpportunityStagesSettings() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.code.trim()) { toast.error("Name and code are required"); return; }
+    if (!form.name.trim() || !form.code.trim()) { toast.error(t("nameCodeRequired")); return; }
     if (editing) updateMutation.mutate({ id: editing.id, d: form });
     else createMutation.mutate(form);
   };
@@ -160,7 +160,7 @@ export default function OpportunityStagesSettings() {
           <Label>{t("stageCode")} *</Label>
           <Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })}
             disabled={!!editing?.is_system} placeholder="e.g. qualification" />
-          {editing?.is_system && <p className="text-xs text-muted-foreground">Kod sistemskih faza se ne može menjati</p>}
+          {editing?.is_system && <p className="text-xs text-muted-foreground">{t("systemStageCodeLocked")}</p>}
         </div>
         <div className="space-y-2">
           <Label>Sort Order</Label>
@@ -204,7 +204,7 @@ export default function OpportunityStagesSettings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />{t("opportunityStages")}</CardTitle>
-              <CardDescription>Upravljajte fazama prodajnog levka</CardDescription>
+              <CardDescription>{t("manageSalesFunnel")}</CardDescription>
             </div>
             <Dialog open={isAddOpen} onOpenChange={o => { setIsAddOpen(o); if (!o) setForm(emptyForm); }}>
               <DialogTrigger asChild>
@@ -212,7 +212,7 @@ export default function OpportunityStagesSettings() {
               </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleSubmit}>
-                  <DialogHeader><DialogTitle>{t("add")}</DialogTitle><DialogDescription>Dodajte novu fazu prilike</DialogDescription></DialogHeader>
+                  <DialogHeader><DialogTitle>{t("add")}</DialogTitle><DialogDescription>{t("addNewStage")}</DialogDescription></DialogHeader>
                   <StageForm />
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>{t("cancel")}</Button>
