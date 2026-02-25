@@ -258,14 +258,16 @@ export default function BankAccounts() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? t("edit") : t("add")} {t("bankAccount")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
-            <div>
-              <Label>IBAN</Label>
-              <Input value={form.iban} onChange={e => handleIbanChange(e.target.value)} placeholder="RS35 160 0000012345678 90" />
-              {ibanError && <p className="text-xs text-destructive mt-1">{ibanError}</p>}
-              {form.iban && !ibanError && form.iban.replace(/\s/g, "").length >= 15 && (
-                <p className="text-xs mt-1 text-primary">✓ {locale === "sr" ? "Validan IBAN" : "Valid IBAN"}</p>
-              )}
-            </div>
+            {form.currency !== "RSD" && (
+              <div>
+                <Label>IBAN</Label>
+                <Input value={form.iban} onChange={e => handleIbanChange(e.target.value)} placeholder="RS35 160 0000012345678 90" />
+                {ibanError && <p className="text-xs text-destructive mt-1">{ibanError}</p>}
+                {form.iban && !ibanError && form.iban.replace(/\s/g, "").length >= 15 && (
+                  <p className="text-xs mt-1 text-primary">✓ {locale === "sr" ? "Validan IBAN" : "Valid IBAN"}</p>
+                )}
+              </div>
+            )}
 
             <div>
               <Label>{locale === "sr" ? "Banka (registar)" : "Bank (registry)"}</Label>
