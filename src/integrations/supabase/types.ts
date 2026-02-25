@@ -14846,6 +14846,7 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: undefined
       }
+      seed_dms_defaults: { Args: { p_tenant_id: string }; Returns: undefined }
       seed_payroll_income_categories: {
         Args: { p_tenant_id: string }
         Returns: undefined
