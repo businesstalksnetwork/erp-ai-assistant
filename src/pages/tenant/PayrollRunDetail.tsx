@@ -1,7 +1,8 @@
 import { useParams, Link } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,15 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, FileText, Download } from "lucide-react";
+import { ArrowLeft, FileText, Download, Check, Banknote, CreditCard } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { exportToCsv } from "@/lib/exportCsv";
+import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { toast } from "sonner";
 
 export default function PayrollRunDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
+  const qc = useQueryClient();
 
   const { data: run, isLoading: runLoading } = useQuery({
     queryKey: ["payroll-run", id],
@@ -40,6 +45,135 @@ export default function PayrollRunDetail() {
     },
     enabled: !!id,
   });
+
+  const { data: postingRules = [] } = useQuery({
+    queryKey: ["posting_rules_payroll", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("posting_rule_catalog")
+        .select("rule_code, debit_account_code, credit_account_code")
+        .eq("tenant_id", tenantId!)
+        .in("rule_code", ["payroll_gross_exp", "payroll_net_payable", "payroll_tax", "payroll_employee_contrib", "payroll_employer_exp", "payroll_employer_contrib", "payroll_bank"]);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const getRule = (code: string) => postingRules.find((r: any) => r.rule_code === code);
+
+  const statusMutation = useMutation({
+    mutationFn: async (status: string) => {
+      if (!run || !tenantId || !id) throw new Error("Missing data");
+      const entryDate = new Date().toISOString().split("T")[0];
+      const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
+
+      if (status === "approved") {
+        const rGross = getRule("payroll_gross_exp");
+        const rNet = getRule("payroll_net_payable");
+        const rTax = getRule("payroll_tax");
+        const rEmpContrib = getRule("payroll_employee_contrib");
+        const rErExp = getRule("payroll_employer_exp");
+        const rErContrib = getRule("payroll_employer_contrib");
+
+        if (!rGross?.debit_account_code || !rNet?.credit_account_code || !rTax?.credit_account_code) {
+          throw new Error("Payroll posting rules not configured. Go to Settings → Posting Rules.");
+        }
+
+        const totalPioE = items.reduce((s, i: any) => s + Number(i.pension_contribution), 0);
+        const totalHealthE = items.reduce((s, i: any) => s + Number(i.health_contribution), 0);
+        const totalUnempE = items.reduce((s, i: any) => s + Number(i.unemployment_contribution), 0);
+        const totalPioR = items.reduce((s, i: any) => s + Number(i.pension_employer || 0), 0);
+        const totalHealthR = items.reduce((s, i: any) => s + Number(i.health_employer || 0), 0);
+        const totalEmployeeContrib = totalPioE + totalHealthE + totalUnempE;
+        const totalEmployerContrib = totalPioR + totalHealthR;
+
+        const accrualLines: any[] = [
+          { accountCode: rGross.debit_account_code, debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
+          { accountCode: rNet.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
+          { accountCode: rTax.credit_account_code, debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
+        ];
+        if (rEmpContrib?.credit_account_code && totalEmployeeContrib > 0) {
+          accrualLines.push({ accountCode: rEmpContrib.credit_account_code, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
+        }
+
+        await createCodeBasedJournalEntry({
+          tenantId, userId: user?.id || null, entryDate,
+          description: `Obračun zarada ${periodLabel}`,
+          reference: `PR-${periodLabel}`,
+          lines: accrualLines,
+        });
+
+        if (totalEmployerContrib > 0 && rErExp?.debit_account_code && rErContrib?.credit_account_code) {
+          await createCodeBasedJournalEntry({
+            tenantId, userId: user?.id || null, entryDate,
+            description: `Doprinosi poslodavca ${periodLabel}`,
+            reference: `PR-EC-${periodLabel}`,
+            lines: [
+              { accountCode: rErExp.debit_account_code, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
+              { accountCode: rErContrib.credit_account_code, debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
+            ],
+          });
+        }
+      } else if (status === "paid") {
+        const rBank = getRule("payroll_bank");
+        if (!rBank?.debit_account_code || !rBank?.credit_account_code) {
+          throw new Error("Payroll bank posting rule not configured.");
+        }
+        await createCodeBasedJournalEntry({
+          tenantId, userId: user?.id || null, entryDate,
+          description: `Isplata zarada ${periodLabel}`,
+          reference: `PR-PAY-${periodLabel}`,
+          lines: [
+            { accountCode: rBank.debit_account_code, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
+            { accountCode: rBank.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
+          ],
+        });
+      }
+
+      const updates: any = { status };
+      if (status === "approved") { updates.approved_by = user?.id; updates.approved_at = new Date().toISOString(); }
+      const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payroll-run", id] });
+      qc.invalidateQueries({ queryKey: ["payroll-runs"] });
+      toast.success(t("success"));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const downloadPppdXml = async () => {
+    try {
+      toast.info("Generisanje PPP-PD XML...");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: id }) }
+      );
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `PPP-PD.xml`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const downloadPaymentOrders = async () => {
+    try {
+      toast.info("Generisanje naloga za plaćanje...");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: id }) }
+      );
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `NaloziZaPlacanje.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   const isLoading = runLoading || itemsLoading;
   const monthName = (m: number) => new Date(2024, m - 1).toLocaleString("sr-Latn", { month: "long" });
@@ -122,7 +256,27 @@ export default function PayrollRunDetail() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {run?.status === "calculated" && (
+              <Button size="sm" onClick={() => statusMutation.mutate("approved")} disabled={statusMutation.isPending}>
+                <Check className="h-4 w-4 mr-2" />{t("approvePayroll")}
+              </Button>
+            )}
+            {run?.status === "approved" && (
+              <Button size="sm" onClick={() => statusMutation.mutate("paid")} disabled={statusMutation.isPending}>
+                <Banknote className="h-4 w-4 mr-2" />{t("markAsPaidPayroll")}
+              </Button>
+            )}
+            {(run?.status === "approved" || run?.status === "paid") && (
+              <>
+                <Button variant="outline" size="sm" onClick={downloadPppdXml}>
+                  <FileText className="h-4 w-4 mr-2" />PPP-PD XML
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadPaymentOrders}>
+                  <CreditCard className="h-4 w-4 mr-2" />Nalozi za plaćanje
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => {
               if (exportData.length === 0) return;
               const cols = Object.keys(exportData[0]).map(k => ({ key: k as any, label: k }));

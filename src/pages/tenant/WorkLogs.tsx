@@ -20,6 +20,12 @@ import { MobileActionMenu } from "@/components/shared/MobileActionMenu";
 
 const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave", "paid_leave", "unpaid_leave", "maternity_leave", "holiday_work", "slava"] as const;
 
+// Auto-suggest payment type code based on work log type
+const WORK_LOG_TYPE_TO_PT_CODE: Record<string, string> = {
+  holiday_work: "PRA",
+  slava: "PRA",
+};
+
 const typeColors: Record<string, string> = {
   workday: "default", weekend: "secondary", holiday: "secondary", vacation: "default",
   sick_leave: "destructive", paid_leave: "default", unpaid_leave: "outline",
@@ -93,7 +99,7 @@ export default function WorkLogs() {
     { key: "date", label: t("date"), render: (l) => l.date },
     { key: "type", label: t("workLogType"), render: (l) => <Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge> },
     { key: "hours", label: t("hours"), align: "right", render: (l) => l.hours },
-    { key: "paymentType", label: t("paymentType" as any), hideOnMobile: true, render: (l) => { const pt = paymentTypes.find((p: any) => p.id === l.payment_type_id); return pt ? <Badge variant="outline">{pt.code}</Badge> : <span className="text-muted-foreground">—</span>; } },
+    { key: "paymentType", label: t("paymentType" as any), hideOnMobile: true, render: (l) => { const pt = paymentTypes.find((p: any) => p.id === l.payment_type_id); return pt ? <Badge variant="outline">{pt.code} <span className="text-muted-foreground ml-1">×{pt.rate_multiplier}</span></Badge> : <span className="text-muted-foreground">—</span>; } },
     { key: "note", label: t("notes"), hideOnMobile: true, render: (l) => <span className="max-w-[200px] truncate block">{l.note || "—"}</span> },
     { key: "actions", label: t("actions"), showInCard: false, render: (l) => (
       <MobileActionMenu actions={[
@@ -161,7 +167,11 @@ export default function WorkLogs() {
               <div className="grid gap-2"><Label>{t("date")} *</Label><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
               <div className="grid gap-2">
                 <Label>{t("workLogType")}</Label>
-                <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
+                <Select value={form.type} onValueChange={v => {
+                  const suggestedCode = WORK_LOG_TYPE_TO_PT_CODE[v];
+                  const suggestedPt = suggestedCode ? paymentTypes.find((pt: any) => pt.code === suggestedCode) : null;
+                  setForm({ ...form, type: v, ...(suggestedPt && !form.payment_type_id ? { payment_type_id: suggestedPt.id } : {}) });
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{WORK_LOG_TYPES.map(tp => <SelectItem key={tp} value={tp}>{typeLabel(tp)}</SelectItem>)}</SelectContent>
                 </Select>

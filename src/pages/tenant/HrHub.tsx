@@ -5,7 +5,7 @@ import {
   Users, FileText, Building2, Clock, CalendarOff, Wallet,
   ClipboardList, Timer, Moon, Palmtree, Calendar, MinusCircle,
   PlusCircle, UserPlus, DollarSign, ShieldCheck, LayoutTemplate,
-  HeartPulse, BarChart3,
+  HeartPulse, BarChart3, List, CreditCard, TrendingUp,
 } from "lucide-react";
 
 const sections = [
@@ -41,6 +41,8 @@ const sections = [
     title: "Zarade",
     links: [
       { to: "/hr/payroll", icon: Wallet, label: "Obračun zarada", desc: "Mesečni obračun plata i doprinosa" },
+      { to: "/hr/payroll/categories", icon: List, label: "Kategorije obračuna", desc: "OVP kategorije prihoda za PPP-PD" },
+      { to: "/hr/payroll/payment-types", icon: CreditCard, label: "Vrste isplate", desc: "Tipovi isplate sa multiplikatorima" },
       { to: "/hr/salaries", icon: DollarSign, label: "Istorija plata", desc: "Pregled istorije zarada po zaposlenima" },
       { to: "/hr/deductions", icon: MinusCircle, label: "Odbici", desc: "Administrativne zabrane i odbici" },
       { to: "/hr/allowances", icon: PlusCircle, label: "Dodaci", desc: "Dodaci na zaradu (topli obrok, prevoz...)" },
@@ -51,6 +53,7 @@ const sections = [
     title: "Izveštaji",
     links: [
       { to: "/hr/reports", icon: BarChart3, label: "HR izveštaji", desc: "Analitički izveštaji o ljudskim resursima" },
+      { to: "/analytics/payroll-benchmark", icon: TrendingUp, label: "Payroll Benchmark", desc: "Uporedna analiza troškova zarada i KPI" },
     ],
   },
 ];
