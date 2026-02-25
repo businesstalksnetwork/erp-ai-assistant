@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -32,6 +32,7 @@ export default function TenantSettings() {
         { label: t("payrollParamsTitle"), icon: Calculator, to: "/settings/payroll-parameters" },
         { label: t("payrollPaymentTypes" as any), icon: CreditCard, to: "/hr/payroll/payment-types" },
         { label: t("payrollCategories" as any), icon: List, to: "/hr/payroll/categories" },
+        ...(canAccess("pos") ? [{ label: t("fiscalDevices"), icon: Printer, to: "/pos/fiscal-devices" }] : []),
       ],
     },
     {
@@ -55,6 +56,7 @@ export default function TenantSettings() {
         { label: t("aiAuditLog"), icon: ShieldCheck, to: "/settings/ai-audit-log" },
         { label: t("eventMonitor"), icon: Clock, to: "/settings/events" },
         { label: t("legacyImport"), icon: Upload, to: "/settings/legacy-import" },
+        { label: t("dataProtection"), icon: Lock, to: "/settings/data-protection" },
       ],
     },
   ];
