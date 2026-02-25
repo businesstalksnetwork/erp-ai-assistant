@@ -6309,6 +6309,57 @@ export type Database = {
           },
         ]
       }
+      journal_entry_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          journal_entry_id: string
+          mime_type: string | null
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          journal_entry_id: string
+          mime_type?: string | null
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          journal_entry_id?: string
+          mime_type?: string | null
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_attachments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_attachments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_lines: {
         Row: {
           account_id: string
@@ -11129,6 +11180,66 @@ export type Database = {
           },
         ]
       }
+      report_snapshots: {
+        Row: {
+          created_at: string
+          frozen_at: string
+          frozen_by: string | null
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          period_from: string | null
+          period_to: string | null
+          report_title: string
+          report_type: string
+          snapshot_data: Json
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          frozen_at?: string
+          frozen_by?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          report_title: string
+          report_type: string
+          snapshot_data?: Json
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          frozen_at?: string
+          frozen_by?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          report_title?: string
+          report_type?: string
+          snapshot_data?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_snapshots_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retail_price_lists: {
         Row: {
           created_at: string
@@ -12274,6 +12385,121 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transfer_pricing_parties: {
+        Row: {
+          country_code: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          legal_entity_id: string | null
+          ownership_pct: number | null
+          partner_id: string | null
+          relationship_type: string
+          tenant_id: string
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          legal_entity_id?: string | null
+          ownership_pct?: number | null
+          partner_id?: string | null
+          relationship_type?: string
+          tenant_id: string
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          legal_entity_id?: string | null
+          ownership_pct?: number | null
+          partner_id?: string | null
+          relationship_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_pricing_parties_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_pricing_parties_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_pricing_parties_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transfer_pricing_transactions: {
+        Row: {
+          amount: number
+          arm_length_amount: number | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          fiscal_year: number
+          id: string
+          method: string | null
+          party_id: string
+          tenant_id: string
+          transaction_type: string
+        }
+        Insert: {
+          amount?: number
+          arm_length_amount?: number | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          fiscal_year: number
+          id?: string
+          method?: string | null
+          party_id: string
+          tenant_id: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          arm_length_amount?: number | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          fiscal_year?: number
+          id?: string
+          method?: string | null
+          party_id?: string
+          tenant_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_pricing_transactions_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "transfer_pricing_parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_pricing_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

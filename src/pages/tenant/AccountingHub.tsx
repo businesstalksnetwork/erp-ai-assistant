@@ -6,6 +6,7 @@ import {
   Calculator, CalendarCheck, Building, Clock, Wallet, DollarSign,
   RefreshCw, ArrowLeftRight, Lock, BarChart3, Repeat, RotateCw,
   FileCheck, PieChart, Banknote, Building2, Scale, FileSpreadsheet, Layers,
+  BookText, Columns, Archive, FileBarChart,
 } from "lucide-react";
 
 const sections = [
@@ -58,10 +59,15 @@ const sections = [
       { to: "/accounting/fx-revaluation", icon: RefreshCw, label: "Revalorizacija", desc: "Kursne razlike i revalorizacija deviznih stavki" },
       { to: "/accounting/kompenzacija", icon: ArrowLeftRight, label: "Kompenzacija", desc: "Međusobno prebijanje potraživanja i obaveza" },
       { to: "/accounting/intercompany", icon: Building2, label: "Intercompany", desc: "Međukompanijske transakcije između pravnih lica" },
+      { to: "/accounting/transfer-pricing", icon: Scale, label: "Transferne cene", desc: "Transakcije sa povezanim licima i dokumentacija" },
       { to: "/accounting/year-end", icon: Lock, label: "Zaključak godine", desc: "Godišnji obračun i zatvaranje knjiga" },
       { to: "/accounting/reports", icon: BarChart3, label: "Izveštaji", desc: "Bilans stanja, bilans uspeha i bruto bilans" },
       { to: "/accounting/reports/cost-center-pl", icon: PieChart, label: "P&L po MT", desc: "Profitabilnost po mestima troškova" },
       { to: "/accounting/reports/consolidated", icon: Layers, label: "Konsolidacija", desc: "Konsolidovani finansijski izveštaji grupe" },
+      { to: "/accounting/reports/multi-period", icon: Columns, label: "Uporedni izveštaji", desc: "Poređenje fin. izveštaja za dva perioda" },
+      { to: "/accounting/statisticki-aneks", icon: FileBarChart, label: "Statistički aneks", desc: "Dodatni podaci uz godišnje izveštaje za APR" },
+      { to: "/accounting/kpo-book", icon: BookText, label: "KPO Knjiga", desc: "Knjiga prihoda i rashoda za paušalce" },
+      { to: "/accounting/report-snapshots", icon: Archive, label: "Arhiva izveštaja", desc: "Zamrznute verzije izveštaja za reviziju" },
     ],
   },
 ];
