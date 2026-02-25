@@ -1,93 +1,87 @@
 
 
-# Import Legacy Data for BCILITY DOO
+# Continue Payroll Upgrade: Phase 2
 
-## Summary
+## What Was Already Done (Phase 1)
+- Created `payroll_income_categories` table with 12 seeded categories and per-category tax/contribution rates
+- Created `payroll_payment_types` table with standard payment type codes
+- Upgraded `calculate_payroll_for_run` RPC with per-category rates, beneficiary coefficients, and subsidy calculations
+- Added `payroll_category_id`, `bank_account_iban`, `bank_name`, `recipient_code`, `pib` columns to `employees` table
+- Added `payroll_category_id`, `ovp_code`, `ola_code`, `ben_code`, `subsidy_amount`, `municipal_tax` columns to `payroll_items` table
+- Created PayrollCategories page with CRUD UI
+- Updated GL posting logic in Payroll.tsx
 
-Import 6 Excel files into the BCILITY DOO tenant (ID: `f726c1e8-4ad3-47c6-94b7-dfd39bfa07b8`, Legal Entity: `80a07d0f-3014-4475-9876-be51c5d3f714`) covering partners, products, employees, inventory stock, and opening financial balances.
+## What Remains (This Phase)
 
-## Data Overview
+Based on the PRD, the following gaps need to be closed:
 
-| File | Records | Target Table | Description |
-|------|---------|-------------|-------------|
-| SPISAK_PARTNERA.xlsx | ~340 partners | `partners` | Customers, suppliers, foreign firms |
-| SPISAK_ARTIKALA.xlsx | ~920 items | `products` | Products and services catalog |
-| ROBA_MALOPRODAJA.xlsx | 2 items | `products` (update) | Retail stock quantities and prices |
-| roba_veleprodaja.xlsx | 1 item | `products` (update) | Wholesale stock quantities and prices |
-| zaposleni.xlsx | 5 employees | `employees` | Staff records with JMBG |
-| FINANSIJSKO_STANJE.xlsx | ~72 lines | `chart_of_accounts` + `journal_entries`/`journal_lines` | Opening balances as of 01.01.2025 |
+### 1. Employee Detail — Payroll Data Fields
+The `employees` table now has `payroll_category_id`, `bank_account_iban`, `bank_name`, `recipient_code`, and `pib` columns, but the EmployeeDetail edit form does not expose them. The personal info tab also doesn't display them.
 
-## Implementation Plan
+**Changes to `src/pages/tenant/EmployeeDetail.tsx`:**
+- Add payroll-specific fields to `EmployeeForm` interface: `payroll_category_id`, `bank_account_iban`, `bank_name`, `recipient_code`, `pib`
+- Add a "Payroll Data" section in the Personal Info tab showing: category name, IBAN, bank, recipient code, PIB
+- Add corresponding inputs in the Edit Dialog with a dropdown for `payroll_category_id` (fetched from `payroll_income_categories`)
+- Include these fields in the update mutation payload
 
-### Step 1: Create Edge Function `import-bcility-data`
+### 2. Payment Types Management Page
+The `payroll_payment_types` table exists with a seed function but has no UI. Create a new page similar to PayrollCategories.
 
-A single edge function that processes all 6 files in sequence. The files will first be copied to Supabase storage, then the function reads and imports them.
+**New file: `src/pages/tenant/PayrollPaymentTypes.tsx`**
+- Table listing all payment types (code, name, type, hourly/benefits flags, rate multiplier, nontaxable)
+- "Seed defaults" button when empty
+- CRUD dialog for add/edit
+- Link from Payroll page
 
-**Alternative (recommended):** Since the data is already parsed and known, we'll build the edge function to accept the data directly as JSON payload, processing each dataset in batches.
+**Route: Add to `src/routes/hrRoutes.tsx`** at `/hr/payroll/payment-types`
 
-### Step 2: Partners Import (SPISAK_PARTNERA)
+### 3. PPP-PD XML Generation
+The PRD requires generating a PPP-PD tax declaration in XML format. Create an edge function that, given a payroll run ID, generates a valid PPP-PD XML.
 
-Map columns to `partners` table:
-- `Šifra` -> `maticni_broj` (with `LEG:` prefix for legacy ID tracking)
-- `Naziv partnera` -> `name`
-- `Tip partnera` -> `type`: PRAVNO LICE/PREDUZETNIK = "customer", FIZIČKO LICE = "customer", STRANA FIRMA = "customer"
-- `PIB / JMBG` -> `pib`
-- `Mat.broj / Pasoš` -> `maticni_broj` (actual registration number stored in notes)
-- `Pošt.br.` -> `postal_code`
-- `Mesto` -> `city`
-- `Tekući računi` -> `notes` (bank accounts)
-- Dedup by `pib` per tenant
+**New edge function: `supabase/functions/generate-pppd-xml/index.ts`**
+- Accepts `payroll_run_id`
+- Fetches payroll items with employee JMBG, OVP/OLA/BEN codes, amounts
+- Validates: JMBG checksum, required fields, arithmetic consistency
+- Generates XML per the e-Porezi XSD schema
+- Returns the XML as a downloadable file
 
-### Step 3: Products Import (SPISAK_ARTIKALA + retail/wholesale stock)
+**UI addition in `Payroll.tsx`:**
+- Add a "PPP-PD" download button on approved/paid payroll runs
 
-Map to `products` table:
-- `Šifra` -> `sku`
-- `Naziv artikla` -> `name`
-- `JMR` -> `unit_of_measure`
-- `Usluga` = True -> flag as service in description
-- `Bar-kod artikla` -> `barcode`
-- Retail prices from ROBA_MALOPRODAJA -> `default_retail_price`
-- Wholesale prices from roba_veleprodaja -> `default_sale_price`
-- Dedup by `sku` per tenant
+### 4. Bank Payment Orders
+The PRD requires generating bank payment orders for salary disbursement.
 
-### Step 4: Employees Import (zaposleni)
+**New edge function: `supabase/functions/generate-payment-orders/index.ts`**
+- Accepts `payroll_run_id`
+- Generates CSV/XML with individual payment orders per employee (IBAN, amount, reference)
+- Format compatible with Serbian banks (poziv na broj = JMBG/month/year)
 
-Map to `employees` table:
-- `Prezime` -> `last_name`
-- `Ime` -> `first_name`
-- `full_name` = `Ime Prezime`
-- `JMBG` -> `jmbg`
-- `Pol` -> stored in notes
-- `Mesto` -> `city`
-- `Status zaposlenog` -> `employment_type` mapping (V-Vlasnik = full_time, N-Neodređeno = full_time)
-- `status` = 'active'
+**UI addition in `Payroll.tsx`:**
+- Add a "Bank Orders" download button on approved payroll runs
 
-### Step 5: Chart of Accounts + Opening Balances (FINANSIJSKO_STANJE)
+### 5. Payroll Run Summary Enhancements
+- Show subsidy totals, employer contribution breakdown, and municipal tax in the run summary section
+- Show OVP/OLA/BEN codes per employee in the expanded payroll items table
 
-Two-phase approach:
-1. **Create chart of accounts entries** - Extract unique account codes (0220, 0229, 0230, etc.) and insert into `chart_of_accounts` for the tenant, mapping account type by code prefix (0x=asset, 1x=asset, 2x=asset, 3x=equity, 4x=liability)
-2. **Create opening journal entry** - Insert a single "PST000 - POČETNO STANJE" journal entry dated 2025-01-01 with all debit/credit lines referencing the chart of accounts entries
-
-### Step 6: Upload Files to Storage
-
-Copy the 6 Excel files into the `legacy-imports` storage bucket for audit trail.
+### 6. Update Payroll Page Navigation
+- Add link to Payment Types page alongside the existing Categories link
 
 ## Technical Details
 
-- **Tenant ID:** `f726c1e8-4ad3-47c6-94b7-dfd39bfa07b8`
-- **Legal Entity ID:** `80a07d0f-3014-4475-9876-be51c5d3f714`
-- **Batch size:** 100 rows per insert (with single-row fallback on error)
-- **Deduplication:** Partners by PIB, Products by SKU, Employees by JMBG
-- **Edge function timeout:** Will process files sequentially to stay within limits
-- **The function will parse XLSX using a lightweight Deno-compatible XLSX parser** (SheetJS via CDN)
+- **Employee form extension**: 5 new fields in the edit dialog, payroll_income_categories dropdown query
+- **PayrollPaymentTypes page**: ~180 lines, mirrors PayrollCategories pattern
+- **PPP-PD edge function**: XML template with e-Porezi compatible structure, JMBG validation algorithm
+- **Payment orders edge function**: CSV generation with bank-compatible format
+- **No breaking changes** to existing RPC or schema — purely additive
 
-### Account Type Mapping for Chart of Accounts
-```text
-Code prefix -> account_type:
-0xxx       -> asset (fixed assets)
-1xxx       -> asset (inventory/current assets)
-2xxx       -> asset (receivables/cash)
-3xxx       -> equity
-4xxx       -> liability
-```
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/pages/tenant/EmployeeDetail.tsx` | Add payroll fields to form + display |
+| `src/pages/tenant/PayrollPaymentTypes.tsx` | New page |
+| `src/pages/tenant/Payroll.tsx` | Add PPP-PD button, payment orders button, subsidy display, payment types link |
+| `src/routes/hrRoutes.tsx` | Add payment-types route |
+| `supabase/functions/generate-pppd-xml/index.ts` | New edge function |
+| `supabase/functions/generate-payment-orders/index.ts` | New edge function |
 
