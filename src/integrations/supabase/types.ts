@@ -14859,6 +14859,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      seed_settings_defaults: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       seed_tenant_chart_of_accounts: {
         Args: { _tenant_id: string }
         Returns: undefined
