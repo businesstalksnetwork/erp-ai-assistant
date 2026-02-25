@@ -1,0 +1,198 @@
+import { useParams, Link } from "react-router-dom";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useTenant } from "@/hooks/useTenant";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, FileText, Download } from "lucide-react";
+import { fmtNum } from "@/lib/utils";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
+import { exportToCsv } from "@/lib/exportCsv";
+
+export default function PayrollRunDetail() {
+  const { id } = useParams<{ id: string }>();
+  const { t } = useLanguage();
+  const { tenantId } = useTenant();
+
+  const { data: run, isLoading: runLoading } = useQuery({
+    queryKey: ["payroll-run", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("payroll_runs").select("*").eq("id", id!).single();
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: items = [], isLoading: itemsLoading } = useQuery({
+    queryKey: ["payroll-run-items", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("payroll_items")
+        .select("*, employees(full_name, departments(name))")
+        .eq("payroll_run_id", id!)
+        .order("created_at");
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = runLoading || itemsLoading;
+  const monthName = (m: number) => new Date(2024, m - 1).toLocaleString("sr-Latn", { month: "long" });
+
+  const totals = items.reduce(
+    (acc, i: any) => ({
+      gross: acc.gross + Number(i.gross_salary),
+      net: acc.net + Number(i.net_salary),
+      tax: acc.tax + Number(i.income_tax),
+      pioE: acc.pioE + Number(i.pension_contribution),
+      healthE: acc.healthE + Number(i.health_contribution),
+      unempE: acc.unempE + Number(i.unemployment_contribution),
+      pioR: acc.pioR + Number(i.pension_employer || 0),
+      healthR: acc.healthR + Number(i.health_employer || 0),
+      meal: acc.meal + Number(i.meal_allowance || 0),
+      transport: acc.transport + Number(i.transport_allowance || 0),
+      subsidy: acc.subsidy + Number(i.subsidy_amount || 0),
+      totalCost: acc.totalCost + Number(i.total_cost),
+    }),
+    { gross: 0, net: 0, tax: 0, pioE: 0, healthE: 0, unempE: 0, pioR: 0, healthR: 0, meal: 0, transport: 0, subsidy: 0, totalCost: 0 }
+  );
+
+  const exportData = items.map((i: any) => ({
+    [t("employee")]: i.employees?.full_name || "",
+    [t("department")]: i.employees?.departments?.name || "",
+    OVP: i.ovp_code || "101",
+    [t("grossSalary")]: Number(i.gross_salary),
+    "PIO zaposleni": Number(i.pension_contribution),
+    "Zdravstvo zaposleni": Number(i.health_contribution),
+    [t("incomeTax")]: Number(i.income_tax),
+    [t("netSalary")]: Number(i.net_salary),
+    "PIO poslodavac": Number(i.pension_employer || 0),
+    "Zdravstvo poslodavac": Number(i.health_employer || 0),
+    "Topli obrok": Number(i.meal_allowance || 0),
+    "Prevoz": Number(i.transport_allowance || 0),
+    "Subvencija": Number(i.subsidy_amount || 0),
+    [t("totalCost")]: Number(i.total_cost),
+  }));
+
+  const statusColor = (s: string) => ({ draft: "secondary", calculated: "default", approved: "default", paid: "default" }[s] || "secondary") as any;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link to="/hr/payroll">
+          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+        </Link>
+        <PageHeader
+          title={run ? `${monthName(run.period_month)} ${run.period_year}` : t("payroll")}
+          icon={FileText}
+          description={run ? `${t("payroll")} — ${run.status}` : ""}
+        />
+        {run && <Badge variant={statusColor(run.status)} className="ml-auto text-sm">{run.status}</Badge>}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      ) : (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[
+              { label: t("totalGross"), value: totals.gross },
+              { label: t("totalNet"), value: totals.net },
+              { label: t("totalTaxes"), value: totals.tax },
+              { label: "PIO (zaposl.)", value: totals.pioE },
+              { label: "PIO (posl.)", value: totals.pioR },
+              { label: t("totalCost"), value: totals.totalCost },
+            ].map((s) => (
+              <Card key={s.label}>
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-lg font-bold">{fmtNum(s.value)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (exportData.length === 0) return;
+              const cols = Object.keys(exportData[0]).map(k => ({ key: k as any, label: k }));
+              exportToCsv(exportData, cols, `payroll-${run?.period_year}-${run?.period_month}`);
+            }}>
+              <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
+            </Button>
+          </div>
+
+          {/* Detail table */}
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("employee")}</TableHead>
+                    <TableHead>{t("department")}</TableHead>
+                    <TableHead>OVP</TableHead>
+                    <TableHead className="text-right">{t("grossSalary")}</TableHead>
+                    <TableHead className="text-right">PIO</TableHead>
+                    <TableHead className="text-right">Zdrav.</TableHead>
+                    <TableHead className="text-right">{t("incomeTax")}</TableHead>
+                    <TableHead className="text-right">{t("netSalary")}</TableHead>
+                    <TableHead className="text-right">PIO posl.</TableHead>
+                    <TableHead className="text-right">Zdrav. posl.</TableHead>
+                    <TableHead className="text-right">Subvencija</TableHead>
+                    <TableHead className="text-right">{t("totalCost")}</TableHead>
+                    <TableHead className="text-right">PDF</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item: any) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.employees?.full_name}</TableCell>
+                      <TableCell>{item.employees?.departments?.name || "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{item.ovp_code || "101"}</Badge></TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.pension_contribution))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.health_contribution))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.income_tax))}</TableCell>
+                      <TableCell className="text-right font-semibold">{fmtNum(Number(item.net_salary))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.pension_employer || 0))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.health_employer || 0))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.subsidy_amount || 0))}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.total_cost))}</TableCell>
+                      <TableCell className="text-right">
+                        <DownloadPdfButton type="payslip" params={{ payroll_item_id: item.id }} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Totals row */}
+                  <TableRow className="bg-muted/50 font-semibold">
+                    <TableCell colSpan={3}>{t("total")}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.gross)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.pioE)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.healthE)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.tax)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.net)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.pioR)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.healthR)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.subsidy)}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.totalCost)}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
