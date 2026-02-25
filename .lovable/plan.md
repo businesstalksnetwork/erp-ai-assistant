@@ -1,86 +1,108 @@
 
 
-# Phase 2: Migrate Remaining 8 Hardcoded Files to Posting Rules Engine
+# E2E Connectivity Review: Warehouses, Sales, Retail, Invoices, Quotes, CRM, Analytics, AI
 
-## Current State
+## Status Summary
 
-Phase 1 (completed) connected `CashRegister.tsx` and `IntercompanyTransactions.tsx` to the posting rules engine via `postWithRuleOrFallback`, added 21 new payment model codes to `PAYMENT_MODEL_KEYS`, seeded them in the database, and fixed the hardcoded VAT rate.
+| Area | GL Posting | AI Narrative | Data Flow | Verdict |
+|------|-----------|-------------|-----------|---------|
+| Magacini (Warehouses/Inventory) | OK (via RPCs) | MISSING | OK | Needs AI |
+| Veleprodaja (Wholesale/Sales) | OK (via RPCs) | MISSING | OK (Quote→SO→Dispatch→Invoice chain works) | Needs AI |
+| Maloprodaja (POS) | OK (`process_pos_sale` RPC) | MISSING | OK | Needs AI |
+| Fakture (Invoices) | OK (`process_invoice_post` + `create_journal_from_invoice` RPCs) | MISSING | OK | Needs AI |
+| Ponude (Quotes) | N/A (no GL needed) | MISSING | OK (→ Sales Order conversion works) | Needs AI |
+| CRM | N/A | WRONG contextType | OK | Bug fix needed |
+| Analytics (15 pages) | N/A | ALL CONNECTED | N/A | OK |
+| AI Insights | N/A | N/A | OK (edge function supports all 21 context types) | OK |
 
-**8 files still use hardcoded `createCodeBasedJournalEntry` with string literal account codes.**
+---
 
-## Files to Migrate
+## Issue 1: CRM Dashboard Uses Wrong AI Narrative Context
 
-Each file will be refactored to use `postWithRuleOrFallback` from `src/lib/postingHelper.ts`, keeping the current hardcoded accounts as fallback lines. The model codes already exist in `PAYMENT_MODEL_KEYS`.
+**File**: `src/pages/tenant/CrmDashboard.tsx` line 225
+**Bug**: `contextType="planning"` instead of `contextType="crm_pipeline"`
 
-### 1. GoodsReceipts.tsx (1 posting point)
-- **Trigger**: Status set to "completed"
-- **Model**: `GOODS_RECEIPT`
-- **Hardcoded**: DR 1200 (Inventory) / CR 2100 (AP/GRNI)
-- **Change**: Replace lines 161-174 with `postWithRuleOrFallback` call
+The edge function already has a dedicated `crm_pipeline` system prompt ("You are a sales pipeline analyst AI...") but the CRM dashboard sends `"planning"` instead, so it gets generic business planning recommendations instead of pipeline-specific analysis.
 
-### 2. SupplierInvoices.tsx (2 posting points)
-- **Approval** (lines 190-216): Model `SUPPLIER_INVOICE_POST`
-  - DR 7000 (COGS) + DR 4700 (Input VAT) / CR 2100 (AP)
-- **Payment** (lines 218-239): Model `SUPPLIER_INVOICE_PAYMENT`
-  - DR 2100 (AP) / CR 1000 (Bank)
-- **Complexity**: Approval has conditional VAT line -- `postWithRuleOrFallback` handles this via `TAX_AMOUNT` amount source with `taxRate` context
+**Fix**: Change `contextType="planning"` to `contextType="crm_pipeline"` on line 225.
 
-### 3. Returns.tsx (4 posting points in `postReturnAccounting`)
-- **Customer return restock** (lines 196-204): Model `CUSTOMER_RETURN_RESTOCK`
-  - DR 1200 / CR 7000
-- **Customer credit note** (lines 209-217): Model `CUSTOMER_RETURN_CREDIT`
-  - DR 4000 / CR 1200
-- **Supplier return** (lines 229-236): Model `SUPPLIER_RETURN`
-  - DR 2100 / CR 1200
-- **Credit note issuance** (lines 308-318): Model `CREDIT_NOTE_ISSUED`
-  - DR 6000 / CR 2040
+---
 
-### 4. Loans.tsx (2 posting points in `recordPaymentMutation`)
-- **Payable** (lines 146-149): Model `LOAN_PAYMENT_PAYABLE`
-  - DR 4200 (principal) + DR 5330 (interest) / CR 2431 (bank)
-- **Receivable** (lines 151-154): Model `LOAN_PAYMENT_RECEIVABLE`
-  - DR 2431 (bank) / CR 2040 (loan receivable) + CR 6020 (interest income)
-- **Complexity**: Multi-line with different amounts per line (principal vs interest). Will use `FULL` amount source with the total payment as amount, keeping individual line amounts in fallback. The engine handles this via `amount_factor` on each rule line.
+## Issue 2: AI Narrative Context Map Missing Key Modules
 
-### 5. Kompenzacija.tsx (1 posting point)
-- **Trigger**: Confirm compensation (line 97-106)
-- **Model**: `COMPENSATION`
-- **Hardcoded**: DR 4350 (AP) / CR 2040 (AR)
+**File**: `src/components/ai/AiContextSidebar.tsx` lines 98-112
 
-### 6. FixedAssets.tsx (2 posting points)
-- **Depreciation** (lines 184-192): Model `ASSET_DEPRECIATION`
-  - DR 5310 / CR 0121
-- **Disposal** (lines 94-132): Model `ASSET_DISPOSAL`
-  - DR 0121 (accum dep) + DR 2431 (sale proceeds) / CR 0120 (asset cost) + CR/DR 6072/5073 (gain/loss)
-  - **Complexity**: Disposal has variable number of lines based on sale vs scrap and gain vs loss. Will keep as fallback-heavy with rule override possible.
+The `getNarrativeContext` function maps URL paths to AI narrative contexts. It only covers `/analytics/*` and `/dashboard`. These modules are missing:
 
-### 7. FxRevaluation.tsx (1 posting point)
-- **Trigger**: Post revaluation (lines 186-257)
-- **Models**: `FX_GAIN` and `FX_LOSS`
-- **Hardcoded**: DR 2040/4350 / CR 6072 (gains); DR 5072 / CR 2040/4350 (losses)
-- **Complexity**: Dynamic number of lines based on AR/AP split. Will use two separate `postWithRuleOrFallback` calls (one for gains, one for losses) or keep complex logic with fallback.
+| Path | Context Type (already exists in edge function) |
+|------|----------------------------------------------|
+| `/crm` or `/crm/*` | `crm_pipeline` |
+| `/pos` or `/pos/*` | `pos_performance` |
+| `/production` or `/production/*` | `production` |
+| `/hr` or `/hr/*` | `hr_overview` |
+| `/purchasing` or `/purchasing/*` | `purchasing` |
+| `/sales` or `/sales/*` | (no context type defined yet -- could reuse `dashboard` or add a new `sales_performance` type) |
+| `/inventory` or `/inventory/*` | `inventory_health` |
 
-### 8. Deferrals.tsx (1 posting point)
-- **Trigger**: Recognize period (lines 99-149)
-- **Models**: `DEFERRAL_REVENUE` and `DEFERRAL_EXPENSE`
-- **Revenue**: DR 4600 / CR 6010
-- **Expense**: DR 5400 / CR 1500
+The edge function already has system prompts for `crm_pipeline`, `pos_performance`, `production`, `hr_overview`, and `purchasing`. The sidebar just doesn't route to them.
 
-## Technical Approach
+**Fix**: Add these paths to the `contextMap` in `getNarrativeContext`.
 
-For each file:
-1. Import `postWithRuleOrFallback` from `@/lib/postingHelper`
-2. Replace `createCodeBasedJournalEntry` with `postWithRuleOrFallback`, moving current hardcoded lines into the `fallbackLines` parameter
-3. Set the correct `modelCode` from `PAYMENT_MODEL_KEYS`
-4. Pass `context: {}` (empty context is fine for FIXED account rules; dynamic sources not needed yet)
+---
 
-For complex multi-posting files (Returns, FixedAssets, FxRevaluation), each distinct journal entry call gets its own `postWithRuleOrFallback` with its own model code.
+## Issue 3: Hub Pages (SalesHub, PosHub, InventoryHub, PurchasingHub) Have No AI Integration
 
-## Implementation Order
+These hub/landing pages are pure navigation link grids with zero data or AI. They don't use:
+- `AiModuleInsights` (live anomaly detection)
+- `AiAnalyticsNarrative` (contextual analysis)
 
-Due to message size constraints, this will be split:
-- **Batch A**: GoodsReceipts, SupplierInvoices, Kompenzacija, Deferrals (simpler, 1-2 posting points each)
-- **Batch B**: Returns, Loans, FixedAssets, FxRevaluation (complex, multi-line or conditional logic)
+The CRM Dashboard (`CrmDashboard.tsx`) does have both. The other hubs should follow this pattern.
 
-No database migration needed -- all 21 payment model codes were already seeded in Phase 1.
+This is a design choice rather than a bug -- the hub pages are intentionally lightweight navigation menus. Adding data/AI would require fetching KPIs, which changes their purpose. I recommend leaving hubs as-is but ensuring the AI sidebar narrative works on all module sub-pages (Issue 2 above covers this).
+
+---
+
+## Issue 4: Quotes Page Has No AI Narrative
+
+`Quotes.tsx` does not include `AiAnalyticsNarrative`. Since quotes are a leading sales indicator (conversion rates, average deal size, pipeline velocity), this is a missed opportunity. However, the sidebar AI narrative (Issue 2) would cover this if `/sales/*` is mapped to a context.
+
+---
+
+## What Is Already Well Connected
+
+1. **Document Chain**: Quote → Sales Order → Dispatch Note → Invoice all pass `partner_id`, line items, and warehouse context via `navigate()` state. This chain is complete.
+
+2. **GL Posting**: All 12 previously-hardcoded modules now use `postWithRuleOrFallback`. Invoices and POS use server-side RPCs (`process_invoice_post`, `create_journal_from_invoice`, `process_pos_sale`), which is the correct approach for these high-volume operations.
+
+3. **Analytics**: All 15 analytics pages have `AiAnalyticsNarrative` with correct context types and data passed in.
+
+4. **Edge Function**: The `ai-analytics-narrative` function supports all 21 context types with dedicated system prompts. It can query the database for additional context.
+
+5. **Partner Model**: Quotes, Sales Orders, Invoices, Purchase Orders, and CRM all reference `partners` table. The unified partner model is correctly implemented.
+
+---
+
+## Implementation Plan
+
+### Change 1: Fix CRM Dashboard contextType
+- **File**: `src/pages/tenant/CrmDashboard.tsx`
+- Change `contextType="planning"` to `contextType="crm_pipeline"` (line 225)
+
+### Change 2: Expand AI Sidebar Context Map
+- **File**: `src/components/ai/AiContextSidebar.tsx`
+- Add missing path→context mappings to `getNarrativeContext`:
+  - `/crm` → `crm_pipeline`
+  - `/pos` → `pos_performance`
+  - `/production` → `production`
+  - `/hr` → `hr_overview`
+  - `/purchasing` → `purchasing`
+  - `/inventory` → `inventory_health`
+  - `/sales` → `dashboard` (reuse general context; or we can skip this)
+  - `/accounting/expenses` → `expenses`
+
+### No Other Changes Needed
+- GL posting is fully migrated (Phases 1-3 complete)
+- Document chains are connected
+- Analytics pages all have AI narratives
+- Edge function supports all required context types
 
