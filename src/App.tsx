@@ -42,6 +42,7 @@ import {
   purchasingRoutes,
   productionRoutes,
   documentsRoutes,
+  driveRoutes,
   posRoutes,
   analyticsRoutes,
   miscRoutes,
@@ -96,6 +97,7 @@ const App = () => (
                 {purchasingRoutes}
                 {productionRoutes}
                 {documentsRoutes}
+                {driveRoutes}
                 {posRoutes}
                 {analyticsRoutes}
                 {miscRoutes}
