@@ -35,6 +35,11 @@ const IntercompanyTransactions = React.lazy(() => import("@/pages/tenant/Interco
 const ConsolidatedStatements = React.lazy(() => import("@/pages/tenant/ConsolidatedStatements"));
 const WithholdingTax = React.lazy(() => import("@/pages/tenant/WithholdingTax"));
 const CitTaxReturn = React.lazy(() => import("@/pages/tenant/CitTaxReturn"));
+const StatistickiAneks = React.lazy(() => import("@/pages/tenant/StatistickiAneks"));
+const KpoBook = React.lazy(() => import("@/pages/tenant/KpoBook"));
+const MultiPeriodReports = React.lazy(() => import("@/pages/tenant/MultiPeriodReports"));
+const TransferPricing = React.lazy(() => import("@/pages/tenant/TransferPricing"));
+const ReportSnapshots = React.lazy(() => import("@/pages/tenant/ReportSnapshots"));
 
 const m = "accounting";
 
@@ -74,5 +79,10 @@ export const accountingRoutes = (
     <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><CashRegister /></ProtectedRoute>} />
     <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><RecurringInvoices /></ProtectedRoute>} />
     <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><RecurringJournals /></ProtectedRoute>} />
+    <Route path="accounting/statisticki-aneks" element={<ProtectedRoute requiredModule={m}><StatistickiAneks /></ProtectedRoute>} />
+    <Route path="accounting/kpo-book" element={<ProtectedRoute requiredModule={m}><KpoBook /></ProtectedRoute>} />
+    <Route path="accounting/reports/multi-period" element={<ProtectedRoute requiredModule={m}><MultiPeriodReports /></ProtectedRoute>} />
+    <Route path="accounting/transfer-pricing" element={<ProtectedRoute requiredModule={m}><TransferPricing /></ProtectedRoute>} />
+    <Route path="accounting/report-snapshots" element={<ProtectedRoute requiredModule={m}><ReportSnapshots /></ProtectedRoute>} />
   </>
 );
