@@ -1,185 +1,100 @@
 
 
-# Wire New Edge Functions & RPCs to UI
+# Multi-Track Work Plan: Mobile Verification, Performance, Security & Edge Function Deployment
 
-## Scope
+## Track 1: Deploy & Test Edge Functions
 
-Four areas of work: (1) wire 3 edge functions to download buttons, (2) add PDV settlement journal button, (3) add seed posting rules button, (4) add tax payment order generation UI.
+### Current State
+- All 3 edge functions exist in `supabase/functions/` and are registered in `supabase/config.toml` with `verify_jwt = false`
+- All 3 return 404 when called — they need to be deployed
+- UI buttons are already wired in `PdvPeriods.tsx`, `BilansStanja.tsx`, `BilansUspeha.tsx`
+- CORS headers are present but **missing Supabase platform headers** — all 3 functions use the minimal `authorization, x-client-info, apikey, content-type` header set, which should be expanded to include `x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version` for reliable browser calls
 
-## Changes
+### Actions
+1. **Update CORS headers** in all 3 edge functions (`generate-pppdv-xml`, `generate-tax-payment-orders`, `generate-apr-xml`) to include the full Supabase client headers
+2. **Deploy all 3 edge functions** using the deploy tool
+3. **Test each function** with POST requests to verify they respond correctly (401 without auth, proper XML generation with auth)
 
-### 1. PdvPeriods.tsx — Add PP-PDV XML Download + Settlement Journal Button
+---
 
-**File: `src/pages/tenant/PdvPeriods.tsx`**
+## Track 2: Security Scan Results
 
-In the period detail view (after the back button, around line 370-390), add two new buttons:
+### Already Verified (No Action Needed)
+- `tax_calendar`: RLS enabled, tenant isolation policy using `get_user_tenant_ids(auth.uid())`
+- `cit_advance_payments`: RLS enabled, same tenant isolation policy
+- Both policies cover `ALL` operations (SELECT, INSERT, UPDATE, DELETE)
 
-- **"Preuzmi PP-PDV XML"** button — calls `supabase.functions.invoke("generate-pppdv-xml", { body: { tenant_id, pdv_period_id } })`, receives `{ xml, filename }` JSON, creates a Blob and triggers browser download.
-- **"Zatvori PDV — Knjiženje"** button (only visible when status is `submitted`) — calls `supabase.rpc("create_pdv_settlement_journal", { p_pdv_period_id, p_tenant_id })` to auto-generate the VAT settlement journal entry (D:4700/C:2700). Shows success toast with journal entry reference.
+### Linter Findings (3 warnings, none critical)
+1. **Function Search Path Mutable** (WARN) — some DB functions don't set `search_path`, allowing potential schema injection. Should be fixed by adding `SET search_path = public` to affected functions.
+2. **Extension in Public** (WARN) — extensions installed in `public` schema instead of a dedicated `extensions` schema. Low risk but should be noted.
+3. **Leaked Password Protection Disabled** (WARN) — Supabase auth setting. Can be enabled in the Supabase dashboard under Auth > Settings.
 
-Both buttons go in the action bar next to the existing ExportButton and DownloadPdfButton (lines 375-389).
+### Actions
+1. Run `security--run_security_scan` for a full table-level RLS audit
+2. Fix function search path on any new compliance functions created in the migration
+3. Document the extension-in-public and leaked-password findings for the user to address in Supabase dashboard
 
-Add two new mutations:
-```typescript
-const generatePppdvXml = useMutation({
-  mutationFn: async (periodId: string) => {
-    const { data, error } = await supabase.functions.invoke("generate-pppdv-xml", {
-      body: { tenant_id: tenantId, pdv_period_id: periodId },
-    });
-    if (error) throw error;
-    // Download XML
-    const blob = new Blob([data.xml], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = data.filename; a.click();
-    URL.revokeObjectURL(url);
-  },
-  onSuccess: () => toast({ title: t("success") }),
-  onError: (e) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
-});
+---
 
-const settlePdvMutation = useMutation({
-  mutationFn: async (periodId: string) => {
-    const { data, error } = await supabase.rpc("create_pdv_settlement_journal" as any, {
-      p_pdv_period_id: periodId,
-      p_tenant_id: tenantId,
-    });
-    if (error) throw error;
-    return data;
-  },
-  onSuccess: () => {
-    qc.invalidateQueries({ queryKey: ["pdv_periods"] });
-    toast({ title: "PDV knjiženje kreirano", description: "Nalog za knjiženje PDV obaveze/pretplate je automatski generisan." });
-  },
-  onError: (e) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
-});
-```
+## Track 3: Mobile Layout Verification
 
-UI buttons in the detail header area:
-```tsx
-<Button variant="outline" size="sm" onClick={() => generatePppdvXml.mutate(selectedPeriod.id)} disabled={generatePppdvXml.isPending}>
-  <FileDown className="h-4 w-4 mr-2" />PP-PDV XML
-</Button>
-{selectedPeriod.status === "submitted" && (
-  <Button variant="outline" size="sm" onClick={() => settlePdvMutation.mutate(selectedPeriod.id)} disabled={settlePdvMutation.isPending}>
-    <BookOpen className="h-4 w-4 mr-2" />Zatvori PDV
-  </Button>
-)}
-```
+### Current State
+- Login page renders correctly at 390x844 — form fits, no horizontal overflow
+- Dashboard redirects to `/login` when unauthenticated (expected behavior)
+- Cannot test authenticated pages in the browser tool without credentials
 
-Import `BookOpen` from lucide-react (already importing `FileDown`).
+### Known Patterns Already in Place
+- `PageHeader` uses `flex-col sm:flex-row` stacking
+- `MobileFilterBar` collapses filters into a popover on mobile
+- `MobileActionMenu` converts inline buttons to dropdown on mobile
+- Tables use `overflow-x-auto` wrappers
+- Dialogs use `w-[95vw] sm:max-w-lg` pattern
+- POS terminal uses `flex-col lg:flex-row` layout
 
-### 2. BilansStanja.tsx — Add APR XML Export Button
+### Remaining Issue: PDV Period Detail Summary Cards
+Line 461: `grid grid-cols-3 gap-4` — this will squeeze 3 cards into a 390px viewport. Should be `grid grid-cols-1 sm:grid-cols-3 gap-4`.
 
-**File: `src/pages/tenant/BilansStanja.tsx`**
+### Actions
+1. Fix `PdvPeriods.tsx` line 461: change `grid-cols-3` to `grid-cols-1 sm:grid-cols-3`
+2. Verify the action buttons in the detail view wrap properly with `flex-wrap` (already present on line 428)
+3. No other critical mobile issues found in the explored code
 
-Add a new button in the `actions` prop of PageHeader (line 162-192), next to ExportButton and DownloadPdfButton:
+---
 
-```tsx
-<Button variant="outline" size="sm" onClick={handleAprXmlExport} disabled={aprExporting}>
-  <FileDown className="h-4 w-4 mr-2" />APR XML
-</Button>
-```
+## Track 4: Performance Optimization
 
-Add state + handler:
-```typescript
-const [aprExporting, setAprExporting] = useState(false);
-const handleAprXmlExport = async () => {
-  setAprExporting(true);
-  try {
-    const { data, error } = await supabase.functions.invoke("generate-apr-xml", {
-      body: { tenant_id: tenantId, report_type: "bilans_stanja", year: new Date(asOfDate).getFullYear(), legal_entity_id: legalEntityId || null },
-    });
-    if (error) throw error;
-    const blob = new Blob([data.xml], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = data.filename; a.click();
-    URL.revokeObjectURL(url);
-  } catch (e: any) {
-    toast({ title: "Greška", description: e.message, variant: "destructive" });
-  } finally { setAprExporting(false); }
-};
-```
+### Current Optimizations Already in Place
+- Server-side RPC `dashboard_kpi_summary` for dashboard KPIs (avoids URL overflow)
+- Vite `manualChunks` splits vendor/charts/UI/Supabase into separate bundles
+- `staleTime` configured on dashboard queries (5 min for KPIs, 2 min for drafts)
+- `usePaginatedQuery` hook available with 50-row page size
 
-Import `FileDown` from lucide-react, `useToast`, and `Button`.
+### Performance Concern: PDV Calculate Mutation (N+1 Query)
+Lines 111-131 in `PdvPeriods.tsx`: The calculate mutation fetches invoice lines **one invoice at a time** in a loop (`for (const inv of invoices || [])` → `select from invoice_lines where invoice_id = inv.id`). For a tenant with 500+ invoices per period, this creates 500+ sequential queries.
 
-### 3. BilansUspeha.tsx — Add APR XML Export Button
+### Actions
+1. **Fix N+1 in PDV calculation**: Refactor to batch-fetch all invoice lines for the period's invoices in a single query using `.in("invoice_id", invoiceIds)`, then group client-side
+2. **Add `staleTime` to PDV queries**: The `pdv_periods` and `pdv_entries` queries have no `staleTime`, causing unnecessary refetches
+3. **Lazy load heavy dashboard widgets**: The dashboard imports 9 chart/widget components synchronously. Consider `React.lazy()` for `RevenueExpensesChart`, `CashFlowChart`, `TopCustomersChart`, `AiInsightsWidget` to reduce initial bundle
 
-**File: `src/pages/tenant/BilansUspeha.tsx`**
+---
 
-Same pattern as BilansStanja — add APR XML button in the actions area (line 93-122):
+## Implementation Summary
 
-```tsx
-<Button variant="outline" size="sm" onClick={handleAprXmlExport} disabled={aprExporting}>
-  <FileDown className="h-4 w-4 mr-2" />APR XML
-</Button>
-```
+| Track | Priority | Changes |
+|-------|----------|---------|
+| Edge Function Deploy | HIGH | Update CORS headers in 3 files, deploy, test |
+| Security | DONE | RLS verified on new tables; 3 non-critical linter warnings |
+| Mobile Fix | LOW | 1 line change in PdvPeriods.tsx (grid-cols-3 → responsive) |
+| Performance | MEDIUM | Fix N+1 query in PDV calculate, add staleTime, lazy load dashboard charts |
 
-Body params: `{ tenant_id, report_type: "bilans_uspeha", year: new Date(dateTo).getFullYear(), legal_entity_id }`.
+### Files Modified
 
-### 4. PdvPeriods.tsx — Add Tax Payment Order Button
-
-In the period detail view, when status is `submitted` or `closed`, add a button to generate a tax payment order for the PDV liability:
-
-```tsx
-{(selectedPeriod.status === "submitted" || selectedPeriod.status === "closed") && Number(selectedPeriod.vat_liability) > 0 && (
-  <Button variant="outline" size="sm" onClick={() => generateTaxPaymentOrder.mutate(selectedPeriod)} disabled={generateTaxPaymentOrder.isPending}>
-    <FileDown className="h-4 w-4 mr-2" />Nalog za plaćanje
-  </Button>
-)}
-```
-
-Mutation calls `generate-tax-payment-orders` with `{ tenant_id, tax_type: "pdv", amount: selectedPeriod.vat_liability, period_month, period_year }` and displays the payment order details in a toast or downloads as JSON.
-
-### 5. PostingRules.tsx — Add Seed Extended Rules Button
-
-**File: `src/pages/tenant/PostingRules.tsx`**
-
-Add a button in the header area (alongside the existing "+" button) that calls the `seed_extended_posting_rules` RPC:
-
-```tsx
-<Button variant="outline" onClick={() => seedRulesMutation.mutate()} disabled={seedRulesMutation.isPending}>
-  <Sparkles className="h-4 w-4 mr-2" />Generiši pravila
-</Button>
-```
-
-Mutation:
-```typescript
-const seedRulesMutation = useMutation({
-  mutationFn: async () => {
-    const { error } = await supabase.rpc("seed_extended_posting_rules" as any, { p_tenant_id: tenantId });
-    if (error) throw error;
-  },
-  onSuccess: () => {
-    qc.invalidateQueries({ queryKey: ["posting_rules_v2"] });
-    qc.invalidateQueries({ queryKey: ["payment_models"] });
-    toast({ title: "Uspešno", description: "Proširena pravila knjiženja su generisana za sve nove tipove dokumenata." });
-  },
-  onError: (e) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
-});
-```
-
-`Sparkles` is already imported on line 16.
-
-### 6. Translations
-
-**File: `src/i18n/translations.ts`**
-
-Add new keys:
-- `generatePppdvXml` / `closePdvJournal` / `taxPaymentOrder` / `seedPostingRules`
-- Serbian equivalents
-
-## Summary
-
-| File | Change | Lines Affected |
-|------|--------|---------------|
-| `PdvPeriods.tsx` | Add 3 mutations (PP-PDV XML, settlement journal, tax payment order) + 3 buttons | ~60 lines added |
-| `BilansStanja.tsx` | Add APR XML export button + handler | ~25 lines added |
-| `BilansUspeha.tsx` | Add APR XML export button + handler | ~25 lines added |
-| `PostingRules.tsx` | Add seed rules button + mutation | ~20 lines added |
-| `translations.ts` | New translation keys | ~10 lines added |
-
-All edge functions return `{ xml, filename }` JSON — the download pattern is identical: create Blob, create object URL, trigger `<a>` click, revoke URL. The `generate-tax-payment-orders` returns `{ paymentOrder }` JSON which will be displayed in a dialog or downloaded.
-
-No database changes needed — all RPCs and edge functions already exist from the previous implementation.
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-pppdv-xml/index.ts` | Expand CORS headers |
+| `supabase/functions/generate-tax-payment-orders/index.ts` | Expand CORS headers |
+| `supabase/functions/generate-apr-xml/index.ts` | Expand CORS headers |
+| `src/pages/tenant/PdvPeriods.tsx` | Fix grid-cols-3, fix N+1 query, add staleTime |
+| `src/pages/tenant/Dashboard.tsx` | Lazy load heavy chart components |
 
