@@ -2,28 +2,44 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
-import { addDays, differenceInDays, format, getDate, getMonth, getYear, setDate } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, CheckCircle, Clock, RefreshCw } from "lucide-react";
+import { differenceInDays, format } from "date-fns";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   tenantId: string;
 }
 
-interface Deadline {
-  label: string;
-  dueDate: Date;
-  status: "ok" | "warning" | "overdue" | "done";
-  detail?: string;
-}
-
 export function ComplianceDeadlineWidget({ tenantId }: Props) {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const today = new Date();
-  const currentMonth = getMonth(today) + 1;
-  const currentYear = getYear(today);
+  const currentYear = today.getFullYear();
 
-  // Load PDV periods
+  // Load deadlines from tax_calendar table
+  const { data: deadlines = [], isLoading } = useQuery({
+    queryKey: ["tax-calendar-deadlines", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tax_calendar")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("status", ["pending", "overdue"])
+        .gte("due_date", new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split("T")[0])
+        .order("due_date", { ascending: true })
+        .limit(8);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fallback: also load PDV periods for backward compat when tax_calendar is empty
   const { data: pdvPeriods } = useQuery({
     queryKey: ["compliance-pdv-periods", tenantId],
     queryFn: async () => {
@@ -35,110 +51,106 @@ export function ComplianceDeadlineWidget({ tenantId }: Props) {
         .limit(3);
       return data || [];
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && deadlines.length === 0,
     staleTime: 1000 * 60 * 10,
   });
 
-  // Build regulatory deadlines
-  const deadlines: Deadline[] = [];
-
-  // PDV deadline: 15th of next month after period end
-  const pdvDeadline = setDate(
-    new Date(currentYear, currentMonth, 1), // next month
-    15
-  );
-  const openPdv = pdvPeriods?.find((p) => p.status === "open" || p.status === "draft");
-  deadlines.push({
-    label: t("pdvDeadlineLabel"),
-    dueDate: pdvDeadline,
-    status: openPdv
-      ? differenceInDays(pdvDeadline, today) <= 3
-        ? "overdue"
-        : differenceInDays(pdvDeadline, today) <= 7
-        ? "warning"
-        : "ok"
-      : "done",
-    detail: openPdv
-      ? `Period ${openPdv.period_name} — ${t("deadlineLate").toLowerCase()}`
-      : t("allPdvSubmitted"),
+  // Generate tax calendar for current year
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("generate_tax_calendar", {
+        p_tenant_id: tenantId,
+        p_fiscal_year: currentYear,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["tax-calendar-deadlines"] });
+      toast({ title: t("taxCalendarGenerated"), description: `${count} ${t("deadlinesCreated")}` });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // SEF evidencija: 12th of month
-  const sefDeadline = setDate(today, 12);
-  const sefDue = getDate(today) <= 12 ? sefDeadline : setDate(addDays(today, 30), 12);
-  deadlines.push({
-    label: t("sefDeadlineLabel"),
-    dueDate: sefDue,
-    status: differenceInDays(sefDue, today) <= 2 ? "warning" : "ok",
-    detail: t("sefDeadlineDetail"),
-  });
-
-  // PPP-PD: payroll tax filing by end of payment month
-  const pppDeadline = setDate(new Date(currentYear, currentMonth, 0), 15);
-  deadlines.push({
-    label: t("pppDeadlineLabel"),
-    dueDate: pppDeadline,
-    status: differenceInDays(pppDeadline, today) <= 3
-      ? "warning"
-      : differenceInDays(pppDeadline, today) < 0
-      ? "overdue"
-      : "ok",
-    detail: t("pppDeadlineDetail"),
-  });
-
-  // PIO/ZZO contributions
-  const contribDeadline = setDate(new Date(currentYear, currentMonth, 0), 15);
-  deadlines.push({
-    label: t("pioContribLabel"),
-    dueDate: contribDeadline,
-    status: differenceInDays(contribDeadline, today) <= 3 ? "warning" : "ok",
-    detail: t("contribDeadlineDetail"),
-  });
-
-  const getStatusIcon = (status: Deadline["status"]) => {
-    if (status === "done") return <CheckCircle className="h-4 w-4 text-primary" />;
-    if (status === "overdue") return <AlertTriangle className="h-4 w-4 text-destructive" />;
-    if (status === "warning") return <AlertTriangle className="h-4 w-4 text-accent" />;
+  const getStatusIcon = (status: string, daysLeft: number) => {
+    if (status === "completed") return <CheckCircle className="h-4 w-4 text-primary" />;
+    if (status === "overdue" || daysLeft < 0) return <AlertTriangle className="h-4 w-4 text-destructive" />;
+    if (daysLeft <= 5) return <AlertTriangle className="h-4 w-4 text-accent" />;
     return <Clock className="h-4 w-4 text-muted-foreground" />;
   };
 
-  const getStatusBadge = (status: Deadline["status"], daysLeft: number) => {
-    if (status === "done") return <Badge variant="default" className="text-xs">{t("deadlineSubmitted")}</Badge>;
-    if (status === "overdue") return <Badge variant="destructive" className="text-xs">{t("deadlineLate")}</Badge>;
-    if (status === "warning") return <Badge variant="secondary" className="text-xs">{daysLeft}d</Badge>;
+  const getStatusBadge = (status: string, daysLeft: number) => {
+    if (status === "completed") return <Badge variant="default" className="text-xs">{t("deadlineSubmitted")}</Badge>;
+    if (status === "overdue" || daysLeft < 0) return <Badge variant="destructive" className="text-xs">{t("deadlineLate")}</Badge>;
+    if (daysLeft <= 5) return <Badge variant="secondary" className="text-xs">{daysLeft}d</Badge>;
     return <Badge variant="outline" className="text-xs">{daysLeft}d</Badge>;
   };
+
+  // Use tax_calendar data if available, otherwise fallback to hardcoded
+  const hasCalendar = deadlines.length > 0;
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{t("complianceDeadlinesTitle")}</CardTitle>
-        <p className="text-xs text-muted-foreground">{t("complianceDeadlinesSubtitle")}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">{t("complianceDeadlinesTitle")}</CardTitle>
+            <p className="text-xs text-muted-foreground">{t("complianceDeadlinesSubtitle")}</p>
+          </div>
+          {!hasCalendar && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+              {t("generateTaxCalendar")}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {deadlines.map((d) => {
-            const daysLeft = differenceInDays(d.dueDate, today);
-            return (
-              <div key={d.label} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  {getStatusIcon(d.status)}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{d.label}</p>
-                    {d.detail && (
-                      <p className="text-xs text-muted-foreground truncate">{d.detail}</p>
-                    )}
+          {hasCalendar ? (
+            deadlines.map((d) => {
+              const dueDate = new Date(d.due_date);
+              const daysLeft = differenceInDays(dueDate, today);
+              return (
+                <div key={d.id} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {getStatusIcon(d.status, daysLeft)}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{d.title}</p>
+                      {d.description && (
+                        <p className="text-xs text-muted-foreground truncate">{d.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden sm:block">
+                      {format(dueDate, "dd.MM.")}
+                    </span>
+                    {getStatusBadge(d.status, daysLeft)}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-muted-foreground hidden sm:block">
-                    {format(d.dueDate, "dd.MM.")}
-                  </span>
-                  {getStatusBadge(d.status, daysLeft)}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            // Fallback: hardcoded deadlines when tax_calendar is empty
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground mb-2">{t("noTaxCalendarData")}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${generateMutation.isPending ? "animate-spin" : ""}`} />
+                {t("generateTaxCalendar")}
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

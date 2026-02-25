@@ -1993,6 +1993,79 @@ export type Database = {
           },
         ]
       }
+      cit_advance_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          fiscal_year: number
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          month: number
+          notes: string | null
+          paid_date: string | null
+          payment_reference: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          due_date: string
+          fiscal_year: number
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          month: number
+          notes?: string | null
+          paid_date?: string | null
+          payment_reference?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          fiscal_year?: number
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          month?: number
+          notes?: string | null
+          paid_date?: string | null
+          payment_reference?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cit_advance_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cit_advance_payments_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cit_advance_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cit_tax_returns: {
         Row: {
           accounting_profit: number
@@ -10175,7 +10248,11 @@ export type Database = {
           document_id: string | null
           document_number: string
           document_type: string
+          exchange_rate: number | null
           id: string
+          original_base_amount: number | null
+          original_currency: string | null
+          original_vat_amount: number | null
           partner_name: string | null
           partner_pib: string | null
           pdv_period_id: string
@@ -10192,7 +10269,11 @@ export type Database = {
           document_id?: string | null
           document_number: string
           document_type: string
+          exchange_rate?: number | null
           id?: string
+          original_base_amount?: number | null
+          original_currency?: string | null
+          original_vat_amount?: number | null
           partner_name?: string | null
           partner_pib?: string | null
           pdv_period_id: string
@@ -10209,7 +10290,11 @@ export type Database = {
           document_id?: string | null
           document_number?: string
           document_type?: string
+          exchange_rate?: number | null
           id?: string
+          original_base_amount?: number | null
+          original_currency?: string | null
+          original_vat_amount?: number | null
           partner_name?: string | null
           partner_pib?: string | null
           pdv_period_id?: string
@@ -13024,6 +13109,87 @@ export type Database = {
           },
         ]
       }
+      tax_calendar: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          deadline_type: string
+          description: string | null
+          due_date: string
+          fiscal_month: number | null
+          fiscal_year: number
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          notification_sent: boolean | null
+          recurrence_rule: string | null
+          reference_id: string | null
+          reference_type: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deadline_type: string
+          description?: string | null
+          due_date: string
+          fiscal_month?: number | null
+          fiscal_year: number
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          notification_sent?: boolean | null
+          recurrence_rule?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deadline_type?: string
+          description?: string | null
+          due_date?: string
+          fiscal_month?: number | null
+          fiscal_year?: number
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          notification_sent?: boolean | null
+          recurrence_rule?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_calendar_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_calendar_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_rates: {
         Row: {
           created_at: string
@@ -14921,6 +15087,20 @@ export type Database = {
           journal_entry_id: string
         }[]
       }
+      calculate_intercompany_eliminations: {
+        Args: { p_date_from: string; p_date_to: string; p_tenant_id: string }
+        Returns: {
+          account_code: string
+          account_name: string
+          credit_amount: number
+          debit_amount: number
+          elimination_type: string
+          source_entity_id: string
+          source_entity_name: string
+          target_entity_id: string
+          target_entity_name: string
+        }[]
+      }
       calculate_non_employment_income: {
         Args: { p_id: string }
         Returns: undefined
@@ -14968,6 +15148,10 @@ export type Database = {
       }
       create_journal_from_invoice: {
         Args: { p_invoice_id: string }
+        Returns: string
+      }
+      create_pdv_settlement_journal: {
+        Args: { p_pdv_period_id: string; p_tenant_id: string }
         Returns: string
       }
       dashboard_kpi_summary: {
@@ -15039,6 +15223,10 @@ export type Database = {
         Args: { p_category_code: string; p_tenant_id: string }
         Returns: string
       }
+      generate_tax_calendar: {
+        Args: { p_fiscal_year: number; p_tenant_id: string }
+        Returns: number
+      }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
@@ -15108,6 +15296,10 @@ export type Database = {
         Returns: number
       }
       seed_dms_defaults: { Args: { p_tenant_id: string }; Returns: undefined }
+      seed_extended_posting_rules: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       seed_payroll_income_categories: {
         Args: { p_tenant_id: string }
         Returns: undefined
