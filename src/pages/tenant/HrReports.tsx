@@ -16,6 +16,7 @@ import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { endOfMonth, format } from "date-fns";
+import { fmtNum } from "@/lib/utils";
 
 const WORK_LOG_TYPES = ["workday", "weekend", "holiday", "vacation", "sick_leave", "paid_leave", "unpaid_leave", "maternity_leave", "holiday_work", "slava"] as const;
 
@@ -74,6 +75,57 @@ export default function HrReports() {
     },
     enabled: !!tenantId,
   });
+
+  // Payroll cost data for the selected month
+  const { data: payrollCostData } = useQuery({
+    queryKey: ["payroll-cost-report", tenantId, filterYear, filterMonth],
+    queryFn: async () => {
+      const { data: runs } = await supabase.from("payroll_runs")
+        .select("id").eq("tenant_id", tenantId!)
+        .eq("period_year", filterYear).eq("period_month", filterMonth)
+        .in("status", ["approved", "paid"]) as any;
+      if (!runs?.length) return [];
+      const runIds = runs.map((r: any) => r.id);
+      const { data: items } = await supabase.from("payroll_items")
+        .select("employee_id, gross_salary, net_salary, income_tax, pension_contribution, health_contribution, unemployment_contribution, employer_pio, employer_health, pension_employer, health_employer, subsidy_amount, meal_allowance, transport_allowance, payroll_category_id")
+        .in("payroll_run_id", runIds) as any;
+      return items || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["payroll-categories-report", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("payroll_income_categories").select("id, code, name").eq("tenant_id", tenantId!) as any;
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const payrollCostReport = useMemo(() => {
+    if (!payrollCostData?.length) return [];
+    return employees.map((emp: any) => {
+      const items = payrollCostData.filter((i: any) => i.employee_id === emp.id);
+      if (!items.length) return null;
+      const sum = (field: string) => items.reduce((s: number, i: any) => s + (Number(i[field]) || 0), 0);
+      const gross = sum("gross_salary");
+      const net = sum("net_salary");
+      const tax = sum("income_tax");
+      const empContrib = sum("pension_contribution") + sum("health_contribution") + sum("unemployment_contribution");
+      const erContrib = (sum("employer_pio") || sum("pension_employer")) + (sum("employer_health") || sum("health_employer"));
+      const subsidy = sum("subsidy_amount");
+      const catId = items[0]?.payroll_category_id;
+      const cat = categories.find((c: any) => c.id === catId);
+      return {
+        id: emp.id, name: emp.full_name,
+        category: cat ? cat.code : "—",
+        gross, net, tax, empContrib, erContrib,
+        totalCost: gross + erContrib,
+        subsidy,
+      };
+    }).filter(Boolean);
+  }, [payrollCostData, employees, categories]);
 
   const monthlyReport = employees.map((emp: any) => {
     const empLogs = workLogs.filter((l: any) => l.employee_id === emp.id);
@@ -189,6 +241,7 @@ export default function HrReports() {
       <Tabs defaultValue="monthly">
         <TabsList className="flex-wrap">
           <TabsTrigger value="monthly">{t("monthlyReport")}</TabsTrigger>
+          <TabsTrigger value="payrollCost">{t("payroll")}</TabsTrigger>
           <TabsTrigger value="leave">{t("annualLeaveReport")}</TabsTrigger>
           <TabsTrigger value="byDepartment">{t("department")}</TabsTrigger>
           <TabsTrigger value="byPosition">{t("position")}</TabsTrigger>
@@ -222,6 +275,56 @@ export default function HrReports() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </CardContent></Card>
+        </TabsContent>
+
+        <TabsContent value="payrollCost">
+          <Card><CardContent className="p-0 overflow-auto">
+            {payrollCostReport.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">{t("noResults")}</p>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead className="sticky left-0 bg-card">{t("employee")}</TableHead>
+                    <TableHead>{t("category")}</TableHead>
+                    <TableHead className="text-right">{t("grossSalary")}</TableHead>
+                    <TableHead className="text-right">{t("netSalary")}</TableHead>
+                    <TableHead className="text-right">{t("tax")}</TableHead>
+                    <TableHead className="text-right">{t("contributions")}</TableHead>
+                    <TableHead className="text-right">{t("employerContrib")}</TableHead>
+                    <TableHead className="text-right font-semibold">{t("totalCost")}</TableHead>
+                    <TableHead className="text-right">{t("subsidies")}</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {payrollCostReport.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="sticky left-0 bg-card font-medium"><span className="text-primary hover:underline cursor-pointer" onClick={() => navigate(`/hr/employees/${r.id}`)}>{r.name}</span></TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{r.category}</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtNum(r.gross)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtNum(r.net)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtNum(r.tax)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtNum(r.empContrib)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtNum(r.erContrib)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtNum(r.totalCost)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.subsidy > 0 ? fmtNum(r.subsidy) : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell className="sticky left-0 bg-muted/50">{t("total")}</TableCell>
+                      <TableCell />
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.gross, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.net, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.tax, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.empContrib, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.erContrib, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.totalCost, 0))}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtNum(payrollCostReport.reduce((s: number, r: any) => s + r.subsidy, 0))}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent></Card>
         </TabsContent>
