@@ -175,36 +175,44 @@ serve(async (req) => {
 
     // Tool-calling loop (max 3 rounds)
     for (let round = 0; round < 3; round++) {
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: conversationMessages,
-          tools: [QUERY_TOOL, PROVIDE_NARRATIVE_TOOL],
-          tool_choice: "auto",
-          stream: false,
-        }),
-      });
+      let aiResponse: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: conversationMessages,
+            tools: [QUERY_TOOL, PROVIDE_NARRATIVE_TOOL],
+            tool_choice: "auto",
+            stream: false,
+          }),
+        });
+        if (aiResponse.ok || (aiResponse.status !== 503 && aiResponse.status !== 500)) break;
+        console.warn(`AI gateway returned ${aiResponse.status}, retry ${attempt + 1}/3`);
+        await aiResponse.text(); // consume body
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      }
 
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
+      if (!aiResponse || !aiResponse.ok) {
+        const status = aiResponse?.status || 500;
+        if (status === 429) {
           return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (aiResponse.status === 402) {
+        if (status === 402) {
           return new Response(JSON.stringify({ error: "Payment required." }), {
             status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        const errText = await aiResponse.text();
-        console.error("AI gateway error:", aiResponse.status, errText);
-        return new Response(JSON.stringify({ error: "AI service error" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        const errText = aiResponse ? await aiResponse.text() : "No response";
+        console.error("AI gateway error:", status, errText);
+        return new Response(JSON.stringify({ error: "AI service temporarily unavailable, please try again." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
