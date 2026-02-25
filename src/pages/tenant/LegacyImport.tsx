@@ -11,11 +11,12 @@ import {
   AlertTriangle, FileArchive, ChevronDown, ChevronUp, SkipForward,
   ArrowRight, RefreshCw, Search, Info,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTenant } from "@/hooks/useTenant";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -40,7 +41,6 @@ interface FileAnalysis {
   skipReason?: string;
   requiresParent?: string;
   parseError?: string;
-  // UI state
   accepted: boolean;
   overrideTarget?: string;
 }
@@ -83,7 +83,7 @@ const CONFIDENCE_LABELS: Record<Confidence, string> = {
   none: "Unmapped",
 };
 
-// ─── FileRow — defined BEFORE default export to avoid React ref warnings ───────
+// ─── FileRow ───────────────────────────────────────────────────────────────────
 
 const FileRow = memo(function FileRow({ file, onToggleAccept, onSetOverride }: {
   file: FileAnalysis;
@@ -94,16 +94,13 @@ const FileRow = memo(function FileRow({ file, onToggleAccept, onSetOverride }: {
 
   return (
     <div className={`px-4 py-3 flex items-center gap-3 flex-wrap transition-colors ${file.accepted ? "bg-primary/5" : "opacity-60"}`}>
-      {/* Accept/skip toggle */}
       <button
         onClick={onToggleAccept}
         className={`shrink-0 rounded-full p-1 transition-colors ${file.accepted ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted"}`}
-        title={file.accepted ? "Click to skip" : "Click to include"}
       >
         {file.accepted ? <CheckCircle2 className="h-5 w-5" /> : <SkipForward className="h-5 w-5" />}
       </button>
 
-      {/* Filename + meta */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{file.filename}</p>
         <p className="text-xs text-muted-foreground">
@@ -112,7 +109,6 @@ const FileRow = memo(function FileRow({ file, onToggleAccept, onSetOverride }: {
         </p>
       </div>
 
-      {/* Confidence badge + tooltip */}
       <TooltipProvider delayDuration={200}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -125,7 +121,6 @@ const FileRow = memo(function FileRow({ file, onToggleAccept, onSetOverride }: {
         </Tooltip>
       </TooltipProvider>
 
-      {/* Target table selector */}
       <div className="flex items-center gap-2 shrink-0">
         <ArrowRight className="h-4 w-4 text-muted-foreground" />
         <Select value={effectiveTarget || ""} onValueChange={onSetOverride}>
@@ -143,7 +138,7 @@ const FileRow = memo(function FileRow({ file, onToggleAccept, onSetOverride }: {
   );
 });
 
-// ─── ResultRow — defined BEFORE default export ─────────────────────────────────
+// ─── ResultRow ─────────────────────────────────────────────────────────────────
 
 const ResultRow = memo(function ResultRow({ entry }: { entry: ProgressEntry }) {
   const [errOpen, setErrOpen] = useState(false);
@@ -162,8 +157,8 @@ const ResultRow = memo(function ResultRow({ entry }: { entry: ProgressEntry }) {
         <span className="font-medium text-foreground flex-1 min-w-0 truncate">{entry.filename}</span>
         <span className="text-xs text-muted-foreground">→ {entry.targetTable}</span>
 
-        {entry.status === "running" && <span className="text-xs text-muted-foreground italic">importing…</span>}
-        {entry.status === "pending" && <span className="text-xs text-muted-foreground italic">waiting…</span>}
+        {entry.status === "running" && <span className="text-xs text-muted-foreground italic">{entry.status}…</span>}
+        {entry.status === "pending" && <span className="text-xs text-muted-foreground italic">{entry.status}…</span>}
         {result && (
           <>
             <span className="text-primary font-medium text-xs">✓ {result.inserted.toLocaleString()} inserted</span>
@@ -207,6 +202,8 @@ const IMPORT_TASKS: ImportTask[] = [
 ];
 
 const IndividualImports = memo(function IndividualImports() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
   const [statuses, setStatuses] = useState<Record<string, IndividualStatus>>({});
   const [results, setResults] = useState<Record<string, { inserted: number; skipped: number; errors: string[] }>>({});
   const [files, setFiles] = useState<Record<string, File>>({});
@@ -216,7 +213,7 @@ const IndividualImports = memo(function IndividualImports() {
 
   const runImport = async (task: ImportTask) => {
     const file = files[task.key];
-    if (!file) { toast.error("Please select the CSV file first"); return; }
+    if (!file) { toast({ title: t("pleaseSelectCsvFirst"), variant: "destructive" }); return; }
     try {
       setStatus(task.key, "uploading");
       const { error: uploadError } = await supabase.storage.from("legacy-imports").upload(task.csvFilename, file, { upsert: true });
@@ -227,13 +224,13 @@ const IndividualImports = memo(function IndividualImports() {
         headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
+      if (!res.ok) throw new Error(data.error || t("importFailed"));
       setResult(task.key, data);
       setStatus(task.key, "done");
-      toast.success(`${task.label}: ${data.inserted} inserted, ${data.skipped} skipped`);
+      toast({ title: `${task.label}: ${data.inserted} ${t("inserted")}, ${data.skipped} ${t("skipped")}` });
     } catch (err: any) {
       setStatus(task.key, "error");
-      toast.error(`${task.label} import failed: ${err.message}`);
+      toast({ title: `${task.label} ${t("importFailed")}: ${err.message}`, variant: "destructive" });
     }
   };
 
@@ -253,8 +250,8 @@ const IndividualImports = memo(function IndividualImports() {
                   <p className="text-sm font-medium">{task.label}</p>
                   <p className="text-xs text-muted-foreground">{task.description}</p>
                 </div>
-                {status === "done" && <Badge className="bg-primary text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />Done</Badge>}
-                {status === "error" && <Badge variant="destructive" className="text-xs"><XCircle className="h-3 w-3 mr-1" />Error</Badge>}
+                {status === "done" && <Badge className="bg-primary text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />{t("done")}</Badge>}
+                {status === "error" && <Badge variant="destructive" className="text-xs"><XCircle className="h-3 w-3 mr-1" />{t("error")}</Badge>}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <label className="cursor-pointer">
@@ -263,19 +260,19 @@ const IndividualImports = memo(function IndividualImports() {
                     if (f) setFiles((p) => ({ ...p, [task.key]: f }));
                   }} />
                   <Button variant="outline" size="sm" asChild>
-                    <span><Upload className="h-3 w-3 mr-1" />{file ? file.name : `Select ${task.csvFilename}`}</span>
+                    <span><Upload className="h-3 w-3 mr-1" />{file ? file.name : `${t("selectCsvFile")} ${task.csvFilename}`}</span>
                   </Button>
                 </label>
                 <Button size="sm" onClick={() => runImport(task)} disabled={!file || status === "uploading" || status === "importing"}>
                   {(status === "uploading" || status === "importing") && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                  {status === "uploading" ? "Uploading…" : status === "importing" ? "Importing…" : "Run Import"}
+                  {status === "uploading" ? t("uploading") : status === "importing" ? t("importing") : t("runImport")}
                 </Button>
               </div>
               {result && (
                 <div className="flex gap-4 text-xs bg-background rounded px-3 py-2">
-                  <span className="text-primary font-medium">✓ {result.inserted} inserted</span>
-                  <span className="text-muted-foreground">{result.skipped} skipped</span>
-                  {result.errors.length > 0 && <span className="text-destructive">{result.errors.length} errors</span>}
+                  <span className="text-primary font-medium">✓ {result.inserted} {t("inserted")}</span>
+                  <span className="text-muted-foreground">{result.skipped} {t("skipped")}</span>
+                  {result.errors.length > 0 && <span className="text-destructive">{result.errors.length} {t("errors")}</span>}
                 </div>
               )}
             </CardContent>
@@ -289,7 +286,9 @@ const IndividualImports = memo(function IndividualImports() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function LegacyImport() {
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { toast } = useToast();
   const [screen, setScreen] = useState<Screen>("upload");
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -314,14 +313,14 @@ export default function LegacyImport() {
     setDragging(false);
     const f = e.dataTransfer.files[0];
     if (f && f.name.endsWith(".zip")) setZipFile(f);
-    else toast.error("Please drop a .zip file");
-  }, []);
+    else toast({ title: t("pleaseDropZip"), variant: "destructive" });
+  }, [toast, t]);
 
   // ── Phase 1: Upload + Analyze ─────────────────────────────────────────────
 
   const handleAnalyze = async () => {
     if (!zipFile) return;
-    if (!tenantId) { toast.error("No tenant selected"); return; }
+    if (!tenantId) { toast({ title: t("noTenantSelected"), variant: "destructive" }); return; }
 
     try {
       const { data: session, error: sessionErr } = await supabase
@@ -372,10 +371,6 @@ export default function LegacyImport() {
         autoSkip: f.autoSkip || f.isEmpty,
         skipReason: f.skipReason,
         requiresParent: f.requiresParent,
-        // BUG FIX (Bug 7): auto-accept ALL exact/high confidence, non-empty, non-skip files.
-        // Previously this worked but the "skip" target files were leaking through because
-        // autoSkip was not being set properly for exact-confidence skip entries.
-        // Now we explicitly exclude targetTable==="skip" to prevent them from being accepted.
         accepted: (f.confidence === "exact" || f.confidence === "high")
           && !f.isEmpty
           && !f.autoSkip
@@ -386,11 +381,11 @@ export default function LegacyImport() {
       setFiles(analyzed);
       setAnalyzing(false);
       setScreen("review");
-      toast.success(`Analyzed ${data.totalCsvFiles} CSV files`);
+      toast({ title: `${t("analyzed")} ${data.totalCsvFiles} CSV` });
     } catch (err: any) {
       setUploading(false);
       setAnalyzing(false);
-      toast.error(`Analysis failed: ${err.message}`);
+      toast({ title: t("importFailed"), description: err.message, variant: "destructive" });
     }
   };
 
@@ -409,11 +404,10 @@ export default function LegacyImport() {
       .filter((m) => m.targetTable);
 
     if (confirmedMapping.length === 0) {
-      toast.error("No files selected for import");
+      toast({ title: t("noFilesSelected"), variant: "destructive" });
       return;
     }
 
-    // Set up progress tracker
     const entries: ProgressEntry[] = confirmedMapping.map((m) => ({
       filename: m.filename,
       targetTable: m.targetTable!,
@@ -423,7 +417,6 @@ export default function LegacyImport() {
     setImportDoneCount(0);
     setScreen("importing");
 
-    // Process one at a time
     for (let i = 0; i < confirmedMapping.length; i++) {
       const mapping = confirmedMapping[i];
 
@@ -450,7 +443,7 @@ export default function LegacyImport() {
 
         if (!res.ok) {
           setProgressEntries((prev) =>
-            prev.map((e, idx) => idx === i ? { ...e, status: "error", error: data.error || "Import failed" } : e)
+            prev.map((e, idx) => idx === i ? { ...e, status: "error", error: data.error || t("importFailed") } : e)
           );
         } else {
           const result: ImportResult = data.results?.[mapping.filename] || { inserted: 0, skipped: 0, errors: [] };
@@ -468,7 +461,7 @@ export default function LegacyImport() {
     }
 
     setScreen("results");
-    toast.success("Import complete!");
+    toast({ title: t("importCompleteTitle") });
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -481,7 +474,6 @@ export default function LegacyImport() {
     setFiles((prev) => prev.map((f) => f.filename === filename ? { ...f, overrideTarget: target, accepted: true } : f));
   }, []);
 
-  // Categorize files
   const autoSkippedFiles = files.filter((f) => f.autoSkip && !f.isEmpty);
   const emptyFiles = files.filter((f) => f.isEmpty);
   const nonEmptyFiles = files.filter((f) => !f.isEmpty && !f.autoSkip);
@@ -493,7 +485,6 @@ export default function LegacyImport() {
   const highCount = mappedFiles.filter((f) => f.confidence === "high").length;
   const mediumCount = mappedFiles.filter((f) => f.confidence === "medium").length;
 
-  // Search filter for mapped files
   const q = searchQuery.toLowerCase();
   const filteredMapped = mappedFiles.filter((f) =>
     !q || f.filename.toLowerCase().includes(q) || (f.suggestedTarget || "").includes(q)
@@ -517,16 +508,16 @@ export default function LegacyImport() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Legacy Data Import"
+        title={t("legacyDataImport")}
         icon={FileArchive}
-        description="Upload a ZIP archive with CSV exports — the system maps each file to a system table for your review before importing"
+        description={t("legacyImportDesc")}
       />
 
       <Card className="border-warning/30 bg-warning/5">
         <CardContent className="flex items-start gap-3 py-4">
           <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
-            <strong className="text-foreground">Two-phase pipeline.</strong> Phase 1 analyzes the ZIP and shows a mapping preview — no data is written. Phase 2 imports one file at a time with live progress. Deduplication runs on every insert.
+            <strong className="text-foreground">{t("twoPhaseNote")}</strong> {t("twoPhaseDesc")}
           </div>
         </CardContent>
       </Card>
@@ -535,8 +526,8 @@ export default function LegacyImport() {
       {screen === "upload" && (
         <Card>
           <CardHeader>
-            <CardTitle>Upload ZIP Archive</CardTitle>
-            <CardDescription>Drop your legacy export ZIP — up to 500 MB, containing any number of CSV files</CardDescription>
+            <CardTitle>{t("uploadZipArchive")}</CardTitle>
+            <CardDescription>{t("uploadZipDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div
@@ -566,8 +557,8 @@ export default function LegacyImport() {
                 </div>
               ) : (
                 <div>
-                  <p className="font-medium text-muted-foreground">Drop your .zip file here or click to select</p>
-                  <p className="text-sm text-muted-foreground mt-1">Supports up to 500 MB</p>
+                  <p className="font-medium text-muted-foreground">{t("dropZipHere")}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t("supportsUpTo500mb")}</p>
                 </div>
               )}
             </div>
@@ -576,7 +567,7 @@ export default function LegacyImport() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {uploading ? `Uploading… ${uploadProgress}%` : "Analyzing CSV files — inspecting headers and matching patterns…"}
+                    {uploading ? `${t("uploading")} ${uploadProgress}%` : t("analyzingCsvFiles")}
                   </span>
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
                 </div>
@@ -591,9 +582,9 @@ export default function LegacyImport() {
               disabled={!zipFile || uploading || analyzing}
             >
               {uploading || analyzing ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{uploading ? "Uploading…" : "Analyzing…"}</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{uploading ? t("uploading") : t("analyzing")}</>
               ) : (
-                <><ArrowRight className="h-4 w-4 mr-2" />Analyze ZIP</>
+                <><ArrowRight className="h-4 w-4 mr-2" />{t("analyzeZip")}</>
               )}
             </Button>
           </CardContent>
@@ -603,42 +594,39 @@ export default function LegacyImport() {
       {/* ── SCREEN 2: Mapping Review ── */}
       {screen === "review" && (
         <div className="space-y-4">
-          {/* Summary bar */}
           <Card>
             <CardContent className="py-4 flex flex-wrap gap-4 items-center justify-between">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm items-center">
-                <span className="font-medium text-foreground">{files.length} CSV files found</span>
-                <span className="text-primary font-medium">{exactCount} exact · {highCount} high</span>
+                <span className="font-medium text-foreground">{files.length} {t("csvFilesFound")}</span>
+                <span className="text-primary font-medium">{exactCount} {t("exact")} · {highCount} high</span>
                 <span className="text-warning">{mediumCount} medium</span>
-                <span className="text-muted-foreground">{autoSkippedFiles.length + emptyFiles.length} auto-skipped</span>
-                <span className="text-muted-foreground">{unmappedFiles.length} unmapped</span>
+                <span className="text-muted-foreground">{autoSkippedFiles.length + emptyFiles.length} {t("autoSkipped")}</span>
+                <span className="text-muted-foreground">{unmappedFiles.length} {t("unmapped")}</span>
               </div>
               <Button variant="outline" size="sm" onClick={resetAll}>
-                <RefreshCw className="h-4 w-4 mr-1" /> Upload different ZIP
+                <RefreshCw className="h-4 w-4 mr-1" /> {t("uploadDifferentZip")}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search files by name or target table…"
+              placeholder={t("searchFilesPlaceholder")}
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          {/* Mapped files */}
           {filteredMapped.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary" />
-                  Mapped Files ({filteredMapped.length}{q ? ` of ${mappedFiles.length}` : ""})
+                  {t("mappedFiles")} ({filteredMapped.length}{q ? ` of ${mappedFiles.length}` : ""})
                 </CardTitle>
-                <CardDescription>Hover the confidence badge to see why each file was mapped. Toggle ✓/→ to include/skip.</CardDescription>
+                <CardDescription>{t("mappedFilesDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y divide-border">
@@ -647,7 +635,7 @@ export default function LegacyImport() {
                       key={f.filename}
                       file={f}
                       onToggleAccept={() => toggleAccept(f.filename)}
-                      onSetOverride={(t) => setOverride(f.filename, t)}
+                      onSetOverride={(tbl) => setOverride(f.filename, tbl)}
                     />
                   ))}
                 </div>
@@ -655,7 +643,6 @@ export default function LegacyImport() {
             </Card>
           )}
 
-          {/* Unmapped files */}
           {filteredUnmapped.length > 0 && (
             <Collapsible open={unmappedOpen} onOpenChange={setUnmappedOpen}>
               <Card>
@@ -664,7 +651,7 @@ export default function LegacyImport() {
                     <CardTitle className="text-base flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-warning" />
-                        Unmapped ({filteredUnmapped.length}) — needs manual assignment
+                        {t("unmapped")} ({filteredUnmapped.length}) — {t("unmappedNeedsAssignment")}
                       </span>
                       {unmappedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </CardTitle>
@@ -678,7 +665,7 @@ export default function LegacyImport() {
                           key={f.filename}
                           file={f}
                           onToggleAccept={() => toggleAccept(f.filename)}
-                          onSetOverride={(t) => setOverride(f.filename, t)}
+                          onSetOverride={(tbl) => setOverride(f.filename, tbl)}
                         />
                       ))}
                     </div>
@@ -688,14 +675,13 @@ export default function LegacyImport() {
             </Collapsible>
           )}
 
-          {/* Auto-skipped lookup/config tables */}
           {autoSkippedFiles.length > 0 && !q && (
             <Collapsible open={emptyOpen} onOpenChange={setEmptyOpen}>
               <CollapsibleTrigger className="w-full">
                 <div className="flex items-center justify-between text-sm text-muted-foreground px-1 py-1 hover:text-foreground transition-colors cursor-pointer">
                   <span className="flex items-center gap-2">
                     <SkipForward className="h-4 w-4" />
-                    {autoSkippedFiles.length} lookup/config tables — auto-skipped
+                    {autoSkippedFiles.length} {t("lookupTablesAutoSkipped")}
                   </span>
                   {emptyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 </div>
@@ -710,14 +696,13 @@ export default function LegacyImport() {
             </Collapsible>
           )}
 
-          {/* Empty files — always auto-skipped, just show a count */}
           {emptyFiles.length > 0 && !q && (
             <Collapsible>
               <CollapsibleTrigger className="w-full">
                 <div className="flex items-center justify-between text-sm text-muted-foreground px-1 py-1 hover:text-foreground transition-colors cursor-pointer">
                   <span className="flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
-                    {emptyFiles.length} empty files — automatically skipped
+                    {emptyFiles.length} {t("emptyFilesSkipped")}
                   </span>
                   <ChevronDown className="h-3 w-3" />
                 </div>
@@ -732,10 +717,9 @@ export default function LegacyImport() {
             </Collapsible>
           )}
 
-          {/* Import button */}
           <div className="flex justify-between items-center pt-2">
             <p className="text-sm text-muted-foreground">
-              {acceptedCount} file{acceptedCount !== 1 ? "s" : ""} selected for import
+              {acceptedCount} {t("filesSelectedForImport")}
             </p>
             <Button
               size="lg"
@@ -743,7 +727,7 @@ export default function LegacyImport() {
               disabled={acceptedCount === 0}
             >
               <Upload className="h-4 w-4 mr-2" />
-              Run Import for {acceptedCount} file{acceptedCount !== 1 ? "s" : ""}
+              {t("runImportFor")} {acceptedCount}
             </Button>
           </div>
         </div>
@@ -755,9 +739,9 @@ export default function LegacyImport() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              Importing… ({importDoneCount} of {progressEntries.length})
+              {t("importingProgress")} ({importDoneCount} / {progressEntries.length})
             </CardTitle>
-            <CardDescription>Files are imported one at a time — even if one fails, others continue</CardDescription>
+            <CardDescription>{t("importingDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-1">
             <Progress value={(importDoneCount / progressEntries.length) * 100} className="h-2 mb-4" />
@@ -777,12 +761,12 @@ export default function LegacyImport() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-6 w-6 text-primary" />
-                Import Complete
+                {t("importCompleteTitle")}
               </CardTitle>
               <CardDescription>
-                {progressEntries.filter((e) => e.status === "done").length} succeeded ·{" "}
-                {progressEntries.filter((e) => e.status === "error").length} failed ·{" "}
-                {progressEntries.reduce((sum, e) => sum + (e.result?.inserted ?? 0), 0).toLocaleString()} total rows inserted
+                {progressEntries.filter((e) => e.status === "done").length} {t("succeeded")} ·{" "}
+                {progressEntries.filter((e) => e.status === "error").length} {t("failed")} ·{" "}
+                {progressEntries.reduce((sum, e) => sum + (e.result?.inserted ?? 0), 0).toLocaleString()} {t("totalRowsInserted")}
               </CardDescription>
             </CardHeader>
             <CardContent className="divide-y divide-border">
@@ -794,10 +778,10 @@ export default function LegacyImport() {
 
           <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={resetAll}>
-              <Upload className="h-4 w-4 mr-2" /> Import Another ZIP
+              <Upload className="h-4 w-4 mr-2" /> {t("importAnotherZip")}
             </Button>
             <Button variant="outline" onClick={() => setScreen("review")}>
-              Back to Mapping
+              {t("backToMapping")}
             </Button>
           </div>
         </div>
@@ -807,7 +791,7 @@ export default function LegacyImport() {
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" className="w-full justify-between text-muted-foreground" size="sm">
-            Advanced: Individual CSV imports
+            {t("advancedIndividualImports")}
             {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
