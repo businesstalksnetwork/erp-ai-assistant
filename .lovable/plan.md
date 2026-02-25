@@ -1,166 +1,86 @@
 
 
-# Hardcoded Dependencies and Broken Connections: Full Audit
+# Phase 2: Migrate Remaining 8 Hardcoded Files to Posting Rules Engine
 
-## Overview
+## Current State
 
-I found **9 files** with hardcoded GL account codes, **2 modules with no GL posting at all** (despite being financial operations), and **1 engine-level hardcoded VAT rate**. Here is the complete inventory, grouped by severity.
+Phase 1 (completed) connected `CashRegister.tsx` and `IntercompanyTransactions.tsx` to the posting rules engine via `postWithRuleOrFallback`, added 21 new payment model codes to `PAYMENT_MODEL_KEYS`, seeded them in the database, and fixed the hardcoded VAT rate.
 
----
+**8 files still use hardcoded `createCodeBasedJournalEntry` with string literal account codes.**
 
-## Category 1: Modules With Zero GL Posting (Broken Connections)
+## Files to Migrate
 
-These modules create financial records but never generate journal entries, breaking the data flow documented in the dependency matrix.
+Each file will be refactored to use `postWithRuleOrFallback` from `src/lib/postingHelper.ts`, keeping the current hardcoded accounts as fallback lines. The model codes already exist in `PAYMENT_MODEL_KEYS`.
 
-| File | What It Does | What Is Missing |
-|------|-------------|-----------------|
-| `CashRegister.tsx` | Inserts cash in/out rows into `cash_register` table | No `createCodeBasedJournalEntry` call. Cash movements never reach the GL. A receipt of 10,000 RSD in cash produces no DR 1000 / CR entry. |
-| `IntercompanyTransactions.tsx` | Inserts rows into `intercompany_transactions` | No journal entries created on posting. The "posted" status is a label with no accounting effect. Consolidation elimination has no GL backing. |
+### 1. GoodsReceipts.tsx (1 posting point)
+- **Trigger**: Status set to "completed"
+- **Model**: `GOODS_RECEIPT`
+- **Hardcoded**: DR 1200 (Inventory) / CR 2100 (AP/GRNI)
+- **Change**: Replace lines 161-174 with `postWithRuleOrFallback` call
 
-**Impact**: Financial reports (Trial Balance, P&L, Balance Sheet) will not reflect cash register activity or intercompany transactions. These are phantom modules from an accounting perspective.
+### 2. SupplierInvoices.tsx (2 posting points)
+- **Approval** (lines 190-216): Model `SUPPLIER_INVOICE_POST`
+  - DR 7000 (COGS) + DR 4700 (Input VAT) / CR 2100 (AP)
+- **Payment** (lines 218-239): Model `SUPPLIER_INVOICE_PAYMENT`
+  - DR 2100 (AP) / CR 1000 (Bank)
+- **Complexity**: Approval has conditional VAT line -- `postWithRuleOrFallback` handles this via `TAX_AMOUNT` amount source with `taxRate` context
 
----
+### 3. Returns.tsx (4 posting points in `postReturnAccounting`)
+- **Customer return restock** (lines 196-204): Model `CUSTOMER_RETURN_RESTOCK`
+  - DR 1200 / CR 7000
+- **Customer credit note** (lines 209-217): Model `CUSTOMER_RETURN_CREDIT`
+  - DR 4000 / CR 1200
+- **Supplier return** (lines 229-236): Model `SUPPLIER_RETURN`
+  - DR 2100 / CR 1200
+- **Credit note issuance** (lines 308-318): Model `CREDIT_NOTE_ISSUED`
+  - DR 6000 / CR 2040
 
-## Category 2: Hardcoded Account Codes in Client-Side GL Posting (9 Files)
+### 4. Loans.tsx (2 posting points in `recordPaymentMutation`)
+- **Payable** (lines 146-149): Model `LOAN_PAYMENT_PAYABLE`
+  - DR 4200 (principal) + DR 5330 (interest) / CR 2431 (bank)
+- **Receivable** (lines 151-154): Model `LOAN_PAYMENT_RECEIVABLE`
+  - DR 2431 (bank) / CR 2040 (loan receivable) + CR 6020 (interest income)
+- **Complexity**: Multi-line with different amounts per line (principal vs interest). Will use `FULL` amount source with the total payment as amount, keeping individual line amounts in fallback. The engine handles this via `amount_factor` on each rule line.
 
-Each file below constructs journal lines with string literals like `"1200"`, `"2100"`, etc. If a tenant uses a different chart of accounts, all postings break silently (wrong accounts receive entries).
+### 5. Kompenzacija.tsx (1 posting point)
+- **Trigger**: Confirm compensation (line 97-106)
+- **Model**: `COMPENSATION`
+- **Hardcoded**: DR 4350 (AP) / CR 2040 (AR)
 
-| File | Hardcoded Accounts | Purpose |
-|------|--------------------|---------|
-| `GoodsReceipts.tsx` | 1200, 2100 | Inventory DR / AP CR on goods receipt |
-| `SupplierInvoices.tsx` | 7000, 4700, 2100, 1000 | COGS, Input VAT, AP, Bank on invoice approval and payment |
-| `Returns.tsx` | 1200, 7000, 4000, 2100, 6000, 2040, 4320 | COGS reversal, revenue reversal, AP clearing, credit notes (4 separate entry types) |
-| `Loans.tsx` | 4200, 5330, 2431, 2040, 6020 | Loan principal, interest expense/income, bank account |
-| `Kompenzacija.tsx` | 4350, 2040 | AP/AR offset |
-| `FixedAssets.tsx` | 0121, 0120, 2431, 6072, 5073, 5310 | Depreciation, disposal gain/loss, accumulated depreciation |
-| `FxRevaluation.tsx` | 2040, 4350, 6072, 5072 | FX gains/losses on AR/AP |
-| `Deferrals.tsx` | 4600, 6010, 5400, 1500 | Deferred revenue/expense recognition |
-| `BankStatements.tsx` | 2410, 2040, 4350 | Legacy fallback when no posting rule matches |
+### 6. FixedAssets.tsx (2 posting points)
+- **Depreciation** (lines 184-192): Model `ASSET_DEPRECIATION`
+  - DR 5310 / CR 0121
+- **Disposal** (lines 94-132): Model `ASSET_DISPOSAL`
+  - DR 0121 (accum dep) + DR 2431 (sale proceeds) / CR 0120 (asset cost) + CR/DR 6072/5073 (gain/loss)
+  - **Complexity**: Disposal has variable number of lines based on sale vs scrap and gain vs loss. Will keep as fallback-heavy with rule override possible.
 
-**Total**: **31 unique hardcoded account codes** across 9 files.
+### 7. FxRevaluation.tsx (1 posting point)
+- **Trigger**: Post revaluation (lines 186-257)
+- **Models**: `FX_GAIN` and `FX_LOSS`
+- **Hardcoded**: DR 2040/4350 / CR 6072 (gains); DR 5072 / CR 2040/4350 (losses)
+- **Complexity**: Dynamic number of lines based on AR/AP split. Will use two separate `postWithRuleOrFallback` calls (one for gains, one for losses) or keep complex logic with fallback.
 
----
+### 8. Deferrals.tsx (1 posting point)
+- **Trigger**: Recognize period (lines 99-149)
+- **Models**: `DEFERRAL_REVENUE` and `DEFERRAL_EXPENSE`
+- **Revenue**: DR 4600 / CR 6010
+- **Expense**: DR 5400 / CR 1500
 
-## Category 3: Hardcoded VAT Rate in Posting Rule Engine
+## Technical Approach
 
-In `src/lib/postingRuleEngine.ts`, both `simulatePosting` (line 58) and `resolvePostingRuleToJournalLines` (line 176) use:
+For each file:
+1. Import `postWithRuleOrFallback` from `@/lib/postingHelper`
+2. Replace `createCodeBasedJournalEntry` with `postWithRuleOrFallback`, moving current hardcoded lines into the `fallbackLines` parameter
+3. Set the correct `modelCode` from `PAYMENT_MODEL_KEYS`
+4. Pass `context: {}` (empty context is fine for FIXED account rules; dynamic sources not needed yet)
 
-```
-case "TAX_AMOUNT": lineAmount = amount * 0.2; // 20% VAT default
-case "TAX_BASE": lineAmount = amount / 1.2;
-case "NET": lineAmount = amount * 0.8;
-```
+For complex multi-posting files (Returns, FixedAssets, FxRevaluation), each distinct journal entry call gets its own `postWithRuleOrFallback` with its own model code.
 
-Serbia has **three** VAT rates: 20%, 10%, and 0%. The 10% rate applies to food, medicine, newspapers, etc. Any posting rule using `TAX_AMOUNT` or `TAX_BASE` for a 10% item will calculate the wrong amount. The tax rate should come from the transaction context (the `tax_rates` table already exists in the database).
+## Implementation Order
 
----
+Due to message size constraints, this will be split:
+- **Batch A**: GoodsReceipts, SupplierInvoices, Kompenzacija, Deferrals (simpler, 1-2 posting points each)
+- **Batch B**: Returns, Loans, FixedAssets, FxRevaluation (complex, multi-line or conditional logic)
 
-## Category 4: Payroll Legacy Engine (Partially Connected)
-
-`Payroll.tsx` uses the old `posting_rule_catalog` table (flat debit/credit pairs) rather than the new `posting_rules` + `posting_rule_lines` engine. There is a TODO comment at line 107-108 acknowledging this. The `payroll_pt_gl_overrides` table provides per-payment-type GL overrides, which is a workaround for the lack of proper posting rules.
-
----
-
-## Proposed Fix: Migrate All 11 Modules to Posting Rules Engine
-
-The posting rules engine (`posting_rules` + `posting_rule_lines` + `find_posting_rule` RPC) already works for Bank Statements. The fix is to extend it to all other modules.
-
-### Step 1: Define New Payment Model Codes
-
-Add these model codes to `PAYMENT_MODEL_KEYS` in `postingRuleEngine.ts` and seed them via `seed_default_posting_rules`:
-
-| Model Code | For Module |
-|------------|------------|
-| `GOODS_RECEIPT` | GoodsReceipts.tsx |
-| `SUPPLIER_INVOICE_POST` | SupplierInvoices.tsx (approval) |
-| `SUPPLIER_INVOICE_PAYMENT` | SupplierInvoices.tsx (payment) |
-| `CUSTOMER_RETURN_RESTOCK` | Returns.tsx (COGS reversal) |
-| `CUSTOMER_RETURN_CREDIT` | Returns.tsx (credit note) |
-| `SUPPLIER_RETURN` | Returns.tsx (supplier return) |
-| `CREDIT_NOTE_ISSUED` | Returns.tsx (credit note issuance) |
-| `LOAN_PAYMENT_PAYABLE` | Loans.tsx (payable) |
-| `LOAN_PAYMENT_RECEIVABLE` | Loans.tsx (receivable) |
-| `COMPENSATION` | Kompenzacija.tsx |
-| `ASSET_DEPRECIATION` | FixedAssets.tsx |
-| `ASSET_DISPOSAL` | FixedAssets.tsx |
-| `FX_GAIN` | FxRevaluation.tsx |
-| `FX_LOSS` | FxRevaluation.tsx |
-| `DEFERRAL_REVENUE` | Deferrals.tsx |
-| `DEFERRAL_EXPENSE` | Deferrals.tsx |
-| `CASH_IN` | CashRegister.tsx |
-| `CASH_OUT` | CashRegister.tsx |
-| `INTERCOMPANY_POST` | IntercompanyTransactions.tsx |
-| `PAYROLL_NET` | Payroll.tsx (migrate from legacy) |
-| `PAYROLL_TAX` | Payroll.tsx (migrate from legacy) |
-
-### Step 2: Database Migration
-
-Create a migration that:
-1. Adds a `payment_models` seed for each new model code
-2. Creates default `posting_rules` + `posting_rule_lines` for each model with the currently-hardcoded accounts as FIXED defaults
-3. Updates `seed_default_posting_rules` RPC to include all new models
-
-### Step 3: Refactor Each File
-
-For each of the 11 files, replace the hardcoded pattern:
-```typescript
-// BEFORE (hardcoded)
-await createCodeBasedJournalEntry({
-  lines: [
-    { accountCode: "1200", debit: amount, credit: 0, ... },
-    { accountCode: "2100", debit: 0, credit: amount, ... },
-  ],
-});
-```
-
-With the engine pattern (already proven in BankStatements.tsx):
-```typescript
-// AFTER (configurable)
-const rule = await findPostingRule(tenantId, "GOODS_RECEIPT");
-let journalLines;
-if (rule) {
-  journalLines = await resolvePostingRuleToJournalLines(
-    tenantId, rule.lines, amount, dynamicContext
-  );
-} else {
-  // Fallback to hardcoded (temporary, log warning)
-  journalLines = [
-    { accountCode: "1200", debit: amount, credit: 0, ... },
-    { accountCode: "2100", debit: 0, credit: amount, ... },
-  ];
-}
-await createCodeBasedJournalEntry({ ..., lines: journalLines });
-```
-
-### Step 4: Fix Hardcoded VAT in Engine
-
-Update `resolvePostingRuleToJournalLines` to accept a `taxRate` parameter in the context:
-
-```typescript
-interface DynamicContext {
-  // ... existing fields
-  taxRate?: number; // e.g. 0.20 or 0.10
-}
-```
-
-Replace `amount * 0.2` with `amount * (context.taxRate ?? 0.2)` and `amount / 1.2` with `amount / (1 + (context.taxRate ?? 0.2))`.
-
-### Step 5: Add GL Posting to CashRegister and IntercompanyTransactions
-
-These two modules need `createCodeBasedJournalEntry` calls added (via posting rules), triggered when status transitions to "posted" or on record creation.
-
----
-
-## Summary of Work
-
-| Item | Files Affected | Complexity |
-|------|---------------|------------|
-| New payment model codes + seed migration | DB migration + `postingRuleEngine.ts` | Medium |
-| Refactor 9 hardcoded files to use engine | 9 `.tsx` files | Medium (repetitive) |
-| Add GL posting to CashRegister | `CashRegister.tsx` | Low |
-| Add GL posting to IntercompanyTransactions | `IntercompanyTransactions.tsx` | Low |
-| Fix hardcoded VAT rate in engine | `postingRuleEngine.ts` | Low |
-| Migrate Payroll from legacy catalog | `Payroll.tsx`, `PayrollRunDetail.tsx` | High |
-
-This is a large refactor. I recommend implementing it in phases: first the VAT fix and the two missing GL connections (CashRegister + Intercompany), then migrating the 9 hardcoded files one by one, and finally the Payroll legacy migration.
+No database migration needed -- all 21 payment model codes were already seeded in Phase 1.
 
