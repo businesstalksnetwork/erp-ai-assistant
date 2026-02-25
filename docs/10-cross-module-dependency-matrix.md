@@ -10,7 +10,7 @@ HR/Payroll  ───    →     ·     ●     ·      ·      ·     ·     ·
 Inventory   ───    →     ·     ·     ●      ←      ←     ←     ·      ←
 Sales       ───    →     →     ·     →      ●      ·     ·     ←      ←
 Purchasing  ───    →     →     ·     →      ·      ●     ·     ←      ←
-Production  ───    ·     ·     ·     →      ·      ·     ●     ·      ←
+Production  ───    →     ·     ·     →      ·      ·     ●     ·      ←
 CRM         ───    →     →     ·     ·      →      →     ·     ●      ←
 Settings    ───    →     →     →     →      →      →     →     →      ●
 
@@ -53,9 +53,19 @@ Recurring Journals  → template-based                 → createCodeBasedJourna
 
 Year-End Closing    → perform_year_end_closing RPC   → journal_entries (server)    → GL
 
-Kalkulacija         → hardcoded                      → createCodeBasedJournalEntry → GL
+Kalkulacija         → post_kalkulacija RPC           → journal_entries (server)    → GL
 
-Nivelacija          → hardcoded                      → createCodeBasedJournalEntry → GL
+Nivelacija          → post_nivelacija RPC            → journal_entries (server)    → GL
+
+Loans               → hardcoded                      → createCodeBasedJournalEntry → GL
+                      (disbursement/repayment)
+
+Returns             → hardcoded (up to 4 entries)    → createCodeBasedJournalEntry → GL
+                      (COGS reversal, credit note, supplier return, credit note issuance)
+                      (also calls adjust_inventory_stock for restock)
+
+Goods Receipt       → hardcoded                      → createCodeBasedJournalEntry → GL
+                      (also calls adjust_inventory_stock)
 
 Manual Journal      → user-selected accounts         → create_journal_entry_with_lines → GL
 ```
@@ -78,8 +88,9 @@ Quote → Sales Order → Invoice → Post → Journal Entry → GL → Financia
 Purchase Order → Goods Receipt → Supplier Invoice → Post → Journal Entry → GL
                       ↓                                          ↓
               adjust_inventory_stock                     Open Items (AP)
-                      ↓                                          ↓
-              inventory_stock ↑                    Bank Statement Match → Payment
+              + createCodeBasedJournalEntry → GL                 ↓
+                      ↓                            Bank Statement Match → Payment
+              inventory_stock ↑
 ```
 
 ## Data Flow: Payroll Lifecycle
@@ -122,7 +133,7 @@ Update statement_line.journal_entry_id + match_status
 
 | Table | Used By |
 |-------|---------|
-| `partners` | CRM, Sales, Purchasing, Invoices, Supplier Invoices, Bank, Cash Register, Advance Payments |
+| `partners` | CRM, Sales, Purchasing, Invoices, Supplier Invoices, Bank, Cash Register |
 | `chart_of_accounts` | Accounting (all), Payroll, Bank, Posting Rules, Supplier Invoices |
 | `journal_entries` | Accounting (all), Payroll, Bank, Invoices, POS, Fixed Assets, FX, Cash Register |
 | `products` | Inventory, Sales, Purchasing, Production, POS, Invoices |
@@ -144,8 +155,12 @@ Update statement_line.journal_entry_id + match_status
 | Deferrals | Hardcoded | ⏳ Planned |
 | Kompenzacija | Hardcoded | ⏳ Planned |
 | Intercompany | Hardcoded | ⏳ Planned |
-| Kalkulacija | Hardcoded | ⏳ Planned |
-| Nivelacija | Hardcoded | ⏳ Planned |
+| Loans | Hardcoded | ⏳ Planned |
+| Returns | Hardcoded | ⏳ Planned |
+| Goods Receipts | Hardcoded | ⏳ Planned |
+| Kalkulacija | RPC (server-side) | ✅ N/A (server logic) |
+| Nivelacija | RPC (server-side) | ✅ N/A (server logic) |
+| Production Orders | RPC (server-side) | ✅ N/A (server logic) |
 | Invoices | RPC (server-side) | ✅ N/A (server logic) |
 | POS | RPC (server-side) | ✅ N/A (server logic) |
 | Year-End | RPC (server-side) | ✅ N/A (server logic) |
