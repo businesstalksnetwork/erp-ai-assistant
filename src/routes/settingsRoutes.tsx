@@ -27,6 +27,7 @@ const Currencies = React.lazy(() => import("@/pages/tenant/Currencies"));
 const EventMonitor = React.lazy(() => import("@/pages/tenant/EventMonitor"));
 const DataProtection = React.lazy(() => import("@/pages/tenant/DataProtection"));
 const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
+const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/NotificationCategorySettings"));
 
 export const settingsRoutes = (
   <>
@@ -55,5 +56,6 @@ export const settingsRoutes = (
     <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
     <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><DataProtection /></ProtectedRoute>} />
     <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><DmsSettings /></ProtectedRoute>} />
+    <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><NotificationCategorySettings /></ProtectedRoute>} />
   </>
 );

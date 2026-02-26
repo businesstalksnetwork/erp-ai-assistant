@@ -40,3 +40,29 @@ export function getNotificationTypeCategory(notificationType: string): Notificat
   if (notificationType.startsWith("limit_")) return "accounting";
   return null;
 }
+
+/**
+ * Fetches custom overrides from DB, falling back to hardcoded defaults.
+ */
+export async function getCustomCategoriesForRole(
+  tenantId: string,
+  role: TenantRole,
+  supabaseClient: any
+): Promise<NotificationCategory[]> {
+  const { data } = await supabaseClient
+    .from("role_notification_overrides")
+    .select("category, enabled")
+    .eq("tenant_id", tenantId)
+    .eq("role", role);
+
+  if (data && data.length > 0) {
+    return ALL_CATEGORIES.filter((cat) => {
+      const override = data.find((d: any) => d.category === cat);
+      if (override) return override.enabled;
+      // Fall back to default for categories without overrides
+      return getNotificationCategoriesForRole(role).includes(cat);
+    });
+  }
+
+  return getNotificationCategoriesForRole(role);
+}

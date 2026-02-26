@@ -14312,6 +14312,41 @@ export type Database = {
           },
         ]
       }
+      role_notification_overrides: {
+        Row: {
+          category: string
+          created_at: string | null
+          enabled: boolean
+          id: string
+          role: string
+          tenant_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          enabled?: boolean
+          id?: string
+          role: string
+          tenant_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          enabled?: boolean
+          id?: string
+          role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_notification_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_channels: {
         Row: {
           created_at: string

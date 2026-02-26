@@ -30,7 +30,24 @@ function getNotificationCategory(notificationType: string): string | null {
   return null;
 }
 
-function canRoleReceiveCategory(role: string, category: string): boolean {
+async function canRoleReceiveCategory(
+  supabaseAdmin: any,
+  tenantId: string,
+  role: string,
+  category: string
+): Promise<boolean> {
+  // Check for admin overrides first
+  const { data } = await supabaseAdmin
+    .from("role_notification_overrides")
+    .select("enabled")
+    .eq("tenant_id", tenantId)
+    .eq("role", role)
+    .eq("category", category)
+    .maybeSingle();
+
+  if (data) return data.enabled;
+
+  // Fall back to hardcoded defaults
   const allowed = ROLE_CATEGORIES[role] || ROLE_CATEGORIES["user"];
   return allowed.includes(category);
 }
@@ -364,7 +381,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Reminders (category: invoice)
-      if (!canRoleReceiveCategory(userRole, 'invoice')) {
+      if (!(await canRoleReceiveCategory(supabase, company.tenant_id, userRole, 'invoice'))) {
         // Skip reminders for roles without invoice access
       } else {
       const { data: reminders } = await supabase.from('payment_reminders').select('id, title, due_date, amount').eq('company_id', company.id).eq('is_completed', false).in('due_date', [todayStr, tomorrowStr, in7DaysStr]);
@@ -448,7 +465,7 @@ const handler = async (req: Request): Promise<Response> => {
       const pct6m = (yearly / LIMIT_6M) * 100;
 
       // Limit warnings (category: accounting) — skip if role can't receive
-      if (profile.email_limit_6m_warning && canRoleReceiveCategory(userRole, 'accounting')) {
+      if (profile.email_limit_6m_warning && (await canRoleReceiveCategory(supabase, company.tenant_id, userRole, 'accounting'))) {
         for (const t of [{ p: 90, k: 'limit_90_6m', n: 'limit_6m_90' }, { p: 80, k: 'limit_80_6m', n: 'limit_6m_80' }]) {
           if (pct6m >= t.p && !(await wasNotificationSent(supabase, company.id, profile.id, t.n, null, null))) {
             const tpl = await getTemplate(supabase, t.k);
