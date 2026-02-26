@@ -1,100 +1,161 @@
 
 
-# Multi-Track Work Plan: Mobile Verification, Performance, Security & Edge Function Deployment
+# Import kontnog plana iz XLSX fajla
 
-## Track 1: Deploy & Test Edge Functions
+## Analiza ulaznih podataka
 
-### Current State
-- All 3 edge functions exist in `supabase/functions/` and are registered in `supabase/config.toml` with `verify_jwt = false`
-- All 3 return 404 when called — they need to be deployed
-- UI buttons are already wired in `PdvPeriods.tsx`, `BilansStanja.tsx`, `BilansUspeha.tsx`
-- CORS headers are present but **missing Supabase platform headers** — all 3 functions use the minimal `authorization, x-client-info, apikey, content-type` header set, which should be expanded to include `x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version` for reliable browser calls
+Fajl `kontni_plan.xlsx` sadrzi **~2,356 konta** iz BizniSoft sistema — kompletni srpski propisani kontni plan (klase 0-9). Svaki red ima:
 
-### Actions
-1. **Update CORS headers** in all 3 edge functions (`generate-pppdv-xml`, `generate-tax-payment-orders`, `generate-apr-xml`) to include the full Supabase client headers
-2. **Deploy all 3 edge functions** using the deploy tool
-3. **Test each function** with POST requests to verify they respond correctly (401 without auth, proper XML generation with auth)
+| Kolona | Primer | Mapiranje |
+|--------|--------|-----------|
+| Račun (col 2) | `0000`, `411`, `60` | `code` |
+| Naziv računa (col 3) | UPISANE A NEUPLAĆENE OBIČNE AKCIJE | `name` / `name_sr` |
+| Karakter | Dugovni / Potražni | metadata (debit/credit nature) |
+| Knjiženje | dozvoljeno / zabranjeno | determines if account is a posting account or group header |
+| Devizni | True/False | metadata — can store in description |
+| Šifra PDV knjiženja | PDV mapping code | linkage to PDV rules |
 
----
+## Mapiranje srpskih klasa na account_type
 
-## Track 2: Security Scan Results
+Sistem koristi 5 tipova: `asset`, `liability`, `equity`, `revenue`, `expense`. Srpski kontni okvir:
 
-### Already Verified (No Action Needed)
-- `tax_calendar`: RLS enabled, tenant isolation policy using `get_user_tenant_ids(auth.uid())`
-- `cit_advance_payments`: RLS enabled, same tenant isolation policy
-- Both policies cover `ALL` operations (SELECT, INSERT, UPDATE, DELETE)
+```text
+Klasa 0 → asset        (Nematerijalna i osnovna sredstva)
+Klasa 1 → asset        (Zalihe, potraživanja)
+Klasa 2 → liability    (Kratkoročne obaveze i PVR)
+Klasa 3 → asset        (Kratkoročni plasmani, gotovina — 24x bankarski, 10x-13x materijal)
+Klasa 4 → liability    (Dugoročne obaveze, kapital — 40x-42x kapital=equity, 43x-49x=liability)
+Klasa 5 → expense      (Troškovi)
+Klasa 6 → revenue      (Prihodi)
+Klasa 7 → revenue      (Ostali prihodi i dobici)
+Klasa 8 → equity       (Vanbilansne — ali za potrebe sistema equity)
+Klasa 9 → expense      (Obračun troškova — klasa 9)
+```
 
-### Linter Findings (3 warnings, none critical)
-1. **Function Search Path Mutable** (WARN) — some DB functions don't set `search_path`, allowing potential schema injection. Should be fixed by adding `SET search_path = public` to affected functions.
-2. **Extension in Public** (WARN) — extensions installed in `public` schema instead of a dedicated `extensions` schema. Low risk but should be noted.
-3. **Leaked Password Protection Disabled** (WARN) — Supabase auth setting. Can be enabled in the Supabase dashboard under Auth > Settings.
+Finija granulacija za klasu 4:
+- `40x`, `41x`, `42x` → `equity` (Kapital, rezerve, nerasporedjeni dobitak)
+- `43x`-`49x` → `liability` (Dugoročne obaveze, dugoročna PVR)
 
-### Actions
-1. Run `security--run_security_scan` for a full table-level RLS audit
-2. Fix function search path on any new compliance functions created in the migration
-3. Document the extension-in-public and leaked-password findings for the user to address in Supabase dashboard
+## Hijerarhija (parent_id)
 
----
+Kod duži od 1 cifre ima roditelja. Roditelj se odredjuje skraćivanjem koda za jednu cifru:
+- `0000` → parent `000`
+- `000` → parent `00`
+- `00` → parent `0`
+- `0` → nema roditelja (root, level=1)
 
-## Track 3: Mobile Layout Verification
+Level = dužina koda (`0`=1, `00`=2, `000`=3, `0000`=4).
 
-### Current State
-- Login page renders correctly at 390x844 — form fits, no horizontal overflow
-- Dashboard redirects to `/login` when unauthenticated (expected behavior)
-- Cannot test authenticated pages in the browser tool without credentials
+## Plan implementacije
 
-### Known Patterns Already in Place
-- `PageHeader` uses `flex-col sm:flex-row` stacking
-- `MobileFilterBar` collapses filters into a popover on mobile
-- `MobileActionMenu` converts inline buttons to dropdown on mobile
-- Tables use `overflow-x-auto` wrappers
-- Dialogs use `w-[95vw] sm:max-w-lg` pattern
-- POS terminal uses `flex-col lg:flex-row` layout
+### 1. Edge function: `import-kontni-plan`
 
-### Remaining Issue: PDV Period Detail Summary Cards
-Line 461: `grid grid-cols-3 gap-4` — this will squeeze 3 cards into a 390px viewport. Should be `grid grid-cols-1 sm:grid-cols-3 gap-4`.
+Nova edge funkcija koja:
+- Prima XLSX fajl kao FormData upload (ili JSON sa parsiranim redovima)
+- Parsira redove iz XLSX formata
+- Za svaki red:
+  - Izvlači `code` i `name` iz kolona
+  - Računa `account_type` po prefiks-logici iznad
+  - Računa `level` = `code.length`
+  - Obeležava `is_system = true` (propisani kontni plan)
+  - Čuva `name_sr = name` i `name = name` (isti tekst, sve srpski)
+  - Čuva `Knjiženje` info u `description` (npr. "Karakter: Dugovni, Knjiženje: dozvoljeno, Devizni: Da")
+- **Faza 1**: Upsert svih konta (batch po 100, conflict on `tenant_id, code`)
+- **Faza 2**: Update `parent_id` za sve konta — za svaki kod skraćuje za 1 cifru i traži roditelja
+- Vraća `{ inserted, updated, skipped, errors }`
 
-### Actions
-1. Fix `PdvPeriods.tsx` line 461: change `grid-cols-3` to `grid-cols-1 sm:grid-cols-3`
-2. Verify the action buttons in the detail view wrap properly with `flex-wrap` (already present on line 428)
-3. No other critical mobile issues found in the explored code
+Medjutim, posto XLSX parsiranje u Deno edge funkcijama zahteva eksternu biblioteku, **bolji pristup** je parsiranje na klijentskoj strani (u browseru koristeci vec dostupne alate) i slanje JSON podataka na backend.
 
----
+### Konačni pristup: Klijentski import u ChartOfAccounts.tsx
 
-## Track 4: Performance Optimization
+Posto vec postoji `importChartOfAccounts` logika u `import-legacy-zip`, i posto je BizniSoft fajl Excel (ne CSV), najprakticniji pristup je:
 
-### Current Optimizations Already in Place
-- Server-side RPC `dashboard_kpi_summary` for dashboard KPIs (avoids URL overflow)
-- Vite `manualChunks` splits vendor/charts/UI/Supabase into separate bundles
-- `staleTime` configured on dashboard queries (5 min for KPIs, 2 min for drafts)
-- `usePaginatedQuery` hook available with 50-row page size
+**Parsiranje na frontendu** koristeći `xlsx` NPM biblioteku (SheetJS), pa upsert u Supabase direktno sa klijenta.
 
-### Performance Concern: PDV Calculate Mutation (N+1 Query)
-Lines 111-131 in `PdvPeriods.tsx`: The calculate mutation fetches invoice lines **one invoice at a time** in a loop (`for (const inv of invoices || [])` → `select from invoice_lines where invoice_id = inv.id`). For a tenant with 500+ invoices per period, this creates 500+ sequential queries.
+### 2. Dodati `xlsx` dependency
 
-### Actions
-1. **Fix N+1 in PDV calculation**: Refactor to batch-fetch all invoice lines for the period's invoices in a single query using `.in("invoice_id", invoiceIds)`, then group client-side
-2. **Add `staleTime` to PDV queries**: The `pdv_periods` and `pdv_entries` queries have no `staleTime`, causing unnecessary refetches
-3. **Lazy load heavy dashboard widgets**: The dashboard imports 9 chart/widget components synchronously. Consider `React.lazy()` for `RevenueExpensesChart`, `CashFlowChart`, `TopCustomersChart`, `AiInsightsWidget` to reduce initial bundle
+Dodati `xlsx` (SheetJS) paket za parsiranje Excel fajlova u browseru.
 
----
+### 3. Izmene u `ChartOfAccounts.tsx`
 
-## Implementation Summary
+Dodati dugme **"Uvezi kontni plan"** (Import) pored postojećeg "+" dugmeta koje:
 
-| Track | Priority | Changes |
-|-------|----------|---------|
-| Edge Function Deploy | HIGH | Update CORS headers in 3 files, deploy, test |
-| Security | DONE | RLS verified on new tables; 3 non-critical linter warnings |
-| Mobile Fix | LOW | 1 line change in PdvPeriods.tsx (grid-cols-3 → responsive) |
-| Performance | MEDIUM | Fix N+1 query in PDV calculate, add staleTime, lazy load dashboard charts |
+1. Otvara file input dialog za `.xlsx` fajlove
+2. Parsira XLSX koristeći SheetJS
+3. Prikazuje preview dialog sa brojem konta po klasi i potvrdom
+4. Na potvrdu, izvršava batch upsert u 2 faze:
+   - **Faza 1**: Insert/upsert svih konta (bez parent_id)
+   - **Faza 2**: Fetch svih unetih konta, izračunaj parent_id, batch update
 
-### Files Modified
+UI preview dialog prikazuje:
+```text
+Ukupno konta: 2,356
+├── Klasa 0 (Sredstva): 245
+├── Klasa 1 (Zalihe): 312
+├── ...
+Knjiženje dozvoljeno: 1,847
+Grupe (zabranjeno): 509
+Postojeća konta: 85 (biće preskočena)
 
-| File | Change |
+[Uvezi] [Otkaži]
+```
+
+### 4. Mapiranje kolona iz XLSX-a
+
+```typescript
+// Column indices from parsed XLSX
+// Col 0: "+" marker (skip)
+// Col 1: Račun (code)
+// Col 2: Naziv računa (name)
+// Col 3: Analitika
+// Col 4: Karakter (Dugovni/Potražni)
+// Col 5: Knjiženje (dozvoljeno/zabranjeno)
+// Col 6: Devizni (True/False)
+// Col 13: Šifra PDV knjiženja
+
+function mapAccountType(code: string): string {
+  const cls = code.charAt(0);
+  if (cls === '0') return 'asset';
+  if (cls === '1') return 'asset';
+  if (cls === '2') return 'liability';
+  if (cls === '3') return 'asset';
+  if (cls === '4') {
+    const sub = code.substring(0, 2);
+    if (['40','41','42'].includes(sub)) return 'equity';
+    return 'liability';
+  }
+  if (cls === '5') return 'expense';
+  if (cls === '6') return 'revenue';
+  if (cls === '7') return 'revenue';
+  if (cls === '8') return 'equity';
+  if (cls === '9') return 'expense';
+  return 'asset';
+}
+```
+
+### 5. Povezivanje sa zavisnostima i pravilima
+
+Nakon importa, konta se automatski koriste kroz:
+- **Posting Rules Engine** — `findPostingRule` / `resolvePostingRuleToJournalLines` traži konta po `code` u `chart_of_accounts`
+- **Journal Entries** — sva knjiženja referenciraju `account_id` iz `chart_of_accounts`
+- **Financial Reports** — Balance Sheet, Income Statement, Trial Balance filtriraju po `account_type`
+- **PDV Evidence** — konta sa PDV šiframa se mogu koristiti za automatsko mapiranje PDV knjiženja
+
+Posle importa, dodati opciju **"Poveži PDV šifre"** koja mapira `Šifra PDV knjiženja` kolonu na PDV entitete u sistemu.
+
+### 6. Translations
+
+Novi ključevi: `importChartOfAccounts`, `importPreview`, `accountClasses`, `postingAllowed`, `postingForbidden`, `importSuccess`, `importProgress`.
+
+## Sumarni pregled izmena
+
+| Fajl | Izmena |
 |------|--------|
-| `supabase/functions/generate-pppdv-xml/index.ts` | Expand CORS headers |
-| `supabase/functions/generate-tax-payment-orders/index.ts` | Expand CORS headers |
-| `supabase/functions/generate-apr-xml/index.ts` | Expand CORS headers |
-| `src/pages/tenant/PdvPeriods.tsx` | Fix grid-cols-3, fix N+1 query, add staleTime |
-| `src/pages/tenant/Dashboard.tsx` | Lazy load heavy chart components |
+| `package.json` | Dodati `xlsx` dependency |
+| `src/pages/tenant/ChartOfAccounts.tsx` | Dodati Import dugme, XLSX parsing, preview dialog, batch upsert sa parent_id resolution |
+| `src/i18n/translations.ts` | Novi prevodi za import funkcionalnost |
+
+~150 linija novog koda u ChartOfAccounts.tsx (import logika + preview dialog).
+
+Nema potrebe za novom edge funkcijom — sve se radi na klijentu sa direktnim Supabase upsert-om, sto je konzistentno sa postojećom CRUD logikom na stranici.
 
