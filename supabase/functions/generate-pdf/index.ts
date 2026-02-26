@@ -129,6 +129,11 @@ Deno.serve(async (req) => {
       if (forbidden) return forbidden;
       return await generateAssetRevers(admin, body, corsHeaders);
     }
+    if (type === "asset_registry_report") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateAssetRegistryReport(admin, body, corsHeaders);
+    }
 
     // --- Invoice PDF (default) ---
     const { invoice_id } = body;
@@ -667,6 +672,47 @@ async function generateAssetRevers(admin: any, body: any, corsHeaders: Record<st
   </div>`;
 
   return new Response(wrapHtml("Реверс", content), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+// ─── Asset Registry Report PDF ───
+async function generateAssetRegistryReport(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id } = body;
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+  const { data: assets = [] } = await admin.from("assets")
+    .select("*, asset_categories(name), asset_locations(name)")
+    .eq("tenant_id", tenant_id)
+    .order("asset_code");
+
+  const rows = assets.map((a: any, i: number) => `<tr>
+    <td>${i + 1}</td>
+    <td class="right">${a.asset_code}</td>
+    <td>${a.name}</td>
+    <td>${a.asset_type}</td>
+    <td>${a.asset_categories?.name || "—"}</td>
+    <td>${a.asset_locations?.name || "—"}</td>
+    <td class="right">${a.acquisition_cost ? formatNum(Number(a.acquisition_cost)) : "—"}</td>
+    <td class="right">${a.current_value ? formatNum(Number(a.current_value)) : "—"}</td>
+    <td>${a.status}</td>
+  </tr>`).join("");
+
+  const totalAcq = assets.reduce((s: number, a: any) => s + (Number(a.acquisition_cost) || 0), 0);
+  const totalCur = assets.reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+
+  const content = `${companyHeader(legalEntity)}
+  <div class="report-title">REGISTAR IMOVINE</div>
+  <div class="report-subtitle">Ukupno sredstava: ${assets.length} | Datum: ${formatDate(new Date().toISOString())}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+    <div class="summary-box"><div class="summary-label">Nabavna vrednost</div><div class="summary-value">${formatNum(totalAcq)} RSD</div></div>
+    <div class="summary-box"><div class="summary-label">Sadašnja vrednost</div><div class="summary-value">${formatNum(totalCur)} RSD</div></div>
+  </div>
+  <table><thead><tr><th>#</th><th>Šifra</th><th>Naziv</th><th>Tip</th><th>Kategorija</th><th>Lokacija</th><th class="right">Nabavna</th><th class="right">Sadašnja</th><th>Status</th></tr></thead>
+  <tbody>${rows}
+    <tr class="totals-row"><td colspan="6" style="text-align:right;font-weight:bold;">UKUPNO:</td><td class="right">${formatNum(totalAcq)}</td><td class="right">${formatNum(totalCur)}</td><td></td></tr>
+  </tbody></table>`;
+
+  return new Response(wrapHtml("Registar imovine", content), {
     headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
   });
 }
