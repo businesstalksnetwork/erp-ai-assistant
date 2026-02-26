@@ -4,11 +4,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Bell } from "lucide-react";
+import {
+  isPushSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+  isCurrentlySubscribed,
+} from "@/lib/pushSubscription";
 
 const CATEGORIES = ["invoice", "inventory", "approval", "hr", "accounting"] as const;
+const CHANNELS = ["in_app_enabled", "push_enabled", "email_enabled"] as const;
 
 const categoryKeys: Record<string, string> = {
   invoice: "invoiceNotifications",
@@ -18,23 +27,44 @@ const categoryKeys: Record<string, string> = {
   accounting: "accountingNotifications",
 };
 
+const channelKeys: Record<string, string> = {
+  in_app_enabled: "inAppChannel",
+  push_enabled: "pushChannel",
+  email_enabled: "emailChannel",
+};
+
+type ChannelPrefs = Record<string, Record<string, boolean>>;
+
 export function NotificationPreferences() {
   const { user } = useAuth();
   const { tenantId } = useTenant();
   const { t } = useLanguage();
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({});
+  const [prefs, setPrefs] = useState<ChannelPrefs>({});
   const [loading, setLoading] = useState(true);
+  const [pushSupported] = useState(isPushSupported());
+  const [pushActive, setPushActive] = useState(false);
+  const [pushToggling, setPushToggling] = useState(false);
 
   const fetchPrefs = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from("notification_preferences")
-      .select("category, enabled")
+      .select("category, in_app_enabled, push_enabled, email_enabled")
       .eq("user_id", user.id);
 
-    const map: Record<string, boolean> = {};
-    CATEGORIES.forEach((c) => (map[c] = true)); // default all enabled
-    data?.forEach((p) => (map[p.category] = p.enabled));
+    const map: ChannelPrefs = {};
+    CATEGORIES.forEach((c) => {
+      map[c] = { in_app_enabled: true, push_enabled: true, email_enabled: false };
+    });
+    data?.forEach((p: any) => {
+      if (map[p.category]) {
+        map[p.category] = {
+          in_app_enabled: p.in_app_enabled ?? true,
+          push_enabled: p.push_enabled ?? true,
+          email_enabled: p.email_enabled ?? false,
+        };
+      }
+    });
     setPrefs(map);
     setLoading(false);
   }, [user]);
@@ -43,21 +73,57 @@ export function NotificationPreferences() {
     fetchPrefs();
   }, [fetchPrefs]);
 
-  const toggle = async (category: string) => {
+  useEffect(() => {
+    isCurrentlySubscribed().then(setPushActive);
+  }, []);
+
+  const toggleChannel = async (category: string, channel: string) => {
     if (!user || !tenantId) return;
-    const newValue = !prefs[category];
-    setPrefs((prev) => ({ ...prev, [category]: newValue }));
+    const newValue = !prefs[category]?.[channel];
+    setPrefs((prev) => ({
+      ...prev,
+      [category]: { ...prev[category], [channel]: newValue },
+    }));
+
+    const updatePayload: any = {
+      user_id: user.id,
+      tenant_id: tenantId,
+      category,
+      [channel]: newValue,
+    };
 
     const { error } = await supabase
       .from("notification_preferences")
-      .upsert(
-        { user_id: user.id, tenant_id: tenantId, category, enabled: newValue },
-        { onConflict: "user_id,category" }
-      );
+      .upsert(updatePayload, { onConflict: "user_id,category" });
 
     if (error) {
       toast.error(error.message);
-      setPrefs((prev) => ({ ...prev, [category]: !newValue }));
+      setPrefs((prev) => ({
+        ...prev,
+        [category]: { ...prev[category], [channel]: !newValue },
+      }));
+    }
+  };
+
+  const handlePushToggle = async (enable: boolean) => {
+    if (!user || !tenantId) return;
+    setPushToggling(true);
+    try {
+      if (enable) {
+        const ok = await subscribeToPush(user.id, tenantId);
+        if (ok) {
+          setPushActive(true);
+          toast.success(t("pushEnabled"));
+        } else {
+          toast.error(t("pushNotSupported"));
+        }
+      } else {
+        await unsubscribeFromPush(user.id);
+        setPushActive(false);
+        toast.success(t("pushDisabled"));
+      }
+    } finally {
+      setPushToggling(false);
     }
   };
 
@@ -68,17 +134,60 @@ export function NotificationPreferences() {
       <CardHeader>
         <CardTitle>{t("notificationPreferences")}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {CATEGORIES.map((cat) => (
-          <div key={cat} className="flex items-center justify-between">
-            <Label htmlFor={`pref-${cat}`}>{t(categoryKeys[cat] as any)}</Label>
+      <CardContent className="space-y-6">
+        {/* Global push toggle */}
+        {pushSupported && (
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/30">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-primary" />
+              <div>
+                <Label className="font-medium">{t("enablePushNotifications")}</Label>
+                <p className="text-sm text-muted-foreground">
+                  {t("pushNotificationsDescription")}
+                </p>
+              </div>
+            </div>
             <Switch
-              id={`pref-${cat}`}
-              checked={prefs[cat] ?? true}
-              onCheckedChange={() => toggle(cat)}
+              checked={pushActive}
+              onCheckedChange={handlePushToggle}
+              disabled={pushToggling}
             />
           </div>
-        ))}
+        )}
+
+        {/* Matrix table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 pr-4 font-medium text-muted-foreground" />
+                {CHANNELS.map((ch) => (
+                  <th key={ch} className="text-center py-2 px-3 font-medium text-muted-foreground">
+                    {t(channelKeys[ch] as any)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CATEGORIES.map((cat) => (
+                <tr key={cat} className="border-b border-border last:border-0">
+                  <td className="py-3 pr-4 font-medium">
+                    {t(categoryKeys[cat] as any)}
+                  </td>
+                  {CHANNELS.map((ch) => (
+                    <td key={ch} className="text-center py-3 px-3">
+                      <Checkbox
+                        checked={prefs[cat]?.[ch] ?? false}
+                        onCheckedChange={() => toggleChannel(cat, ch)}
+                        disabled={ch === "push_enabled" && !pushActive}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
