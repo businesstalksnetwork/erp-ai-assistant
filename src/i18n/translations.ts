@@ -2464,6 +2464,18 @@ export const translations = {
     saved: "Saved",
     deleted: "Deleted",
     confirmDeleteRecord: "Are you sure you want to delete this record?",
+
+    // Chart of Accounts Import
+    importChartOfAccounts: "Import Chart of Accounts",
+    importPreview: "Import Preview",
+    importPreviewDesc: "Preview accounts to import from Excel file",
+    totalAccounts: "Total accounts",
+    postingAllowed: "Posting allowed",
+    postingForbidden: "Groups (posting forbidden)",
+    importAction: "Import",
+    importPhase1: "Phase 1: Inserting accounts...",
+    importPhase2: "Phase 2: Linking hierarchy...",
+    importSuccess: "Import complete",
   },
   sr: {
     // Auth
@@ -4884,6 +4896,18 @@ export const translations = {
     saved: "Sačuvano",
     deleted: "Obrisano",
     confirmDeleteRecord: "Da li ste sigurni da želite da obrišete ovaj zapis?",
+
+    // Chart of Accounts Import
+    importChartOfAccounts: "Uvezi kontni plan",
+    importPreview: "Pregled uvoza",
+    importPreviewDesc: "Pregled konta za uvoz iz Excel fajla",
+    totalAccounts: "Ukupno konta",
+    postingAllowed: "Knjiženje dozvoljeno",
+    postingForbidden: "Grupe (zabranjeno)",
+    importAction: "Uvezi",
+    importPhase1: "Faza 1: Unos konta...",
+    importPhase2: "Faza 2: Povezivanje hijerarhije...",
+    importSuccess: "Uvoz završen",
   },
 } as const;
 

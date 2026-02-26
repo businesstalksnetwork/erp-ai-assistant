@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import ImportChartOfAccounts from "@/components/accounting/ImportChartOfAccounts";
 
 const ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"] as const;
 
@@ -144,7 +145,10 @@ export default function ChartOfAccounts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("chartOfAccounts")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        <div className="flex gap-2">
+          <ImportChartOfAccounts />
+          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
