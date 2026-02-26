@@ -1113,6 +1113,413 @@ export type Database = {
           },
         ]
       }
+      asset_assignments: {
+        Row: {
+          asset_id: string
+          assigned_by: string | null
+          assigned_date: string
+          assignment_type: string
+          created_at: string
+          employee_id: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          returned_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          assigned_by?: string | null
+          assigned_date?: string
+          assignment_type?: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          returned_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          assigned_by?: string | null
+          assigned_date?: string
+          assignment_type?: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          returned_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_assignments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_assignments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "asset_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_categories: {
+        Row: {
+          asset_type: string
+          code: string
+          code_prefix: string
+          created_at: string
+          default_accumulation_account: string | null
+          default_depreciation_account: string | null
+          default_depreciation_method: string | null
+          default_expense_account: string | null
+          default_useful_life_months: number | null
+          id: string
+          is_active: boolean
+          name: string
+          name_sr: string | null
+          parent_id: string | null
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          asset_type?: string
+          code: string
+          code_prefix?: string
+          created_at?: string
+          default_accumulation_account?: string | null
+          default_depreciation_account?: string | null
+          default_depreciation_method?: string | null
+          default_expense_account?: string | null
+          default_useful_life_months?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          asset_type?: string
+          code?: string
+          code_prefix?: string
+          created_at?: string
+          default_accumulation_account?: string | null
+          default_depreciation_account?: string | null
+          default_depreciation_method?: string | null
+          default_expense_account?: string | null
+          default_useful_life_months?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_documents: {
+        Row: {
+          asset_id: string
+          created_at: string
+          document_type: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          notes: string | null
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          document_type?: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_documents_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_locations: {
+        Row: {
+          address: string | null
+          cost_center_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          location_type: string
+          name: string
+          parent_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_type?: string
+          name: string
+          parent_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location_type?: string
+          name?: string
+          parent_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_locations_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_locations_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "asset_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          acquisition_cost: number | null
+          acquisition_date: string | null
+          asset_code: string
+          asset_type: string
+          barcode: string | null
+          category_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          currency: string
+          current_value: number | null
+          description: string | null
+          id: string
+          inventory_number: string | null
+          legal_entity_id: string | null
+          location_id: string | null
+          metadata: Json | null
+          name: string
+          notes: string | null
+          residual_value: number | null
+          responsible_employee_id: string | null
+          serial_number: string | null
+          status: string
+          supplier_id: string | null
+          tenant_id: string
+          updated_at: string
+          warranty_expiry: string | null
+        }
+        Insert: {
+          acquisition_cost?: number | null
+          acquisition_date?: string | null
+          asset_code: string
+          asset_type?: string
+          barcode?: string | null
+          category_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          currency?: string
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          inventory_number?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
+          metadata?: Json | null
+          name: string
+          notes?: string | null
+          residual_value?: number | null
+          responsible_employee_id?: string | null
+          serial_number?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Update: {
+          acquisition_cost?: number | null
+          acquisition_date?: string | null
+          asset_code?: string
+          asset_type?: string
+          barcode?: string | null
+          category_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          currency?: string
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          inventory_number?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
+          metadata?: Json | null
+          name?: string
+          notes?: string | null
+          residual_value?: number | null
+          responsible_employee_id?: string | null
+          serial_number?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "asset_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_responsible_employee_id_fkey"
+            columns: ["responsible_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           check_in: string | null
@@ -5643,6 +6050,418 @@ export type Database = {
           },
           {
             foreignKeyName: "fixed_asset_depreciation_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_asset_depreciation_schedules: {
+        Row: {
+          accumulated_depreciation: number
+          asset_id: string
+          created_at: string
+          depreciation_amount: number
+          id: string
+          journal_entry_id: string | null
+          net_book_value: number
+          period_end: string
+          period_start: string
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          tax_depreciation_amount: number
+          tenant_id: string
+        }
+        Insert: {
+          accumulated_depreciation?: number
+          asset_id: string
+          created_at?: string
+          depreciation_amount?: number
+          id?: string
+          journal_entry_id?: string | null
+          net_book_value?: number
+          period_end: string
+          period_start: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          tax_depreciation_amount?: number
+          tenant_id: string
+        }
+        Update: {
+          accumulated_depreciation?: number
+          asset_id?: string
+          created_at?: string
+          depreciation_amount?: number
+          id?: string
+          journal_entry_id?: string | null
+          net_book_value?: number
+          period_end?: string
+          period_start?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          tax_depreciation_amount?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_depreciation_schedules_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_depreciation_schedules_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_depreciation_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_asset_details: {
+        Row: {
+          accumulated_depreciation: number
+          accumulated_tax_depreciation: number
+          accumulation_account_id: string | null
+          asset_account_id: string | null
+          asset_id: string
+          created_at: string
+          depreciation_account_id: string | null
+          depreciation_method: string
+          depreciation_rate: number | null
+          depreciation_start_date: string | null
+          expense_account_id: string | null
+          id: string
+          is_fully_depreciated: boolean
+          last_depreciation_date: string | null
+          net_book_value: number
+          tax_depreciation_method: string | null
+          tax_depreciation_rate: number | null
+          tax_group: string | null
+          tax_useful_life_months: number | null
+          tenant_id: string
+          updated_at: string
+          useful_life_months: number
+        }
+        Insert: {
+          accumulated_depreciation?: number
+          accumulated_tax_depreciation?: number
+          accumulation_account_id?: string | null
+          asset_account_id?: string | null
+          asset_id: string
+          created_at?: string
+          depreciation_account_id?: string | null
+          depreciation_method?: string
+          depreciation_rate?: number | null
+          depreciation_start_date?: string | null
+          expense_account_id?: string | null
+          id?: string
+          is_fully_depreciated?: boolean
+          last_depreciation_date?: string | null
+          net_book_value?: number
+          tax_depreciation_method?: string | null
+          tax_depreciation_rate?: number | null
+          tax_group?: string | null
+          tax_useful_life_months?: number | null
+          tenant_id: string
+          updated_at?: string
+          useful_life_months?: number
+        }
+        Update: {
+          accumulated_depreciation?: number
+          accumulated_tax_depreciation?: number
+          accumulation_account_id?: string | null
+          asset_account_id?: string | null
+          asset_id?: string
+          created_at?: string
+          depreciation_account_id?: string | null
+          depreciation_method?: string
+          depreciation_rate?: number | null
+          depreciation_start_date?: string | null
+          expense_account_id?: string | null
+          id?: string
+          is_fully_depreciated?: boolean
+          last_depreciation_date?: string | null
+          net_book_value?: number
+          tax_depreciation_method?: string | null
+          tax_depreciation_rate?: number | null
+          tax_group?: string | null
+          tax_useful_life_months?: number | null
+          tenant_id?: string
+          updated_at?: string
+          useful_life_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_details_accumulation_account_id_fkey"
+            columns: ["accumulation_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_details_asset_account_id_fkey"
+            columns: ["asset_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_details_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_details_depreciation_account_id_fkey"
+            columns: ["depreciation_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_details_expense_account_id_fkey"
+            columns: ["expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_details_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_asset_disposals: {
+        Row: {
+          approved_by: string | null
+          asset_id: string
+          buyer_partner_id: string | null
+          created_at: string
+          created_by: string | null
+          disposal_amount: number
+          disposal_date: string
+          disposal_type: string
+          gain_loss: number
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          net_book_value_at_disposal: number
+          reason: string | null
+          tenant_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          asset_id: string
+          buyer_partner_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          disposal_amount?: number
+          disposal_date: string
+          disposal_type?: string
+          gain_loss?: number
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          net_book_value_at_disposal?: number
+          reason?: string | null
+          tenant_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          asset_id?: string
+          buyer_partner_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          disposal_amount?: number
+          disposal_date?: string
+          disposal_type?: string
+          gain_loss?: number
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          net_book_value_at_disposal?: number
+          reason?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_disposals_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_disposals_buyer_partner_id_fkey"
+            columns: ["buyer_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_disposals_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_disposals_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_disposals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_asset_impairments: {
+        Row: {
+          asset_id: string
+          carrying_amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          impairment_date: string
+          impairment_loss: number
+          journal_entry_id: string | null
+          reason: string | null
+          recoverable_amount: number
+          tenant_id: string
+        }
+        Insert: {
+          asset_id: string
+          carrying_amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          impairment_date: string
+          impairment_loss: number
+          journal_entry_id?: string | null
+          reason?: string | null
+          recoverable_amount: number
+          tenant_id: string
+        }
+        Update: {
+          asset_id?: string
+          carrying_amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          impairment_date?: string
+          impairment_loss?: number
+          journal_entry_id?: string | null
+          reason?: string | null
+          recoverable_amount?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_impairments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_impairments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_impairments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_asset_revaluations: {
+        Row: {
+          appraiser: string | null
+          asset_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          new_value: number
+          old_value: number
+          reason: string | null
+          revaluation_date: string
+          revaluation_surplus: number
+          tenant_id: string
+        }
+        Insert: {
+          appraiser?: string | null
+          asset_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          new_value: number
+          old_value: number
+          reason?: string | null
+          revaluation_date: string
+          revaluation_surplus?: number
+          tenant_id: string
+        }
+        Update: {
+          appraiser?: string | null
+          asset_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          new_value?: number
+          old_value?: number
+          reason?: string | null
+          revaluation_date?: string
+          revaluation_surplus?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_revaluations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_revaluations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_revaluations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -15206,6 +16025,10 @@ export type Database = {
       force_delete_journal_entries: {
         Args: { p_tenant_id: string }
         Returns: undefined
+      }
+      generate_asset_code: {
+        Args: { p_prefix: string; p_tenant_id: string }
+        Returns: string
       }
       generate_opening_balance: {
         Args: {

@@ -132,6 +132,9 @@ const routeLabels: Record<string, string> = {
   "web-settings": "webSettings",
   "web-prices": "webPrices",
   "wms-dashboard": "wmsDashboard",
+  assets: "assetsModule",
+  registry: "assetsRegistry",
+  categories: "assetsCategories",
 };
 
 export function Breadcrumbs() {

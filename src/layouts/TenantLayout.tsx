@@ -50,6 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
+  Building2, List, FolderTree,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -209,6 +210,12 @@ const documentsNav: NavItem[] = [
   { key: "dmsBrowser", url: "/documents/browser", icon: Search },
   { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
   { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
+];
+
+const assetsNav: NavItem[] = [
+  { key: "assetsHub", url: "/assets", icon: LayoutDashboard, section: "assetsOverview" },
+  { key: "assetsRegistry", url: "/assets/registry", icon: List },
+  { key: "assetsCategories", url: "/assets/categories", icon: FolderTree },
 ];
 
 const posNav: NavItem[] = [
@@ -398,6 +405,9 @@ export default function TenantLayout() {
             )}
             {canAccess("accounting") && (
               <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} />
+            )}
+            {canAccess("assets") && (
+              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} />
             )}
             {canAccess("hr") && (
               <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} />

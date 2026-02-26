@@ -47,6 +47,7 @@ import {
   analyticsRoutes,
   miscRoutes,
 } from "@/routes/otherRoutes";
+import { assetsRoutes } from "@/routes/assetsRoutes";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => (
                 {driveRoutes}
                 {posRoutes}
                 {analyticsRoutes}
+                {assetsRoutes}
                 {miscRoutes}
               </Route>
 
