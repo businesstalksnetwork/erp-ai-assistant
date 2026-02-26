@@ -220,6 +220,7 @@ const assetsNav: NavItem[] = [
   { key: "assetsDisposals", url: "/assets/disposals", icon: Trash2 },
   { key: "assetsRevalImpairment", url: "/assets/revaluations", icon: TrendingUp },
   { key: "assetsAssignments", url: "/assets/assignments", icon: UserCheck, section: "assetsOperations" },
+  { key: "assetsInventoryCount", url: "/assets/inventory-count", icon: ClipboardCheck },
 ];
 
 const posNav: NavItem[] = [
