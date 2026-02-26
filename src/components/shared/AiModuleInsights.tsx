@@ -5,28 +5,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sparkles, AlertTriangle, AlertCircle, Info, Loader2, ChevronRight } from "lucide-react";
-
-const insightRouteMap: Record<string, string> = {
-  overdue_invoices: "/accounting/invoices?filter=overdue",
-  large_invoices: "/accounting/invoices?filter=sent",
-  zero_stock: "/inventory/stock?filter=zero_stock",
-  low_stock: "/inventory/stock?filter=low_stock",
-  draft_journals: "/accounting/journal?filter=draft",
-  payroll_anomaly: "/hr/payroll",
-  excessive_overtime: "/hr/overtime",
-  leave_balance_warning: "/hr/annual-leave",
-  stale_leads: "/crm/leads?filter=new",
-  high_value_at_risk: "/crm/opportunities?filter=at_risk",
-  budget_variance: "/analytics/budget",
-  revenue_declining: "/analytics",
-  slow_moving: "/analytics/inventory-health",
-  reorder_suggestion: "/purchasing/orders",
-  expense_spike: "/analytics/expenses",
-  duplicate_invoices: "/purchasing/invoices",
-  weekend_postings: "/accounting/journal",
-  dormant_accounts: "/crm/companies",
-  at_risk_accounts: "/crm/companies",
-};
+import { insightRouteMap } from "@/lib/insightRouteMap";
 
 interface Insight {
   insight_type: string;

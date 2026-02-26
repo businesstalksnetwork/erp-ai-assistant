@@ -28,7 +28,7 @@ export default function AssetDepreciation() {
       if (!tenantId) return [];
       const { data, error } = await supabase
         .from("assets")
-        .select("*, asset_categories(name, code, default_depreciation_method, default_useful_life_months, default_depreciation_account, default_accumulation_account, default_expense_account), fixed_asset_details(*)")
+        .select("*, asset_categories(name, code, default_depreciation_method, default_useful_life_months, default_depreciation_account, default_accumulation_account, default_expense_account), fixed_asset_details(*, expense_account:chart_of_accounts!fixed_asset_details_expense_account_id_fkey(account_code), accumulation_account:chart_of_accounts!fixed_asset_details_accumulation_account_id_fkey(account_code))")
         .eq("tenant_id", tenantId)
         .in("asset_type", ["fixed_asset", "intangible"])
         .in("status", ["active", "in_use"])
@@ -94,8 +94,8 @@ export default function AssetDepreciation() {
 
       const detail = Array.isArray(asset.fixed_asset_details) ? asset.fixed_asset_details[0] : asset.fixed_asset_details;
       const cat = asset.asset_categories;
-      const expenseAccount = detail?.depreciation_expense_account || cat?.default_expense_account || "5310";
-      const accumAccount = detail?.accumulated_depreciation_account || cat?.default_accumulation_account || "0121";
+      const expenseAccount = detail?.expense_account?.account_code || cat?.default_expense_account || "5310";
+      const accumAccount = detail?.accumulation_account?.account_code || cat?.default_accumulation_account || "0121";
       const entryDate = `${period}-01`;
 
       const journalId = await postWithRuleOrFallback({

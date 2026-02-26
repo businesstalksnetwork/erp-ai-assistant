@@ -137,8 +137,8 @@ export function GlobalSearch() {
     { label: t("dailyReport"), path: "/pos/daily-report", icon: FileText, group: "pos", module: "pos" },
 
     // Web Sales
-    { label: t("webSettings"), path: "/web/settings", icon: Globe, group: "webSales", module: "web" },
-    { label: t("webPrices"), path: "/web/prices", icon: Receipt, group: "webSales", module: "web" },
+    { label: t("webSettings"), path: "/sales/web-settings", icon: Globe, group: "webSales", module: "web" },
+    { label: t("webPrices"), path: "/sales/web-prices", icon: Receipt, group: "webSales", module: "web" },
 
     // Documents
     { label: t("dmsRegistry"), path: "/documents", icon: FolderOpen, group: "documents", module: "documents" },

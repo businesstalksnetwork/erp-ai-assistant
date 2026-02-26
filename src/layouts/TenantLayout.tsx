@@ -185,7 +185,7 @@ const hrNav: NavItem[] = [
   { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
   { key: "nonEmploymentIncome", url: "/hr/non-employment-income", icon: FileText },
-  { key: "pppdReview", url: "/hr/pppd-review", icon: FileSpreadsheet },
+  { key: "pppdReview", url: "/hr/payroll/pppd", icon: FileSpreadsheet },
   { key: "externalWorkers", url: "/hr/external-workers", icon: Users, section: "other" },
   { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
