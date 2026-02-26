@@ -34,7 +34,7 @@ export default function HrReports() {
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-report", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, full_name, daily_work_hours, position, department_id, departments(name), position_template_id, position_templates(name)").eq("tenant_id", tenantId!).order("full_name");
+      const { data } = await supabase.from("employees").select("id, full_name, daily_work_hours, position, department_id, departments(name), position_template_id, position_templates(name)").eq("tenant_id", tenantId!).eq("is_ghost", false).order("full_name");
       return data || [];
     },
     enabled: !!tenantId,

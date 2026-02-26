@@ -70,7 +70,8 @@ export default function StatistickiAneks() {
         .from("employees")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId!)
-        .eq("status", "active");
+        .eq("status", "active")
+        .eq("is_ghost", false);
       return count || 0;
     },
     enabled: !!tenantId,

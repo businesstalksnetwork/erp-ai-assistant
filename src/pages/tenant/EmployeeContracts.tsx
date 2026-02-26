@@ -67,7 +67,7 @@ export default function EmployeeContracts() {
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("status", "active").order("full_name");
+      const { data } = await supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("status", "active").eq("is_ghost", false).order("full_name");
       return data || [];
     },
     enabled: !!tenantId,
