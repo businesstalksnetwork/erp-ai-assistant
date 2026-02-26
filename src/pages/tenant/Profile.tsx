@@ -140,23 +140,23 @@ export default function Profile() {
             <>
               <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
                 <UserCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("profilePersonalData" as any)}</span>
-                <span className="sm:hidden">{t("profilePersonalData" as any).split(" ")[0]}</span>
+                <span className="hidden sm:inline">{t("profilePersonalData")}</span>
+                <span className="sm:hidden">{t("profilePersonalData").split(" ")[0]}</span>
               </TabsTrigger>
               <TabsTrigger value="employment" className="gap-1.5 text-xs sm:text-sm">
                 <Briefcase className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("profileHrSection" as any)}</span>
-                <span className="sm:hidden">HR</span>
+                <span className="hidden sm:inline">{t("profileHrSection")}</span>
+                <span className="sm:hidden">{t("profileHrSection")}</span>
               </TabsTrigger>
               <TabsTrigger value="finance" className="gap-1.5 text-xs sm:text-sm">
                 <DollarSign className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("profileSalaryInfo" as any)}</span>
-                <span className="sm:hidden">{t("profileSalaryInfo" as any)}</span>
+                <span className="hidden sm:inline">{t("profileSalaryInfo")}</span>
+                <span className="sm:hidden">{t("profileSalaryInfo")}</span>
               </TabsTrigger>
               <TabsTrigger value="assets" className="gap-1.5 text-xs sm:text-sm">
                 <Package className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("assets" as any)}</span>
-                <span className="sm:hidden">{t("assets" as any)}</span>
+                <span className="hidden sm:inline">{t("profileAssets")}</span>
+                <span className="sm:hidden">{t("profileAssets")}</span>
               </TabsTrigger>
             </>
           )}
@@ -167,8 +167,8 @@ export default function Profile() {
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5 text-xs sm:text-sm">
             <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">{t("notifications" as any)}</span>
-            <span className="sm:hidden">{t("notifications" as any)}</span>
+                <span className="hidden sm:inline">{t("notifications")}</span>
+                <span className="sm:hidden">{t("notifications")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -282,7 +282,7 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground">{t("posPinDescription")}</p>
                   {salesperson.pos_pin && (
                     <p className="text-sm">
-                      <span className="text-muted-foreground">Current PIN: </span>
+                      <span className="text-muted-foreground">{t("currentPin")} </span>
                       <span className="font-mono">••••</span>
                     </p>
                   )}
