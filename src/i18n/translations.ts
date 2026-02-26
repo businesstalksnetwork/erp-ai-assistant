@@ -624,6 +624,7 @@ export const translations = {
 
     // Phase 11: Notifications
     notificationPreferences: "Notification Preferences",
+    roleBasedNotificationsInfo: "You only see notification categories relevant to your role.",
     markAllRead: "Mark all read",
     noNotifications: "No notifications",
     invoiceNotifications: "Invoice Notifications",
@@ -3356,6 +3357,7 @@ export const translations = {
 
     // Phase 11: Notifications
     notificationPreferences: "Podešavanja obaveštenja",
+    roleBasedNotificationsInfo: "Prikazane su samo kategorije obaveštenja relevantne za vašu ulogu.",
     markAllRead: "Označi sve kao pročitano",
     noNotifications: "Nema obaveštenja",
     invoiceNotifications: "Obaveštenja o fakturama",
