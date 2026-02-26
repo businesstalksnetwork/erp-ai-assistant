@@ -56,15 +56,31 @@ export default function ChartOfAccounts() {
     queryKey: ["chart-of-accounts", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase
-        .from("chart_of_accounts")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("code");
-      if (error) throw error;
-      return data as Account[];
+      // Fetch all rows in batches to avoid Supabase 1000-row limit
+      const allData: Account[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("chart_of_accounts")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("code")
+          .range(offset, offset + batchSize - 1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData.push(...(data as Account[]));
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      return allData;
     },
     enabled: !!tenantId,
+    staleTime: 1000 * 60 * 5,
   });
 
   const saveMutation = useMutation({
