@@ -20,8 +20,8 @@ export function usePermissions() {
     [effectiveRole],
   );
 
-  // Fetch enabled modules for this tenant from DB (including for super admins)
-  const shouldFetch = !!tenantId;
+  // Fetch enabled modules for this tenant from DB
+  const shouldFetch = !!tenantId && !isSuperAdmin;
   const { data: enabledModuleKeys, isLoading: modulesLoading } = useQuery({
     queryKey: ["tenant-enabled-modules", tenantId ?? "__none__"],
     queryFn: async () => {
@@ -39,16 +39,19 @@ export function usePermissions() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading = tenantLoading || modulesLoading;
+  const isLoading = tenantLoading || (!isSuperAdmin && modulesLoading);
 
   const canAccess = (module: ModuleGroup): boolean => {
     // Role must allow it first
     if (!roleModules.has(module)) return false;
 
+    // Super admins see everything to assist with integrations
+    if (isSuperAdmin) return true;
+
     // Core modules always on (dashboard + all settings submodules)
     if (isAlwaysOn(module)) return true;
 
-    // Pessimistic: deny until tenant modules have loaded (ProtectedRoute shows spinner)
+    // Pessimistic: deny until tenant modules have loaded
     if (!enabledModuleKeys) return false;
 
     // Check tenant has this module enabled
