@@ -1,44 +1,48 @@
 
 
-# Role-Based Notification Categories
+# Admin Notification Category Settings per Role
 
-## Problem
-Currently all users see the same 5 notification categories (invoice, inventory, approval, hr, accounting) regardless of their role. A `sales` user shouldn't see HR notifications, and an `hr` user shouldn't see accounting notifications. The mapping should also be considered when creating/editing company roles.
-
-## Design
-
-Use the existing `rolePermissions` config to derive which notification categories a role can access. The mapping is straightforward:
-
-```text
-Module Group → Notification Category
-─────────────────────────────────────
-sales, crm    → invoice
-inventory     → inventory
-*             → approval (everyone gets approvals)
-hr            → hr
-accounting    → accounting
-```
-
-No new DB tables needed — this is a client-side filter plus a backend check.
+## Overview
+Create a new settings page where admins can customize which notification categories each company role receives, overriding the hardcoded defaults in `roleNotificationCategories.ts`. This requires a new DB table and a settings UI.
 
 ## Changes
 
-### 1. Create `src/config/roleNotificationCategories.ts`
-- Map each `TenantRole` to the notification categories they should see
-- Derive from `rolePermissions` module access: if a role has access to `sales` → gets `invoice` category, etc.
-- Export a `getNotificationCategoriesForRole(role: TenantRole): string[]` function
-- All roles always get `approval` (cross-cutting)
+### 1. Database: `role_notification_overrides` table
+```sql
+CREATE TABLE public.role_notification_overrides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE NOT NULL,
+  role TEXT NOT NULL,
+  category TEXT NOT NULL,
+  enabled BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(tenant_id, role, category)
+);
+-- RLS: tenant members with admin role can read/write
+```
 
-### 2. Update `NotificationPreferences.tsx`
-- Import the user's current role from `useTenant()`
-- Filter `CATEGORIES` to only show categories relevant to the user's role using `getNotificationCategoriesForRole`
-- Admin/manager sees all categories; `hr` role only sees `hr` + `approval`; `sales` sees `invoice` + `approval`, etc.
+### 2. Update `roleNotificationCategories.ts`
+- Add an async `getCustomNotificationCategoriesForRole(tenantId, role)` that queries `role_notification_overrides` first
+- Falls back to the existing hardcoded logic if no overrides exist
+- Export both sync (default) and async (custom) versions
 
-### 3. Update Edge Function `send-notification-emails/index.ts`
-- Before sending any notification, look up the user's `tenant_members.role` for the relevant company
-- Check `notification_preferences` for that user+category, respecting per-channel toggles (`in_app_enabled`, `push_enabled`, `email_enabled`)
-- Skip sending if the user's role shouldn't receive that category (server-side enforcement)
+### 3. Update `NotificationPreferences.tsx`
+- Fetch overrides from `role_notification_overrides` for the current tenant + role
+- Merge with defaults: if overrides exist, use them; otherwise use `getNotificationCategoriesForRole`
 
-### 4. Add translations
-- Add `roleBasedNotificationsInfo` key: EN = "You only see notification categories relevant to your role", SR = "Prikazane su samo kategorije obaveštenja relevantne za vašu ulogu"
+### 4. New settings page: `src/pages/tenant/NotificationCategorySettings.tsx`
+- Matrix UI: rows = roles (admin, manager, accountant, sales, hr, store, user), columns = categories (invoice, inventory, approval, hr, accounting)
+- Each cell is a Checkbox toggling `role_notification_overrides` for that tenant/role/category
+- Pre-filled with current defaults from `getNotificationCategoriesForRole`
+- Admin-only page
+
+### 5. Route + navigation
+- Add route `settings/notification-categories` in `settingsRoutes.tsx`
+- Add link in `Settings.tsx` under Operations section with `Bell` icon, label `notificationCategorySettings`
+
+### 6. Translations
+- Add keys: `notificationCategorySettings`, `notificationCategorySettingsDesc`, `roleLabel`, and category labels reuse existing keys
+
+### 7. Edge function update
+- `send-notification-emails`: query `role_notification_overrides` for the user's role + tenant before falling back to hardcoded logic
 
