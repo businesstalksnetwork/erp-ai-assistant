@@ -300,8 +300,20 @@ function validateSql(sql: string, tenantId: string): string {
   return final;
 }
 
+// SEC-6: Input validation helpers
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+function validateDate(d: string): string {
+  if (!DATE_REGEX.test(d)) throw new Error(`Invalid date format: ${d}`);
+  return d;
+}
+function validatePositiveInt(n: any, max: number, fallback: number): number {
+  const v = Number(n);
+  if (!Number.isFinite(v) || v < 1) return fallback;
+  return Math.min(Math.round(v), max);
+}
+
 async function analyzeTrend(supabase: any, tenantId: string, metric: string, months: number = 6): Promise<string> {
-  const numMonths = Math.min(Math.max(months || 6, 2), 12);
+  const numMonths = validatePositiveInt(months, 12, 6);
   const queries: Record<string, string> = {
     revenue: `SELECT to_char(date_trunc('month', i.invoice_date), 'YYYY-MM') as month, COALESCE(SUM(i.total), 0) as value FROM invoices i WHERE i.tenant_id = '${tenantId}' AND i.status IN ('paid', 'posted') AND i.invoice_date >= (CURRENT_DATE - INTERVAL '${numMonths} months') GROUP BY 1 ORDER BY 1`,
     expenses: `SELECT to_char(date_trunc('month', je.entry_date), 'YYYY-MM') as month, COALESCE(SUM(jl.debit), 0) as value FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id JOIN chart_of_accounts ca ON ca.id = jl.account_id WHERE je.tenant_id = '${tenantId}' AND je.status = 'posted' AND ca.account_type = 'expense' AND je.entry_date >= (CURRENT_DATE - INTERVAL '${numMonths} months') GROUP BY 1 ORDER BY 1`,
@@ -334,6 +346,11 @@ async function analyzeTrend(supabase: any, tenantId: string, metric: string, mon
 }
 
 async function comparePeriods(supabase: any, tenantId: string, metric: string, p1Start: string, p1End: string, p2Start: string, p2End: string): Promise<string> {
+  // SEC-6: Validate all date inputs
+  const vp1s = validateDate(p1Start);
+  const vp1e = validateDate(p1End);
+  const vp2s = validateDate(p2Start);
+  const vp2e = validateDate(p2End);
   const metricQueries: Record<string, (s: string, e: string) => string> = {
     revenue: (s, e) => `SELECT COALESCE(SUM(total), 0) as value, COUNT(*) as count FROM invoices WHERE tenant_id = '${tenantId}' AND status IN ('paid', 'posted') AND invoice_date >= '${s}' AND invoice_date <= '${e}'`,
     expenses: (s, e) => `SELECT COALESCE(SUM(jl.debit), 0) as value FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id JOIN chart_of_accounts ca ON ca.id = jl.account_id WHERE je.tenant_id = '${tenantId}' AND je.status = 'posted' AND ca.account_type = 'expense' AND je.entry_date >= '${s}' AND je.entry_date <= '${e}'`,
@@ -347,8 +364,8 @@ async function comparePeriods(supabase: any, tenantId: string, metric: string, p
   if (!qFn) return JSON.stringify({ error: `Unknown metric: ${metric}` });
   try {
     const [r1, r2] = await Promise.all([
-      supabase.rpc("execute_readonly_query", { query_text: qFn(p1Start, p1End) }),
-      supabase.rpc("execute_readonly_query", { query_text: qFn(p2Start, p2End) }),
+      supabase.rpc("execute_readonly_query", { query_text: qFn(vp1s, vp1e) }),
+      supabase.rpc("execute_readonly_query", { query_text: qFn(vp2s, vp2e) }),
     ]);
     const v1 = Number(r1.data?.[0]?.value || 0);
     const v2 = Number(r2.data?.[0]?.value || 0);
@@ -371,7 +388,7 @@ async function whatIfScenario(supabase: any, tenantId: string, scenarioType: str
     const payroll = Number(payResult.data?.[0]?.value || 0);
     const headcount = empResult.count || 0;
     const profit = revenue - expenses;
-    const factor = changePct / 100;
+    const factor = validatePositiveInt(Math.abs(changePct), 1000, 10) / 100 * (changePct < 0 ? -1 : 1);
     let projected: Record<string, any> = {};
     switch (scenarioType) {
       case "price_change":
@@ -524,7 +541,7 @@ async function getPartnerDossier(supabase: any, tenantId: string, partnerName: s
 }
 
 async function forecastCashflow(supabase: any, tenantId: string, days: number = 90): Promise<string> {
-  const horizon = Math.min(Math.max(days || 90, 30), 180);
+  const horizon = validatePositiveInt(days, 180, 90);
   try {
     const today = new Date().toISOString().split("T")[0];
     const futureDate = new Date(Date.now() + horizon * 86400000).toISOString().split("T")[0];

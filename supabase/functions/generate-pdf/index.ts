@@ -94,8 +94,19 @@ Deno.serve(async (req) => {
       return null;
     };
 
-    // --- Payslip ---
+    // --- Payslip (SEC-4: verify tenant membership) ---
     if (type === "payslip" && body.payroll_item_id) {
+      // Fetch payroll item to get tenant_id before rendering
+      const { data: payItem } = await admin
+        .from("payroll_items")
+        .select("payroll_runs(tenant_id)")
+        .eq("id", body.payroll_item_id)
+        .single();
+      const payslipTenantId = payItem?.payroll_runs?.tenant_id;
+      if (payslipTenantId) {
+        const forbidden = await verifyMembership(payslipTenantId);
+        if (forbidden) return forbidden;
+      }
       return await generatePayslip(admin, body.payroll_item_id, corsHeaders);
     }
 
