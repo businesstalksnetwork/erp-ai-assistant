@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree } from "lucide-react";
+import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree, Calculator, Trash2, TrendingUp, UserCheck } from "lucide-react";
 
 export default function AssetsHub() {
   const { t } = useLanguage();
@@ -60,7 +60,7 @@ export default function AssetsHub() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/registry/new")}>
           <CardContent className="flex items-center gap-3 py-6">
             <Plus className="h-8 w-8 text-primary" />
@@ -76,6 +76,42 @@ export default function AssetsHub() {
             <div>
               <p className="font-semibold">{t("assetsRegistry" as any)}</p>
               <p className="text-sm text-muted-foreground">{t("assetsRegistryDesc" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/depreciation")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <Calculator className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsDepreciation" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsDepSchedule" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/disposals")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <Trash2 className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsDisposals" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsDisposalHistory" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/revaluations")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <TrendingUp className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsRevalImpairment" as any)}</p>
+              <p className="text-sm text-muted-foreground">MRS 16 / MRS 36</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/assignments")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <UserCheck className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsAssignments" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsAssignmentHistory" as any)}</p>
             </div>
           </CardContent>
         </Card>

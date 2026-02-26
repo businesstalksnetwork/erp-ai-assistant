@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree,
+  Building2, List, FolderTree, Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -216,6 +216,10 @@ const assetsNav: NavItem[] = [
   { key: "assetsHub", url: "/assets", icon: LayoutDashboard, section: "assetsOverview" },
   { key: "assetsRegistry", url: "/assets/registry", icon: List },
   { key: "assetsCategories", url: "/assets/categories", icon: FolderTree },
+  { key: "assetsDepreciation", url: "/assets/depreciation", icon: Calculator, section: "assetsAccounting" },
+  { key: "assetsDisposals", url: "/assets/disposals", icon: Trash2 },
+  { key: "assetsRevalImpairment", url: "/assets/revaluations", icon: TrendingUp },
+  { key: "assetsAssignments", url: "/assets/assignments", icon: UserCheck, section: "assetsOperations" },
 ];
 
 const posNav: NavItem[] = [
