@@ -17,7 +17,7 @@ import {
   FileSpreadsheet, ListChecks, ReceiptText, Lock, BookText, Landmark, Timer, Coins, DollarSign,
   CreditCard, Activity, ClipboardCheck, FileInput, Percent, CheckSquare, Plug, Clock,
   CalendarOff, Moon, Calendar, FileSignature, Shield, Heart, Briefcase, Globe, Grid3X3,
-  MapPin, ScanBarcode, RefreshCw, Brain, Layers, Search,
+  MapPin, ScanBarcode, RefreshCw, Brain, Layers, Search, Building2, List, FolderTree,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -151,6 +151,11 @@ export function GlobalSearch() {
 
     // Returns
     { label: t("returns"), path: "/returns", icon: RotateCcw, group: "returns", module: "returns" },
+
+    // Assets
+    { label: t("assetsModule" as any), path: "/assets", icon: Building2, group: "assets", module: "assets" },
+    { label: t("assetsRegistry" as any), path: "/assets/registry", icon: List, group: "assets", module: "assets" },
+    { label: t("assetsCategories" as any), path: "/assets/categories", icon: FolderTree, group: "assets", module: "assets" },
 
     // Settings
     { label: t("companySettings"), path: "/settings", icon: Settings, group: "settings", module: "settings" },

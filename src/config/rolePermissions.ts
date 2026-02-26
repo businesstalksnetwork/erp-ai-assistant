@@ -14,6 +14,7 @@ export type ModuleGroup =
   | "documents"
   | "pos"
   | "returns"
+  | "assets"
   | "settings"
   // Granular settings keys
   | "settings-users"
@@ -27,7 +28,7 @@ export type ModuleGroup =
 
 const ALL_MODULES: ModuleGroup[] = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory", "accounting", "analytics", "hr",
-  "production", "documents", "pos", "returns", "settings",
+  "production", "documents", "pos", "returns", "assets", "settings",
   "settings-users", "settings-approvals", "settings-business-rules",
   "settings-tax-rates", "settings-currencies", "settings-audit-log",
   "settings-events", "settings-integrations",
@@ -37,15 +38,15 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   admin: ALL_MODULES,
   manager: [
     "dashboard", "crm", "sales", "web", "purchasing", "inventory", "returns",
-    "production", "documents", "pos", "analytics", "settings",
+    "production", "documents", "pos", "analytics", "assets", "settings",
   ],
   accountant: [
-    "dashboard", "accounting", "analytics", "settings",
+    "dashboard", "accounting", "analytics", "assets", "settings",
     "settings-tax-rates", "settings-currencies",
   ],
   sales: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
   hr: ["dashboard", "hr", "documents"],
-  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns"],
+  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets"],
   user: ["dashboard", "documents", "pos"],
 };
 
@@ -73,4 +74,5 @@ export const routeToModule: Record<string, ModuleGroup> = {
   "/settings/events": "settings-events",
   "/settings/integrations": "settings-integrations",
   "/settings": "settings",
+  "/assets/": "assets",
 };
