@@ -1,73 +1,44 @@
 
 
-# Plan: Enhanced Profile + Ghost Employees + Connection Review
+# Plan: Complete Profile Page with Missing HR Sections
 
-## Current State Analysis
+## What's Missing
 
-### Document Signing
-The system uses **token-based name confirmation** via `ReversSignature.tsx` — employees receive a unique `/sign/:token` link, review asset details, and confirm with their name or reject with a reason. The `send-revers-notification` edge function handles email delivery via Resend. This is functional but not a cryptographic digital signature — it's an acknowledgment workflow.
+The Profile page currently shows Personal Data, Contract, Leave, Attendance, Assets, and Reverses. Missing sections:
 
-### Profile Page Gaps
-`Profile.tsx` currently shows: account info, display name, password, POS PIN, notification preferences. It does **not** show any HR data even though `employees.user_id` exists and could link the logged-in user to their employee record.
-
-### Ghost Employee Concept
-`employees` table has a `user_id` column but no mechanism to mark super admin employee records as hidden from HR lists, reports, and headcounts.
-
----
-
-## Database Changes
-
-```sql
--- Add ghost flag to employees
-ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_ghost boolean DEFAULT false;
-
--- Comment for clarity
-COMMENT ON COLUMN employees.is_ghost IS 'Ghost employees (super admins) are excluded from HR lists, reports, and headcounts but can access full employee features via Profile';
-```
+1. **Salary Info** — `employee_salaries` table has `amount`, `salary_type`, `amount_type`, `meal_allowance`, `regres`, `start_date` linked by `employee_id`
+2. **Deductions** — `deductions` table linked by `employee_id`
+3. **Allowances** — `allowances` table linked by `employee_id`
+4. **Insurance Records** — `insurance_records` table linked by `employee_id`
+5. **Documents** — `documents` table has no `employee_id` column, so we skip this (DMS uses different linking)
 
 ## Implementation Tasks
 
-### Task 1: Add `is_ghost` Column + Filter All HR Queries
+### Task 1: Create `ProfileSalaryCard`
+- Query `employee_salaries` for the employee, show current salary (latest by `start_date`)
+- Display: amount, salary_type, amount_type, meal_allowance, regres
+- Read-only, masked if needed (show last 3 digits or full — employee should see their own salary)
 
-- Migration adds `is_ghost` to `employees`
-- Update all HR list queries (Employees.tsx, HrReports.tsx, WorkLogs, Attendance, LeaveRequests, Salaries, Deductions, Contracts, InsuranceRecords, PayrollBenchmark, Offboarding, etc.) to add `.eq("is_ghost", false)` filter
-- Ghost employees still appear in admin asset assignment dropdowns and profile lookups
+### Task 2: Create `ProfileDeductionsCard`
+- Query `deductions` for the employee
+- Show active deductions: type, amount, start/end date, status
 
-### Task 2: Expand Profile Page with HR Data
+### Task 3: Create `ProfileAllowancesCard`
+- Query `allowances` for the employee
+- Show active allowances: type, amount, dates
 
-When the logged-in user has a linked employee record (`employees.user_id = auth.uid()`), show additional cards:
+### Task 4: Create `ProfileInsuranceCard`
+- Query `insurance_records` for the employee
+- Show insurance info: type, provider, policy number, dates
 
-- **Lični podaci** (Personal): name, JMBG (masked), address, city, phone, email, department, position, location
-- **Ugovor** (Contract): employment type, start date, hire date, termination date, contract details from `employee_contracts`
-- **Godišnji odmor** (Leave): annual leave days, used days (from `leave_requests` where approved), remaining balance
-- **Evidencija prisustva** (Attendance): current month summary from `attendance_records`
-- **Imovina** (Assets): list of assigned assets (reuse `EmployeeAssetsTab`)
-- **Reversi** (Reverses): pending signature reverses with direct sign/reject actions
-- **Dokumenta** (Documents): employee-linked DMS documents
+### Task 5: Update `Profile.tsx`
+- Add all 4 new cards below existing HR section
+- Order: Personal → Contract → Salary → Allowances → Deductions → Insurance → Leave → Attendance → Assets → Reverses
 
-All read-only except pending reverses which allow signing.
-
-### Task 3: Create Ghost Employee Records for Super Admins
-
-- Add a utility in Settings or a migration seed that creates ghost employee records for the two super admin users (aleksandar@, nikola@) with `is_ghost = true` and `user_id` linked
-- These records allow super admins to test the full Profile experience
-
-### Task 4: Translations
-
-~20 new keys for profile HR sections (personalData, contractInfo, leaveBalance, attendanceSummary, ghostEmployee, etc.)
+### Task 6: Translations
+- ~15 new keys for salary, deductions, allowances, insurance section headers and field labels
 
 ## Affected Files
+- **New**: `ProfileSalaryCard.tsx`, `ProfileDeductionsCard.tsx`, `ProfileAllowancesCard.tsx`, `ProfileInsuranceCard.tsx`
+- **Modified**: `Profile.tsx`, `translations.ts`
 
-- **Migration**: 1 (add `is_ghost` column)
-- **Modified**: `Profile.tsx` (major expansion), `Employees.tsx`, `HrReports.tsx`, and ~12 other HR list pages (add ghost filter)
-- **New components**: `ProfileHrCard.tsx` (personal data), `ProfileLeaveCard.tsx`, `ProfileAttendanceCard.tsx`, `ProfileReversesCard.tsx`
-- **Translations**: `translations.ts`
-
-## Flow
-
-```text
-Regular employee logs in → Profile shows full HR data (read-only)
-Super admin logs in → Profile shows HR data via ghost employee record
-HR pages (Employees list, reports, payroll) → Ghost employees excluded
-Asset assignment dropdowns → Ghost employees included (for testing)
-```
