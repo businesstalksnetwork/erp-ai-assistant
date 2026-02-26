@@ -1726,6 +1726,8 @@ export type Database = {
           currency: string
           current_value: number | null
           description: string | null
+          drive_folder_id: string | null
+          goods_receipt_id: string | null
           id: string
           inventory_number: string | null
           legal_entity_id: string | null
@@ -1733,13 +1735,17 @@ export type Database = {
           metadata: Json | null
           name: string
           notes: string | null
+          product_id: string | null
+          purchase_order_id: string | null
           residual_value: number | null
           responsible_employee_id: string | null
           serial_number: string | null
           status: string
           supplier_id: string | null
+          supplier_invoice_id: string | null
           tenant_id: string
           updated_at: string
+          warehouse_id: string | null
           warranty_expiry: string | null
         }
         Insert: {
@@ -1754,6 +1760,8 @@ export type Database = {
           currency?: string
           current_value?: number | null
           description?: string | null
+          drive_folder_id?: string | null
+          goods_receipt_id?: string | null
           id?: string
           inventory_number?: string | null
           legal_entity_id?: string | null
@@ -1761,13 +1769,17 @@ export type Database = {
           metadata?: Json | null
           name: string
           notes?: string | null
+          product_id?: string | null
+          purchase_order_id?: string | null
           residual_value?: number | null
           responsible_employee_id?: string | null
           serial_number?: string | null
           status?: string
           supplier_id?: string | null
+          supplier_invoice_id?: string | null
           tenant_id: string
           updated_at?: string
+          warehouse_id?: string | null
           warranty_expiry?: string | null
         }
         Update: {
@@ -1782,6 +1794,8 @@ export type Database = {
           currency?: string
           current_value?: number | null
           description?: string | null
+          drive_folder_id?: string | null
+          goods_receipt_id?: string | null
           id?: string
           inventory_number?: string | null
           legal_entity_id?: string | null
@@ -1789,13 +1803,17 @@ export type Database = {
           metadata?: Json | null
           name?: string
           notes?: string | null
+          product_id?: string | null
+          purchase_order_id?: string | null
           residual_value?: number | null
           responsible_employee_id?: string | null
           serial_number?: string | null
           status?: string
           supplier_id?: string | null
+          supplier_invoice_id?: string | null
           tenant_id?: string
           updated_at?: string
+          warehouse_id?: string | null
           warranty_expiry?: string | null
         }
         Relationships: [
@@ -1814,6 +1832,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assets_drive_folder_id_fkey"
+            columns: ["drive_folder_id"]
+            isOneToOne: false
+            referencedRelation: "drive_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_goods_receipt_id_fkey"
+            columns: ["goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assets_legal_entity_id_fkey"
             columns: ["legal_entity_id"]
             isOneToOne: false
@@ -1825,6 +1857,20 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "asset_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1842,10 +1888,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assets_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assets_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]

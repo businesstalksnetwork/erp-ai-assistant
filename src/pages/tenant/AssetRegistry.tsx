@@ -33,7 +33,7 @@ export default function AssetRegistry() {
       if (!tenantId) return [];
       const { data, error } = await supabase
         .from("assets")
-        .select("*, asset_categories(name, code)")
+        .select("*, asset_categories(name, code), partners!assets_supplier_id_fkey(name), employees!assets_responsible_employee_id_fkey(full_name), warehouses(name), purchase_orders(order_number)")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -91,22 +91,24 @@ export default function AssetRegistry() {
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
         </div>
       ) : (
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t("code" as any)}</TableHead>
               <TableHead>{t("name" as any)}</TableHead>
               <TableHead>{t("assetsCategory" as any)}</TableHead>
-              <TableHead>{t("type" as any)}</TableHead>
+              <TableHead>{t("supplier" as any)}</TableHead>
+              <TableHead>{t("warehouse" as any)}</TableHead>
+              <TableHead>{t("assetsCrossEmployee" as any)}</TableHead>
               <TableHead>{t("status")}</TableHead>
-              <TableHead className="text-right">{t("assetsAcquisitionCost" as any)}</TableHead>
               <TableHead className="text-right">{t("assetsCurrentValue" as any)}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {t("noResults")}
                 </TableCell>
               </TableRow>
@@ -120,19 +122,19 @@ export default function AssetRegistry() {
                   <TableCell className="font-mono text-sm">{asset.asset_code}</TableCell>
                   <TableCell className="font-medium">{asset.name}</TableCell>
                   <TableCell>{(asset.asset_categories as any)?.name || "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{t(`assets${asset.asset_type.charAt(0).toUpperCase() + asset.asset_type.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}` as any)}</Badge>
-                  </TableCell>
+                  <TableCell>{(asset as any).partners?.name || "—"}</TableCell>
+                  <TableCell>{(asset as any).warehouses?.name || "—"}</TableCell>
+                  <TableCell>{(asset as any).employees?.full_name || "—"}</TableCell>
                   <TableCell>
                     <Badge className={STATUS_COLORS[asset.status] || ""}>{asset.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono">{formatCurrency(asset.acquisition_cost)}</TableCell>
                   <TableCell className="text-right font-mono">{formatCurrency(asset.current_value)}</TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+        </div>
       )}
     </div>
   );
