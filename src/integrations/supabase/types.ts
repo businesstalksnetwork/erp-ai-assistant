@@ -1615,6 +1615,104 @@ export type Database = {
           },
         ]
       }
+      asset_reverses: {
+        Row: {
+          accessories: string | null
+          asset_id: string
+          assignment_id: string | null
+          condition_on_handover: string | null
+          created_at: string
+          description: string | null
+          employee_id: string | null
+          id: string
+          issued_by: string | null
+          notes: string | null
+          rejection_reason: string | null
+          revers_date: string
+          revers_number: string
+          revers_type: string
+          signature_ip: string | null
+          signed_at: string | null
+          signed_by_name: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          accessories?: string | null
+          asset_id: string
+          assignment_id?: string | null
+          condition_on_handover?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          issued_by?: string | null
+          notes?: string | null
+          rejection_reason?: string | null
+          revers_date?: string
+          revers_number: string
+          revers_type?: string
+          signature_ip?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          accessories?: string | null
+          asset_id?: string
+          assignment_id?: string | null
+          condition_on_handover?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          issued_by?: string | null
+          notes?: string | null
+          rejection_reason?: string | null
+          revers_date?: string
+          revers_number?: string
+          revers_type?: string
+          signature_ip?: string | null
+          signed_at?: string | null
+          signed_by_name?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_reverses_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_reverses_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "asset_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_reverses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_reverses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           acquisition_cost: number | null
@@ -16853,6 +16951,7 @@ export type Database = {
         Args: { p_category_code: string; p_tenant_id: string }
         Returns: string
       }
+      generate_revers_number: { Args: { p_tenant_id: string }; Returns: string }
       generate_tax_calendar: {
         Args: { p_fiscal_year: number; p_tenant_id: string }
         Returns: number
