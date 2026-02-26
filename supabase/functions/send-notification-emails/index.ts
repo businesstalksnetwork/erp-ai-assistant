@@ -12,6 +12,29 @@ const corsHeaders = {
 const LIMIT_6M = 6_000_000;
 const LIMIT_8M = 8_000_000;
 
+// Role → notification category mapping (mirrors client-side config)
+const ROLE_CATEGORIES: Record<string, string[]> = {
+  admin: ["invoice", "inventory", "approval", "hr", "accounting"],
+  manager: ["invoice", "inventory", "approval", "hr", "accounting"],
+  accountant: ["approval", "accounting"],
+  sales: ["invoice", "approval"],
+  hr: ["approval", "hr"],
+  store: ["invoice", "inventory", "approval"],
+  user: ["approval"],
+};
+
+function getNotificationCategory(notificationType: string): string | null {
+  if (notificationType.startsWith("reminder_")) return "invoice";
+  if (notificationType.startsWith("subscription_") || notificationType.startsWith("trial_")) return "approval";
+  if (notificationType.startsWith("limit_")) return "accounting";
+  return null;
+}
+
+function canRoleReceiveCategory(role: string, category: string): boolean {
+  const allowed = ROLE_CATEGORIES[role] || ROLE_CATEGORIES["user"];
+  return allowed.includes(category);
+}
+
 function formatCurrency(amount: number): string {
   return amount.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) + ' RSD';
 }
@@ -320,12 +343,19 @@ const handler = async (req: Request): Promise<Response> => {
     const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split('T')[0];
     const in7DaysStr = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0];
 
-    const { data: companies } = await supabase.from('companies').select('id, user_id, name');
+    const { data: companies } = await supabase.from('companies').select('id, user_id, name, tenant_id');
     let sent = { reminders: 0, subscriptions: 0, limits: 0, app_notifications: 0, push_sent: 0 };
 
     for (const company of companies || []) {
       const { data: profile } = await supabase.from('profiles').select('id, email, full_name, email_reminder_7_days_before, email_reminder_day_before, email_reminder_on_due_date, email_limit_6m_warning, email_limit_8m_warning, email_subscription_warnings, subscription_end, is_trial, account_type, app_notify_reminders, app_notify_subscription, app_notify_limits, push_notifications_enabled').eq('id', company.user_id).single();
       if (!profile) continue;
+
+      // Look up user's role in this tenant for role-based notification filtering
+      let userRole = 'user';
+      if (company.tenant_id) {
+        const { data: membership } = await supabase.from('tenant_members').select('role').eq('tenant_id', company.tenant_id).eq('user_id', company.user_id).single();
+        if (membership?.role) userRole = membership.role;
+      }
 
       // Skip users with expired subscriptions (except bookkeepers)
       if (profile.account_type !== 'bookkeeper' && profile.subscription_end) {
@@ -333,7 +363,10 @@ const handler = async (req: Request): Promise<Response> => {
         if (subEnd.getTime() < today.getTime()) continue;
       }
 
-      // Reminders
+      // Reminders (category: invoice)
+      if (!canRoleReceiveCategory(userRole, 'invoice')) {
+        // Skip reminders for roles without invoice access
+      } else {
       const { data: reminders } = await supabase.from('payment_reminders').select('id, title, due_date, amount').eq('company_id', company.id).eq('is_completed', false).in('due_date', [todayStr, tomorrowStr, in7DaysStr]);
       
       for (const r of reminders || []) {
@@ -369,6 +402,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
       }
+      } // end invoice role check
 
       // Subscription warnings
       if (profile.email_subscription_warnings && profile.subscription_end && profile.account_type !== 'bookkeeper') {
@@ -413,7 +447,8 @@ const handler = async (req: Request): Promise<Response> => {
       const yearly = (yearlyInv?.reduce((s: number, i: any) => s + (i.total_amount || 0), 0) || 0) + (yearlyFiscal?.reduce((s: number, f: any) => s + (f.daily_total || 0), 0) || 0);
       const pct6m = (yearly / LIMIT_6M) * 100;
 
-      if (profile.email_limit_6m_warning) {
+      // Limit warnings (category: accounting) — skip if role can't receive
+      if (profile.email_limit_6m_warning && canRoleReceiveCategory(userRole, 'accounting')) {
         for (const t of [{ p: 90, k: 'limit_90_6m', n: 'limit_6m_90' }, { p: 80, k: 'limit_80_6m', n: 'limit_6m_80' }]) {
           if (pct6m >= t.p && !(await wasNotificationSent(supabase, company.id, profile.id, t.n, null, null))) {
             const tpl = await getTemplate(supabase, t.k);

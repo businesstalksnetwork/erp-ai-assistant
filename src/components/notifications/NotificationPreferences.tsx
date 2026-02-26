@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,10 @@ import {
   unsubscribeFromPush,
   isCurrentlySubscribed,
 } from "@/lib/pushSubscription";
+import { getNotificationCategoriesForRole, type NotificationCategory } from "@/config/roleNotificationCategories";
+import { type TenantRole } from "@/config/rolePermissions";
 
-const CATEGORIES = ["invoice", "inventory", "approval", "hr", "accounting"] as const;
+const ALL_CATEGORIES: NotificationCategory[] = ["invoice", "inventory", "approval", "hr", "accounting"];
 const CHANNELS = ["in_app_enabled", "push_enabled", "email_enabled"] as const;
 
 const categoryKeys: Record<string, string> = {
@@ -37,8 +39,12 @@ type ChannelPrefs = Record<string, Record<string, boolean>>;
 
 export function NotificationPreferences() {
   const { user } = useAuth();
-  const { tenantId } = useTenant();
+  const { tenantId, role } = useTenant();
   const { t } = useLanguage();
+  const visibleCategories = useMemo(
+    () => getNotificationCategoriesForRole((role as TenantRole) || "user"),
+    [role]
+  );
   const [prefs, setPrefs] = useState<ChannelPrefs>({});
   const [loading, setLoading] = useState(true);
   const [pushSupported] = useState(isPushSupported());
@@ -53,7 +59,7 @@ export function NotificationPreferences() {
       .eq("user_id", user.id);
 
     const map: ChannelPrefs = {};
-    CATEGORIES.forEach((c) => {
+    ALL_CATEGORIES.forEach((c) => {
       map[c] = { in_app_enabled: true, push_enabled: true, email_enabled: false };
     });
     data?.forEach((p: any) => {
@@ -133,6 +139,9 @@ export function NotificationPreferences() {
     <Card>
       <CardHeader>
         <CardTitle>{t("notificationPreferences")}</CardTitle>
+        {visibleCategories.length < ALL_CATEGORIES.length && (
+          <CardDescription>{t("roleBasedNotificationsInfo")}</CardDescription>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Global push toggle */}
@@ -169,7 +178,7 @@ export function NotificationPreferences() {
               </tr>
             </thead>
             <tbody>
-              {CATEGORIES.map((cat) => (
+              {visibleCategories.map((cat) => (
                 <tr key={cat} className="border-b border-border last:border-0">
                   <td className="py-3 pr-4 font-medium">
                     {t(categoryKeys[cat] as any)}
