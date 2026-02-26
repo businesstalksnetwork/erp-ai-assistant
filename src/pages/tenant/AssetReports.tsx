@@ -42,7 +42,7 @@ export default function AssetReports() {
       const { data } = await supabase.from("fixed_asset_depreciation_schedules")
         .select("*, assets(name, asset_code)")
         .eq("tenant_id", tenantId)
-        .order("period_date", { ascending: false })
+        .order("period_start", { ascending: false })
         .limit(500);
       return data || [];
     },
@@ -89,7 +89,7 @@ export default function AssetReports() {
         return {
           [t("code" as any)]: r.assets?.asset_code,
           [t("name" as any)]: r.assets?.name,
-          [t("period" as any)]: r.period_date,
+          [t("period" as any)]: r.period_start,
           [t("assetsDepAmount" as any)]: r.depreciation_amount,
           [t("assetsAccumDep" as any)]: r.accumulated_depreciation,
           [t("assetsNetBookValue" as any)]: r.net_book_value,
@@ -218,7 +218,7 @@ export default function AssetReports() {
                       <TableRow key={d.id}>
                         <TableCell className="font-mono text-sm">{d.assets?.asset_code}</TableCell>
                         <TableCell>{d.assets?.name}</TableCell>
-                        <TableCell>{d.period_date}</TableCell>
+                        <TableCell>{d.period_start}</TableCell>
                         <TableCell className="text-right font-mono">{Number(d.depreciation_amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono">{Number(d.accumulated_depreciation).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono">{Number(d.net_book_value).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>

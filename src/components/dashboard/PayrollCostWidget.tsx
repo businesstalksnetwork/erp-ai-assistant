@@ -72,7 +72,7 @@ export function PayrollCostWidget({ tenantId }: Props) {
   if (!data) return null;
 
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/hr/payroll/benchmark")}>
+    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/analytics/payroll-benchmark")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
