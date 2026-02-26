@@ -1,96 +1,96 @@
 
 
-# Plan: Assets Cross-Module Integration
+# Plan: Revers Signature Workflow & Email Notifications
 
-This is a large integration effort connecting Assets to 5 existing modules. I'll break it into manageable implementation tasks.
+## Gaps Identified
 
-## Current State
-
-- `assets` table already has: `supplier_id`, `responsible_employee_id`, `location_id`, `cost_center_id`, `legal_entity_id`
-- `asset_documents` table exists (file attachments)
-- `documents` table has `entity_type` / `entity_id` (DMS linkage ready)
-- `drive_files` / `drive_folders` exist with full versioning
-- `purchase_orders` → `goods_receipts` → `supplier_invoices` chain exists
-- AssetForm.tsx currently does NOT expose supplier, warehouse, PO, employee, or document fields
+1. **No employee-facing signature flow** — currently any logged-in user can "sign" a revers via the admin UI. There's no token-based signature request that an employee can complete (even without a system account).
+2. **No rejection flow** — `rejection_reason` column exists in `asset_reverses` but the UI has no reject button or reason dialog.
+3. **No email notifications** — Resend is already integrated in 4 other edge functions (`send-notification-emails`, `send-invoice-email`, `send-verification-email`, `send-admin-bulk-email`) but **`RESEND_API_KEY` is NOT in secrets** (missing from vault). Employees have an `email` column in the DB.
+4. **No signature token mechanism** — no way for an employee to sign via a unique link without logging in.
+5. **No audit trail for signature events** — `signed_at` and `signed_by_name` exist, but no event log.
 
 ## Database Changes
 
-**Migration: Add linking columns to `assets`**
-```sql
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS purchase_order_id uuid REFERENCES purchase_orders(id);
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS goods_receipt_id uuid REFERENCES goods_receipts(id);
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS supplier_invoice_id uuid REFERENCES supplier_invoices(id);
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES warehouses(id);
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS product_id uuid REFERENCES products(id);
-ALTER TABLE assets ADD COLUMN IF NOT EXISTS drive_folder_id uuid REFERENCES drive_folders(id);
-```
+**Migration: Add signature token & tracking columns to `asset_reverses`**
 
-No new tables needed — we leverage existing `documents.entity_type='asset'` for DMS and `drive_folders` for Drive.
+```sql
+ALTER TABLE asset_reverses 
+  ADD COLUMN IF NOT EXISTS signature_token uuid DEFAULT gen_random_uuid(),
+  ADD COLUMN IF NOT EXISTS signature_token_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS employee_signed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS employee_signed_by_name text,
+  ADD COLUMN IF NOT EXISTS employee_signature_ip text,
+  ADD COLUMN IF NOT EXISTS issuer_signed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS issuer_signed_by_name text,
+  ADD COLUMN IF NOT EXISTS notification_sent_at timestamptz,
+  ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_reverses_signature_token 
+  ON asset_reverses(signature_token) WHERE signature_token IS NOT NULL;
+```
 
 ## Implementation Tasks
 
-### Task 1: Expand AssetForm with Cross-Module Fields
+### Task 1: Edge Function `send-revers-notification`
 
-Add new sections to `AssetForm.tsx`:
+New edge function that:
+- Accepts `{ revers_id, tenant_id, action: "request_signature" | "reminder" | "signed" | "rejected" }`
+- Looks up the revers, employee email, asset details, tenant name
+- Sends email via Resend with:
+  - **request_signature**: includes a unique signing link with `signature_token`
+  - **reminder**: follow-up for unsigned reverses
+  - **signed/rejected**: confirmation to the issuer
+- Updates `notification_sent_at` / `reminder_sent_at` on the revers record
+- Requires `RESEND_API_KEY` secret to be added
 
-- **Nabavka (Purchasing)**: Dropdowns for `purchase_order_id`, `goods_receipt_id`, `supplier_invoice_id` (filtered by tenant). Show linked PO number, GR number, SI number.
-- **Dobavljač (Supplier)**: Already has `supplier_id` in DB but not in form — add partner/supplier selector.
-- **Magacin (Warehouse)**: Dropdown for `warehouse_id` (from `warehouses` table).
-- **Proizvod (Product)**: Optional link to `product_id` (from `products` table) for inventory-tracked assets.
-- **Zaposleni (HR)**: `responsible_employee_id` selector (already in DB, not in form).
+### Task 2: Public Signature Page `/sign/:token`
 
-### Task 2: Auto-Create Asset from Goods Receipt
+New route + page `ReversSignature.tsx`:
+- Publicly accessible (no auth required)
+- Looks up `asset_reverses` by `signature_token` where `token_expires_at > now()`
+- Shows revers details (asset, date, condition, accessories) in read-only
+- Employee can **Sign** (captures name, IP, timestamp) or **Reject** (with reason)
+- On sign: updates `status = 'signed'`, `employee_signed_at`, `employee_signed_by_name`, `employee_signature_ip`
+- On reject: updates `status = 'rejected'`, `rejection_reason`
+- Triggers notification email back to issuer
 
-In `GoodsReceipts.tsx` or the goods receipt detail flow, add a "Kreiraj sredstvo" (Create Asset) action button that:
-- Pre-fills asset form with supplier, PO, warehouse, cost from the receipt line
-- Sets `goods_receipt_id` and `purchase_order_id` on the new asset
+### Task 3: Update AssetReverses.tsx UI
 
-### Task 3: DMS Integration — Register Asset Documents in Delovodnik
+- **Send for Signature** button: now calls `send-revers-notification` edge function (sends email with signing link) instead of just updating status
+- **Reject** button for `pending_signature` status with reason dialog
+- **Reminder** button for `pending_signature` reverses older than X days
+- **Status column**: show `notification_sent_at` timestamp as tooltip
+- **Detail/Preview dialog**: view full revers details inline
 
-- When an asset is created/updated, auto-register key documents (revers, warranty, purchase contract) into the DMS `documents` table with `entity_type = 'asset'`, `entity_id = asset.id`.
-- On `AssetForm.tsx` detail view, show a "Dokumenta" tab listing all DMS documents linked to this asset via `entity_type/entity_id`.
-- Allow creating new DMS protocol entries directly from the asset detail.
+### Task 4: Add `RESEND_API_KEY` Secret
 
-### Task 4: Drive Integration — Asset File Folder
+- Prompt user to add `RESEND_API_KEY` to edge function secrets (it's used by 4 existing functions but is currently missing from vault)
 
-- On asset creation, auto-create a Drive folder at `/Imovina/{asset_code}/` using `drive_folders`.
-- Store `drive_folder_id` on the asset record.
-- On asset detail, show a "Fajlovi" tab with files from that Drive folder (warranty PDFs, photos, manuals).
-- Upload widget that saves to the asset's Drive folder.
+### Task 5: Translations
 
-### Task 5: AssetRegistry Table Enhancement
-
-Update `AssetRegistry.tsx` to show new columns:
-- Supplier name (from `partners` via `supplier_id`)
-- Warehouse (from `warehouses` via `warehouse_id`)
-- Responsible employee (from `employees` via `responsible_employee_id`)
-- PO number link
-- Document count badge
-
-### Task 6: HR Integration — Employee Dosije Link
-
-- On `EmployeeDetail.tsx`, add an "Imovina" tab showing all assets where `responsible_employee_id = employee.id` or active assignments.
-- Clicking an asset navigates to the asset detail.
-
-### Task 7: Accounting Integration — Journal Entry Links
-
-- On asset detail, show a "Knjiženja" tab listing all journal entries linked to this asset (depreciation, disposal, revaluation).
-- Link from journal entries back to the asset.
+~15 new keys: signature request email subjects, signing page labels, rejection reason prompt, reminder sent confirmation.
 
 ## Affected Files
 
-**Database**: 1 migration (add FK columns)
+- **New**: `supabase/functions/send-revers-notification/index.ts`
+- **New**: `src/pages/tenant/ReversSignature.tsx` (public page)
+- **Modified**: `src/pages/tenant/AssetReverses.tsx` (reject flow, reminder, email trigger)
+- **Modified**: `src/routes/assetsRoutes.tsx` (public sign route)
+- **Modified**: `src/i18n/translations.ts`
+- **Database**: 1 migration (signature token columns)
 
-**Modified pages**:
-- `AssetForm.tsx` — add 6 new form sections
-- `AssetRegistry.tsx` — expand table columns and joins
-- `GoodsReceipts.tsx` — add "Create Asset" action
-- `EmployeeDetail.tsx` — add "Imovina" tab
+## Flow Summary
 
-**New components** (minimal):
-- Asset DMS tab component
-- Asset Drive tab component  
-- Asset journal entries tab component
-
-**Translations**: ~20 new keys
+```text
+Admin creates revers (draft)
+  → Clicks "Send for Signature"
+    → Edge function sends email to employee with /sign/{token} link
+    → Status: pending_signature, notification_sent_at set
+  → Employee opens link (no login needed)
+    → Reviews asset details
+    → Signs → status: signed, email sent to admin
+    → Rejects → status: rejected + reason, email sent to admin
+  → Admin can send reminder if no response
+```
 
