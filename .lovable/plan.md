@@ -71,4 +71,3 @@ Super admin logs in → Profile shows HR data via ghost employee record
 HR pages (Employees list, reports, payroll) → Ghost employees excluded
 Asset assignment dropdowns → Ghost employees included (for testing)
 ```
-

@@ -84,6 +84,7 @@ export default function EBolovanje() {
         .select("id, full_name")
         .eq("tenant_id", tenantId!)
         .eq("is_active", true)
+        .eq("is_ghost", false)
         .order("full_name");
       return data || [];
     },

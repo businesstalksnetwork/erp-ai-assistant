@@ -27,7 +27,7 @@ export default function InsuranceRecords() {
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-for-insurance", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, full_name, first_name, last_name, jmbg").eq("tenant_id", tenantId!).eq("status", "active").order("full_name");
+      const { data } = await supabase.from("employees").select("id, full_name, first_name, last_name, jmbg").eq("tenant_id", tenantId!).eq("status", "active").eq("is_ghost", false).order("full_name");
       return data || [];
     },
     enabled: !!tenantId,

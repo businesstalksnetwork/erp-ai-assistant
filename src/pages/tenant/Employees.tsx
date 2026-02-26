@@ -64,7 +64,7 @@ export default function Employees() {
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees", tenantId, showArchived],
     queryFn: async () => {
-      let q = supabase.from("employees").select("*, departments!employees_department_id_fkey(name), locations(name)").eq("tenant_id", tenantId!).order("full_name");
+      let q = supabase.from("employees").select("*, departments!employees_department_id_fkey(name), locations(name)").eq("tenant_id", tenantId!).eq("is_ghost", false).order("full_name");
       if (!showArchived) q = q.eq("is_archived", false);
       const { data } = await q;
       return data || [];

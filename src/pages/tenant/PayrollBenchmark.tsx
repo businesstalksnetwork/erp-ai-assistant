@@ -36,7 +36,7 @@ export default function PayrollBenchmark() {
           .eq("tenant_id", tenantId!).in("status", ["approved", "paid"]) as any,
         supabase.from("payroll_items").select("payroll_run_id, gross_salary, net_salary, income_tax, pension_contribution, health_contribution, unemployment_contribution, pension_employer, health_employer, employer_pio, employer_health, subsidy_amount, meal_allowance, transport_allowance, payroll_category_id, employee_id")
           .order("created_at") as any,
-        supabase.from("employees").select("id, status, full_name").eq("tenant_id", tenantId!).eq("status", "active"),
+        supabase.from("employees").select("id, status, full_name").eq("tenant_id", tenantId!).eq("status", "active").eq("is_ghost", false),
         supabase.from("payroll_income_categories").select("id, code, name").eq("tenant_id", tenantId!) as any,
         supabase.from("journal_lines").select("debit, credit, chart_of_accounts:account_id(account_type), journal:journal_entry_id(status, entry_date, tenant_id)")
           .eq("journal.tenant_id", tenantId!) as any,

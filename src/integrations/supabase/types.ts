@@ -5679,6 +5679,7 @@ export type Database = {
           hire_date: string | null
           id: string
           is_archived: boolean
+          is_ghost: boolean | null
           jmbg: string | null
           last_name: string | null
           location_id: string | null
@@ -5719,6 +5720,7 @@ export type Database = {
           hire_date?: string | null
           id?: string
           is_archived?: boolean
+          is_ghost?: boolean | null
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
@@ -5759,6 +5761,7 @@ export type Database = {
           hire_date?: string | null
           id?: string
           is_archived?: boolean
+          is_ghost?: boolean | null
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
