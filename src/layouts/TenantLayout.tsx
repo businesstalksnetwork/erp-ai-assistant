@@ -280,7 +280,7 @@ function CollapsibleNavGroup({
           </span>
           <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180 opacity-50" />
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent className="bg-sidebar-accent/30 rounded-md mx-1 mb-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
@@ -437,7 +437,7 @@ export default function TenantLayout() {
             <SidebarFooter className="border-t border-sidebar-border p-0">
               <SidebarGroup className="py-0 flex flex-col-reverse">
                 <Collapsible defaultOpen={settingsNav.some((item) => currentPath.startsWith(item.url))}>
-                  <CollapsibleContent className="max-h-[40vh] overflow-y-auto">
+                  <CollapsibleContent className="max-h-[40vh] overflow-y-auto bg-sidebar-accent/30 rounded-md mx-1 mb-1">
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {settingsNav.filter((item) => {
