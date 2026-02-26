@@ -2591,6 +2591,14 @@ export const translations = {
     assetsCountIn_progress: "In Progress",
     assetsCountCompleted: "Completed",
     assetsCountPostedStatus: "Posted",
+    // Fleet
+    fleetManagement: "Fleet",
+    fleetDashboard: "Fleet Dashboard",
+    fleetVehicles: "Vehicles",
+    fleetFuel: "Fuel Log",
+    fleetService: "Service Orders",
+    fleetRegistrations: "Registrations",
+    fleetInsurance: "Insurance",
   },
   sr: {
     // Auth
@@ -5138,6 +5146,14 @@ export const translations = {
     assetsCountIn_progress: "U toku",
     assetsCountCompleted: "Završen",
     assetsCountPostedStatus: "Proknjižen",
+    // Fleet
+    fleetManagement: "Vozni park",
+    fleetDashboard: "Kontrolna tabla",
+    fleetVehicles: "Vozila",
+    fleetFuel: "Gorivo",
+    fleetService: "Servisni nalozi",
+    fleetRegistrations: "Registracije",
+    fleetInsurance: "Osiguranja",
   },
 } as const;
 

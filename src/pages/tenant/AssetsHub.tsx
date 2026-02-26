@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree, Calculator, Trash2, TrendingUp, UserCheck, ClipboardList } from "lucide-react";
+import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree, Calculator, Trash2, TrendingUp, UserCheck, ClipboardList, Car } from "lucide-react";
 
 export default function AssetsHub() {
   const { t } = useLanguage();
@@ -130,6 +130,15 @@ export default function AssetsHub() {
             <div>
               <p className="font-semibold">{t("assetsCategories" as any)}</p>
               <p className="text-sm text-muted-foreground">{t("assetsCategoriesDesc" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/fleet")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <Car className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("fleetDashboard" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("fleetManagement" as any)}</p>
             </div>
           </CardContent>
         </Card>
