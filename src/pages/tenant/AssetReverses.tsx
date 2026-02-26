@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileSignature, Plus, Search, FileText, Eye, CheckCircle, XCircle, Send } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileSignature, Plus, Search, FileText, CheckCircle, XCircle, Send, Bell, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ReversForm {
@@ -42,6 +43,11 @@ export default function AssetReverses() {
   const [form, setForm] = useState<ReversForm>(emptyForm);
   const [search, setSearch] = useState("");
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detailRevers, setDetailRevers] = useState<any>(null);
 
   const { data: assets = [] } = useQuery({
     queryKey: ["assignable-assets-revers", tenantId],
@@ -126,14 +132,58 @@ export default function AssetReverses() {
 
   const sendForSignature = useMutation({
     mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-revers-notification", {
+        body: {
+          revers_id: id,
+          tenant_id: tenantId,
+          action: "request_signature",
+          app_url: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
+      const msg = data?.emailSent
+        ? t("reversSentForSignature" as any) + ` (${data.recipientEmail})`
+        : t("reversSentForSignature" as any) + ` — ${t("reversEmailNotConfigured" as any)}`;
+      toast({ title: msg });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const sendReminder = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke("send-revers-notification", {
+        body: {
+          revers_id: id,
+          tenant_id: tenantId,
+          action: "reminder",
+          app_url: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
+      toast({ title: t("reversReminderSent" as any) });
+    },
+  });
+
+  const rejectRevers = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase.from("asset_reverses")
-        .update({ status: "pending_signature" })
+        .update({ status: "rejected", rejection_reason: reason })
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("reversSentForSignature" as any) });
+      toast({ title: t("reversRejected" as any) });
+      setRejectDialogOpen(false);
+      setRejectionReason("");
     },
   });
 
@@ -142,8 +192,8 @@ export default function AssetReverses() {
       const { error } = await supabase.from("asset_reverses")
         .update({
           status: "signed",
-          signed_at: new Date().toISOString(),
-          signed_by_name: user?.user_metadata?.full_name || user?.email || "—",
+          issuer_signed_at: new Date().toISOString(),
+          issuer_signed_by_name: user?.user_metadata?.full_name || user?.email || "—",
         })
         .eq("id", id);
       if (error) throw error;
@@ -243,21 +293,73 @@ export default function AssetReverses() {
                     <TableCell>
                       {r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : "—"}
                     </TableCell>
-                    <TableCell><Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge></TableCell>
+                    <TableCell>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          {r.notification_sent_at && <div>{t("reversNotificationSent" as any)}: {new Date(r.notification_sent_at).toLocaleString()}</div>}
+                          {r.reminder_sent_at && <div>{t("reversReminderSentAt" as any)}: {new Date(r.reminder_sent_at).toLocaleString()}</div>}
+                          {r.employee_signed_at && <div>{t("reversSigned" as any)}: {new Date(r.employee_signed_at).toLocaleString()} ({r.employee_signed_by_name})</div>}
+                          {r.issuer_signed_at && <div>{t("reversIssuerSigned" as any)}: {new Date(r.issuer_signed_at).toLocaleString()}</div>}
+                          {!r.notification_sent_at && !r.employee_signed_at && <div>{statusLabel(r.status)}</div>}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {/* Detail / Preview */}
+                        <Button variant="ghost" size="sm" onClick={() => { setDetailRevers(r); setDetailDialogOpen(true); }}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {/* PDF */}
                         <Button variant="ghost" size="sm" onClick={() => handleGeneratePdf(r)} disabled={pdfLoading === r.id}>
                           <FileText className="h-4 w-4" />
                         </Button>
+                        {/* Send for signature */}
                         {r.status === "draft" && (
-                          <Button variant="ghost" size="sm" onClick={() => sendForSignature.mutate(r.id)}>
-                            <Send className="h-4 w-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => sendForSignature.mutate(r.id)} disabled={sendForSignature.isPending}>
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reversSendForSignature" as any)}</TooltipContent>
+                          </Tooltip>
                         )}
+                        {/* Reminder */}
                         {r.status === "pending_signature" && (
-                          <Button variant="ghost" size="sm" onClick={() => signRevers.mutate(r.id)}>
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => sendReminder.mutate(r.id)} disabled={sendReminder.isPending}>
+                                <Bell className="h-4 w-4 text-amber-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reversSendReminder" as any)}</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Admin sign */}
+                        {r.status === "pending_signature" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => signRevers.mutate(r.id)}>
+                                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reversAdminSign" as any)}</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Reject */}
+                        {(r.status === "draft" || r.status === "pending_signature") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => { setRejectTarget(r); setRejectionReason(""); setRejectDialogOpen(true); }}>
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("reversReject" as any)}</TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </TableCell>
@@ -331,6 +433,60 @@ export default function AssetReverses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("reversReject" as any)}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              {t("reversRejectConfirm" as any)} <strong>{rejectTarget?.revers_number}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label>{t("reversRejectionReason" as any)}</Label>
+              <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={3} placeholder={t("reversRejectionReasonPlaceholder" as any)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>{t("cancel")}</Button>
+            <Button variant="destructive" onClick={() => rejectTarget && rejectRevers.mutate({ id: rejectTarget.id, reason: rejectionReason })} disabled={rejectRevers.isPending || !rejectionReason.trim()}>
+              <XCircle className="h-4 w-4 mr-1" /> {t("reversReject" as any)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Preview Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t("reversNumber" as any)}: {detailRevers?.revers_number}</DialogTitle></DialogHeader>
+          {detailRevers && (
+            <div className="space-y-3 text-sm py-2">
+              <DetailRow label={t("type" as any)} value={detailRevers.revers_type === "handover" ? t("reversHandover" as any) : t("reversReturn" as any)} />
+              <DetailRow label={t("assetsSelectAsset" as any)} value={`${detailRevers.assets?.asset_code} — ${detailRevers.assets?.name}`} />
+              <DetailRow label={t("employee" as any)} value={detailRevers.employees ? `${detailRevers.employees.first_name} ${detailRevers.employees.last_name}` : "—"} />
+              <DetailRow label={t("date" as any)} value={detailRevers.revers_date} />
+              <DetailRow label={t("status")} value={statusLabel(detailRevers.status)} />
+              {detailRevers.condition_on_handover && <DetailRow label={t("reversCondition" as any)} value={detailRevers.condition_on_handover} />}
+              {detailRevers.accessories && <DetailRow label={t("reversAccessories" as any)} value={detailRevers.accessories} />}
+              {detailRevers.notes && <DetailRow label={t("notes" as any)} value={detailRevers.notes} />}
+              {detailRevers.rejection_reason && <DetailRow label={t("reversRejectionReason" as any)} value={detailRevers.rejection_reason} />}
+              {detailRevers.notification_sent_at && <DetailRow label={t("reversNotificationSent" as any)} value={new Date(detailRevers.notification_sent_at).toLocaleString()} />}
+              {detailRevers.employee_signed_at && <DetailRow label={t("reversEmployeeSigned" as any)} value={`${detailRevers.employee_signed_by_name} — ${new Date(detailRevers.employee_signed_at).toLocaleString()}`} />}
+              {detailRevers.issuer_signed_at && <DetailRow label={t("reversIssuerSigned" as any)} value={`${detailRevers.issuer_signed_by_name} — ${new Date(detailRevers.issuer_signed_at).toLocaleString()}`} />}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between border-b border-border pb-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right max-w-[60%]">{value}</span>
     </div>
   );
 }
