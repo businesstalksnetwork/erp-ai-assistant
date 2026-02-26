@@ -33,7 +33,8 @@ export function InvoiceStatusChart({ tenantId }: Props) {
       const { data } = await supabase
         .from("invoices")
         .select("status")
-        .eq("tenant_id", tenantId);
+        .eq("tenant_id", tenantId)
+        .limit(500);
 
       if (!data?.length) return [];
 

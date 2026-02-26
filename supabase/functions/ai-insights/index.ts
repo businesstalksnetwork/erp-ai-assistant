@@ -355,10 +355,13 @@ serve(async (req) => {
 
     // 6. Expense spikes
     if (!module || module === "analytics" || module === "accounting") {
+      const twelveMonthsAgo = new Date(Date.now() - 365 * 86400000).toISOString().split("T")[0];
       const { data: expenseLines } = await supabase
         .from("journal_lines")
         .select("debit, account_id, journal_entry_id")
-        .eq("tenant_id", tenant_id) as any;
+        .eq("tenant_id", tenant_id)
+        .gte("created_at", twelveMonthsAgo)
+        .limit(5000) as any;
 
       if (expenseLines && expenseLines.length > 0) {
         const jeIds = [...new Set(expenseLines.map((l: any) => l.journal_entry_id))];
@@ -632,10 +635,13 @@ serve(async (req) => {
         .eq("tenant_id", tenant_id).eq("fiscal_year", currentYear);
 
       if (budgets && budgets.length > 0) {
+        const budgetYearStart = `${currentYear}-01-01`;
         const { data: journalLines } = await supabase
           .from("journal_lines")
           .select("amount, side, account_id, journal:journal_entry_id(status, entry_date)")
-          .eq("tenant_id", tenant_id) as any;
+          .eq("tenant_id", tenant_id)
+          .gte("created_at", budgetYearStart)
+          .limit(5000) as any;
 
         if (journalLines) {
           const actualsByAccount: Record<string, number> = {};
@@ -671,10 +677,13 @@ serve(async (req) => {
         }
       }
 
+      const revTwelveMonthsAgo = new Date(Date.now() - 365 * 86400000).toISOString().split("T")[0];
       const { data: revLines } = await supabase
         .from("journal_lines")
         .select("amount, side, accounts:account_id(account_type), journal:journal_entry_id(status, entry_date)")
-        .eq("tenant_id", tenant_id) as any;
+        .eq("tenant_id", tenant_id)
+        .gte("created_at", revTwelveMonthsAgo)
+        .limit(5000) as any;
 
       if (revLines) {
         const monthlyRev: Record<string, number> = {};

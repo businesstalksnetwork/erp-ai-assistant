@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useTenant } from "@/hooks/useTenant";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +22,10 @@ const ICONS: Record<string, any> = {
 
 export function OpportunityActivityTab({ opportunityId }: Props) {
   const { t } = useLanguage();
+  const { tenantId } = useTenant();
 
   const { data: activities = [], isLoading } = useQuery({
-    queryKey: ["opportunity-activities", opportunityId],
+    queryKey: ["opportunity-activities", opportunityId, tenantId],
     queryFn: async () => {
       const { data } = await supabase
         .from("opportunity_activities" as any)

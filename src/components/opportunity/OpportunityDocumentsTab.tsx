@@ -24,7 +24,7 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
   const isMobile = useIsMobile();
 
   const { data: docs = [], isLoading } = useQuery({
-    queryKey: ["opportunity-documents", opportunityId],
+    queryKey: ["opportunity-documents", opportunityId, tenantId],
     queryFn: async () => {
       const { data } = await supabase
         .from("opportunity_documents" as any)
