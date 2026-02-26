@@ -124,6 +124,11 @@ Deno.serve(async (req) => {
       if (forbidden) return forbidden;
       return await generateIosKompenzacija(admin, body, corsHeaders);
     }
+    if (type === "asset_revers") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateAssetRevers(admin, body, corsHeaders);
+    }
 
     // --- Invoice PDF (default) ---
     const { invoice_id } = body;
@@ -576,6 +581,92 @@ async function generateIosKompenzacija(admin: any, body: any, corsHeaders: Recor
   </div>`;
 
   return new Response(wrapHtml("IOS - Izvod Otvorenih Stavki", content), {
+    headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+// ─── Asset Revers PDF ───
+async function generateAssetRevers(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id, revers_id } = body;
+  if (!tenant_id || !revers_id) {
+    return new Response(JSON.stringify({ error: "tenant_id and revers_id required" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: revers, error: rErr } = await admin
+    .from("asset_reverses")
+    .select("*, assets(name, asset_code, inventory_number, serial_number, acquisition_cost, acquisition_date, asset_type, category_id, asset_categories(name)), employees(first_name, last_name, employee_id, position, jmbg)")
+    .eq("id", revers_id)
+    .eq("tenant_id", tenant_id)
+    .single();
+
+  if (rErr || !revers) {
+    return new Response(JSON.stringify({ error: "Revers not found" }), {
+      status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+
+  const isHandover = revers.revers_type === "handover";
+  const title = isHandover ? "РЕВЕРС — Задужење средства" : "РЕВЕРС — Раздужење средства";
+  const asset = revers.assets || {};
+  const emp = revers.employees || {};
+
+  const content = `${companyHeader(legalEntity)}
+  <div class="report-title">${title}</div>
+  <div class="report-subtitle">Број: ${revers.revers_number} | Датум: ${formatDate(revers.revers_date)}</div>
+
+  <div class="section-header">Подаци о средству</div>
+  <table>
+    <tbody>
+      <tr><td style="width:200px;font-weight:600;background:#f8f9fa;">Шифра средства</td><td>${asset.asset_code || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Назив</td><td>${asset.name || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Инвентарни број</td><td>${asset.inventory_number || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Серијски број</td><td>${asset.serial_number || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Категорија</td><td>${asset.asset_categories?.name || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Набавна вредност</td><td>${asset.acquisition_cost ? formatNum(Number(asset.acquisition_cost)) + " RSD" : "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Датум набавке</td><td>${formatDate(asset.acquisition_date)}</td></tr>
+      ${revers.condition_on_handover ? `<tr><td style="font-weight:600;background:#f8f9fa;">Стање при примопредаји</td><td>${revers.condition_on_handover}</td></tr>` : ""}
+      ${revers.accessories ? `<tr><td style="font-weight:600;background:#f8f9fa;">Пратећа опрема</td><td>${revers.accessories}</td></tr>` : ""}
+    </tbody>
+  </table>
+
+  <div class="section-header">${isHandover ? "Задужује се" : "Раздужује се"}</div>
+  <table>
+    <tbody>
+      <tr><td style="width:200px;font-weight:600;background:#f8f9fa;">Име и презиме</td><td>${emp.first_name || ""} ${emp.last_name || ""}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Матични број запосленог</td><td>${emp.employee_id || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">ЈМБГ</td><td>${emp.jmbg || "—"}</td></tr>
+      <tr><td style="font-weight:600;background:#f8f9fa;">Позиција</td><td>${emp.position || "—"}</td></tr>
+    </tbody>
+  </table>
+
+  ${revers.notes ? `<div style="margin:20px 0;"><strong>Напомена:</strong> ${revers.notes}</div>` : ""}
+
+  <div style="margin-top:20px;padding:12px;background:#f0f4ff;border-radius:6px;font-size:11px;">
+    ${isHandover
+      ? "Потписом овог реверса, запослени потврђује да је преузео горе наведено средство у исправном стању и обавезује се да ће исто користити пажљиво и наменски, те да ће га вратити на захтев послодавца."
+      : "Потписом овог реверса, послодавац потврђује да је запослени вратио горе наведено средство."
+    }
+  </div>
+
+  <div style="margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px;">
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;">
+      <div style="font-size:11px;color:#666;">Издао (послодавац)</div>
+      <div style="margin-top:30px;">_________________________</div>
+      <div style="font-size:10px;color:#666;">М.П. и потпис</div>
+    </div>
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;">
+      <div style="font-size:11px;color:#666;">${isHandover ? "Преузео (запослени)" : "Вратио (запослени)"}</div>
+      <div style="margin-top:30px;">_________________________</div>
+      ${revers.signed_by_name ? `<div style="font-size:11px;font-weight:600;margin-top:4px;">${revers.signed_by_name}</div>` : ""}
+      ${revers.signed_at ? `<div style="font-size:10px;color:#666;">Потписано: ${formatDate(revers.signed_at)}</div>` : `<div style="font-size:10px;color:#666;">Потпис запосленог</div>`}
+    </div>
+  </div>`;
+
+  return new Response(wrapHtml("Реверс", content), {
     headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
   });
 }

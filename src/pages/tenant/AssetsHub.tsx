@@ -115,6 +115,15 @@ export default function AssetsHub() {
             </div>
           </CardContent>
         </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/reverses")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <FileSignature className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("reversDocuments" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("reversHandover" as any)} / {t("reversReturn" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/inventory-count")}>
           <CardContent className="flex items-center gap-3 py-6">
             <ClipboardList className="h-8 w-8 text-primary" />
