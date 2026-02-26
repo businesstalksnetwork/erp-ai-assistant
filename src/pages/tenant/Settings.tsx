@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -45,6 +45,7 @@ export default function TenantSettings() {
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/sales/web-settings" }] : []),
         { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
         { label: t("discountApprovalRules" as any), icon: Percent, to: "/settings/discount-rules" },
+        { label: t("notificationCategorySettings" as any), icon: Bell, to: "/settings/notification-categories" },
       ],
     },
     {

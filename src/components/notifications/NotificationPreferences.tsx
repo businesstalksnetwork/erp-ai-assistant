@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
@@ -15,7 +15,7 @@ import {
   unsubscribeFromPush,
   isCurrentlySubscribed,
 } from "@/lib/pushSubscription";
-import { getNotificationCategoriesForRole, type NotificationCategory } from "@/config/roleNotificationCategories";
+import { getNotificationCategoriesForRole, getCustomCategoriesForRole, type NotificationCategory } from "@/config/roleNotificationCategories";
 import { type TenantRole } from "@/config/rolePermissions";
 
 const ALL_CATEGORIES: NotificationCategory[] = ["invoice", "inventory", "approval", "hr", "accounting"];
@@ -41,10 +41,14 @@ export function NotificationPreferences() {
   const { user } = useAuth();
   const { tenantId, role } = useTenant();
   const { t } = useLanguage();
-  const visibleCategories = useMemo(
-    () => getNotificationCategoriesForRole((role as TenantRole) || "user"),
-    [role]
+  const [visibleCategories, setVisibleCategories] = useState<NotificationCategory[]>(
+    () => getNotificationCategoriesForRole((role as TenantRole) || "user")
   );
+
+  useEffect(() => {
+    if (!tenantId || !role) return;
+    getCustomCategoriesForRole(tenantId, (role as TenantRole) || "user", supabase).then(setVisibleCategories);
+  }, [tenantId, role]);
   const [prefs, setPrefs] = useState<ChannelPrefs>({});
   const [loading, setLoading] = useState(true);
   const [pushSupported] = useState(isPushSupported());
