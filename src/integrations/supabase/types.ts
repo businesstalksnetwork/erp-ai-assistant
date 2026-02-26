@@ -10440,24 +10440,33 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          email_enabled: boolean
           enabled: boolean
           id: string
+          in_app_enabled: boolean
+          push_enabled: boolean
           tenant_id: string
           user_id: string
         }
         Insert: {
           category: string
           created_at?: string
+          email_enabled?: boolean
           enabled?: boolean
           id?: string
+          in_app_enabled?: boolean
+          push_enabled?: boolean
           tenant_id: string
           user_id: string
         }
         Update: {
           category?: string
           created_at?: string
+          email_enabled?: boolean
           enabled?: boolean
           id?: string
+          in_app_enabled?: boolean
+          push_enabled?: boolean
           tenant_id?: string
           user_id?: string
         }
@@ -13145,6 +13154,7 @@ export type Database = {
           full_name: string | null
           id: string
           locale: string
+          push_notifications_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -13153,6 +13163,7 @@ export type Database = {
           full_name?: string | null
           id: string
           locale?: string
+          push_notifications_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -13161,6 +13172,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           locale?: string
+          push_notifications_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -13450,6 +13462,44 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
