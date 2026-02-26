@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Trash2, PackageCheck } from "lucide-react";
+import { Plus, Loader2, Trash2, PackageCheck, Box } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
@@ -46,6 +47,7 @@ export default function GoodsReceipts() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<GRForm>(emptyForm);
@@ -192,13 +194,31 @@ export default function GoodsReceipts() {
     setOpen(true);
   };
 
+  const createAssetFromGR = (gr: any) => {
+    const params = new URLSearchParams();
+    if (gr.purchase_order_id) params.set("purchase_order_id", gr.purchase_order_id);
+    if (gr.id) params.set("goods_receipt_id", gr.id);
+    if (gr.warehouse_id) params.set("warehouse_id", gr.warehouse_id);
+    if (gr.supplier_id) params.set("supplier_id", gr.supplier_id);
+    navigate(`/assets/registry/new?${params.toString()}`);
+  };
+
   const columns: ResponsiveColumn<any>[] = [
     { key: "receipt_number", label: t("receiptNumber"), primary: true, render: (r) => r.receipt_number },
     { key: "purchase_order", label: t("purchaseOrder"), render: (r) => r.purchase_orders?.order_number || "—" },
     { key: "warehouse", label: t("warehouse"), hideOnMobile: true, render: (r) => r.warehouses?.name || "—" },
     { key: "date", label: t("date"), render: (r) => new Date(r.received_at).toLocaleDateString() },
     { key: "status", label: t("status"), render: (r) => <Badge variant={r.status === "completed" ? "default" : "secondary"}>{t(r.status as any) || r.status}</Badge> },
-    { key: "actions", label: t("actions"), showInCard: false, render: (r) => <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>{t("edit")}</Button> },
+    { key: "actions", label: t("actions"), showInCard: false, render: (r) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>{t("edit")}</Button>
+        {r.status === "completed" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); createAssetFromGR(r); }} title={t("assetsCrossCreateFromGR" as any)}>
+            <Box className="h-3 w-3 mr-1" /> {t("assetsCrossCreateFromGR" as any)}
+          </Button>
+        )}
+      </div>
+    )},
   ];
 
   if (isLoading) {
