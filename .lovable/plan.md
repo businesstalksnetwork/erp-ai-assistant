@@ -1,60 +1,44 @@
 
 
-# Redesign Notification Preferences: Per-Category Channel Control
+# Role-Based Notification Categories
 
-## Current State
-- **notification_preferences** table: simple `category + enabled` toggle (on/off per category, no channel distinction)
-- **Push infrastructure**: Edge function code exists for web push (`push_subscriptions`) and native push (`native_push_tokens`), but **neither table exists in the database**, and `profiles` has no `push_notifications_enabled` column
-- **VAPID key endpoint**: `get-vapid-public-key` edge function exists but no client-side service worker or subscription logic
-- **UI**: Simple list of switches — one per category, no channel selection
+## Problem
+Currently all users see the same 5 notification categories (invoice, inventory, approval, hr, accounting) regardless of their role. A `sales` user shouldn't see HR notifications, and an `hr` user shouldn't see accounting notifications. The mapping should also be considered when creating/editing company roles.
 
-## Proposed Design
+## Design
 
-Replace the single toggle per category with a **matrix UI**: each category row has 3 channel toggles (In-App, Push, Email).
+Use the existing `rolePermissions` config to derive which notification categories a role can access. The mapping is straightforward:
 
 ```text
-                        In-App    Push     Email
-  ──────────────────────────────────────────────
-  Fakture (Invoice)      [✓]      [✓]      [ ]
-  Inventar (Inventory)   [✓]      [ ]      [ ]
-  Odobrenja (Approval)   [✓]      [✓]      [✓]
-  HR                     [✓]      [ ]      [ ]
-  Računovodstvo          [✓]      [✓]      [ ]
+Module Group → Notification Category
+─────────────────────────────────────
+sales, crm    → invoice
+inventory     → inventory
+*             → approval (everyone gets approvals)
+hr            → hr
+accounting    → accounting
 ```
 
-Plus a **global push toggle** at the top that requests browser permission and registers the service worker subscription.
+No new DB tables needed — this is a client-side filter plus a backend check.
 
 ## Changes
 
-### 1. Database Migration
-- Add columns to `notification_preferences`:
-  - `in_app_enabled BOOLEAN DEFAULT true`
-  - `push_enabled BOOLEAN DEFAULT true`
-  - `email_enabled BOOLEAN DEFAULT false`
-- Migrate existing `enabled` data into `in_app_enabled` (preserve current settings)
-- Create `push_subscriptions` table (id, user_id, tenant_id, endpoint, p256dh, auth, created_at) with RLS
-- Add `push_notifications_enabled BOOLEAN DEFAULT false` to `profiles`
+### 1. Create `src/config/roleNotificationCategories.ts`
+- Map each `TenantRole` to the notification categories they should see
+- Derive from `rolePermissions` module access: if a role has access to `sales` → gets `invoice` category, etc.
+- Export a `getNotificationCategoriesForRole(role: TenantRole): string[]` function
+- All roles always get `approval` (cross-cutting)
 
-### 2. Service Worker + Push Subscription (`src/lib/pushSubscription.ts`)
-- Request notification permission from browser
-- Register service worker, subscribe with VAPID public key from `get-vapid-public-key` edge function
-- Save subscription to `push_subscriptions` table
-- Unsubscribe helper
+### 2. Update `NotificationPreferences.tsx`
+- Import the user's current role from `useTenant()`
+- Filter `CATEGORIES` to only show categories relevant to the user's role using `getNotificationCategoriesForRole`
+- Admin/manager sees all categories; `hr` role only sees `hr` + `approval`; `sales` sees `invoice` + `approval`, etc.
 
-### 3. Service Worker File (`public/sw.js`)
-- Listen for `push` events, show notification with title/message/link from payload
-- Handle `notificationclick` to open the app at the correct route
+### 3. Update Edge Function `send-notification-emails/index.ts`
+- Before sending any notification, look up the user's `tenant_members.role` for the relevant company
+- Check `notification_preferences` for that user+category, respecting per-channel toggles (`in_app_enabled`, `push_enabled`, `email_enabled`)
+- Skip sending if the user's role shouldn't receive that category (server-side enforcement)
 
-### 4. Redesign `NotificationPreferences.tsx`
-- Matrix layout: rows = categories, columns = In-App / Push / Email (using Checkbox components)
-- Global push toggle at top that triggers browser permission + subscription
-- Each cell upserts `notification_preferences` with the specific channel column
-- Add translations: `inAppChannel`, `pushChannel`, `emailChannel`, `enablePushNotifications`, `pushNotificationsDescription`
-
-### 5. Update `translations.ts`
-- Add ~6 new translation keys for the channel labels and push toggle descriptions
-
-### 6. Update Edge Function (`send-notification-emails/index.ts`)
-- When sending notifications, check the per-channel preferences (`in_app_enabled`, `push_enabled`, `email_enabled`) instead of the single `enabled` flag
-- Query `notification_preferences` with category + user_id to decide which channels to use
+### 4. Add translations
+- Add `roleBasedNotificationsInfo` key: EN = "You only see notification categories relevant to your role", SR = "Prikazane su samo kategorije obaveštenja relevantne za vašu ulogu"
 
