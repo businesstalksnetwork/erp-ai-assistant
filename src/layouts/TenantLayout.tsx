@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2,
+  Building2, List, FolderTree, Trash2, UserX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -216,11 +216,14 @@ const assetsNav: NavItem[] = [
   { key: "assetsHub", url: "/assets", icon: LayoutDashboard, section: "assetsOverview" },
   { key: "assetsRegistry", url: "/assets/registry", icon: List },
   { key: "assetsCategories", url: "/assets/categories", icon: FolderTree },
+  { key: "assetsLocationsTitle", url: "/assets/locations", icon: MapPin },
   { key: "assetsDepreciation", url: "/assets/depreciation", icon: Calculator, section: "assetsAccounting" },
   { key: "assetsDisposals", url: "/assets/disposals", icon: Trash2 },
   { key: "assetsRevalImpairment", url: "/assets/revaluations", icon: TrendingUp },
+  { key: "assetsReports", url: "/assets/reports", icon: FileSpreadsheet },
   { key: "assetsAssignments", url: "/assets/assignments", icon: UserCheck, section: "assetsOperations" },
   { key: "reversDocuments", url: "/assets/reverses", icon: FileSignature },
+  { key: "offboardingTitle", url: "/assets/offboarding", icon: UserX },
   { key: "assetsInventoryCount", url: "/assets/inventory-count", icon: ClipboardCheck },
   { key: "fleetDashboard", url: "/assets/fleet", icon: Truck, section: "fleetManagement" },
   { key: "fleetVehicles", url: "/assets/fleet/vehicles", icon: Truck },

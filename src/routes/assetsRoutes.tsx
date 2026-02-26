@@ -7,6 +7,9 @@ const AssetRegistry = React.lazy(() => import("@/pages/tenant/AssetRegistry"));
 const AssetForm = React.lazy(() => import("@/pages/tenant/AssetForm"));
 const AssetCategories = React.lazy(() => import("@/pages/tenant/AssetCategories"));
 const AssetReverses = React.lazy(() => import("@/pages/tenant/AssetReverses"));
+const AssetLocations = React.lazy(() => import("@/pages/tenant/AssetLocations"));
+const AssetReports = React.lazy(() => import("@/pages/tenant/AssetReports"));
+const AssetOffboarding = React.lazy(() => import("@/pages/tenant/AssetOffboarding"));
 const AssetDepreciation = React.lazy(() => import("@/pages/tenant/AssetDepreciation"));
 const AssetDisposals = React.lazy(() => import("@/pages/tenant/AssetDisposals"));
 const AssetRevaluations = React.lazy(() => import("@/pages/tenant/AssetRevaluations"));
@@ -33,6 +36,9 @@ export const assetsRoutes = (
     <Route path="assets/registry/new" element={<ProtectedRoute requiredModule={m}><AssetForm /></ProtectedRoute>} />
     <Route path="assets/registry/:id" element={<ProtectedRoute requiredModule={m}><AssetForm /></ProtectedRoute>} />
     <Route path="assets/categories" element={<ProtectedRoute requiredModule={m}><AssetCategories /></ProtectedRoute>} />
+    <Route path="assets/locations" element={<ProtectedRoute requiredModule={m}><AssetLocations /></ProtectedRoute>} />
+    <Route path="assets/reports" element={<ProtectedRoute requiredModule={m}><AssetReports /></ProtectedRoute>} />
+    <Route path="assets/offboarding" element={<ProtectedRoute requiredModule={m}><AssetOffboarding /></ProtectedRoute>} />
     <Route path="assets/depreciation" element={<ProtectedRoute requiredModule={m}><AssetDepreciation /></ProtectedRoute>} />
     <Route path="assets/disposals" element={<ProtectedRoute requiredModule={m}><AssetDisposals /></ProtectedRoute>} />
     <Route path="assets/revaluations" element={<ProtectedRoute requiredModule={m}><AssetRevaluations /></ProtectedRoute>} />

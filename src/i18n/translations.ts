@@ -2619,6 +2619,30 @@ export const translations = {
     reversRejected: "Rejected",
     reversPendingSignature: "Pending signature",
     reversCreateNew: "Create",
+    // Asset Locations
+    assetsLocationsTitle: "Asset Locations",
+    locBuilding: "Building",
+    locRoom: "Room",
+    locWarehouse: "Warehouse",
+    locFloor: "Floor",
+    locSite: "Site",
+    locParent: "Parent Location",
+    // Asset Reports
+    assetsReports: "Reports",
+    // HR Offboarding
+    offboardingTitle: "HR Offboarding",
+    offboardingDesc: "Return all assets assigned to departing employees with automatic revers generation.",
+    offboardingEmployees: "Employees with Assigned Assets",
+    offboardingNoAssets: "No employees with active asset assignments.",
+    offboardingAssetsCount: "Assets Count",
+    offboardingAssetsList: "Assets",
+    offboardingReturnAll: "Return All",
+    offboardingConfirm: "Confirm Asset Return",
+    offboardingConfirmDesc: "This will return all assigned assets and auto-generate signed return reverses for each.",
+    offboardingAssetsToReturn: "Assets to return",
+    offboardingExecute: "Return All",
+    offboardingItems: "items",
+    offboardingComplete: "Offboarding complete — all assets returned",
   },
   sr: {
     // Auth
@@ -5194,6 +5218,30 @@ export const translations = {
     reversRejected: "Odbijen",
     reversPendingSignature: "Čeka potpis",
     reversCreateNew: "Kreiraj",
+    // Asset Locations
+    assetsLocationsTitle: "Lokacije imovine",
+    locBuilding: "Zgrada",
+    locRoom: "Prostorija",
+    locWarehouse: "Magacin",
+    locFloor: "Sprat",
+    locSite: "Lokacija",
+    locParent: "Nadređena lokacija",
+    // Asset Reports
+    assetsReports: "Izveštaji",
+    // HR Offboarding
+    offboardingTitle: "HR Offboarding",
+    offboardingDesc: "Povraćaj svih sredstava zaduženim zaposlenima sa automatskim generisanjem reversa.",
+    offboardingEmployees: "Zaposleni sa zaduženim sredstvima",
+    offboardingNoAssets: "Nema zaposlenih sa aktivnim zaduženjima.",
+    offboardingAssetsCount: "Broj sredstava",
+    offboardingAssetsList: "Sredstva",
+    offboardingReturnAll: "Vrati sve",
+    offboardingConfirm: "Potvrda povraćaja",
+    offboardingConfirmDesc: "Ova akcija će vratiti sva zadužena sredstva i automatski generisati potpisane reverse za svako.",
+    offboardingAssetsToReturn: "Sredstva za povraćaj",
+    offboardingExecute: "Vrati sve",
+    offboardingItems: "stavki",
+    offboardingComplete: "Offboarding završen — sva sredstva vraćena",
   },
 } as const;
 

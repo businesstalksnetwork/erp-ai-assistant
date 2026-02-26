@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree, Calculator, Trash2, TrendingUp, UserCheck, ClipboardList, Car, FileSignature } from "lucide-react";
+import { Package, CheckCircle, XCircle, TrendingDown, Plus, List, FolderTree, Calculator, Trash2, TrendingUp, UserCheck, ClipboardList, Car, FileSignature, MapPin, FileSpreadsheet, UserX } from "lucide-react";
 
 export default function AssetsHub() {
   const { t } = useLanguage();
@@ -157,6 +157,33 @@ export default function AssetsHub() {
             <div>
               <p className="font-semibold">{t("leaseContracts" as any)}</p>
               <p className="text-sm text-muted-foreground">{t("leaseAccounting" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/locations")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <MapPin className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsLocationsTitle" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("locBuilding" as any)} / {t("locRoom" as any)} / {t("locWarehouse" as any)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/reports")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <FileSpreadsheet className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("assetsReports" as any)}</p>
+              <p className="text-sm text-muted-foreground">PDF / Excel</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/assets/offboarding")}>
+          <CardContent className="flex items-center gap-3 py-6">
+            <UserX className="h-8 w-8 text-primary" />
+            <div>
+              <p className="font-semibold">{t("offboardingTitle" as any)}</p>
+              <p className="text-sm text-muted-foreground">{t("offboardingDesc" as any)}</p>
             </div>
           </CardContent>
         </Card>
