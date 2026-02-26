@@ -135,6 +135,10 @@ const routeLabels: Record<string, string> = {
   assets: "assetsModule",
   registry: "assetsRegistry",
   categories: "assetsCategories",
+  depreciation: "assetsDepreciation",
+  disposals: "assetsDisposals",
+  revaluations: "assetsRevalImpairment",
+  assignments: "assetsAssignments",
 };
 
 export function Breadcrumbs() {
