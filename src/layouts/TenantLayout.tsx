@@ -227,6 +227,7 @@ const assetsNav: NavItem[] = [
   { key: "fleetService", url: "/assets/fleet/service", icon: Settings },
   { key: "fleetRegistrations", url: "/assets/fleet/registrations", icon: FileText },
   { key: "fleetInsurance", url: "/assets/fleet/insurance", icon: Shield },
+  { key: "leaseContracts", url: "/assets/leases", icon: FileSignature, section: "leaseAccounting" },
 ];
 
 const posNav: NavItem[] = [

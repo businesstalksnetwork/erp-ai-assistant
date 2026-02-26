@@ -145,6 +145,7 @@ const routeLabels: Record<string, string> = {
   fuel: "fleetFuel",
   service: "fleetService",
   registrations: "fleetRegistrations",
+  leases: "leaseContracts",
 };
 
 export function Breadcrumbs() {

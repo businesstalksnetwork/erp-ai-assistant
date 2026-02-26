@@ -2599,6 +2599,10 @@ export const translations = {
     fleetService: "Service Orders",
     fleetRegistrations: "Registrations",
     fleetInsurance: "Insurance",
+    // IFRS 16
+    leaseAccounting: "IFRS 16 Leases",
+    leaseContracts: "Lease Contracts",
+    leaseNewContract: "New Contract",
   },
   sr: {
     // Auth
@@ -5154,6 +5158,10 @@ export const translations = {
     fleetService: "Servisni nalozi",
     fleetRegistrations: "Registracije",
     fleetInsurance: "Osiguranja",
+    // IFRS 16
+    leaseAccounting: "IFRS 16 Lizing",
+    leaseContracts: "Ugovori o lizingu",
+    leaseNewContract: "Novi ugovor",
   },
 } as const;
 
