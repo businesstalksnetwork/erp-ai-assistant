@@ -8910,6 +8910,210 @@ export type Database = {
           },
         ]
       }
+      lease_contracts: {
+        Row: {
+          annual_discount_rate: number
+          asset_id: string | null
+          classification: string | null
+          contract_number: string
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          end_date: string
+          id: string
+          initial_liability: number
+          initial_rou_value: number
+          interest_expense_account: string | null
+          lease_liability_balance: number | null
+          lease_term_months: number
+          legal_entity_id: string | null
+          lessor_name: string | null
+          lessor_partner_id: string | null
+          liability_account: string | null
+          monthly_payment: number
+          notes: string | null
+          residual_value_guarantee: number | null
+          rou_accumulated_dep_account: string | null
+          rou_asset_account: string | null
+          rou_depreciation_account: string | null
+          rou_net_book_value: number | null
+          start_date: string
+          status: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          annual_discount_rate?: number
+          asset_id?: string | null
+          classification?: string | null
+          contract_number: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          initial_liability?: number
+          initial_rou_value?: number
+          interest_expense_account?: string | null
+          lease_liability_balance?: number | null
+          lease_term_months: number
+          legal_entity_id?: string | null
+          lessor_name?: string | null
+          lessor_partner_id?: string | null
+          liability_account?: string | null
+          monthly_payment: number
+          notes?: string | null
+          residual_value_guarantee?: number | null
+          rou_accumulated_dep_account?: string | null
+          rou_asset_account?: string | null
+          rou_depreciation_account?: string | null
+          rou_net_book_value?: number | null
+          start_date: string
+          status?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          annual_discount_rate?: number
+          asset_id?: string | null
+          classification?: string | null
+          contract_number?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          initial_liability?: number
+          initial_rou_value?: number
+          interest_expense_account?: string | null
+          lease_liability_balance?: number | null
+          lease_term_months?: number
+          legal_entity_id?: string | null
+          lessor_name?: string | null
+          lessor_partner_id?: string | null
+          liability_account?: string | null
+          monthly_payment?: number
+          notes?: string | null
+          residual_value_guarantee?: number | null
+          rou_accumulated_dep_account?: string | null
+          rou_asset_account?: string | null
+          rou_depreciation_account?: string | null
+          rou_net_book_value?: number | null
+          start_date?: string
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_contracts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_contracts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_contracts_lessor_partner_id_fkey"
+            columns: ["lessor_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_payment_schedule: {
+        Row: {
+          created_at: string
+          id: string
+          interest_amount: number
+          journal_entry_id: string | null
+          lease_id: string
+          liability_balance_after: number
+          payment_amount: number
+          payment_date: string
+          period_number: number
+          posted_at: string | null
+          principal_amount: number
+          rou_depreciation: number
+          rou_nbv_after: number
+          status: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interest_amount?: number
+          journal_entry_id?: string | null
+          lease_id: string
+          liability_balance_after?: number
+          payment_amount: number
+          payment_date: string
+          period_number: number
+          posted_at?: string | null
+          principal_amount?: number
+          rou_depreciation?: number
+          rou_nbv_after?: number
+          status?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interest_amount?: number
+          journal_entry_id?: string | null
+          lease_id?: string
+          liability_balance_after?: number
+          payment_amount?: number
+          payment_date?: string
+          period_number?: number
+          posted_at?: string | null
+          principal_amount?: number
+          rou_depreciation?: number
+          rou_nbv_after?: number
+          status?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_payment_schedule_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_payment_schedule_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_payment_schedule_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           approved_at: string | null
