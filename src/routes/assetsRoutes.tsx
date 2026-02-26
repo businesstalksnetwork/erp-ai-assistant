@@ -12,6 +12,13 @@ const AssetRevaluations = React.lazy(() => import("@/pages/tenant/AssetRevaluati
 const AssetAssignments = React.lazy(() => import("@/pages/tenant/AssetAssignments"));
 const AssetInventoryCounts = React.lazy(() => import("@/pages/tenant/AssetInventoryCounts"));
 const AssetInventoryCountDetail = React.lazy(() => import("@/pages/tenant/AssetInventoryCountDetail"));
+const FleetDashboard = React.lazy(() => import("@/pages/tenant/FleetDashboard"));
+const FleetVehicles = React.lazy(() => import("@/pages/tenant/FleetVehicles"));
+const FleetVehicleForm = React.lazy(() => import("@/pages/tenant/FleetVehicleForm"));
+const FleetFuelLog = React.lazy(() => import("@/pages/tenant/FleetFuelLog"));
+const FleetServiceOrders = React.lazy(() => import("@/pages/tenant/FleetServiceOrders"));
+const FleetRegistrations = React.lazy(() => import("@/pages/tenant/FleetRegistrations"));
+const FleetInsurance = React.lazy(() => import("@/pages/tenant/FleetInsurance"));
 
 const m = "assets";
 
@@ -28,5 +35,13 @@ export const assetsRoutes = (
     <Route path="assets/assignments" element={<ProtectedRoute requiredModule={m}><AssetAssignments /></ProtectedRoute>} />
     <Route path="assets/inventory-count" element={<ProtectedRoute requiredModule={m}><AssetInventoryCounts /></ProtectedRoute>} />
     <Route path="assets/inventory-count/:id" element={<ProtectedRoute requiredModule={m}><AssetInventoryCountDetail /></ProtectedRoute>} />
+    <Route path="assets/fleet" element={<ProtectedRoute requiredModule={m}><FleetDashboard /></ProtectedRoute>} />
+    <Route path="assets/fleet/vehicles" element={<ProtectedRoute requiredModule={m}><FleetVehicles /></ProtectedRoute>} />
+    <Route path="assets/fleet/vehicles/new" element={<ProtectedRoute requiredModule={m}><FleetVehicleForm /></ProtectedRoute>} />
+    <Route path="assets/fleet/vehicles/:id" element={<ProtectedRoute requiredModule={m}><FleetVehicleForm /></ProtectedRoute>} />
+    <Route path="assets/fleet/fuel" element={<ProtectedRoute requiredModule={m}><FleetFuelLog /></ProtectedRoute>} />
+    <Route path="assets/fleet/service" element={<ProtectedRoute requiredModule={m}><FleetServiceOrders /></ProtectedRoute>} />
+    <Route path="assets/fleet/registrations" element={<ProtectedRoute requiredModule={m}><FleetRegistrations /></ProtectedRoute>} />
+    <Route path="assets/fleet/insurance" element={<ProtectedRoute requiredModule={m}><FleetInsurance /></ProtectedRoute>} />
   </>
 );
