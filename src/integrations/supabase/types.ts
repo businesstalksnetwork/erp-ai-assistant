@@ -1624,14 +1624,23 @@ export type Database = {
           created_at: string
           description: string | null
           employee_id: string | null
+          employee_signature_ip: string | null
+          employee_signed_at: string | null
+          employee_signed_by_name: string | null
           id: string
           issued_by: string | null
+          issuer_signed_at: string | null
+          issuer_signed_by_name: string | null
           notes: string | null
+          notification_sent_at: string | null
           rejection_reason: string | null
+          reminder_sent_at: string | null
           revers_date: string
           revers_number: string
           revers_type: string
           signature_ip: string | null
+          signature_token: string | null
+          signature_token_expires_at: string | null
           signed_at: string | null
           signed_by_name: string | null
           status: string
@@ -1646,14 +1655,23 @@ export type Database = {
           created_at?: string
           description?: string | null
           employee_id?: string | null
+          employee_signature_ip?: string | null
+          employee_signed_at?: string | null
+          employee_signed_by_name?: string | null
           id?: string
           issued_by?: string | null
+          issuer_signed_at?: string | null
+          issuer_signed_by_name?: string | null
           notes?: string | null
+          notification_sent_at?: string | null
           rejection_reason?: string | null
+          reminder_sent_at?: string | null
           revers_date?: string
           revers_number: string
           revers_type?: string
           signature_ip?: string | null
+          signature_token?: string | null
+          signature_token_expires_at?: string | null
           signed_at?: string | null
           signed_by_name?: string | null
           status?: string
@@ -1668,14 +1686,23 @@ export type Database = {
           created_at?: string
           description?: string | null
           employee_id?: string | null
+          employee_signature_ip?: string | null
+          employee_signed_at?: string | null
+          employee_signed_by_name?: string | null
           id?: string
           issued_by?: string | null
+          issuer_signed_at?: string | null
+          issuer_signed_by_name?: string | null
           notes?: string | null
+          notification_sent_at?: string | null
           rejection_reason?: string | null
+          reminder_sent_at?: string | null
           revers_date?: string
           revers_number?: string
           revers_type?: string
           signature_ip?: string | null
+          signature_token?: string | null
+          signature_token_expires_at?: string | null
           signed_at?: string | null
           signed_by_name?: string | null
           status?: string
