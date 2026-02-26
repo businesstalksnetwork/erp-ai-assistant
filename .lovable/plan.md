@@ -1,96 +1,74 @@
 
 
-# Plan: Revers Signature Workflow & Email Notifications
+# Plan: Enhanced Profile + Ghost Employees + Connection Review
 
-## Gaps Identified
+## Current State Analysis
 
-1. **No employee-facing signature flow** — currently any logged-in user can "sign" a revers via the admin UI. There's no token-based signature request that an employee can complete (even without a system account).
-2. **No rejection flow** — `rejection_reason` column exists in `asset_reverses` but the UI has no reject button or reason dialog.
-3. **No email notifications** — Resend is already integrated in 4 other edge functions (`send-notification-emails`, `send-invoice-email`, `send-verification-email`, `send-admin-bulk-email`) but **`RESEND_API_KEY` is NOT in secrets** (missing from vault). Employees have an `email` column in the DB.
-4. **No signature token mechanism** — no way for an employee to sign via a unique link without logging in.
-5. **No audit trail for signature events** — `signed_at` and `signed_by_name` exist, but no event log.
+### Document Signing
+The system uses **token-based name confirmation** via `ReversSignature.tsx` — employees receive a unique `/sign/:token` link, review asset details, and confirm with their name or reject with a reason. The `send-revers-notification` edge function handles email delivery via Resend. This is functional but not a cryptographic digital signature — it's an acknowledgment workflow.
+
+### Profile Page Gaps
+`Profile.tsx` currently shows: account info, display name, password, POS PIN, notification preferences. It does **not** show any HR data even though `employees.user_id` exists and could link the logged-in user to their employee record.
+
+### Ghost Employee Concept
+`employees` table has a `user_id` column but no mechanism to mark super admin employee records as hidden from HR lists, reports, and headcounts.
+
+---
 
 ## Database Changes
 
-**Migration: Add signature token & tracking columns to `asset_reverses`**
-
 ```sql
-ALTER TABLE asset_reverses 
-  ADD COLUMN IF NOT EXISTS signature_token uuid DEFAULT gen_random_uuid(),
-  ADD COLUMN IF NOT EXISTS signature_token_expires_at timestamptz,
-  ADD COLUMN IF NOT EXISTS employee_signed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS employee_signed_by_name text,
-  ADD COLUMN IF NOT EXISTS employee_signature_ip text,
-  ADD COLUMN IF NOT EXISTS issuer_signed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS issuer_signed_by_name text,
-  ADD COLUMN IF NOT EXISTS notification_sent_at timestamptz,
-  ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;
+-- Add ghost flag to employees
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_ghost boolean DEFAULT false;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_asset_reverses_signature_token 
-  ON asset_reverses(signature_token) WHERE signature_token IS NOT NULL;
+-- Comment for clarity
+COMMENT ON COLUMN employees.is_ghost IS 'Ghost employees (super admins) are excluded from HR lists, reports, and headcounts but can access full employee features via Profile';
 ```
 
 ## Implementation Tasks
 
-### Task 1: Edge Function `send-revers-notification`
+### Task 1: Add `is_ghost` Column + Filter All HR Queries
 
-New edge function that:
-- Accepts `{ revers_id, tenant_id, action: "request_signature" | "reminder" | "signed" | "rejected" }`
-- Looks up the revers, employee email, asset details, tenant name
-- Sends email via Resend with:
-  - **request_signature**: includes a unique signing link with `signature_token`
-  - **reminder**: follow-up for unsigned reverses
-  - **signed/rejected**: confirmation to the issuer
-- Updates `notification_sent_at` / `reminder_sent_at` on the revers record
-- Requires `RESEND_API_KEY` secret to be added
+- Migration adds `is_ghost` to `employees`
+- Update all HR list queries (Employees.tsx, HrReports.tsx, WorkLogs, Attendance, LeaveRequests, Salaries, Deductions, Contracts, InsuranceRecords, PayrollBenchmark, Offboarding, etc.) to add `.eq("is_ghost", false)` filter
+- Ghost employees still appear in admin asset assignment dropdowns and profile lookups
 
-### Task 2: Public Signature Page `/sign/:token`
+### Task 2: Expand Profile Page with HR Data
 
-New route + page `ReversSignature.tsx`:
-- Publicly accessible (no auth required)
-- Looks up `asset_reverses` by `signature_token` where `token_expires_at > now()`
-- Shows revers details (asset, date, condition, accessories) in read-only
-- Employee can **Sign** (captures name, IP, timestamp) or **Reject** (with reason)
-- On sign: updates `status = 'signed'`, `employee_signed_at`, `employee_signed_by_name`, `employee_signature_ip`
-- On reject: updates `status = 'rejected'`, `rejection_reason`
-- Triggers notification email back to issuer
+When the logged-in user has a linked employee record (`employees.user_id = auth.uid()`), show additional cards:
 
-### Task 3: Update AssetReverses.tsx UI
+- **Lični podaci** (Personal): name, JMBG (masked), address, city, phone, email, department, position, location
+- **Ugovor** (Contract): employment type, start date, hire date, termination date, contract details from `employee_contracts`
+- **Godišnji odmor** (Leave): annual leave days, used days (from `leave_requests` where approved), remaining balance
+- **Evidencija prisustva** (Attendance): current month summary from `attendance_records`
+- **Imovina** (Assets): list of assigned assets (reuse `EmployeeAssetsTab`)
+- **Reversi** (Reverses): pending signature reverses with direct sign/reject actions
+- **Dokumenta** (Documents): employee-linked DMS documents
 
-- **Send for Signature** button: now calls `send-revers-notification` edge function (sends email with signing link) instead of just updating status
-- **Reject** button for `pending_signature` status with reason dialog
-- **Reminder** button for `pending_signature` reverses older than X days
-- **Status column**: show `notification_sent_at` timestamp as tooltip
-- **Detail/Preview dialog**: view full revers details inline
+All read-only except pending reverses which allow signing.
 
-### Task 4: Add `RESEND_API_KEY` Secret
+### Task 3: Create Ghost Employee Records for Super Admins
 
-- Prompt user to add `RESEND_API_KEY` to edge function secrets (it's used by 4 existing functions but is currently missing from vault)
+- Add a utility in Settings or a migration seed that creates ghost employee records for the two super admin users (aleksandar@, nikola@) with `is_ghost = true` and `user_id` linked
+- These records allow super admins to test the full Profile experience
 
-### Task 5: Translations
+### Task 4: Translations
 
-~15 new keys: signature request email subjects, signing page labels, rejection reason prompt, reminder sent confirmation.
+~20 new keys for profile HR sections (personalData, contractInfo, leaveBalance, attendanceSummary, ghostEmployee, etc.)
 
 ## Affected Files
 
-- **New**: `supabase/functions/send-revers-notification/index.ts`
-- **New**: `src/pages/tenant/ReversSignature.tsx` (public page)
-- **Modified**: `src/pages/tenant/AssetReverses.tsx` (reject flow, reminder, email trigger)
-- **Modified**: `src/routes/assetsRoutes.tsx` (public sign route)
-- **Modified**: `src/i18n/translations.ts`
-- **Database**: 1 migration (signature token columns)
+- **Migration**: 1 (add `is_ghost` column)
+- **Modified**: `Profile.tsx` (major expansion), `Employees.tsx`, `HrReports.tsx`, and ~12 other HR list pages (add ghost filter)
+- **New components**: `ProfileHrCard.tsx` (personal data), `ProfileLeaveCard.tsx`, `ProfileAttendanceCard.tsx`, `ProfileReversesCard.tsx`
+- **Translations**: `translations.ts`
 
-## Flow Summary
+## Flow
 
 ```text
-Admin creates revers (draft)
-  → Clicks "Send for Signature"
-    → Edge function sends email to employee with /sign/{token} link
-    → Status: pending_signature, notification_sent_at set
-  → Employee opens link (no login needed)
-    → Reviews asset details
-    → Signs → status: signed, email sent to admin
-    → Rejects → status: rejected + reason, email sent to admin
-  → Admin can send reminder if no response
+Regular employee logs in → Profile shows full HR data (read-only)
+Super admin logs in → Profile shows HR data via ghost employee record
+HR pages (Employees list, reports, payroll) → Ghost employees excluded
+Asset assignment dropdowns → Ghost employees included (for testing)
 ```
 
