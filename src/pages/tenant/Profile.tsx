@@ -30,7 +30,7 @@ import {
 
 export default function Profile() {
   const { t } = useLanguage();
-  const { user, roles } = useAuth();
+  const { user, roles, isSuperAdmin } = useAuth();
   const { tenantId } = useTenant();
 
   const [displayName, setDisplayName] = useState(
@@ -108,7 +108,8 @@ export default function Profile() {
     .map((s: string) => s[0]?.toUpperCase())
     .join("");
 
-  const hasHr = !!myEmployee;
+  // Super admins always see HR tabs (ghost mode), regular users only if they have an employee record
+  const hasHr = !!myEmployee || isSuperAdmin;
 
   return (
     <div className="space-y-6">
@@ -175,55 +176,71 @@ export default function Profile() {
         {/* Overview Tab — Personal + Attendance + Leave */}
         {hasHr && (
           <TabsContent value="overview" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ProfilePersonalCard
-                employee={myEmployee}
-                departmentName={(myEmployee as any).departments?.name}
-                locationName={(myEmployee as any).locations?.name}
-              />
-              <div className="space-y-6">
-                <ProfileLeaveCard
-                  employeeId={myEmployee!.id}
-                  annualLeaveDays={myEmployee!.annual_leave_days}
+            {myEmployee ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProfilePersonalCard
+                  employee={myEmployee}
+                  departmentName={(myEmployee as any).departments?.name}
+                  locationName={(myEmployee as any).locations?.name}
                 />
-                <ProfileAttendanceCard employeeId={myEmployee!.id} />
+                <div className="space-y-6">
+                  <ProfileLeaveCard
+                    employeeId={myEmployee.id}
+                    annualLeaveDays={myEmployee.annual_leave_days}
+                  />
+                  <ProfileAttendanceCard employeeId={myEmployee.id} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+            )}
           </TabsContent>
         )}
 
         {/* Employment Tab — Contract + Insurance */}
         {hasHr && (
           <TabsContent value="employment" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ProfileContractCard employeeId={myEmployee!.id} />
-              <ProfileInsuranceCard employeeId={myEmployee!.id} />
-            </div>
+            {myEmployee ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProfileContractCard employeeId={myEmployee.id} />
+                <ProfileInsuranceCard employeeId={myEmployee.id} />
+              </div>
+            ) : (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+            )}
           </TabsContent>
         )}
 
         {/* Finance Tab — Salary + Allowances + Deductions */}
         {hasHr && (
           <TabsContent value="finance" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <ProfileSalaryCard employeeId={myEmployee!.id} />
-              <ProfileAllowancesCard employeeId={myEmployee!.id} />
-              <ProfileDeductionsCard employeeId={myEmployee!.id} />
-            </div>
+            {myEmployee ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <ProfileSalaryCard employeeId={myEmployee.id} />
+                <ProfileAllowancesCard employeeId={myEmployee.id} />
+                <ProfileDeductionsCard employeeId={myEmployee.id} />
+              </div>
+            ) : (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+            )}
           </TabsContent>
         )}
 
         {/* Assets Tab */}
         {hasHr && (
           <TabsContent value="assets" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <EmployeeAssetsTab employeeId={myEmployee!.id} />
-                </CardContent>
-              </Card>
-              <ProfileReversesCard employeeId={myEmployee!.id} />
-            </div>
+            {myEmployee ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardContent className="pt-6">
+                    <EmployeeAssetsTab employeeId={myEmployee.id} />
+                  </CardContent>
+                </Card>
+                <ProfileReversesCard employeeId={myEmployee.id} />
+              </div>
+            ) : (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+            )}
           </TabsContent>
         )}
 
