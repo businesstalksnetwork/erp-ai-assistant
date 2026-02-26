@@ -25,7 +25,7 @@ export function OpportunityDiscussionTab({ opportunityId, tenantId, tenantMember
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: comments = [], isLoading } = useQuery({
-    queryKey: ["opportunity-comments", opportunityId],
+    queryKey: ["opportunity-comments", opportunityId, tenantId],
     queryFn: async () => {
       const { data } = await supabase
         .from("opportunity_comments" as any)

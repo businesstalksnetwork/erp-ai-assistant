@@ -21,7 +21,8 @@ export function TopCustomersChart({ tenantId }: Props) {
         .from("invoices")
         .select("partner_name, total")
         .eq("tenant_id", tenantId)
-        .eq("status", "paid");
+        .eq("status", "paid")
+        .limit(500);
 
       if (!data?.length) return [];
 

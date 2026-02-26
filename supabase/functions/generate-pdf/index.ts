@@ -15,6 +15,11 @@ const formatDate = (d: string | null) => {
 const formatNum = (n: number) =>
   n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+};
+
 const baseStyles = `
   body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
   .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
@@ -226,9 +231,9 @@ async function generateInvoicePdf(admin: any, user: any, invoice_id: string, cor
   </div></div>
   <div class="partner-section">
     <div class="partner-label">Kupac / Partner</div>
-    <div class="partner-name">${invoice.partner_name}</div>
-    ${invoice.partner_address ? `<div>${invoice.partner_address}</div>` : ""}
-    ${invoice.partner_pib ? `<div>PIB: ${invoice.partner_pib}</div>` : ""}
+    <div class="partner-name">${escapeHtml(invoice.partner_name)}</div>
+    ${invoice.partner_address ? `<div>${escapeHtml(invoice.partner_address)}</div>` : ""}
+    ${invoice.partner_pib ? `<div>PIB: ${escapeHtml(invoice.partner_pib)}</div>` : ""}
   </div>
   <table><thead><tr><th>#</th><th>Opis</th><th class="right">Količina</th><th class="right">Cena</th><th class="right">PDV %</th><th class="right">PDV</th><th class="right">Ukupno</th></tr></thead><tbody>
     ${(lines || []).map((line: any, i: number) => `<tr><td>${i + 1}</td><td>${line.description || ""}</td><td class="right">${formatNum(Number(line.quantity))}</td><td class="right">${formatNum(Number(line.unit_price))}</td><td class="right">${Number(line.tax_rate_value)}%</td><td class="right">${formatNum(Number(line.tax_amount))}</td><td class="right">${formatNum(Number(line.total_with_tax))}</td></tr>`).join("")}
@@ -644,8 +649,8 @@ async function generateAssetRevers(admin: any, body: any, corsHeaders: Record<st
       <tr><td style="font-weight:600;background:#f8f9fa;">Категорија</td><td>${asset.asset_categories?.name || "—"}</td></tr>
       <tr><td style="font-weight:600;background:#f8f9fa;">Набавна вредност</td><td>${asset.acquisition_cost ? formatNum(Number(asset.acquisition_cost)) + " RSD" : "—"}</td></tr>
       <tr><td style="font-weight:600;background:#f8f9fa;">Датум набавке</td><td>${formatDate(asset.acquisition_date)}</td></tr>
-      ${revers.condition_on_handover ? `<tr><td style="font-weight:600;background:#f8f9fa;">Стање при примопредаји</td><td>${revers.condition_on_handover}</td></tr>` : ""}
-      ${revers.accessories ? `<tr><td style="font-weight:600;background:#f8f9fa;">Пратећа опрема</td><td>${revers.accessories}</td></tr>` : ""}
+      ${revers.condition_on_handover ? `<tr><td style="font-weight:600;background:#f8f9fa;">Стање при примопредаји</td><td>${escapeHtml(revers.condition_on_handover)}</td></tr>` : ""}
+      ${revers.accessories ? `<tr><td style="font-weight:600;background:#f8f9fa;">Пратећа опрема</td><td>${escapeHtml(revers.accessories)}</td></tr>` : ""}
     </tbody>
   </table>
 
