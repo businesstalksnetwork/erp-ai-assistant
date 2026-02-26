@@ -12,6 +12,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { ProfilePersonalCard } from "@/components/profile/ProfilePersonalCard";
 import { ProfileContractCard } from "@/components/profile/ProfileContractCard";
+import { ProfileSalaryCard } from "@/components/profile/ProfileSalaryCard";
+import { ProfileAllowancesCard } from "@/components/profile/ProfileAllowancesCard";
+import { ProfileDeductionsCard } from "@/components/profile/ProfileDeductionsCard";
+import { ProfileInsuranceCard } from "@/components/profile/ProfileInsuranceCard";
 import { ProfileLeaveCard } from "@/components/profile/ProfileLeaveCard";
 import { ProfileAttendanceCard } from "@/components/profile/ProfileAttendanceCard";
 import { ProfileReversesCard } from "@/components/profile/ProfileReversesCard";
@@ -210,6 +214,14 @@ export default function Profile() {
           />
 
           <ProfileContractCard employeeId={myEmployee.id} />
+
+          <ProfileSalaryCard employeeId={myEmployee.id} />
+
+          <ProfileAllowancesCard employeeId={myEmployee.id} />
+
+          <ProfileDeductionsCard employeeId={myEmployee.id} />
+
+          <ProfileInsuranceCard employeeId={myEmployee.id} />
 
           <ProfileLeaveCard
             employeeId={myEmployee.id}
