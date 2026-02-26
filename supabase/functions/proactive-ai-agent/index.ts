@@ -6,20 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/**
- * Proactive AI Agent: runs daily (or on-demand) to detect critical conditions
- * and push notifications to relevant users. Can be triggered via cron or manual call.
- * 
- * Checks:
- * 1. Invoices becoming overdue today
- * 2. Stock falling below minimum
- * 3. Payroll not processed for current month
- * 4. Bank statements not imported recently
- * 5. PDV period approaching deadline
- * 6. Opportunities going stale
- * 7. Employee contracts expiring soon
- */
-
 interface Alert {
   title: string;
   message: string;
@@ -170,14 +156,46 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Can be called by cron (no auth) or by super admin
+    // SEC-5: Require either super_admin JWT auth OR CRON_SECRET
     const authHeader = req.headers.get("Authorization");
     let callerUserId: string | null = null;
+    let authorized = false;
 
-    if (authHeader) {
-      const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-      const { data: { user } } = await userClient.auth.getUser();
-      callerUserId = user?.id || null;
+    // Check CRON_SECRET first
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+      authorized = true;
+    }
+
+    // If not cron, check JWT for super_admin
+    if (!authorized && authHeader?.startsWith("Bearer ")) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (!claimsError && claimsData?.claims) {
+        callerUserId = claimsData.claims.sub;
+        // Verify super_admin role
+        const { data: superRole } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", callerUserId)
+          .eq("role", "super_admin")
+          .maybeSingle();
+        if (superRole) {
+          authorized = true;
+        }
+      }
+    }
+
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized: requires super_admin or CRON_SECRET" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -192,6 +210,7 @@ serve(async (req) => {
       tenants = data || [];
     }
 
+    const today = new Date().toISOString().split("T")[0];
     const results: Array<{ tenant_id: string; alerts_created: number }> = [];
 
     for (const tenant of tenants) {
@@ -207,13 +226,11 @@ serve(async (req) => {
       let createdCount = 0;
 
       for (const alert of alerts) {
-        // Find target users based on role
         const targetUsers = (members || []).filter((m: any) =>
           alert.target_roles.includes(m.role)
         );
 
         for (const user of targetUsers) {
-          // Check if similar alert already sent today
           const { count } = await supabase
             .from("notifications")
             .select("id", { count: "exact", head: true })
@@ -251,8 +268,6 @@ serve(async (req) => {
 
       results.push({ tenant_id: tenant.id, alerts_created: createdCount });
     }
-
-    const today = new Date().toISOString().split("T")[0];
 
     return new Response(JSON.stringify({
       success: true,

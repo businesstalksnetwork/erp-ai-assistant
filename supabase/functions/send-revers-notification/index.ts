@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface NotificationRequest {
@@ -19,6 +19,31 @@ serve(async (req: Request) => {
   }
 
   try {
+    // SEC-1: Require authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Verify JWT
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub;
+
     const { revers_id, tenant_id, action, app_url } = await req.json() as NotificationRequest;
 
     if (!revers_id || !tenant_id || !action) {
@@ -27,16 +52,38 @@ serve(async (req: Request) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // SEC-1: Verify caller is active member of tenant (or super_admin)
+    const { data: membership } = await supabase
+      .from("tenant_members")
+      .select("id, role")
+      .eq("tenant_id", tenant_id)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
 
-    // Fetch revers with relations
+    if (!membership) {
+      // Check super_admin
+      const { data: superRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("role", "super_admin")
+        .maybeSingle();
+      if (!superRole) {
+        return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+    // SEC-2: Fetch revers with tenant_id filter
     const { data: revers, error: reversError } = await supabase
       .from("asset_reverses")
       .select("*, assets(name, asset_code, inventory_number), employees(first_name, last_name, email, employee_id)")
       .eq("id", revers_id)
+      .eq("tenant_id", tenant_id)
       .single();
 
     if (reversError || !revers) {
@@ -84,7 +131,7 @@ serve(async (req: Request) => {
 
       // Generate new token + expiry
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
+      expiresAt.setDate(expiresAt.getDate() + 7);
 
       const { data: updatedRevers } = await supabase
         .from("asset_reverses")
