@@ -1,103 +1,96 @@
 
 
-# Assets Digitalization Module — Phase 0: Foundation
+# Plan: Assets Cross-Module Integration
 
-This is a large module (5 sub-modules, ~20 database tables, 9 edge functions). Following the PRD's phased delivery plan, this implementation covers **Phase 0 (Foundation) + Phase 1 (Electronic Registry)** — the critical base that unblocks all subsequent phases.
+This is a large integration effort connecting Assets to 5 existing modules. I'll break it into manageable implementation tasks.
 
-## Scope of This Implementation
+## Current State
 
-### Phase 0 — Foundation (Database + Permissions + Navigation)
+- `assets` table already has: `supplier_id`, `responsible_employee_id`, `location_id`, `cost_center_id`, `legal_entity_id`
+- `asset_documents` table exists (file attachments)
+- `documents` table has `entity_type` / `entity_id` (DMS linkage ready)
+- `drive_files` / `drive_folders` exist with full versioning
+- `purchase_orders` → `goods_receipts` → `supplier_invoices` chain exists
+- AssetForm.tsx currently does NOT expose supplier, warehouse, PO, employee, or document fields
 
-**1. Database Migration — 10 new tables:**
+## Database Changes
 
-| Table | Purpose |
-|-------|---------|
-| `asset_categories` | Hierarchical taxonomy with GL account defaults, useful life, depreciation method |
-| `asset_locations` | Location hierarchy (building/room/warehouse) with cost center link |
-| `assets` | Master table for ALL asset types (fixed, vehicle, material_good, intangible) |
-| `asset_documents` | Document vault per asset (invoices, warranties, certificates) |
-| `fixed_asset_details` | One-to-one extension: depreciation method, tax group, GL accounts |
-| `fixed_asset_depreciation_schedules` | Monthly depreciation records with accounting + tax parallel tracking |
-| `fixed_asset_revaluations` | MRS 16 revaluation records |
-| `fixed_asset_impairments` | MRS 36 impairment records |
-| `fixed_asset_disposals` | Disposal/write-off records with gain/loss |
-| `asset_assignments` | Material goods assignment to employees/locations |
-
-All tables with:
-- `tenant_id` FK + RLS policies using `get_user_tenant_ids(auth.uid())`
-- `uuid` PKs, `created_at`/`updated_at` timestamps
-- `NUMERIC(15,2)` for monetary columns
-- GIN index on `assets.name`, `assets.serial_number`, `assets.asset_code`
-
-**2. Seed standard Serbian asset categories** (10 categories from PRD: LAND, BUILDING, EQUIP_PROD, EQUIP_IT, VEHICLE, FURNITURE, TOOLS, INTANGIBLE_SW, INTANGIBLE_BR, MATERIAL_GOODS)
-
-**3. Module permissions wiring:**
-- Add `"assets"` to `ModuleGroup` type in `rolePermissions.ts`
-- Grant access: admin (all), manager, accountant, store roles
-- Add `/assets/` route prefix to `routeToModule`
-
-### Phase 1 — Electronic Registry + Assets Hub (UI)
-
-**4. New route file: `src/routes/assetsRoutes.tsx`** with all `/assets/*` routes
-
-**5. New pages:**
-
-| Page | Route | Purpose |
-|------|-------|---------|
-| `AssetsHub.tsx` | `/assets` | Module dashboard — KPI cards (total assets, active, disposed, depreciation this month), quick actions, alerts |
-| `AssetRegistry.tsx` | `/assets/registry` | Master list with search/filter/export, asset type tabs |
-| `AssetForm.tsx` | `/assets/registry/new` + `/assets/registry/:id` | Create/edit asset with category selection, type-specific fields |
-| `AssetCategories.tsx` | `/assets/categories` | Category CRUD with hierarchy |
-
-**6. Sidebar navigation** — Add "Imovina" (Assets) collapsible group in `TenantLayout.tsx` between Accounting and HR
-
-**7. Translations** — Add ~40 new keys for assets module labels
-
-### Integration Points Wired
-
-- Assets link to `partners` (supplier), `employees` (responsible person), `cost_centers`, `legal_entities`
-- `asset_categories` carry GL account codes for posting rules engine
-- `fixed_asset_details` carries depreciation parameters for future Phase 2 depreciation batch
-
-## Files Created/Modified
-
-| File | Action |
-|------|--------|
-| DB migration | CREATE 10 tables + RLS + indexes + seed categories |
-| `src/config/rolePermissions.ts` | Add `"assets"` module group |
-| `src/routes/assetsRoutes.tsx` | NEW — all asset routes |
-| `src/pages/tenant/AssetsHub.tsx` | NEW — module dashboard |
-| `src/pages/tenant/AssetRegistry.tsx` | NEW — master asset list |
-| `src/pages/tenant/AssetForm.tsx` | NEW — create/edit asset |
-| `src/pages/tenant/AssetCategories.tsx` | NEW — category management |
-| `src/layouts/TenantLayout.tsx` | Add assets nav group |
-| `src/App.tsx` | Import assetsRoutes |
-| `src/components/layout/GlobalSearch.tsx` | Add asset search entries |
-| `src/components/layout/Breadcrumbs.tsx` | Add asset breadcrumb mappings |
-| `src/i18n/translations.ts` | Add ~40 translation keys |
-
-## Technical Details
-
-### Asset Code Auto-Generation
-Format: `{prefix}-{YYYY}-{NNNNN}` where prefix comes from `asset_categories.code_prefix`. Sequence tracked per tenant+year via a DB function `generate_asset_code(tenant_id, prefix)`.
-
-### Account Type Mapping for Categories
-```text
-LAND, BUILDING, EQUIP_*, VEHICLE, FURNITURE, TOOLS → asset_type = 'fixed_asset'
-INTANGIBLE_SW, INTANGIBLE_BR → asset_type = 'intangible'
-MATERIAL_GOODS → asset_type = 'material_good'
-```
-
-### RLS Pattern (consistent with all other tables)
+**Migration: Add linking columns to `assets`**
 ```sql
-CREATE POLICY "tenant_isolation" ON assets
-  FOR ALL USING (tenant_id IN (SELECT get_user_tenant_ids(auth.uid())));
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS purchase_order_id uuid REFERENCES purchase_orders(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS goods_receipt_id uuid REFERENCES goods_receipts(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS supplier_invoice_id uuid REFERENCES supplier_invoices(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES warehouses(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS product_id uuid REFERENCES products(id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS drive_folder_id uuid REFERENCES drive_folders(id);
 ```
 
-## What This Unlocks (Future Phases)
-- Phase 2: Depreciation batch run, revaluation, impairment, disposal GL posting
-- Phase 3: Assignment/Revers workflow, HR offboarding integration
-- Phase 4: Popis (inventory count) with commission reports
-- Phase 5: Vehicle fleet management
-- Phase 6: IFRS 16 lease accounting
+No new tables needed — we leverage existing `documents.entity_type='asset'` for DMS and `drive_folders` for Drive.
+
+## Implementation Tasks
+
+### Task 1: Expand AssetForm with Cross-Module Fields
+
+Add new sections to `AssetForm.tsx`:
+
+- **Nabavka (Purchasing)**: Dropdowns for `purchase_order_id`, `goods_receipt_id`, `supplier_invoice_id` (filtered by tenant). Show linked PO number, GR number, SI number.
+- **Dobavljač (Supplier)**: Already has `supplier_id` in DB but not in form — add partner/supplier selector.
+- **Magacin (Warehouse)**: Dropdown for `warehouse_id` (from `warehouses` table).
+- **Proizvod (Product)**: Optional link to `product_id` (from `products` table) for inventory-tracked assets.
+- **Zaposleni (HR)**: `responsible_employee_id` selector (already in DB, not in form).
+
+### Task 2: Auto-Create Asset from Goods Receipt
+
+In `GoodsReceipts.tsx` or the goods receipt detail flow, add a "Kreiraj sredstvo" (Create Asset) action button that:
+- Pre-fills asset form with supplier, PO, warehouse, cost from the receipt line
+- Sets `goods_receipt_id` and `purchase_order_id` on the new asset
+
+### Task 3: DMS Integration — Register Asset Documents in Delovodnik
+
+- When an asset is created/updated, auto-register key documents (revers, warranty, purchase contract) into the DMS `documents` table with `entity_type = 'asset'`, `entity_id = asset.id`.
+- On `AssetForm.tsx` detail view, show a "Dokumenta" tab listing all DMS documents linked to this asset via `entity_type/entity_id`.
+- Allow creating new DMS protocol entries directly from the asset detail.
+
+### Task 4: Drive Integration — Asset File Folder
+
+- On asset creation, auto-create a Drive folder at `/Imovina/{asset_code}/` using `drive_folders`.
+- Store `drive_folder_id` on the asset record.
+- On asset detail, show a "Fajlovi" tab with files from that Drive folder (warranty PDFs, photos, manuals).
+- Upload widget that saves to the asset's Drive folder.
+
+### Task 5: AssetRegistry Table Enhancement
+
+Update `AssetRegistry.tsx` to show new columns:
+- Supplier name (from `partners` via `supplier_id`)
+- Warehouse (from `warehouses` via `warehouse_id`)
+- Responsible employee (from `employees` via `responsible_employee_id`)
+- PO number link
+- Document count badge
+
+### Task 6: HR Integration — Employee Dosije Link
+
+- On `EmployeeDetail.tsx`, add an "Imovina" tab showing all assets where `responsible_employee_id = employee.id` or active assignments.
+- Clicking an asset navigates to the asset detail.
+
+### Task 7: Accounting Integration — Journal Entry Links
+
+- On asset detail, show a "Knjiženja" tab listing all journal entries linked to this asset (depreciation, disposal, revaluation).
+- Link from journal entries back to the asset.
+
+## Affected Files
+
+**Database**: 1 migration (add FK columns)
+
+**Modified pages**:
+- `AssetForm.tsx` — add 6 new form sections
+- `AssetRegistry.tsx` — expand table columns and joins
+- `GoodsReceipts.tsx` — add "Create Asset" action
+- `EmployeeDetail.tsx` — add "Imovina" tab
+
+**New components** (minimal):
+- Asset DMS tab component
+- Asset Drive tab component  
+- Asset journal entries tab component
+
+**Translations**: ~20 new keys
 
