@@ -1322,6 +1322,238 @@ export type Database = {
           },
         ]
       }
+      asset_inventory_commission: {
+        Row: {
+          count_id: string
+          created_at: string
+          employee_id: string | null
+          full_name: string
+          id: string
+          role: string
+          tenant_id: string
+        }
+        Insert: {
+          count_id: string
+          created_at?: string
+          employee_id?: string | null
+          full_name: string
+          id?: string
+          role?: string
+          tenant_id: string
+        }
+        Update: {
+          count_id?: string
+          created_at?: string
+          employee_id?: string | null
+          full_name?: string
+          id?: string
+          role?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_inventory_commission_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_commission_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_commission_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_inventory_count_items: {
+        Row: {
+          asset_id: string
+          book_value: number | null
+          condition: string | null
+          count_id: string
+          counted_at: string | null
+          counted_by: string | null
+          counted_value: number | null
+          created_at: string
+          expected: boolean
+          found: boolean | null
+          id: string
+          notes: string | null
+          tenant_id: string
+          variance_amount: number | null
+          variance_type: string | null
+        }
+        Insert: {
+          asset_id: string
+          book_value?: number | null
+          condition?: string | null
+          count_id: string
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_value?: number | null
+          created_at?: string
+          expected?: boolean
+          found?: boolean | null
+          id?: string
+          notes?: string | null
+          tenant_id: string
+          variance_amount?: number | null
+          variance_type?: string | null
+        }
+        Update: {
+          asset_id?: string
+          book_value?: number | null
+          condition?: string | null
+          count_id?: string
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_value?: number | null
+          created_at?: string
+          expected?: boolean
+          found?: boolean | null
+          id?: string
+          notes?: string | null
+          tenant_id?: string
+          variance_amount?: number | null
+          variance_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_inventory_count_items_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_count_items_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_count_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_inventory_counts: {
+        Row: {
+          asset_type_filter: string | null
+          completed_at: string | null
+          count_date: string
+          count_number: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          found_count: number | null
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          location_id: string | null
+          missing_count: number | null
+          posted_at: string | null
+          shortage_amount: number | null
+          status: string
+          surplus_amount: number | null
+          surplus_count: number | null
+          tenant_id: string
+          total_assets: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          asset_type_filter?: string | null
+          completed_at?: string | null
+          count_date?: string
+          count_number: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          found_count?: number | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
+          missing_count?: number | null
+          posted_at?: string | null
+          shortage_amount?: number | null
+          status?: string
+          surplus_amount?: number | null
+          surplus_count?: number | null
+          tenant_id: string
+          total_assets?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          asset_type_filter?: string | null
+          completed_at?: string | null
+          count_date?: string
+          count_number?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          found_count?: number | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
+          missing_count?: number | null
+          posted_at?: string | null
+          shortage_amount?: number | null
+          status?: string
+          surplus_amount?: number | null
+          surplus_count?: number | null
+          tenant_id?: string
+          total_assets?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_inventory_counts_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_counts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_counts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "asset_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_inventory_counts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_locations: {
         Row: {
           address: string | null
