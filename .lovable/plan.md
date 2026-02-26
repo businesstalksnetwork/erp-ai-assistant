@@ -1,44 +1,26 @@
 
 
-# Plan: Complete Profile Page with Missing HR Sections
+# Fix Untranslated & Hardcoded Strings in Profile Page
 
-## What's Missing
+## Issues Found
 
-The Profile page currently shows Personal Data, Contract, Leave, Attendance, Assets, and Reverses. Missing sections:
+1. **"assets" tab label** — uses `t("assets" as any)` but no `assets` key exists in translations → shows raw English "assets" instead of proper Serbian
+2. **"Current PIN: "** — hardcoded English string (line 285)
+3. **"HR"** — hardcoded mobile fallback (line 149)
+4. **Multiple `as any` casts** — `profilePersonalData`, `profileHrSection`, `profileSalaryInfo`, `notifications` keys exist in translations but are cast with `as any`, meaning they're not in the TypeScript type
 
-1. **Salary Info** — `employee_salaries` table has `amount`, `salary_type`, `amount_type`, `meal_allowance`, `regres`, `start_date` linked by `employee_id`
-2. **Deductions** — `deductions` table linked by `employee_id`
-3. **Allowances** — `allowances` table linked by `employee_id`
-4. **Insurance Records** — `insurance_records` table linked by `employee_id`
-5. **Documents** — `documents` table has no `employee_id` column, so we skip this (DMS uses different linking)
+## Changes
 
-## Implementation Tasks
+### 1. `src/i18n/translations.ts`
+- Add missing keys to the `TranslationKey` type: `profilePersonalData`, `profileHrSection`, `profileSalaryInfo`, `profileAssets`, `currentPin`
+- Add `profileAssets` key: EN = `"Assets & Equipment"`, SR = `"Imovina i oprema"`
+- Add `currentPin` key: EN = `"Current PIN:"`, SR = `"Trenutni PIN:"`
+- Verify all profile-related keys are properly typed (no more `as any`)
 
-### Task 1: Create `ProfileSalaryCard`
-- Query `employee_salaries` for the employee, show current salary (latest by `start_date`)
-- Display: amount, salary_type, amount_type, meal_allowance, regres
-- Read-only, masked if needed (show last 3 digits or full — employee should see their own salary)
-
-### Task 2: Create `ProfileDeductionsCard`
-- Query `deductions` for the employee
-- Show active deductions: type, amount, start/end date, status
-
-### Task 3: Create `ProfileAllowancesCard`
-- Query `allowances` for the employee
-- Show active allowances: type, amount, dates
-
-### Task 4: Create `ProfileInsuranceCard`
-- Query `insurance_records` for the employee
-- Show insurance info: type, provider, policy number, dates
-
-### Task 5: Update `Profile.tsx`
-- Add all 4 new cards below existing HR section
-- Order: Personal → Contract → Salary → Allowances → Deductions → Insurance → Leave → Attendance → Assets → Reverses
-
-### Task 6: Translations
-- ~15 new keys for salary, deductions, allowances, insurance section headers and field labels
-
-## Affected Files
-- **New**: `ProfileSalaryCard.tsx`, `ProfileDeductionsCard.tsx`, `ProfileAllowancesCard.tsx`, `ProfileInsuranceCard.tsx`
-- **Modified**: `Profile.tsx`, `translations.ts`
+### 2. `src/pages/tenant/Profile.tsx`
+- Replace `t("assets" as any)` → `t("profileAssets")`
+- Replace `t("notifications" as any)` → `t("notifications")`
+- Remove all `as any` casts from `t()` calls
+- Replace hardcoded `"Current PIN: "` → `t("currentPin")`
+- Replace hardcoded `"HR"` → short form of `t("profileHrSection")`
 
