@@ -104,33 +104,20 @@ export default function Payroll() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // GL posting uses configurable posting rules from posting_rule_catalog
-  const { data: postingRules = [] } = useQuery({
-    queryKey: ["posting_rules_payroll", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("posting_rule_catalog")
-        .select("rule_code, debit_account_code, credit_account_code")
-        .eq("tenant_id", tenantId!)
-        .in("rule_code", ["payroll_gross_exp", "payroll_net_payable", "payroll_tax", "payroll_employee_contrib", "payroll_employer_exp", "payroll_employer_contrib", "payroll_bank"]);
-      return data || [];
-    },
-    enabled: !!tenantId,
-  });
-
-  const getRule = (code: string) => postingRules.find((r: any) => r.rule_code === code);
+  // Standard Serbian payroll account codes (used as fallback when posting rules engine has no rule configured)
+  const PAYROLL_ACCOUNTS = {
+    gross_exp_dr: "5200",      // Troškovi zarada
+    net_payable_cr: "4500",    // Obaveze za neto zarade
+    tax_cr: "4510",            // Obaveze za porez po odbitku
+    emp_contrib_cr: "4520",    // Obaveze za doprinose radnika
+    er_exp_dr: "5210",         // Troškovi doprinosa poslodavca
+    er_contrib_cr: "4530",     // Obaveze za doprinose poslodavca
+    bank_dr: "4500",           // Razduživanje obaveza za neto zarade
+    bank_cr: "2410",           // Tekući račun
+  };
 
   // Build preview lines for a given run
   const buildPreviewLines = (run: any, items: any[]): PostingPreviewLine[] => {
-    const rGross = getRule("payroll_gross_exp");
-    const rNet = getRule("payroll_net_payable");
-    const rTax = getRule("payroll_tax");
-    const rEmpContrib = getRule("payroll_employee_contrib");
-    const rErExp = getRule("payroll_employer_exp");
-    const rErContrib = getRule("payroll_employer_contrib");
-
-    if (!rGross?.debit_account_code || !rNet?.credit_account_code) return [];
-
     const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
     const totalPioE = items.reduce((s: number, i: any) => s + Number(i.pension_contribution), 0);
     const totalHealthE = items.reduce((s: number, i: any) => s + Number(i.health_contribution), 0);
@@ -141,21 +128,16 @@ export default function Payroll() {
     const totalEmployerContrib = totalPioR + totalHealthR;
 
     const lines: PostingPreviewLine[] = [
-      { accountCode: rGross.debit_account_code, accountName: `Troškovi zarada`, debit: Number(run.total_gross), credit: 0 },
-      { accountCode: rNet.credit_account_code, accountName: `Obaveze za neto zarade`, debit: 0, credit: Number(run.total_net) },
+      { accountCode: PAYROLL_ACCOUNTS.gross_exp_dr, accountName: `Troškovi zarada`, debit: Number(run.total_gross), credit: 0 },
+      { accountCode: PAYROLL_ACCOUNTS.net_payable_cr, accountName: `Obaveze za neto zarade`, debit: 0, credit: Number(run.total_net) },
+      { accountCode: PAYROLL_ACCOUNTS.tax_cr, accountName: `Porez po odbitku`, debit: 0, credit: Number(run.total_taxes) },
     ];
-
-    if (rTax?.credit_account_code) {
-      lines.push({ accountCode: rTax.credit_account_code, accountName: `Porez po odbitku`, debit: 0, credit: Number(run.total_taxes) });
+    if (totalEmployeeContrib > 0) {
+      lines.push({ accountCode: PAYROLL_ACCOUNTS.emp_contrib_cr, accountName: `Doprinosi radnika`, debit: 0, credit: totalEmployeeContrib });
     }
-    if (rEmpContrib?.credit_account_code && totalEmployeeContrib > 0) {
-      lines.push({ accountCode: rEmpContrib.credit_account_code, accountName: `Doprinosi radnika`, debit: 0, credit: totalEmployeeContrib });
-    }
-    if (rErExp?.debit_account_code && totalEmployerContrib > 0) {
-      lines.push({ accountCode: rErExp.debit_account_code, accountName: `Troškovi doprinosa poslodavca`, debit: totalEmployerContrib, credit: 0 });
-    }
-    if (rErContrib?.credit_account_code && totalEmployerContrib > 0) {
-      lines.push({ accountCode: rErContrib.credit_account_code, accountName: `Obaveze za doprinose poslodavca`, debit: 0, credit: totalEmployerContrib });
+    if (totalEmployerContrib > 0) {
+      lines.push({ accountCode: PAYROLL_ACCOUNTS.er_exp_dr, accountName: `Troškovi doprinosa poslodavca`, debit: totalEmployerContrib, credit: 0 });
+      lines.push({ accountCode: PAYROLL_ACCOUNTS.er_contrib_cr, accountName: `Obaveze za doprinose poslodavca`, debit: 0, credit: totalEmployerContrib });
     }
 
     return lines;
@@ -186,17 +168,6 @@ export default function Payroll() {
       const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
 
       if (status === "approved") {
-        const rGross = getRule("payroll_gross_exp");
-        const rNet = getRule("payroll_net_payable");
-        const rTax = getRule("payroll_tax");
-        const rEmpContrib = getRule("payroll_employee_contrib");
-        const rErExp = getRule("payroll_employer_exp");
-        const rErContrib = getRule("payroll_employer_contrib");
-
-        if (!rGross?.debit_account_code || !rNet?.credit_account_code || !rTax?.credit_account_code) {
-          throw new Error("Payroll posting rules not configured. Go to Settings → Posting Rules.");
-        }
-
         const { data: items } = await supabase.from("payroll_items").select("*").eq("payroll_run_id", id);
         const totalPioE = items?.reduce((s, i) => s + Number(i.pension_contribution), 0) || 0;
         const totalHealthE = items?.reduce((s, i) => s + Number(i.health_contribution), 0) || 0;
@@ -207,12 +178,12 @@ export default function Payroll() {
         const totalEmployerContrib = totalPioR + totalHealthR;
 
         const accrualLines: any[] = [
-          { accountCode: rGross.debit_account_code, debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
-          { accountCode: rNet.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
-          { accountCode: rTax.credit_account_code, debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
+          { accountCode: PAYROLL_ACCOUNTS.gross_exp_dr, debit: Number(run.total_gross), credit: 0, description: `Troškovi zarada ${periodLabel}`, sortOrder: 0 },
+          { accountCode: PAYROLL_ACCOUNTS.net_payable_cr, debit: 0, credit: Number(run.total_net), description: `Obaveze za neto zarade ${periodLabel}`, sortOrder: 1 },
+          { accountCode: PAYROLL_ACCOUNTS.tax_cr, debit: 0, credit: Number(run.total_taxes), description: `Obaveze za porez po odbitku ${periodLabel}`, sortOrder: 2 },
         ];
-        if (rEmpContrib?.credit_account_code && totalEmployeeContrib > 0) {
-          accrualLines.push({ accountCode: rEmpContrib.credit_account_code, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
+        if (totalEmployeeContrib > 0) {
+          accrualLines.push({ accountCode: PAYROLL_ACCOUNTS.emp_contrib_cr, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
         }
 
         const jeId = await postWithRuleOrFallback({
@@ -225,7 +196,7 @@ export default function Payroll() {
         });
 
         let erJeId: string | null = null;
-        if (totalEmployerContrib > 0 && rErExp?.debit_account_code && rErContrib?.credit_account_code) {
+        if (totalEmployerContrib > 0) {
           erJeId = await postWithRuleOrFallback({
             tenantId: tenantId!, userId: user?.id || null, entryDate,
             modelCode: "PAYROLL_TAX", amount: totalEmployerContrib,
@@ -233,8 +204,8 @@ export default function Payroll() {
             reference: `PR-EC-${periodLabel}`,
             context: {},
             fallbackLines: [
-              { accountCode: rErExp.debit_account_code, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
-              { accountCode: rErContrib.credit_account_code, debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
+              { accountCode: PAYROLL_ACCOUNTS.er_exp_dr, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
+              { accountCode: PAYROLL_ACCOUNTS.er_contrib_cr, debit: 0, credit: totalEmployerContrib, description: `Obaveze za doprinose poslodavca ${periodLabel}`, sortOrder: 1 },
             ],
           });
         }
@@ -247,11 +218,6 @@ export default function Payroll() {
         if (error) throw error;
 
       } else if (status === "paid") {
-        const rBank = getRule("payroll_bank");
-        const rNet = getRule("payroll_net_payable");
-        if (!rBank?.debit_account_code || !rBank?.credit_account_code) {
-          throw new Error("Payroll bank posting rule not configured. Go to Settings → Posting Rules.");
-        }
         const payJeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
           modelCode: "PAYROLL_NET", amount: Number(run.total_net),
@@ -259,8 +225,8 @@ export default function Payroll() {
           reference: `PR-PAY-${periodLabel}`,
           context: {},
           fallbackLines: [
-            { accountCode: rBank.debit_account_code, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
-            { accountCode: rBank.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
+            { accountCode: PAYROLL_ACCOUNTS.bank_dr, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
+            { accountCode: PAYROLL_ACCOUNTS.bank_cr, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
         });
 
