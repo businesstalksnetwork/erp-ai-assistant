@@ -19,6 +19,7 @@ import { Plus, ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import PostingPreviewPanel, { buildCashPreviewLines } from "@/components/accounting/PostingPreviewPanel";
 
 export default function CashRegister() {
   const { tenantId } = useTenant();
@@ -249,6 +250,9 @@ export default function CashRegister() {
               <Label>{t("documentRefOptional")}</Label>
               <Input value={form.document_ref} onChange={(e) => setForm({ ...form, document_ref: e.target.value })} placeholder="npr. RN-001/26" />
             </div>
+            {Number(form.amount) > 0 && (
+              <PostingPreviewPanel lines={buildCashPreviewLines(form.direction, Number(form.amount), form.description || "—")} />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>

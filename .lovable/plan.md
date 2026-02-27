@@ -52,11 +52,34 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phases 2-7 (Future — executed sequentially after Phase 1)
+## Phase 2: Full Posting Chain — ✅ COMPLETED
+
+### 2A. Item-Type-Aware Invoice Posting ✅
+- Upgraded `process_invoice_post` RPC to aggregate revenue by `item_type` from `invoice_lines`
+- Goods → 6120, Service → 6500, Product → 6100, fallback → 6000
+- Revenue lines split per item type in journal entries
+
+### 2B. Posting Preview on All Document Types ✅
+- Created generic `PostingPreviewPanel` component with helper builders
+- Added posting preview to Supplier Invoices (approval flow shows GL preview before confirming)
+- Added posting preview to Cash Register (shows DR/CR before saving)
+- Invoice posting preview already existed from Phase 1 (`GlPostingPreview`)
+- All previews show balanced/unbalanced badge and full debit/credit breakdown
+
+### 2C. Storno Reversal ✅
+- Already implemented via `storno_journal_entry` RPC in JournalEntries.tsx
+- All document types that post journals link `journal_entry_id`, enabling storno from journal entries page
+
+### 2D. Supplier Invoice Posting ✅
+- Already uses `postWithRuleOrFallback` with `SUPPLIER_INVOICE_POST` and `SUPPLIER_INVOICE_PAYMENT` models
+- Added posting preview dialog before approval (shows expected GL entries)
+
+---
+
+## Phases 3-7 (Future — executed sequentially after Phase 2)
 
 | Phase | Focus | Key Deliverables |
 |-------|-------|-----------------|
-| **2** | Full Posting Chain | Item-type-aware GL posting for invoices, supplier invoices, bank lines; posting preview on all doc types; storno |
 | **3** | VAT & POPDV | POPDV form generation from transactions, PP-PDV form, XML export for ePorezi, tax period locking |
 | **4** | Payroll Completion | Verify/fix calculation, PPP-PD XML generation, payment orders, payslips, GL posting |
 | **5** | Reports & Closing | Account card (kartica konta), partner card (IOS), daily journal, cash flow statement, year-end workflow |
@@ -77,4 +100,4 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ## Recommendation
 
-Phase 1 is complete. To continue, say "proceed to Phase 2" to implement the full posting chain.
+Phase 2 is complete. To continue, say "proceed to Phase 3" to implement VAT & POPDV support.
