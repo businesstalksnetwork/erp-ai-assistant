@@ -396,13 +396,14 @@ export default function Payroll() {
                              <TableHead>{t("department")}</TableHead>
                              <TableHead>OVP</TableHead>
                              <TableHead className="text-right">{t("grossSalary")}</TableHead>
+                             <TableHead className="text-right">Minuli rad</TableHead>
                             <TableHead className="text-right">PIO {params ? `${Number(params.pio_employee_rate)}%` : "14%"}</TableHead>
                             <TableHead className="text-right">Zdrav. {params ? `${Number(params.health_employee_rate)}%` : "5.15%"}</TableHead>
                             <TableHead className="text-right">{t("incomeTax")}</TableHead>
                             <TableHead className="text-right">{t("netSalary")}</TableHead>
-                             <TableHead className="text-right">{t("pioEmployerShort")}</TableHead>
-                             <TableHead className="text-right">{t("healthEmployerShort")}</TableHead>
-                             <TableHead className="text-right">{t("subsidyAmount")}</TableHead>
+                              <TableHead className="text-right">{t("pioEmployerShort")}</TableHead>
+                              <TableHead className="text-right">{t("healthEmployerShort")}</TableHead>
+                              <TableHead className="text-right">{t("subsidyAmount")}</TableHead>
                             <TableHead className="text-right">{t("totalCost")}</TableHead>
                             <TableHead className="text-right">{t("actions")}</TableHead>
                            </TableRow>
@@ -414,6 +415,13 @@ export default function Payroll() {
                                <TableCell>{item.employees?.departments?.name || "—"}</TableCell>
                                <TableCell><Badge variant="outline" className="text-xs">{item.ovp_code || "101"}</Badge></TableCell>
                                <TableCell className="text-right">{fmtNum(Number(item.gross_salary))}</TableCell>
+                               <TableCell className="text-right text-xs">
+                                 {Number(item.minuli_rad_amount || 0) > 0 ? (
+                                   <span title={`${Number(item.minuli_rad_years || 0).toFixed(1)} god.`}>
+                                     {fmtNum(Number(item.minuli_rad_amount))}
+                                   </span>
+                                 ) : "—"}
+                               </TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.pension_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.health_contribution))}</TableCell>
                               <TableCell className="text-right">{fmtNum(Number(item.income_tax))}</TableCell>
