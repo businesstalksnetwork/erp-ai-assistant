@@ -15,8 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Plus, Search, Send, Eye, Filter } from "lucide-react";
+import { Heart, Plus, Search, Send, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -45,28 +46,13 @@ export default function EBolovanje() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailClaim, setDetailClaim] = useState<any>(null);
 
-  const emptyForm = {
-    employee_id: "",
-    legal_entity_id: "",
-    claim_type: "sick_leave",
-    start_date: "",
-    end_date: "",
-    diagnosis_code: "",
-    doctor_name: "",
-    medical_facility: "",
-    notes: "",
-  };
+  const emptyForm = { employee_id: "", legal_entity_id: "", claim_type: "sick_leave", start_date: "", end_date: "", diagnosis_code: "", doctor_name: "", medical_facility: "", notes: "" };
   const [form, setForm] = useState(emptyForm);
 
-  // Fetch claims
   const { data: claims = [], isLoading } = useQuery({
     queryKey: ["ebolovanje_claims", tenantId, statusFilter],
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("ebolovanje_claims")
-        .select("*, employees(full_name), legal_entities(name)")
-        .eq("tenant_id", tenantId!)
-        .order("created_at", { ascending: false });
+      let query = (supabase as any).from("ebolovanje_claims").select("*, employees(full_name), legal_entities(name)").eq("tenant_id", tenantId!).order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       const { data, error } = await query;
       if (error) throw error;
@@ -75,45 +61,28 @@ export default function EBolovanje() {
     enabled: !!tenantId,
   });
 
-  // Fetch employees for dropdown
   const { data: employees = [] } = useQuery({
     queryKey: ["employees_list", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("employees")
-        .select("id, full_name")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .eq("is_ghost", false)
-        .order("full_name");
+      const { data } = await (supabase as any).from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("is_active", true).eq("is_ghost", false).order("full_name");
       return data || [];
     },
     enabled: !!tenantId,
   });
 
-  // Fetch doznake for detail view
   const { data: doznake = [] } = useQuery({
     queryKey: ["ebolovanje_doznake", detailClaim?.id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("ebolovanje_doznake")
-        .select("*")
-        .eq("claim_id", detailClaim!.id)
-        .order("created_at", { ascending: false });
+      const { data } = await (supabase as any).from("ebolovanje_doznake").select("*").eq("claim_id", detailClaim!.id).order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!detailClaim,
   });
 
-  // Fetch connection status
   const { data: connection } = useQuery({
     queryKey: ["ebolovanje_connection", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("ebolovanje_connections")
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .maybeSingle();
+      const { data } = await (supabase as any).from("ebolovanje_connections").select("*").eq("tenant_id", tenantId!).maybeSingle();
       return data;
     },
     enabled: !!tenantId,
@@ -122,69 +91,65 @@ export default function EBolovanje() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).from("ebolovanje_claims").insert({
-        tenant_id: tenantId!,
-        employee_id: form.employee_id,
-        legal_entity_id: form.legal_entity_id || null,
-        claim_type: form.claim_type,
-        start_date: form.start_date,
-        end_date: form.end_date || null,
-        diagnosis_code: form.diagnosis_code || null,
-        doctor_name: form.doctor_name || null,
-        medical_facility: form.medical_facility || null,
-        notes: form.notes || null,
-        created_by: user?.id || null,
+        tenant_id: tenantId!, employee_id: form.employee_id, legal_entity_id: form.legal_entity_id || null,
+        claim_type: form.claim_type, start_date: form.start_date, end_date: form.end_date || null,
+        diagnosis_code: form.diagnosis_code || null, doctor_name: form.doctor_name || null,
+        medical_facility: form.medical_facility || null, notes: form.notes || null, created_by: user?.id || null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ebolovanje_claims"] });
-      toast({ title: t("success") });
-      setCreateOpen(false);
-      setForm(emptyForm);
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["ebolovanje_claims"] }); toast({ title: t("success") }); setCreateOpen(false); setForm(emptyForm); },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
   const submitMutation = useMutation({
     mutationFn: async (claimId: string) => {
-      const { data, error } = await supabase.functions.invoke("ebolovanje-submit", {
-        body: { claim_id: claimId, tenant_id: tenantId },
-      });
+      const { data, error } = await supabase.functions.invoke("ebolovanje-submit", { body: { claim_id: claimId, tenant_id: tenantId } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ebolovanje_claims"] });
-      toast({ title: t("success"), description: t("claimSubmitted") });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["ebolovanje_claims"] }); toast({ title: t("success"), description: t("claimSubmitted") }); },
     onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
   });
 
   const filtered = claims.filter((c: any) => {
     if (!search) return true;
     const empName = c.employees?.full_name || "";
-    return empName.toLowerCase().includes(search.toLowerCase()) ||
-      c.rfzo_claim_number?.toLowerCase().includes(search.toLowerCase()) ||
-      c.diagnosis_code?.toLowerCase().includes(search.toLowerCase());
+    return empName.toLowerCase().includes(search.toLowerCase()) || c.rfzo_claim_number?.toLowerCase().includes(search.toLowerCase()) || c.diagnosis_code?.toLowerCase().includes(search.toLowerCase());
   });
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, sortable: true, sortValue: (c) => c.employees?.full_name || "", render: (c) => <span className="font-medium">{c.employees?.full_name || "—"}</span> },
+    { key: "claim_type", label: t("claimType"), sortable: true, sortValue: (c) => c.claim_type, render: (c) => claimTypeLabels[c.claim_type] || c.claim_type },
+    { key: "start_date", label: t("startDate"), sortable: true, sortValue: (c) => c.start_date, render: (c) => format(new Date(c.start_date), "dd.MM.yyyy") },
+    { key: "end_date", label: t("endDate"), hideOnMobile: true, render: (c) => c.end_date ? format(new Date(c.end_date), "dd.MM.yyyy") : "—" },
+    { key: "diagnosis", label: t("diagnosisCode"), hideOnMobile: true, render: (c) => <span className="font-mono text-xs">{c.diagnosis_code || "—"}</span> },
+    { key: "rfzo", label: t("rfzoNumber"), hideOnMobile: true, defaultVisible: false, render: (c) => <span className="font-mono text-xs">{c.rfzo_claim_number || "—"}</span> },
+    { key: "status", label: t("status"), sortable: true, sortValue: (c) => c.status, render: (c) => <Badge className={statusColors[c.status] || ""}>{t(c.status as any)}</Badge> },
+    { key: "actions", label: t("actions"), render: (c) => (
+      <div className="flex gap-1">
+        {c.status === "draft" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); submitMutation.mutate(c.id); }} disabled={submitMutation.isPending}>
+            <Send className="h-3 w-3 mr-1" />{t("submit")}
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDetailClaim(c); }}><Eye className="h-3 w-3" /></Button>
+      </div>
+    )},
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Heart className="h-6 w-6" />
-          {t("eBolovanje")}
-        </h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Heart className="h-6 w-6" />{t("eBolovanje")}</h1>
         <div className="flex items-center gap-2">
           {connection?.is_active ? (
             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">{t("connectionActive")}</Badge>
           ) : (
             <Badge variant="secondary">{t("connectionInactive")}</Badge>
           )}
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />{t("newClaim")}
-          </Button>
+          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />{t("newClaim")}</Button>
         </div>
       </div>
 
@@ -206,51 +171,15 @@ export default function EBolovanje() {
         </Select>
       </div>
 
-      {isLoading ? <p>{t("loading")}</p> : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">{t("noResults")}</CardContent></Card>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("employee")}</TableHead>
-              <TableHead>{t("claimType")}</TableHead>
-              <TableHead>{t("startDate")}</TableHead>
-              <TableHead>{t("endDate")}</TableHead>
-              <TableHead>{t("diagnosisCode")}</TableHead>
-              <TableHead>{t("rfzoNumber")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((claim: any) => (
-              <TableRow key={claim.id}>
-                <TableCell className="font-medium">{claim.employees?.full_name || "—"}</TableCell>
-                <TableCell>{claimTypeLabels[claim.claim_type] || claim.claim_type}</TableCell>
-                <TableCell>{format(new Date(claim.start_date), "dd.MM.yyyy")}</TableCell>
-                <TableCell>{claim.end_date ? format(new Date(claim.end_date), "dd.MM.yyyy") : "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{claim.diagnosis_code || "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{claim.rfzo_claim_number || "—"}</TableCell>
-                <TableCell>
-                  <Badge className={statusColors[claim.status] || ""}>{t(claim.status as any)}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {claim.status === "draft" && (
-                      <Button size="sm" variant="outline" onClick={() => submitMutation.mutate(claim.id)} disabled={submitMutation.isPending}>
-                        <Send className="h-3 w-3 mr-1" />{t("submit")}
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => setDetailClaim(claim)}>
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(c) => c.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="ebolovanje_claims"
+        enableColumnToggle
+      />
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -261,9 +190,7 @@ export default function EBolovanje() {
               <Label>{t("employee")}</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder={t("selectEmployee")} /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {legalEntities.length > 1 && (
@@ -322,52 +249,31 @@ export default function EBolovanje() {
                 {detailClaim.rfzo_claim_number && <div><span className="text-muted-foreground">{t("rfzoNumber")}:</span> {detailClaim.rfzo_claim_number}</div>}
                 {detailClaim.amount && <div><span className="text-muted-foreground">{t("amount")}:</span> {Number(detailClaim.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })} RSD</div>}
               </div>
-
-              {/* Employer / RFZO day split */}
               {detailClaim.end_date && (() => {
                 const totalDays = Math.max(0, Math.ceil((new Date(detailClaim.end_date).getTime() - new Date(detailClaim.start_date).getTime()) / 86400000) + 1);
                 const employerDays = Math.min(totalDays, 30);
                 const rfzoDays = Math.max(0, totalDays - 30);
                 return (
                   <div className="grid grid-cols-3 gap-3 p-3 rounded-md bg-muted/50">
-                    <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Ukupno dana</p>
-                      <p className="text-lg font-semibold">{totalDays}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-muted-foreground">{t("eBolovanjeEmployer")}</p>
-                      <p className="text-lg font-semibold text-primary">{employerDays}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-muted-foreground">{t("eBolovanjeRFZO")}</p>
-                      <p className="text-lg font-semibold text-primary">{rfzoDays}</p>
-                    </div>
+                    <div className="text-center"><p className="text-xs text-muted-foreground">Ukupno dana</p><p className="text-lg font-semibold">{totalDays}</p></div>
+                    <div className="text-center"><p className="text-xs text-muted-foreground">{t("eBolovanjeEmployer")}</p><p className="text-lg font-semibold text-primary">{employerDays}</p></div>
+                    <div className="text-center"><p className="text-xs text-muted-foreground">{t("eBolovanjeRFZO")}</p><p className="text-lg font-semibold text-primary">{rfzoDays}</p></div>
                   </div>
                 );
               })()}
-
               {detailClaim.notes && <p className="text-sm text-muted-foreground">{detailClaim.notes}</p>}
-
-              {/* Doznake */}
               {doznake.length > 0 && (
                 <div>
                   <h4 className="font-medium text-sm mb-2">{t("confirmations")} ({doznake.length})</h4>
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("claimNumber")}</TableHead>
-                        <TableHead>{t("validFrom")}</TableHead>
-                        <TableHead>{t("validTo")}</TableHead>
-                        <TableHead>{t("status")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                    <TableHeader><TableRow><TableHead>{t("claimNumber")}</TableHead><TableHead>{t("validFrom")}</TableHead><TableHead>{t("validTo")}</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {doznake.map((d: any) => (
                         <TableRow key={d.id}>
                           <TableCell className="font-mono text-xs">{d.doznaka_number}</TableCell>
                           <TableCell>{d.valid_from ? format(new Date(d.valid_from), "dd.MM.yyyy") : "—"}</TableCell>
                           <TableCell>{d.valid_to ? format(new Date(d.valid_to), "dd.MM.yyyy") : "—"}</TableCell>
-                          <TableCell><Badge variant="outline">{d.rfzo_status || "—"}</Badge></TableCell>
+                          <TableCell><Badge variant="secondary">{d.status}</Badge></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

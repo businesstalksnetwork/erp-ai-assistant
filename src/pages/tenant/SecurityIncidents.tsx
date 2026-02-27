@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ShieldAlert, Bell, CheckCircle2, Clock } from "lucide-react";
 import { format, differenceInHours, addHours } from "date-fns";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const INCIDENT_TYPES = [
   { value: "unauthorized_access", label: "Neovlašćen pristup / Unauthorized Access" },
@@ -129,6 +129,34 @@ export default function SecurityIncidents() {
   const activeCount = incidents.filter((i: any) => i.status === "detected" || i.status === "investigating").length;
   const criticalCount = incidents.filter((i: any) => (i.severity === "critical" || i.severity === "high") && i.status !== "resolved" && i.status !== "dismissed").length;
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "severity", label: locale === "sr" ? "Ozbiljnost" : "Severity", sortable: true, sortValue: (inc) => SEVERITIES.findIndex(s => s.value === inc.severity), render: (inc) => severityBadge(inc.severity) },
+    { key: "title", label: locale === "sr" ? "Naslov" : "Title", primary: true, sortable: true, sortValue: (inc) => inc.title, render: (inc) => <span className="font-medium">{inc.title}</span> },
+    { key: "type", label: locale === "sr" ? "Tip" : "Type", hideOnMobile: true, render: (inc) => INCIDENT_TYPES.find(t => t.value === inc.incident_type)?.label.split(" / ")[locale === "sr" ? 0 : 1] || inc.incident_type },
+    { key: "status", label: t("status"), sortable: true, sortValue: (inc) => inc.status, render: (inc) => statusBadge(inc.status) },
+    { key: "detected", label: locale === "sr" ? "Otkriveno" : "Detected", sortable: true, sortValue: (inc) => inc.detected_at, hideOnMobile: true, render: (inc) => format(new Date(inc.detected_at), "dd.MM.yyyy HH:mm") },
+    { key: "deadline", label: locale === "sr" ? "Rok (72h)" : "Deadline", hideOnMobile: true, render: (inc) => deadlineWarning(inc) },
+    { key: "actions", label: t("actions"), render: (inc) => (
+      <div className="flex gap-1">
+        {inc.status === "detected" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: inc.id, status: "investigating" }); }}>
+            {locale === "sr" ? "Istraži" : "Investigate"}
+          </Button>
+        )}
+        {(inc.status === "detected" || inc.status === "investigating") && (
+          <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: inc.id, status: "notified" }); }}>
+            <Bell className="h-3 w-3 mr-1" /> {locale === "sr" ? "Obavesti" : "Notify"}
+          </Button>
+        )}
+        {inc.status !== "resolved" && inc.status !== "dismissed" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: inc.id, status: "resolved" }); }}>
+            <CheckCircle2 className="h-3 w-3 mr-1" /> {locale === "sr" ? "Reši" : "Resolve"}
+          </Button>
+        )}
+      </div>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -138,24 +166,9 @@ export default function SecurityIncidents() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">{locale === "sr" ? "Aktivni incidenti" : "Active Incidents"}</p>
-            <p className="text-2xl font-bold">{activeCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">{locale === "sr" ? "Kritični / Visoki" : "Critical / High"}</p>
-            <p className={`text-2xl font-bold ${criticalCount > 0 ? "text-destructive" : ""}`}>{criticalCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">{locale === "sr" ? "Ukupno" : "Total"}</p>
-            <p className="text-2xl font-bold">{incidents.length}</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">{locale === "sr" ? "Aktivni incidenti" : "Active Incidents"}</p><p className="text-2xl font-bold">{activeCount}</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">{locale === "sr" ? "Kritični / Visoki" : "Critical / High"}</p><p className={`text-2xl font-bold ${criticalCount > 0 ? "text-destructive" : ""}`}>{criticalCount}</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">{locale === "sr" ? "Ukupno" : "Total"}</p><p className="text-2xl font-bold">{incidents.length}</p></CardContent></Card>
       </div>
 
       <div className="flex justify-end">
@@ -164,57 +177,15 @@ export default function SecurityIncidents() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{locale === "sr" ? "Ozbiljnost" : "Severity"}</TableHead>
-                <TableHead>{locale === "sr" ? "Naslov" : "Title"}</TableHead>
-                <TableHead>{locale === "sr" ? "Tip" : "Type"}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{locale === "sr" ? "Otkriveno" : "Detected"}</TableHead>
-                <TableHead>{locale === "sr" ? "Rok (72h)" : "Deadline"}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incidents.map((inc: any) => (
-                <TableRow key={inc.id}>
-                  <TableCell>{severityBadge(inc.severity)}</TableCell>
-                  <TableCell className="font-medium">{inc.title}</TableCell>
-                  <TableCell className="text-sm">{INCIDENT_TYPES.find(t => t.value === inc.incident_type)?.label.split(" / ")[locale === "sr" ? 0 : 1] || inc.incident_type}</TableCell>
-                  <TableCell>{statusBadge(inc.status)}</TableCell>
-                  <TableCell className="text-sm">{format(new Date(inc.detected_at), "dd.MM.yyyy HH:mm")}</TableCell>
-                  <TableCell>{deadlineWarning(inc)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {inc.status === "detected" && (
-                        <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: inc.id, status: "investigating" })}>
-                          {locale === "sr" ? "Istraži" : "Investigate"}
-                        </Button>
-                      )}
-                      {(inc.status === "detected" || inc.status === "investigating") && (
-                        <Button size="sm" variant="default" onClick={() => updateStatus.mutate({ id: inc.id, status: "notified" })}>
-                          <Bell className="h-3 w-3 mr-1" /> {locale === "sr" ? "Obavesti" : "Notify"}
-                        </Button>
-                      )}
-                      {inc.status !== "resolved" && inc.status !== "dismissed" && (
-                        <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: inc.id, status: "resolved" })}>
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> {locale === "sr" ? "Reši" : "Resolve"}
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {incidents.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={incidents}
+        columns={columns}
+        keyExtractor={(inc) => inc.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="security_incidents"
+        enableColumnToggle
+      />
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
@@ -226,22 +197,14 @@ export default function SecurityIncidents() {
               <Label>{locale === "sr" ? "Tip incidenta" : "Incident Type"}</Label>
               <Select value={form.incident_type} onValueChange={v => setForm({ ...form, incident_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {INCIDENT_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{INCIDENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>{locale === "sr" ? "Ozbiljnost" : "Severity"}</Label>
               <Select value={form.severity} onValueChange={v => setForm({ ...form, severity: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SEVERITIES.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{SEVERITIES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
