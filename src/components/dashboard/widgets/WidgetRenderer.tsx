@@ -62,7 +62,7 @@ export function WidgetRenderer({ widgetConfig }: Props) {
     case "pending_leave":
       return <KpiWidget metricKey="leave_pending" />;
     case "leave_balance":
-      return <KpiWidget metricKey="attendance" />;
+      return <KpiWidget metricKey="leave_balance" />;
     case "ai_briefing":
       return tenantId ? <Suspense fallback={fallback}><AiBriefingWidget tenantId={tenantId} /></Suspense> : null;
     case "personal_tasks":

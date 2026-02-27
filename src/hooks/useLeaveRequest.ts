@@ -52,12 +52,12 @@ export function useLeaveRequest(employeeId: string | undefined) {
       if (error) throw error;
       return data as string;
     },
-    onSuccess: async () => {
+    onSuccess: async (requestId) => {
       qc.invalidateQueries({ queryKey: ["my-leave-requests"] });
       qc.invalidateQueries({ queryKey: ["profile-leave-balance"] });
       toast.success("Zahtev za odsustvo je poslat");
 
-      // Notify manager/HR about the new leave request
+      // Notify HR/admin roles about the new leave request
       try {
         if (employeeId && tenantId) {
           const { data: emp } = await supabase
@@ -68,18 +68,29 @@ export function useLeaveRequest(employeeId: string | undefined) {
 
           const empName = emp ? `${emp.first_name} ${emp.last_name}` : "Employee";
 
-          await supabase.functions.invoke("create-notification", {
-            body: {
-              tenant_id: tenantId,
-              target_user_ids: "all_tenant_members",
-              type: "info",
-              category: "hr",
-              title: "Novi zahtev za odsustvo",
-              message: `${empName} je podneo/la zahtev za odsustvo.`,
-              entity_type: "leave_request",
-              entity_id: employeeId,
-            },
-          });
+          // Get HR-related user IDs from tenant_members
+          const { data: hrUsers } = await supabase
+            .from("tenant_members")
+            .select("user_id")
+            .eq("tenant_id", tenantId)
+            .in("role", ["admin", "hr_manager", "finance_director"]);
+
+          const targetIds = hrUsers?.map((u) => u.user_id) || [];
+
+          if (targetIds.length > 0) {
+            await supabase.functions.invoke("create-notification", {
+              body: {
+                tenant_id: tenantId,
+                target_user_ids: targetIds,
+                type: "info",
+                category: "hr",
+                title: "Novi zahtev za odsustvo",
+                message: `${empName} je podneo/la zahtev za odsustvo.`,
+                entity_type: "leave_request",
+                entity_id: requestId,
+              },
+            });
+          }
         }
       } catch {
         // Notification failure should not block the success flow

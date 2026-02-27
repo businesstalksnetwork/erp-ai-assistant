@@ -3007,6 +3007,13 @@ export const translations = {
     removeReminder: "Remove reminder",
     reminderAt: "Remind at",
     unlinkEntity: "Unlink",
+    // Shortcut editor
+    shortcuts: "Shortcuts",
+    noCustomShortcuts: "No custom shortcuts. Using defaults.",
+    addFromPresets: "Add from presets",
+    select: "Select...",
+    customShortcut: "Custom Shortcut",
+    path: "Path",
   },
   sr: {
     // Auth
@@ -5970,6 +5977,13 @@ export const translations = {
     removeReminder: "Ukloni podsetnik",
     reminderAt: "Podseti u",
     unlinkEntity: "Ukloni vezu",
+    // Shortcut editor
+    shortcuts: "Prečice",
+    noCustomShortcuts: "Nema prilagođenih prečica. Koriste se podrazumevane.",
+    addFromPresets: "Dodaj iz predefinisanih",
+    select: "Izaberi...",
+    customShortcut: "Prilagođena prečica",
+    path: "Putanja",
   },
 } as const;
 

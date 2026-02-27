@@ -14,17 +14,18 @@ export interface ShortcutItem {
   icon?: string;
 }
 
-const PRESET_SHORTCUTS: ShortcutItem[] = [
-  { label: "Nova faktura", path: "/accounting/invoices/new" },
-  { label: "Nalog za knjiženje", path: "/accounting/journal" },
-  { label: "Dodaj lead", path: "/crm/leads" },
-  { label: "POS", path: "/pos" },
-  { label: "Zalihe", path: "/inventory/stock" },
-  { label: "Zaposleni", path: "/hr/employees" },
-  { label: "Izvještaji", path: "/accounting/reports" },
-  { label: "Partneri", path: "/accounting/partners" },
-  { label: "Narudžbenice", path: "/inventory/purchase-orders" },
-  { label: "Odsustva", path: "/hr/leave" },
+// Labels use translation keys resolved at render time
+const PRESET_SHORTCUT_DEFS: { labelKey: string; path: string }[] = [
+  { labelKey: "newInvoice", path: "/accounting/invoices/new" },
+  { labelKey: "journalEntry", path: "/accounting/journal" },
+  { labelKey: "addLead", path: "/crm/leads" },
+  { labelKey: "pos", path: "/pos" },
+  { labelKey: "inventory", path: "/inventory/stock" },
+  { labelKey: "employees", path: "/hr/employees" },
+  { labelKey: "reports", path: "/accounting/reports" },
+  { labelKey: "partners", path: "/accounting/partners" },
+  { labelKey: "purchaseOrders", path: "/inventory/purchase-orders" },
+  { labelKey: "leaveRequests", path: "/hr/leave" },
 ];
 
 interface Props {
@@ -39,6 +40,11 @@ export function WidgetShortcutEditor({ widgetConfig, onUpdateConfig }: Props) {
   const [newLabel, setNewLabel] = useState("");
   const [newPath, setNewPath] = useState("");
   const [presetValue, setPresetValue] = useState("");
+
+  const presetShortcuts: ShortcutItem[] = PRESET_SHORTCUT_DEFS.map((d) => ({
+    label: t(d.labelKey as any) || d.labelKey,
+    path: d.path,
+  }));
 
   const save = (updated: ShortcutItem[]) => {
     onUpdateConfig(widgetConfig.id, { ...widgetConfig.configJson, shortcuts: updated });
@@ -57,7 +63,7 @@ export function WidgetShortcutEditor({ widgetConfig, onUpdateConfig }: Props) {
   };
 
   const handlePreset = (val: string) => {
-    const preset = PRESET_SHORTCUTS.find((p) => p.path === val);
+    const preset = presetShortcuts.find((p) => p.path === val);
     if (preset && !shortcuts.some((s) => s.path === preset.path)) {
       save([...shortcuts, preset]);
     }
@@ -76,7 +82,7 @@ export function WidgetShortcutEditor({ widgetConfig, onUpdateConfig }: Props) {
       </PopoverTrigger>
       <PopoverContent className="w-80" align="start">
         <div className="space-y-3">
-          <h4 className="font-medium text-sm">{t("quickActions")} — Prečice</h4>
+          <h4 className="font-medium text-sm">{t("quickActions")} — {t("shortcuts" as any)}</h4>
 
           {/* Current shortcuts */}
           {shortcuts.length > 0 ? (
@@ -91,18 +97,18 @@ export function WidgetShortcutEditor({ widgetConfig, onUpdateConfig }: Props) {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">Nema prilagođenih prečica. Koriste se podrazumevane.</p>
+            <p className="text-xs text-muted-foreground">{t("noCustomShortcuts" as any)}</p>
           )}
 
           {/* Add from presets */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Dodaj iz predefinisanih</Label>
+            <Label className="text-xs">{t("addFromPresets" as any)}</Label>
             <Select value={presetValue} onValueChange={handlePreset}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Izaberi..." />
+                <SelectValue placeholder={t("select" as any)} />
               </SelectTrigger>
               <SelectContent>
-                {PRESET_SHORTCUTS.filter((p) => !shortcuts.some((s) => s.path === p.path)).map((p) => (
+                {presetShortcuts.filter((p) => !shortcuts.some((s) => s.path === p.path)).map((p) => (
                   <SelectItem key={p.path} value={p.path}>{p.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -113,21 +119,21 @@ export function WidgetShortcutEditor({ widgetConfig, onUpdateConfig }: Props) {
           {addMode ? (
             <div className="space-y-2 border-t pt-2">
               <div className="grid gap-1">
-                <Label className="text-xs">Naziv</Label>
-                <Input className="h-8 text-xs" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Moja prečica" />
+                <Label className="text-xs">{t("name")}</Label>
+                <Input className="h-8 text-xs" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
               </div>
               <div className="grid gap-1">
-                <Label className="text-xs">Putanja</Label>
+                <Label className="text-xs">{t("path" as any)}</Label>
                 <Input className="h-8 text-xs" value={newPath} onChange={(e) => setNewPath(e.target.value)} placeholder="/accounting/reports" />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAddMode(false)}>Otkaži</Button>
-                <Button size="sm" className="h-7 text-xs" onClick={handleAdd} disabled={!newLabel.trim() || !newPath.trim()}>Dodaj</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAddMode(false)}>{t("cancel")}</Button>
+                <Button size="sm" className="h-7 text-xs" onClick={handleAdd} disabled={!newLabel.trim() || !newPath.trim()}>{t("add")}</Button>
               </div>
             </div>
           ) : (
             <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => setAddMode(true)}>
-              <Plus className="h-3 w-3 mr-1" /> Prilagođena prečica
+              <Plus className="h-3 w-3 mr-1" /> {t("customShortcut" as any)}
             </Button>
           )}
         </div>
