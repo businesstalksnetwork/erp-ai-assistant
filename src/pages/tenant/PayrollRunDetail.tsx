@@ -198,9 +198,11 @@ export default function PayrollRunDetail() {
       meal: acc.meal + Number(i.meal_allowance || 0),
       transport: acc.transport + Number(i.transport_allowance || 0),
       subsidy: acc.subsidy + Number(i.subsidy_amount || 0),
+      sickDays: acc.sickDays + Number(i.sick_leave_days || 0),
+      sickComp: acc.sickComp + Number(i.sick_leave_compensation || 0),
       totalCost: acc.totalCost + Number(i.total_cost),
     }),
-    { gross: 0, net: 0, tax: 0, pioE: 0, healthE: 0, unempE: 0, pioR: 0, healthR: 0, meal: 0, transport: 0, subsidy: 0, totalCost: 0 }
+    { gross: 0, net: 0, tax: 0, pioE: 0, healthE: 0, unempE: 0, pioR: 0, healthR: 0, meal: 0, transport: 0, subsidy: 0, sickDays: 0, sickComp: 0, totalCost: 0 }
   );
 
   const exportData = items.map((i: any) => ({
@@ -217,6 +219,8 @@ export default function PayrollRunDetail() {
     "Topli obrok": Number(i.meal_allowance || 0),
     "Prevoz": Number(i.transport_allowance || 0),
     "Subvencija": Number(i.subsidy_amount || 0),
+    "Bol. dani": Number(i.sick_leave_days || 0),
+    "Bol. naknada": Number(i.sick_leave_compensation || 0),
     [t("totalCost")]: Number(i.total_cost),
   }));
 
@@ -310,6 +314,8 @@ export default function PayrollRunDetail() {
                      <TableHead className="text-right">{t("pioEmployerShort")}</TableHead>
                      <TableHead className="text-right">{t("healthEmployerShort")}</TableHead>
                      <TableHead className="text-right">{t("subsidyAmount")}</TableHead>
+                     <TableHead className="text-right">{t("sickLeaveDays")}</TableHead>
+                     <TableHead className="text-right">{t("sickLeaveCompensation")}</TableHead>
                     <TableHead className="text-right">{t("totalCost")}</TableHead>
                     <TableHead className="text-right">PDF</TableHead>
                   </TableRow>
@@ -328,6 +334,8 @@ export default function PayrollRunDetail() {
                       <TableCell className="text-right">{fmtNum(Number(item.pension_employer || 0))}</TableCell>
                       <TableCell className="text-right">{fmtNum(Number(item.health_employer || 0))}</TableCell>
                       <TableCell className="text-right">{fmtNum(Number(item.subsidy_amount || 0))}</TableCell>
+                      <TableCell className="text-right">{Number(item.sick_leave_days || 0)}</TableCell>
+                      <TableCell className="text-right">{fmtNum(Number(item.sick_leave_compensation || 0))}</TableCell>
                       <TableCell className="text-right">{fmtNum(Number(item.total_cost))}</TableCell>
                       <TableCell className="text-right">
                         <DownloadPdfButton type="payslip" params={{ payroll_item_id: item.id }} />
@@ -345,6 +353,8 @@ export default function PayrollRunDetail() {
                     <TableCell className="text-right">{fmtNum(totals.pioR)}</TableCell>
                     <TableCell className="text-right">{fmtNum(totals.healthR)}</TableCell>
                     <TableCell className="text-right">{fmtNum(totals.subsidy)}</TableCell>
+                    <TableCell className="text-right">{totals.sickDays}</TableCell>
+                    <TableCell className="text-right">{fmtNum(totals.sickComp)}</TableCell>
                     <TableCell className="text-right">{fmtNum(totals.totalCost)}</TableCell>
                     <TableCell />
                   </TableRow>
