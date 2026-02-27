@@ -132,10 +132,12 @@ serve(async (req) => {
       : (sr ? `## ${digestTitle}\n\nNema značajnih promena za ${dateStr}.` : `## ${digestTitle}\n\nNo significant changes for ${dateStr}.`);
 
     // Log action
-    await supabase.from("ai_action_log").insert({
-      tenant_id, user_id: user.id, action_type: "daily_digest", module: "analytics",
-      model_version: "rule-based", reasoning: `Generated digest with ${sections.length} sections`,
-    }).catch(() => {});
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id, user_id: user.id, action_type: "daily_digest", module: "analytics",
+        model_version: "rule-based", reasoning: `Generated digest with ${sections.length} sections`,
+      });
+    } catch (_) { /* ignore logging errors */ }
 
     return new Response(JSON.stringify({ digest, date: yesterday, sections_count: sections.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
