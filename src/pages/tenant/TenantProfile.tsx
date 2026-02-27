@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Building, Save, Upload, Image } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { EntitySelector } from "@/components/shared/EntitySelector";
 
 interface TenantSettings {
   company_logo?: string;
@@ -20,6 +22,7 @@ interface TenantSettings {
   pib?: string;
   maticni_broj?: string;
   seal_url?: string;
+  default_legal_entity_id?: string;
 }
 
 const TIMEZONES = [
@@ -41,6 +44,7 @@ export default function TenantProfile() {
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { entities: legalEntities } = useLegalEntities();
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant-profile", tenantId],
@@ -72,6 +76,7 @@ export default function TenantProfile() {
         pib: s.pib || "",
         maticni_broj: s.maticni_broj || "",
         seal_url: s.seal_url || "",
+        default_legal_entity_id: s.default_legal_entity_id || "",
       });
     }
   }, [tenant]);
@@ -222,6 +227,21 @@ export default function TenantProfile() {
                 </SelectContent>
               </Select>
             </div>
+            {legalEntities.length > 0 && (
+              <div className="space-y-2">
+                <Label>{"Podrazumevano pravno lice"}</Label>
+                <EntitySelector
+                  options={legalEntities.map((e) => ({
+                    value: e.id,
+                    label: e.name,
+                    sublabel: e.pib ? `PIB: ${e.pib}` : undefined,
+                  }))}
+                  value={settings.default_legal_entity_id || null}
+                  onValueChange={(v) => setSettings((s) => ({ ...s, default_legal_entity_id: v || "" }))}
+                  placeholder={t("selectLegalEntity") || "Izaberite pravno lice"}
+                />
+              </div>
+            )}
           </div>
 
           {/* Seal/Stamp Upload */}

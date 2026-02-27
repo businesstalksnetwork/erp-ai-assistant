@@ -245,6 +245,29 @@ export default function Integrations() {
     }
   };
 
+  // ─── Bank API Test ───
+  const [bankTesting, setBankTesting] = useState(false);
+  const handleBankTest = async () => {
+    setBankTesting(true);
+    try {
+      const { data: accounts } = await supabase
+        .from("bank_accounts")
+        .select("id, bank_name, account_number, is_active")
+        .eq("tenant_id", tenantId!)
+        .eq("is_active", true)
+        .limit(1);
+      if (!accounts || accounts.length === 0) {
+        toast({ title: t("error"), description: "Nema aktivnih bankovnih računa. Dodajte račun u Blagajna → Računi.", variant: "destructive" });
+        return;
+      }
+      toast({ title: t("success"), description: `Konekcija OK — ${accounts.length} aktivan račun pronađen (${accounts[0].bank_name} — ${accounts[0].account_number})` });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setBankTesting(false);
+    }
+  };
+
   /* ─── Environment selector helper ─── */
   const envSelector = (value: string, onChange: (v: string) => void) => (
     <div><Label>{t("environment")}</Label>
@@ -341,7 +364,13 @@ export default function Integrations() {
         title={t("bankApiConnection") || "Bank API"}
         description={t("bankApiDesc") || "Povezivanje sa bankarskim API-jem za automatski uvoz izvoda. Podržani formati: Halcom XML, NBS CSV."}
       >
-        <Button variant="outline" onClick={() => navigate("/accounting/bank-statements")}>{t("bankStatements") || "Izvodi"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleBankTest} disabled={bankTesting}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${bankTesting ? "animate-spin" : ""}`} />
+            {t("testConnection")}
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/accounting/bank-statements")}>{t("bankStatements") || "Izvodi"}</Button>
+        </div>
       </InfoCard>
 
       {/* NBS Exchange Rates */}
