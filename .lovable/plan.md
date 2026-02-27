@@ -1,68 +1,38 @@
 
 
-## Plan: Time-Aware AI Briefing Widget + Personal Tasks & Reminders Widgets
+## Bug Fix Plan: 7 Issues
 
-### 3 New Widgets
+### Issue Analysis
 
-| Widget | Description |
-|--------|-------------|
-| **AI Briefing** | Time-aware: Morning (before 12), Midday (12–17), End of Day (after 17). Different greeting, icon, and data focus per period. |
-| **Personal Tasks & Reminders** | Todo list with optional due date/time reminders, linkable to any entity (invoice, partner, etc.). Per-user, per-tenant. |
-| **Daily Tasks** | Personal daily checklist — auto-resets or filters by today. Lightweight, no linking. |
+| # | Bug | Status | Fix |
+|---|-----|--------|-----|
+| 1 | Leave notification missing | Real | Insert into `notifications` table after successful `submitMutation` in `useLeaveRequest.ts` |
+| 2 | `as any` casts on table names | Real, limited | Cannot edit `types.ts` (auto-generated). Will note for user to regenerate types. No code fix possible. |
+| 3 | `attendance_records` in KpiWidget | Real | Add try-catch around the query so it fails gracefully instead of silently |
+| 4 | PersonalTasksWidget `as any` on mutate | Real | Fix typing on `saveTaskEdits` — cast properly with typed mutation signature |
+| 5 | IosConfirmations `SelectItem value=""` | Real | Change to `value="__all__"` and handle in logic |
+| 6 | AopPositions `get_aop_report` as any | Real, limited | Same as #2 — types not generated. Cannot fix without regeneration. |
+| 7 | `process_pos_sale_v2` / `complete_production_order_v2` | Not found | These functions do not exist in the codebase. Frontend already calls the original versions. No action needed. |
 
 ---
 
-### Step 1 — Database Migration
+### Step 1 — Leave Notification (useLeaveRequest.ts)
 
-**Table `user_tasks`**:
-- `id`, `user_id`, `tenant_id`, `title`, `description`, `is_completed`, `due_date`, `due_time`, `reminder_at` (timestamptz), `priority` (low/medium/high), `linked_entity_type` (nullable — invoice, partner, employee, product, etc.), `linked_entity_id` (uuid nullable), `created_at`, `updated_at`
-- RLS: users manage own tasks only
+In `submitMutation.onSuccess`, insert a notification to the `notifications` table for the employee's manager/HR. Requires fetching the employee's `reports_to` or falling back to tenant-level HR notification. Pattern: insert row with `category: "hr"`, `type: "info"`, `title: "New leave request"`.
 
-**Table `user_daily_tasks`**:
-- `id`, `user_id`, `tenant_id`, `title`, `task_date` (date, default today), `is_completed`, `sort_order`, `created_at`
-- RLS: users manage own tasks only
+### Step 2 — IosConfirmations SelectItem fix
 
-### Step 2 — Update Edge Function `ai-daily-digest`
+Line 249: change `<SelectItem value="">` to `<SelectItem value="__all__">`. Update form initialization and `createMutation` to treat `"__all__"` as null/empty for `legal_entity_id`.
 
-- Accept optional `time_of_day` param (or auto-detect from server time)
-- Change greeting: "Dobro jutro" / "Dnevni pregled" / "Završni pregled dana"
-- Change icon: Sun → CloudSun → Moon
-- Morning: yesterday's summary + today's priorities
-- Midday: today's progress so far
-- End of Day: today's wrap-up + pending items for tomorrow
+### Step 3 — KpiWidget attendance safety
 
-### Step 3 — AI Briefing Widget Component
+Wrap the `attendance_records` query (line 86-89) in a try-catch, returning `{ value: 0 }` on error so the widget doesn't break if the table query fails.
 
-- Refactor `AiMorningBriefing.tsx` → `AiBriefingWidget.tsx`
-- Auto-detect time period from `new Date().getHours()`
-- Pass `time_of_day` to edge function
-- Dynamic icon/title/gradient per period
+### Step 4 — PersonalTasksWidget typing
 
-### Step 4 — Personal Tasks Widget Component
+Replace `updateTask.mutate(updates as any)` on line 157 with a properly typed call. The mutation already accepts `Partial<UserTask> & { id: string }`, so just type the `updates` object correctly instead of using `Record<string, unknown>`.
 
-- `PersonalTasksWidget.tsx` — CRUD inline list
-- Add task with title, optional due date, priority, optional entity link
-- Mark complete, delete
-- Sort by due date, then priority
-- Reminder indicator (bell icon) when `reminder_at` is set
+### Step 5 — Types regeneration note
 
-### Step 5 — Daily Tasks Widget Component
-
-- `DailyTasksWidget.tsx` — simple checklist filtered to today
-- Add task inline, toggle complete, reorder
-- Progress bar showing X/Y completed
-
-### Step 6 — Register in Widget System
-
-- Add 3 entries to `widgetRegistry.ts`: `ai_briefing`, `personal_tasks`, `daily_tasks` (all `requiredModule: "dashboard"`)
-- Update `WidgetRenderer.tsx` to render the new components
-- Update `seed_default_dashboard` to include `ai_briefing` for all roles
-- Add translations (SR/EN)
-
-### Technical Details
-
-- Time detection uses `new Date().getHours()` on client to determine period, passed to edge function
-- Tasks use optimistic TanStack Query updates for snappy UX
-- Entity linking stores type+id; widget shows a small chip with link to entity page
-- Daily tasks auto-filter by `task_date = CURRENT_DATE`
+After implementation, inform user that `as any` casts on `aop_positions`, `ios_confirmations`, `user_tasks`, `user_daily_tasks` table names require Supabase types regeneration — which happens automatically on next schema change or can be triggered manually.
 
