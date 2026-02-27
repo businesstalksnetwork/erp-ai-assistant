@@ -1,68 +1,67 @@
 
 
-## Fix Plan: 7 Dashboard & Notification Issues
+## Remove Unnecessary `as any` Casts
 
-### Issue 1 & 2 — Leave notification targeting too broad + wrong entity_id
+### Problem
+5,241 `as any` casts across 229 files. The Supabase types file (`types.ts`, 21,290 lines) already contains all the tables and RPCs referenced in the codebase. These casts were added before types were regenerated and are now dead weight — they suppress type-checking and hide real bugs.
 
-**Files:** `useLeaveRequest.ts`, `LeaveRequests.tsx`
+### Scope & Categories
 
-**useLeaveRequest.ts (submit):**
-- Change `target_user_ids: "all_tenant_members"` → query `user_roles` for users with HR-related roles (admin, hr_manager) in this tenant, pass their user_ids as array
-- Change `entity_id: employeeId` → use the returned request UUID from `submit_leave_request` RPC (it returns the new request id as string)
+The casts fall into these patterns:
 
-**LeaveRequests.tsx (approve/reject):**
-- Change `target_user_ids: "all_tenant_members"` → target only the employee's `user_id` (look up from `employees` table using `request.employee_id`)
-- `entity_id: request.id` is already correct here
+1. **`.from("table_name" as any)`** — 520 occurrences, 33 files. All table names exist in `types.ts`. Fix: remove `as any`.
 
-### Issue 3 — leave_balance widget shows attendance instead of leave balance
+2. **`.rpc("function_name" as any, ...)`** — 65 occurrences, 10 files. All RPCs exist in `types.ts`. Fix: remove `as any`.
 
-**File:** `WidgetRenderer.tsx` line 65
+3. **`t("key" as any)`** — i18n keys not in the translation type. Fix: remove `as any` and ensure keys exist in translations (or widen the `t()` type).
 
-Change `<KpiWidget metricKey="attendance" />` → `<KpiWidget metricKey="leave_balance" />`
+4. **`data as any[]`** — result casts to bypass Supabase response types. Fix: remove cast, let TypeScript infer from the query.
 
-Add a new `leave_balance` case in `KpiWidget.tsx` that queries `leave_balances` table (or computes from leave policies minus used days).
+5. **`as any` on objects** (e.g., `.update({...} as any)`) — bypassing Insert/Update types. Fix: remove cast, fix any actual type mismatches.
 
-### Issue 4 — 4x redundant dashboard_kpi_summary RPC calls
+6. **Misc casts** — Badge variants, function params, etc. Fix case by case.
 
-**File:** `KpiWidget.tsx`
+### Implementation Strategy
 
-Consolidate `revenue`, `expenses`, `profit`, `cash_balance` cases to share a single query key `["dashboard-kpi-summary", tenantId]`. Use a shared hook or merge cases:
-- Create a shared `useQuery` for `dashboard_kpi_summary` with `queryKey: ["dashboard-kpi-summary", tenantId]` — React Query will deduplicate automatically
-- Each KPI case just extracts its field from the cached result
+This is too large for a single pass. Prioritize by impact:
 
-### Issue 5 — as any casts
+**Phase 1 — High-value files (33 files with `.from()` casts + 10 with `.rpc()` casts)**
+Remove all `as any` from Supabase `.from()` and `.rpc()` calls. These are mechanical — just delete the cast. ~585 changes across ~35 unique files.
 
-Already addressed by type regeneration migration. No additional action needed this round.
+**Phase 2 — Data result casts (`data as any[]`, `(x as any).field`)**
+Remove response-type casts and let TS infer. Fix any resulting type errors by using proper row types from the Database type.
 
-### Issue 6 — WidgetShortcutEditor labels not i18n'd
+**Phase 3 — Translation casts (`t("key" as any)`)**
+Either add missing keys to the translation type or widen the `t()` function signature. Remove casts.
 
-**File:** `WidgetShortcutEditor.tsx`
+**Phase 4 — Remaining misc casts**
+Badge variants, callback params, etc. Fix individually.
 
-Replace hardcoded Serbian strings with `t()` calls:
-- `"Prečice"` → `t("shortcuts")`
-- `"Nema prilagođenih prečica..."` → `t("noCustomShortcuts")`
-- `"Dodaj iz predefinisanih"` → `t("addFromPresets")`
-- `"Izaberi..."` → `t("select")`
-- `"Naziv"` → `t("name")`
-- `"Putanja"` → `t("path")`
-- `"Otkaži"` → `t("cancel")`
-- `"Dodaj"` → `t("add")`
-- `"Prilagođena prečica"` → `t("customShortcut")`
+### Files (Phase 1 — `.from()` and `.rpc()` casts)
 
-Add missing keys to `translations.ts` for both EN and SR.
+| File | Cast count |
+|---|---|
+| `src/pages/tenant/InventoryWriteOff.tsx` | ~10 |
+| `src/pages/tenant/Opportunities.tsx` | ~6 |
+| `src/pages/tenant/AopPositions.tsx` | ~5 |
+| `src/pages/tenant/OpportunityStagesSettings.tsx` | ~4 |
+| `src/pages/tenant/JournalEntries.tsx` | ~4 |
+| `src/pages/tenant/BilansStanja.tsx` | ~3 |
+| `src/pages/tenant/BilansUspeha.tsx` | ~3 |
+| `src/pages/tenant/PdvPeriods.tsx` | ~3 |
+| `src/pages/tenant/PostingRules.tsx` | ~2 |
+| `src/pages/tenant/PayrollCategories.tsx` | ~2 |
+| `src/pages/tenant/PayrollPaymentTypes.tsx` | ~2 |
+| `src/pages/tenant/IosConfirmations.tsx` | ~2 |
+| `src/pages/tenant/NonEmploymentIncome.tsx` | ~2 |
+| `src/pages/tenant/GoodsReceipts.tsx` | ~3 |
+| `src/components/opportunity/OpportunityTagsBar.tsx` | ~4 |
+| `src/hooks/useDiscountApproval.ts` | ~2 |
+| + ~20 more files | ~500+ |
 
-PRESET_SHORTCUTS labels should also use `t()` keys instead of hardcoded Serbian.
+### Risk
+Low. Removing `as any` only makes TypeScript stricter. Any real type mismatches will surface as compile errors and can be fixed inline. No runtime behavior change.
 
-### Issue 7 — process_pos_sale_v2 / complete_production_order_v2
-
-**Not applicable.** These v2 RPCs do not exist in the database or codebase. The frontend correctly uses `process_pos_sale` and `complete_production_order`. No action needed.
-
-### Files Modified
-
-1. `src/hooks/useLeaveRequest.ts` — targeted notification + correct entity_id
-2. `src/pages/tenant/LeaveRequests.tsx` — target employee only on approve/reject
-3. `src/components/dashboard/widgets/WidgetRenderer.tsx` — fix leave_balance mapping
-4. `src/components/dashboard/widgets/KpiWidget.tsx` — deduplicate RPC + add leave_balance case
-5. `src/components/dashboard/widgets/WidgetShortcutEditor.tsx` — i18n all labels
-6. `src/i18n/translations.ts` — add shortcut editor keys + leave_balance
+### Recommendation
+Given the scale (229 files), I recommend starting with Phase 1 (the 35 files with `.from()`/`.rpc()` casts) since those are the most impactful and fully mechanical. Phases 2–4 can follow in subsequent passes.
 
