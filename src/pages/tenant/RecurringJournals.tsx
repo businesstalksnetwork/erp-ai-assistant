@@ -5,8 +5,6 @@ import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -18,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Play, Pause, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function RecurringJournals() {
   const { tenantId } = useTenant();
@@ -82,6 +81,30 @@ export default function RecurringJournals() {
     },
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, sortable: true, sortValue: (tpl) => tpl.template_name, render: (tpl) => <span className="font-medium">{tpl.template_name}</span> },
+    { key: "desc", label: t("description"), hideOnMobile: true, render: (tpl) => <span className="text-muted-foreground text-xs max-w-[200px] truncate block">{tpl.description || "—"}</span> },
+    { key: "freq", label: t("frequency"), sortable: true, sortValue: (tpl) => tpl.frequency, render: (tpl) => FREQ_LABELS[tpl.frequency] || tpl.frequency },
+    { key: "next", label: t("nextDate"), sortable: true, sortValue: (tpl) => tpl.next_run_date, render: (tpl) => tpl.next_run_date },
+    { key: "auto", label: t("autoPost"), hideOnMobile: true, render: (tpl) => tpl.auto_post ? t("yes") : t("no") },
+    { key: "status", label: t("status"), sortable: true, sortValue: (tpl) => tpl.is_active ? 1 : 0, render: (tpl) => <Badge variant={tpl.is_active ? "default" : "secondary"}>{tpl.is_active ? t("active") : t("paused")}</Badge> },
+    {
+      key: "actions", label: t("actions"), align: "right" as const, showInCard: false,
+      render: (tpl) => (
+        <div className="flex justify-end gap-1">
+          <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); toggleMut.mutate({ id: tpl.id, is_active: !tpl.is_active }); }}>
+            {tpl.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); deleteMut.mutate(tpl.id); }} className="text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  if (isLoading) return <Skeleton className="h-60" />;
+
   return (
     <div className="space-y-6">
       <PageHeader title={t("recurringJournals")} description={t("recurringJournalsDesc")} />
@@ -89,54 +112,14 @@ export default function RecurringJournals() {
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> {t("newTemplate")}</Button>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t("templates")}</CardTitle></CardHeader>
-        <CardContent>
-          {isLoading ? <Skeleton className="h-60" /> : templates.length === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("noTemplates")}</p>
-          ) : (
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("name")}</TableHead>
-                  <TableHead>{t("description")}</TableHead>
-                  <TableHead>{t("frequency")}</TableHead>
-                  <TableHead>{t("nextDate")}</TableHead>
-                  <TableHead>{t("autoPost")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                  <TableHead className="text-right">{t("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((tpl: any) => (
-                  <TableRow key={tpl.id}>
-                    <TableCell className="font-medium">{tpl.template_name}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{tpl.description || "—"}</TableCell>
-                    <TableCell>{FREQ_LABELS[tpl.frequency] || tpl.frequency}</TableCell>
-                    <TableCell>{tpl.next_run_date}</TableCell>
-                    <TableCell>{tpl.auto_post ? t("yes") : t("no")}</TableCell>
-                    <TableCell>
-                      <Badge variant={tpl.is_active ? "default" : "secondary"}>
-                        {tpl.is_active ? t("active") : t("paused")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button size="icon" variant="ghost" onClick={() => toggleMut.mutate({ id: tpl.id, is_active: !tpl.is_active })}>
-                        {tpl.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteMut.mutate(tpl.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={templates}
+        columns={columns}
+        keyExtractor={(tpl) => tpl.id}
+        emptyMessage={t("noTemplates")}
+        enableExport
+        exportFilename="recurring-journals"
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

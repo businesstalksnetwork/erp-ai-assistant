@@ -4,8 +4,6 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface DisposalForm {
   asset_id: string;
@@ -61,7 +61,6 @@ export default function AssetDisposals() {
     enabled: !!tenantId,
   });
 
-  // Get accumulated depreciation for an asset
   const getAccumulated = async (assetId: string) => {
     const { data } = await supabase.from("fixed_asset_depreciation_schedules")
       .select("accounting_amount")
@@ -84,49 +83,26 @@ export default function AssetDisposals() {
 
       const lines: any[] = [];
       let sortOrder = 0;
-
-      // Debit Accumulated Depreciation
-      if (accum > 0) {
-        lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `${t("assetsAccumDep" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      }
-      // Debit Cash/Bank if sold
-      if (form.disposal_type === "sold" && salePrice > 0) {
-        lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `${t("assetsDisposalProceeds" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      }
-      // Credit Asset at cost
+      if (accum > 0) lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `${t("assetsAccumDep" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
+      if (form.disposal_type === "sold" && salePrice > 0) lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `${t("assetsDisposalProceeds" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
       lines.push({ accountCode: "0120", debit: 0, credit: cost, description: `${t("assetsRemoveAsset" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      // Gain or Loss
-      if (gainLoss > 0) {
-        lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("assetsGainOnDisposal" as any)}`, sortOrder: sortOrder++ });
-      } else if (gainLoss < 0) {
-        lines.push({ accountCode: "5073", debit: Math.abs(gainLoss), credit: 0, description: `${t("assetsLossOnDisposal" as any)}`, sortOrder: sortOrder++ });
-      }
+      if (gainLoss > 0) lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("assetsGainOnDisposal" as any)}`, sortOrder: sortOrder++ });
+      else if (gainLoss < 0) lines.push({ accountCode: "5073", debit: Math.abs(gainLoss), credit: 0, description: `${t("assetsLossOnDisposal" as any)}`, sortOrder: sortOrder++ });
 
       const journalId = await postWithRuleOrFallback({
         tenantId, userId: user.id, entryDate: form.disposal_date,
         modelCode: "ASSET_DISPOSAL", amount: cost,
         description: `${t("assetsDisposal" as any)} (${form.disposal_type}) - ${asset.name}`,
-        reference: `DISP-${asset.asset_code}`,
-        context: {},
-        fallbackLines: lines,
+        reference: `DISP-${asset.asset_code}`, context: {}, fallbackLines: lines,
       });
 
-      // Create disposal record
       const { error } = await supabase.from("fixed_asset_disposals").insert({
-        tenant_id: tenantId,
-        asset_id: asset.id,
-        disposal_type: form.disposal_type,
-        disposal_date: form.disposal_date,
-        disposal_amount: salePrice,
-        net_book_value_at_disposal: bookValue,
-        gain_loss: gainLoss,
-        reason: form.reason || null,
-        journal_entry_id: journalId,
-        created_by: user.id,
+        tenant_id: tenantId, asset_id: asset.id, disposal_type: form.disposal_type,
+        disposal_date: form.disposal_date, disposal_amount: salePrice,
+        net_book_value_at_disposal: bookValue, gain_loss: gainLoss,
+        reason: form.reason || null, journal_entry_id: journalId, created_by: user.id,
       });
       if (error) throw error;
-
-      // Update asset status
       await supabase.from("assets").update({ status: "disposed" }).eq("id", asset.id);
     },
     onSuccess: () => {
@@ -142,56 +118,43 @@ export default function AssetDisposals() {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("sr-Latn-RS", { style: "decimal", minimumFractionDigits: 2 }).format(val || 0);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "code", label: t("code" as any), primary: true, sortable: true, sortValue: (d) => d.assets?.asset_code || "", render: (d) => <span className="font-mono text-sm">{d.assets?.asset_code}</span> },
+    { key: "name", label: t("name" as any), sortable: true, sortValue: (d) => d.assets?.name || "", render: (d) => <span className="font-medium">{d.assets?.name}</span> },
+    { key: "type", label: t("assetsDisposalType" as any), render: (d) => <Badge variant="outline">{t(`assets${d.disposal_type?.charAt(0).toUpperCase()}${d.disposal_type?.slice(1)}` as any) || d.disposal_type}</Badge> },
+    { key: "date", label: t("date" as any), sortable: true, sortValue: (d) => d.disposal_date, render: (d) => d.disposal_date },
+    { key: "book", label: t("bookValue" as any), align: "right" as const, sortable: true, sortValue: (d) => Number(d.net_book_value_at_disposal), render: (d) => <span className="font-mono">{formatCurrency(d.net_book_value_at_disposal)}</span> },
+    { key: "sale", label: t("salePrice" as any), align: "right" as const, hideOnMobile: true, render: (d) => <span className="font-mono">{formatCurrency(d.disposal_amount)}</span> },
+    {
+      key: "gl", label: t("assetsGainLoss" as any), align: "right" as const, sortable: true, sortValue: (d) => Number(d.gain_loss),
+      render: (d) => <span className={`font-mono ${Number(d.gain_loss) >= 0 ? "text-emerald-600" : "text-destructive"}`}>{formatCurrency(d.gain_loss)}</span>,
+    },
+    { key: "status", label: t("status"), render: (d) => <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">{d.status}</Badge> },
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
+
   return (
     <div className="space-y-6 p-1">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("assetsDisposals" as any)}</h1>
-        <Button onClick={() => { setForm({ asset_id: "", disposal_type: "scrapped", disposal_date: new Date().toISOString().split("T")[0], sale_price: 0, reason: "" }); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewDisposal" as any)}
-        </Button>
-      </div>
+      <PageHeader
+        title={t("assetsDisposals" as any)}
+        actions={
+          <Button onClick={() => { setForm({ asset_id: "", disposal_type: "scrapped", disposal_date: new Date().toISOString().split("T")[0], sale_price: 0, reason: "" }); setDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewDisposal" as any)}
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader><CardTitle>{t("assetsDisposalHistory" as any)}</CardTitle></CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
-          ) : disposals.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("code" as any)}</TableHead>
-                  <TableHead>{t("name" as any)}</TableHead>
-                  <TableHead>{t("assetsDisposalType" as any)}</TableHead>
-                  <TableHead>{t("date" as any)}</TableHead>
-                  <TableHead className="text-right">{t("bookValue" as any)}</TableHead>
-                  <TableHead className="text-right">{t("salePrice" as any)}</TableHead>
-                  <TableHead className="text-right">{t("assetsGainLoss" as any)}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {disposals.map((d: any) => (
-                  <TableRow key={d.id}>
-                    <TableCell className="font-mono text-sm">{d.assets?.asset_code}</TableCell>
-                    <TableCell className="font-medium">{d.assets?.name}</TableCell>
-                    <TableCell><Badge variant="outline">{t(`assets${d.disposal_type?.charAt(0).toUpperCase()}${d.disposal_type?.slice(1)}` as any) || d.disposal_type}</Badge></TableCell>
-                    <TableCell>{d.disposal_date}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(d.net_book_value_at_disposal)}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(d.disposal_amount)}</TableCell>
-                    <TableCell className={`text-right font-mono ${Number(d.gain_loss) >= 0 ? "text-emerald-600" : "text-destructive"}`}>
-                      {formatCurrency(d.gain_loss)}
-                    </TableCell>
-                    <TableCell><Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">{d.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={disposals}
+        columns={columns}
+        keyExtractor={(d) => d.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="asset-disposals"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

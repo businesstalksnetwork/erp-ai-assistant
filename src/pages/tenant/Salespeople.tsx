@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Search, Users, DollarSign, TrendingUp, Store, Briefcase } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, TrendingUp, Store, Briefcase } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const emptyForm = { first_name: "", last_name: "", code: "", email: "", phone: "", commission_rate: 0, is_active: true, role_type: "in_store" as string, default_location_id: "" as string };
 
@@ -94,12 +96,31 @@ export default function Salespeople() {
     return loc?.name || "-";
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "code", label: t("code"), primary: true, sortable: true, sortValue: (sp) => sp.code, render: (sp) => <span className="font-mono">{sp.code}</span> },
+    { key: "name", label: t("name"), sortable: true, sortValue: (sp) => `${sp.first_name} ${sp.last_name}`, render: (sp) => <span className="font-medium">{sp.first_name} {sp.last_name}</span> },
+    {
+      key: "role", label: t("roleType"), sortable: true, sortValue: (sp) => sp.role_type,
+      render: (sp) => <Badge className={sp.role_type === "in_store" ? "bg-chart-2 text-white" : "bg-chart-3 text-white"}>{sp.role_type === "in_store" ? t("inStore") : t("wholesale")}</Badge>,
+    },
+    { key: "location", label: t("defaultLocation"), hideOnMobile: true, render: (sp) => sp.role_type === "in_store" && sp.default_location_id ? getLocationName(sp.default_location_id) : "-" },
+    { key: "email", label: t("email"), hideOnMobile: true, render: (sp) => sp.email || "-" },
+    { key: "commission", label: t("commissionRate"), sortable: true, sortValue: (sp) => Number(sp.commission_rate), render: (sp) => `${Number(sp.commission_rate).toFixed(1)}%` },
+    { key: "status", label: t("status"), sortable: true, sortValue: (sp) => sp.is_active ? 1 : 0, render: (sp) => <Badge variant={sp.is_active ? "default" : "secondary"}>{sp.is_active ? t("active") : t("inactive")}</Badge> },
+    {
+      key: "actions", label: t("actions"), showInCard: false,
+      render: (sp) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(sp); }}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(sp.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("salespeople")}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
-      </div>
+      <PageHeader title={t("salespeople")} icon={Users} actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-8 w-8 text-primary" /><div><p className="text-2xl font-bold">{salespeople.length}</p><p className="text-sm text-muted-foreground">{t("salespeople")}</p></div></div></CardContent></Card>
@@ -108,63 +129,24 @@ export default function Salespeople() {
         <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Briefcase className="h-8 w-8 text-chart-3" /><div><p className="text-2xl font-bold">{wholesaleCount}</p><p className="text-sm text-muted-foreground">{t("wholesale")}</p></div></div></CardContent></Card>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Tabs value={roleFilter} onValueChange={setRoleFilter}>
-          <TabsList>
-            <TabsTrigger value="all">{t("allTypes")}</TabsTrigger>
-            <TabsTrigger value="in_store">{t("inStore")}</TabsTrigger>
-            <TabsTrigger value="wholesale">{t("wholesale")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
-      </div>
+      <Tabs value={roleFilter} onValueChange={setRoleFilter}>
+        <TabsList>
+          <TabsTrigger value="all">{t("allTypes")}</TabsTrigger>
+          <TabsTrigger value="in_store">{t("inStore")}</TabsTrigger>
+          <TabsTrigger value="wholesale">{t("wholesale")}</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("code")}</TableHead>
-              <TableHead>{t("name")}</TableHead>
-              <TableHead>{t("roleType")}</TableHead>
-              <TableHead>{t("defaultLocation")}</TableHead>
-              <TableHead>{t("email")}</TableHead>
-              <TableHead>{t("commissionRate")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead className="w-24">{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center">{t("loading")}</TableCell></TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-            ) : filtered.map((sp: any) => (
-              <TableRow key={sp.id}>
-                <TableCell className="font-mono">{sp.code}</TableCell>
-                <TableCell className="font-medium">{sp.first_name} {sp.last_name}</TableCell>
-                <TableCell>
-                  <Badge className={sp.role_type === "in_store" ? "bg-chart-2 text-white" : "bg-chart-3 text-white"}>
-                    {sp.role_type === "in_store" ? t("inStore") : t("wholesale")}
-                  </Badge>
-                </TableCell>
-                <TableCell>{sp.role_type === "in_store" && sp.default_location_id ? getLocationName(sp.default_location_id) : "-"}</TableCell>
-                <TableCell>{sp.email || "-"}</TableCell>
-                <TableCell>{Number(sp.commission_rate).toFixed(1)}%</TableCell>
-                <TableCell><Badge variant={sp.is_active ? "default" : "secondary"}>{sp.is_active ? t("active") : t("inactive")}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(sp)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(sp.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <MobileFilterBar search={<Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />} filters={<></>} />
+
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(sp) => sp.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="salespeople"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
