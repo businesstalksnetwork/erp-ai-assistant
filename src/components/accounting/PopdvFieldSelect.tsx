@@ -27,7 +27,7 @@ export function PopdvFieldSelect({ direction, value, onValueChange, disabled, cl
     queryKey: ["popdv-tax-types"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("popdv_tax_types" as any)
+        .from("popdv_tax_types")
         .select("*")
         .eq("is_active", true)
         .order("sort_order");

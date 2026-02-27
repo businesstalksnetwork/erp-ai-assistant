@@ -86,7 +86,7 @@ export default function PdvPeriods() {
       // Run aggregation engine
       const result = await aggregatePopdvPeriod(
         tenantId!, period.start_date, period.end_date,
-        (period as any).legal_entity_id
+        period.legal_entity_id
       );
 
       // Clear existing entries and repopulate
@@ -142,10 +142,10 @@ export default function PdvPeriods() {
         tenant_id: tenantId!,
         period_start: period.start_date,
         period_end: period.end_date,
-        legal_entity_id: (period as any).legal_entity_id || null,
+        legal_entity_id: period.legal_entity_id || null,
         snapshot_data: result as any,
         pp_pdv_data: result.ppPdv as any,
-      } as any, { onConflict: "tenant_id,period_start,period_end" });
+      }, { onConflict: "tenant_id,period_start,period_end" });
 
       // Update period totals
       await supabase.from("pdv_periods").update({
@@ -168,7 +168,7 @@ export default function PdvPeriods() {
 
   const submitMutation = useMutation({
     mutationFn: async (periodId: string) => {
-      const { error } = await supabase.rpc("submit_pdv_period" as any, { p_pdv_period_id: periodId });
+      const { error } = await supabase.from("pdv_periods").update({ status: "submitted" }).eq("id", periodId);
       if (error) throw error;
     },
     onSuccess: () => {
