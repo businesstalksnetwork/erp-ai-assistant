@@ -9,12 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Loader2, BarChart3, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { useNavigate } from "react-router-dom";
+import { MonthlyAttendanceSummary } from "@/components/hr/MonthlyAttendanceSummary";
 
 export default function Attendance() {
   const { t } = useLanguage();
@@ -23,8 +25,15 @@ export default function Attendance() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split("T")[0]);
+  const [activeTab, setActiveTab] = useState("daily");
   type AttendanceStatus = "present" | "absent" | "sick" | "vacation" | "holiday" | "remote";
-  const [form, setForm] = useState<{ employee_id: string; date: string; check_in: string; check_out: string; hours_worked: number; status: AttendanceStatus; notes: string }>({ employee_id: "", date: dateFilter, check_in: "09:00", check_out: "17:00", hours_worked: 8, status: "present", notes: "" });
+  const [form, setForm] = useState<{ employee_id: string; date: string; check_in: string; check_out: string; hours_worked: number; status: AttendanceStatus; notes: string }>({
+    employee_id: "", date: dateFilter, check_in: "09:00", check_out: "17:00", hours_worked: 8, status: "present", notes: "",
+  });
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-active", tenantId],
@@ -66,7 +75,12 @@ export default function Attendance() {
     { key: "check_in", label: t("checkIn"), render: (r) => r.check_in || "—" },
     { key: "check_out", label: t("checkOut"), render: (r) => r.check_out || "—" },
     { key: "hours", label: t("hoursWorked"), align: "right", render: (r) => `${r.hours_worked}h` },
-    { key: "status", label: t("status"), render: (r) => <Badge variant={statusColor(r.status) as any}>{statusLabel(r.status)}</Badge> },
+    { key: "status", label: t("status"), render: (r) => (
+      <div className="flex items-center gap-1">
+        <Badge variant={statusColor(r.status) as any}>{statusLabel(r.status)}</Badge>
+        {(r as any).leave_request_id && <Badge variant="outline" className="text-[10px]">Auto</Badge>}
+      </div>
+    )},
     { key: "notes", label: t("notes"), hideOnMobile: true, render: (r) => <span className="text-muted-foreground text-sm">{r.notes || "—"}</span> },
   ];
 
@@ -76,20 +90,36 @@ export default function Attendance() {
         <h1 className="text-2xl font-bold">{t("attendance")}</h1>
       </div>
 
-      <MobileFilterBar
-        filters={<Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />}
-        actions={<Button size="sm" onClick={() => { setForm({ ...form, date: dateFilter, employee_id: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="daily">{t("daily" as any) || "Dnevno"}</TabsTrigger>
+          <TabsTrigger value="summary">
+            <BarChart3 className="h-4 w-4 mr-1" />
+            {t("monthlySummary" as any) || "Mesečni pregled"}
+          </TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : (
-            <ResponsiveTable data={records} columns={columns} keyExtractor={(r) => r.id} />
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="daily" className="space-y-4">
+          <MobileFilterBar
+            filters={<Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />}
+            actions={<Button size="sm" onClick={() => { setForm({ ...form, date: dateFilter, employee_id: "" }); setOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>}
+          />
+
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : (
+                <ResponsiveTable data={records} columns={columns} keyExtractor={(r) => r.id} enableExport exportFilename="attendance" />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="summary" className="space-y-4">
+          <MonthlyAttendanceSummary month={currentMonth} year={currentYear} />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
