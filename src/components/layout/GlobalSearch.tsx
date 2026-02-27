@@ -48,7 +48,7 @@ export function GlobalSearch() {
     { label: t("leads"), path: "/crm/leads", icon: Target, group: "crm", module: "crm" },
     { label: t("opportunities"), path: "/crm/opportunities", icon: TrendingUp, group: "crm", module: "crm" },
     { label: t("meetings"), path: "/crm/meetings", icon: CalendarDays, group: "crm", module: "crm" },
-    { label: t("partners"), path: "/crm/partners", icon: Handshake, group: "crm", module: "crm" },
+    { label: t("partners"), path: "/crm/companies", icon: Handshake, group: "crm", module: "crm" },
     { label: `${t("meetings")} — Calendar`, path: "/crm/meetings/calendar", icon: Calendar, group: "crm", module: "crm" },
 
     // Sales
@@ -138,6 +138,8 @@ export function GlobalSearch() {
     { label: "Invoice Register", path: "/accounting/invoice-register", icon: List, group: "accounting", module: "accounting" },
     { label: "Cash Flow Statement", path: "/accounting/cash-flow-statement", icon: DollarSign, group: "accounting", module: "accounting" },
     { label: "Compliance Dashboard", path: "/accounting/compliance", icon: Shield, group: "accounting", module: "accounting" },
+    { label: "PK-1 Blagajna", path: "/accounting/reports/pk1-book", icon: BookText, group: "accounting", module: "accounting" },
+    { label: "PPP-PO Godišnji", path: "/accounting/reports/ppp-po", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
 
     // Analytics
     { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
@@ -183,6 +185,7 @@ export function GlobalSearch() {
     { label: t("eBolovanje"), path: "/hr/ebolovanje", icon: Heart, group: "hr", module: "hr" },
     { label: t("hrReports"), path: "/hr/reports", icon: BarChart3, group: "hr", module: "hr" },
     { label: "Non-Employment Income", path: "/hr/non-employment-income", icon: Coins, group: "hr", module: "hr" },
+    { label: "Putni Nalozi", path: "/hr/travel-orders", icon: Briefcase, group: "hr", module: "hr" },
 
     // POS
     { label: `POS — ${t("dashboard")}`, path: "/pos", icon: LayoutDashboard, group: "pos", module: "pos" },

@@ -16253,6 +16253,170 @@ export type Database = {
           },
         ]
       }
+      travel_order_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          expense_type: string
+          id: string
+          receipt_date: string | null
+          receipt_number: string | null
+          sort_order: number | null
+          tenant_id: string
+          travel_order_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expense_type?: string
+          id?: string
+          receipt_date?: string | null
+          receipt_number?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          travel_order_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          expense_type?: string
+          id?: string
+          receipt_date?: string | null
+          receipt_number?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          travel_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_order_expenses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_order_expenses_travel_order_id_fkey"
+            columns: ["travel_order_id"]
+            isOneToOne: false
+            referencedRelation: "travel_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      travel_orders: {
+        Row: {
+          advance_amount: number | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          departure_date: string
+          destination: string
+          employee_id: string | null
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          order_number: string
+          per_diem_days: number | null
+          per_diem_rate: number | null
+          per_diem_total: number | null
+          purpose: string | null
+          return_date: string
+          status: string
+          tenant_id: string
+          total_expenses: number | null
+          transport_type: string
+          updated_at: string
+          vehicle_plate: string | null
+        }
+        Insert: {
+          advance_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          departure_date: string
+          destination: string
+          employee_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          order_number?: string
+          per_diem_days?: number | null
+          per_diem_rate?: number | null
+          per_diem_total?: number | null
+          purpose?: string | null
+          return_date: string
+          status?: string
+          tenant_id: string
+          total_expenses?: number | null
+          transport_type?: string
+          updated_at?: string
+          vehicle_plate?: string | null
+        }
+        Update: {
+          advance_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          departure_date?: string
+          destination?: string
+          employee_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          order_number?: string
+          per_diem_days?: number | null
+          per_diem_rate?: number | null
+          per_diem_total?: number | null
+          purpose?: string | null
+          return_date?: string
+          status?: string
+          tenant_id?: string
+          total_expenses?: number | null
+          transport_type?: string
+          updated_at?: string
+          vehicle_plate?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_orders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_orders_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_orders_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
