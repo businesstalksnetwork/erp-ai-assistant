@@ -36,6 +36,7 @@ const TravelOrderForm = React.lazy(() => import("@/pages/tenant/TravelOrderForm"
 const EmployeeDataExport = React.lazy(() => import("@/pages/tenant/reports/EmployeeDataExport"));
 const OnboardingChecklists = React.lazy(() => import("@/pages/tenant/OnboardingChecklists"));
 const PayrollBankReconciliation = React.lazy(() => import("@/pages/tenant/PayrollBankReconciliation"));
+const SpecialHours = React.lazy(() => import("@/pages/tenant/SpecialHours"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -57,6 +58,7 @@ export const hrRoutes = (
     <Route path="hr/work-logs" element={<ProtectedRoute requiredModule={m}><B><WorkLogs /></B></ProtectedRoute>} />
     <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule={m}><B><WorkLogsBulkEntry /></B></ProtectedRoute>} />
     <Route path="hr/work-logs/calendar" element={<ProtectedRoute requiredModule={m}><B><WorkLogsCalendar /></B></ProtectedRoute>} />
+    <Route path="hr/special-hours" element={<ProtectedRoute requiredModule={m}><B><SpecialHours /></B></ProtectedRoute>} />
     <Route path="hr/overtime" element={<ProtectedRoute requiredModule={m}><B><OvertimeHours /></B></ProtectedRoute>} />
     <Route path="hr/night-work" element={<ProtectedRoute requiredModule={m}><B><NightWork /></B></ProtectedRoute>} />
     <Route path="hr/annual-leave" element={<ProtectedRoute requiredModule={m}><B><AnnualLeaveBalances /></B></ProtectedRoute>} />
