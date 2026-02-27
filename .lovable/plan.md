@@ -1,115 +1,159 @@
 
 
-# Implementation Plan: Multi-PRD Phased Rollout
+# v2.1 / v2.2 / v2.3 Implementation Plan
 
-## What's Already Done (from prior phases + existing codebase)
-- Phase 1-3 of Frontend Optimization PRD (navigation, settings restructure, FIFO/eFaktura/incoming eFakture)
-- `popdv_tax_types` table created and seeded with full catalog
-- `PopdvFieldSelect` component built
-- `supplier_invoice_lines` table with POPDV, item_type, efaktura_category, vat_non_deductible
-- `SupplierInvoiceForm` with line items, POPDV per line, reverse charge auto-generation
-- `InvoiceForm` with item_type, popdv_field, efaktura_category per line
-- `vat_date` on both invoices and supplier_invoices, used in POPDV aggregation
-- `InvoiceRegister` page with dual-register (output/input) grouped by POPDV section
-- Chart of Accounts with analytics_type, is_foreign_currency, cost center/bearer fields
-- Journal entries with account analytics, POPDV field per line, account combobox search
-
-## Remaining Work — Divided into 8 Phases
+This is a large scope (~30 items across 3 versions). I recommend tackling them in priority order across multiple implementation rounds.
 
 ---
 
-### Phase 4: SEF Compliance & POS Refunds
-**Scope:** v2.1 items 1-8 from Release Roadmap
-**Files:** 3 edge functions + 1 page + 1 migration
+## Round 1 — v2.1 "Compliance" (8 items, P0–P2)
 
-1. **Update SEF CustomizationID** — Change `urn:mfin.gov.rs:srbdt:2022` to latest v3.14.0 spec in `supabase/functions/sef-submit/index.ts`
-2. **POS refund flow** — Add refund mode to `PosTerminal.tsx`: select original receipt, partial/full item selection, generate fiscal refund receipt with `receipt_type: refund` and `refund_receipt_id` FK
-3. **Add exponential backoff** to `fiscalize-retry-offline/index.ts`
-4. **Add 46 missing Serbian i18n keys** — eBolovanje, eOtpremnica, submission status keys in `translations.ts`
+### 1. efaktura_category per-line → UBL XML (P0)
+Already done. `sef-submit/index.ts` reads `line.efaktura_category` at lines 124–125 and 160 — it's used in both `TaxSubtotal` and `ClassifiedTaxCategory`. **No work needed.**
 
----
+### 2. SEF PIB validation before submission (P0)
+Already done. `sef-submit/index.ts` lines 482–493 query `sef_registry` and return `pib_warning`. **No work needed.**
 
-### Phase 5: Chart of Accounts & Journal Entry Compliance
-**Scope:** v2.1 items 17-20 + Accounting PRD Sections 4 & 7
+### 3. Encrypt SEF API keys at rest — pgcrypto (P1)
+- Migration: `CREATE EXTENSION IF NOT EXISTS pgcrypto`; add `api_key_hmac` column to `sef_connections`; create encrypt/decrypt helper functions using `pgp_sym_encrypt`/`pgp_sym_decrypt` with a server-side secret
+- Update `sef-submit` to decrypt key before API call
+- Update Integrations UI to encrypt on save
 
-1. **Seed Class 7 + Class 8 accounts** — Migration to add opening/closing accounts (7xxx) and off-balance sheet (8xxx)
-2. **Add missing 4350, 4360+ accounts** — Seed all accounts beyond 433x range
-3. **Enforce 4-digit minimum** on journal entry posting — validation in `JournalEntries.tsx` (block posting to synthetic accounts < 4 digits)
-4. **Journal entry posting flow** — Ensure Draft → Post → Storno lifecycle works; posting creates GL entries and locks the entry
-5. **Payroll rate verification** — Verify/update PIO employer rate and non-taxable amount for 2026 in `PayrollParameters.tsx` and `calculate_payroll_for_run` RPC
+### 4. eOtpremnica — real Ministry endpoint (P0)
+- XML generation is complete in `eotpremnica-submit`
+- Update to use `connection.api_url_encrypted` after decryption (post-pgcrypto)
+- Add proper error mapping for Ministry responses
+- Currently falls back to storing XML for manual download — keep that as fallback
 
----
+### 5. eBolovanje — real RFZO/eUprava endpoint (P1)
+- XML generation is complete in `ebolovanje-submit`
+- Similar pattern to #4: decrypt credentials, call real eUprava URL, map response
+- Leave request bridge already works
 
-### Phase 6: Invoice Form Upgrade & GL Posting Preview
-**Scope:** Accounting PRD Section 5
+### 6. FIFO consume_fifo_layers in POS + invoice posting (P0)
+- POS already calls `consume_fifo_layers` (PosTerminal.tsx line 349)
+- Wire into `InvoiceForm.tsx` on post/finalize: after GL posting, call `consume_fifo_layers` for each line with a `product_id`
+- Add same call in Returns flow for negative quantities (stock restoration)
 
-1. **Invoice type selector** — Add FINAL / ADVANCE / PROFORMA / CREDIT_NOTE / DEBIT_NOTE tabs at top of `InvoiceForm.tsx`
-2. **GL posting preview** — "Pregled knjiženja" panel showing the journal entry that will be created, with account/debit/credit breakdown, before the user clicks Post
-3. **Post & Send workflow** — Replace current "Send" with "Proknjizi" (post only), "Proknjizi i pošalji na SEF" (post + SEF submit), "Sačuvaj nacrt" (draft)
-4. **Item-type-specific GL accounts** — Use posting rules: Goods→6000/5000/1320, Service→6120, Product→6100/5100/1200
-5. **Partner search improvement** — Link "+ Novi partner" to partner form in side panel with APR PIB lookup
+### 7. 4-digit minimum account code CHECK constraint (P1)
+- Migration: `ALTER TABLE chart_of_accounts ADD CONSTRAINT chk_code_min_4 CHECK (char_length(code) >= 4)`
+- Add client-side validation in ChartOfAccounts form
 
----
-
-### Phase 7: Supplier Invoice & POPDV Engine Upgrade
-**Scope:** POPDV PRD remaining items + Accounting PRD Section 14
-
-1. **POPDV auto-default logic** — Auto-suggest POPDV field based on partner type (foreign → 8g.1, domestic VAT → 8a.2) and document type
-2. **Section 9 split** — Quick "Split" action on supplier invoice lines: split deductible (8a.2) + non-deductible (9.01) with proper `vat_non_deductible` column handling
-3. **POPDV form review/edit UI** — Enhance `PdvPeriods.tsx` to show full POPDV form with all 11 sections, editable cells for manual adjustments, and XML export for ePorezi
-4. **PP-PDV form generation** — Auto-calculate from POPDV aggregation: total output VAT - total deductible input VAT = obligation/refund
-5. **Non-deductible VAT GL posting** — When `vat_non_deductible > 0`, post to expense account (not 2700 input VAT account)
+### 8. Payroll rate change history table (P2)
+- Migration: create `payroll_rate_history` table (id, tenant_id, employee_id, rate_type, old_value, new_value, effective_date, changed_by, created_at) with RLS
+- Add trigger on `employee_salaries` to auto-log changes
+- Display history in EmployeeDetail salary tab
 
 ---
 
-### Phase 8: Bank Statements & Recurring Engines
-**Scope:** Accounting PRD Section 6 + v2.3 items 8-9
+## Round 2 — v2.2 "Foundation" (10 items)
 
-1. **Bank statement auto-numbering** — Format `iz{last3digits}-{seq}` per fiscal year
-2. **Fix XML import** — Parse standard Serbian bank XML format (NBS)
-3. **Per-line GL posting** — Each bank statement line: select payment model, preview GL entry, batch post
-4. **Recurring invoice cron** — New edge function `recurring-invoice-generate` triggered by cron, creating invoices from `recurring_invoices` templates
-5. **Recurring journal cron** — Same for journal templates
+### 9. Fix GlobalSearch dead links + module tags
+- Audit all ~170 items in `GlobalSearch.tsx` against router definitions
+- Add missing routes (e.g., fleet, WMS dashboard, payroll sub-pages)
+- Add `module` tags to items that lack them
+- Fix partners link (currently `/crm/partners` — verify route exists)
+
+### 10. Add ~50 orphaned routes to sidebar
+- Cross-reference router file with `TenantLayout.tsx` nav arrays
+- Add missing items to appropriate nav groups (accounting, hr, settings, etc.)
+
+### 11. Breadcrumb audit + UUID entity name display
+- Audit `Breadcrumbs.tsx` — ensure detail pages show entity name instead of UUID
+- Add data-fetching in breadcrumb for routes like `/crm/companies/:id`
+
+### 12. Keyboard shortcuts expansion
+- Extend `useKeyboardShortcuts` with new bindings (N=new, E=edit, S=save, Esc=cancel)
+- Add shortcuts overlay (Shift+?)
+
+### 13. Settings sidebar grouping (collapsible sections)
+- Already using collapsible nav groups with `section` property
+- Verify all settings items have proper `section` keys
+- Add sub-page grouping where missing
+
+### 14. Tenant Profile enhancements
+- Add fields: PIB display, MB (maticni broj), seal/stamp upload (storage bucket)
+- Update `TenantProfile.tsx` form and DB columns
+
+### 15. Integration health check dashboard
+- New component showing connection status for SEF, eBolovanje, eOtpremnica, NBS
+- Query `*_connections` tables, show last_sync_at, last_error, is_active
+
+### 16. Migrate raw Table → ResponsiveTable (~30 pages)
+- 18 pages already migrated; systematically convert remaining pages
+- Batch: JournalEntries, GeneralLedger, BankStatements, Partners, Leads, Opportunities, FixedAssets, Deferrals, Loans, CashRegister, etc.
+
+### 17. Build ConfirmDialog + EntitySelector shared components
+- `ConfirmDialog`: wraps AlertDialog with title/description/confirm/cancel props
+- `EntitySelector`: generic combobox for selecting partners, employees, products, legal entities — replaces ad-hoc Select patterns
+
+### 18. Performance optimizations
+- Verify staleTime on all reference queries (already 5min on globals)
+- Add `React.lazy` for chart-heavy pages (Analytics, Reports)
+- Review Vite `manualChunks` config for new vendor splits
 
 ---
 
-### Phase 9: Frontend Standardization
-**Scope:** v2.2 Frontend items from Roadmap
+## Round 3 — v2.3 "Modules I" (selected P1–P2 items)
 
-1. **Extract `lineCalculations.ts`** — Shared line calc utility used by both InvoiceForm and SupplierInvoiceForm
-2. **Build `PageErrorBoundary`** — Wrap all form/list pages; friendly recovery UI with "Go Back"
-3. **Add sorting + column visibility to `ResponsiveTable`** — Click-to-sort columns, user-togglable column visibility
-4. **Integrate CSV export into `ResponsiveTable`** — Built-in export button
-5. **Performance: staleTime on reference queries** — 5-min staleTime on legal entities, accounts, tax rates, currencies
-6. **Memoize sidebar rendering** in `TenantLayout.tsx`
+### 19. Travel Orders (Putni Nalozi) — full module (P1)
+- DB: `travel_orders` + `travel_order_expenses` tables
+- UI: list page, form (employee, destination, dates, per-diem calc, advance amount)
+- GL posting integration via posting rules engine
+- Serbian legal format (Putni Nalog template)
+
+### 20. PK-1 Book, PPP-PO, OD-O, M4, ZPPPDV, Notes to FS (P1-P2)
+- PK-1: Cash book summary report (query cash register transactions, format per regulations)
+- PPP-PO: Annual income certificate XML/PDF
+- OD-O/M4: Pension fund reporting
+- Each is a report page + optional XML export edge function
+
+### 21. Direct invoice stock deduction (P2)
+- Extends FIFO work from #6 — auto-deduct on invoice finalization
+- Add toggle in Settings for automatic vs. manual deduction
+
+### 22. IFRS reporting formats (P2)
+- Add IFRS-format templates for Balance Sheet and Income Statement
+- IFRS 16 lease integration (link to existing LeaseContracts)
+- IFRS 15 revenue recognition deferrals
+
+### 23. Data protection enhancements (P2)
+- Retention policy engine (auto-flag records past retention period)
+- Breach notification workflow
+- Data portability export (JSON/CSV per GDPR/ZZPL)
+
+### 24. Sales upgrades (P2)
+- Lead-to-partner conversion flow
+- Quote → Sales Order → Invoice chain
+- Discount approval workflow integration
+
+### 25. Supplier evaluation + demand forecasting (P3)
+- Supplier scorecard (delivery time, quality, price variance)
+- Basic demand forecast using historical sales data
 
 ---
 
-### Phase 10: HR & Payroll
-**Scope:** Accounting PRD Section 8 + v2.4 HR items
+## Technical Details
 
-1. **PPP-PD form XML generation** — Generate valid XML from payroll run data for ePorezi upload
-2. **Payroll GL posting** — Auto-post journal entry on payroll approval (DR 5200/5210, CR 4500/4510/4520-4531)
-3. **Payment order generation** — Generate bank payment orders for net salaries + tax/contribution payments
-4. **eBolovanja → leave_requests bridge** — Auto-create leave request when sick leave submission approved
-5. **eBolovanja → payroll bridge** — Reflect sick leave days (first 30 employer, after RFZO) in payroll calculation
+### Database Migrations Required
+1. `pgcrypto` extension + encrypt/decrypt functions for API keys
+2. `payroll_rate_history` table with RLS
+3. `chart_of_accounts` CHECK constraint (4-digit minimum)
+4. `travel_orders` + `travel_order_expenses` tables (Round 3)
 
----
+### Edge Functions to Modify
+- `sef-submit`: decrypt API key before use
+- `eotpremnica-submit`: wire real Ministry endpoint
+- `ebolovanje-submit`: wire real eUprava endpoint
 
-### Phase 11: Government APIs & Advanced Integrations
-**Scope:** v2.1 items 9-13 + v2.3 items 24-25
+### New Shared Components
+- `src/components/shared/ConfirmDialog.tsx`
+- `src/components/shared/EntitySelector.tsx`
 
-1. **eOtpremnica real API** — Replace stub in `eotpremnica-submit/index.ts` with real Ministry call (or manual XML export if spec pending)
-2. **eBolovanje real API** — Replace stub in `ebolovanje-submit/index.ts` with RFZO/eUprava call (or manual XML export)
-3. **Incoming eFaktura → Kalkulacija bridge** — When accepting purchase eFaktura, auto-create retail price calculation
-4. **3-way PO matching** — PO line ↔ goods receipt line ↔ supplier invoice line with variance alerts
-5. **Integrations page** — Add ePorezi, APR, Bank API connection cards
+### Estimated Effort
+- Round 1 (v2.1): ~6 implementation messages
+- Round 2 (v2.2): ~8 implementation messages
+- Round 3 (v2.3): ~10+ implementation messages
 
----
-
-## Recommended Execution Order
-
-Start with **Phase 4** (SEF + POS refunds) — highest legal compliance impact, smallest scope. Then Phase 5 (CoA), Phase 6 (Invoice posting), Phase 7 (POPDV), Phase 8 (Bank), Phase 9 (Frontend), Phase 10 (HR), Phase 11 (Gov APIs).
-
-Each phase is independent and can be implemented in a single session. Phases 6 and 7 have the highest business value for accountants.
+Items #1, #2 are already complete. Recommend starting Round 1 with items #3–#8.
 
