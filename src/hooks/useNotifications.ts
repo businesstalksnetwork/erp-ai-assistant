@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { getNotificationCategoriesForRole } from "@/config/roleNotificationCategories";
+import type { TenantRole } from "@/config/rolePermissions";
 
 export interface Notification {
   id: string;
@@ -20,10 +23,14 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth();
+  const { role } = useTenant();
   const { t } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Get allowed categories for this role
+  const allowedCategories = getNotificationCategoriesForRole((role as TenantRole) || "user");
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -31,6 +38,7 @@ export function useNotifications() {
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
+      .in("category", allowedCategories)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -39,7 +47,7 @@ export function useNotifications() {
       setUnreadCount(data.filter((n) => !n.is_read).length);
     }
     setLoading(false);
-  }, [user]);
+  }, [user, allowedCategories.join(",")]);
 
   useEffect(() => {
     fetchNotifications();
@@ -61,6 +69,9 @@ export function useNotifications() {
         },
         (payload) => {
           const newNotif = payload.new as unknown as Notification;
+          // Filter by allowed categories
+          if (!allowedCategories.includes(newNotif.category as any)) return;
+
           setNotifications((prev) => [newNotif, ...prev].slice(0, 50));
           setUnreadCount((prev) => prev + 1);
 
@@ -75,7 +86,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, t]);
+  }, [user, t, allowedCategories.join(",")]);
 
   const markAsRead = useCallback(async (id: string) => {
     const { error } = await supabase
