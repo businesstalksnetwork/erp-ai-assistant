@@ -247,6 +247,27 @@ export default function PosTerminal() {
         await supabase.from("pos_transactions").update({ status: "fiscalized" }).eq("id", tx.id);
       }
 
+      // Restore physical stock for refunded items
+      const warehouseId = activeSession.warehouse_id;
+      if (warehouseId) {
+        for (const item of selectedItems) {
+          const product = products.find((p: any) => p.name === item.name);
+          if (product?.id) {
+            try {
+              await supabase.rpc("adjust_inventory_stock", {
+                p_tenant_id: tenantId,
+                p_product_id: product.id,
+                p_warehouse_id: warehouseId,
+                p_quantity: item.quantity,
+                p_reference: `POS refund ${txNum}`,
+              });
+            } catch (e) {
+              console.warn("Stock restoration failed for product:", product.id, e);
+            }
+          }
+        }
+      }
+
       return tx;
     },
     onSuccess: () => {
@@ -340,7 +361,7 @@ export default function PosTerminal() {
 
       // Step 3: Only post accounting after successful fiscalization
       if (fiscalized) {
-        // Step 3a: Consume FIFO cost layers for each item
+        // Step 3a: Consume FIFO cost layers + deduct physical stock for each item
         const warehouseId = activeSession.warehouse_id;
         if (warehouseId) {
           for (const item of cart) {
@@ -354,6 +375,18 @@ export default function PosTerminal() {
                 });
               } catch (e) {
                 console.warn("FIFO layer consumption failed for product:", item.product_id, e);
+              }
+              // Deduct physical stock quantity
+              try {
+                await supabase.rpc("adjust_inventory_stock", {
+                  p_tenant_id: tenantId,
+                  p_product_id: item.product_id,
+                  p_warehouse_id: warehouseId,
+                  p_quantity: -item.quantity,
+                  p_reference: `POS sale ${txNum}`,
+                });
+              } catch (e) {
+                console.warn("Stock deduction failed for product:", item.product_id, e);
               }
             }
           }
