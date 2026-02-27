@@ -8440,6 +8440,7 @@ export type Database = {
           tax_rate_value: number
           total_with_tax: number
           unit_price: number
+          vat_non_deductible: number
           warehouse_id: string | null
         }
         Insert: {
@@ -8459,6 +8460,7 @@ export type Database = {
           tax_rate_value?: number
           total_with_tax?: number
           unit_price?: number
+          vat_non_deductible?: number
           warehouse_id?: string | null
         }
         Update: {
@@ -8478,6 +8480,7 @@ export type Database = {
           tax_rate_value?: number
           total_with_tax?: number
           unit_price?: number
+          vat_non_deductible?: number
           warehouse_id?: string | null
         }
         Relationships: [
@@ -8541,6 +8544,7 @@ export type Database = {
           sales_channel_id: string | null
           sales_order_id: string | null
           salesperson_id: string | null
+          sef_invoice_id: string | null
           sef_request_id: string | null
           sef_status: string
           status: string
@@ -8549,6 +8553,7 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          vat_date: string | null
           voucher_original_invoice_id: string | null
           voucher_type: string | null
         }
@@ -8581,6 +8586,7 @@ export type Database = {
           sales_channel_id?: string | null
           sales_order_id?: string | null
           salesperson_id?: string | null
+          sef_invoice_id?: string | null
           sef_request_id?: string | null
           sef_status?: string
           status?: string
@@ -8589,6 +8595,7 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          vat_date?: string | null
           voucher_original_invoice_id?: string | null
           voucher_type?: string | null
         }
@@ -8621,6 +8628,7 @@ export type Database = {
           sales_channel_id?: string | null
           sales_order_id?: string | null
           salesperson_id?: string | null
+          sef_invoice_id?: string | null
           sef_request_id?: string | null
           sef_status?: string
           status?: string
@@ -8629,6 +8637,7 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          vat_date?: string | null
           voucher_original_invoice_id?: string | null
           voucher_type?: string | null
         }
@@ -12579,6 +12588,116 @@ export type Database = {
           },
         ]
       }
+      popdv_snapshots: {
+        Row: {
+          created_at: string
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          legal_entity_id: string | null
+          period_end: string
+          period_start: string
+          pp_pdv_data: Json | null
+          snapshot_data: Json
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          period_end: string
+          period_start: string
+          pp_pdv_data?: Json | null
+          snapshot_data?: Json
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          period_end?: string
+          period_start?: string
+          pp_pdv_data?: Json | null
+          snapshot_data?: Json
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popdv_snapshots_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "popdv_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      popdv_tax_types: {
+        Row: {
+          created_at: string
+          description_long: string | null
+          description_short: string
+          direction: string
+          id: string
+          is_active: boolean
+          is_special_record: boolean
+          law_reference: string | null
+          parent_id: string | null
+          popdv_section: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description_long?: string | null
+          description_short: string
+          direction: string
+          id: string
+          is_active?: boolean
+          is_special_record?: boolean
+          law_reference?: string | null
+          parent_id?: string | null
+          popdv_section: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description_long?: string | null
+          description_short?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          is_special_record?: boolean
+          law_reference?: string | null
+          parent_id?: string | null
+          popdv_section?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popdv_tax_types_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "popdv_tax_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_daily_reports: {
         Row: {
           actual_cash_count: number | null
@@ -14644,6 +14763,77 @@ export type Database = {
           },
         ]
       }
+      reverse_charge_entries: {
+        Row: {
+          base_amount: number
+          created_at: string
+          id: string
+          input_popdv_field: string
+          journal_entry_id: string | null
+          output_popdv_field: string
+          supplier_invoice_id: string
+          supplier_invoice_line_id: string
+          tenant_id: string
+          vat_amount: number
+          vat_date: string
+        }
+        Insert: {
+          base_amount?: number
+          created_at?: string
+          id?: string
+          input_popdv_field: string
+          journal_entry_id?: string | null
+          output_popdv_field: string
+          supplier_invoice_id: string
+          supplier_invoice_line_id: string
+          tenant_id: string
+          vat_amount?: number
+          vat_date: string
+        }
+        Update: {
+          base_amount?: number
+          created_at?: string
+          id?: string
+          input_popdv_field?: string
+          journal_entry_id?: string | null
+          output_popdv_field?: string
+          supplier_invoice_id?: string
+          supplier_invoice_line_id?: string
+          tenant_id?: string
+          vat_amount?: number
+          vat_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reverse_charge_entries_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reverse_charge_entries_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reverse_charge_entries_supplier_invoice_line_id_fkey"
+            columns: ["supplier_invoice_line_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoice_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reverse_charge_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_confidentiality_access: {
         Row: {
           can_edit: boolean
@@ -15224,9 +15414,12 @@ export type Database = {
       }
       supplier_invoice_lines: {
         Row: {
+          account_id: string | null
+          cost_center_id: string | null
           created_at: string
           description: string | null
           efaktura_category: string | null
+          fee_value: number
           id: string
           item_type: string | null
           line_total: number
@@ -15238,14 +15431,19 @@ export type Database = {
           tax_amount: number
           tax_rate_id: string | null
           tax_rate_value: number | null
+          tenant_id: string | null
           total_with_tax: number
           unit_price: number
+          vat_non_deductible: number
           warehouse_id: string | null
         }
         Insert: {
+          account_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           efaktura_category?: string | null
+          fee_value?: number
           id?: string
           item_type?: string | null
           line_total?: number
@@ -15257,14 +15455,19 @@ export type Database = {
           tax_amount?: number
           tax_rate_id?: string | null
           tax_rate_value?: number | null
+          tenant_id?: string | null
           total_with_tax?: number
           unit_price?: number
+          vat_non_deductible?: number
           warehouse_id?: string | null
         }
         Update: {
+          account_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           efaktura_category?: string | null
+          fee_value?: number
           id?: string
           item_type?: string | null
           line_total?: number
@@ -15276,11 +15479,27 @@ export type Database = {
           tax_amount?: number
           tax_rate_id?: string | null
           tax_rate_value?: number | null
+          tenant_id?: string | null
           total_with_tax?: number
           unit_price?: number
+          vat_non_deductible?: number
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_invoice_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoice_lines_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_invoice_lines_product_id_fkey"
             columns: ["product_id"]
@@ -15300,6 +15519,13 @@ export type Database = {
             columns: ["tax_rate_id"]
             isOneToOne: false
             referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoice_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
           {
@@ -15330,6 +15556,7 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          vat_date: string | null
         }
         Insert: {
           amount?: number
@@ -15349,6 +15576,7 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          vat_date?: string | null
         }
         Update: {
           amount?: number
@@ -15368,6 +15596,7 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          vat_date?: string | null
         }
         Relationships: [
           {
