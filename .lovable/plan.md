@@ -14,25 +14,38 @@
 ## v2.3 Round 2 — P2 Quick Wins (4 items) ✅ COMPLETED
 
 **#3 — ZPPPDV VAT Refund Form ✅**
-- Created `src/pages/tenant/reports/ZpppdvForm.tsx`
-- Reads from `pdv_periods`, filters where `input_vat > output_vat`
-- Summary cards showing eligible periods and total refund amount
-- Generates ZPPPDV XML for ePorezi submission
-- Route: `/accounting/reports/zpppdv`, sidebar + global search
-
 **#16 — Employee Data Export / Portability ✅**
-- Created `src/pages/tenant/reports/EmployeeDataExport.tsx`
-- PDPA compliant: exports personal data, attendance, leave, allowances, payroll history
-- Supports JSON and CSV formats with BOM for Serbian characters
-- Route: `/hr/employee-data-export`, sidebar + global search
-
 **#17 — Lead → Partner Conversion Flow ✅**
-- Added `convertToPartnerMutation` in `Leads.tsx`
-- Creates partner record pre-filled from lead data (name, company, email, phone)
-- New action button "Konvertuj u partnera" in lead action menu
-- Marks lead as converted after partner creation
-
 **#18 — Discount Approval Workflow ✅ (Already functional)**
-- `useDiscountApproval` hook already wires discount approvals into `approval_requests`
-- `PendingApprovals.tsx` already shows all pending approvals including `quote_discount` type
-- No additional code needed — the pipeline was already complete
+
+---
+
+## v2.3 Round 3 — P2 Modules (4 items) ✅ COMPLETED
+
+**#5 — Direct Invoice Stock Deduction ✅**
+- Invoice posting in `InvoiceForm.tsx` now emits `invoice.posted` module event
+- `process-module-event` already has `handleInvoicePostedInventory` handler
+- Automatically deducts stock via `adjust_inventory_stock` RPC when warehouse available
+- Works alongside existing FIFO layer consumption
+
+**#6 — Foreign Currency Cash Register (Devizna blagajna) ✅**
+- Created `src/pages/tenant/FxCashRegister.tsx`
+- Multi-currency cash in/out with exchange rate and RSD equivalent
+- GL posting via posting rules engine (account 2440 — Devizna blagajna)
+- Summary cards per currency, filter by month/currency
+- Route: `/accounting/fx-cash-register`, sidebar + global search
+
+**#14 — Data Retention Policy Enforcement ✅**
+- Created `src/pages/tenant/DataRetentionPolicies.tsx`
+- Configurable per-entity retention periods (contact, employee, lead, invoice, etc.)
+- Action types: flag, archive, anonymize
+- Manual enforcement run with execution logging
+- Route: `/settings/data-retention`, sidebar + global search
+
+**#15 — Data Breach Notification Mechanism ✅**
+- Created `src/pages/tenant/SecurityIncidents.tsx`
+- ZZPL Art. 52 compliant: 72-hour notification deadline tracking
+- Severity levels: low/medium/high/critical
+- Status workflow: detected → investigating → notified → resolved
+- Dashboard with active/critical incident counts
+- Route: `/settings/security-incidents`, sidebar + global search

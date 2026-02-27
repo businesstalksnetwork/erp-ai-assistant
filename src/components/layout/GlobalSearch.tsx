@@ -143,6 +143,9 @@ export function GlobalSearch() {
     { label: "OD-O Obračun", path: "/accounting/reports/od-o", icon: FileText, group: "accounting", module: "accounting" },
     { label: "M4 PIO Izveštaj", path: "/accounting/reports/m4", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
     { label: "ZPPPDV Povraćaj PDV", path: "/accounting/reports/zpppdv", icon: FileText, group: "accounting", module: "accounting" },
+    { label: "Devizna blagajna / FX Cash Register", path: "/accounting/fx-cash-register", icon: Globe, group: "accounting", module: "accounting" },
+    { label: "Data Retention / Zadržavanje podataka", path: "/settings/data-retention", icon: Clock, group: "settings", module: "settings" },
+    { label: "Security Incidents / Bezbednosni incidenti", path: "/settings/security-incidents", icon: Shield, group: "settings", module: "settings" },
 
     // Analytics
     { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
