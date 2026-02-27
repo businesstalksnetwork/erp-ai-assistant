@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -28,10 +30,103 @@ export default function SpecialHours() {
         <TabsList>
           <TabsTrigger value="overtime">{t("overtimeHours")}</TabsTrigger>
           <TabsTrigger value="night">{t("nightWork")}</TabsTrigger>
+          <TabsTrigger value="caps">{t("overtimeCaps" as any)}</TabsTrigger>
         </TabsList>
         <TabsContent value="overtime"><OvertimeTab /></TabsContent>
         <TabsContent value="night"><NightWorkTab /></TabsContent>
+        <TabsContent value="caps"><OvertimeCapTab /></TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function OvertimeCapTab() {
+  const { t, locale } = useLanguage();
+  const { tenantId } = useTenant();
+  const navigate = useNavigate();
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const sr = locale === "sr";
+
+  const { data: capStatus = [], isLoading } = useQuery({
+    queryKey: ["overtime-cap-status", tenantId, filterYear],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("overtime_cap_status" as any)
+        .select("*")
+        .eq("tenant_id", tenantId!)
+        .eq("year", filterYear)
+        .order("usage_pct", { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!tenantId,
+  });
+
+  const exceeded = capStatus.filter((c: any) => c.status === "exceeded");
+  const warning = capStatus.filter((c: any) => c.status === "warning");
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "employee", label: t("employee"), primary: true, render: (r) => (
+      <span className="text-primary hover:underline cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); navigate(`/hr/employees/${r.employee_id}`); }}>
+        {r.full_name}
+      </span>
+    )},
+    { key: "hours", label: sr ? "Ukupno sati" : "Total Hours", align: "right", render: (r) => r.total_annual_hours },
+    { key: "cap", label: sr ? "Godišnji limit" : "Annual Cap", align: "right", render: (r) => r.annual_cap },
+    { key: "usage", label: sr ? "Iskorišćenost" : "Usage", render: (r) => (
+      <div className="flex items-center gap-2 min-w-[120px]">
+        <Progress value={Math.min(Number(r.usage_pct), 100)} className="h-2 flex-1" />
+        <span className="text-xs font-mono w-12 text-right">{r.usage_pct}%</span>
+      </div>
+    )},
+    { key: "status", label: t("status"), render: (r) => (
+      <Badge variant={r.status === "exceeded" ? "destructive" : r.status === "warning" ? "secondary" : "default"}>
+        {r.status === "exceeded" ? (sr ? "Prekoračen" : "Exceeded") : r.status === "warning" ? (sr ? "Upozorenje" : "Warning") : "OK"}
+      </Badge>
+    )},
+  ];
+
+  return (
+    <div className="space-y-4 mt-4">
+      {(exceeded.length > 0 || warning.length > 0) && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+              <div>
+                <p className="font-medium text-destructive">
+                  {sr ? "Upozorenje o prekovremenom radu" : "Overtime Cap Alerts"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {exceeded.length > 0 && (sr
+                    ? `${exceeded.length} zaposlenih je prekoračilo godišnji limit (čl. 53 Zakona o radu).`
+                    : `${exceeded.length} employee(s) exceeded annual cap (Art. 53 Labor Law).`)}
+                  {warning.length > 0 && ` ${sr
+                    ? `${warning.length} zaposlenih je blizu limita (>80%).`
+                    : `${warning.length} employee(s) near cap (>80%).`}`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex items-center gap-4">
+        <div className="grid gap-1">
+          <Label>{t("year")}</Label>
+          <Input type="number" className="w-24" value={filterYear} onChange={e => setFilterYear(+e.target.value)} />
+        </div>
+      </div>
+
+      <Card><CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : capStatus.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">{sr ? "Nema podataka za ovu godinu" : "No data for this year"}</p>
+        ) : (
+          <ResponsiveTable data={capStatus} columns={columns} keyExtractor={(r) => `${r.employee_id}-${r.year}`} />
+        )}
+      </CardContent></Card>
     </div>
   );
 }
@@ -77,7 +172,7 @@ function OvertimeTab() {
         if (error) throw error;
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["overtime-hours"] }); setOpen(false); toast.success(t("success")); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["overtime-hours"] }); qc.invalidateQueries({ queryKey: ["overtime-cap-status"] }); setOpen(false); toast.success(t("success")); },
     onError: (e: Error) => toast.error(e.message),
   });
 

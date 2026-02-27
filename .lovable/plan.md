@@ -13,5 +13,5 @@
 | # | Phase | Effort | Status |
 |---|-------|--------|--------|
 | 5 | GL Posting Improvements (POS COGS + Production rules) | ~8h | **Done** |
-| 6 | Overtime Cap & APR AOP Positions | ~10h | **Not started** |
+| 6 | Overtime Cap & APR AOP Positions | ~10h | **Done** |
 | 7 | Integration & Polish | ~6h | **Not started** |

@@ -710,6 +710,68 @@ export type Database = {
           },
         ]
       }
+      aop_positions: {
+        Row: {
+          account_from: string | null
+          account_to: string | null
+          aop_number: string
+          created_at: string | null
+          formula: string | null
+          id: string
+          is_active: boolean | null
+          is_total_row: boolean | null
+          name_en: string | null
+          name_sr: string
+          parent_aop: string | null
+          report_type: string
+          sign_convention: string | null
+          sort_order: number | null
+          tenant_id: string
+        }
+        Insert: {
+          account_from?: string | null
+          account_to?: string | null
+          aop_number: string
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_total_row?: boolean | null
+          name_en?: string | null
+          name_sr: string
+          parent_aop?: string | null
+          report_type: string
+          sign_convention?: string | null
+          sort_order?: number | null
+          tenant_id: string
+        }
+        Update: {
+          account_from?: string | null
+          account_to?: string | null
+          aop_number?: string
+          created_at?: string | null
+          formula?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_total_row?: boolean | null
+          name_en?: string | null
+          name_sr?: string
+          parent_aop?: string | null
+          report_type?: string
+          sign_convention?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aop_positions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ap_aging_snapshots: {
         Row: {
           bucket_30: number
@@ -2839,6 +2901,8 @@ export type Database = {
         Row: {
           account_type: string
           analytics_type: string | null
+          aop_position_bs: string | null
+          aop_position_is: string | null
           code: string
           created_at: string
           description: string | null
@@ -2860,6 +2924,8 @@ export type Database = {
         Insert: {
           account_type?: string
           analytics_type?: string | null
+          aop_position_bs?: string | null
+          aop_position_is?: string | null
           code: string
           created_at?: string
           description?: string | null
@@ -2881,6 +2947,8 @@ export type Database = {
         Update: {
           account_type?: string
           analytics_type?: string | null
+          aop_position_bs?: string | null
+          aop_position_is?: string | null
           code?: string
           created_at?: string
           description?: string | null
@@ -13283,6 +13351,8 @@ export type Database = {
           minimum_hourly_wage: number | null
           night_work_multiplier: number | null
           nontaxable_amount: number
+          overtime_annual_cap_hours: number | null
+          overtime_monthly_cap_hours: number | null
           overtime_multiplier: number | null
           pio_employee_rate: number
           pio_employer_rate: number
@@ -13306,6 +13376,8 @@ export type Database = {
           minimum_hourly_wage?: number | null
           night_work_multiplier?: number | null
           nontaxable_amount?: number
+          overtime_annual_cap_hours?: number | null
+          overtime_monthly_cap_hours?: number | null
           overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
@@ -13329,6 +13401,8 @@ export type Database = {
           minimum_hourly_wage?: number | null
           night_work_multiplier?: number | null
           nontaxable_amount?: number
+          overtime_annual_cap_hours?: number | null
+          overtime_monthly_cap_hours?: number | null
           overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
@@ -20185,7 +20259,34 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      overtime_cap_status: {
+        Row: {
+          annual_cap: number | null
+          employee_id: string | null
+          full_name: string | null
+          status: string | null
+          tenant_id: string | null
+          total_annual_hours: number | null
+          usage_pct: number | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overtime_hours_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_hours_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_inventory_stock: {
@@ -20437,6 +20538,24 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_aop_report: {
+        Args: {
+          p_from_date?: string
+          p_legal_entity_id?: string
+          p_report_type: string
+          p_tenant_id: string
+          p_to_date?: string
+        }
+        Returns: {
+          aop_number: string
+          current_year: number
+          is_total_row: boolean
+          name_en: string
+          name_sr: string
+          prior_year: number
+          sort_order: number
+        }[]
       }
       get_direct_reports: {
         Args: { p_manager_id: string }
