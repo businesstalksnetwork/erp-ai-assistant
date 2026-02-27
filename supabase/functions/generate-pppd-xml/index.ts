@@ -18,11 +18,17 @@ function fmtAmt(n: number): string {
   return n.toFixed(2);
 }
 
+/** Serbian municipality code from JMBG (digits 7-8: region) */
+function municipalityFromJmbg(jmbg: string): string {
+  if (jmbg.length < 9) return "00";
+  return jmbg.substring(7, 9);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payroll_run_id } = await req.json();
+    const { payroll_run_id, tenant_id } = await req.json();
     if (!payroll_run_id) throw new Error("payroll_run_id required");
 
     const supabase = createClient(
@@ -41,30 +47,28 @@ Deno.serve(async (req) => {
     // Fetch payroll items with employee data
     const { data: items, error: itemsErr } = await supabase
       .from("payroll_items")
-      .select("*, employees(full_name, jmbg, first_name, last_name)")
+      .select("*, employees(full_name, jmbg, first_name, last_name, residence_municipality_code)")
       .eq("payroll_run_id", payroll_run_id)
       .order("created_at");
     if (itemsErr) throw new Error(itemsErr.message);
 
-    // Fetch tenant (employer) data
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("name")
-      .eq("id", run.tenant_id)
-      .single();
-
-    // Fetch legal entity for PIB
+    // Fetch tenant / legal entity
     const { data: legalEntity } = await supabase
       .from("legal_entities")
-      .select("pib, company_name, mb")
+      .select("pib, company_name, mb, address, municipality_code, email")
       .eq("tenant_id", run.tenant_id)
       .eq("is_primary", true)
       .maybeSingle();
 
     const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
     const now = new Date().toISOString().split("T")[0];
+    const paymentDate = run.payment_date || now;
+    const employerPib = legalEntity?.pib || "000000000";
+    const employerName = legalEntity?.company_name || "N/A";
+    const employerMb = legalEntity?.mb || "00000000";
+    const employerMunicipality = legalEntity?.municipality_code || "000";
 
-    // Validate all employees have JMBG
+    // Validate all JMBGs
     const warnings: string[] = [];
     for (const item of items || []) {
       const jmbg = item.employees?.jmbg;
@@ -75,81 +79,139 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate XML
-    const employerPib = legalEntity?.pib || "000000000";
-    const employerName = legalEntity?.company_name || tenant?.name || "N/A";
-    const employerMb = legalEntity?.mb || "00000000";
-
+    // Build ePorezi XSD-compliant PPP-PD XML
     let xmlItems = "";
     let rBr = 1;
+
+    // Running totals for Ukupno section
+    let sumGross = 0, sumTaxBase = 0, sumTax = 0;
+    let sumPioEmp = 0, sumPioEr = 0, sumHealthEmp = 0, sumHealthEr = 0;
+    let sumUnempEmp = 0, sumUnempEr = 0, sumNet = 0;
+    let sumSubsidyTax = 0, sumSubsidyPio = 0, sumSubsidyHealth = 0, sumSubsidyUnemp = 0;
+
     for (const item of items || []) {
-      const jmbg = item.employees?.jmbg || "0000000000000";
+      const emp = item.employees;
+      const jmbg = emp?.jmbg || "0000000000000";
       const ovp = item.ovp_code || "101";
       const ola = item.ola_code || "00";
       const ben = item.ben_code || "0";
-      const gross = Number(item.gross_salary);
-      const tax = Number(item.income_tax);
-      const pio = Number(item.pension_contribution);
-      const health = Number(item.health_contribution);
-      const unemp = Number(item.unemployment_contribution);
-      const pioEmployer = Number(item.pension_employer || 0);
-      const healthEmployer = Number(item.health_employer || 0);
-      const subsidy = Number(item.subsidy_amount || 0);
+
+      const gross = Number(item.gross_salary || 0);
+      const pioEmp = Number(item.pio_employee || item.pension_contribution || 0);
+      const healthEmp = Number(item.health_employee || item.health_contribution || 0);
+      const unempEmp = Number(item.unemployment_employee || item.unemployment_contribution || 0);
+      const totalEmpContrib = pioEmp + healthEmp + unempEmp;
+
+      const nonTaxable = Number(item.non_taxable_amount || 25000);
+      const taxBase = Math.max(0, gross - totalEmpContrib - nonTaxable);
+      const tax = Number(item.tax_amount || item.income_tax || 0);
+
+      const pioEr = Number(item.pio_employer || 0);
+      const healthEr = Number(item.health_employer || 0);
+      const unempEr = Number(item.unemployment_employer || 0);
+      const net = Number(item.net_salary || 0);
       const municipal = Number(item.municipal_tax || 0);
-      const net = Number(item.net_salary);
+
+      // Subsidies (K30-K32 have tax subsidies)
+      const subsidyTax = Number(item.subsidy_tax || 0);
+      const subsidyPio = Number(item.subsidy_pio || 0);
+      const subsidyHealth = Number(item.subsidy_health || 0);
+      const subsidyUnemp = Number(item.subsidy_unemployment || 0);
+
+      const empMunicipality = emp?.residence_municipality_code || municipalityFromJmbg(jmbg);
+
+      sumGross += gross; sumTaxBase += taxBase; sumTax += tax;
+      sumPioEmp += pioEmp; sumPioEr += pioEr;
+      sumHealthEmp += healthEmp; sumHealthEr += healthEr;
+      sumUnempEmp += unempEmp; sumUnempEr += unempEr;
+      sumNet += net;
+      sumSubsidyTax += subsidyTax; sumSubsidyPio += subsidyPio;
+      sumSubsidyHealth += subsidyHealth; sumSubsidyUnemp += subsidyUnemp;
 
       xmlItems += `
-      <PodaciOPrimaocuPrihoda>
-        <RedniBroj>${rBr++}</RedniBroj>
-        <JMBG>${jmbg}</JMBG>
-        <ImePrezime>${item.employees?.full_name || ""}</ImePrezime>
-        <OznakaVrstePrihoda>${ovp}</OznakaVrstePrihoda>
-        <OznakaLicnogAdanja>${ola}</OznakaLicnogAdanja>
-        <BeneficiraniRadniStaz>${ben}</BeneficiraniRadniStaz>
-        <BrutoZarada>${fmtAmt(gross)}</BrutoZarada>
-        <OsnovicaZaPorez>${fmtAmt(gross - Number(item.pension_contribution || 0) - Number(item.health_contribution || 0) - Number(item.unemployment_contribution || 0))}</OsnovicaZaPorez>
-        <Porez>${fmtAmt(tax)}</Porez>
-        <PIORadnik>${fmtAmt(pio)}</PIORadnik>
-        <ZdravstvenoRadnik>${fmtAmt(health)}</ZdravstvenoRadnik>
-        <NezaposlenostRadnik>${fmtAmt(unemp)}</NezaposlenostRadnik>
-        <PIOPoslodavac>${fmtAmt(pioEmployer)}</PIOPoslodavac>
-        <ZdravstvenoPoslodavac>${fmtAmt(healthEmployer)}</ZdravstvenoPoslodavac>
-        <NetoZarada>${fmtAmt(net)}</NetoZarada>
-        <SubvencijaPorez>${fmtAmt(subsidy > 0 ? subsidy * (tax / (tax + pio + health + unemp + pioEmployer + healthEmployer || 1)) : 0)}</SubvencijaPorez>
-        <OpstinskiPrirez>${fmtAmt(municipal)}</OpstinskiPrirez>
-      </PodaciOPrimaocuPrihoda>`;
+        <PodaciOPrimaocuPrihoda>
+          <RedniBroj>${rBr++}</RedniBroj>
+          <PodaciOPrimaocu>
+            <VrstaPrimaoca>1</VrstaPrimaoca>
+            <JMBG>${jmbg}</JMBG>
+            <Prezime>${emp?.last_name || ""}</Prezime>
+            <Ime>${emp?.first_name || ""}</Ime>
+            <SifraOpstime>${empMunicipality}</SifraOpstime>
+          </PodaciOPrimaocu>
+          <PodaciOPrihodu>
+            <OznakaVrstePrihoda>${ovp}</OznakaVrstePrihoda>
+            <OznakaLicnogAdanja>${ola}</OznakaLicnogAdanja>
+            <BeneficiraniRadniStaz>${ben}</BeneficiraniRadniStaz>
+            <BrojDana>0</BrojDana>
+            <BrojSati>${Number(item.working_hours || 176)}</BrojSati>
+            <FondSati>${Number(item.fund_hours || 176)}</FondSati>
+          </PodaciOPrihodu>
+          <PodaciOObracunatimDoprinosima>
+            <BrutoZarada>${fmtAmt(gross)}</BrutoZarada>
+            <OsnovicaZaPorez>${fmtAmt(taxBase)}</OsnovicaZaPorez>
+            <Porez>${fmtAmt(tax)}</Porez>
+            <PIORadnik>${fmtAmt(pioEmp)}</PIORadnik>
+            <ZdravstvenoRadnik>${fmtAmt(healthEmp)}</ZdravstvenoRadnik>
+            <NezaposlenostRadnik>${fmtAmt(unempEmp)}</NezaposlenostRadnik>
+            <PIOPoslodavac>${fmtAmt(pioEr)}</PIOPoslodavac>
+            <ZdravstvenoPoslodavac>${fmtAmt(healthEr)}</ZdravstvenoPoslodavac>
+            <NezaposlenostPoslodavac>${fmtAmt(unempEr)}</NezaposlenostPoslodavac>
+            <NetoZarada>${fmtAmt(net)}</NetoZarada>
+            <OpstinskiPrirez>${fmtAmt(municipal)}</OpstinskiPrirez>
+          </PodaciOObracunatimDoprinosima>
+          ${(subsidyTax + subsidyPio + subsidyHealth + subsidyUnemp) > 0 ? `
+          <PodaciOOlaksicama>
+            <SubvencijaPorez>${fmtAmt(subsidyTax)}</SubvencijaPorez>
+            <SubvencijaPIO>${fmtAmt(subsidyPio)}</SubvencijaPIO>
+            <SubvencijaZdravstveno>${fmtAmt(subsidyHealth)}</SubvencijaZdravstveno>
+            <SubvencijaNezaposlenost>${fmtAmt(subsidyUnemp)}</SubvencijaNezaposlenost>
+          </PodaciOOlaksicama>` : ""}
+        </PodaciOPrimaocuPrihoda>`;
     }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<PPP-PD xmlns="http://pid.poreskauprava.gov.rs/tax-declaration"
+<PPP-PD xmlns="urn:poreskauprava.gov.rs:ppppd:v3"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        VerzijaPrijave="3"
         DatumObracuna="${now}"
-        DatumIsplate="${now}"
-        ObracunskiPeriod="${periodLabel}">
+        DatumIsplate="${paymentDate}"
+        ObracunskiPeriod="${periodLabel}"
+        VrstaObracuna="1">
   <PodaciOIsplatiocu>
+    <TipIsplatioca>1</TipIsplatioca>
     <PIB>${employerPib}</PIB>
     <MaticniBroj>${employerMb}</MaticniBroj>
     <NazivIsplatioca>${employerName}</NazivIsplatioca>
+    <SifraOpstime>${employerMunicipality}</SifraOpstime>
+    <Email>${legalEntity?.email || ""}</Email>
   </PodaciOIsplatiocu>
-  <PodaciOPrimaocu>${xmlItems}
-  </PodaciOPrimaocu>
+  <ListaPrimaocu>${xmlItems}
+  </ListaPrimaocu>
   <Ukupno>
-    <UkupnoBrutoZarada>${fmtAmt(Number(run.total_gross))}</UkupnoBrutoZarada>
-    <UkupnoPorez>${fmtAmt(Number(run.total_taxes))}</UkupnoPorez>
-    <UkupnoDoprinosi>${fmtAmt(Number(run.total_contributions))}</UkupnoDoprinosi>
-    <UkupnoNeto>${fmtAmt(Number(run.total_net))}</UkupnoNeto>
+    <UkupnoBrutoZarada>${fmtAmt(sumGross)}</UkupnoBrutoZarada>
+    <UkupnoOsnovicaZaPorez>${fmtAmt(sumTaxBase)}</UkupnoOsnovicaZaPorez>
+    <UkupnoPorez>${fmtAmt(sumTax)}</UkupnoPorez>
+    <UkupnoPIORadnik>${fmtAmt(sumPioEmp)}</UkupnoPIORadnik>
+    <UkupnoZdravstvenoRadnik>${fmtAmt(sumHealthEmp)}</UkupnoZdravstvenoRadnik>
+    <UkupnoNezaposlenostRadnik>${fmtAmt(sumUnempEmp)}</UkupnoNezaposlenostRadnik>
+    <UkupnoPIOPoslodavac>${fmtAmt(sumPioEr)}</UkupnoPIOPoslodavac>
+    <UkupnoZdravstvenoPoslodavac>${fmtAmt(sumHealthEr)}</UkupnoZdravstvenoPoslodavac>
+    <UkupnoNezaposlenostPoslodavac>${fmtAmt(sumUnempEr)}</UkupnoNezaposlenostPoslodavac>
+    <UkupnoNeto>${fmtAmt(sumNet)}</UkupnoNeto>
+    <BrojZaposlenih>${(items || []).length}</BrojZaposlenih>
   </Ukupno>
   ${warnings.length > 0 ? `<!-- UPOZORENJA:\n${warnings.map(w => `    - ${w}`).join("\n")}\n  -->` : ""}
 </PPP-PD>`;
 
-    return new Response(xml, {
+    // Return as JSON with xml field for frontend compatibility
+    return new Response(JSON.stringify({ xml, warnings }), {
       headers: {
         ...corsHeaders,
-        "Content-Type": "application/xml; charset=utf-8",
-        "Content-Disposition": `attachment; filename="PPP-PD_${periodLabel}.xml"`,
+        "Content-Type": "application/json",
       },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

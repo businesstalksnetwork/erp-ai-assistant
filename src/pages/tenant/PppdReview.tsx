@@ -58,6 +58,8 @@ export default function PppdReview() {
   const totalPio = items.reduce((s: number, i: any) => s + Number(i.pio_employee || 0) + Number(i.pio_employer || 0), 0);
   const totalHealth = items.reduce((s: number, i: any) => s + Number(i.health_employee || 0) + Number(i.health_employer || 0), 0);
 
+  const [xmlWarnings, setXmlWarnings] = useState<string[]>([]);
+
   const handleExportXml = async () => {
     if (!selectedRunId) return;
     const { data, error } = await supabase.functions.invoke("generate-pppd-xml", {
@@ -67,7 +69,10 @@ export default function PppdReview() {
       console.error(error);
       return;
     }
-    const blob = new Blob([data.xml], { type: "application/xml" });
+    // Handle JSON response with xml field
+    const xmlContent = typeof data === "string" ? data : data?.xml || "";
+    if (data?.warnings?.length) setXmlWarnings(data.warnings);
+    const blob = new Blob([xmlContent], { type: "application/xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -104,6 +109,17 @@ export default function PppdReview() {
           </Button>
         )}
       </div>
+
+      {xmlWarnings.length > 0 && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="p-3">
+            <p className="text-sm font-medium text-destructive mb-1">Upozorenja ({xmlWarnings.length})</p>
+            <ul className="text-xs text-destructive/80 space-y-0.5 list-disc list-inside">
+              {xmlWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {selectedRunId && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

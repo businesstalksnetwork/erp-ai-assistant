@@ -22,6 +22,13 @@ function validateIsoDate(s: string): boolean {
 }
 
 const VALID_CLAIM_TYPES = ["sick_leave", "maternity", "work_injury"];
+const EMPLOYER_DAYS = 30; // First 30 days paid by employer
+
+function diffDays(start: string, end: string): number {
+  const s = new Date(start);
+  const e = new Date(end);
+  return Math.max(0, Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -70,7 +77,7 @@ Deno.serve(async (req) => {
     // Get claim with employee data
     const { data: claim, error: claimErr } = await supabase
       .from("ebolovanje_claims")
-      .select("*, employees(full_name, jmbg), legal_entities(name, pib)")
+      .select("*, employees(full_name, jmbg, id), legal_entities(name, pib)")
       .eq("id", claim_id)
       .eq("tenant_id", tenant_id)
       .single();
@@ -128,7 +135,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Validation failed", details: errors }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Build RFZO-compatible payload
+    // Build RFZO payload
     const rfzoPayload = {
       employeeName: (claim.employees as any)?.full_name,
       employeeJmbg,
@@ -142,6 +149,43 @@ Deno.serve(async (req) => {
       medicalFacility: claim.medical_facility,
       amount: claim.amount,
     };
+
+    // ── Bridge: auto-create leave_request ──
+    const employeeId = (claim.employees as any)?.id;
+    if (employeeId) {
+      const leaveTypeMap: Record<string, string> = {
+        sick_leave: "sick_leave",
+        maternity: "maternity_leave",
+        work_injury: "sick_leave",
+      };
+      const leaveType = leaveTypeMap[claim.claim_type] || "sick_leave";
+      const totalDays = claim.end_date ? diffDays(claim.start_date, claim.end_date) : EMPLOYER_DAYS;
+      const employerDays = Math.min(totalDays, EMPLOYER_DAYS);
+      const rfzoDays = Math.max(0, totalDays - EMPLOYER_DAYS);
+
+      // Check if leave request already exists for this claim
+      const { data: existingLeave } = await supabase
+        .from("leave_requests")
+        .select("id")
+        .eq("tenant_id", tenant_id)
+        .eq("employee_id", employeeId)
+        .eq("start_date", claim.start_date)
+        .eq("leave_type", leaveType)
+        .maybeSingle();
+
+      if (!existingLeave) {
+        await supabase.from("leave_requests").insert({
+          tenant_id,
+          employee_id: employeeId,
+          leave_type: leaveType,
+          start_date: claim.start_date,
+          end_date: claim.end_date || claim.start_date,
+          days: totalDays,
+          status: "approved",
+          notes: `Auto-created from eBolovanje claim. Employer: ${employerDays}d, RFZO: ${rfzoDays}d. Diagnosis: ${claim.diagnosis_code || "N/A"}`,
+        });
+      }
+    }
 
     if (connection.environment === "sandbox") {
       const fakeClaimNumber = `RFZO-${Date.now()}`;
@@ -162,7 +206,13 @@ Deno.serve(async (req) => {
         response_payload: { simulated: true, payload: rfzoPayload },
       });
 
-      return new Response(JSON.stringify({ success: true, status: "submitted", rfzo_claim_number: fakeClaimNumber, simulated: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({
+        success: true,
+        status: "submitted",
+        rfzo_claim_number: fakeClaimNumber,
+        simulated: true,
+        leave_request_created: !!(employeeId),
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Production: placeholder for real eUprava API
@@ -171,13 +221,20 @@ Deno.serve(async (req) => {
       submitted_at: new Date().toISOString(),
     }).eq("id", claim_id);
 
-    await supabase.from("ebolovanje_connections").update({ last_sync_at: new Date().toISOString() }).eq("id", connection.id);
+    await supabase.from("ebolovanje_connections").update({
+      last_sync_at: new Date().toISOString(),
+    }).eq("id", connection.id);
 
     return new Response(JSON.stringify({
-      success: true, status: "submitted",
+      success: true,
+      status: "submitted",
+      leave_request_created: !!(employeeId),
       message: "Claim submitted. eUprava API integration pending Ministry specification.",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

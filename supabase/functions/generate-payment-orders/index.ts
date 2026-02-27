@@ -5,17 +5,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Model 97 control digit calculation */
+function calcModel97(reference: string): string {
+  const digits = reference.replace(/[^0-9]/g, "");
+  let remainder = 0;
+  for (const d of digits) {
+    remainder = (remainder * 10 + parseInt(d)) % 97;
+  }
+  const ctrl = 98 - remainder;
+  return `97 ${String(ctrl).padStart(2, "0")}${digits}`;
+}
+
+/** Serbian treasury accounts for tax/contribution payments */
+const TREASURY_ACCOUNTS: Record<string, { account: string; purpose: string; model: string }> = {
+  pit: { account: "840-711111843-22", purpose: "Porez na zarade", model: "97" },
+  pio_employee: { account: "840-742221843-57", purpose: "PIO zaposleni", model: "97" },
+  pio_employer: { account: "840-742222843-64", purpose: "PIO poslodavac", model: "97" },
+  health_employee: { account: "840-742321843-81", purpose: "Zdravstveno zaposleni", model: "97" },
+  health_employer: { account: "840-742322843-88", purpose: "Zdravstveno poslodavac", model: "97" },
+  unemployment: { account: "840-742421843-08", purpose: "Nezaposlenost", model: "97" },
+  municipal_tax: { account: "840-711147843-13", purpose: "Prirez na porez na zarade", model: "97" },
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payroll_run_id } = await req.json();
-    if (!payroll_run_id) throw new Error("payroll_run_id required");
+    const body = await req.json();
+    const { payroll_run_id, tax_type, amount, period_month, period_year, tenant_id: bodyTenantId } = body;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Handle standalone tax payment (e.g. PDV)
+    if (tax_type && !payroll_run_id) {
+      const { data: le } = await supabase
+        .from("legal_entities")
+        .select("pib, company_name")
+        .eq("tenant_id", bodyTenantId)
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      const pib = le?.pib || "000000000";
+      const periodStr = `${period_year}${String(period_month).padStart(2, "0")}`;
+      const reference = calcModel97(pib + periodStr);
+
+      const treasuryMap: Record<string, string> = {
+        pdv: "840-742152843-20",
+        cit: "840-711211843-83",
+      };
+
+      const paymentOrder = {
+        senderName: le?.company_name || "",
+        recipientAccount: treasuryMap[tax_type] || "840-742152843-20",
+        recipientName: "Republika Srbija",
+        amount: Number(amount).toFixed(2),
+        paymentCode: "253",
+        model: "97",
+        reference,
+        purpose: `Uplata ${tax_type.toUpperCase()} za ${period_month}/${period_year}`,
+      };
+
+      return new Response(JSON.stringify({ paymentOrder }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Payroll payment orders
+    if (!payroll_run_id) throw new Error("payroll_run_id or tax_type required");
 
     const { data: run, error: runErr } = await supabase
       .from("payroll_runs")
@@ -26,14 +85,13 @@ Deno.serve(async (req) => {
 
     const { data: items } = await supabase
       .from("payroll_items")
-      .select("*, employees(full_name, jmbg, bank_account_iban, bank_name, recipient_code)")
+      .select("*, employees(full_name, jmbg, bank_account_iban, bank_name)")
       .eq("payroll_run_id", payroll_run_id)
       .order("created_at");
 
-    // Fetch employer bank account
     const { data: bankAccount } = await supabase
       .from("bank_accounts")
-      .select("account_number, bank_name")
+      .select("account_number, bank_name, iban")
       .eq("tenant_id", run.tenant_id)
       .eq("is_primary", true)
       .eq("is_active", true)
@@ -46,26 +104,58 @@ Deno.serve(async (req) => {
       .eq("is_primary", true)
       .maybeSingle();
 
-    const periodLabel = `${run.period_year}${String(run.period_month).padStart(2, "0")}`;
-    const senderAccount = bankAccount?.account_number || "";
+    const periodStr = `${run.period_year}${String(run.period_month).padStart(2, "0")}`;
+    const senderAccount = bankAccount?.account_number || bankAccount?.iban || "";
     const senderName = legalEntity?.company_name || "";
+    const pib = legalEntity?.pib || "000000000";
 
-    // Generate CSV: Serbian bank payment order format
-    const header = "RedniBroj,RacunPlatioca,NazivPlatioca,RacunPrimaoca,NazivPrimaoca,Iznos,SifraPlacanja,PozivNaBrojZaduzenje,PozivNaBrojOdobrenje,Svrha";
+    // CSV header
+    const header = "RedniBroj,RacunPlatioca,NazivPlatioca,RacunPrimaoca,NazivPrimaoca,Iznos,SifraPlacanja,Model,PozivNaBrojZaduzenje,PozivNaBrojOdobrenje,Svrha";
     const rows: string[] = [];
-
     let idx = 1;
+
+    // 1. Net salary payments to employees
     for (const item of items || []) {
       const emp = item.employees;
       const iban = emp?.bank_account_iban || "";
       const name = emp?.full_name || "";
       const jmbg = emp?.jmbg || "0000000000000";
       const net = Number(item.net_salary).toFixed(2);
-      // Poziv na broj: model 97 + JMBG + period
-      const pozivOdobrenje = `97 ${jmbg}`;
+      const pozivOdobrenje = calcModel97(jmbg + periodStr);
       const svrha = `Isplata zarade za ${run.period_month}/${run.period_year}`;
 
-      rows.push(`${idx},${senderAccount},"${senderName}",${iban},"${name}",${net},240,,${pozivOdobrenje},"${svrha}"`);
+      rows.push(`${idx},"${senderAccount}","${senderName}","${iban}","${name}",${net},240,97,,${pozivOdobrenje},"${svrha}"`);
+      idx++;
+    }
+
+    // 2. Tax & contribution payments to treasury
+    const totals: Record<string, number> = {
+      pit: 0,
+      pio_employee: 0,
+      pio_employer: 0,
+      health_employee: 0,
+      health_employer: 0,
+      unemployment: 0,
+      municipal_tax: 0,
+    };
+
+    for (const item of items || []) {
+      totals.pit += Number(item.tax_amount || item.income_tax || 0);
+      totals.pio_employee += Number(item.pio_employee || item.pension_contribution || 0);
+      totals.pio_employer += Number(item.pio_employer || 0);
+      totals.health_employee += Number(item.health_employee || item.health_contribution || 0);
+      totals.health_employer += Number(item.health_employer || 0);
+      totals.unemployment += Number(item.unemployment_employee || item.unemployment_contribution || 0)
+        + Number(item.unemployment_employer || 0);
+      totals.municipal_tax += Number(item.municipal_tax || 0);
+    }
+
+    const reference = calcModel97(pib + periodStr);
+
+    for (const [key, info] of Object.entries(TREASURY_ACCOUNTS)) {
+      const amt = totals[key] || 0;
+      if (amt <= 0) continue;
+      rows.push(`${idx},"${senderAccount}","${senderName}","${info.account}","Republika Srbija - ${info.purpose}",${amt.toFixed(2)},253,${info.model},,${reference},"${info.purpose} ${run.period_month}/${run.period_year}"`);
       idx++;
     }
 
@@ -75,11 +165,11 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="NaloziZaPlacanje_${periodLabel}.csv"`,
+        "Content-Disposition": `attachment; filename="NaloziZaPlacanje_${periodStr}.csv"`,
       },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
