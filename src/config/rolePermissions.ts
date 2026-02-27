@@ -22,6 +22,7 @@ export type ModuleGroup =
   | "pos"
   | "returns"
   | "assets"
+  | "service"
   | "settings"
   // Granular settings keys
   | "settings-users"
@@ -36,7 +37,7 @@ export type ModuleGroup =
 
 const ALL_MODULES: ModuleGroup[] = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory", "accounting", "analytics", "hr",
-  "production", "documents", "pos", "returns", "assets", "settings",
+  "production", "documents", "pos", "returns", "assets", "service", "settings",
   "settings-users", "settings-approvals", "settings-business-rules",
   "settings-tax-rates", "settings-currencies", "settings-audit-log",
   "settings-events", "settings-integrations", "settings-role-permissions",
@@ -46,7 +47,7 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   admin: ALL_MODULES,
   manager: [
     "dashboard", "crm", "sales", "web", "purchasing", "inventory", "returns",
-    "production", "documents", "pos", "analytics", "assets", "settings",
+    "production", "documents", "pos", "analytics", "assets", "service", "settings",
   ],
   finance_director: [
     "dashboard", "accounting", "analytics", "assets", "settings",
@@ -60,14 +61,14 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   hr_staff: ["dashboard", "hr", "documents"],
   sales_manager: ["dashboard", "crm", "sales", "web", "inventory", "documents", "analytics"],
   sales_rep: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
-  sales: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
+  sales: ["dashboard", "crm", "sales", "web", "inventory", "documents", "service"],
   hr: ["dashboard", "hr", "documents"],
-  store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "analytics"],
-  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets"],
-  cashier: ["dashboard", "pos"],
-  warehouse_manager: ["dashboard", "inventory", "purchasing", "returns", "assets"],
+  store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service", "analytics"],
+  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service"],
+  cashier: ["dashboard", "pos", "service"],
+  warehouse_manager: ["dashboard", "inventory", "purchasing", "returns", "assets", "service"],
   warehouse_worker: ["dashboard", "inventory", "returns"],
-  production_manager: ["dashboard", "production", "inventory", "documents", "analytics"],
+  production_manager: ["dashboard", "production", "inventory", "documents", "service", "analytics"],
   production_worker: ["dashboard", "production", "inventory"],
   user: ["dashboard", "documents", "pos"],
   viewer: ["dashboard"],
@@ -99,4 +100,5 @@ export const routeToModule: Record<string, ModuleGroup> = {
   "/settings/role-permissions": "settings-role-permissions",
   "/settings": "settings",
   "/assets/": "assets",
+  "/service/": "service",
 };

@@ -428,6 +428,40 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 2,
     requiredModule: "dashboard",
   },
+
+  // ── Service widgets ──
+  kpi_service_open: {
+    id: "kpi_service_open",
+    titleKey: "openServiceOrders",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "service",
+  },
+  kpi_service_urgent: {
+    id: "kpi_service_urgent",
+    titleKey: "urgentServiceOrders",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "service",
+  },
+  service_overview: {
+    id: "service_overview",
+    titleKey: "serviceOverview",
+    category: "action",
+    defaultWidth: 6,
+    defaultHeight: 2,
+    requiredModule: "service",
+  },
+  technician_workload: {
+    id: "technician_workload",
+    titleKey: "technicianWorkload",
+    category: "chart",
+    defaultWidth: 6,
+    defaultHeight: 2,
+    requiredModule: "service",
+  },
 };
 
 export const widgetCategories: { key: WidgetCategory; labelKey: string }[] = [

@@ -246,6 +246,12 @@ export function GlobalSearch() {
     // Returns
     { label: t("returns"), path: "/returns", icon: RotateCcw, group: "returns", module: "returns" },
 
+    // Service
+    { label: t("serviceOrders" as any) || "Servisni nalozi", path: "/service/orders", icon: Wrench, group: "service", module: "service" },
+    { label: t("newServiceOrder" as any) || "Novi servisni nalog", path: "/service/orders/new", icon: FileInput, group: "service", module: "service" },
+    { label: t("myWorkOrders" as any) || "Moji radni nalozi", path: "/service/my-work-orders", icon: ClipboardCheck, group: "service", module: "service" },
+    { label: t("deviceRegistry" as any) || "Registar uređaja", path: "/service/devices", icon: HardDrive, group: "service", module: "service" },
+
     // AI
     { label: "AI Briefing", path: "/ai/briefing", icon: Brain, group: "analytics", module: "analytics" },
     { label: "Profile", path: "/profile", icon: Users, group: "navigation" },

@@ -17596,6 +17596,470 @@ export type Database = {
           },
         ]
       }
+      service_devices: {
+        Row: {
+          brand: string | null
+          created_at: string
+          current_location_id: string | null
+          department_id: string | null
+          device_type: string
+          id: string
+          is_active: boolean
+          is_internal: boolean
+          model: string | null
+          notes: string | null
+          partner_id: string | null
+          purchase_date: string | null
+          serial_number: string | null
+          tenant_id: string
+          updated_at: string
+          warranty_expiry: string | null
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string
+          current_location_id?: string | null
+          department_id?: string | null
+          device_type?: string
+          id?: string
+          is_active?: boolean
+          is_internal?: boolean
+          model?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          tenant_id: string
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string
+          current_location_id?: string | null
+          department_id?: string | null
+          device_type?: string
+          id?: string
+          is_active?: boolean
+          is_internal?: boolean
+          model?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          tenant_id?: string
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_devices_current_location_id_fkey"
+            columns: ["current_location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_devices_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_devices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_devices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_order_lines: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          inventory_movement_id: string | null
+          is_warranty_covered: boolean
+          line_total: number
+          line_type: string
+          product_id: string | null
+          quantity: number
+          service_order_id: string
+          sort_order: number
+          unit_price: number
+          updated_at: string
+          warehouse_id: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          inventory_movement_id?: string | null
+          is_warranty_covered?: boolean
+          line_total?: number
+          line_type?: string
+          product_id?: string | null
+          quantity?: number
+          service_order_id: string
+          sort_order?: number
+          unit_price?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          inventory_movement_id?: string | null
+          is_warranty_covered?: boolean
+          line_total?: number
+          line_type?: string
+          product_id?: string | null
+          quantity?: number
+          service_order_id?: string
+          sort_order?: number
+          unit_price?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_lines_inventory_movement_id_fkey"
+            columns: ["inventory_movement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_lines_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_lines_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_lines_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_order_status_log: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_status: string
+          note: string | null
+          old_status: string | null
+          service_order_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_status: string
+          note?: string | null
+          old_status?: string | null
+          service_order_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string
+          note?: string | null
+          old_status?: string | null
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_status_log_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_orders: {
+        Row: {
+          actual_completion: string | null
+          assigned_to: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          device_id: string | null
+          diagnosed_at: string | null
+          diagnosis: string | null
+          estimated_completion: string | null
+          id: string
+          intake_channel: string
+          internal_notes: string | null
+          is_warranty: boolean
+          linked_invoice_id: string | null
+          linked_pos_transaction_id: string | null
+          order_number: string
+          origin_location_id: string | null
+          partner_id: string | null
+          payment_method: string | null
+          priority: string
+          received_at: string
+          reported_issue: string
+          resolution: string | null
+          service_location_id: string
+          status: string
+          tenant_id: string
+          total_amount: number
+          total_labor: number
+          total_parts: number
+          updated_at: string
+        }
+        Insert: {
+          actual_completion?: string | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          device_id?: string | null
+          diagnosed_at?: string | null
+          diagnosis?: string | null
+          estimated_completion?: string | null
+          id?: string
+          intake_channel?: string
+          internal_notes?: string | null
+          is_warranty?: boolean
+          linked_invoice_id?: string | null
+          linked_pos_transaction_id?: string | null
+          order_number: string
+          origin_location_id?: string | null
+          partner_id?: string | null
+          payment_method?: string | null
+          priority?: string
+          received_at?: string
+          reported_issue: string
+          resolution?: string | null
+          service_location_id: string
+          status?: string
+          tenant_id: string
+          total_amount?: number
+          total_labor?: number
+          total_parts?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_completion?: string | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          device_id?: string | null
+          diagnosed_at?: string | null
+          diagnosis?: string | null
+          estimated_completion?: string | null
+          id?: string
+          intake_channel?: string
+          internal_notes?: string | null
+          is_warranty?: boolean
+          linked_invoice_id?: string | null
+          linked_pos_transaction_id?: string | null
+          order_number?: string
+          origin_location_id?: string | null
+          partner_id?: string | null
+          payment_method?: string | null
+          priority?: string
+          received_at?: string
+          reported_issue?: string
+          resolution?: string | null
+          service_location_id?: string
+          status?: string
+          tenant_id?: string
+          total_amount?: number
+          total_labor?: number
+          total_parts?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "service_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_linked_pos_transaction_id_fkey"
+            columns: ["linked_pos_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_origin_location_id_fkey"
+            columns: ["origin_location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_work_orders: {
+        Row: {
+          actual_hours: number | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          estimated_hours: number | null
+          id: string
+          service_order_id: string
+          sort_order: number
+          started_at: string | null
+          status: string
+          technician_notes: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          work_order_number: string
+          work_order_type: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          service_order_id: string
+          sort_order?: number
+          started_at?: string | null
+          status?: string
+          technician_notes?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          work_order_number: string
+          work_order_type?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          service_order_id?: string
+          sort_order?: number
+          started_at?: string | null
+          status?: string
+          technician_notes?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          work_order_number?: string
+          work_order_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_work_orders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_work_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       severance_payments: {
         Row: {
           calculation_base: number
@@ -18852,6 +19316,7 @@ export type Database = {
           location_id: string | null
           name: string
           tenant_id: string
+          warehouse_type: string
           zones: Json
         }
         Insert: {
@@ -18862,6 +19327,7 @@ export type Database = {
           location_id?: string | null
           name: string
           tenant_id: string
+          warehouse_type?: string
           zones?: Json
         }
         Update: {
@@ -18872,6 +19338,7 @@ export type Database = {
           location_id?: string | null
           name?: string
           tenant_id?: string
+          warehouse_type?: string
           zones?: Json
         }
         Relationships: [
@@ -20753,6 +21220,16 @@ export type Database = {
         Args: { p_payroll_run_id: string }
         Returns: undefined
       }
+      change_service_order_status: {
+        Args: {
+          p_new_status: string
+          p_note?: string
+          p_order_id: string
+          p_user_id?: string
+        }
+        Returns: undefined
+      }
+      check_device_warranty: { Args: { p_device_id: string }; Returns: Json }
       check_fiscal_period_open: {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
@@ -20787,6 +21264,19 @@ export type Database = {
           unit_cost: number
         }[]
       }
+      consume_service_part: {
+        Args: {
+          p_description?: string
+          p_is_warranty?: boolean
+          p_product_id?: string
+          p_quantity?: number
+          p_service_order_id: string
+          p_unit_price?: number
+          p_warehouse_id?: string
+          p_work_order_id?: string
+        }
+        Returns: string
+      }
       count_working_days: {
         Args: { p_end: string; p_start: string; p_tenant_id: string }
         Returns: number
@@ -20809,6 +21299,20 @@ export type Database = {
       }
       create_pdv_settlement_journal: {
         Args: { p_pdv_period_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      create_service_intake: {
+        Args: {
+          p_device_id?: string
+          p_intake_channel: string
+          p_origin_location_id?: string
+          p_partner_id?: string
+          p_priority?: string
+          p_reported_issue?: string
+          p_service_location_id: string
+          p_tenant_id: string
+          p_user_id?: string
+        }
         Returns: string
       }
       dashboard_kpi_summary: {
@@ -20868,6 +21372,10 @@ export type Database = {
         Args: { p_prefix: string; p_tenant_id: string }
         Returns: string
       }
+      generate_invoice_from_service_order: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
       generate_opening_balance: {
         Args: {
           p_fiscal_year?: number
@@ -20885,9 +21393,17 @@ export type Database = {
         Returns: string
       }
       generate_revers_number: { Args: { p_tenant_id: string }; Returns: string }
+      generate_service_order_number: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
       generate_tax_calendar: {
         Args: { p_fiscal_year: number; p_tenant_id: string }
         Returns: number
+      }
+      generate_work_order_number: {
+        Args: { p_tenant_id: string }
+        Returns: string
       }
       get_all_subordinates: {
         Args: { p_manager_id: string }
