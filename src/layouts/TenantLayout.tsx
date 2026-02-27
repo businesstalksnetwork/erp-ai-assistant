@@ -8,7 +8,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useKeyboardShortcuts, KeyboardShortcutsOverlay } from "@/hooks/useKeyboardShortcuts";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { TenantSelector } from "@/components/TenantSelector";
@@ -366,7 +366,7 @@ export default function TenantLayout() {
   const currentPath = location.pathname;
   const isMobile = useIsMobile();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
-  useKeyboardShortcuts();
+  const { showOverlay, setShowOverlay } = useKeyboardShortcuts();
 
   useEffect(() => {
     setAiSidebarOpen(!isMobile);
@@ -614,6 +614,7 @@ export default function TenantLayout() {
           </div>
         </div>
         <GlobalSearch />
+        <KeyboardShortcutsOverlay open={showOverlay} onOpenChange={setShowOverlay} />
         {isMobile && aiSidebarOpen && (
               <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setAiSidebarOpen(false)}>
                 <div className="absolute right-0 top-0 h-full w-[300px] max-w-[85vw] overflow-hidden" onClick={e => e.stopPropagation()}>
