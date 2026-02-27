@@ -94,6 +94,8 @@ const accountingNav: NavItem[] = [
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
   { key: "recurringJournals", url: "/accounting/recurring-journals", icon: RefreshCw },
   { key: "invoices", url: "/accounting/invoices", icon: Receipt, section: "invoicingPayments" },
+  { key: "proformaInvoices", url: "/accounting/proforma-invoices", icon: FileText },
+  { key: "creditDebitNotes", url: "/accounting/credit-debit-notes", icon: BookOpen },
   { key: "recurringInvoices", url: "/accounting/recurring-invoices", icon: RefreshCw },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "cashRegister", url: "/accounting/cash-register", icon: CreditCard },

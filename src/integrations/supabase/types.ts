@@ -3765,6 +3765,96 @@ export type Database = {
           },
         ]
       }
+      debit_notes: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          debit_number: string
+          id: string
+          invoice_id: string | null
+          issued_at: string | null
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          notes: string | null
+          partner_id: string | null
+          reason: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          debit_number: string
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          debit_number?: string
+          id?: string
+          invoice_id?: string | null
+          issued_at?: string | null
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debit_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_notes_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_notes_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debit_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deduction_payments: {
         Row: {
           amount: number
@@ -13464,6 +13554,7 @@ export type Database = {
           quantity: number
           sort_order: number
           tax_rate: number
+          tenant_id: string | null
           total: number
           unit_price: number
         }
@@ -13476,6 +13567,7 @@ export type Database = {
           quantity?: number
           sort_order?: number
           tax_rate?: number
+          tenant_id?: string | null
           total?: number
           unit_price?: number
         }
@@ -13488,6 +13580,7 @@ export type Database = {
           quantity?: number
           sort_order?: number
           tax_rate?: number
+          tenant_id?: string | null
           total?: number
           unit_price?: number
         }
@@ -13504,6 +13597,13 @@ export type Database = {
             columns: ["proforma_id"]
             isOneToOne: false
             referencedRelation: "proforma_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proforma_invoice_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
