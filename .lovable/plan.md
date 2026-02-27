@@ -12,14 +12,18 @@
 | v2.3 #8 | Consolidation elimination logic | IC eliminations in `ConsolidatedStatements.tsx` |
 | v2.3 #18 | Discount approval workflow | `useDiscountApproval` hook wired into Quotes + PendingApprovals |
 
-### Remaining: 6 Items → 4 Rounds
+### Round 1 — Frontend Quality ✅ DONE
 
-**Round 1 — Frontend Quality (~10 hr)**
-- **v2.2 #5-6**: Settings sidebar — verify all ~30 sub-pages reachable, align hub cards with sidebar groups
-- **v2.2 #10-11**: Migrate `InvoiceForm.tsx` (1003 lines, ~30 useState) and `SupplierInvoiceForm.tsx` (676 lines, ~25 useState) to `useForm` + Zod + `useFieldArray` for line items
+- **v2.2 #5-6**: Settings hub aligned with sidebar — added tenantProfile, integrationHealth, dataRetention, securityIncidents cards
+- **v2.2 #10-11**: InvoiceForm (1003→~990 lines) + SupplierInvoiceForm (676→~660 lines) migrated to `useForm` + Zod + `useFieldArray`
+  - Created `src/lib/invoiceSchema.ts` with Zod schemas for both forms
+  - Replaced ~20 useState → single `useForm<InvoiceFormValues>()` per form
+  - Line items managed via `useFieldArray` with proper `calcInvoiceLine` / `calcSupplierInvoiceLine` recalc on update
+
+### Remaining: 5 Items → 3 Rounds
 
 **Round 2 — ResponsiveTable Migration (~10 hr)**
-- **v2.2 #15-16**: Migrate ~19 list pages from raw `<Table>` to `<ResponsiveTable>` with sorting, export, column toggle. Targets: WmsZones, WmsTasks, PdvPeriods, FxCashRegister, DataRetentionPolicies, SecurityIncidents, FixedAssets, etc.
+- **v2.2 #15-16**: Migrate ~19 list pages from raw `<Table>` to `<ResponsiveTable>` with sorting, export, column toggle
 
 **Round 3 — IFRS Modules (~14 hr)**
 - **v2.3 #12**: IFRS 16 lease enhancements — modification/reassessment, short-term exemptions, disclosure report, maturity analysis
@@ -31,12 +35,10 @@
 
 ### Recommended Order
 ```text
-Round 1: InvoiceForm migration + Settings cleanup     ~10 hr
 Round 2: ResponsiveTable batch migration               ~10 hr
 Round 3: IFRS 16 + IFRS 15 modules                    ~14 hr
 Round 4: Supplier evaluation + Demand forecasting       ~8 hr
-                                                Total: ~42 hr
+                                                Total: ~32 hr
 ```
 
-Ready to start Round 1 on approval.
-
+Ready to start Round 2 on approval.
