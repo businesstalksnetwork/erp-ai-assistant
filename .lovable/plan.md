@@ -43,16 +43,9 @@
   - GL posting via `postWithRuleOrFallback` (IFRS15_REVENUE model code)
   - Routes added to accountingRoutes.tsx, sidebar nav under "IFRS Modules" section
 
-### Remaining: 2 Items → 1 Round
+### Round 4 — Supply Chain Intelligence ✅ DONE
 
-**Round 4 — Supply Chain Intelligence (~8 hr)**
-- **v2.3 #19**: Supplier evaluation — weighted scoring (quality/delivery/price), trend charts, comparison dashboard
-- **v2.3 #20**: Demand forecasting — moving average + seasonal decomposition from sales history, reorder point suggestions
+- **v2.3 #19**: Supplier evaluation — weighted scoring (quality/delivery/price/service) with configurable weights, radar chart, comparison bar chart, trend lines, ranking table
+- **v2.3 #20**: Demand forecasting — moving average + seasonal decomposition from invoice sales history, reorder point & safety stock calculations, forecast chart with 3-month projection
 
-### Recommended Order
-```text
-Round 4: Supplier evaluation + Demand forecasting       ~8 hr
-                                                 Total: ~8 hr
-```
-
-Ready to start Round 4 on approval.
+### All backlog items complete.
