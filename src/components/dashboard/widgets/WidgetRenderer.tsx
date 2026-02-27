@@ -29,12 +29,12 @@ interface Props {
 
 export function WidgetRenderer({ widgetConfig }: Props) {
   const { tenantId } = useTenant();
-  const { widgetId } = widgetConfig;
+  const { widgetId, configJson } = widgetConfig;
 
   // KPI widgets
   if (widgetId.startsWith(KPI_PREFIX)) {
     const metricKey = widgetId.slice(KPI_PREFIX.length);
-    return <KpiWidget metricKey={metricKey} />;
+    return <KpiWidget metricKey={metricKey} locationId={configJson?.locationId} />;
   }
 
   // Named widgets

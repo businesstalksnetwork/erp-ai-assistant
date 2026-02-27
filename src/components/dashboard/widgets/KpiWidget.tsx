@@ -89,9 +89,10 @@ function monthStart(): string {
 
 interface Props {
   metricKey: string;
+  locationId?: string;
 }
 
-export function KpiWidget({ metricKey }: Props) {
+export function KpiWidget({ metricKey, locationId }: Props) {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const isMobile = useIsMobile();
@@ -101,7 +102,7 @@ export function KpiWidget({ metricKey }: Props) {
   const kpiSummaryMetrics = ["revenue", "expenses", "profit", "cash_balance"];
   const queryKey = kpiSummaryMetrics.includes(metricKey)
     ? ["dashboard-kpi-summary", tenantId, metricKey]
-    : ["kpi-widget", metricKey, tenantId];
+    : ["kpi-widget", metricKey, tenantId, locationId];
 
   const { data, isLoading } = useQuery({
     queryKey,
@@ -242,34 +243,46 @@ export function KpiWidget({ metricKey }: Props) {
           const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).in("status", ["draft", "confirmed"]);
           return { value: count || 0 };
         }
-        // ── Retail / POS ──
+        // ── Retail / POS (with optional location filter) ──
         case "retail_revenue": {
-          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          let q = supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          if (locationId) q = q.eq("location_id", locationId);
+          const { data: txns } = await q;
           const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
           return { value: total, suffix: "RSD" };
         }
         case "retail_revenue_yesterday": {
           const yesterday = daysAgo(1);
-          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", yesterday).lt("created_at", today);
+          let q = supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", yesterday).lt("created_at", today);
+          if (locationId) q = q.eq("location_id", locationId);
+          const { data: txns } = await q;
           const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
           return { value: total, suffix: "RSD" };
         }
         case "retail_revenue_7days": {
           const from = daysAgo(7);
-          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", from);
+          let q = supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", from);
+          if (locationId) q = q.eq("location_id", locationId);
+          const { data: txns } = await q;
           const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
           return { value: total, suffix: "RSD" };
         }
         case "retail_transactions": {
-          const { count } = await supabase.from("pos_transactions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          let q = supabase.from("pos_transactions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          if (locationId) q = q.eq("location_id", locationId);
+          const { count } = await q;
           return { value: count || 0 };
         }
         case "pos_sessions_active": {
-          const { count } = await supabase.from("pos_sessions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).filter("closed_at", "is", "null");
+          let q = supabase.from("pos_sessions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).filter("closed_at", "is", "null");
+          if (locationId) q = q.eq("location_id", locationId);
+          const { count } = await q;
           return { value: count || 0 };
         }
         case "avg_basket": {
-          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          let q = supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          if (locationId) q = q.eq("location_id", locationId);
+          const { data: txns } = await q;
           if (!txns || txns.length === 0) return { value: 0, suffix: "RSD" };
           const avg = txns.reduce((s, r) => s + Number(r.total || 0), 0) / txns.length;
           return { value: Math.round(avg), suffix: "RSD" };
@@ -290,9 +303,21 @@ export function KpiWidget({ metricKey }: Props) {
     staleTime: 1000 * 60 * 3,
   });
 
+  // Fetch location name if filtered
+  const { data: locationName } = useQuery({
+    queryKey: ["location-name", locationId],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("name").eq("id", locationId!).single();
+      return data?.name || "";
+    },
+    enabled: !!locationId,
+    staleTime: 1000 * 60 * 30,
+  });
+
   const Icon = ICON_MAP[metricKey] || DollarSign;
   const border = BORDER_MAP[metricKey] || BORDER_MAP.default;
-  const label = t(metricKey as any) || metricKey;
+  const baseLabel = t(metricKey as any) || metricKey;
+  const label = locationName ? `${baseLabel} · ${locationName}` : baseLabel;
 
   if (isLoading) {
     return (

@@ -6,9 +6,15 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { WidgetConfig } from "@/hooks/useDashboardLayout";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { WidgetShortcutEditor } from "./WidgetShortcutEditor";
+import { RetailLocationPicker } from "./RetailLocationPicker";
 import { WIDGET_WIDTH_OPTIONS } from "@/config/widgetRegistry";
 
 const CONFIGURABLE_WIDGETS = new Set(["quick_actions"]);
+const RETAIL_WIDGET_PREFIXES = ["kpi_retail_", "kpi_pos_sessions_active", "kpi_avg_basket", "kpi_retail_transactions"];
+
+function isRetailWidget(widgetId: string): boolean {
+  return RETAIL_WIDGET_PREFIXES.some((p) => widgetId.startsWith(p));
+}
 
 interface Props {
   widgetConfig: WidgetConfig;
@@ -65,6 +71,9 @@ export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConf
           </button>
           {CONFIGURABLE_WIDGETS.has(widgetConfig.widgetId) && onUpdateConfig && (
             <WidgetShortcutEditor widgetConfig={widgetConfig} onUpdateConfig={onUpdateConfig} />
+          )}
+          {isRetailWidget(widgetConfig.widgetId) && onUpdateConfig && (
+            <RetailLocationPicker widgetConfig={widgetConfig} onUpdateConfig={onUpdateConfig} />
           )}
           {/* Width resize buttons */}
           {onResize && (
