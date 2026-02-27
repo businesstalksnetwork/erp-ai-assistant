@@ -34,6 +34,7 @@ const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
 const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/NotificationCategorySettings"));
 const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHealth"));
 const OrgCompanies = React.lazy(() => import("@/pages/tenant/OrgCompanies"));
+const RolePermissions = React.lazy(() => import("@/pages/tenant/RolePermissions"));
 
 export const settingsRoutes = (
   <>
@@ -68,5 +69,6 @@ export const settingsRoutes = (
     <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DmsSettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationCategorySettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><PageErrorBoundary><IntegrationHealth /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/role-permissions" element={<ProtectedRoute requiredModule="settings-role-permissions"><PageErrorBoundary><RolePermissions /></PageErrorBoundary></ProtectedRoute>} />
   </>
 );
