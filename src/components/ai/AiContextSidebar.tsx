@@ -55,17 +55,50 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   { prefix: "/crm", questions: [
     { sr: "Koji lidovi su najbliži konverziji?", en: "Which leads are closest to conversion?" },
   ]},
+  { prefix: "/sales/orders", questions: [
+    { sr: "Koje su najaktivnije narudžbine?", en: "What are the most active orders?" },
+    { sr: "Uporedi prodaju Q1 vs Q2", en: "Compare Q1 vs Q2 sales" },
+  ]},
+  { prefix: "/sales/quotes", questions: [
+    { sr: "Koliko ponuda čeka odgovor?", en: "How many quotes are pending?" },
+  ]},
   { prefix: "/sales", questions: [
     { sr: "Koji su top kupci ovog meseca?", en: "Who are top customers this month?" },
   ]},
   { prefix: "/accounting/invoices", questions: [
     { sr: "Koliko faktura je neplaćeno?", en: "How many invoices are unpaid?" },
   ]},
+  { prefix: "/accounting/bank-statements", questions: [
+    { sr: "Koliko izvoda nije usklađeno?", en: "How many statements are unreconciled?" },
+    { sr: "Prikaži neusklađene stavke starije od 30 dana", en: "Show unreconciled items older than 30 days" },
+  ]},
+  { prefix: "/accounting/bank-reconciliation", questions: [
+    { sr: "Kakav je status bankarne usklađenosti?", en: "What's the bank reconciliation status?" },
+  ]},
   { prefix: "/accounting", questions: [
     { sr: "Ima li neusklađenih stavki?", en: "Are there unreconciled items?" },
   ]},
+  { prefix: "/inventory/production", questions: [
+    { sr: "Koji proizvodni nalozi kasne?", en: "Which production orders are overdue?" },
+    { sr: "Da li imam dovoljno materijala?", en: "Do I have enough materials?" },
+  ]},
   { prefix: "/inventory", questions: [
     { sr: "Da li imam kritično niske zalihe?", en: "Do I have critically low stock?" },
+  ]},
+  { prefix: "/purchasing/orders", questions: [
+    { sr: "Koje nabavke kasne?", en: "Which POs are overdue?" },
+    { sr: "Ko su moji glavni dobavljači?", en: "Who are my main suppliers?" },
+  ]},
+  { prefix: "/purchasing", questions: [
+    { sr: "Kakva je efikasnost nabavke?", en: "What's the purchasing efficiency?" },
+  ]},
+  { prefix: "/pos/transactions", questions: [
+    { sr: "Kolika je stopa povrata?", en: "What's the refund rate?" },
+    { sr: "Ima li nefiskalizovanih transakcija?", en: "Any non-fiscalized transactions?" },
+  ]},
+  { prefix: "/pos", questions: [
+    { sr: "Kakav je POS promet danas?", en: "What's today's POS revenue?" },
+    { sr: "Koji su najtraženiji artikli?", en: "What are the best-selling items?" },
   ]},
   { prefix: "/hr/payroll", questions: [
     { sr: "Kakav je ukupan trošak plata?", en: "What's the total payroll cost?" },
@@ -80,6 +113,7 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
     { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
     { sr: "Ima li anomalija u podacima?", en: "Any anomalies in the data?" },
     { sr: "Prognoza novčanog toka", en: "Cash flow forecast" },
+    { sr: "Šta ako prihod padne 20%?", en: "What if revenue drops 20%?" },
   ]},
 ];
 
@@ -107,6 +141,13 @@ function getNarrativeContext(path: string): string | null {
     "/crm": "crm_pipeline", "/pos": "pos_performance", "/production": "production",
     "/hr": "hr_overview", "/purchasing": "purchasing", "/inventory": "inventory_health",
     "/sales": "sales_performance", "/accounting/expenses": "expenses",
+    // Round 2 additions
+    "/accounting/bank-statements": "bank_reconciliation",
+    "/accounting/bank-reconciliation": "bank_reconciliation",
+    "/assets/fleet": "fleet",
+    "/inventory/kalkulacija": "kalkulacija",
+    "/analytics/cost-center-pl": "cost_center_pl",
+    "/hr/payroll-bank-reconciliation": "payroll_recon",
   };
   for (const [prefix, ctx] of Object.entries(contextMap)) {
     if (path.startsWith(prefix)) return ctx;
