@@ -17,6 +17,7 @@ const IncomeStatement = React.lazy(() => import("@/pages/tenant/IncomeStatement"
 const BalanceSheet = React.lazy(() => import("@/pages/tenant/BalanceSheet"));
 const BilansUspeha = React.lazy(() => import("@/pages/tenant/BilansUspeha"));
 const BilansStanja = React.lazy(() => import("@/pages/tenant/BilansStanja"));
+const AopPositions = React.lazy(() => import("@/pages/tenant/AopPositions"));
 const BankStatements = React.lazy(() => import("@/pages/tenant/BankStatements"));
 const OpenItems = React.lazy(() => import("@/pages/tenant/OpenItems"));
 const PdvPeriods = React.lazy(() => import("@/pages/tenant/PdvPeriods"));
@@ -82,6 +83,7 @@ export const accountingRoutes = (
     <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule={m}><B><BalanceSheet /></B></ProtectedRoute>} />
     <Route path="accounting/reports/bilans-uspeha" element={<ProtectedRoute requiredModule={m}><B><BilansUspeha /></B></ProtectedRoute>} />
     <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule={m}><B><BilansStanja /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/aop-positions" element={<ProtectedRoute requiredModule={m}><B><AopPositions /></B></ProtectedRoute>} />
     <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule={m}><B><AgingReports /></B></ProtectedRoute>} />
     <Route path="accounting/reports/cost-center-pl" element={<ProtectedRoute requiredModule={m}><B><CostCenterPL /></B></ProtectedRoute>} />
     <Route path="accounting/reports/consolidated" element={<ProtectedRoute requiredModule={m}><B><ConsolidatedStatements /></B></ProtectedRoute>} />
