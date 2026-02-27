@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.ai-weekly-email]
 verify_jwt = false
+
+[functions.ai-daily-digest]
+verify_jwt = false
