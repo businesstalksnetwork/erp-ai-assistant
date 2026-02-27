@@ -171,6 +171,7 @@ const purchasingNav: NavItem[] = [
   { key: "purchaseOrders", url: "/purchasing/orders", icon: Truck },
   { key: "goodsReceipts", url: "/purchasing/goods-receipts", icon: ClipboardCheck },
   { key: "supplierInvoices", url: "/purchasing/supplier-invoices", icon: FileInput },
+  { key: "incomingEfakture", url: "/purchasing/incoming-efakture", icon: FileText },
 ];
 
 const returnsNav: NavItem[] = [

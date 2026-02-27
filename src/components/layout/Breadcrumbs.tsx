@@ -84,6 +84,7 @@ const routeLabels: Record<string, string> = {
   kompenzacija: "kompenzacija",
   "cost-layers": "costLayers",
   "internal-orders": "internalOrders",
+  "incoming-efakture": "incomingEfakture",
   "internal-transfers": "internalTransfers",
   "internal-receipts": "internalReceipts",
   kalkulacija: "kalkulacija",
