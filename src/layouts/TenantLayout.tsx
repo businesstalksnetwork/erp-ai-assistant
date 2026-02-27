@@ -134,6 +134,7 @@ const accountingNav: NavItem[] = [
   { key: "m4Report", url: "/accounting/reports/m4", icon: FileSpreadsheet },
   { key: "zpppdv", url: "/accounting/reports/zpppdv", icon: FileText },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
+  { key: "revenueContracts", url: "/accounting/revenue-contracts", icon: TrendingUp, section: "ifrsModules" },
 ];
 
 const analyticsNav: NavItem[] = [
@@ -260,6 +261,7 @@ const assetsNav: NavItem[] = [
   { key: "fleetRegistrations", url: "/assets/fleet/registrations", icon: FileText },
   { key: "fleetInsurance", url: "/assets/fleet/insurance", icon: Shield },
   { key: "leaseContracts", url: "/assets/leases", icon: FileSignature, section: "leaseAccounting" },
+  { key: "leaseDisclosure", url: "/assets/leases/disclosure", icon: FileSpreadsheet },
 ];
 
 const posNav: NavItem[] = [

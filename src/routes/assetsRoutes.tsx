@@ -27,6 +27,7 @@ const FleetInsurance = React.lazy(() => import("@/pages/tenant/FleetInsurance"))
 const LeaseContracts = React.lazy(() => import("@/pages/tenant/LeaseContracts"));
 const LeaseContractForm = React.lazy(() => import("@/pages/tenant/LeaseContractForm"));
 const LeaseContractDetail = React.lazy(() => import("@/pages/tenant/LeaseContractDetail"));
+const LeaseDisclosure = React.lazy(() => import("@/pages/tenant/LeaseDisclosure"));
 
 const m = "assets";
 const B = PageErrorBoundary;
@@ -58,6 +59,7 @@ export const assetsRoutes = (
     <Route path="assets/fleet/insurance" element={<ProtectedRoute requiredModule={m}><B><FleetInsurance /></B></ProtectedRoute>} />
     <Route path="assets/leases" element={<ProtectedRoute requiredModule={m}><B><LeaseContracts /></B></ProtectedRoute>} />
     <Route path="assets/leases/new" element={<ProtectedRoute requiredModule={m}><B><LeaseContractForm /></B></ProtectedRoute>} />
+    <Route path="assets/leases/disclosure" element={<ProtectedRoute requiredModule={m}><B><LeaseDisclosure /></B></ProtectedRoute>} />
     <Route path="assets/leases/:id" element={<ProtectedRoute requiredModule={m}><B><LeaseContractDetail /></B></ProtectedRoute>} />
   </>
 );
