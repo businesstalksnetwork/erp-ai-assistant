@@ -104,7 +104,6 @@ const accountingNav: NavItem[] = [
   { key: "creditDebitNotes", url: "/accounting/credit-debit-notes", icon: BookOpen },
   { key: "recurringInvoices", url: "/accounting/recurring-invoices", icon: RefreshCw },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
-  { key: "documentImport", url: "/accounting/document-import", icon: FileInput },
   { key: "cashRegister", url: "/accounting/cash-register", icon: CreditCard },
   { key: "fxCashRegister", url: "/accounting/fx-cash-register", icon: Globe },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
