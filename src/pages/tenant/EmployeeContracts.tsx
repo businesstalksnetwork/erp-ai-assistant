@@ -56,7 +56,7 @@ export default function EmployeeContracts() {
     queryFn: async () => {
       const { data } = await supabase
         .from("employee_contracts")
-        .select("*, employees(full_name, position, department_id, departments(name)), position_templates(name)")
+        .select("*, employees(full_name, position, department_id, departments!employees_department_id_fkey(name)), position_templates(name)")
         .eq("tenant_id", tenantId!)
         .order("start_date", { ascending: false });
       return data || [];
