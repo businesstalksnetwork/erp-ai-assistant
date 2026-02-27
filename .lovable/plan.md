@@ -2,8 +2,6 @@
 
 ## v2.3 Round 1 — P1 Quick Wins (4 items) ✅ COMPLETED
 
-### Completed Items
-
 **#9 — Cron schedule for recurring engines ✅**
 **#10 — Recurring invoice line items ✅**
 **#1 — OD-O Form ✅**
@@ -23,29 +21,44 @@
 ## v2.3 Round 3 — P2 Modules (4 items) ✅ COMPLETED
 
 **#5 — Direct Invoice Stock Deduction ✅**
-- Invoice posting in `InvoiceForm.tsx` now emits `invoice.posted` module event
-- `process-module-event` already has `handleInvoicePostedInventory` handler
-- Automatically deducts stock via `adjust_inventory_stock` RPC when warehouse available
-- Works alongside existing FIFO layer consumption
-
 **#6 — Foreign Currency Cash Register (Devizna blagajna) ✅**
-- Created `src/pages/tenant/FxCashRegister.tsx`
-- Multi-currency cash in/out with exchange rate and RSD equivalent
-- GL posting via posting rules engine (account 2440 — Devizna blagajna)
-- Summary cards per currency, filter by month/currency
-- Route: `/accounting/fx-cash-register`, sidebar + global search
-
 **#14 — Data Retention Policy Enforcement ✅**
-- Created `src/pages/tenant/DataRetentionPolicies.tsx`
-- Configurable per-entity retention periods (contact, employee, lead, invoice, etc.)
-- Action types: flag, archive, anonymize
-- Manual enforcement run with execution logging
-- Route: `/settings/data-retention`, sidebar + global search
-
 **#15 — Data Breach Notification Mechanism ✅**
-- Created `src/pages/tenant/SecurityIncidents.tsx`
-- ZZPL Art. 52 compliant: 72-hour notification deadline tracking
-- Severity levels: low/medium/high/critical
-- Status workflow: detected → investigating → notified → resolved
-- Dashboard with active/critical incident counts
-- Route: `/settings/security-incidents`, sidebar + global search
+
+---
+
+## v2.3 Round 4 — Final Items (7 items) ✅ COMPLETED
+
+**#4 — Notes to Financial Statements ✅**
+- Created `src/pages/tenant/reports/NotesToFinancialStatements.tsx`
+- 14 IAS 1-compliant note sections with auto-populated GL data
+- Auto-fills: revenue, material costs, employee costs, depreciation, assets, receivables, payables, loans, IC transactions
+- Manual editing for policies, general info, and post-balance events
+- Export to .txt, print support, legal entity filter
+- Route: `/accounting/reports/notes-to-fs`
+
+**#11 — IFRS-format Financial Reports ✅**
+- Created `src/pages/tenant/reports/IFRSIncomeStatement.tsx`
+  - IAS 1 Statement of Profit or Loss with standard line items
+  - Revenue → COGS → Gross Profit → EBIT → PBT → Net Profit structure
+  - Mapped to Serbian CoA 2-digit classes (60-66 revenue, 50-58 expenses)
+- Created `src/pages/tenant/reports/IFRSBalanceSheet.tsx`
+  - IAS 1 Statement of Financial Position
+  - 5 sections: Non-Current Assets, Current Assets, Equity, NCL, CL
+  - Balance check (Assets = Equity + Liabilities)
+- Both added to Reports index with IFRS badges
+
+**#8 — Multi-entity Consolidated Reporting ✅ (Already implemented)**
+- `ConsolidatedStatements.tsx` fully functional with per-entity P&L and IC eliminations
+
+**#12 — Automated Bank Reconciliation ✅ (Already implemented)**
+- `BankStatements.tsx` has confidence scoring engine, auto-match, bulk confirm
+
+**#13 — Inter-company Eliminations ✅ (Already implemented)**
+- `ConsolidatedStatements.tsx` already queries `intercompany_transactions` and eliminates from consolidated totals
+
+---
+
+## v2.3 COMPLETE ✅
+
+All 20 gap analysis items have been addressed across 4 rounds.

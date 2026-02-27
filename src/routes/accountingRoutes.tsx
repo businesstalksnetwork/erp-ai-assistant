@@ -52,6 +52,9 @@ const PPPPO = React.lazy(() => import("@/pages/tenant/reports/PPPPO"));
 const OdOForm = React.lazy(() => import("@/pages/tenant/reports/OdOForm"));
 const M4Report = React.lazy(() => import("@/pages/tenant/reports/M4Report"));
 const ZpppdvForm = React.lazy(() => import("@/pages/tenant/reports/ZpppdvForm"));
+const NotesToFinancialStatements = React.lazy(() => import("@/pages/tenant/reports/NotesToFinancialStatements"));
+const IFRSIncomeStatement = React.lazy(() => import("@/pages/tenant/reports/IFRSIncomeStatement"));
+const IFRSBalanceSheet = React.lazy(() => import("@/pages/tenant/reports/IFRSBalanceSheet"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -108,5 +111,8 @@ export const accountingRoutes = (
     <Route path="accounting/reports/od-o" element={<ProtectedRoute requiredModule={m}><B><OdOForm /></B></ProtectedRoute>} />
     <Route path="accounting/reports/m4" element={<ProtectedRoute requiredModule={m}><B><M4Report /></B></ProtectedRoute>} />
     <Route path="accounting/reports/zpppdv" element={<ProtectedRoute requiredModule={m}><B><ZpppdvForm /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/notes-to-fs" element={<ProtectedRoute requiredModule={m}><B><NotesToFinancialStatements /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/ifrs-income-statement" element={<ProtectedRoute requiredModule={m}><B><IFRSIncomeStatement /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/ifrs-balance-sheet" element={<ProtectedRoute requiredModule={m}><B><IFRSBalanceSheet /></B></ProtectedRoute>} />
   </>
 );
