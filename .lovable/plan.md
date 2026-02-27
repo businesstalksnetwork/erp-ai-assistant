@@ -1,92 +1,73 @@
 
 
-## PRD v1.1 Review — Gap Analysis & Implementation Plan
+## Codebase Cleanup & Page Consolidation — Implementation Plan
 
-### What's Already Done (Phases 1-5 v1.0)
-- Product categories table + UI
-- Purchase prices, wholesale price lists/prices tables
-- Production cost columns on production_orders + bom_lines
-- Pricing Center (4-tab unified page)
-- Sidebar restructuring
-- Kalkulacija/Nivelacija basic master data sync (updates product defaults, inserts purchase_prices, upserts retail_prices for default list)
-- Production cost flow (completion dialog, BOM cost display)
-- Price resolver utility + integration in InvoiceForm/PosTerminal
+### Already Done (Skip)
+- **BUG-2** (broken RPCs): Fixed in previous session
+- **Nivelacija/Kalkulacija location_id + legal_entity_id**: Already added
 
-### What's NEW in v1.1 (Not Yet Implemented)
+### Phase 1: Bug Fixes & Nav Cleanup (~1 round)
 
-**Phase 0: BLOCKER — RPC Bug Fix**
+1. **Remove Partners nav item** from `TenantLayout.tsx` (line 167: points to wrong URL, page is just a redirect)
+2. **Delete `Partners.tsx`**, remove route from `crmRoutes.tsx`
+3. **Add `DataQualityDashboard`** to analyticsNav in `TenantLayout.tsx`
+4. **Add `OnboardingChecklists`** to hrNav in `TenantLayout.tsx`
+5. **Move `CashFlowStatement` + `ComplianceDashboard`** routes from `otherRoutes.tsx` to `accountingRoutes.tsx`
 
-The later migration (`20260213115251`) overwrote correct RPCs with broken ones that reference non-existent tables:
-- `kalkulacija_lines` (should be `kalkulacija_items`)
-- `journal_entry_lines` (should be `journal_lines`)  
-- `v_kal.legal_entity_id`, `v_kal.document_date`, `v_kal.document_number` (don't exist)
+### Phase 2: Delete 7 Superseded Pages (~1 round)
 
-The earlier migration (`20260213113656`) has the correct versions. A new migration must restore the correct RPCs with enhancements.
+Delete files + remove routes + add redirects for:
+1. `RetailPrices.tsx` → redirect to `/inventory/pricing-center`
+2. `WebPrices.tsx` → redirect to `/inventory/pricing-center`
+3. `BalanceSheet.tsx` → redirect to `/accounting/reports/bilans-stanja`
+4. `IncomeStatement.tsx` → redirect to `/accounting/reports/bilans-uspeha`
+5. `Reports.tsx` → redirect to `/accounting`
+6. `HrHub.tsx` → redirect to `/hr/employees`
+7. `ProductionHub.tsx` → redirect to `/production/orders`
 
-**Phase 3 v1.1: Per-Objekat (Per-Location) Kalkulacija/Nivelacija**
+Remove corresponding sidebar entries and lazy imports.
 
-This is the largest new requirement — Serbian law mandates per-location pricing documents:
+### Phase 3: Merge 14 Pages into Tabs (~4 rounds)
 
-1. **Schema changes**: Add `location_id` + `legal_entity_id` columns to `kalkulacije` and `nivelacije` tables
-2. **RPC rewrite**: Both RPCs must use `location_id` for GL analytical sub-accounts (1320-{code}, 1329-{code}, 1340-{code}) and include embedded VAT (account 1340) from the correct earlier logic
-3. **Kalkulacija UI**: Mandatory `location_id` picker (retail location) + `legal_entity_id` picker; post updates `retail_prices` for **that location's price list** (not global default)
-4. **Nivelacija UI**: Same mandatory pickers; `old_retail_price` prefilled from `retail_prices` for selected location (not from product defaults); auto-fetch `quantity_on_hand` from `inventory_stock` for warehouse × product
-5. **Retail price list per-location constraint**: Unique active list per location index
-6. **Auto-nivelacija** (P1): When wholesale price changes, offer to generate nivelacije for all retail locations
+**Round 3a — HR Work Time:**
+- Merge `WorkLogsBulkEntry.tsx` + `WorkLogsCalendar.tsx` as tabs into `WorkLogs.tsx`
+- Merge `NightWork.tsx` + `OvertimeHours.tsx` into new `SpecialHours.tsx` with 2 tabs
 
-### Implementation Plan
+**Round 3b — Payroll + AI:**
+- Merge `PayrollCategories.tsx` + `PayrollPaymentTypes.tsx` as tabs into `PayrollParameters.tsx`
+- Merge `AiPlanningCalendar.tsx` + `AiBottleneckPrediction.tsx` as tabs into `AiPlanningDashboard.tsx`
 
----
+**Round 3c — Inventory + DMS + WMS:**
+- Merge `InventoryHealth.tsx` as tab into `InventoryStock.tsx`
+- Merge `DocumentBrowser.tsx` + `DmsReports.tsx` as tabs into `Documents.tsx`
+- Merge `WmsLabor.tsx` as tab into `WmsDashboard.tsx`
 
-**Round 1: Fix Broken RPCs + Schema (BLOCKER)**
+**Round 3d — Settings:**
+- Merge `CompanyCategoriesSettings.tsx` + `OpportunityStagesSettings.tsx` into `Settings.tsx` as accordion sections
+- Remove old routes, add redirects, update sidebar
 
-1. New SQL migration:
-   - `ALTER TABLE kalkulacije ADD COLUMN location_id UUID REFERENCES locations(id)`
-   - `ALTER TABLE kalkulacije ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id)`
-   - `ALTER TABLE nivelacije ADD COLUMN location_id UUID REFERENCES locations(id)`
-   - `ALTER TABLE nivelacije ADD COLUMN legal_entity_id UUID REFERENCES legal_entities(id)`
-   - `CREATE UNIQUE INDEX idx_retail_price_lists_location_active ON retail_price_lists(tenant_id, location_id) WHERE is_active = true AND location_id IS NOT NULL`
-   - `CREATE OR REPLACE FUNCTION post_kalkulacija` — merge correct table names from migration `113656` with embedded VAT logic from `115251`, add `location_id` for GL dimension_values and per-location retail_prices upsert
-   - `CREATE OR REPLACE FUNCTION post_nivelacija` — same pattern: correct table names + embedded VAT split + location-scoped GL
+### Phase 4: Move Misplaced Pages (~1 round)
 
-2. Add indexes on `kalkulacije(location_id)` and `nivelacije(location_id)`
+1. Move `AiBriefing.tsx` route/sidebar from Production AI → Analytics section
+2. Move `AiAuditLog.tsx` route/sidebar from Production AI → Settings section (already linked from Settings.tsx)
+3. Update `TenantLayout.tsx` sidebar for all moved items
 
-**Round 2: Per-Objekat Kalkulacija UI**
+### Phase 5: Cleanup
 
-3. Update `Kalkulacija.tsx`:
-   - Add `location_id` and `legal_entity_id` to form state (mandatory)
-   - Fetch `locations` and `legal_entities` queries
-   - Add Select pickers for both (required before saving)
-   - Save `location_id` and `legal_entity_id` on the `kalkulacije` record
-   - Update `postMutation`: after RPC, upsert `retail_prices` for **the location's price list** (query `retail_price_lists WHERE location_id = X`), not the global default
-   - Show location column in kalkulacije list table
+- Remove all deleted file imports from route files
+- Verify no broken references
+- Update translations for new tab names ("Grupni unos", "Kalendar", "Noćni rad", "Prekovremeni", "OVP kategorije", "Vrste isplate", etc.)
 
-**Round 3: Per-Objekat Nivelacija UI**
+### Files Affected
 
-4. Update `Nivelacija.tsx`:
-   - Add `location_id` and `legal_entity_id` to form state (mandatory)
-   - Fetch locations and legal entities
-   - When location selected: prefill `old_retail_price` from `retail_prices` for that location's price list (not from `products.default_retail_price`)
-   - Auto-fetch `quantity_on_hand` from `inventory_stock` when product + warehouse selected
-   - Update `postMutation`: upsert `retail_prices` for **that location's price list**
-   - Show location column in nivelacije list table
+| Action | Files |
+|--------|-------|
+| Delete (8) | Partners, RetailPrices, WebPrices, BalanceSheet, IncomeStatement, Reports, HrHub, ProductionHub |
+| Delete after merge (14) | WorkLogsBulkEntry, WorkLogsCalendar, NightWork, OvertimeHours, PayrollCategories, PayrollPaymentTypes, AiPlanningCalendar, AiBottleneckPrediction, InventoryHealth, DocumentBrowser, DmsReports, WmsLabor, CompanyCategoriesSettings, OpportunityStagesSettings |
+| Edit - merge targets (7) | WorkLogs, SpecialHours (new), PayrollParameters, AiPlanningDashboard, InventoryStock, Documents, WmsDashboard, Settings |
+| Edit - routes (6) | All 6 route files + otherRoutes |
+| Edit - layout (1) | TenantLayout.tsx |
+| Edit - i18n (1) | translations.ts |
 
-**Round 4: Translation Keys**
-
-5. Add missing i18n keys: `location`, `legalEntity`, `selectLocation`, `selectLegalEntity`, `locationRequired`, `legalEntityRequired`, `autoNivelacija`, `perLocationPricing`
-
----
-
-### Technical Details
-
-**RPC Fix Strategy**: The new migration merges:
-- Correct table/column names from `20260213113656` (`kalkulacija_items`, `journal_lines`, `account_id` lookups, `kalkulacija_date`/`kalkulacija_number`)
-- Embedded VAT (account 1340) calculation from `20260213115251`
-- New `location_id` parameter for GL dimension tracking via `journal_lines.description` including location code
-
-**Per-Location Retail Price Resolution**: Post kalkulacija will query `retail_price_lists WHERE location_id = X AND is_active = true` to find the correct price list, then upsert into `retail_prices` for that list. If no location-specific list exists, fall back to creating one automatically.
-
-**Files to create/modify**:
-- New: 1 SQL migration
-- Edit: `Kalkulacija.tsx`, `Nivelacija.tsx`, `translations.ts`
+**Net result: 250 → 228 pages (-22)**
 
