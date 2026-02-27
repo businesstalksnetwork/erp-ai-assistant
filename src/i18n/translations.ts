@@ -3093,6 +3093,9 @@ export const translations = {
     greetingMorning: "Good morning",
     greetingAfternoon: "Good afternoon",
     greetingEvening: "Good evening",
+    morningBriefing: "Morning Briefing",
+    middayBriefing: "Midday Briefing",
+    eveningBriefing: "Evening Briefing",
   },
   sr: {
     // Auth
@@ -6138,6 +6141,9 @@ export const translations = {
     greetingMorning: "Dobro jutro",
     greetingAfternoon: "Dobar dan",
     greetingEvening: "Dobro veče",
+    morningBriefing: "Jutarnji pregled",
+    middayBriefing: "Podnevni pregled",
+    eveningBriefing: "Večernji pregled",
   },
 } as const;
 

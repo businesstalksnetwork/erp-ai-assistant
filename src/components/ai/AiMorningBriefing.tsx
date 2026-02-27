@@ -48,7 +48,7 @@ export function AiMorningBriefing({ tenantId }: Props) {
             <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Sun className="h-4 w-4 text-amber-500" />
               <CardTitle className="text-sm">
-                {locale === "sr" ? "Jutarnji pregled" : "Morning Briefing"}
+                {t("morningBriefing")}
               </CardTitle>
               <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
             </CollapsibleTrigger>
@@ -57,7 +57,7 @@ export function AiMorningBriefing({ tenantId }: Props) {
               size="icon-sm"
               onClick={() => refetch()}
               disabled={isFetching}
-              title={locale === "sr" ? "Osvježi" : "Refresh"}
+              title={t("refresh")}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
             </Button>

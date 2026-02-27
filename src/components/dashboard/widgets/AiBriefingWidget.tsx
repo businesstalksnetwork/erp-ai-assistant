@@ -35,13 +35,13 @@ export function AiBriefingWidget({ tenantId }: Props) {
   const timeOfDay = useMemo(getTimeOfDay, []);
   const Icon = ICONS[timeOfDay];
 
-  const titleMap: Record<TimeOfDay, Record<string, string>> = {
-    morning: { sr: "Jutarnji pregled", en: "Morning Briefing" },
-    midday: { sr: "Podnevni pregled", en: "Midday Briefing" },
-    evening: { sr: "Večernji pregled", en: "Evening Briefing" },
+  const titleKeyMap: Record<TimeOfDay, "morningBriefing" | "middayBriefing" | "eveningBriefing"> = {
+    morning: "morningBriefing",
+    midday: "middayBriefing",
+    evening: "eveningBriefing",
   };
 
-  const title = titleMap[timeOfDay][locale === "sr" ? "sr" : "en"];
+  const title = t(titleKeyMap[timeOfDay]);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["ai-briefing", tenantId, timeOfDay],
