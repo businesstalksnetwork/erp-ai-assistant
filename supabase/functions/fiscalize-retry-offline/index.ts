@@ -37,13 +37,14 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Get offline receipts (max 5 retries)
+    // Get offline receipts (max 5 retries), ordered by retry_count ASC for fairness
     const { data: offlineReceipts } = await supabase
       .from("fiscal_receipts")
       .select("*, fiscal_devices(api_url, pac)")
       .eq("tenant_id", tenant_id)
       .like("receipt_number", "OFFLINE-%")
       .lt("retry_count", 5)
+      .order("retry_count", { ascending: true })
       .order("created_at");
 
     if (!offlineReceipts || offlineReceipts.length === 0) {
@@ -57,6 +58,17 @@ Deno.serve(async (req) => {
       if (!device?.api_url) {
         results.push({ id: receipt.id, status: "skipped", reason: "No PFR URL" });
         continue;
+      }
+
+      // Exponential backoff: skip if last_retry_at is too recent
+      // Delay = 2^retry_count seconds (1s, 2s, 4s, 8s, 16s)
+      if (receipt.last_retry_at && receipt.retry_count > 0) {
+        const backoffMs = Math.pow(2, receipt.retry_count) * 1000;
+        const lastRetry = new Date(receipt.last_retry_at).getTime();
+        if (Date.now() - lastRetry < backoffMs) {
+          results.push({ id: receipt.id, status: "skipped", reason: "backoff" });
+          continue;
+        }
       }
 
       try {
