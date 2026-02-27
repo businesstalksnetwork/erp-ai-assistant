@@ -1,56 +1,53 @@
 
 
-## Phase 4: AI Personalization — Role-Aware Briefings and Chat
+## Phase 1: Data Foundation — Implementation Plan
 
-### Current State
-- **Briefing** (`ai-executive-briefing`): Already has `roleSystemPrompts` and `detectRole()` but uses string matching on the role name (e.g., "account" → accountant). Does NOT use the actual `app_role` enum value directly.
-- **Chat** (`ai-assistant`): System prompt is generic — same for all roles. No role-aware tool filtering or context scoping.
-- **Frontend**: Neither `AiBriefing.tsx` nor `useAiStream.ts` sends the user's role to the edge functions. The briefing function fetches it server-side from `tenant_members`, but chat does not.
-- Both edge functions already fetch membership; the chat function fetches `membership.id` but not `membership.role`.
+This is the first phase of the PRD v2.5 upgrade. Nothing from this PRD has been implemented yet. Phase 1 has three parts.
 
-### Plan
+### 1.1 Add `manager_id` + `org_level` to employees
 
-#### Step 1: Edge Function — Role-aware chat system prompt
+**Database migration:**
+- Add `manager_id UUID` (self-referencing FK) and `org_level INT DEFAULT 3` to `employees`
+- Create indexes on both columns
+- Create `get_direct_reports(p_manager_id)` and `get_all_subordinates(p_manager_id)` recursive SQL functions
 
-Modify `supabase/functions/ai-assistant/index.ts`:
-- Fetch `membership.role` and `membership.data_scope` (already querying `tenant_members`, just need to select more columns)
-- Add role-specific system prompt sections (similar to briefing's `roleSystemPrompts`) that shape the assistant's personality and focus areas per role
-- Restrict tool availability by role:
-  - `accountant` → prioritize `explain_account`, `query_tenant_data`, `forecast_cashflow`
-  - `sales` → prioritize `get_partner_dossier`, pipeline queries
-  - `hr` → payroll/employee focus, hide financial deep-dive tools
-  - `store` → POS/inventory focus, hide accounting tools
-  - `admin`/`super_admin`/`manager` → all tools
-- Include `data_scope` in context so AI knows to filter appropriately
+**Frontend changes:**
+- `src/pages/tenant/EmployeeDetail.tsx` — add manager picker (select from employees in same tenant) and org_level dropdown (0=CEO, 1=Director, 2=Manager, 3=Staff) in the edit form
+- `src/pages/tenant/Profile.tsx` — show manager name from employee join
 
-#### Step 2: Edge Function — Briefing `detectRole` alignment
+### 1.2 `employee_locations` junction table
 
-Modify `supabase/functions/ai-executive-briefing/index.ts`:
-- Replace fuzzy `detectRole()` string matching with direct use of the `app_role` enum value from `membership.role`
-- Map enum values directly: `admin`→admin, `accountant`→accountant, `sales`→sales, `hr`→hr, `store`→warehouse, `manager`→manager, `user`→warehouse
-- Keep super_admin fallback to admin prompt
+**Database migration:**
+- Create `employee_locations` table with `employee_id`, `location_id`, `is_primary`
+- Enable RLS with tenant isolation policy
+- Create trigger `ensure_single_primary_location` to enforce one primary per employee
+- Migrate existing `employees.location_id` data into the junction table
 
-#### Step 3: Frontend — Pass role to chat
+### 1.3 Expand `app_role` enum from 7 → 15 roles
 
-Modify `src/hooks/useAiStream.ts`:
-- Accept `role` in options, pass it in the request body to `ai-assistant`
+**Database migration:**
+- Add 11 new enum values: `finance_director`, `hr_manager`, `hr_staff`, `sales_manager`, `sales_rep`, `store_manager`, `cashier`, `warehouse_manager`, `warehouse_worker`, `production_manager`, `production_worker`, `viewer`
 
-Modify `src/components/ai/AiContextSidebar.tsx`:
-- Read `role` from `useTenant()` and pass to `useAiStream`
+**Frontend changes:**
 
-#### Step 4: Role-filtered suggested questions
+- `src/config/rolePermissions.ts` — extend `TenantRole` union type with all 15 roles, add module permission mappings per the PRD table
+- `src/config/roleNotificationCategories.ts` — add new roles to the category mapping (finance_director → all, hr_manager/hr_staff → hr+approval, sales_manager/sales_rep → invoice, etc.)
+- `src/pages/tenant/Dashboard.tsx` — extend role switch to map new roles to existing dashboard components (finance_director→Accountant, hr_manager/hr_staff→HR, sales_manager/sales_rep→Sales, store_manager/cashier→Store, warehouse_manager/warehouse_worker→Store, production_manager/production_worker→Manager, viewer→Store)
+- `src/pages/tenant/RolePermissions.tsx` — extend ROLES array with all 15 roles
 
-Modify `AiContextSidebar.tsx`:
-- Filter `SUGGESTED_QUESTIONS` by role relevance (e.g., sales users don't see accounting questions on the dashboard, HR users see HR-focused prompts)
+### Files to create
+- None (all changes to existing files)
 
 ### Files to modify
-- `supabase/functions/ai-assistant/index.ts` — role-aware prompt + tool filtering
-- `supabase/functions/ai-executive-briefing/index.ts` — fix `detectRole`
-- `src/hooks/useAiStream.ts` — pass role
-- `src/components/ai/AiContextSidebar.tsx` — role-filtered suggestions
+- `src/config/rolePermissions.ts`
+- `src/config/roleNotificationCategories.ts`
+- `src/pages/tenant/Dashboard.tsx`
+- `src/pages/tenant/RolePermissions.tsx`
+- `src/pages/tenant/EmployeeDetail.tsx`
+- `src/pages/tenant/Profile.tsx`
 
-### Technical Details
-- No database changes needed — all role data already exists in `tenant_members`
-- Tool filtering is soft (AI instructions) not hard (tools still registered but prompt says "focus on X")
-- Backward compatible: if role is not sent, defaults to current behavior
+### Database migrations (3 separate)
+1. `add_employee_manager_hierarchy` — manager_id, org_level, indexes, helper functions
+2. `create_employee_locations` — junction table, RLS, trigger, data migration
+3. `expand_app_role_enum` — 11 new enum values
 
