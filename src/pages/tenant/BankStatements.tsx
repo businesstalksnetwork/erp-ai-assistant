@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck } from "lucide-react";
+import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck, BookOpen } from "lucide-react";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import PostingPreviewPanel, { type PreviewLine } from "@/components/accounting/PostingPreviewPanel";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSearchParams } from "react-router-dom";
 
@@ -36,6 +37,8 @@ export default function BankStatements() {
   const [matchType, setMatchType] = useState<"invoice" | "supplier_invoice">("invoice");
   const [matchId, setMatchId] = useState("");
   const [lineFilter, setLineFilter] = useState<"all" | "unmatched" | "suggested" | "matched" | "posted">("all");
+  const [postLineDialog, setPostLineDialog] = useState<any>(null);
+  const [selectedPaymentModel, setSelectedPaymentModel] = useState("CUSTOMER_PAYMENT");
 
   // Pre-select bank account from URL query param
   useEffect(() => {
@@ -56,6 +59,17 @@ export default function BankStatements() {
     enabled: !!tenantId,
   });
 
+  // Fetch payment models for per-line posting
+  const { data: paymentModels = [] } = useQuery({
+    queryKey: ["payment_models"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payment_models").select("*").order("code");
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Auto-generate statement number when bank account is selected
   const generateStatementNumber = useCallback(async (bankAccountId: string) => {
     if (!bankAccountId || !tenantId) return;
@@ -63,9 +77,15 @@ export default function BankStatements() {
     if (!bankAccount) return;
     const acctNum = bankAccount.account_number || "";
     const suffix = acctNum.length >= 3 ? acctNum.slice(-3) : acctNum;
-    const { count } = await supabase.from("bank_statements").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("bank_account_id", bankAccountId);
+    // Filter by fiscal year for proper sequential numbering
+    const fiscalYear = new Date().getFullYear();
+    const yearStart = `${fiscalYear}-01-01`;
+    const yearEnd = `${fiscalYear}-12-31`;
+    const { count } = await supabase.from("bank_statements").select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId).eq("bank_account_id", bankAccountId)
+      .gte("statement_date", yearStart).lte("statement_date", yearEnd);
     const seq = (count ?? 0) + 1;
-    setImportForm(f => ({ ...f, statement_number: `IZ${suffix}-${seq}` }));
+    setImportForm(f => ({ ...f, statement_number: `IZ${suffix}-${String(seq).padStart(3, "0")}` }));
   }, [bankAccounts, tenantId]);
 
   // Fetch statements
@@ -299,6 +319,47 @@ export default function BankStatements() {
     onError: () => toast({ title: t("error"), variant: "destructive" }),
   });
 
+  // Single-line GL posting with payment model selection
+  const postSingleLineMutation = useMutation({
+    mutationFn: async ({ line, modelCode }: { line: any; modelCode: string }) => {
+      const fallbackLines = line.direction === "credit"
+        ? [
+            { accountCode: "2410", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
+            { accountCode: "2040", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
+          ]
+        : [
+            { accountCode: "4350", debit: line.amount, credit: 0, description: t("bankPayment"), sortOrder: 0 },
+            { accountCode: "2410", debit: 0, credit: line.amount, description: t("bankPayment"), sortOrder: 1 },
+          ];
+
+      const jeId = await postWithRuleOrFallback({
+        tenantId: tenantId!,
+        userId: user?.id || null,
+        entryDate: line.line_date,
+        modelCode,
+        amount: line.amount,
+        description: `${t("bankPayment")}: ${line.description || line.partner_name || ""}`,
+        reference: `BS-${line.payment_reference || line.id.slice(0, 8)}`,
+        context: { bankAccountGlCode: "2410", partnerReceivableCode: "2040", partnerPayableCode: "4350" },
+        fallbackLines,
+      });
+
+      await supabase.from("bank_statement_lines").update({ journal_entry_id: jeId, match_status: "matched" }).eq("id", line.id);
+
+      if (line.matched_invoice_id) await supabase.from("invoices").update({ status: "paid" }).eq("id", line.matched_invoice_id);
+      if (line.matched_supplier_invoice_id) await supabase.from("supplier_invoices").update({ status: "paid" }).eq("id", line.matched_supplier_invoice_id);
+
+      return jeId;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank_statement_lines"] });
+      qc.invalidateQueries({ queryKey: ["journal-entries"] });
+      toast({ title: t("success"), description: t("journalEntriesPosted") });
+      setPostLineDialog(null);
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   // Post matched lines as journal entries
   const postMatchedMutation = useMutation({
     mutationFn: async (statementId: string) => {
@@ -512,10 +573,18 @@ export default function BankStatements() {
                     <TableCell className="text-right font-mono">{Number(l.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell><Badge variant={l.direction === "credit" ? "default" : "destructive"}>{l.direction === "credit" ? "↓ " + t("inflow") : "↑ " + t("outflow")}</Badge></TableCell>
                     <TableCell>{matchStatusBadge(l.match_status, l.match_confidence)}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
                       {l.match_status === "unmatched" && !l.journal_entry_id && (
                         <Button variant="ghost" size="sm" onClick={() => { setMatchingLine(l); setMatchType(l.direction === "credit" ? "invoice" : "supplier_invoice"); setMatchId(""); setMatchDialogOpen(true); }}>
                           <Link2 className="h-3 w-3 mr-1" />{t("bsMatch")}
+                        </Button>
+                      )}
+                      {!l.journal_entry_id && (l.match_status === "matched" || l.match_status === "manually_matched" || l.match_status === "unmatched") && (
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setPostLineDialog(l);
+                          setSelectedPaymentModel(l.direction === "credit" ? "CUSTOMER_PAYMENT" : "VENDOR_PAYMENT");
+                        }}>
+                          <BookOpen className="h-3 w-3 mr-1" />Proknjiži
                         </Button>
                       )}
                       {l.journal_entry_id && <Badge variant="outline"><FileText className="h-3 w-3 mr-1" />{t("posted")}</Badge>}
@@ -606,6 +675,69 @@ export default function BankStatements() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setMatchDialogOpen(false)}>{t("cancel")}</Button>
             <Button onClick={() => manualMatchMutation.mutate()} disabled={!matchId || manualMatchMutation.isPending}>{t("bsMatch")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Per-Line GL Posting Dialog */}
+      <Dialog open={!!postLineDialog} onOpenChange={(v) => { if (!v) setPostLineDialog(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Knjiženje stavke izvoda</DialogTitle></DialogHeader>
+          {postLineDialog && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-md bg-muted text-sm space-y-1">
+                <p><strong>Datum:</strong> {postLineDialog.line_date}</p>
+                <p><strong>Iznos:</strong> {Number(postLineDialog.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })} RSD</p>
+                <p><strong>Smer:</strong> {postLineDialog.direction === "credit" ? "↓ Uplata" : "↑ Isplata"}</p>
+                <p><strong>Partner:</strong> {postLineDialog.partner_name || "—"}</p>
+                <p><strong>Poziv:</strong> {postLineDialog.payment_reference || "—"}</p>
+              </div>
+
+              <div>
+                <Label>Model plaćanja</Label>
+                <Select value={selectedPaymentModel} onValueChange={setSelectedPaymentModel}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {paymentModels.map((m: any) => (
+                      <SelectItem key={m.id} value={m.code}>{m.code} — {m.name}</SelectItem>
+                    ))}
+                    {paymentModels.length === 0 && (
+                      <>
+                        <SelectItem value="CUSTOMER_PAYMENT">CUSTOMER_PAYMENT</SelectItem>
+                        <SelectItem value="VENDOR_PAYMENT">VENDOR_PAYMENT</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-2 block">Pregled knjiženja (fallback)</Label>
+                <div className="rounded border p-2 text-xs space-y-1 font-mono">
+                  {postLineDialog.direction === "credit" ? (
+                    <>
+                      <div className="flex justify-between"><span>DR 2410 Tekući račun</span><span>{Number(postLineDialog.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>CR 2040 Kupci u zemlji</span><span>{Number(postLineDialog.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between"><span>DR 4350 Dobavljači u zemlji</span><span>{Number(postLineDialog.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>CR 2410 Tekući račun</span><span>{Number(postLineDialog.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span></div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPostLineDialog(null)}>{t("cancel")}</Button>
+            <Button
+              onClick={() => postSingleLineMutation.mutate({ line: postLineDialog, modelCode: selectedPaymentModel })}
+              disabled={postSingleLineMutation.isPending}
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              {postSingleLineMutation.isPending ? t("saving") : "Proknjiži"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
