@@ -50,6 +50,7 @@ const PK1Book = React.lazy(() => import("@/pages/tenant/reports/PK1Book"));
 const PPPPO = React.lazy(() => import("@/pages/tenant/reports/PPPPO"));
 const OdOForm = React.lazy(() => import("@/pages/tenant/reports/OdOForm"));
 const M4Report = React.lazy(() => import("@/pages/tenant/reports/M4Report"));
+const ZpppdvForm = React.lazy(() => import("@/pages/tenant/reports/ZpppdvForm"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -104,5 +105,6 @@ export const accountingRoutes = (
     <Route path="accounting/reports/ppp-po" element={<ProtectedRoute requiredModule={m}><B><PPPPO /></B></ProtectedRoute>} />
     <Route path="accounting/reports/od-o" element={<ProtectedRoute requiredModule={m}><B><OdOForm /></B></ProtectedRoute>} />
     <Route path="accounting/reports/m4" element={<ProtectedRoute requiredModule={m}><B><M4Report /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/zpppdv" element={<ProtectedRoute requiredModule={m}><B><ZpppdvForm /></B></ProtectedRoute>} />
   </>
 );

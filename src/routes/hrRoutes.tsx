@@ -33,6 +33,7 @@ const NonEmploymentIncome = React.lazy(() => import("@/pages/tenant/NonEmploymen
 const PppdReview = React.lazy(() => import("@/pages/tenant/PppdReview"));
 const TravelOrders = React.lazy(() => import("@/pages/tenant/TravelOrders"));
 const TravelOrderForm = React.lazy(() => import("@/pages/tenant/TravelOrderForm"));
+const EmployeeDataExport = React.lazy(() => import("@/pages/tenant/reports/EmployeeDataExport"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -70,5 +71,6 @@ export const hrRoutes = (
     <Route path="hr/travel-orders" element={<ProtectedRoute requiredModule={m}><B><TravelOrders /></B></ProtectedRoute>} />
     <Route path="hr/travel-orders/new" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
     <Route path="hr/travel-orders/:id" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
+    <Route path="hr/employee-data-export" element={<ProtectedRoute requiredModule={m}><B><EmployeeDataExport /></B></ProtectedRoute>} />
   </>
 );

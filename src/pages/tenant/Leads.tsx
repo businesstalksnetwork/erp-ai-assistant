@@ -100,6 +100,32 @@ export default function Leads() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Lead → Partner conversion
+  const convertToPartnerMutation = useMutation({
+    mutationFn: async (lead: any) => {
+      const partnerName = lead.company || `${lead.first_name || lead.name} ${lead.last_name || ""}`.trim();
+      const { data: partner, error } = await supabase.from("partners").insert({
+        tenant_id: tenantId!,
+        name: partnerName,
+        contact_person: `${lead.first_name || lead.name} ${lead.last_name || ""}`.trim(),
+        email: lead.email || null,
+        phone: lead.phone || null,
+        type: "customer",
+        status: "active",
+      }).select("id").single();
+      if (error) throw error;
+      // Update lead status
+      await supabase.from("leads").update({ status: "converted" }).eq("id", lead.id);
+      return partner;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      toast.success(t("conversionSuccess"));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (l: any) => {
     setEditId(l.id);
@@ -138,7 +164,10 @@ export default function Leads() {
         { label: t("edit"), onClick: () => openEdit(l) },
       ];
       if (l.status !== "converted" && l.status !== "lost") {
-        actions.push({ label: t("convertToOpportunity"), icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertMutation.mutate(l) });
+        actions.push(
+          { label: t("convertToOpportunity"), icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertMutation.mutate(l) },
+          { label: (t as any)("convertToPartner") || "Konvertuj u partnera", icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertToPartnerMutation.mutate(l) },
+        );
       }
       return <MobileActionMenu actions={actions} />;
     }},
