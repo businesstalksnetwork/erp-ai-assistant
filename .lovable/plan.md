@@ -76,11 +76,34 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phases 3-7 (Future — executed sequentially after Phase 2)
+## Phase 3: VAT & POPDV — ✅ COMPLETED
+
+### 3A. POPDV Field Mapping ✅
+- Enhanced POPDV calculation in `PdvPeriods.tsx` to use `popdv_field` from `invoice_lines` when available
+- Falls back to rate-based heuristic (20%→section 3, 10%→3a, 0%→4) when `popdv_field` is not set
+- Fetches `popdv_field` and `item_type` alongside line data for accurate section assignment
+
+### 3B. PP-PDV XML Export ✅
+- Already existed via `generate-pppdv-xml` edge function
+- Generates ePorezi-compatible XML with full POPDV section mapping
+- Includes legal entity details (PIB, MB, address) and period information
+
+### 3C. Tax Period Locking ✅
+- Added `is_locked` column to `pdv_periods` table
+- Created `trg_check_pdv_period_locked` trigger on `journal_entries` — prevents posting to locked periods
+- Created `trg_auto_lock_pdv_period` trigger — auto-locks when period status changes to submitted/closed
+- Added Lock/Unlock buttons to PDV periods UI with visual indicator
+
+### 3D. PDV Settlement & Payment Orders ✅
+- Already existed: `create_pdv_settlement_journal` RPC for closing VAT accounts
+- Already existed: `generate-tax-payment-orders` edge function with Model 97 reference logic
+
+---
+
+## Phases 4-7 (Future — executed sequentially after Phase 3)
 
 | Phase | Focus | Key Deliverables |
 |-------|-------|-----------------|
-| **3** | VAT & POPDV | POPDV form generation from transactions, PP-PDV form, XML export for ePorezi, tax period locking |
 | **4** | Payroll Completion | Verify/fix calculation, PPP-PD XML generation, payment orders, payslips, GL posting |
 | **5** | Reports & Closing | Account card (kartica konta), partner card (IOS), daily journal, cash flow statement, year-end workflow |
 | **6** | AI Agent | Serbian accounting law RAG agent, inline validation hooks, compliance checker |
@@ -100,4 +123,4 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ## Recommendation
 
-Phase 2 is complete. To continue, say "proceed to Phase 3" to implement VAT & POPDV support.
+Phase 3 is complete. To continue, say "proceed to Phase 4" to implement payroll completion.

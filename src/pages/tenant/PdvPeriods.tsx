@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Calculator, Eye, Send, FileDown, BookOpen } from "lucide-react";
+import { Plus, Calculator, Eye, Send, FileDown, BookOpen, Lock, Unlock } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
@@ -116,7 +116,7 @@ export default function PdvPeriods() {
         for (let i = 0; i < invoiceIds.length; i += 200) {
           const chunk = invoiceIds.slice(i, i + 200);
           const { data: lines } = await supabase.from("invoice_lines")
-            .select("invoice_id, line_total, tax_amount, tax_rate_value")
+            .select("invoice_id, line_total, tax_amount, tax_rate_value, popdv_field, item_type")
             .in("invoice_id", chunk);
           if (lines) allLines.push(...lines);
         }
@@ -133,24 +133,25 @@ export default function PdvPeriods() {
       for (const inv of invoices || []) {
         const lines = linesByInvoice[inv.id] || [];
 
-        // Group by rate
-        const rateGroups: Record<number, { base: number; vat: number }> = {};
+        // Group by popdv_field first, then fallback to rate-based grouping
+        const sectionGroups: Record<string, { base: number; vat: number; rate: number }> = {};
         for (const l of lines) {
           const rate = Number(l.tax_rate_value);
-          if (!rateGroups[rate]) rateGroups[rate] = { base: 0, vat: 0 };
-          rateGroups[rate].base += Number(l.line_total);
-          rateGroups[rate].vat += Number(l.tax_amount);
+          // Use popdv_field from invoice line if available, else infer from rate
+          let section = l.popdv_field;
+          if (!section) {
+            if (rate === 20) section = "3";
+            else if (rate === 10) section = "3a";
+            else section = "4";
+          }
+          if (inv.invoice_type === "advance") section = rate === 10 ? "3a" : "3";
+
+          if (!sectionGroups[section]) sectionGroups[section] = { base: 0, vat: 0, rate };
+          sectionGroups[section].base += Number(l.line_total);
+          sectionGroups[section].vat += Number(l.tax_amount);
         }
 
-        for (const [rate, amounts] of Object.entries(rateGroups)) {
-          const numRate = Number(rate);
-          let section = "3"; // default: opšta stopa output
-          if (numRate === 10) section = "3a";
-          else if (numRate === 0) section = "4";
-
-          // Advance invoices go to a special treatment
-          if (inv.invoice_type === "advance") section = numRate === 10 ? "3a" : "3";
-
+        for (const [section, amounts] of Object.entries(sectionGroups)) {
           outputEntries.push({
             tenant_id: tenantId!,
             pdv_period_id: periodId,
@@ -163,7 +164,7 @@ export default function PdvPeriods() {
             partner_pib: inv.partner_pib,
             base_amount: amounts.base,
             vat_amount: amounts.vat,
-            vat_rate: numRate,
+            vat_rate: amounts.rate,
             direction: "output",
           });
         }
@@ -355,6 +356,18 @@ export default function PdvPeriods() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  const toggleLockMutation = useMutation({
+    mutationFn: async ({ id, lock }: { id: string; lock: boolean }) => {
+      const { error } = await supabase.from("pdv_periods").update({ is_locked: lock } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pdv_periods"] });
+      toast({ title: t("success") });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
   const fmt = (n: number) => fmtNum(Number(n));
 
   const statusBadge = (status: string) => {
@@ -410,7 +423,7 @@ export default function PdvPeriods() {
                   <TableCell className="text-right font-mono">{fmt(p.output_vat)}</TableCell>
                   <TableCell className="text-right font-mono">{fmt(p.input_vat)}</TableCell>
                   <TableCell className="text-right font-mono font-bold">{fmt(p.vat_liability)}</TableCell>
-                  <TableCell>{statusBadge(p.status)}</TableCell>
+                  <TableCell>{statusBadge(p.status)}{p.is_locked && <Badge variant="outline" className="ml-1 gap-1"><Lock className="h-3 w-3" />Zaključano</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => setSelectedPeriod(p)} title={t("pdvViewDetails")}><Eye className="h-4 w-4" /></Button>
@@ -429,6 +442,11 @@ export default function PdvPeriods() {
                           </Button>
                         </>
                       )}
+                      {p.is_locked ? (
+                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: false })} title={"Otključaj"}><Unlock className="h-4 w-4" /></Button>
+                      ) : (p.status !== "open" && (
+                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: true })} title={"Zaključaj"}><Lock className="h-4 w-4" /></Button>
+                      ))}
                     </div>
                   </TableCell>
                 </TableRow>

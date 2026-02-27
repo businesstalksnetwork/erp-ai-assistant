@@ -12207,6 +12207,7 @@ export type Database = {
           end_date: string
           id: string
           input_vat: number
+          is_locked: boolean
           legal_entity_id: string | null
           notes: string | null
           output_vat: number
@@ -12224,6 +12225,7 @@ export type Database = {
           end_date: string
           id?: string
           input_vat?: number
+          is_locked?: boolean
           legal_entity_id?: string | null
           notes?: string | null
           output_vat?: number
@@ -12241,6 +12243,7 @@ export type Database = {
           end_date?: string
           id?: string
           input_vat?: number
+          is_locked?: boolean
           legal_entity_id?: string | null
           notes?: string | null
           output_vat?: number
