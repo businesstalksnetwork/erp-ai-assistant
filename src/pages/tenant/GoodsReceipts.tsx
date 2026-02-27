@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
@@ -51,6 +52,7 @@ export default function GoodsReceipts() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<GRForm>(emptyForm);
+  const { checkApproval } = useApprovalCheck(tenantId, "goods_receipt");
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ["goods-receipts", tenantId],
@@ -325,7 +327,18 @@ export default function GoodsReceipts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => mutation.mutate(form)} disabled={!form.receipt_number || mutation.isPending}>
+            <Button onClick={() => {
+              if (form.status === "completed") {
+                // Estimate total value for approval threshold check
+                const totalValue = form.lines.reduce((sum, l) => {
+                  const prod = products.find((p: any) => p.id === l.product_id);
+                  return sum + l.quantity_received * (prod?.default_purchase_price || 0);
+                }, 0);
+                checkApproval(editId || "new", totalValue, () => mutation.mutate(form));
+              } else {
+                mutation.mutate(form);
+              }
+            }} disabled={!form.receipt_number || mutation.isPending}>
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
             </Button>
           </DialogFooter>

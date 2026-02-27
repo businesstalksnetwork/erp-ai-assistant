@@ -137,6 +137,5 @@ payroll_pt_gl_overrides table:
 | Contribution rates | Configurable via payroll parameters |
 
 ## Known Gaps
-- Payroll GL posting still on legacy `posting_rule_catalog` — not yet migrated to new posting rules engine
-- Migration blocked by granularity: payroll has ~50+ unique payment type codes vs 14 models in new engine
-- No automated reconciliation between payroll journals and bank salary payments
+- _(resolved)_ ~~Payroll GL posting still on legacy `posting_rule_catalog`~~ — migrated to posting rules engine with Serbian standard account fallbacks (5200/4500/4510/4520/5210/4530/2410)
+- _(resolved)_ ~~No automated reconciliation between payroll journals and bank salary payments~~ — PayrollBankReconciliation page with auto-match engine added

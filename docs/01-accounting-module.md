@@ -125,7 +125,7 @@
 - **Inventory**: stock adjustments via `process_invoice_post`
 
 ## Known Gaps
-- Supplier invoice posting uses hardcoded GL codes (5xxx/2100) — not yet on posting rules engine
-- Fixed asset depreciation uses hardcoded 8100/1290 — should migrate to posting rules
-- Cash register, deferrals, kompenzacija all use hardcoded codes
+- _(resolved)_ ~~Supplier invoice posting uses hardcoded GL codes~~ — already migrated to `postWithRuleOrFallback` with `SUPPLIER_INVOICE_POST` model code
+- Fixed asset depreciation uses hardcoded 8100/1290 — should migrate to posting rules (already uses `postWithRuleOrFallback` with `ASSET_DEPRECIATION` model; fallback codes remain as safety net)
+- Cash register, deferrals, kompenzacija all use `postWithRuleOrFallback` with fallback codes
 - Missing automated VAT journal creation from PDV period closing

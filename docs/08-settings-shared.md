@@ -66,6 +66,6 @@
 | `payroll_parameters` | Payroll calculation (contribution rates, tax brackets) |
 
 ## Known Gaps
-- Approval workflows defined but not enforced on all entity types
+- _(resolved)_ ~~Approval workflows defined but not enforced on all entity types~~ — now enforced on: invoices, supplier invoices, purchase orders, goods receipts
 - No role-based module access control (only tenant membership)
 - Exchange rate import not automated (manual entry)
