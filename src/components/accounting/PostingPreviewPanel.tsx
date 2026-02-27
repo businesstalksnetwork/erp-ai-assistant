@@ -10,7 +10,7 @@ export interface PreviewLine {
   accountName: string;
   debit: number;
   credit: number;
-  description: string;
+  description?: string;
 }
 
 interface PostingPreviewPanelProps {

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List, ExternalLink } from "lucide-react";
+import { Plus, Loader2, Calculator, Check, Banknote, Settings, FileText, CreditCard, List, ExternalLink, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -20,6 +20,7 @@ import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { PageHeader } from "@/components/shared/PageHeader";
+import PostingPreviewPanel, { type PreviewLine as PostingPreviewLine } from "@/components/accounting/PostingPreviewPanel";
 
 export default function Payroll() {
   const { t } = useLanguage();
@@ -28,6 +29,7 @@ export default function Payroll() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [previewRunId, setPreviewRunId] = useState<string | null>(null);
   const now = new Date();
   const [form, setForm] = useState({ period_month: now.getMonth() + 1, period_year: now.getFullYear() });
 
@@ -47,8 +49,6 @@ export default function Payroll() {
     },
     enabled: !!tenantId,
   });
-
-  
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["payroll-runs", tenantId],
@@ -104,9 +104,7 @@ export default function Payroll() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // GL posting uses configurable posting rules from posting_rule_catalog (legacy)
-  // TODO: Migrate to new posting_rules engine with SALARY_PAYMENT / TAX_PAYMENT models
-  // when all tenants have seeded default rules via seed_default_posting_rules()
+  // GL posting uses configurable posting rules from posting_rule_catalog
   const { data: postingRules = [] } = useQuery({
     queryKey: ["posting_rules_payroll", tenantId],
     queryFn: async () => {
@@ -121,6 +119,63 @@ export default function Payroll() {
   });
 
   const getRule = (code: string) => postingRules.find((r: any) => r.rule_code === code);
+
+  // Build preview lines for a given run
+  const buildPreviewLines = (run: any, items: any[]): PostingPreviewLine[] => {
+    const rGross = getRule("payroll_gross_exp");
+    const rNet = getRule("payroll_net_payable");
+    const rTax = getRule("payroll_tax");
+    const rEmpContrib = getRule("payroll_employee_contrib");
+    const rErExp = getRule("payroll_employer_exp");
+    const rErContrib = getRule("payroll_employer_contrib");
+
+    if (!rGross?.debit_account_code || !rNet?.credit_account_code) return [];
+
+    const periodLabel = `${run.period_year}-${String(run.period_month).padStart(2, "0")}`;
+    const totalPioE = items.reduce((s: number, i: any) => s + Number(i.pension_contribution), 0);
+    const totalHealthE = items.reduce((s: number, i: any) => s + Number(i.health_contribution), 0);
+    const totalUnempE = items.reduce((s: number, i: any) => s + Number(i.unemployment_contribution), 0);
+    const totalPioR = items.reduce((s: number, i: any) => s + Number(i.pension_employer || i.employer_pio || 0), 0);
+    const totalHealthR = items.reduce((s: number, i: any) => s + Number(i.health_employer || i.employer_health || 0), 0);
+    const totalEmployeeContrib = totalPioE + totalHealthE + totalUnempE;
+    const totalEmployerContrib = totalPioR + totalHealthR;
+
+    const lines: PostingPreviewLine[] = [
+      { accountCode: rGross.debit_account_code, accountName: `Troškovi zarada`, debit: Number(run.total_gross), credit: 0 },
+      { accountCode: rNet.credit_account_code, accountName: `Obaveze za neto zarade`, debit: 0, credit: Number(run.total_net) },
+    ];
+
+    if (rTax?.credit_account_code) {
+      lines.push({ accountCode: rTax.credit_account_code, accountName: `Porez po odbitku`, debit: 0, credit: Number(run.total_taxes) });
+    }
+    if (rEmpContrib?.credit_account_code && totalEmployeeContrib > 0) {
+      lines.push({ accountCode: rEmpContrib.credit_account_code, accountName: `Doprinosi radnika`, debit: 0, credit: totalEmployeeContrib });
+    }
+    if (rErExp?.debit_account_code && totalEmployerContrib > 0) {
+      lines.push({ accountCode: rErExp.debit_account_code, accountName: `Troškovi doprinosa poslodavca`, debit: totalEmployerContrib, credit: 0 });
+    }
+    if (rErContrib?.credit_account_code && totalEmployerContrib > 0) {
+      lines.push({ accountCode: rErContrib.credit_account_code, accountName: `Obaveze za doprinose poslodavca`, debit: 0, credit: totalEmployerContrib });
+    }
+
+    return lines;
+  };
+
+  // Fetch items for preview
+  const { data: previewItems = [] } = useQuery({
+    queryKey: ["payroll-items-preview", previewRunId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("payroll_items")
+        .select("pension_contribution, health_contribution, unemployment_contribution, pension_employer, health_employer, employer_pio, employer_health")
+        .eq("payroll_run_id", previewRunId!);
+      return data || [];
+    },
+    enabled: !!previewRunId,
+  });
+
+  const previewRun = runs.find((r: any) => r.id === previewRunId);
+  const previewLines = previewRun && previewItems.length > 0 ? buildPreviewLines(previewRun, previewItems) : [];
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -160,7 +215,7 @@ export default function Payroll() {
           accrualLines.push({ accountCode: rEmpContrib.credit_account_code, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
         }
 
-        await postWithRuleOrFallback({
+        const jeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
           modelCode: "PAYROLL_NET", amount: Number(run.total_gross),
           description: `Obračun zarada ${periodLabel}`,
@@ -169,8 +224,9 @@ export default function Payroll() {
           fallbackLines: accrualLines,
         });
 
+        let erJeId: string | null = null;
         if (totalEmployerContrib > 0 && rErExp?.debit_account_code && rErContrib?.credit_account_code) {
-          await postWithRuleOrFallback({
+          erJeId = await postWithRuleOrFallback({
             tenantId: tenantId!, userId: user?.id || null, entryDate,
             modelCode: "PAYROLL_TAX", amount: totalEmployerContrib,
             description: `Doprinosi poslodavca ${periodLabel}`,
@@ -182,13 +238,21 @@ export default function Payroll() {
             ],
           });
         }
+
+        // Save journal entry IDs back to payroll run
+        const updates: any = { status, approved_by: user?.id, approved_at: new Date().toISOString() };
+        if (jeId) updates.journal_entry_id = jeId;
+        if (erJeId) updates.employer_journal_entry_id = erJeId;
+        const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
+        if (error) throw error;
+
       } else if (status === "paid") {
         const rBank = getRule("payroll_bank");
         const rNet = getRule("payroll_net_payable");
         if (!rBank?.debit_account_code || !rBank?.credit_account_code) {
           throw new Error("Payroll bank posting rule not configured. Go to Settings → Posting Rules.");
         }
-        await postWithRuleOrFallback({
+        const payJeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
           modelCode: "PAYROLL_NET", amount: Number(run.total_net),
           description: `Isplata zarada ${periodLabel}`,
@@ -199,21 +263,25 @@ export default function Payroll() {
             { accountCode: rBank.credit_account_code, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
         });
-      }
 
-      const updates: any = { status };
-      if (status === "approved") { updates.approved_by = user?.id; updates.approved_at = new Date().toISOString(); }
-      const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
-      if (error) throw error;
+        const updates: any = { status };
+        if (payJeId) updates.payment_journal_entry_id = payJeId;
+        const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payroll_runs").update({ status } as any).eq("id", id);
+        if (error) throw error;
+      }
     },
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["payroll-runs"] });
+      setPreviewRunId(null);
       toast({ title: v.status === "approved" ? t("payrollPosted") : t("payrollPaymentPosted") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  const statusColor = (s: string) => ({ draft: "secondary", calculated: "default", approved: "default", paid: "default" }[s] || "secondary") as any;
+  const statusColor = (s: string): "secondary" | "default" => ({ draft: "secondary" as const, calculated: "default" as const, approved: "default" as const, paid: "default" as const }[s] || "secondary");
   const monthName = (m: number) => new Date(2024, m - 1).toLocaleString("en", { month: "long" });
 
   const downloadPppdXml = async (runId: string) => {
@@ -244,6 +312,22 @@ export default function Payroll() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `NaloziZaPlacanje.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
+  };
+
+  const downloadTaxPaymentOrders = async (runId: string) => {
+    try {
+      toast({ title: t("generatingPaymentOrders") });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-tax-payment-orders`,
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
+      );
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `NaloziPorezi.csv`; a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
@@ -313,7 +397,7 @@ export default function Payroll() {
                         </Button>
                       )}
                       {run.status === "calculated" && (
-                        <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: run.id, status: "approved" })} disabled={statusMutation.isPending}>
+                        <Button size="sm" variant="outline" onClick={() => setPreviewRunId(run.id)}>
                           <Check className="h-4 w-4 mr-2" />{t("approvePayroll")}
                         </Button>
                       )}
@@ -329,6 +413,9 @@ export default function Payroll() {
                            </Button>
                            <Button size="sm" variant="outline" onClick={() => downloadPaymentOrders(run.id)}>
                              <CreditCard className="h-4 w-4 mr-2" />{t("paymentOrders")}
+                           </Button>
+                           <Button size="sm" variant="outline" onClick={() => downloadTaxPaymentOrders(run.id)}>
+                             <Receipt className="h-4 w-4 mr-2" />{"Nalozi porezi"}
                            </Button>
                         </>
                       )}
@@ -396,6 +483,30 @@ export default function Payroll() {
           ))}
         </Accordion>
       )}
+
+      {/* Posting Preview Dialog */}
+      <Dialog open={!!previewRunId} onOpenChange={(o) => { if (!o) setPreviewRunId(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("approvePayroll")} — {t("glPostingPreview") || "GL Posting Preview"}</DialogTitle>
+          </DialogHeader>
+          {previewLines.length > 0 ? (
+            <PostingPreviewPanel lines={previewLines} />
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">{t("noResults")} — posting rules may not be configured.</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewRunId(null)}>{t("cancel")}</Button>
+            <Button
+              onClick={() => { if (previewRunId) statusMutation.mutate({ id: previewRunId, status: "approved" }); }}
+              disabled={statusMutation.isPending || previewLines.length === 0}
+            >
+              {statusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+              {t("approvePayroll")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

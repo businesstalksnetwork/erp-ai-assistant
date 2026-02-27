@@ -12064,8 +12064,11 @@ export type Database = {
           approved_by: string | null
           created_at: string
           created_by: string | null
+          employer_journal_entry_id: string | null
           id: string
+          journal_entry_id: string | null
           notes: string | null
+          payment_journal_entry_id: string | null
           period_month: number
           period_year: number
           status: Database["public"]["Enums"]["payroll_status"]
@@ -12081,8 +12084,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          employer_journal_entry_id?: string | null
           id?: string
+          journal_entry_id?: string | null
           notes?: string | null
+          payment_journal_entry_id?: string | null
           period_month: number
           period_year: number
           status?: Database["public"]["Enums"]["payroll_status"]
@@ -12098,8 +12104,11 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           created_by?: string | null
+          employer_journal_entry_id?: string | null
           id?: string
+          journal_entry_id?: string | null
           notes?: string | null
+          payment_journal_entry_id?: string | null
           period_month?: number
           period_year?: number
           status?: Database["public"]["Enums"]["payroll_status"]
@@ -12111,6 +12120,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_runs_employer_journal_entry_id_fkey"
+            columns: ["employer_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_payment_journal_entry_id_fkey"
+            columns: ["payment_journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payroll_runs_tenant_id_fkey"
             columns: ["tenant_id"]
