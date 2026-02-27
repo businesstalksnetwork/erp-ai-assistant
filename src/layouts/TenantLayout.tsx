@@ -288,6 +288,7 @@ const settingsNav: NavItem[] = [
   { key: "postingRules", url: "/settings/posting-rules", icon: BookOpen },
   { key: "payrollParamsTitle", url: "/settings/payroll-parameters", icon: Calculator },
   { key: "users", url: "/settings/users", icon: Users, section: "settingsAccessWorkflows" },
+  { key: "rolePermissions", url: "/settings/role-permissions", icon: Shield },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
   { key: "businessRules", url: "/settings/business-rules", icon: FileText },
@@ -523,6 +524,7 @@ export default function TenantLayout() {
                         {settingsNav.filter((item) => {
                           if (item.url === "/settings") return true;
                           if (item.url === "/settings/users") return canAccess("settings-users");
+                          if (item.url === "/settings/role-permissions") return canAccess("settings-role-permissions");
                           if (item.url === "/settings/approvals") return canAccess("settings-approvals");
                           if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
                           if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");

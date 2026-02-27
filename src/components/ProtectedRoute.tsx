@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions, type PermissionAction } from "@/hooks/usePermissions";
 import { toast } from "@/components/ui/sonner";
 import { useEffect, useRef } from "react";
 import type { ModuleGroup } from "@/config/rolePermissions";
@@ -9,14 +9,16 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requireSuperAdmin?: boolean;
   requiredModule?: ModuleGroup;
+  requiredAction?: PermissionAction;
 }
 
-export function ProtectedRoute({ children, requireSuperAdmin, requiredModule }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requireSuperAdmin, requiredModule, requiredAction }: ProtectedRouteProps) {
   const { user, loading, isSuperAdmin } = useAuth();
-  const { canAccess, isLoading: permLoading } = usePermissions();
+  const { canAccess, canPerform, isLoading: permLoading } = usePermissions();
   const toastShown = useRef(false);
 
-  const denied = requiredModule && !permLoading && user && !isSuperAdmin && !canAccess(requiredModule);
+  const action = requiredAction || "view";
+  const denied = requiredModule && !permLoading && user && !isSuperAdmin && !canPerform(requiredModule, action);
 
   useEffect(() => {
     if (denied && !toastShown.current) {

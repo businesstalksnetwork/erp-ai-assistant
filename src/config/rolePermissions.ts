@@ -24,18 +24,19 @@ export type ModuleGroup =
   | "settings-currencies"
   | "settings-audit-log"
   | "settings-events"
-  | "settings-integrations";
+  | "settings-integrations"
+  | "settings-role-permissions";
 
 const ALL_MODULES: ModuleGroup[] = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory", "accounting", "analytics", "hr",
   "production", "documents", "pos", "returns", "assets", "settings",
   "settings-users", "settings-approvals", "settings-business-rules",
   "settings-tax-rates", "settings-currencies", "settings-audit-log",
-  "settings-events", "settings-integrations",
+  "settings-events", "settings-integrations", "settings-role-permissions",
 ];
 
 export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
-  admin: ALL_MODULES,
+  admin: ALL_MODULES,  // includes settings-role-permissions
   manager: [
     "dashboard", "crm", "sales", "web", "purchasing", "inventory", "returns",
     "production", "documents", "pos", "analytics", "assets", "settings",
@@ -73,6 +74,7 @@ export const routeToModule: Record<string, ModuleGroup> = {
   "/settings/audit-log": "settings-audit-log",
   "/settings/events": "settings-events",
   "/settings/integrations": "settings-integrations",
+  "/settings/role-permissions": "settings-role-permissions",
   "/settings": "settings",
   "/assets/": "assets",
 };

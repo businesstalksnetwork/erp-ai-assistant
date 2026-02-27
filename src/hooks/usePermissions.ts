@@ -5,12 +5,14 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { rolePermissions, type ModuleGroup, type TenantRole } from "@/config/rolePermissions";
 
+export type PermissionAction = "view" | "create" | "edit" | "delete" | "approve" | "export";
+
 /** Modules that are always accessible regardless of tenant_modules config */
 const isAlwaysOn = (m: ModuleGroup): boolean =>
   m === "dashboard" || m === "settings" || m.startsWith("settings-");
 
 export function usePermissions() {
-  const { tenantId, role, isLoading: tenantLoading } = useTenant();
+  const { tenantId, role, dataScope: tenantDataScope, isLoading: tenantLoading } = useTenant();
   const { isSuperAdmin } = useAuth();
 
   const effectiveRole: TenantRole = isSuperAdmin ? "admin" : ((role as TenantRole) || "user");
@@ -20,7 +22,7 @@ export function usePermissions() {
     [effectiveRole],
   );
 
-  // Fetch enabled modules for this tenant from DB (including for super admins)
+  // Fetch enabled modules for this tenant from DB
   const shouldFetch = !!tenantId;
   const { data: enabledModuleKeys, isLoading: modulesLoading } = useQuery({
     queryKey: ["tenant-enabled-modules", tenantId ?? "__none__"],
@@ -39,21 +41,60 @@ export function usePermissions() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const isLoading = tenantLoading || modulesLoading;
+  // Fetch action-level permissions for current role + tenant
+  const { data: actionPermissions, isLoading: permsLoading } = useQuery({
+    queryKey: ["tenant-role-permissions", tenantId ?? "__none__", effectiveRole],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenant_role_permissions")
+        .select("module, action, allowed")
+        .eq("tenant_id", tenantId!)
+        .eq("role", effectiveRole);
+      if (error) throw error;
+      const map = new Map<string, boolean>();
+      (data || []).forEach((row: any) => {
+        map.set(`${row.module}:${row.action}`, row.allowed);
+      });
+      return map;
+    },
+    enabled: shouldFetch,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  const canAccess = (module: ModuleGroup): boolean => {
-    // Role must allow it first
+  const isLoading = tenantLoading || modulesLoading || permsLoading;
+
+  /** Check action-level permission for a module */
+  const canPerform = (module: ModuleGroup, action: PermissionAction): boolean => {
+    if (isSuperAdmin) return true;
+
+    // Role must allow module first
     if (!roleModules.has(module)) return false;
 
-    // Core modules always on (dashboard + all settings submodules)
-    if (isAlwaysOn(module)) return true;
+    // Core modules always on for view
+    if (action === "view" && isAlwaysOn(module)) return true;
 
-    // Pessimistic: deny until tenant modules have loaded
-    if (!enabledModuleKeys) return false;
+    // Check tenant module enabled (non-core)
+    if (!isAlwaysOn(module)) {
+      if (!enabledModuleKeys) return false;
+      if (!enabledModuleKeys.has(module)) return false;
+    }
 
-    // Check tenant has this module enabled
-    return enabledModuleKeys.has(module);
+    // If we have custom action permissions, use them
+    if (actionPermissions && actionPermissions.size > 0) {
+      const key = `${module}:${action}`;
+      const allowed = actionPermissions.get(key);
+      return allowed === true;
+    }
+
+    // Fallback: standard actions allowed by default
+    if (["view", "create", "edit", "delete"].includes(action)) return true;
+    return false;
   };
 
-  return { canAccess, role: effectiveRole, isLoading, tenantId };
+  /** Backward-compatible module-level access check */
+  const canAccess = (module: ModuleGroup): boolean => canPerform(module, "view");
+
+  const dataScope = tenantDataScope || "all";
+
+  return { canAccess, canPerform, role: effectiveRole, isLoading, tenantId, dataScope };
 }

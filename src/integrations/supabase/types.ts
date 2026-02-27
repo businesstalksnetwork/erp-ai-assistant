@@ -9179,6 +9179,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          department_id: string | null
           due_date: string | null
           exchange_rate: number | null
           id: string
@@ -9221,6 +9222,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          department_id?: string | null
           due_date?: string | null
           exchange_rate?: number | null
           id?: string
@@ -9263,6 +9265,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          department_id?: string | null
           due_date?: string | null
           exchange_rate?: number | null
           id?: string
@@ -9302,6 +9305,13 @@ export type Database = {
             columns: ["advance_invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
           {
@@ -17795,6 +17805,7 @@ export type Database = {
       tenant_members: {
         Row: {
           created_at: string
+          data_scope: Database["public"]["Enums"]["data_scope_type"]
           id: string
           role: Database["public"]["Enums"]["app_role"]
           status: Database["public"]["Enums"]["membership_status"]
@@ -17803,6 +17814,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_scope?: Database["public"]["Enums"]["data_scope_type"]
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["membership_status"]
@@ -17811,6 +17823,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_scope?: Database["public"]["Enums"]["data_scope_type"]
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["membership_status"]
@@ -17862,6 +17875,47 @@ export type Database = {
           },
           {
             foreignKeyName: "tenant_modules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_role_permissions: {
+        Row: {
+          action: string
+          allowed: boolean
+          created_at: string
+          id: string
+          module: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_role_permissions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -20090,7 +20144,24 @@ export type Database = {
         Args: { p_fiscal_year: number; p_tenant_id: string }
         Returns: number
       }
+      get_member_data_scope: {
+        Args: { p_tenant_id: string; p_user_id: string }
+        Returns: string
+      }
+      get_member_department_ids: {
+        Args: { p_tenant_id: string; p_user_id: string }
+        Returns: string[]
+      }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
+      has_action_permission: {
+        Args: {
+          p_action: string
+          p_module: string
+          p_tenant_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -20227,6 +20298,7 @@ export type Database = {
         | "vacation"
         | "holiday"
         | "remote"
+      data_scope_type: "all" | "department" | "own"
       employee_status: "active" | "inactive" | "terminated"
       employment_type: "full_time" | "part_time" | "contract" | "intern"
       leave_status: "pending" | "approved" | "rejected" | "cancelled"
@@ -20424,6 +20496,7 @@ export const Constants = {
         "holiday",
         "remote",
       ],
+      data_scope_type: ["all", "department", "own"],
       employee_status: ["active", "inactive", "terminated"],
       employment_type: ["full_time", "part_time", "contract", "intern"],
       leave_status: ["pending", "approved", "rejected", "cancelled"],

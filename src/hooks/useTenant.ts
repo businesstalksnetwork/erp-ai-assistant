@@ -7,6 +7,7 @@ interface TenantMembership {
   tenantId: string;
   tenantName: string;
   role: string;
+  dataScope: string;
 }
 
 interface TenantContextType {
@@ -14,6 +15,7 @@ interface TenantContextType {
   tenantId: string | null;
   tenantName: string | null;
   role: string | null;
+  dataScope: string | null;
   switchTenant: (id: string) => void;
   isLoading: boolean;
 }
@@ -35,7 +37,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       if (!user) return [];
       const { data, error } = await supabase
         .from("tenant_members")
-        .select("tenant_id, role, tenants(name)")
+        .select("tenant_id, role, data_scope, tenants(name)")
         .eq("user_id", user.id)
         .eq("status", "active");
       if (error) throw error;
@@ -43,6 +45,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantId: m.tenant_id,
         tenantName: (m.tenants as any)?.name || m.tenant_id,
         role: m.role,
+        dataScope: m.data_scope || "all",
       }));
     },
     enabled: !!user && !isSuperAdmin,
@@ -61,6 +64,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantId: t.id,
         tenantName: t.name,
         role: "admin",
+        dataScope: "all",
       }));
     },
     enabled: !!user && isSuperAdmin,
@@ -93,6 +97,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     tenantId: activeTenant?.tenantId ?? null,
     tenantName: activeTenant?.tenantName ?? null,
     role: activeTenant?.role ?? null,
+    dataScope: activeTenant?.dataScope ?? null,
     switchTenant,
     isLoading,
   };
