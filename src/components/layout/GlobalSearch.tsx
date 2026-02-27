@@ -182,6 +182,7 @@ export function GlobalSearch() {
     { label: t("holidays"), path: "/hr/holidays", icon: Calendar, group: "hr", module: "hr" },
     { label: t("attendance"), path: "/hr/attendance", icon: Clock, group: "hr", module: "hr" },
     { label: t("leaveRequests"), path: "/hr/leave-requests", icon: CalendarOff, group: "hr", module: "hr" },
+    { label: t("leavePolicies" as any) || "Politike odsustva", path: "/hr/leave-policies", icon: Shield, group: "hr", module: "hr" },
     { label: t("deductionsModule"), path: "/hr/deductions", icon: Coins, group: "hr", module: "hr" },
     { label: t("allowance"), path: "/hr/allowances", icon: Banknote, group: "hr", module: "hr" },
     { label: t("salaryHistory"), path: "/hr/salaries", icon: Banknote, group: "hr", module: "hr" },

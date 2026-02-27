@@ -38,6 +38,7 @@ const OnboardingChecklists = React.lazy(() => import("@/pages/tenant/OnboardingC
 const PayrollBankReconciliation = React.lazy(() => import("@/pages/tenant/PayrollBankReconciliation"));
 const SpecialHours = React.lazy(() => import("@/pages/tenant/SpecialHours"));
 const Otpremnina = React.lazy(() => import("@/pages/tenant/Otpremnina"));
+const LeavePolicies = React.lazy(() => import("@/pages/tenant/LeavePolicies"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -80,5 +81,6 @@ export const hrRoutes = (
     <Route path="hr/onboarding-checklists" element={<ProtectedRoute requiredModule={m}><B><OnboardingChecklists /></B></ProtectedRoute>} />
     <Route path="hr/payroll/bank-reconciliation" element={<ProtectedRoute requiredModule={m}><B><PayrollBankReconciliation /></B></ProtectedRoute>} />
     <Route path="hr/severance" element={<ProtectedRoute requiredModule={m}><B><Otpremnina /></B></ProtectedRoute>} />
+    <Route path="hr/leave-policies" element={<ProtectedRoute requiredModule={m}><B><LeavePolicies /></B></ProtectedRoute>} />
   </>
 );
