@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, CheckCircle, Loader2, Play, X, Eye } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { fmtNum } from "@/lib/utils";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function ProductionOrders() {
   const { t, locale } = useLanguage();
@@ -67,7 +68,6 @@ export default function ProductionOrders() {
     enabled: !!tenantId,
   });
 
-  // Fetch BOM lines for material summary when a BOM is selected in create/edit
   const { data: bomMaterialSummary = [] } = useQuery({
     queryKey: ["bom_lines_summary", form.bom_template_id],
     queryFn: async () => {
@@ -92,7 +92,6 @@ export default function ProductionOrders() {
     enabled: !!tenantId,
   });
 
-  // Material availability check for complete dialog
   const { data: materialAvailability = [] } = useQuery({
     queryKey: ["material_availability", completeOrder?.bom_template_id, selectedWarehouse, completeOrder?.quantity],
     queryFn: async () => {
@@ -113,12 +112,7 @@ export default function ProductionOrders() {
             .eq("warehouse_id", selectedWarehouse)
             .maybeSingle();
           const available = stock?.quantity_on_hand || 0;
-          return {
-            name: line.products?.name || "-",
-            required,
-            available,
-            sufficient: available >= required,
-          };
+          return { name: line.products?.name || "-", required, available, sufficient: available >= required };
         })
       );
       return results;
@@ -132,17 +126,10 @@ export default function ProductionOrders() {
     mutationFn: async () => {
       if (!tenantId) throw new Error("No tenant");
       const payload = {
-        tenant_id: tenantId,
-        product_id: form.product_id || null,
-        bom_template_id: form.bom_template_id || null,
-        quantity: form.quantity,
-        priority: form.priority,
-        status: "draft" as string,
-        planned_start: form.planned_start || null,
-        planned_end: form.planned_end || null,
-        notes: form.notes || null,
-        created_by: user?.id || null,
-        warehouse_id: form.warehouse_id || null,
+        tenant_id: tenantId, product_id: form.product_id || null, bom_template_id: form.bom_template_id || null,
+        quantity: form.quantity, priority: form.priority, status: "draft" as string,
+        planned_start: form.planned_start || null, planned_end: form.planned_end || null,
+        notes: form.notes || null, created_by: user?.id || null, warehouse_id: form.warehouse_id || null,
       };
       if (editId) {
         const { status: _, ...updatePayload } = payload;
@@ -151,33 +138,22 @@ export default function ProductionOrders() {
         await supabase.from("production_orders").insert(payload);
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["production_orders"] });
-      setOpen(false);
-      toast({ title: t("success") });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["production_orders"] }); setOpen(false); toast({ title: t("success") }); },
   });
 
-  // Status transition mutations
   const transitionMutation = useMutation({
     mutationFn: async ({ id, status, extra }: { id: string; status: string; extra?: Record<string, any> }) => {
       await supabase.from("production_orders").update({ status, ...extra }).eq("id", id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["production_orders"] });
-      toast({ title: t("success") });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["production_orders"] }); toast({ title: t("success") }); },
   });
 
-  // Atomic complete via RPC
   const completeMutation = useMutation({
     mutationFn: async () => {
       if (!completeOrder || !selectedWarehouse) throw new Error("Missing data");
       const { data, error } = await supabase.rpc("complete_production_order", {
-        p_order_id: completeOrder.id,
-        p_warehouse_id: selectedWarehouse,
-        p_quantity_to_complete: quantityToComplete,
-        p_user_id: user?.id || null,
+        p_order_id: completeOrder.id, p_warehouse_id: selectedWarehouse,
+        p_quantity_to_complete: quantityToComplete, p_user_id: user?.id || null,
       });
       if (error) throw error;
       return data;
@@ -185,67 +161,63 @@ export default function ProductionOrders() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["production_orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      setCompleteDialogOpen(false);
-      setCompleteOrder(null);
-      setSelectedWarehouse("");
-      const msg = data?.fully_completed ? t("wipJournalCreated") : t("materialsConsumed");
-      toast({ title: msg });
+      setCompleteDialogOpen(false); setCompleteOrder(null); setSelectedWarehouse("");
+      toast({ title: data?.fully_completed ? t("wipJournalCreated") : t("materialsConsumed") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // Handle BOM URL param from BomTemplates "Create Order" shortcut
   useEffect(() => {
     const bomParam = searchParams.get("bom");
     if (bomParam && boms.length > 0) {
-        const selectedBom = boms.find((b: any) => b.id === bomParam);
-        if (selectedBom) {
-          setEditId(null);
-          setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
+      const selectedBom = boms.find((b: any) => b.id === bomParam);
+      if (selectedBom) {
+        setEditId(null);
+        setForm({ product_id: selectedBom.product_id || "", bom_template_id: bomParam, quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
         setOpen(true);
         setSearchParams({}, { replace: true });
       }
     }
   }, [searchParams, boms]);
 
-  const openCreate = () => {
-    setEditId(null);
-    setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" });
-    setOpen(true);
-  };
+  const openCreate = () => { setEditId(null); setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" }); setOpen(true); };
+  const openEdit = (o: any) => { if (o.status !== "draft") return; setEditId(o.id); setForm({ product_id: o.product_id || "", bom_template_id: o.bom_template_id || "", quantity: Number(o.quantity), priority: o.priority || 3, planned_start: o.planned_start || "", planned_end: o.planned_end || "", notes: o.notes || "", warehouse_id: o.warehouse_id || "" }); setOpen(true); };
+  const openComplete = (o: any) => { setCompleteOrder(o); setSelectedWarehouse(""); setQuantityToComplete(Number(o.quantity) - Number(o.completed_quantity || 0)); setCompleteDialogOpen(true); };
 
-  const openEdit = (o: any) => {
-    if (o.status !== "draft") return;
-    setEditId(o.id);
-    setForm({
-      product_id: o.product_id || "",
-      bom_template_id: o.bom_template_id || "",
-      quantity: Number(o.quantity),
-      priority: o.priority || 3,
-      planned_start: o.planned_start || "",
-      planned_end: o.planned_end || "",
-      notes: o.notes || "",
-      warehouse_id: o.warehouse_id || "",
-    });
-    setOpen(true);
-  };
+  const statusColor = (s: string) => { switch (s) { case "completed": return "default"; case "in_progress": return "secondary"; case "cancelled": return "destructive"; default: return "outline"; } };
 
-  const openComplete = (o: any) => {
-    setCompleteOrder(o);
-    setSelectedWarehouse("");
-    const remaining = Number(o.quantity) - Number(o.completed_quantity || 0);
-    setQuantityToComplete(remaining);
-    setCompleteDialogOpen(true);
-  };
-
-  const statusColor = (s: string) => {
-    switch (s) {
-      case "completed": return "default";
-      case "in_progress": return "secondary";
-      case "cancelled": return "destructive";
-      default: return "outline";
-    }
-  };
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "order_number", label: t("orderNumber"), primary: true, sortable: true, sortValue: (o) => o.order_number || o.id, render: (o) => <span className="font-mono text-sm">{o.order_number || o.id.substring(0, 8)}</span> },
+    { key: "product", label: t("product"), sortable: true, sortValue: (o) => o.products?.name || "", render: (o) => o.products?.name || "-" },
+    { key: "bom", label: t("bomTemplate"), hideOnMobile: true, render: (o) => o.bom_templates?.name || "-" },
+    { key: "quantity", label: t("quantity"), align: "right", sortable: true, sortValue: (o) => o.quantity, render: (o) => o.quantity },
+    { key: "priority", label: locale === "sr" ? "Prioritet" : "Priority", hideOnMobile: true, sortable: true, sortValue: (o) => o.priority || 3, render: (o) => <Badge variant="outline">{o.priority || 3}</Badge> },
+    { key: "completed", label: t("completed"), align: "right", hideOnMobile: true, render: (o) => o.completed_quantity || 0 },
+    { key: "status", label: t("status"), sortable: true, sortValue: (o) => o.status, render: (o) => <Badge variant={statusColor(o.status)}>{t(o.status as any)}</Badge> },
+    { key: "planned_start", label: t("plannedStart"), hideOnMobile: true, defaultVisible: false, sortable: true, sortValue: (o) => o.planned_start || "", render: (o) => o.planned_start || "-" },
+    { key: "actions", label: t("actions"), render: (o) => (
+      <div className="flex gap-1 flex-wrap">
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/production/orders/${o.id}`); }}><Eye className="h-3 w-3" /></Button>
+        {o.status === "draft" && (
+          <>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openEdit(o); }}><Pencil className="h-3 w-3" /></Button>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); transitionMutation.mutate({ id: o.id, status: "planned" }); }} disabled={!o.product_id || !o.bom_template_id}>{t("planned")}</Button>
+          </>
+        )}
+        {o.status === "planned" && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); transitionMutation.mutate({ id: o.id, status: "in_progress", extra: { actual_start: new Date().toISOString().split("T")[0] } }); }}>
+            <Play className="h-3 w-3 mr-1" />{t("in_progress")}
+          </Button>
+        )}
+        {(o.status === "in_progress" || o.status === "planned") && (
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openComplete(o); }}><CheckCircle className="h-3 w-3 mr-1" />{t("completeAndConsume")}</Button>
+        )}
+        {o.status !== "completed" && o.status !== "cancelled" && (
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); transitionMutation.mutate({ id: o.id, status: "cancelled" }); }}><X className="h-3 w-3" /></Button>
+        )}
+      </div>
+    )},
+  ];
 
   return (
     <div className="space-y-6">
@@ -253,83 +225,18 @@ export default function ProductionOrders() {
         <h1 className="text-2xl font-bold">{t("productionOrders")}</h1>
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("orderNumber")}</TableHead>
-            <TableHead>{t("product")}</TableHead>
-            <TableHead>{t("bomTemplate")}</TableHead>
-            <TableHead>{t("quantity")}</TableHead>
-            <TableHead>{locale === "sr" ? "Prioritet" : "Priority"}</TableHead>
-            <TableHead>{t("completed")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("plannedStart")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading ? (
-            <TableRow><TableCell colSpan={9}>{t("loading")}</TableCell></TableRow>
-          ) : orders.map((o: any) => (
-            <TableRow key={o.id}>
-              <TableCell className="font-mono text-sm">{o.order_number || o.id.substring(0, 8)}</TableCell>
-              <TableCell>{o.products?.name || "-"}</TableCell>
-              <TableCell>{o.bom_templates?.name || "-"}</TableCell>
-              <TableCell>{o.quantity}</TableCell>
-              <TableCell><Badge variant="outline">{o.priority || 3}</Badge></TableCell>
-              <TableCell>{o.completed_quantity || 0}</TableCell>
-              <TableCell><Badge variant={statusColor(o.status)}>{t(o.status as any)}</Badge></TableCell>
-              <TableCell>{o.planned_start || "-"}</TableCell>
-              <TableCell>
-                <div className="flex gap-1 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/production/orders/${o.id}`)}>
-                    <Eye className="h-3 w-3" />
-                  </Button>
-                  {o.status === "draft" && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => openEdit(o)}><Pencil className="h-3 w-3" /></Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => transitionMutation.mutate({ id: o.id, status: "planned" })}
-                        disabled={!o.product_id || !o.bom_template_id}
-                        title={!o.product_id || !o.bom_template_id ? t("selectProduct") : ""}
-                      >
-                        {t("planned")}
-                      </Button>
-                    </>
-                  )}
-                  {o.status === "planned" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => transitionMutation.mutate({ id: o.id, status: "in_progress", extra: { actual_start: new Date().toISOString().split("T")[0] } })}
-                    >
-                      <Play className="h-3 w-3 mr-1" />{t("in_progress")}
-                    </Button>
-                  )}
-                  {(o.status === "in_progress" || o.status === "planned") && (
-                    <Button size="sm" variant="outline" onClick={() => openComplete(o)}>
-                      <CheckCircle className="h-3 w-3 mr-1" />{t("completeAndConsume")}
-                    </Button>
-                  )}
-                  {o.status !== "completed" && o.status !== "cancelled" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => transitionMutation.mutate({ id: o.id, status: "cancelled" })}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
 
-      {/* Create/Edit Dialog (draft only) */}
+      <ResponsiveTable
+        data={orders}
+        columns={columns}
+        keyExtractor={(o) => o.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="production_orders"
+        enableColumnToggle
+      />
+
+      {/* Create/Edit Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} {t("productionOrders")}</DialogTitle></DialogHeader>
@@ -351,7 +258,6 @@ export default function ProductionOrders() {
                 <SelectContent>{boms.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            {/* Material summary from BOM */}
             {form.bom_template_id && bomMaterialSummary.length > 0 && (
               <div className="border rounded-md p-3 bg-muted/30 space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground">{t("materialSummary")}</Label>
@@ -389,76 +295,49 @@ export default function ProductionOrders() {
               <Label>{t("warehouse")}</Label>
               <Select value={form.warehouse_id} onValueChange={v => setForm({ ...form, warehouse_id: v })}>
                 <SelectTrigger><SelectValue placeholder={t("warehouse")} /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button onClick={() => saveMutation.mutate()}>{t("save")}</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>{t("save")}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Complete & Consume Dialog with material availability */}
+      {/* Complete Dialog */}
       <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("completeAndConsume")}</DialogTitle>
-            <DialogDescription>{t("selectWarehouseForProduction")}</DialogDescription>
+            <DialogDescription>{t("completeAndConsume")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>{t("warehouse")} *</Label>
+              <Label>{t("warehouse")}</Label>
               <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-                <SelectTrigger><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger><SelectValue placeholder={t("warehouse")} /></SelectTrigger>
+                <SelectContent>{warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>{t("quantity")}</Label>
-              <Input
-                type="number"
-                value={quantityToComplete}
-                onChange={e => setQuantityToComplete(Number(e.target.value))}
-                max={completeOrder ? Number(completeOrder.quantity) - Number(completeOrder.completed_quantity || 0) : 0}
-                min={1}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("completed")}: {completeOrder?.completed_quantity || 0} / {completeOrder?.quantity}
-              </p>
+              <Input type="number" min={1} max={completeOrder ? Number(completeOrder.quantity) - Number(completeOrder.completed_quantity || 0) : 1} value={quantityToComplete} onChange={(e) => setQuantityToComplete(Number(e.target.value))} />
             </div>
-            {completeOrder && (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>{t("product")}: {completeOrder.products?.name || "-"}</p>
-                <p>{t("bomTemplate")}: {completeOrder.bom_templates?.name || "-"}</p>
-              </div>
-            )}
-            {/* Material availability table */}
-            {selectedWarehouse && materialAvailability.length > 0 && (
-              <div className="border rounded-md overflow-hidden">
+            {materialAvailability.length > 0 && (
+              <div className="border rounded-md p-3 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">{t("materialSummary")}</Label>
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">{t("materials")}</TableHead>
-                      <TableHead className="text-xs text-right">{t("quantity")}</TableHead>
-                      <TableHead className="text-xs text-right">{t("available")}</TableHead>
-                      <TableHead className="text-xs">{t("status")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead className="text-right">{t("quantity")}</TableHead><TableHead className="text-right">{t("available" as any)}</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {materialAvailability.map((m, i) => (
+                    {materialAvailability.map((m: any, i: number) => (
                       <TableRow key={i}>
-                        <TableCell className="text-sm">{m.name}</TableCell>
-                        <TableCell className="text-sm text-right">{m.required}</TableCell>
-                        <TableCell className="text-sm text-right">{m.available}</TableCell>
-                        <TableCell>
-                          <Badge variant={m.sufficient ? "default" : "destructive"}>
-                            {m.sufficient ? "OK" : t("error")}
-                          </Badge>
-                        </TableCell>
+                        <TableCell>{m.name}</TableCell>
+                        <TableCell className="text-right">{m.required}</TableCell>
+                        <TableCell className="text-right">{m.available}</TableCell>
+                        <TableCell>{m.sufficient ? <Badge variant="outline">OK</Badge> : <Badge variant="destructive">!</Badge>}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -468,11 +347,9 @@ export default function ProductionOrders() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCompleteDialogOpen(false)}>{t("cancel")}</Button>
-            <Button
-              onClick={() => completeMutation.mutate()}
-              disabled={!selectedWarehouse || completeMutation.isPending || hasInsufficientMaterial || quantityToComplete <= 0}
-            >
-              {completeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("confirm")}
+            <Button onClick={() => completeMutation.mutate()} disabled={!selectedWarehouse || completeMutation.isPending || hasInsufficientMaterial}>
+              {completeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+              {t("completeAndConsume")}
             </Button>
           </DialogFooter>
         </DialogContent>
