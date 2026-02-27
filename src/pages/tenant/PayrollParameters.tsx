@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useSearchParams } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
+
+const PayrollCategoriesContent = lazy(() => import("@/pages/tenant/PayrollCategories"));
+const PayrollPaymentTypesContent = lazy(() => import("@/pages/tenant/PayrollPaymentTypes"));
+const TabLoading = () => <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -194,10 +201,12 @@ export default function PayrollParameters() {
   const { tenantId } = useTenant();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "parameters";
   const [form, setForm] = useState<FormState>(defaultForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(defaultForm);
+  const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: params = [], isLoading } = useQuery({
@@ -263,6 +272,15 @@ export default function PayrollParameters() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("payrollParamsTitle")} icon={Calculator} description={t("payrollParamsDesc")} />
+
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
+        <TabsList>
+          <TabsTrigger value="parameters">{t("payrollParamsTitle")}</TabsTrigger>
+          <TabsTrigger value="categories">{t("incomeCategories")}</TabsTrigger>
+          <TabsTrigger value="payment-types">{t("payrollPaymentTypes")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="parameters">
 
       {current && (
         <Card className="border-primary/30">
@@ -432,6 +450,15 @@ export default function PayrollParameters() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <Suspense fallback={<TabLoading />}><PayrollCategoriesContent /></Suspense>
+        </TabsContent>
+        <TabsContent value="payment-types">
+          <Suspense fallback={<TabLoading />}><PayrollPaymentTypesContent /></Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

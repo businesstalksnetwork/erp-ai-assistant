@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, AlertTriangle, Warehouse } from "lucide-react";
+import { Search, AlertTriangle, Warehouse, Loader2 } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
@@ -21,14 +22,18 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
+const InventoryHealthContent = lazy(() => import("@/pages/tenant/InventoryHealth"));
+const Loading = () => <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
 export default function InventoryStock() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlFilter = searchParams.get("filter");
+  const activeTab = searchParams.get("tab") || "stock";
   const [search, setSearch] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("__all__");
   const [lowStockOnly, setLowStockOnly] = useState(urlFilter === "low_stock" || urlFilter === "zero_stock");
@@ -143,9 +148,7 @@ export default function InventoryStock() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("stockOverview")}
-        icon={Warehouse}
+      <PageHeader title={t("stockOverview")} icon={Warehouse}
         actions={
           <ExportButton
             data={filtered.map((s) => ({
@@ -165,61 +168,68 @@ export default function InventoryStock() {
         }
       />
 
-      {tenantId && <AiModuleInsights tenantId={tenantId} module="inventory" />}
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
+        <TabsList>
+          <TabsTrigger value="stock">{t("stockOverview")}</TabsTrigger>
+          <TabsTrigger value="health">{t("inventoryHealth" as any)}</TabsTrigger>
+        </TabsList>
 
-      {tenantId && (() => {
-        const lowStockItems = filtered.filter(s => {
-          const onHand = Number(s.quantity_on_hand);
-          const minLevel = Number(s.min_stock_level);
-          return minLevel > 0 && onHand < minLevel;
-        });
-        const zeroStockItems = filtered.filter(s => Number(s.quantity_on_hand) <= 0);
-        if (lowStockItems.length === 0 && zeroStockItems.length === 0) return null;
-        return (
-          <AiAnalyticsNarrative tenantId={tenantId} contextType="dashboard" data={{
-            lowStockCount: lowStockItems.length, zeroStockCount: zeroStockItems.length,
-            totalSKUs: stock.length,
-            topLowStock: lowStockItems.slice(0, 5).map(s => ({
-              name: (s.products as any)?.name, sku: (s.products as any)?.sku,
-              onHand: Number(s.quantity_on_hand), minLevel: Number(s.min_stock_level),
-            })),
-          }} />
-        );
-      })()}
+        <TabsContent value="stock">
+          {tenantId && <AiModuleInsights tenantId={tenantId} module="inventory" />}
 
-      <MobileFilterBar
-        search={
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-          </div>
-        }
-        filters={
-          <>
-            <div className="w-48">
-              <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">{t("allWarehouses")}</SelectItem>
-                  {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="low-stock" checked={lowStockOnly} onCheckedChange={(v) => setLowStockOnly(!!v)} />
-              <label htmlFor="low-stock" className="text-sm">{t("lowStockOnly")}</label>
-            </div>
-          </>
-        }
-      />
+          {tenantId && (() => {
+            const lowStockItems = filtered.filter(s => {
+              const onHand = Number(s.quantity_on_hand);
+              const minLevel = Number(s.min_stock_level);
+              return minLevel > 0 && onHand < minLevel;
+            });
+            const zeroStockItems = filtered.filter(s => Number(s.quantity_on_hand) <= 0);
+            if (lowStockItems.length === 0 && zeroStockItems.length === 0) return null;
+            return (
+              <AiAnalyticsNarrative tenantId={tenantId} contextType="dashboard" data={{
+                lowStockCount: lowStockItems.length, zeroStockCount: zeroStockItems.length,
+                totalSKUs: stock.length,
+                topLowStock: lowStockItems.slice(0, 5).map(s => ({
+                  name: (s.products as any)?.name, sku: (s.products as any)?.sku,
+                  onHand: Number(s.quantity_on_hand), minLevel: Number(s.min_stock_level),
+                })),
+              }} />
+            );
+          })()}
 
-      <ResponsiveTable
-        data={filtered}
-        columns={columns}
-        keyExtractor={(s) => s.id}
-        mobileMode="scroll"
-        emptyMessage={t("noResults")}
-      />
+          <MobileFilterBar
+            search={
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              </div>
+            }
+            filters={
+              <>
+                <div className="w-48">
+                  <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">{t("allWarehouses")}</SelectItem>
+                      {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="low-stock" checked={lowStockOnly} onCheckedChange={(v) => setLowStockOnly(!!v)} />
+                  <label htmlFor="low-stock" className="text-sm">{t("lowStockOnly")}</label>
+                </div>
+              </>
+            }
+          />
+
+          <ResponsiveTable data={filtered} columns={columns} keyExtractor={(s) => s.id} mobileMode="scroll" emptyMessage={t("noResults")} />
+        </TabsContent>
+
+        <TabsContent value="health">
+          <Suspense fallback={<Loading />}><InventoryHealthContent /></Suspense>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={!!adjustDialog} onOpenChange={() => setAdjustDialog(null)}>
         <DialogContent>
