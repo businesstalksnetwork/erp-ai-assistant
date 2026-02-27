@@ -1,6 +1,7 @@
 import React from "react";
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const CrmDashboard = React.lazy(() => import("@/pages/tenant/CrmDashboard"));
 const Partners = React.lazy(() => import("@/pages/tenant/Partners"));
@@ -14,18 +15,20 @@ const OpportunityDetail = React.lazy(() => import("@/pages/tenant/OpportunityDet
 const Meetings = React.lazy(() => import("@/pages/tenant/Meetings"));
 const MeetingsCalendar = React.lazy(() => import("@/pages/tenant/MeetingsCalendar"));
 
+const B = PageErrorBoundary;
+
 export const crmRoutes = (
   <>
-    <Route path="crm" element={<ProtectedRoute requiredModule="crm"><CrmDashboard /></ProtectedRoute>} />
-    <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><Partners /></ProtectedRoute>} />
-    <Route path="crm/companies" element={<ProtectedRoute requiredModule="crm"><Companies /></ProtectedRoute>} />
-    <Route path="crm/companies/:id" element={<ProtectedRoute requiredModule="crm"><CompanyDetail /></ProtectedRoute>} />
-    <Route path="crm/contacts" element={<ProtectedRoute requiredModule="crm"><Contacts /></ProtectedRoute>} />
-    <Route path="crm/contacts/:id" element={<ProtectedRoute requiredModule="crm"><ContactDetail /></ProtectedRoute>} />
-    <Route path="crm/leads" element={<ProtectedRoute requiredModule="crm"><Leads /></ProtectedRoute>} />
-    <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><Opportunities /></ProtectedRoute>} />
-    <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><OpportunityDetail /></ProtectedRoute>} />
-    <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><Meetings /></ProtectedRoute>} />
-    <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><MeetingsCalendar /></ProtectedRoute>} />
+    <Route path="crm" element={<ProtectedRoute requiredModule="crm"><B><CrmDashboard /></B></ProtectedRoute>} />
+    <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><B><Partners /></B></ProtectedRoute>} />
+    <Route path="crm/companies" element={<ProtectedRoute requiredModule="crm"><B><Companies /></B></ProtectedRoute>} />
+    <Route path="crm/companies/:id" element={<ProtectedRoute requiredModule="crm"><B><CompanyDetail /></B></ProtectedRoute>} />
+    <Route path="crm/contacts" element={<ProtectedRoute requiredModule="crm"><B><Contacts /></B></ProtectedRoute>} />
+    <Route path="crm/contacts/:id" element={<ProtectedRoute requiredModule="crm"><B><ContactDetail /></B></ProtectedRoute>} />
+    <Route path="crm/leads" element={<ProtectedRoute requiredModule="crm"><B><Leads /></B></ProtectedRoute>} />
+    <Route path="crm/opportunities" element={<ProtectedRoute requiredModule="crm"><B><Opportunities /></B></ProtectedRoute>} />
+    <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><B><OpportunityDetail /></B></ProtectedRoute>} />
+    <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><B><Meetings /></B></ProtectedRoute>} />
+    <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><B><MeetingsCalendar /></B></ProtectedRoute>} />
   </>
 );

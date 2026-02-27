@@ -1,6 +1,7 @@
 import React from "react";
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const AccountingHub = React.lazy(() => import("@/pages/tenant/AccountingHub"));
 const ChartOfAccounts = React.lazy(() => import("@/pages/tenant/ChartOfAccounts"));
@@ -49,54 +50,55 @@ const PK1Book = React.lazy(() => import("@/pages/tenant/reports/PK1Book"));
 const PPPPO = React.lazy(() => import("@/pages/tenant/reports/PPPPO"));
 
 const m = "accounting";
+const B = PageErrorBoundary;
 
 export const accountingRoutes = (
   <>
-    <Route path="accounting" element={<ProtectedRoute requiredModule={m}><AccountingHub /></ProtectedRoute>} />
-    <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule={m}><ChartOfAccounts /></ProtectedRoute>} />
-    <Route path="accounting/journal" element={<ProtectedRoute requiredModule={m}><JournalEntries /></ProtectedRoute>} />
-    <Route path="accounting/invoices" element={<ProtectedRoute requiredModule={m}><Invoices /></ProtectedRoute>} />
-    <Route path="accounting/invoices/new" element={<ProtectedRoute requiredModule={m}><InvoiceForm /></ProtectedRoute>} />
-    <Route path="accounting/invoices/:id" element={<ProtectedRoute requiredModule={m}><InvoiceForm /></ProtectedRoute>} />
-    <Route path="accounting/fiscal-periods" element={<ProtectedRoute requiredModule={m}><FiscalPeriods /></ProtectedRoute>} />
-    <Route path="accounting/ledger" element={<ProtectedRoute requiredModule={m}><GeneralLedger /></ProtectedRoute>} />
-    <Route path="accounting/expenses" element={<ProtectedRoute requiredModule={m}><Expenses /></ProtectedRoute>} />
-    <Route path="accounting/reports" element={<ProtectedRoute requiredModule={m}><Reports /></ProtectedRoute>} />
-    <Route path="accounting/reports/trial-balance" element={<ProtectedRoute requiredModule={m}><TrialBalance /></ProtectedRoute>} />
-    <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule={m}><IncomeStatement /></ProtectedRoute>} />
-    <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule={m}><BalanceSheet /></ProtectedRoute>} />
-    <Route path="accounting/reports/bilans-uspeha" element={<ProtectedRoute requiredModule={m}><BilansUspeha /></ProtectedRoute>} />
-    <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule={m}><BilansStanja /></ProtectedRoute>} />
-    <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule={m}><AgingReports /></ProtectedRoute>} />
-    <Route path="accounting/reports/cost-center-pl" element={<ProtectedRoute requiredModule={m}><CostCenterPL /></ProtectedRoute>} />
-    <Route path="accounting/reports/consolidated" element={<ProtectedRoute requiredModule={m}><ConsolidatedStatements /></ProtectedRoute>} />
-    <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule={m}><BankStatements /></ProtectedRoute>} />
-    <Route path="accounting/open-items" element={<ProtectedRoute requiredModule={m}><OpenItems /></ProtectedRoute>} />
-    <Route path="accounting/ios" element={<ProtectedRoute requiredModule={m}><IosBalanceConfirmation /></ProtectedRoute>} />
-    <Route path="accounting/pdv" element={<ProtectedRoute requiredModule={m}><PdvPeriods /></ProtectedRoute>} />
-    <Route path="accounting/withholding-tax" element={<ProtectedRoute requiredModule={m}><WithholdingTax /></ProtectedRoute>} />
-    <Route path="accounting/cit-return" element={<ProtectedRoute requiredModule={m}><CitTaxReturn /></ProtectedRoute>} />
-    <Route path="accounting/year-end" element={<ProtectedRoute requiredModule={m}><YearEndClosing /></ProtectedRoute>} />
-    <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule={m}><FixedAssets /></ProtectedRoute>} />
-    <Route path="accounting/deferrals" element={<ProtectedRoute requiredModule={m}><Deferrals /></ProtectedRoute>} />
-    <Route path="accounting/loans" element={<ProtectedRoute requiredModule={m}><Loans /></ProtectedRoute>} />
-    <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule={m}><FxRevaluation /></ProtectedRoute>} />
-    <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><Kompenzacija /></ProtectedRoute>} />
-    <Route path="accounting/intercompany" element={<ProtectedRoute requiredModule={m}><IntercompanyTransactions /></ProtectedRoute>} />
-    <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><CashRegister /></ProtectedRoute>} />
-    <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><RecurringInvoices /></ProtectedRoute>} />
-    <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><RecurringJournals /></ProtectedRoute>} />
-    <Route path="accounting/statisticki-aneks" element={<ProtectedRoute requiredModule={m}><StatistickiAneks /></ProtectedRoute>} />
-    <Route path="accounting/kpo-book" element={<ProtectedRoute requiredModule={m}><KpoBook /></ProtectedRoute>} />
-    <Route path="accounting/reports/multi-period" element={<ProtectedRoute requiredModule={m}><MultiPeriodReports /></ProtectedRoute>} />
-    <Route path="accounting/transfer-pricing" element={<ProtectedRoute requiredModule={m}><TransferPricing /></ProtectedRoute>} />
-    <Route path="accounting/report-snapshots" element={<ProtectedRoute requiredModule={m}><ReportSnapshots /></ProtectedRoute>} />
-    <Route path="accounting/bank-accounts" element={<ProtectedRoute requiredModule={m}><BankAccounts /></ProtectedRoute>} />
-    <Route path="accounting/document-import" element={<ProtectedRoute requiredModule={m}><BankDocumentImport /></ProtectedRoute>} />
-    <Route path="accounting/credit-debit-notes" element={<ProtectedRoute requiredModule={m}><CreditDebitNotes /></ProtectedRoute>} />
-    <Route path="accounting/proforma-invoices" element={<ProtectedRoute requiredModule={m}><ProformaInvoices /></ProtectedRoute>} />
-    <Route path="accounting/invoice-register" element={<ProtectedRoute requiredModule={m}><InvoiceRegister /></ProtectedRoute>} />
-    <Route path="accounting/reports/pk1-book" element={<ProtectedRoute requiredModule={m}><PK1Book /></ProtectedRoute>} />
-    <Route path="accounting/reports/ppp-po" element={<ProtectedRoute requiredModule={m}><PPPPO /></ProtectedRoute>} />
+    <Route path="accounting" element={<ProtectedRoute requiredModule={m}><B><AccountingHub /></B></ProtectedRoute>} />
+    <Route path="accounting/chart-of-accounts" element={<ProtectedRoute requiredModule={m}><B><ChartOfAccounts /></B></ProtectedRoute>} />
+    <Route path="accounting/journal" element={<ProtectedRoute requiredModule={m}><B><JournalEntries /></B></ProtectedRoute>} />
+    <Route path="accounting/invoices" element={<ProtectedRoute requiredModule={m}><B><Invoices /></B></ProtectedRoute>} />
+    <Route path="accounting/invoices/new" element={<ProtectedRoute requiredModule={m}><B><InvoiceForm /></B></ProtectedRoute>} />
+    <Route path="accounting/invoices/:id" element={<ProtectedRoute requiredModule={m}><B><InvoiceForm /></B></ProtectedRoute>} />
+    <Route path="accounting/fiscal-periods" element={<ProtectedRoute requiredModule={m}><B><FiscalPeriods /></B></ProtectedRoute>} />
+    <Route path="accounting/ledger" element={<ProtectedRoute requiredModule={m}><B><GeneralLedger /></B></ProtectedRoute>} />
+    <Route path="accounting/expenses" element={<ProtectedRoute requiredModule={m}><B><Expenses /></B></ProtectedRoute>} />
+    <Route path="accounting/reports" element={<ProtectedRoute requiredModule={m}><B><Reports /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/trial-balance" element={<ProtectedRoute requiredModule={m}><B><TrialBalance /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/income-statement" element={<ProtectedRoute requiredModule={m}><B><IncomeStatement /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/balance-sheet" element={<ProtectedRoute requiredModule={m}><B><BalanceSheet /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/bilans-uspeha" element={<ProtectedRoute requiredModule={m}><B><BilansUspeha /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/bilans-stanja" element={<ProtectedRoute requiredModule={m}><B><BilansStanja /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/aging" element={<ProtectedRoute requiredModule={m}><B><AgingReports /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/cost-center-pl" element={<ProtectedRoute requiredModule={m}><B><CostCenterPL /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/consolidated" element={<ProtectedRoute requiredModule={m}><B><ConsolidatedStatements /></B></ProtectedRoute>} />
+    <Route path="accounting/bank-statements" element={<ProtectedRoute requiredModule={m}><B><BankStatements /></B></ProtectedRoute>} />
+    <Route path="accounting/open-items" element={<ProtectedRoute requiredModule={m}><B><OpenItems /></B></ProtectedRoute>} />
+    <Route path="accounting/ios" element={<ProtectedRoute requiredModule={m}><B><IosBalanceConfirmation /></B></ProtectedRoute>} />
+    <Route path="accounting/pdv" element={<ProtectedRoute requiredModule={m}><B><PdvPeriods /></B></ProtectedRoute>} />
+    <Route path="accounting/withholding-tax" element={<ProtectedRoute requiredModule={m}><B><WithholdingTax /></B></ProtectedRoute>} />
+    <Route path="accounting/cit-return" element={<ProtectedRoute requiredModule={m}><B><CitTaxReturn /></B></ProtectedRoute>} />
+    <Route path="accounting/year-end" element={<ProtectedRoute requiredModule={m}><B><YearEndClosing /></B></ProtectedRoute>} />
+    <Route path="accounting/fixed-assets" element={<ProtectedRoute requiredModule={m}><B><FixedAssets /></B></ProtectedRoute>} />
+    <Route path="accounting/deferrals" element={<ProtectedRoute requiredModule={m}><B><Deferrals /></B></ProtectedRoute>} />
+    <Route path="accounting/loans" element={<ProtectedRoute requiredModule={m}><B><Loans /></B></ProtectedRoute>} />
+    <Route path="accounting/fx-revaluation" element={<ProtectedRoute requiredModule={m}><B><FxRevaluation /></B></ProtectedRoute>} />
+    <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><B><Kompenzacija /></B></ProtectedRoute>} />
+    <Route path="accounting/intercompany" element={<ProtectedRoute requiredModule={m}><B><IntercompanyTransactions /></B></ProtectedRoute>} />
+    <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><B><CashRegister /></B></ProtectedRoute>} />
+    <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><B><RecurringInvoices /></B></ProtectedRoute>} />
+    <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><B><RecurringJournals /></B></ProtectedRoute>} />
+    <Route path="accounting/statisticki-aneks" element={<ProtectedRoute requiredModule={m}><B><StatistickiAneks /></B></ProtectedRoute>} />
+    <Route path="accounting/kpo-book" element={<ProtectedRoute requiredModule={m}><B><KpoBook /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/multi-period" element={<ProtectedRoute requiredModule={m}><B><MultiPeriodReports /></B></ProtectedRoute>} />
+    <Route path="accounting/transfer-pricing" element={<ProtectedRoute requiredModule={m}><B><TransferPricing /></B></ProtectedRoute>} />
+    <Route path="accounting/report-snapshots" element={<ProtectedRoute requiredModule={m}><B><ReportSnapshots /></B></ProtectedRoute>} />
+    <Route path="accounting/bank-accounts" element={<ProtectedRoute requiredModule={m}><B><BankAccounts /></B></ProtectedRoute>} />
+    <Route path="accounting/document-import" element={<ProtectedRoute requiredModule={m}><B><BankDocumentImport /></B></ProtectedRoute>} />
+    <Route path="accounting/credit-debit-notes" element={<ProtectedRoute requiredModule={m}><B><CreditDebitNotes /></B></ProtectedRoute>} />
+    <Route path="accounting/proforma-invoices" element={<ProtectedRoute requiredModule={m}><B><ProformaInvoices /></B></ProtectedRoute>} />
+    <Route path="accounting/invoice-register" element={<ProtectedRoute requiredModule={m}><B><InvoiceRegister /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/pk1-book" element={<ProtectedRoute requiredModule={m}><B><PK1Book /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/ppp-po" element={<ProtectedRoute requiredModule={m}><B><PPPPO /></B></ProtectedRoute>} />
   </>
 );
