@@ -9001,6 +9001,7 @@ export type Database = {
           kalkulacija_number: string
           notes: string | null
           status: string
+          supplier_invoice_id: string | null
           tenant_id: string
           updated_at: string
           warehouse_id: string | null
@@ -9015,6 +9016,7 @@ export type Database = {
           kalkulacija_number: string
           notes?: string | null
           status?: string
+          supplier_invoice_id?: string | null
           tenant_id: string
           updated_at?: string
           warehouse_id?: string | null
@@ -9029,6 +9031,7 @@ export type Database = {
           kalkulacija_number?: string
           notes?: string | null
           status?: string
+          supplier_invoice_id?: string | null
           tenant_id?: string
           updated_at?: string
           warehouse_id?: string | null
@@ -9039,6 +9042,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacije_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
             referencedColumns: ["id"]
           },
           {

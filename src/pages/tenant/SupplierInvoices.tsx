@@ -295,6 +295,21 @@ export default function SupplierInvoices() {
     return t("threeWayMatch" as any) || "3-Way";
   };
 
+  const [matchDetail, setMatchDetail] = useState<any>(null);
+  const [matchDetailOpen, setMatchDetailOpen] = useState(false);
+
+  const showMatchDetail = async (inv: any) => {
+    if (!inv.purchase_order_id) return;
+    try {
+      const { data, error } = await supabase.rpc("three_way_match", { p_supplier_invoice_id: inv.id });
+      if (error) throw error;
+      setMatchDetail(data);
+      setMatchDetailOpen(true);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const fmt = (n: number, cur: string) => new Intl.NumberFormat("sr-RS", { style: "currency", currency: cur }).format(n);
 
   const updateAmount = (field: "amount" | "tax_amount", val: number) => {
@@ -310,7 +325,7 @@ export default function SupplierInvoices() {
     { key: "invoice_date", label: t("invoiceDate"), hideOnMobile: true, render: (inv) => inv.invoice_date },
     { key: "due_date", label: t("dueDate"), hideOnMobile: true, render: (inv) => inv.due_date || "—" },
     { key: "total", label: t("total"), align: "right" as const, render: (inv) => fmt(inv.total, inv.currency) },
-    { key: "match", label: t("matchStatus" as any) || "Match", render: (inv) => <Badge variant={matchBadgeVariant(inv)}>{matchBadgeLabel(inv)}</Badge> },
+    { key: "match", label: t("matchStatus" as any) || "Match", render: (inv) => <Badge variant={matchBadgeVariant(inv)} className={inv.purchase_order_id ? "cursor-pointer" : ""} onClick={(e) => { e.stopPropagation(); showMatchDetail(inv); }}>{matchBadgeLabel(inv)}</Badge> },
     { key: "status", label: t("status"), render: (inv) => <Badge variant={statusColor(inv.status) as any}>{t(inv.status as any) || inv.status}</Badge> },
     { key: "actions", label: t("actions"), showInCard: false, render: (inv) => (
       <div className="flex gap-1">
@@ -484,6 +499,29 @@ export default function SupplierInvoices() {
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("save")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 3-Way Match Detail Dialog */}
+      <Dialog open={matchDetailOpen} onOpenChange={setMatchDetailOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("threeWayMatch" as any) || "3-Way Match"}</DialogTitle></DialogHeader>
+          {matchDetail && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-muted-foreground">{t("total")}:</span> <strong>{Number(matchDetail.invoice_total).toLocaleString("sr-RS")}</strong></div>
+                <div><span className="text-muted-foreground">PO {t("total")}:</span> <strong>{Number(matchDetail.po_total).toLocaleString("sr-RS")}</strong></div>
+                <div><span className="text-muted-foreground">GR {t("quantity")}:</span> <strong>{matchDetail.gr_quantity}</strong></div>
+                <div><span className="text-muted-foreground">{t("variance" as any) || "Variance"}:</span> <strong>{matchDetail.variance_pct != null ? `${matchDetail.variance_pct}%` : "—"}</strong></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">{t("status")}:</span>
+                <Badge variant={matchDetail.match_status === "matched" ? "default" : matchDetail.match_status === "discrepancy" ? "destructive" : "secondary"}>
+                  {matchDetail.match_status === "matched" ? "✓ Matched" : matchDetail.match_status === "discrepancy" ? "⚠ Discrepancy" : "No PO"}
+                </Badge>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
