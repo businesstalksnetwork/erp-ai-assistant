@@ -590,6 +590,200 @@ serve(async (req) => {
       }
     }
 
+    // ─── NEW Round 1: POS insights ───
+    if (!module || module === "pos") {
+      // Task 1: High POS refund rate
+      const { count: posSaleCount } = await supabase
+        .from("pos_transactions").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).eq("transaction_type", "sale");
+      const { count: posRefundCount } = await supabase
+        .from("pos_transactions").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).eq("transaction_type", "refund");
+
+      if (posSaleCount && posSaleCount > 10 && posRefundCount) {
+        const refundRate = (posRefundCount / posSaleCount) * 100;
+        if (refundRate > 10) {
+          insights.push({
+            insight_type: "pos_high_refund_rate",
+            severity: refundRate > 25 ? "critical" : "warning",
+            title: sr ? `Visoka stopa POS povrata: ${refundRate.toFixed(1)}%` : `High POS Refund Rate: ${refundRate.toFixed(1)}%`,
+            description: sr
+              ? `${posRefundCount} od ${posSaleCount} POS transakcija su povrati (${refundRate.toFixed(1)}%). Proverite da li postoje zloupotrebe.`
+              : `${posRefundCount} of ${posSaleCount} POS transactions are refunds (${refundRate.toFixed(1)}%). Investigate potential abuse.`,
+            data: { refund_rate: refundRate, sales: posSaleCount, refunds: posRefundCount },
+          });
+        }
+      }
+
+      // Task 2: Non-fiscalized POS transactions (older than 1 hour)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: notFiscalizedCount } = await supabase
+        .from("pos_transactions").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).neq("fiscal_status", "fiscalized")
+        .eq("status", "completed").lt("created_at", oneHourAgo);
+
+      if (notFiscalizedCount && notFiscalizedCount > 0) {
+        insights.push({
+          insight_type: "pos_not_fiscalized",
+          severity: "critical",
+          title: sr ? `${notFiscalizedCount} nefiskalizovanih transakcija` : `${notFiscalizedCount} Non-Fiscalized Transactions`,
+          description: sr
+            ? `${notFiscalizedCount} završenih POS transakcija starijih od 1 sat nije fiskalizovano. Ovo je zakonski obavezno.`
+            : `${notFiscalizedCount} completed POS transactions older than 1 hour are not fiscalized. This is a legal requirement.`,
+          data: { count: notFiscalizedCount },
+        });
+      }
+    }
+
+    // ─── NEW Round 1: Production insights ───
+    if (!module || module === "production") {
+      // Task 3: Overdue production orders
+      const { data: overdueProduction, count: overdueProdCount } = await supabase
+        .from("production_orders").select("id, order_number, planned_end_date", { count: "exact" })
+        .eq("tenant_id", tenant_id).in("status", ["planned", "in_progress", "released"])
+        .lt("planned_end_date", today).limit(5);
+
+      if (overdueProdCount && overdueProdCount > 0) {
+        insights.push({
+          insight_type: "overdue_production",
+          severity: overdueProdCount > 3 ? "critical" : "warning",
+          title: sr ? `${overdueProdCount} zakasnelih proizvodnih naloga` : `${overdueProdCount} Overdue Production Orders`,
+          description: sr
+            ? `${overdueProdCount} proizvodnih naloga je prošlo planirani datum završetka.`
+            : `${overdueProdCount} production orders are past their planned end date.`,
+          data: { count: overdueProdCount, samples: overdueProduction?.map((p: any) => p.order_number) },
+        });
+      }
+
+      // Task 4: BOM material shortage forecast
+      const { data: activeProdOrders } = await supabase
+        .from("production_orders").select("id")
+        .eq("tenant_id", tenant_id).in("status", ["planned", "released"]).limit(50);
+
+      if (activeProdOrders && activeProdOrders.length > 0) {
+        const prodIds = activeProdOrders.map((p: any) => p.id);
+        const { data: prodLines } = await supabase
+          .from("production_order_lines").select("product_id, quantity")
+          .in("production_order_id", prodIds.slice(0, 50));
+
+        if (prodLines && prodLines.length > 0) {
+          // Aggregate required quantities per product
+          const required: Record<string, number> = {};
+          for (const line of prodLines) {
+            required[line.product_id] = (required[line.product_id] || 0) + Number(line.quantity || 0);
+          }
+          const productIds = Object.keys(required);
+          if (productIds.length > 0) {
+            const { data: stockLevels } = await supabase
+              .from("inventory_stock").select("product_id, quantity_on_hand")
+              .eq("tenant_id", tenant_id).in("product_id", productIds.slice(0, 100));
+
+            const stockMap: Record<string, number> = {};
+            for (const s of (stockLevels || [])) {
+              stockMap[s.product_id] = (stockMap[s.product_id] || 0) + Number(s.quantity_on_hand || 0);
+            }
+
+            let shortageCount = 0;
+            for (const [pid, reqQty] of Object.entries(required)) {
+              const available = stockMap[pid] || 0;
+              if (available < reqQty) shortageCount++;
+            }
+
+            if (shortageCount > 0) {
+              insights.push({
+                insight_type: "bom_material_shortage",
+                severity: "critical",
+                title: sr ? `${shortageCount} materijala nedostaje za proizvodnju` : `${shortageCount} Materials Short for Production`,
+                description: sr
+                  ? `${shortageCount} materijala nema dovoljno zaliha za aktivne proizvodne naloge.`
+                  : `${shortageCount} materials have insufficient stock to fulfill active production orders.`,
+                data: { count: shortageCount },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // ─── NEW Round 1: Purchasing insights ───
+    if (!module || module === "purchasing") {
+      // Task 6: PO delivery overdue
+      const { count: overduePOCount } = await supabase
+        .from("purchase_orders").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).eq("status", "sent").lt("expected_date", today);
+
+      if (overduePOCount && overduePOCount > 0) {
+        insights.push({
+          insight_type: "po_delivery_overdue",
+          severity: overduePOCount > 5 ? "critical" : "warning",
+          title: sr ? `${overduePOCount} nabavki sa zakasnelom isporukom` : `${overduePOCount} Overdue PO Deliveries`,
+          description: sr
+            ? `${overduePOCount} poslatih naloga za nabavku je prošlo očekivani datum isporuke.`
+            : `${overduePOCount} sent purchase orders are past their expected delivery date.`,
+          data: { count: overduePOCount },
+        });
+      }
+    }
+
+    // ─── NEW Round 1: Sales insights ───
+    if (!module || module === "sales") {
+      // Task 7: Quote aging / low conversion
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const { count: staleQuoteCount } = await supabase
+        .from("sales_quotes").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).in("status", ["draft", "sent"]).lt("created_at", fourteenDaysAgo);
+
+      if (staleQuoteCount && staleQuoteCount > 0) {
+        insights.push({
+          insight_type: "quote_aging",
+          severity: "info",
+          title: sr ? `${staleQuoteCount} ponuda starijih od 14 dana` : `${staleQuoteCount} Aging Quotes (14+ days)`,
+          description: sr
+            ? `${staleQuoteCount} ponuda čeka odgovor duže od 14 dana. Razmotrite praćenje ili zatvaranje.`
+            : `${staleQuoteCount} quotes have been waiting over 14 days. Consider following up or closing them.`,
+          data: { count: staleQuoteCount },
+        });
+      }
+    }
+
+    // ─── NEW Round 1: Accounting - bank & fiscal ───
+    if (!module || module === "accounting") {
+      // Task 5: Old unreconciled bank statements
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const { count: unreconciledCount } = await supabase
+        .from("bank_statements").select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id).eq("is_reconciled", false).lt("statement_date", thirtyDaysAgo);
+
+      if (unreconciledCount && unreconciledCount > 0) {
+        insights.push({
+          insight_type: "unreconciled_statements",
+          severity: "warning",
+          title: sr ? `${unreconciledCount} neusklađenih izvoda (30+ dana)` : `${unreconciledCount} Unreconciled Statements (30+ days)`,
+          description: sr
+            ? `${unreconciledCount} bankovnih izvoda starijih od 30 dana nije usklađeno.`
+            : `${unreconciledCount} bank statements older than 30 days remain unreconciled.`,
+          data: { count: unreconciledCount },
+        });
+      }
+
+      // Task 8: Open fiscal periods without closing entries
+      const { data: openPeriods } = await supabase
+        .from("fiscal_periods").select("id, name, end_date")
+        .eq("tenant_id", tenant_id).eq("status", "open").lt("end_date", today);
+
+      if (openPeriods && openPeriods.length > 0) {
+        insights.push({
+          insight_type: "open_fiscal_periods",
+          severity: "warning",
+          title: sr ? `${openPeriods.length} otvorenih fiskalnih perioda` : `${openPeriods.length} Open Fiscal Periods`,
+          description: sr
+            ? `${openPeriods.length} fiskalnih perioda koji su prošli krajnji datum su još uvek otvoreni.`
+            : `${openPeriods.length} fiscal periods past their end date are still open.`,
+          data: { count: openPeriods.length, periods: openPeriods.map((p: any) => p.name) },
+        });
+      }
+    }
+
     // CRM insights
     if (!module || module === "crm") {
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -760,10 +954,14 @@ serve(async (req) => {
 function filterByModule(insights: any[], module: string): any[] {
   const moduleMap: Record<string, string[]> = {
     analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "ai_correlation", "all_clear"],
-    inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "ai_correlation", "all_clear"],
+    inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "bom_material_shortage", "ai_correlation", "all_clear"],
     hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "ai_correlation", "all_clear"],
     crm: ["stale_leads", "high_value_at_risk", "dormant_accounts", "at_risk_accounts", "ai_correlation", "all_clear"],
-    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "ai_correlation", "all_clear"],
+    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "unreconciled_statements", "open_fiscal_periods", "ai_correlation", "all_clear"],
+    pos: ["pos_high_refund_rate", "pos_not_fiscalized", "ai_correlation", "all_clear"],
+    production: ["overdue_production", "bom_material_shortage", "ai_correlation", "all_clear"],
+    purchasing: ["po_delivery_overdue", "duplicate_invoices", "ai_correlation", "all_clear"],
+    sales: ["quote_aging", "high_value_at_risk", "ai_correlation", "all_clear"],
   };
   const allowed = moduleMap[module];
   if (!allowed) return insights;
