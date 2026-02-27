@@ -1,102 +1,68 @@
 
 
-## Dashboard Widget System Upgrade
+## Fix Plan: 7 Dashboard & Notification Issues
 
-This is a big upgrade touching 3 areas: (A) resize controls in edit mode, (B) 20+ new KPI widgets, (C) new retail/POS category.
+### Issue 1 & 2 — Leave notification targeting too broad + wrong entity_id
 
-### A — Widget Resize Controls in Edit Mode
+**Files:** `useLeaveRequest.ts`, `LeaveRequests.tsx`
 
-Currently widgets have fixed width (set by `defaultWidth` in registry). The DB already stores `width` and `height` per widget. We need resize buttons visible in edit mode.
+**useLeaveRequest.ts (submit):**
+- Change `target_user_ids: "all_tenant_members"` → query `user_roles` for users with HR-related roles (admin, hr_manager) in this tenant, pass their user_ids as array
+- Change `entity_id: employeeId` → use the returned request UUID from `submit_leave_request` RPC (it returns the new request id as string)
 
-**WidgetContainer.tsx** — Add resize buttons (width toggle) in edit mode:
-- Show small width indicator buttons: 3, 4, 6, 12 (representing 1/4, 1/3, 1/2, full)
-- On click, call `updateLayout` with new width for that widget
-- Visual: small button row at bottom of widget in edit mode
+**LeaveRequests.tsx (approve/reject):**
+- Change `target_user_ids: "all_tenant_members"` → target only the employee's `user_id` (look up from `employees` table using `request.employee_id`)
+- `entity_id: request.id` is already correct here
 
-**WidgetContainer.tsx** — Also support `gridRow: span ${height}` in style so height=2 widgets take 2 rows.
+### Issue 3 — leave_balance widget shows attendance instead of leave balance
 
-**CustomizableDashboard.tsx** — Pass `updateLayout` to `WidgetContainer` as `onResize` callback. Add `grid-auto-rows: minmax(120px, auto)` to the grid.
+**File:** `WidgetRenderer.tsx` line 65
 
-### B — 20+ New KPI Widget Definitions
+Change `<KpiWidget metricKey="attendance" />` → `<KpiWidget metricKey="leave_balance" />`
 
-Add to **widgetRegistry.ts**:
+Add a new `leave_balance` case in `KpiWidget.tsx` that queries `leave_balances` table (or computes from leave policies minus used days).
 
-| Widget ID | Title Key | Module | Description |
-|---|---|---|---|
-| `kpi_revenue_yesterday` | revenueYesterday | accounting | Revenue from yesterday |
-| `kpi_revenue_7days` | revenueLast7Days | accounting | Revenue last 7 days |
-| `kpi_revenue_30days` | revenueLast30Days | accounting | Revenue last 30 days |
-| `kpi_invoices_issued` | issuedInvoices | sales | Total issued (sent) invoices |
-| `kpi_invoices_unpaid` | unpaidInvoices | sales | Unpaid invoices count |
-| `kpi_invoices_overdue` | overdueInvoices | sales | Overdue invoices count |
-| `kpi_invoices_paid` | paidInvoices | sales | Paid invoices count |
-| `kpi_profit` | profit | accounting | Revenue minus expenses |
-| `kpi_cash_balance` | cashBalance | accounting | Current cash/bank balance |
-| `kpi_new_customers` | newCustomers | crm | Customers added this month |
-| `kpi_active_leads` | activeLeads | crm | Open leads count |
-| `kpi_purchase_orders` | purchaseOrders | purchasing | Active PO count |
-| `kpi_retail_revenue` | retailRevenue | pos | Retail (maloprodaja) revenue today |
-| `kpi_retail_revenue_yesterday` | retailRevenueYesterday | pos | Retail revenue yesterday |
-| `kpi_retail_revenue_7days` | retailRevenueLast7Days | pos | Retail revenue last 7 days |
-| `kpi_retail_transactions` | retailTransactions | pos | Retail transaction count today |
-| `kpi_pos_sessions_active` | activePosSessions | pos | Currently open POS sessions |
-| `kpi_avg_basket` | averageBasket | pos | Average transaction value today |
-| `kpi_warehouse_count` | warehouseCount | inventory | Total warehouses |
-| `kpi_products_active` | activeProducts | inventory | Active products count |
+### Issue 4 — 4x redundant dashboard_kpi_summary RPC calls
 
-Add new category `"retail"` to `WidgetCategory` type and `widgetCategories` array.
+**File:** `KpiWidget.tsx`
 
-### C — KpiWidget.tsx Query Cases
+Consolidate `revenue`, `expenses`, `profit`, `cash_balance` cases to share a single query key `["dashboard-kpi-summary", tenantId]`. Use a shared hook or merge cases:
+- Create a shared `useQuery` for `dashboard_kpi_summary` with `queryKey: ["dashboard-kpi-summary", tenantId]` — React Query will deduplicate automatically
+- Each KPI case just extracts its field from the cached result
 
-Add all new metric key cases to the switch statement. Each is a simple Supabase query:
-- `revenue_yesterday`: RPC `dashboard_kpi_summary` with date filter, or direct query on journal entries for yesterday
-- `revenue_7days` / `revenue_30days`: Same pattern with date range
-- `invoices_issued`: count where `status = 'sent'`
-- `invoices_unpaid`: count where status in `('sent', 'overdue')`
-- `invoices_overdue`: count where `status = 'overdue'`
-- `invoices_paid`: count where `status = 'paid'`
-- `profit`: revenue - expenses from `dashboard_kpi_summary`
-- `cash_balance`: sum from journal entries on cash/bank accounts
-- `new_customers`: partners created this month
-- `active_leads`: opportunities not won/lost
-- `purchase_orders`: PO count with status in ('draft','confirmed')
-- `retail_revenue` / `retail_revenue_yesterday` / `retail_revenue_7days`: sum from `pos_transactions` with `receipt_type = 'sale'`
-- `retail_transactions`: count from `pos_transactions` today
-- `pos_sessions_active`: count from `pos_sessions` where `closed_at IS NULL`
-- `avg_basket`: average total from `pos_transactions` today
-- `warehouse_count`: count from `warehouses`
-- `products_active`: count from `products` where `is_active`
+### Issue 5 — as any casts
 
-### D — Translations
+Already addressed by type regeneration migration. No additional action needed this round.
 
-Add all new title keys to both EN and SR in `translations.ts`:
-- `revenueYesterday` → "Yesterday's Revenue" / "Prihod juče"
-- `revenueLast7Days` → "Revenue (7 days)" / "Prihod (7 dana)"
-- `revenueLast30Days` → "Revenue (30 days)" / "Prihod (30 dana)"
-- `issuedInvoices` → "Issued Invoices" / "Izdate fakture"
-- `unpaidInvoices` → "Unpaid Invoices" / "Neplaćene fakture"
-- `overdueInvoices` → "Overdue Invoices" / "Fakture u kašnjenju"
-- `paidInvoices` → "Paid Invoices" / "Plaćene fakture"
-- `profit` → "Profit" / "Dobit"
-- `cashBalance` → "Cash Balance" / "Stanje kase"
-- `newCustomers` → "New Customers" / "Novi kupci"
-- `activeLeads` → "Active Leads" / "Aktivni lidovi"
-- `purchaseOrders` → "Purchase Orders" / "Narudžbenice"
-- `retailRevenueYesterday` → "Retail Yesterday" / "Maloprodaja juče"
-- `retailRevenueLast7Days` → "Retail (7 days)" / "Maloprodaja (7 dana)"
-- `retailTransactions` → "Retail Transactions" / "Maloprodajne transakcije"
-- `activePosSessions` → "Active POS Sessions" / "Aktivne POS sesije"
-- `averageBasket` → "Avg. Basket" / "Prosečna korpa"
-- `warehouseCount` → "Warehouses" / "Magacini"
-- `activeProducts` → "Active Products" / "Aktivni proizvodi"
-- `retailWidgets` → "Retail" / "Maloprodaja"
-- `widgetSize` → "Size" / "Veličina"
+### Issue 6 — WidgetShortcutEditor labels not i18n'd
 
-### E — Files Modified
+**File:** `WidgetShortcutEditor.tsx`
 
-1. `src/config/widgetRegistry.ts` — Add `"retail"` category, 20 new widget definitions
-2. `src/components/dashboard/widgets/KpiWidget.tsx` — Add 20 new query cases + icons
-3. `src/components/dashboard/widgets/WidgetContainer.tsx` — Add resize buttons in edit mode
-4. `src/components/dashboard/CustomizableDashboard.tsx` — Pass resize handler, add `grid-auto-rows`
-5. `src/i18n/translations.ts` — Add ~20 new keys in EN + SR
+Replace hardcoded Serbian strings with `t()` calls:
+- `"Prečice"` → `t("shortcuts")`
+- `"Nema prilagođenih prečica..."` → `t("noCustomShortcuts")`
+- `"Dodaj iz predefinisanih"` → `t("addFromPresets")`
+- `"Izaberi..."` → `t("select")`
+- `"Naziv"` → `t("name")`
+- `"Putanja"` → `t("path")`
+- `"Otkaži"` → `t("cancel")`
+- `"Dodaj"` → `t("add")`
+- `"Prilagođena prečica"` → `t("customShortcut")`
+
+Add missing keys to `translations.ts` for both EN and SR.
+
+PRESET_SHORTCUTS labels should also use `t()` keys instead of hardcoded Serbian.
+
+### Issue 7 — process_pos_sale_v2 / complete_production_order_v2
+
+**Not applicable.** These v2 RPCs do not exist in the database or codebase. The frontend correctly uses `process_pos_sale` and `complete_production_order`. No action needed.
+
+### Files Modified
+
+1. `src/hooks/useLeaveRequest.ts` — targeted notification + correct entity_id
+2. `src/pages/tenant/LeaveRequests.tsx` — target employee only on approve/reject
+3. `src/components/dashboard/widgets/WidgetRenderer.tsx` — fix leave_balance mapping
+4. `src/components/dashboard/widgets/KpiWidget.tsx` — deduplicate RPC + add leave_balance case
+5. `src/components/dashboard/widgets/WidgetShortcutEditor.tsx` — i18n all labels
+6. `src/i18n/translations.ts` — add shortcut editor keys + leave_balance
 
