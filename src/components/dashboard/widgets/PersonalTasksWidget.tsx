@@ -144,17 +144,17 @@ export function PersonalTasksWidget() {
 
   const saveTaskEdits = () => {
     if (!selectedTask) return;
-    const updates: Record<string, unknown> = {
+    const updates: Partial<UserTask> & { id: string } = {
       id: selectedTask.id,
       title: editValues.title,
       description: editValues.description || null,
-      priority: editValues.priority,
+      priority: editValues.priority as UserTask["priority"],
       due_date: editValues.due_date || null,
       reminder_at: editValues.reminder_at ? new Date(editValues.reminder_at).toISOString() : null,
       linked_entity_type: editValues.linked_entity_type || null,
       linked_entity_id: editValues.linked_entity_id || null,
     };
-    updateTask.mutate(updates as any);
+    updateTask.mutate(updates);
     setSelectedTask(null);
   };
 

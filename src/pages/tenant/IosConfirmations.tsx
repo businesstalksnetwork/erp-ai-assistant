@@ -84,7 +84,7 @@ export default function IosConfirmations() {
     try {
       const { data, error } = await supabase.rpc("get_partner_ios_balance" as any, {
         p_tenant_id: tenantId, p_partner_id: partnerId, p_as_of_date: form.as_of_date,
-        p_legal_entity_id: form.legal_entity_id || null,
+        p_legal_entity_id: form.legal_entity_id === "__all__" ? null : (form.legal_entity_id || null),
       });
       if (error) throw error;
       setBalancePreview(data?.[0] || null);
@@ -103,7 +103,7 @@ export default function IosConfirmations() {
       const { error } = await supabase.from("ios_confirmations" as any).insert({
         tenant_id: tenantId!,
         partner_id: f.partner_id,
-        legal_entity_id: f.legal_entity_id || null,
+        legal_entity_id: f.legal_entity_id === "__all__" ? null : (f.legal_entity_id || null),
         confirmation_number: getNextNumber(),
         as_of_date: f.as_of_date,
         our_receivable: balancePreview?.receivable_total || 0,
@@ -246,7 +246,7 @@ export default function IosConfirmations() {
                 <Select value={form.legal_entity_id} onValueChange={(v) => setForm({ ...form, legal_entity_id: v })}>
                   <SelectTrigger><SelectValue placeholder={sr ? "Sva" : "All"} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{sr ? "Sva" : "All"}</SelectItem>
+                    <SelectItem value="__all__">{sr ? "Sva" : "All"}</SelectItem>
                     {legalEntities.map((le: any) => <SelectItem key={le.id} value={le.id}>{le.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

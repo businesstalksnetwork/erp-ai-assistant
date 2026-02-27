@@ -52,10 +52,38 @@ export function useLeaveRequest(employeeId: string | undefined) {
       if (error) throw error;
       return data as string;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["my-leave-requests"] });
       qc.invalidateQueries({ queryKey: ["profile-leave-balance"] });
       toast.success("Zahtev za odsustvo je poslat");
+
+      // Notify manager/HR about the new leave request
+      try {
+        if (employeeId && tenantId) {
+          const { data: emp } = await supabase
+            .from("employees")
+            .select("first_name, last_name")
+            .eq("id", employeeId)
+            .single();
+
+          const empName = emp ? `${emp.first_name} ${emp.last_name}` : "Employee";
+
+          await supabase.functions.invoke("create-notification", {
+            body: {
+              tenant_id: tenantId,
+              target_user_ids: "all_tenant_members",
+              type: "info",
+              category: "hr",
+              title: "Novi zahtev za odsustvo",
+              message: `${empName} je podneo/la zahtev za odsustvo.`,
+              entity_type: "leave_request",
+              entity_id: employeeId,
+            },
+          });
+        }
+      } catch {
+        // Notification failure should not block the success flow
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

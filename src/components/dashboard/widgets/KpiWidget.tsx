@@ -84,9 +84,13 @@ export function KpiWidget({ metricKey }: Props) {
           return { value: count || 0 };
         }
         case "attendance": {
-          const today = new Date().toISOString().split("T")[0];
-          const { count } = await supabase.from("attendance_records").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("date", today).eq("status", "present");
-          return { value: count || 0 };
+          try {
+            const today = new Date().toISOString().split("T")[0];
+            const { count } = await supabase.from("attendance_records").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("date", today).eq("status", "present");
+            return { value: count || 0 };
+          } catch {
+            return { value: 0 };
+          }
         }
         case "today_sales": {
           const today = new Date().toISOString().split("T")[0];
