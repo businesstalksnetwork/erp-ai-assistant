@@ -13902,6 +13902,56 @@ export type Database = {
           },
         ]
       }
+      pivot_saved_views: {
+        Row: {
+          config_json: Json
+          created_at: string
+          cube: string
+          description: string | null
+          id: string
+          is_pinned: boolean
+          is_shared: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config_json?: Json
+          created_at?: string
+          cube: string
+          description?: string | null
+          id?: string
+          is_pinned?: boolean
+          is_shared?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config_json?: Json
+          created_at?: string
+          cube?: string
+          description?: string | null
+          id?: string
+          is_pinned?: boolean
+          is_shared?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pivot_saved_views_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       popdv_records: {
         Row: {
           created_at: string
@@ -20478,6 +20528,167 @@ export type Database = {
           },
         ]
       }
+      v_cube_gl_entries: {
+        Row: {
+          account_class: string | null
+          account_code: string | null
+          account_group: string | null
+          account_name: string | null
+          balance: number | null
+          cost_center: string | null
+          credit: number | null
+          debit: number | null
+          description: string | null
+          entry_date: string | null
+          month: number | null
+          quarter: string | null
+          tenant_id: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cube_inventory_movements: {
+        Row: {
+          month: number | null
+          movement_date: string | null
+          movement_type: string | null
+          product_category: string | null
+          product_name: string | null
+          quantity: number | null
+          tenant_id: string | null
+          total_value: number | null
+          unit_cost: number | null
+          warehouse_name: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cube_invoices: {
+        Row: {
+          currency: string | null
+          discount_amount: number | null
+          invoice_date: string | null
+          invoice_type: string | null
+          line_total: number | null
+          month: number | null
+          partner_city: string | null
+          partner_name: string | null
+          partner_type: string | null
+          product_category: string | null
+          product_name: string | null
+          quantity: number | null
+          quarter: string | null
+          salesperson: string | null
+          status: string | null
+          tax_amount: number | null
+          tenant_id: string | null
+          unit_price: number | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cube_payroll: {
+        Row: {
+          amount: number | null
+          department: string | null
+          employee_name: string | null
+          hours: number | null
+          item_type: string | null
+          month: number | null
+          pay_period: string | null
+          position: string | null
+          tenant_id: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cube_pos_transactions: {
+        Row: {
+          cashier_name: string | null
+          day_of_week: string | null
+          discount: number | null
+          hour_of_day: number | null
+          line_total: number | null
+          month: number | null
+          payment_method: string | null
+          quantity: number | null
+          receipt_type: string | null
+          store_location: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          tenant_id: string | null
+          transaction_date: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cube_purchases: {
+        Row: {
+          invoice_date: string | null
+          line_total: number | null
+          month: number | null
+          product_category: string | null
+          product_name: string | null
+          quantity: number | null
+          quarter: string | null
+          supplier_city: string | null
+          supplier_name: string | null
+          tax_amount: number | null
+          tenant_id: string | null
+          unit_cost: number | null
+          warehouse: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_inventory_stock: {
@@ -20748,6 +20959,7 @@ export type Database = {
           sort_order: number
         }[]
       }
+      get_cube_metadata: { Args: { p_cube: string }; Returns: Json }
       get_direct_reports: {
         Args: { p_manager_id: string }
         Returns: {
@@ -20851,6 +21063,21 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      pivot_query: {
+        Args: {
+          p_columns?: string[]
+          p_cube: string
+          p_filters?: Json
+          p_limit?: number
+          p_measures?: Json
+          p_offset?: number
+          p_rows: string[]
+          p_sort_by?: string
+          p_sort_dir?: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       post_kalkulacija: { Args: { p_kalkulacija_id: string }; Returns: string }
       post_nivelacija: { Args: { p_nivelacija_id: string }; Returns: string }
