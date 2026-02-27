@@ -1,57 +1,49 @@
 
 
-## v2.2 Remaining — Status & Implementation Plan
+## v2.3 Round 1 — P1 Quick Wins (4 items)
 
-### Already Complete (12 of 22)
-Items verified as done in current codebase:
-- **#1**: `settings-business-rules` is a valid permission (used in `rolePermissions.ts` + `settingsRoutes.tsx`) — NOT dead
-- **#2**: All 10 accounting routes already in `accountingNav` (lines 93-133)
-- **#3**: Production sub-pages already in `productionNav` (kanban, gantt, quality, cost-variance, mrp, maintenance)
-- **#4**: WMS labor + returns already in `inventoryNav` (lines 89-90)
-- **#5**: Settings sidebar already grouped with sections (`settingsOrganization`, `settingsFinance`, etc.)
-- **#6**: 30+ settings sub-pages already in sidebar
-- **#7**: GlobalSearch already covers settings pages
-- **#17** (partial): `staleTime` already on legal entities, chart of accounts, permissions, tenants
-- **#18**: `CollapsibleNavGroup` already wrapped in `React.memo`
-- **#20**: All route pages already use `React.lazy` via route modules
-
-### Remaining: 10 Items across 4 Rounds
+### Current State
+- **#9 Cron**: Edge functions `recurring-invoice-generate` and `recurring-journal-generate` exist and are deployed, but have no `pg_cron` schedule. Config.toml lacks entries for them.
+- **#10 Line items**: `recurring_invoices` table has a `lines: Json` column. The edge function ignores it entirely — creates invoices with `subtotal=0, tax_amount=0, total=0` and no `invoice_lines` rows.
+- **#1 OD-O** and **#2 M4**: No existing pages or edge functions. Payroll infrastructure exists (`payroll_runs`, `payroll_items`, `payroll_categories` with `affects_m4` flag). PPP-PD XML generator exists as a pattern to follow.
 
 ---
 
-**Round 1 — Quick Wins (4 items, ~2 hr)**
+### Implementation Steps
 
-| # | Task | Detail |
-|---|------|--------|
-| 12 | Create `FormSkeleton` component | New `src/components/shared/FormSkeleton.tsx` — reusable skeleton with header + form field placeholders |
-| 17 | Add `staleTime` to remaining hooks | Grep for tax rates, currencies, warehouses, employees queries missing `staleTime` and add 5-min cache |
-| 19 | Add `rollup-plugin-visualizer` | Install package, add to `vite.config.ts` as optional plugin |
-| 21 | Wire `PageErrorBoundary` into routes | Wrap route elements in `settingsRoutes.tsx`, `accountingRoutes.tsx`, `hrRoutes.tsx`, etc. |
+**#9 — Cron schedule for recurring engines (~15 min)**
+1. Add `recurring-invoice-generate` and `recurring-journal-generate` to `config.toml` with `verify_jwt = false`
+2. Create two `pg_cron` jobs via SQL insert tool (not migration):
+   - `recurring-invoice-generate`: daily at 06:00 UTC
+   - `recurring-journal-generate`: daily at 06:05 UTC
+   - Both call the edge function URL with service role auth
 
-**Round 2 — Table Migration Batch 1 (Items 13-14, ~4 hr)**
+**#10 — Recurring invoice line items (~30 min)**
+1. Update `recurring-invoice-generate/index.ts`:
+   - After inserting invoice header, parse `tpl.lines` (JSON array)
+   - Insert each line into `invoice_lines` with the new `invoice_id`
+   - Calculate `subtotal`, `tax_amount`, `total` from lines
+   - Update the invoice record with correct totals
+2. Update `RecurringInvoices.tsx`:
+   - Add a line items editor to the create/edit dialog (description, quantity, unit_price, tax_rate)
+   - Save lines as JSON array to the `lines` column
 
-Audit all 182 files importing raw `<Table>` and migrate the first 5-6 list pages to `ResponsiveTable`:
-- `TravelOrders.tsx`, `PK1Book.tsx`, `PPPPO.tsx`, `BankStatements.tsx` (already done), `JournalEntries.tsx`, `Employees.tsx`
-- Add sort, column toggle, CSV export where appropriate
+**#1 — OD-O Form (~1.5 hr)**
+1. Create DB table `od_o_reports` via migration: `id, tenant_id, employee_id, period_year, period_month, income_type, gross_amount, tax_base, tax_amount, pio_amount, health_amount, net_amount, status, xml_data, created_at`
+2. Create page `src/pages/tenant/reports/OdOForm.tsx`:
+   - Employee selector, period picker, income type dropdown (royalties, rent, etc.)
+   - Calculation logic: apply OD-O specific rates (different from standard payroll)
+   - Generate/download XML button
+3. Create edge function `generate-od-o-xml/index.ts` — builds XML per Serbian tax authority spec
+4. Add route + sidebar entry
 
-**Round 3 — Table Migration Batch 2 (Items 15-16, ~8 hr)**
-
-Migrate hub/detail pages:
-- `Invoices.tsx`, `Products.tsx` (already done), `Partners.tsx`, `Companies.tsx`, `ChartOfAccounts.tsx`, `PayrollCategories.tsx`, `EmployeeSalaries.tsx`, `BomTemplates.tsx`, `WmsTasks.tsx`, `WmsLabor.tsx`, `EventMonitor.tsx`, `SalesPerformance.tsx`
-- Remaining ~10 pages with simpler tables
-
-**Round 4 — Forms & Entity Selector (Items 8-11, 22, ~10 hr)**
-
-| # | Task | Detail |
-|---|------|--------|
-| 8 | TenantProfile legal entity selector | Add `legal_entity_id` dropdown linking to `legal_entities` table |
-| 9 | Bank API connection test | Add "Test Connection" button to Integrations page that pings bank API endpoint |
-| 10 | InvoiceForm → RHF + Zod | Migrate ~900-line form from manual useState to `react-hook-form` with Zod schema validation |
-| 11 | SupplierInvoiceForm → RHF + Zod | Same migration for ~650-line supplier invoice form |
-| 22 | Extend `EntitySelector` usage | Replace inline partner/employee/product selects in InvoiceForm, SupplierInvoiceForm, TravelOrderForm |
-
----
-
-### Recommended Approach
-Start with **Round 1** (quick wins) to close out easy items, then tackle **Rounds 2-3** (table migration bulk) which is the heaviest lift at ~12 hours. Round 4 (form migration) is highest-risk and can be deferred if needed.
+**#2 — M4 Annual PIO Report (~1.5 hr)**
+1. Create DB table `m4_reports` via migration: `id, tenant_id, legal_entity_id, report_year, status, generated_data, xml_data, created_at`
+2. Create page `src/pages/tenant/reports/M4Report.tsx`:
+   - Year selector, legal entity selector
+   - Aggregates PIO contributions from `payroll_items` for all employees in the year
+   - Shows per-employee breakdown: months worked, PIO base, PIO employee, PIO employer
+   - Generate/download XML button
+3. Create edge function `generate-m4-xml/index.ts` — builds M4 XML for PIO Fund
+4. Add route + sidebar entry
 
