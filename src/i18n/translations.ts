@@ -3090,6 +3090,9 @@ export const translations = {
     select: "Select...",
     customShortcut: "Custom Shortcut",
     path: "Path",
+    greetingMorning: "Good morning",
+    greetingAfternoon: "Good afternoon",
+    greetingEvening: "Good evening",
   },
   sr: {
     // Auth
@@ -6132,6 +6135,9 @@ export const translations = {
     select: "Izaberi...",
     customShortcut: "Prilagođena prečica",
     path: "Putanja",
+    greetingMorning: "Dobro jutro",
+    greetingAfternoon: "Dobar dan",
+    greetingEvening: "Dobro veče",
   },
 } as const;
 
