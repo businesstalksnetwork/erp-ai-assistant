@@ -8164,6 +8164,7 @@ export type Database = {
           id: string
           is_recurring: boolean
           name: string
+          name_sr: string | null
           tenant_id: string | null
         }
         Insert: {
@@ -8173,6 +8174,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           name: string
+          name_sr?: string | null
           tenant_id?: string | null
         }
         Update: {
@@ -8182,6 +8184,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           name?: string
+          name_sr?: string | null
           tenant_id?: string | null
         }
         Relationships: [
@@ -19993,6 +19996,47 @@ export type Database = {
           },
         ]
       }
+      work_calendars: {
+        Row: {
+          created_at: string
+          generated_at: string
+          id: string
+          tenant_id: string
+          total_working_days: number | null
+          updated_at: string
+          working_days_config: Json
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          generated_at?: string
+          id?: string
+          tenant_id: string
+          total_working_days?: number | null
+          updated_at?: string
+          working_days_config?: Json
+          year: number
+        }
+        Update: {
+          created_at?: string
+          generated_at?: string
+          id?: string
+          tenant_id?: string
+          total_working_days?: number | null
+          updated_at?: string
+          working_days_config?: Json
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_calendars_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_log_payment_type_map: {
         Row: {
           created_at: string
@@ -20189,6 +20233,10 @@ export type Database = {
           layer_id: string
           unit_cost: number
         }[]
+      }
+      count_working_days: {
+        Args: { p_end: string; p_start: string; p_tenant_id: string }
+        Returns: number
       }
       create_journal_entry_with_lines: {
         Args: {
