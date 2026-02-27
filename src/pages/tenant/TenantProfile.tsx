@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Save } from "lucide-react";
+import { Building, Save, Upload, Image } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 interface TenantSettings {
@@ -17,6 +17,9 @@ interface TenantSettings {
   default_currency?: string;
   timezone?: string;
   fiscal_year_start_month?: number;
+  pib?: string;
+  maticni_broj?: string;
+  seal_url?: string;
 }
 
 const TIMEZONES = [
@@ -55,6 +58,7 @@ export default function TenantProfile() {
 
   const [name, setName] = useState("");
   const [settings, setSettings] = useState<TenantSettings>({});
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (tenant) {
@@ -65,9 +69,39 @@ export default function TenantProfile() {
         default_currency: s.default_currency || "RSD",
         timezone: s.timezone || "Europe/Belgrade",
         fiscal_year_start_month: s.fiscal_year_start_month || 1,
+        pib: s.pib || "",
+        maticni_broj: s.maticni_broj || "",
+        seal_url: s.seal_url || "",
       });
     }
   }, [tenant]);
+
+  const handleSealUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tenantId) return;
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${tenantId}/seal.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("tenant-documents")
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage
+        .from("tenant-documents")
+        .getPublicUrl(path);
+
+      setSettings((s) => ({ ...s, seal_url: urlData.publicUrl }));
+      toast({ title: t("success"), description: "Seal/stamp uploaded" });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -116,6 +150,24 @@ export default function TenantProfile() {
                 value={settings.company_logo || ""}
                 onChange={(e) => setSettings((s) => ({ ...s, company_logo: e.target.value }))}
                 placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>PIB (Poreski identifikacioni broj)</Label>
+              <Input
+                value={settings.pib || ""}
+                onChange={(e) => setSettings((s) => ({ ...s, pib: e.target.value }))}
+                placeholder="123456789"
+                maxLength={9}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>MB (Matični broj)</Label>
+              <Input
+                value={settings.maticni_broj || ""}
+                onChange={(e) => setSettings((s) => ({ ...s, maticni_broj: e.target.value }))}
+                placeholder="12345678"
+                maxLength={8}
               />
             </div>
             <div className="space-y-2">
@@ -172,8 +224,39 @@ export default function TenantProfile() {
             </div>
           </div>
 
+          {/* Seal/Stamp Upload */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <Label className="flex items-center gap-2">
+              <Image className="h-4 w-4" />
+              Pečat / Stamp
+            </Label>
+            <div className="flex items-center gap-4">
+              {settings.seal_url && (
+                <img src={settings.seal_url} alt="Company seal" className="h-16 w-16 object-contain rounded border" />
+              )}
+              <div>
+                <label htmlFor="seal-upload">
+                  <Button variant="outline" size="sm" asChild disabled={uploading}>
+                    <span>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploading ? "Uploading..." : "Upload Seal"}
+                    </span>
+                  </Button>
+                </label>
+                <input
+                  id="seal-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleSealUpload}
+                />
+                <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end pt-4">
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} data-shortcut="save">
               <Save className="h-4 w-4 mr-2" />
               {t("save")}
             </Button>
