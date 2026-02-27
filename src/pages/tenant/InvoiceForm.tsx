@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -153,7 +153,27 @@ export default function InvoiceForm() {
     enabled: !!tenantId,
   });
 
-  // Fetch tax rates
+  // Fetch wholesale default prices for price resolution
+  const { data: wholesaleDefaultPrices = [] } = useQuery({
+    queryKey: ["wholesale_default_prices", tenantId],
+    queryFn: async () => {
+      const { data: defaultList } = await supabase
+        .from("wholesale_price_lists")
+        .select("id")
+        .eq("tenant_id", tenantId!)
+        .eq("is_default", true)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (!defaultList) return [];
+      const { data } = await supabase
+        .from("wholesale_prices")
+        .select("product_id, price")
+        .eq("price_list_id", defaultList.id);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: taxRates = [] } = useQuery({
     queryKey: ["tax-rates", tenantId],
     queryFn: async () => {
@@ -788,11 +808,14 @@ export default function InvoiceForm() {
                         const prod = products.find((p) => p.id === v);
                         if (prod) {
                           const currentLine = form.getValues(`lines.${i}`);
+                          // Wholesale price resolution: wholesale list → product default
+                          const wholesaleEntry = wholesaleDefaultPrices.find((wp: any) => wp.product_id === prod.id);
+                          const resolvedPrice = wholesaleEntry ? Number(wholesaleEntry.price) : (Number(prod.default_sale_price) || 0);
                           const l = {
                             ...currentLine,
                             product_id: prod.id,
                             description: prod.name,
-                            unit_price: Number(prod.default_sale_price),
+                            unit_price: resolvedPrice,
                             tax_rate_id: prod.tax_rate_id || currentLine.tax_rate_id,
                             tax_rate_value: prod.tax_rate_id && (prod as any).tax_rates ? Number((prod as any).tax_rates.rate) : currentLine.tax_rate_value,
                           } as any;

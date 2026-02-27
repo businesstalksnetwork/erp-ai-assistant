@@ -100,6 +100,23 @@ export default function PosTerminal() {
     enabled: !!tenantId && !!activeSession?.location_id,
   });
 
+  // Fetch default retail price list as fallback
+  const { data: defaultRetailPrices = [] } = useQuery({
+    queryKey: ["default_retail_prices", tenantId],
+    queryFn: async () => {
+      const { data: defaultList } = await supabase
+        .from("retail_price_lists")
+        .select("id")
+        .eq("tenant_id", tenantId!)
+        .eq("is_default", true)
+        .maybeSingle();
+      if (!defaultList) return [];
+      const { data } = await supabase.from("retail_prices").select("product_id, retail_price").eq("price_list_id", defaultList.id);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: products = [] } = useQuery({
     queryKey: ["products", tenantId],
     queryFn: async () => {
@@ -158,8 +175,12 @@ export default function PosTerminal() {
   );
 
   const addToCart = (p: any) => {
+    // Price resolution: location list → default retail list → product default_retail_price → default_sale_price
     const locPrice = locationPrices.find((lp: any) => lp.product_id === p.id);
-    const price = locPrice ? Number(locPrice.retail_price) : (Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price));
+    const defaultRetailEntry = defaultRetailPrices.find((rp: any) => rp.product_id === p.id);
+    const price = locPrice ? Number(locPrice.retail_price)
+      : defaultRetailEntry ? Number(defaultRetailEntry.retail_price)
+      : (Number(p.default_retail_price) > 0 ? Number(p.default_retail_price) : Number(p.default_sale_price));
     setCart(prev => {
       const existing = prev.find(c => c.product_id === p.id);
       if (existing) return prev.map(c => c.product_id === p.id ? { ...c, quantity: c.quantity + 1 } : c);
