@@ -907,6 +907,41 @@ serve(async (req) => {
       }
     }
 
+    // ─── Task 31: Cross-module duplicate detection ───
+    if (!module || module === "accounting") {
+      const { data: recentInvoices } = await supabase
+        .from("invoices").select("id, partner_name, total, invoice_date, invoice_number")
+        .eq("tenant_id", tenant_id).order("invoice_date", { ascending: false }).limit(100);
+      const { data: recentSupplierInv } = await supabase
+        .from("supplier_invoices").select("id, supplier_name, total, invoice_date, invoice_number")
+        .eq("tenant_id", tenant_id).order("invoice_date", { ascending: false }).limit(100);
+
+      if (recentInvoices && recentSupplierInv) {
+        const crossDupes: Array<{ invoice_number: string; supplier: string; total: number }> = [];
+        for (const inv of recentInvoices) {
+          for (const si of recentSupplierInv) {
+            if (inv.invoice_number && si.invoice_number &&
+                inv.invoice_number === si.invoice_number &&
+                inv.partner_name === si.supplier_name &&
+                Number(inv.total) === Number(si.total) && Number(inv.total) > 0) {
+              crossDupes.push({ invoice_number: inv.invoice_number, supplier: inv.partner_name, total: Number(inv.total) });
+            }
+          }
+        }
+        if (crossDupes.length > 0) {
+          insights.push({
+            insight_type: "cross_module_duplicate",
+            severity: "critical",
+            title: sr ? `${crossDupes.length} mogućih duplikata između modula` : `${crossDupes.length} Cross-Module Duplicates`,
+            description: sr
+              ? `Pronađene su fakture sa istim brojem, partnerom i iznosom u oba modula (izlazne i ulazne fakture).`
+              : `Found invoices with matching number, partner, and amount in both customer invoices and supplier invoices.`,
+            data: { count: crossDupes.length, samples: crossDupes.slice(0, 3) },
+          });
+        }
+      }
+    }
+
     // ─── AI Enrichment: send rule-based insights to Gemini ───
     const { summary, recommendations, prioritized } = await enrichInsightsWithAI(
       insights, tenant_id, caller.id, language, supabase
@@ -918,6 +953,34 @@ serve(async (req) => {
       await supabase.from("ai_insights_cache").insert(
         prioritized.map((i: any) => ({ tenant_id, language: lang, ...i }))
       );
+    }
+
+    // ─── Task 26: Wire critical/warning insights to notifications ───
+    const criticalWarning = prioritized.filter((i: any) => i.severity === "critical" || i.severity === "warning");
+    if (criticalWarning.length > 0) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        // Create a service-role auth header for internal call
+        await fetch(`${supabaseUrl}/functions/v1/create-notification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+          },
+          body: JSON.stringify({
+            tenant_id,
+            target_user_ids: "all_tenant_members",
+            type: criticalWarning.some((i: any) => i.severity === "critical") ? "warning" : "info",
+            category: "ai_insights",
+            title: sr ? "AI upozorenja" : "AI Insights Alert",
+            message: criticalWarning.slice(0, 3).map((i: any) => i.title).join("; "),
+          }),
+        });
+      } catch (e) {
+        console.warn("Failed to send insight notification:", e);
+      }
     }
 
     // Filter by module before returning
@@ -953,14 +1016,14 @@ serve(async (req) => {
 /** Filter insights by module context */
 function filterByModule(insights: any[], module: string): any[] {
   const moduleMap: Record<string, string[]> = {
-    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "ai_correlation", "all_clear"],
+    analytics: ["overdue_invoices", "large_invoices", "budget_variance", "revenue_declining", "payroll_anomaly", "expense_spike", "duplicate_invoices", "weekend_postings", "cross_module_duplicate", "ai_correlation", "all_clear"],
     inventory: ["zero_stock", "low_stock", "slow_moving", "reorder_suggestion", "bom_material_shortage", "ai_correlation", "all_clear"],
     hr: ["payroll_anomaly", "excessive_overtime", "leave_balance_warning", "ai_correlation", "all_clear"],
     crm: ["stale_leads", "high_value_at_risk", "dormant_accounts", "at_risk_accounts", "ai_correlation", "all_clear"],
-    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "unreconciled_statements", "open_fiscal_periods", "ai_correlation", "all_clear"],
+    accounting: ["overdue_invoices", "large_invoices", "draft_journals", "expense_spike", "duplicate_invoices", "weekend_postings", "unreconciled_statements", "open_fiscal_periods", "cross_module_duplicate", "ai_correlation", "all_clear"],
     pos: ["pos_high_refund_rate", "pos_not_fiscalized", "ai_correlation", "all_clear"],
     production: ["overdue_production", "bom_material_shortage", "ai_correlation", "all_clear"],
-    purchasing: ["po_delivery_overdue", "duplicate_invoices", "ai_correlation", "all_clear"],
+    purchasing: ["po_delivery_overdue", "duplicate_invoices", "cross_module_duplicate", "ai_correlation", "all_clear"],
     sales: ["quote_aging", "high_value_at_risk", "ai_correlation", "all_clear"],
   };
   const allowed = moduleMap[module];

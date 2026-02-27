@@ -18,6 +18,7 @@ const InvoiceStatusChart = React.lazy(() => import("@/components/dashboard/Invoi
 const CashFlowChart = React.lazy(() => import("@/components/dashboard/CashFlowChart").then(m => ({ default: m.CashFlowChart })));
 const TopCustomersChart = React.lazy(() => import("@/components/dashboard/TopCustomersChart").then(m => ({ default: m.TopCustomersChart })));
 const AiInsightsWidget = React.lazy(() => import("@/components/ai/AiInsightsWidget").then(m => ({ default: m.AiInsightsWidget })));
+const AiMorningBriefing = React.lazy(() => import("@/components/ai/AiMorningBriefing").then(m => ({ default: m.AiMorningBriefing })));
 const CashflowForecastWidget = React.lazy(() => import("@/components/dashboard/CashflowForecastWidget").then(m => ({ default: m.CashflowForecastWidget })));
 const ComplianceDeadlineWidget = React.lazy(() => import("@/components/dashboard/ComplianceDeadlineWidget").then(m => ({ default: m.ComplianceDeadlineWidget })));
 const PayrollCostWidget = React.lazy(() => import("@/components/dashboard/PayrollCostWidget").then(m => ({ default: m.PayrollCostWidget })));
@@ -183,6 +184,13 @@ export default function TenantDashboard() {
 
       {/* Fiscal Receipt Status */}
       {tenantId && canAccess("pos") && <FiscalReceiptStatusWidget tenantId={tenantId} />}
+
+      {/* Morning Briefing */}
+      {tenantId && (
+        <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+          <AiMorningBriefing tenantId={tenantId} />
+        </Suspense>
+      )}
 
       {/* AI Insights */}
       {tenantId && (

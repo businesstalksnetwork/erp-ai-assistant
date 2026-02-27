@@ -6,6 +6,9 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTenant } from "@/hooks/useTenant";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useKeyboardShortcuts, KeyboardShortcutsOverlay } from "@/hooks/useKeyboardShortcuts";
@@ -62,7 +65,7 @@ interface NavItem {
   section?: string;
 }
 
-const mainNav: NavItem[] = [
+const mainNav: (NavItem & { badge?: number })[] = [
   { key: "dashboard", url: "/dashboard", icon: LayoutDashboard },
   { key: "aiBriefing", url: "/ai/briefing", icon: Brain },
 ];
@@ -378,12 +381,30 @@ export default function TenantLayout() {
   const { t, locale, setLocale } = useLanguage();
   const { signOut, user, isSuperAdmin } = useAuth();
   const { canAccess } = usePermissions();
+  const { tenantId } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
   const isMobile = useIsMobile();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts();
+
+  // Task 29: Critical insight badge count
+  const { data: criticalInsightCount = 0 } = useQuery({
+    queryKey: ["critical-insight-count", tenantId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("ai_insights_cache")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId!)
+        .in("severity", ["critical", "warning"])
+        .gt("expires_at", new Date().toISOString());
+      return count || 0;
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
     setAiSidebarOpen(!isMobile);
@@ -424,6 +445,7 @@ export default function TenantLayout() {
                 <SidebarMenu>
                   {mainNav.map((item) => {
                     const itemActive = currentPath === item.url;
+                    const badgeCount = item.key === "dashboard" ? criticalInsightCount : 0;
                     return (
                       <SidebarMenuItem key={item.key}>
                         <SidebarMenuButton asChild>
@@ -437,7 +459,14 @@ export default function TenantLayout() {
                             }`}
                             activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                           >
-                            <item.icon className={`h-5 w-5 flex-shrink-0 ${itemActive ? "text-sidebar-primary" : "opacity-50"}`} />
+                            <div className="relative">
+                              <item.icon className={`h-5 w-5 flex-shrink-0 ${itemActive ? "text-sidebar-primary" : "opacity-50"}`} />
+                              {badgeCount > 0 && (
+                                <span className="absolute -top-1 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                                  {badgeCount > 9 ? "9+" : badgeCount}
+                                </span>
+                              )}
+                            </div>
                             <span>{t(item.key as any)}</span>
                           </NavLink>
                         </SidebarMenuButton>

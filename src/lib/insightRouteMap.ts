@@ -27,4 +27,6 @@ export const insightRouteMap: Record<string, string> = {
   po_delivery_overdue: "/purchasing/orders",
   quote_aging: "/sales/quotes",
   open_fiscal_periods: "/accounting/fiscal-years",
+  // Round 4: cross-module duplicate detection
+  cross_module_duplicate: "/purchasing/supplier-invoices",
 };
