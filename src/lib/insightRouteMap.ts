@@ -18,4 +18,13 @@ export const insightRouteMap: Record<string, string> = {
   weekend_postings: "/accounting/journal",
   dormant_accounts: "/crm/companies",
   at_risk_accounts: "/crm/companies",
+  // Round 1: 8 new insight types
+  pos_high_refund_rate: "/pos",
+  pos_not_fiscalized: "/pos/transactions",
+  overdue_production: "/inventory/production",
+  bom_material_shortage: "/inventory/production",
+  unreconciled_statements: "/accounting/bank-statements",
+  po_delivery_overdue: "/purchasing/orders",
+  quote_aging: "/sales/quotes",
+  open_fiscal_periods: "/accounting/fiscal-years",
 };
