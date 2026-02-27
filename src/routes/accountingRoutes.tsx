@@ -44,6 +44,7 @@ const BankAccounts = React.lazy(() => import("@/pages/tenant/BankAccounts"));
 const BankDocumentImport = React.lazy(() => import("@/pages/tenant/BankDocumentImport"));
 const CreditDebitNotes = React.lazy(() => import("@/pages/tenant/CreditDebitNotes"));
 const ProformaInvoices = React.lazy(() => import("@/pages/tenant/ProformaInvoices"));
+const InvoiceRegister = React.lazy(() => import("@/pages/tenant/InvoiceRegister"));
 
 const m = "accounting";
 
@@ -92,5 +93,6 @@ export const accountingRoutes = (
     <Route path="accounting/document-import" element={<ProtectedRoute requiredModule={m}><BankDocumentImport /></ProtectedRoute>} />
     <Route path="accounting/credit-debit-notes" element={<ProtectedRoute requiredModule={m}><CreditDebitNotes /></ProtectedRoute>} />
     <Route path="accounting/proforma-invoices" element={<ProtectedRoute requiredModule={m}><ProformaInvoices /></ProtectedRoute>} />
+    <Route path="accounting/invoice-register" element={<ProtectedRoute requiredModule={m}><InvoiceRegister /></ProtectedRoute>} />
   </>
 );

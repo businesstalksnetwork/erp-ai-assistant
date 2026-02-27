@@ -19,6 +19,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
+import { createReverseChargeEntries, isReverseChargeField } from "@/lib/popdvAggregation";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines, buildSupplierPaymentPreviewLines } from "@/components/accounting/PostingPreviewPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
@@ -210,6 +211,23 @@ export default function SupplierInvoices() {
         context: { taxRate },
         fallbackLines,
       });
+
+      // Phase 5: Create reverse charge entries for 8g/8b lines
+      try {
+        const { data: siLines } = await supabase.from("supplier_invoice_lines")
+          .select("id, popdv_field, line_total, tax_amount")
+          .eq("supplier_invoice_id", inv.id);
+        if (siLines && siLines.length > 0) {
+          const rcLines = siLines.filter((l: any) => l.popdv_field && isReverseChargeField(l.popdv_field));
+          if (rcLines.length > 0) {
+            const vatDate = (inv as any).vat_date || inv.invoice_date;
+            await createReverseChargeEntries(tenantId, inv.id, vatDate, rcLines as any);
+          }
+        }
+      } catch (rcErr) {
+        console.warn("[ReverseCharge] Failed to create entries:", rcErr);
+      }
+
       const { error } = await supabase.from("supplier_invoices").update({ status: "approved" }).eq("id", inv.id);
       if (error) throw error;
     },
