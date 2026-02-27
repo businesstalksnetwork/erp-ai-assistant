@@ -513,6 +513,9 @@ export const translations = {
     planning: "Planning",
     wmsLabor: "Labor Management",
     wmsReturns: "Returns",
+    inventoryStockTake: "Stock Take",
+    inventoryWriteOffs: "Write-offs",
+    inventoryControl: "Inventory Control",
 
     // Documents
     documents: "Documents",
@@ -3451,6 +3454,9 @@ export const translations = {
     planning: "Planiranje",
     wmsLabor: "Upravljanje radnom snagom",
     wmsReturns: "Povrati",
+    inventoryStockTake: "Popisna lista",
+    inventoryWriteOffs: "Otpisi robe",
+    inventoryControl: "Kontrola zaliha",
 
     // Documents
     documents: "DMS",

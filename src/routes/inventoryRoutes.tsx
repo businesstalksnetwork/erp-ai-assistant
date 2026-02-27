@@ -30,6 +30,8 @@ const WmsCycleCounts = React.lazy(() => import("@/pages/tenant/WmsCycleCounts"))
 const WmsSlotting = React.lazy(() => import("@/pages/tenant/WmsSlotting"));
 const WmsLabor = React.lazy(() => import("@/pages/tenant/WmsLabor"));
 const WmsReturns = React.lazy(() => import("@/pages/tenant/WmsReturns"));
+const InventoryStockTake = React.lazy(() => import("@/pages/tenant/InventoryStockTake"));
+const InventoryWriteOff = React.lazy(() => import("@/pages/tenant/InventoryWriteOff"));
 
 const m = "inventory";
 const B = PageErrorBoundary;
@@ -63,5 +65,7 @@ export const inventoryRoutes = (
     <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule={m}><B><WmsSlotting /></B></ProtectedRoute>} />
     <Route path="inventory/wms/labor" element={<ProtectedRoute requiredModule={m}><B><WmsLabor /></B></ProtectedRoute>} />
     <Route path="inventory/wms/returns" element={<ProtectedRoute requiredModule={m}><B><WmsReturns /></B></ProtectedRoute>} />
+    <Route path="inventory/stock-take" element={<ProtectedRoute requiredModule={m}><B><InventoryStockTake /></B></ProtectedRoute>} />
+    <Route path="inventory/write-offs" element={<ProtectedRoute requiredModule={m}><B><InventoryWriteOff /></B></ProtectedRoute>} />
   </>
 );
