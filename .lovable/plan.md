@@ -1,69 +1,54 @@
 
 
-# v2.1 Status + v2.3 Round 1 Implementation Plan
+## v2.1 Remaining — Status Assessment
 
-## Already Complete (no work needed)
+Items 1-3 are **already fully implemented**:
+- efaktura_category per-line in UBL XML: `sef-submit/index.ts` lines 124-125, 160
+- SEF PIB validation: `sef-submit/index.ts` lines 482-493 query `sef_registry`
+- FIFO in POS: `PosTerminal.tsx` line 349 calls `consume_fifo_layers`
 
-- **efaktura_category → UBL XML**: `sef-submit/index.ts` lines 124-125 and 160 read `line.efaktura_category` for both `TaxSubtotal` and `ClassifiedTaxCategory`
-- **consume_fifo_layers**: Wired in `PosTerminal.tsx` (line 349) and `InvoiceForm.tsx` (line 466)
-- **SEF PIB validation**: `sef-submit/index.ts` lines 482-493 query `sef_registry` before submission
+**Item 4 — eBolovanje → Payroll Bridge — needs work.**
 
-## Quick Fixes (this round)
+The `ebolovanje-submit` edge function already creates an approved `leave_request` with `leave_type='sick_leave'` when a claim is submitted. However, the latest `calculate_payroll_for_run` function (migration `20260225132632`) only deducts for `leave_type='unpaid'` leave requests (line 164). Sick leave days are completely ignored in payroll calculation.
 
-### Fix GlobalSearch dead link
-- `GlobalSearch.tsx` line 51: change `/crm/partners` → `/crm/companies`
+### What needs to change
 
-### Fix sidebar partners link
-- `TenantLayout.tsx` line 154: change `/crm/partners` → `/crm/companies`
+**Upgrade `calculate_payroll_for_run` SQL function** to:
 
-## v2.3 Round 1 — Travel Orders (Putni Nalozi)
+1. Query approved `leave_requests` where `leave_type IN ('sick_leave', 'maternity_leave')` overlapping the payroll period
+2. Calculate employer-paid sick days (first 30 days per Serbian law) at 65% of daily rate
+3. Calculate RFZO days (days 31+) — excluded from employer payroll entirely
+4. Adjust gross: subtract full daily rate for sick days, add back 65% sick compensation for employer-paid days
+5. Store `sick_leave_days` and `sick_leave_compensation` in `payroll_items`
 
-### Database migration
-- Create `travel_orders` table: id, tenant_id, legal_entity_id, employee_id, order_number, destination, purpose, departure_date, return_date, transport_type (car/bus/train/plane), vehicle_plate, advance_amount, per_diem_rate, per_diem_days, per_diem_total, total_expenses, status (draft/approved/completed/settled), approved_by, approved_at, notes, created_by, created_at
-- Create `travel_order_expenses` table: id, travel_order_id, expense_type (accommodation/meals/transport/other), description, amount, receipt_number, receipt_date, sort_order
-- RLS policies scoped by tenant_id
-- Auto-generate order_number trigger
+**Add columns to `payroll_items`**:
+- `sick_leave_days INTEGER DEFAULT 0`
+- `sick_leave_compensation NUMERIC DEFAULT 0`
 
-### UI Components
-- `src/pages/tenant/TravelOrders.tsx` — list page with ResponsiveTable, status badges, filters
-- `src/pages/tenant/TravelOrderForm.tsx` — form with employee selector, date range, per-diem calculator, expense lines, GL posting
-- Routes in `src/routes/hrRoutes.tsx`
-- Sidebar entry in TenantLayout under HR group
-- GlobalSearch entries
+**Update `Payroll.tsx`** (or `PayrollRunDetail.tsx`) to display the sick leave columns in the payroll items table.
 
-### GL Posting
-- On status → "settled": post via `postWithRuleOrFallback` with model code `TRAVEL_ORDER_POST`
-- Fallback lines: DR 5210 (Travel expenses) / CR 2040 (Employee payable) or CR 2410 (Cash advance settlement)
+**Add i18n keys** for sick leave labels.
 
-### Per-Diem Calculator
-- Serbian regulation: per-diem rates based on destination (domestic vs. international)
-- Auto-calculate days from departure/return dates
-- total = per_diem_rate × per_diem_days + sum(expenses)
+### Technical detail
 
-## v2.3 Round 1 — PK-1 Cash Book Report
+In the payroll loop, after the existing unpaid leave block (line ~164), add:
 
-### New page
-- `src/pages/tenant/reports/PK1Book.tsx` — query `cash_register_transactions` grouped by date
-- Columns: Rb, Datum, Opis, Primanja, Izdavanja, Saldo
-- Date range filter, legal entity filter
-- Export to PDF (Serbian PK-1 format) and Excel
+```sql
+-- Sick leave from eBolovanje bridge
+SELECT COALESCE(SUM(days), 0) INTO v_sick_days
+FROM leave_requests
+WHERE employee_id = v_contract.emp_id
+  AND status = 'approved'
+  AND leave_type IN ('sick_leave', 'maternity_leave')
+  AND start_date <= v_period_end
+  AND end_date >= v_period_start;
 
-### Route + navigation
-- Add route `/reports/pk1-book` in report routes
-- Add to GlobalSearch and Reports sidebar group
+-- Cap at employer-paid days (30 per Serbian law)
+v_employer_sick_days := LEAST(v_sick_days, 30);
+v_sick_compensation := v_hourly_rate * 8 * v_employer_sick_days * 0.65;
+v_sick_deduction := v_hourly_rate * 8 * v_employer_sick_days;
 
-## v2.3 Round 1 — PPP-PO Annual Income Report
-
-### New page
-- `src/pages/tenant/reports/PPPPO.tsx` — aggregate employee income by year
-- Query payroll data: gross salary, tax, PIO, health insurance per employee
-- Generate XML per Serbian Tax Administration PPP-PO schema
-- Export XML download + preview table
-
-### Route + navigation
-- Add route `/reports/ppp-po` in report routes
-- Sidebar + GlobalSearch entries
-
-## i18n
-- Add translation keys for travel orders, PK-1, PPP-PO labels
+-- Adjust gross: remove full pay for sick days, add 65% compensation
+v_gross := v_gross - v_sick_deduction + v_sick_compensation;
+```
 
