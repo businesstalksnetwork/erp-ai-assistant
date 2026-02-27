@@ -20,22 +20,7 @@ import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
 import GlPostingPreview from "@/components/accounting/GlPostingPreview";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
-
-const POPDV_OPTIONS = [
-  { value: "1", label: "1 — Promet dobara" },
-  { value: "2", label: "2 — Promet usluga" },
-  { value: "3", label: "3 — PDV 20%" },
-  { value: "3a", label: "3a — PDV 10%" },
-  { value: "4", label: "4 — Uvoz dobara" },
-  { value: "5", label: "5 — Oslobođenja sa pravom na odbitak" },
-  { value: "6", label: "6 — Oslobođenja bez prava na odbitak" },
-  { value: "7", label: "7 — Posebni postupci" },
-  { value: "8", label: "8 — Prethodni porez" },
-  { value: "8a", label: "8a — Ispravka odbitka prethodnog poreza" },
-  { value: "9", label: "9 — Naknada putnih troškova" },
-  { value: "10", label: "10 — Promet bez naknade" },
-  { value: "11", label: "11 — Izmena poreske osnovice" },
-];
+import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 
 const EFAKTURA_OPTIONS = [
   { value: "S10", label: "S10 — PDV 10%" },
@@ -47,6 +32,7 @@ const EFAKTURA_OPTIONS = [
   { value: "O", label: "O — Van sistema PDV" },
   { value: "SS", label: "SS — Posebni postupci" },
 ];
+
 
 interface InvoiceLine {
   id?: string;
@@ -110,6 +96,7 @@ export default function InvoiceForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [vatDate, setVatDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
@@ -299,6 +286,7 @@ export default function InvoiceForm() {
       setCurrency(existingInvoice.currency);
       setNotes(existingInvoice.notes || "");
       setStatus(existingInvoice.status);
+      setVatDate((existingInvoice as any).vat_date || existingInvoice.invoice_date);
     }
   }, [existingInvoice]);
 
@@ -390,6 +378,7 @@ export default function InvoiceForm() {
         advance_amount_applied: advanceAmountApplied,
         legal_entity_id: legalEntityId || null,
         voucher_type: null,
+        vat_date: vatDate || invoiceDate,
       };
 
       let invoiceId = id;
@@ -458,7 +447,14 @@ export default function InvoiceForm() {
           </div>
           <div>
             <Label>{t("invoiceDate")}</Label>
-            <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} disabled={isReadOnly} />
+            <Input type="date" value={invoiceDate} onChange={(e) => { setInvoiceDate(e.target.value); if (vatDate === invoiceDate) setVatDate(e.target.value); }} disabled={isReadOnly} />
+          </div>
+          <div>
+            <Label className={vatDate !== invoiceDate ? "text-yellow-600 font-semibold" : ""}>
+              {"Datum PDV"} {vatDate !== invoiceDate && "⚠"}
+            </Label>
+            <Input type="date" value={vatDate} onChange={(e) => setVatDate(e.target.value)} disabled={isReadOnly}
+              className={vatDate !== invoiceDate ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
           </div>
           <div>
             <Label>{t("dueDate")}</Label>
@@ -682,19 +678,12 @@ export default function InvoiceForm() {
                   </TableCell>
                   {/* POPDV Field */}
                   <TableCell>
-                    <Select
-                      value={line.popdv_field || "__none__"}
-                      onValueChange={(v) => updateLine(i, "popdv_field" as any, v === "__none__" ? "" : v)}
+                    <PopdvFieldSelect
+                      direction="OUTPUT"
+                      value={line.popdv_field}
+                      onValueChange={(v) => updateLine(i, "popdv_field" as any, v)}
                       disabled={isReadOnly}
-                    >
-                      <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">—</SelectItem>
-                        {POPDV_OPTIONS.map(o => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </TableCell>
                   {/* eFaktura Category */}
                   <TableCell>

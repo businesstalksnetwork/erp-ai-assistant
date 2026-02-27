@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, CheckCircle, CreditCard, AlertTriangle, FileInput } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines, buildSupplierPaymentPreviewLines } from "@/components/accounting/PostingPreviewPanel";
@@ -59,6 +59,7 @@ export default function SupplierInvoices() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<SIForm>({ ...emptyForm, legal_entity_id: "" } as any);
@@ -246,19 +247,8 @@ export default function SupplierInvoices() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openAdd = () => { setEditId(null); setForm({ ...emptyForm, legal_entity_id: legalEntities.length === 1 ? legalEntities[0].id : "" } as any); setOpen(true); };
-  const openEdit = (o: any) => {
-    setEditId(o.id);
-    setForm({
-      invoice_number: o.invoice_number, purchase_order_id: o.purchase_order_id,
-      supplier_id: o.supplier_id, supplier_name: o.supplier_name,
-      invoice_date: o.invoice_date, due_date: o.due_date || "",
-      amount: o.amount, tax_amount: o.tax_amount, total: o.total,
-      currency: o.currency, status: o.status, notes: o.notes || "",
-      legal_entity_id: o.legal_entity_id || "",
-    } as any);
-    setOpen(true);
-  };
+  const openAdd = () => navigate("/purchasing/supplier-invoices/new");
+  const openEdit = (o: any) => navigate(`/purchasing/supplier-invoices/${o.id}`);
 
   const linkPO = (poId: string) => {
     const po = purchaseOrders.find((p: any) => p.id === poId);
