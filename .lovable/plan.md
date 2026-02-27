@@ -1,89 +1,72 @@
 
 
-## Phase 2: Enhanced RBAC — Expanded Roles + Action-Level Permissions + RLS Data Scoping
+## Phase 3: Per-Role Dashboards — 6 Specialized Views
 
 ### Current State
+- Single `TenantDashboard` for all roles showing financial KPIs, charts, AI widgets, pending actions
+- Role available via `useTenant().role` (from `tenant_members`)
+- Existing dashboard widgets in `src/components/dashboard/` are reusable
 
-- **Roles**: `app_role` enum with 8 values: `super_admin`, `admin`, `manager`, `accountant`, `sales`, `hr`, `store`, `user`
-- **Permission model**: Hardcoded in `src/config/rolePermissions.ts` — maps roles to module groups (coarse module-level access)
-- **RLS**: Most tables use `get_user_tenant_ids(auth.uid())` for tenant isolation; a few sensitive tables (HR, payroll) additionally check `role IN ('admin', 'hr')` inline
-- **No action-level permissions** (e.g., can view but not edit/delete)
-- **No custom permissions per tenant** — all tenants share the same static role→module map
-- **No data scoping** (e.g., sales rep sees only their own deals, store user sees only their location)
+### Architecture
+Keep the single `/dashboard` route and `Dashboard.tsx` as a router that renders the appropriate dashboard component based on `role`. No new routes needed.
 
-### Plan
+```text
+Dashboard.tsx (router)
+  ├─ role=admin/super_admin  → AdminDashboard (current full view)
+  ├─ role=manager            → ManagerDashboard
+  ├─ role=accountant         → AccountantDashboard
+  ├─ role=sales              → SalesDashboard
+  ├─ role=hr                 → HrDashboard
+  └─ role=store/user         → StoreDashboard
+```
 
-#### Step 1: Database — New permissions infrastructure
+### Step 1: Refactor Dashboard.tsx into role router
 
-Create migration with:
+Convert `Dashboard.tsx` to a thin switcher that reads `role` from `useTenant()` and lazy-loads the matching dashboard component. Move current full dashboard content to `AdminDashboard.tsx`.
 
-1. **`tenant_role_permissions` table** — per-tenant, per-role, per-module action grants:
-   ```
-   id uuid PK
-   tenant_id uuid FK → tenants NOT NULL
-   role app_role NOT NULL
-   module text NOT NULL          -- e.g. 'sales', 'crm', 'hr'
-   action text NOT NULL          -- 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export'
-   allowed boolean DEFAULT true
-   UNIQUE(tenant_id, role, module, action)
-   ```
-   RLS: tenant members can SELECT; admins can ALL.
+### Step 2: Create 6 dashboard components in `src/components/dashboard/roles/`
 
-2. **`data_scope` column on `tenant_members`** — enum `('all', 'department', 'own')` DEFAULT `'all'`:
-   - `all` — sees all tenant data (current behavior)
-   - `department` — sees data linked to their department(s)
-   - `own` — sees only records they created / are assigned to
+Each dashboard reuses existing widgets + adds role-specific KPIs and quick actions:
 
-3. **Security-definer helper functions**:
-   - `has_action_permission(p_user_id uuid, p_tenant_id uuid, p_module text, p_action text) → boolean` — checks `tenant_role_permissions`; falls back to hardcoded defaults if no row exists (backward compatible)
-   - `get_member_data_scope(p_user_id uuid, p_tenant_id uuid) → text` — returns the data_scope value
-   - `get_member_department_ids(p_user_id uuid, p_tenant_id uuid) → uuid[]` — returns department IDs for department-scoped filtering
+**AdminDashboard** — Current full dashboard (moved from Dashboard.tsx). All KPIs, all charts, all pending actions, module health, AI briefing.
 
-4. **Seed default permissions** for all existing tenants by materializing the current `rolePermissions` config into `tenant_role_permissions` rows with actions `['view','create','edit','delete']`.
+**ManagerDashboard** — Revenue/expenses/profit KPIs, pending approvals count, team performance summary, top customers chart, revenue chart, quick actions for approvals and reports.
 
-#### Step 2: Frontend — `usePermissions` hook upgrade
+**AccountantDashboard** — Revenue/expenses/cash balance/profit KPIs, draft journal entries count, overdue invoices, invoice status chart, cash flow chart, cashflow forecast, compliance deadlines, quick actions for journal entry and invoice creation.
 
-Extend `usePermissions.ts`:
-- Fetch `tenant_role_permissions` for the user's role + tenant (alongside existing `tenant_modules` query)
-- Expose `canPerform(module: ModuleGroup, action: Action): boolean` in addition to existing `canAccess(module)`
-- `canAccess` becomes `canPerform(module, 'view')` internally
-- Expose `dataScope: 'all' | 'department' | 'own'` from `tenant_members`
-- Update `useTenant.ts` to also fetch `data_scope` from `tenant_members`
+**SalesDashboard** — Sales-specific KPIs (active quotes, confirmed orders, monthly revenue, pipeline value from CRM), top customers chart, revenue chart, quick actions for new quote/lead/invoice.
 
-#### Step 3: Frontend — Permission-aware UI guards
+**HrDashboard** — Employee count, payroll cost trend, upcoming payroll deadlines, pending leave requests count, payroll cost widget, quick actions for HR modules.
 
-- Create `<ActionGuard module="sales" action="create">` wrapper component that hides children if user lacks the action permission
-- Apply `ActionGuard` to key mutation buttons across modules: Create, Edit, Delete, Approve, Export
-- Disable/hide buttons rather than showing errors
+**StoreDashboard** — POS fiscal receipt status, low stock alerts, today's sales count/total, inventory alerts, quick actions for POS and inventory.
 
-#### Step 4: Settings UI — Role Permission Management page
+### Step 3: Role-specific KPI queries
 
-New page at `/settings/role-permissions`:
-- Matrix grid: roles (columns) × modules (rows) × actions (checkboxes)
-- Admins can customize which actions each role can perform within their tenant
-- Include a "Reset to Defaults" button
-- Add data scope selector per role (all / department / own)
+Each dashboard defines its own KPI queries relevant to that role. Reuse existing queries where applicable (e.g., `dashboard_kpi_summary` RPC for financial roles). Add lightweight new queries for:
+- Sales pipeline value (from `opportunities` table)
+- Employee count (from `employees` table)
+- Today's POS sales (from `pos_sessions`/`invoices`)
 
-#### Step 5: RLS hardening — Data scope enforcement
+### Step 4: Translations
 
-Update RLS policies on key data tables to respect `data_scope`:
-- Tables: `invoices`, `orders`, `crm_contacts`, `crm_deals`, `inventory_transactions`
-- Pattern: existing tenant isolation PLUS:
-  - If scope = `'own'` → `created_by = auth.uid()` or `assigned_to = auth.uid()`
-  - If scope = `'department'` → record's `department_id` IN user's department IDs
-  - If scope = `'all'` → current behavior (tenant-wide)
-- Use the security-definer helpers to avoid recursion
+Add SR/EN keys for new dashboard labels: `salesDashboard`, `hrDashboard`, `storeDashboard`, `managerDashboard`, `accountantDashboard`, `employeeCount`, `pipelineValue`, `todaySales`, etc.
 
-#### Step 6: Navigation & route guards
+### Files to create
+- `src/components/dashboard/roles/AdminDashboard.tsx`
+- `src/components/dashboard/roles/ManagerDashboard.tsx`
+- `src/components/dashboard/roles/AccountantDashboard.tsx`
+- `src/components/dashboard/roles/SalesDashboard.tsx`
+- `src/components/dashboard/roles/HrDashboard.tsx`
+- `src/components/dashboard/roles/StoreDashboard.tsx`
 
-- Update `ProtectedRoute` to accept optional `requiredAction` prop
-- Update sidebar items to use `canPerform(module, 'view')` for visibility
-- Add translations for new UI labels
+### Files to modify
+- `src/pages/tenant/Dashboard.tsx` — becomes role router
+- `src/i18n/translations.ts` — new keys
 
 ### Technical Details
-
-- **Backward compatibility**: If no rows exist in `tenant_role_permissions` for a tenant, the system falls back to the current hardcoded `rolePermissions` map — no breaking change for existing tenants.
-- **Performance**: `tenant_role_permissions` query is cached with 5min staleTime (same as modules). The security-definer functions use `STABLE` marking for query planner optimization.
-- **Data scope enum**: Added as a Postgres enum `data_scope_type` with values `('all', 'department', 'own')`.
-- **Super admins**: Always bypass all permission checks (both action-level and data-scope), consistent with current architecture.
+- All dashboards lazy-loaded via `React.lazy` for code splitting
+- Each dashboard self-contained with its own queries (no shared query bloat)
+- `WelcomeHeader` and export CSV reused across all dashboards
+- Super admin always gets AdminDashboard
+- Fallback: unknown roles get StoreDashboard (minimal view)
 
