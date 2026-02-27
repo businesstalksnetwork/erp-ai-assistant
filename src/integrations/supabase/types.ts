@@ -8795,6 +8795,268 @@ export type Database = {
           },
         ]
       }
+      inventory_stock_take_items: {
+        Row: {
+          counted_qty: number
+          difference_qty: number | null
+          difference_value: number | null
+          expected_qty: number
+          id: string
+          notes: string | null
+          product_id: string
+          stock_take_id: string
+          unit_cost: number
+        }
+        Insert: {
+          counted_qty?: number
+          difference_qty?: number | null
+          difference_value?: number | null
+          expected_qty?: number
+          id?: string
+          notes?: string | null
+          product_id: string
+          stock_take_id: string
+          unit_cost?: number
+        }
+        Update: {
+          counted_qty?: number
+          difference_qty?: number | null
+          difference_value?: number | null
+          expected_qty?: number
+          id?: string
+          notes?: string | null
+          product_id?: string
+          stock_take_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_stock_take_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_take_items_stock_take_id_fkey"
+            columns: ["stock_take_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock_takes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_stock_takes: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          commission_members: string[] | null
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          location_id: string | null
+          notes: string | null
+          status: string
+          stock_take_date: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          commission_members?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          location_id?: string | null
+          notes?: string | null
+          status?: string
+          stock_take_date?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          commission_members?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          location_id?: string | null
+          notes?: string | null
+          status?: string
+          stock_take_date?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_stock_takes_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_takes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_takes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_stock_takes_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_write_off_items: {
+        Row: {
+          id: string
+          product_id: string
+          quantity: number
+          reason: string | null
+          total_cost: number | null
+          unit_cost: number
+          write_off_id: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          quantity?: number
+          reason?: string | null
+          total_cost?: number | null
+          unit_cost?: number
+          write_off_id: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          total_cost?: number | null
+          unit_cost?: number
+          write_off_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_write_off_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_write_off_items_write_off_id_fkey"
+            columns: ["write_off_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_write_offs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_write_offs: {
+        Row: {
+          approved_by: string | null
+          commission_members: string[] | null
+          commission_protocol_number: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          location_id: string | null
+          notes: string | null
+          reason: string | null
+          status: string
+          tenant_id: string
+          total_value: number
+          updated_at: string
+          warehouse_id: string | null
+          write_off_date: string
+        }
+        Insert: {
+          approved_by?: string | null
+          commission_members?: string[] | null
+          commission_protocol_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          location_id?: string | null
+          notes?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          write_off_date?: string
+        }
+        Update: {
+          approved_by?: string | null
+          commission_members?: string[] | null
+          commission_protocol_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          location_id?: string | null
+          notes?: string | null
+          reason?: string | null
+          status?: string
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+          warehouse_id?: string | null
+          write_off_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_write_offs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_write_offs_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_write_offs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_write_offs_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_lines: {
         Row: {
           created_at: string

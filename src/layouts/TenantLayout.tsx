@@ -91,6 +91,8 @@ const inventoryNav: NavItem[] = [
   { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain },
   
   { key: "wmsReturns", url: "/inventory/wms/returns", icon: RotateCcw },
+  { key: "inventoryStockTake", url: "/inventory/stock-take", icon: ClipboardCheck, section: "inventoryControl" },
+  { key: "inventoryWriteOffs", url: "/inventory/write-offs", icon: Trash2 },
 ];
 
 const accountingNav: NavItem[] = [
