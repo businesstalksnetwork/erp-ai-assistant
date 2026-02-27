@@ -6,11 +6,12 @@ import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, MapPin, Plane } from "lucide-react";
+import { Plus, Plane, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -43,67 +44,85 @@ export default function TravelOrders() {
     enabled: !!tenantId,
   });
 
+  const columns: ResponsiveColumn<any>[] = [
+    {
+      key: "order_number", label: tl("orderNumber"), primary: true, sortable: true,
+      sortValue: (o) => o.order_number || "",
+      render: (o) => <span className="font-mono font-medium">{o.order_number}</span>,
+    },
+    {
+      key: "employee", label: t("employee"), sortable: true,
+      sortValue: (o) => o.employees ? `${o.employees.last_name} ${o.employees.first_name}` : "",
+      render: (o) => o.employees ? `${o.employees.first_name} ${o.employees.last_name}` : "—",
+    },
+    {
+      key: "destination", label: tl("destination"), sortable: true,
+      sortValue: (o) => o.destination || "",
+      render: (o) => <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{o.destination}</span>,
+    },
+    {
+      key: "departure_date", label: tl("departureDate"), hideOnMobile: true, sortable: true,
+      sortValue: (o) => o.departure_date || "",
+      render: (o) => format(new Date(o.departure_date), "dd.MM.yyyy"),
+    },
+    {
+      key: "return_date", label: tl("returnDate"), hideOnMobile: true, sortable: true,
+      sortValue: (o) => o.return_date || "",
+      render: (o) => format(new Date(o.return_date), "dd.MM.yyyy"),
+    },
+    {
+      key: "total_expenses", label: tl("totalExpenses"), align: "right", sortable: true,
+      sortValue: (o) => Number(o.total_expenses) || 0,
+      render: (o) => <span className="font-mono">{Number(o.total_expenses).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span>,
+    },
+    {
+      key: "status", label: t("status"), sortable: true,
+      sortValue: (o) => o.status || "",
+      render: (o) => <Badge className={statusColors[o.status] || ""}>{tl(o.status)}</Badge>,
+    },
+  ];
+
+  if (isLoading) return <p>{t("loading")}</p>;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Plane className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-bold">{tl("travelOrders")}</h1>
-        </div>
-        <Button onClick={() => navigate("/hr/travel-orders/new")}>
-          <Plus className="h-4 w-4 mr-2" /> {tl("newTravelOrder")}
-        </Button>
-      </div>
+      <PageHeader
+        title={tl("travelOrders")}
+        icon={Plane}
+        actions={
+          <Button onClick={() => navigate("/hr/travel-orders/new")}>
+            <Plus className="h-4 w-4 mr-2" /> {tl("newTravelOrder")}
+          </Button>
+        }
+      />
 
-      <div className="flex gap-2">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t("status")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("all")}</SelectItem>
-            <SelectItem value="draft">{t("draft")}</SelectItem>
-            <SelectItem value="approved">{t("approved")}</SelectItem>
-            <SelectItem value="completed">{t("completed")}</SelectItem>
-            <SelectItem value="settled">{tl("settled")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <MobileFilterBar
+        filters={
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t("status")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("all")}</SelectItem>
+              <SelectItem value="draft">{t("draft")}</SelectItem>
+              <SelectItem value="approved">{t("approved")}</SelectItem>
+              <SelectItem value="completed">{t("completed")}</SelectItem>
+              <SelectItem value="settled">{tl("settled")}</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{tl("orderNumber")}</TableHead>
-                <TableHead>{t("employee")}</TableHead>
-                <TableHead>{tl("destination")}</TableHead>
-                <TableHead>{tl("departureDate")}</TableHead>
-                <TableHead>{tl("returnDate")}</TableHead>
-                <TableHead>{tl("totalExpenses")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">{t("loading")}...</TableCell></TableRow>
-              ) : orders.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("noDataToExport")}</TableCell></TableRow>
-              ) : orders.map((o: any) => (
-                <TableRow key={o.id} className="cursor-pointer" onClick={() => navigate(`/hr/travel-orders/${o.id}`)}>
-                  <TableCell className="font-mono font-medium">{o.order_number}</TableCell>
-                  <TableCell>{o.employees ? `${o.employees.first_name} ${o.employees.last_name}` : "—"}</TableCell>
-                  <TableCell className="flex items-center gap-1"><MapPin className="h-3 w-3" />{o.destination}</TableCell>
-                  <TableCell>{format(new Date(o.departure_date), "dd.MM.yyyy")}</TableCell>
-                  <TableCell>{format(new Date(o.return_date), "dd.MM.yyyy")}</TableCell>
-                  <TableCell className="font-mono">{Number(o.total_expenses).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell><Badge className={statusColors[o.status] || ""}>{tl(o.status)}</Badge></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={orders}
+        columns={columns}
+        keyExtractor={(o) => o.id}
+        onRowClick={(o) => navigate(`/hr/travel-orders/${o.id}`)}
+        emptyMessage={t("noDataToExport")}
+        enableExport
+        exportFilename="travel_orders"
+        enableColumnToggle
+      />
     </div>
   );
 }

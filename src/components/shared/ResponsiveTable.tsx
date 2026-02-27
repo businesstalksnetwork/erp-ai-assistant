@@ -9,6 +9,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   DropdownMenu,
@@ -47,6 +48,8 @@ interface ResponsiveTableProps<T> {
   exportFilename?: string;
   /** Enable column visibility toggle */
   enableColumnToggle?: boolean;
+  /** Optional footer row(s) rendered inside <tfoot> */
+  renderFooter?: () => React.ReactNode;
 }
 
 type SortDir = "asc" | "desc" | null;
@@ -85,6 +88,7 @@ export function ResponsiveTable<T>({
   enableExport = false,
   exportFilename = "export",
   enableColumnToggle = false,
+  renderFooter,
 }: ResponsiveTableProps<T>) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -282,6 +286,11 @@ export function ResponsiveTable<T>({
                 </TableRow>
               ))}
             </TableBody>
+            {renderFooter && (
+              <TableFooter>
+                {renderFooter()}
+              </TableFooter>
+            )}
           </Table>
         </div>
       )}
