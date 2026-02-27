@@ -19,7 +19,7 @@ const moduleToCategoryMap: Partial<Record<ModuleGroup, NotificationCategory>> = 
  * `approval` is always included for every role.
  */
 export function getNotificationCategoriesForRole(role: TenantRole): NotificationCategory[] {
-  if (role === "admin" || role === "manager") return ALL_CATEGORIES;
+  if (role === "admin" || role === "manager" || role === "finance_director") return ALL_CATEGORIES;
 
   const modules = rolePermissions[role] || [];
   const categories = new Set<NotificationCategory>(["approval"]);

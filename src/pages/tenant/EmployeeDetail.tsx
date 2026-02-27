@@ -51,6 +51,8 @@ interface EmployeeForm {
   bank_name: string;
   recipient_code: string;
   pib: string;
+  manager_id: string | null;
+  org_level: number;
 }
 
 const formatDate = (d: string | null | undefined) => {
@@ -91,7 +93,7 @@ export default function EmployeeDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name)")
+        .select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name), manager:employees!employees_manager_id_fkey(id, full_name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -208,6 +210,15 @@ export default function EmployeeDetail() {
     enabled: !!tenantId,
   });
 
+  const { data: fellowEmployees = [] } = useQuery({
+    queryKey: ["fellow-employees", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId!).eq("is_archived", false).order("full_name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const mutation = useMutation({
     mutationFn: async (f: EmployeeForm) => {
       const full_name = `${f.first_name} ${f.last_name}`.trim();
@@ -229,6 +240,8 @@ export default function EmployeeDetail() {
         bank_name: f.bank_name || null,
         recipient_code: f.recipient_code || null,
         pib: f.pib || null,
+        manager_id: f.manager_id || null,
+        org_level: f.org_level,
       };
       const { error } = await supabase.from("employees").update(payload).eq("id", id!);
       if (error) throw error;
@@ -288,6 +301,8 @@ export default function EmployeeDetail() {
       bank_name: (employee as any).bank_name || "",
       recipient_code: (employee as any).recipient_code || "",
       pib: (employee as any).pib || "",
+      manager_id: (employee as any).manager_id || null,
+      org_level: (employee as any).org_level ?? 3,
     });
     setEditOpen(true);
   };
@@ -397,6 +412,10 @@ export default function EmployeeDetail() {
                 <InfoField label={t("annualLeaveDays")} value={String(employee.annual_leave_days)} />
                 <InfoField label={t("slavaDate")} value={formatDate(employee.slava_date)} />
                 <InfoField label={t("dailyWorkHoursLabel")} value={String(employee.daily_work_hours)} />
+                <InfoField label="Manager" value={(employee as any).manager?.full_name} />
+                <InfoField label="Org Level" value={
+                  ({ 0: "CEO", 1: "Director", 2: "Manager", 3: "Staff" } as Record<number, string>)[(employee as any).org_level ?? 3] || String((employee as any).org_level)
+                } />
               </div>
             </CardContent>
           </Card>
@@ -708,6 +727,30 @@ export default function EmployeeDetail() {
                     <SelectContent>
                       <SelectItem value="__none">{t("noLocation")}</SelectItem>
                       {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("manager") || "Manager"}</Label>
+                  <Select value={form.manager_id || "__none"} onValueChange={v => setForm({ ...form, manager_id: v === "__none" ? null : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {fellowEmployees.filter((e: any) => e.id !== id).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Org Level</Label>
+                  <Select value={String(form.org_level)} onValueChange={v => setForm({ ...form, org_level: +v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">CEO</SelectItem>
+                      <SelectItem value="1">Director</SelectItem>
+                      <SelectItem value="2">Manager</SelectItem>
+                      <SelectItem value="3">Staff</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

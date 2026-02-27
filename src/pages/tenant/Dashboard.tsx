@@ -22,14 +22,26 @@ export default function TenantDashboard() {
       case "super_admin":
         return AdminDashboard;
       case "manager":
+      case "production_manager":
+      case "production_worker":
         return ManagerDashboard;
       case "accountant":
+      case "finance_director":
         return AccountantDashboard;
       case "sales":
+      case "sales_manager":
+      case "sales_rep":
         return SalesDashboard;
       case "hr":
+      case "hr_manager":
+      case "hr_staff":
         return HrDashboard;
       case "store":
+      case "store_manager":
+      case "cashier":
+      case "warehouse_manager":
+      case "warehouse_worker":
+      case "viewer":
       case "user":
       default:
         return StoreDashboard;
