@@ -163,11 +163,41 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phases 6-7 (Future — executed sequentially after Phase 5)
+## Phase 6: AI Agent & Compliance — ✅ COMPLETED
+
+### 6A. Serbian Accounting Compliance Checker ✅
+- Created `compliance-checker` edge function with 12+ rule-based checks covering:
+  - Journal entries: unbalanced entries, missing descriptions, future dates
+  - VAT/PDV: missing VAT, late submissions, GL vs invoice VAT mismatch
+  - Invoicing: numbering gaps, missing PIB
+  - Payroll: uncalculated payroll, employees without contracts
+  - Fixed assets: missing depreciation schedules
+  - Reporting: unbalanced trial balance
+  - General: incomplete legal entity data
+- All checks reference specific Serbian laws (Zakon o računovodstvu, Zakon o PDV, Zakon o radu, MRS/MSFI)
+- AI enrichment via Gemini generates executive summary and prioritized corrective actions
+
+### 6B. Inline Validation Hooks ✅
+- Created `useAccountingValidation` hook — runs full compliance scan via edge function
+- Created `useJournalEntryValidation` hook with:
+  - `validateBeforePost()`: checks balance, empty lines, dual-side entries
+  - `validateInvoice()`: checks VAT presence, missing PIB with law references
+- Both hooks are bilingual (EN/SR) based on locale
+
+### 6C. Compliance Dashboard UI ✅
+- Created `/accounting/compliance` page with:
+  - Stats cards (total, errors, warnings, info)
+  - AI-powered summary with prioritized corrective actions
+  - Checks grouped by category with law references
+  - Severity-sorted display with badges and icons
+- Added to accounting navigation and routing
+
+---
+
+## Phase 7 (Future)
 
 | Phase | Focus | Key Deliverables |
 |-------|-------|-----------------|
-| **6** | AI Agent | Serbian accounting law RAG agent, inline validation hooks, compliance checker |
 | **7** | Polish | Credit/debit notes workflow, proforma invoices, fixed asset improvements, multi-currency |
 
 ---
