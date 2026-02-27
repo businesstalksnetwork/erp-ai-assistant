@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Download, Loader2, Pencil, Plus } from "lucide-react";
 import { EmployeeAssetsTab } from "@/components/assets/EmployeeAssetsTab";
+import { EmployeeDocumentsTab } from "@/components/hr/EmployeeDocumentsTab";
+import { EmployeeOnboardingTab } from "@/components/hr/EmployeeOnboardingTab";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
@@ -369,6 +371,8 @@ export default function EmployeeDetail() {
           <TabsTrigger value="deductions">{t("deductionsModule")}</TabsTrigger>
           <TabsTrigger value="insurance">{t("insuranceRecords")}</TabsTrigger>
           <TabsTrigger value="assets">{t("assetsCrossEmployeeAssets" as any)}</TabsTrigger>
+          <TabsTrigger value="documents">{t("documents")}</TabsTrigger>
+          <TabsTrigger value="onboarding">{t("onboardingChecklists" as any)}</TabsTrigger>
         </TabsList>
 
         {/* Personal Info */}
@@ -629,6 +633,16 @@ export default function EmployeeDetail() {
         {/* Assets */}
         <TabsContent value="assets">
           <EmployeeAssetsTab employeeId={id!} />
+        </TabsContent>
+
+        {/* Documents */}
+        <TabsContent value="documents">
+          <EmployeeDocumentsTab employeeId={id!} tenantId={tenantId!} />
+        </TabsContent>
+
+        {/* Onboarding */}
+        <TabsContent value="onboarding">
+          <EmployeeOnboardingTab employeeId={id!} tenantId={tenantId!} />
         </TabsContent>
       </Tabs>
 
