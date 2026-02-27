@@ -19,6 +19,8 @@ import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import PostingPreviewPanel, { type PreviewLine } from "@/components/accounting/PostingPreviewPanel";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSearchParams } from "react-router-dom";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 export default function BankStatements() {
   const { t } = useLanguage();
@@ -468,6 +470,7 @@ export default function BankStatements() {
 
   return (
     <div className="space-y-6">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="accounting" compact />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("bankStatements")}</h1>
         <Button onClick={() => setImportDialogOpen(true)}><Upload className="h-4 w-4 mr-2" />{t("importStatement")}</Button>

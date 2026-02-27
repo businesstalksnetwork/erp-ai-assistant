@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 
 const STATUSES = ["draft", "sent", "confirmed", "received", "cancelled"] as const;
 
@@ -254,6 +255,7 @@ export default function PurchaseOrders() {
 
   return (
     <div className="space-y-6">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="purchasing" compact />}
       <PageHeader
         title={t("purchaseOrders")}
         description={t("purchaseOrders")}

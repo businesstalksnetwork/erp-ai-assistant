@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 export default function CostCenterPL() {
   const { tenantId } = useTenant();
@@ -94,6 +95,10 @@ export default function CostCenterPL() {
         title="P&L po mestima troškova"
         description="Profitabilnost po cost center-ima na osnovu knjiženja"
       />
+
+      {tenantId && summary.length > 0 && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="cost_center_pl" data={{ summary, totalRevenue, totalExpense, year }} />
+      )}
 
       <div className="flex gap-4 items-end">
         <div>
