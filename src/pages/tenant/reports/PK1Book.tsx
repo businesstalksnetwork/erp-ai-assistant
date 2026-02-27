@@ -4,14 +4,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableRow, TableCell } from "@/components/ui/table";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { BookText } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+
+interface PK1Row {
+  rb: number;
+  datum: string;
+  entry_number: string;
+  opis: string;
+  primanja: number;
+  izdavanja: number;
+  saldo: number;
+}
 
 export default function PK1Book() {
   const { tenantId } = useTenant();
@@ -58,79 +70,63 @@ export default function PK1Book() {
 
   const fmtNum = (n: number) => n.toLocaleString("sr-RS", { minimumFractionDigits: 2 });
 
+  const columns: ResponsiveColumn<PK1Row>[] = [
+    { key: "rb", label: "Rb", render: (r) => <span className="font-mono">{r.rb}</span>, sortable: true, sortValue: (r) => r.rb },
+    { key: "datum", label: "Datum", render: (r) => format(new Date(r.datum), "dd.MM.yyyy"), sortable: true, sortValue: (r) => r.datum },
+    { key: "entry_number", label: "Broj", render: (r) => <span className="font-mono">{r.entry_number}</span> },
+    { key: "opis", label: "Opis", primary: true, render: (r) => r.opis },
+    { key: "primanja", label: "Primanja", align: "right", sortable: true, sortValue: (r) => r.primanja, render: (r) => <span className="font-mono">{r.primanja > 0 ? fmtNum(r.primanja) : ""}</span> },
+    { key: "izdavanja", label: "Izdavanja", align: "right", sortable: true, sortValue: (r) => r.izdavanja, render: (r) => <span className="font-mono">{r.izdavanja > 0 ? fmtNum(r.izdavanja) : ""}</span> },
+    { key: "saldo", label: "Saldo", align: "right", render: (r) => <span className="font-mono font-semibold">{fmtNum(r.saldo)}</span> },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <BookText className="h-7 w-7 text-primary" />
-        <h1 className="text-2xl font-bold">{tl("pk1Book")}</h1>
-      </div>
-
-      <div className="flex flex-wrap gap-4 items-end">
-        <div>
-          <Label>{tl("dateFrom")}</Label>
-          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[170px]" />
-        </div>
-        <div>
-          <Label>{tl("dateTo")}</Label>
-          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[170px]" />
-        </div>
-        <div>
-          <Label>{t("legalEntity")}</Label>
-          <Select value={legalEntityId} onValueChange={setLegalEntityId}>
-            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("all")}</SelectItem>
-              {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+      <PageHeader title={tl("pk1Book")} icon={BookText} actions={
         <DownloadPdfButton type="pk1-book" params={{ tenantId, dateFrom, dateTo, legalEntityId: legalEntityId === "all" ? undefined : legalEntityId }} />
-      </div>
+      } />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">Rb</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Broj</TableHead>
-                <TableHead>Opis</TableHead>
-                <TableHead className="text-right">Primanja</TableHead>
-                <TableHead className="text-right">Izdavanja</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">{t("loading")}...</TableCell></TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("noDataToExport")}</TableCell></TableRow>
-              ) : rows.map(r => (
-                <TableRow key={r.rb}>
-                  <TableCell className="font-mono">{r.rb}</TableCell>
-                  <TableCell>{format(new Date(r.datum), "dd.MM.yyyy")}</TableCell>
-                  <TableCell className="font-mono">{r.entry_number}</TableCell>
-                  <TableCell>{r.opis}</TableCell>
-                  <TableCell className="text-right font-mono">{r.primanja > 0 ? fmtNum(r.primanja) : ""}</TableCell>
-                  <TableCell className="text-right font-mono">{r.izdavanja > 0 ? fmtNum(r.izdavanja) : ""}</TableCell>
-                  <TableCell className="text-right font-mono font-semibold">{fmtNum(r.saldo)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            {rows.length > 0 && (
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={4} className="text-right font-bold">{t("total")}:</TableCell>
-                  <TableCell className="text-right font-mono font-bold">{fmtNum(totalPrimanja)}</TableCell>
-                  <TableCell className="text-right font-mono font-bold">{fmtNum(totalIzdavanja)}</TableCell>
-                  <TableCell className="text-right font-mono font-bold">{fmtNum(totalPrimanja - totalIzdavanja)}</TableCell>
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
-        </CardContent>
-      </Card>
+      <MobileFilterBar
+        filters={
+          <>
+            <div>
+              <Label>{tl("dateFrom")}</Label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[170px]" />
+            </div>
+            <div>
+              <Label>{tl("dateTo")}</Label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[170px]" />
+            </div>
+            <div>
+              <Label>{t("legalEntity")}</Label>
+              <Select value={legalEntityId} onValueChange={setLegalEntityId}>
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all")}</SelectItem>
+                  {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        }
+      />
+
+      <ResponsiveTable
+        data={rows}
+        columns={columns}
+        keyExtractor={(r) => String(r.rb)}
+        emptyMessage={t("noDataToExport")}
+        enableExport
+        exportFilename="pk1_book"
+        renderFooter={rows.length > 0 ? () => (
+          <TableRow>
+            <TableCell colSpan={4} className="text-right font-bold">{t("total")}:</TableCell>
+            <TableCell className="text-right font-mono font-bold">{fmtNum(totalPrimanja)}</TableCell>
+            <TableCell className="text-right font-mono font-bold">{fmtNum(totalIzdavanja)}</TableCell>
+            <TableCell className="text-right font-mono font-bold">{fmtNum(totalPrimanja - totalIzdavanja)}</TableCell>
+          </TableRow>
+        ) : undefined}
+      />
     </div>
   );
 }
