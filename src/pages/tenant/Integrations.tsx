@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plug, RefreshCw, FileText, Truck, Heart, CheckCircle, XCircle } from "lucide-react";
+import { Plug, RefreshCw, FileText, Truck, Heart, CheckCircle, XCircle, Receipt } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 /* ─── Generic connection card hook ─── */
@@ -304,6 +304,22 @@ export default function Integrations() {
         eotpSaveMutation, eotpToggleMutation,
         () => { setEotpForm({ api_url: (eotpConn as any)?.api_url || "", api_key: (eotpConn as any)?.api_key_encrypted || "", environment: (eotpConn as any)?.environment || "sandbox" }); setEotpEditing(true); },
       )}
+
+      {/* PFR / eFiskalizacija */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            {t("pfrConnection")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">{t("pfrConnectionDesc")}</p>
+          <Button variant="outline" onClick={() => navigate("/pos/fiscal-devices")}>
+            {t("fiscalDevices")}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* NBS Exchange Rates */}
       <Card>

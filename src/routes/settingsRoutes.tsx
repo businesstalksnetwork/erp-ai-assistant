@@ -3,6 +3,7 @@ import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const TenantSettings = React.lazy(() => import("@/pages/tenant/Settings"));
+const TenantProfile = React.lazy(() => import("@/pages/tenant/TenantProfile"));
 const TenantUsers = React.lazy(() => import("@/pages/tenant/Users"));
 const AuditLog = React.lazy(() => import("@/pages/tenant/AuditLog"));
 const LegalEntities = React.lazy(() => import("@/pages/tenant/LegalEntities"));
@@ -32,6 +33,7 @@ const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/Not
 export const settingsRoutes = (
   <>
     <Route path="settings" element={<ProtectedRoute requiredModule="settings"><TenantSettings /></ProtectedRoute>} />
+    <Route path="settings/tenant-profile" element={<ProtectedRoute requiredModule="settings"><TenantProfile /></ProtectedRoute>} />
     <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><TenantUsers /></ProtectedRoute>} />
     <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><AuditLog /></ProtectedRoute>} />
     <Route path="settings/legal-entities" element={<ProtectedRoute requiredModule="settings"><LegalEntities /></ProtectedRoute>} />
