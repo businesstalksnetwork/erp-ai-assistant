@@ -8,18 +8,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fmtNumCompact, fmtNumAuto } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, DollarSign, Wallet, FileText, Users,
-  ShoppingCart, Package, AlertCircle, Briefcase, Clock, Factory, Warehouse
+  ShoppingCart, Package, AlertCircle, Briefcase, Clock, Factory, Warehouse,
+  Receipt, CreditCard, CheckCircle, UserPlus, Target, Store, BarChart3
 } from "lucide-react";
 
 const ICON_MAP: Record<string, any> = {
   revenue: TrendingUp,
+  revenue_yesterday: TrendingUp,
+  revenue_7days: TrendingUp,
+  revenue_30days: TrendingUp,
   expenses: TrendingDown,
   profit: DollarSign,
   cash_balance: Wallet,
   invoices: FileText,
+  invoices_issued: Receipt,
+  invoices_unpaid: AlertCircle,
+  invoices_overdue: AlertCircle,
+  invoices_paid: CheckCircle,
   employees: Users,
   outstanding: AlertCircle,
   opportunities: Briefcase,
+  new_customers: UserPlus,
+  active_leads: Target,
   leave_pending: Clock,
   attendance: Users,
   today_sales: ShoppingCart,
@@ -28,22 +38,56 @@ const ICON_MAP: Record<string, any> = {
   production: Factory,
   inventory: Warehouse,
   pending_receipts: Package,
+  purchase_orders: FileText,
+  retail_revenue: Store,
+  retail_revenue_yesterday: Store,
+  retail_revenue_7days: Store,
+  retail_transactions: CreditCard,
+  pos_sessions_active: Store,
+  avg_basket: BarChart3,
+  warehouse_count: Warehouse,
+  products_active: Package,
 };
 
 const BORDER_MAP: Record<string, string> = {
   revenue: "border-t-accent",
+  revenue_yesterday: "border-t-accent",
+  revenue_7days: "border-t-accent",
+  revenue_30days: "border-t-accent",
   expenses: "border-t-destructive",
   profit: "border-t-primary",
+  cash_balance: "border-t-primary",
   invoices: "border-t-primary",
+  invoices_issued: "border-t-primary",
+  invoices_unpaid: "border-t-destructive",
+  invoices_overdue: "border-t-destructive",
+  invoices_paid: "border-t-accent",
   employees: "border-t-accent",
   outstanding: "border-t-destructive",
   today_sales: "border-t-accent",
   low_stock: "border-t-destructive",
+  retail_revenue: "border-t-accent",
+  retail_revenue_yesterday: "border-t-accent",
+  retail_revenue_7days: "border-t-accent",
+  retail_transactions: "border-t-primary",
+  pos_sessions_active: "border-t-primary",
+  avg_basket: "border-t-primary",
   default: "border-t-muted",
 };
 
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split("T")[0];
+}
+
+function monthStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
 interface Props {
-  metricKey: string; // e.g. "revenue", "expenses", etc.
+  metricKey: string;
 }
 
 export function KpiWidget({ metricKey }: Props) {
@@ -55,6 +99,8 @@ export function KpiWidget({ metricKey }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["kpi-widget", metricKey, tenantId],
     queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+
       switch (metricKey) {
         case "revenue":
         case "expenses": {
@@ -62,8 +108,52 @@ export function KpiWidget({ metricKey }: Props) {
           const row = (d as any)?.[0] ?? {};
           return { value: Number(row[metricKey] ?? 0), suffix: "RSD" };
         }
+        case "revenue_yesterday": {
+          const yesterday = daysAgo(1);
+          const { data: inv } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("invoice_type", "sales").gte("invoice_date", yesterday).lt("invoice_date", today);
+          const total = (inv || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "revenue_7days": {
+          const from = daysAgo(7);
+          const { data: inv } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("invoice_type", "sales").gte("invoice_date", from);
+          const total = (inv || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "revenue_30days": {
+          const from = daysAgo(30);
+          const { data: inv } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("invoice_type", "sales").gte("invoice_date", from);
+          const total = (inv || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "profit": {
+          const { data: d } = await supabase.rpc("dashboard_kpi_summary", { _tenant_id: tenantId! });
+          const row = (d as any)?.[0] ?? {};
+          return { value: Number(row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
+        }
+        case "cash_balance": {
+          const { data: d } = await supabase.rpc("dashboard_kpi_summary", { _tenant_id: tenantId! });
+          const row = (d as any)?.[0] ?? {};
+          return { value: Number(row.cash_balance ?? row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
+        }
         case "invoices": {
           const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!);
+          return { value: count || 0 };
+        }
+        case "invoices_issued": {
+          const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "sent");
+          return { value: count || 0 };
+        }
+        case "invoices_unpaid": {
+          const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).in("status", ["sent", "overdue"]);
+          return { value: count || 0 };
+        }
+        case "invoices_overdue": {
+          const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "overdue");
+          return { value: count || 0 };
+        }
+        case "invoices_paid": {
+          const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "paid");
           return { value: count || 0 };
         }
         case "employees": {
@@ -71,12 +161,20 @@ export function KpiWidget({ metricKey }: Props) {
           return { value: count || 0 };
         }
         case "outstanding": {
-          const today = new Date().toISOString().split("T")[0];
           const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).in("status", ["draft", "sent"]).lt("due_date", today);
           return { value: count || 0 };
         }
         case "opportunities": {
           const { count } = await supabase.from("opportunities").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).neq("stage", "won").neq("stage", "lost");
+          return { value: count || 0 };
+        }
+        case "new_customers": {
+          const ms = monthStart();
+          const { count } = await supabase.from("partners").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("type", "customer").gte("created_at", ms);
+          return { value: count || 0 };
+        }
+        case "active_leads": {
+          const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).neq("status", "converted").neq("status", "lost");
           return { value: count || 0 };
         }
         case "leave_pending": {
@@ -85,7 +183,6 @@ export function KpiWidget({ metricKey }: Props) {
         }
         case "attendance": {
           try {
-            const today = new Date().toISOString().split("T")[0];
             const { count } = await supabase.from("attendance_records").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("date", today).eq("status", "present");
             return { value: count || 0 };
           } catch {
@@ -93,13 +190,11 @@ export function KpiWidget({ metricKey }: Props) {
           }
         }
         case "today_sales": {
-          const today = new Date().toISOString().split("T")[0];
           const { data: inv } = await supabase.from("invoices").select("total").eq("tenant_id", tenantId!).eq("invoice_type", "sales").gte("invoice_date", today);
           const total = (inv || []).reduce((s, r) => s + Number(r.total || 0), 0);
           return { value: total, suffix: "RSD" };
         }
         case "transactions": {
-          const today = new Date().toISOString().split("T")[0];
           const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("invoice_type", "sales").gte("invoice_date", today);
           return { value: count || 0 };
         }
@@ -118,6 +213,50 @@ export function KpiWidget({ metricKey }: Props) {
         }
         case "pending_receipts": {
           const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("status", "confirmed");
+          return { value: count || 0 };
+        }
+        case "purchase_orders": {
+          const { count } = await supabase.from("purchase_orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).in("status", ["draft", "confirmed"]);
+          return { value: count || 0 };
+        }
+        // ── Retail / POS ──
+        case "retail_revenue": {
+          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "retail_revenue_yesterday": {
+          const yesterday = daysAgo(1);
+          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", yesterday).lt("created_at", today);
+          const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "retail_revenue_7days": {
+          const from = daysAgo(7);
+          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", from);
+          const total = (txns || []).reduce((s, r) => s + Number(r.total || 0), 0);
+          return { value: total, suffix: "RSD" };
+        }
+        case "retail_transactions": {
+          const { count } = await supabase.from("pos_transactions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          return { value: count || 0 };
+        }
+        case "pos_sessions_active": {
+          const { count } = await supabase.from("pos_sessions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).filter("closed_at", "is", "null");
+          return { value: count || 0 };
+        }
+        case "avg_basket": {
+          const { data: txns } = await supabase.from("pos_transactions").select("total").eq("tenant_id", tenantId!).eq("receipt_type", "sale").gte("created_at", today);
+          if (!txns || txns.length === 0) return { value: 0, suffix: "RSD" };
+          const avg = txns.reduce((s, r) => s + Number(r.total || 0), 0) / txns.length;
+          return { value: Math.round(avg), suffix: "RSD" };
+        }
+        case "warehouse_count": {
+          const { count } = await supabase.from("warehouses").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("is_active", true);
+          return { value: count || 0 };
+        }
+        case "products_active": {
+          const { count } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!).eq("is_active", true);
           return { value: count || 0 };
         }
         default:

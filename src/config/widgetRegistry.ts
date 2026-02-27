@@ -1,6 +1,6 @@
 import type { ModuleGroup } from "@/config/rolePermissions";
 
-export type WidgetCategory = "kpi" | "chart" | "action" | "list" | "hr";
+export type WidgetCategory = "kpi" | "chart" | "action" | "list" | "hr" | "retail";
 
 export interface WidgetDefinition {
   id: string;
@@ -14,10 +14,34 @@ export interface WidgetDefinition {
 }
 
 export const widgetRegistry: Record<string, WidgetDefinition> = {
-  // ── KPI widgets ──
+  // ── KPI widgets — Accounting ──
   kpi_revenue: {
     id: "kpi_revenue",
     titleKey: "revenue",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "accounting",
+  },
+  kpi_revenue_yesterday: {
+    id: "kpi_revenue_yesterday",
+    titleKey: "revenueYesterday",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "accounting",
+  },
+  kpi_revenue_7days: {
+    id: "kpi_revenue_7days",
+    titleKey: "revenueLast7Days",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "accounting",
+  },
+  kpi_revenue_30days: {
+    id: "kpi_revenue_30days",
+    titleKey: "revenueLast30Days",
     category: "kpi",
     defaultWidth: 3,
     defaultHeight: 1,
@@ -31,21 +55,21 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 1,
     requiredModule: "accounting",
   },
-  kpi_invoices: {
-    id: "kpi_invoices",
-    titleKey: "invoices",
+  kpi_profit: {
+    id: "kpi_profit",
+    titleKey: "profit",
     category: "kpi",
     defaultWidth: 3,
     defaultHeight: 1,
-    requiredModule: "sales",
+    requiredModule: "accounting",
   },
-  kpi_employees: {
-    id: "kpi_employees",
-    titleKey: "employees",
+  kpi_cash_balance: {
+    id: "kpi_cash_balance",
+    titleKey: "cashBalance",
     category: "kpi",
     defaultWidth: 3,
     defaultHeight: 1,
-    requiredModule: "hr",
+    requiredModule: "accounting",
   },
   kpi_outstanding: {
     id: "kpi_outstanding",
@@ -55,13 +79,57 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 1,
     requiredModule: "accounting",
   },
-  kpi_opportunities: {
-    id: "kpi_opportunities",
-    titleKey: "opportunities",
+
+  // ── KPI widgets — Sales / Invoices ──
+  kpi_invoices: {
+    id: "kpi_invoices",
+    titleKey: "invoices",
     category: "kpi",
-    defaultWidth: 4,
+    defaultWidth: 3,
     defaultHeight: 1,
-    requiredModule: "crm",
+    requiredModule: "sales",
+  },
+  kpi_invoices_issued: {
+    id: "kpi_invoices_issued",
+    titleKey: "issuedInvoices",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "sales",
+  },
+  kpi_invoices_unpaid: {
+    id: "kpi_invoices_unpaid",
+    titleKey: "unpaidInvoices",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "sales",
+  },
+  kpi_invoices_overdue: {
+    id: "kpi_invoices_overdue",
+    titleKey: "overdueInvoices",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "sales",
+  },
+  kpi_invoices_paid: {
+    id: "kpi_invoices_paid",
+    titleKey: "paidInvoices",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "sales",
+  },
+
+  // ── KPI widgets — HR ──
+  kpi_employees: {
+    id: "kpi_employees",
+    titleKey: "employees",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "hr",
   },
   kpi_leave_pending: {
     id: "kpi_leave_pending",
@@ -79,11 +147,57 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 1,
     requiredModule: "hr",
   },
+
+  // ── KPI widgets — CRM ──
+  kpi_opportunities: {
+    id: "kpi_opportunities",
+    titleKey: "opportunities",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "crm",
+  },
+  kpi_new_customers: {
+    id: "kpi_new_customers",
+    titleKey: "newCustomers",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "crm",
+  },
+  kpi_active_leads: {
+    id: "kpi_active_leads",
+    titleKey: "activeLeads",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "crm",
+  },
+
+  // ── KPI widgets — Purchasing ──
+  kpi_purchase_orders: {
+    id: "kpi_purchase_orders",
+    titleKey: "purchaseOrders",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "purchasing",
+  },
+  kpi_pending_receipts: {
+    id: "kpi_pending_receipts",
+    titleKey: "pendingReceipts",
+    category: "kpi",
+    defaultWidth: 4,
+    defaultHeight: 1,
+    requiredModule: "purchasing",
+  },
+
+  // ── KPI widgets — POS / Today ──
   kpi_today_sales: {
     id: "kpi_today_sales",
     titleKey: "todaySales",
     category: "kpi",
-    defaultWidth: 4,
+    defaultWidth: 3,
     defaultHeight: 1,
     requiredModule: "pos",
   },
@@ -91,15 +205,17 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     id: "kpi_transactions",
     titleKey: "transactions",
     category: "kpi",
-    defaultWidth: 4,
+    defaultWidth: 3,
     defaultHeight: 1,
     requiredModule: "pos",
   },
+
+  // ── KPI widgets — Inventory / Production ──
   kpi_low_stock: {
     id: "kpi_low_stock",
     titleKey: "lowStock",
     category: "kpi",
-    defaultWidth: 4,
+    defaultWidth: 3,
     defaultHeight: 1,
     requiredModule: "inventory",
   },
@@ -119,13 +235,71 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 1,
     requiredModule: "inventory",
   },
-  kpi_pending_receipts: {
-    id: "kpi_pending_receipts",
-    titleKey: "pendingReceipts",
+  kpi_warehouse_count: {
+    id: "kpi_warehouse_count",
+    titleKey: "warehouseCount",
     category: "kpi",
-    defaultWidth: 4,
+    defaultWidth: 3,
     defaultHeight: 1,
-    requiredModule: "purchasing",
+    requiredModule: "inventory",
+  },
+  kpi_products_active: {
+    id: "kpi_products_active",
+    titleKey: "activeProducts",
+    category: "kpi",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "inventory",
+  },
+
+  // ── Retail / Maloprodaja KPI widgets ──
+  kpi_retail_revenue: {
+    id: "kpi_retail_revenue",
+    titleKey: "retailRevenue",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
+  },
+  kpi_retail_revenue_yesterday: {
+    id: "kpi_retail_revenue_yesterday",
+    titleKey: "retailRevenueYesterday",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
+  },
+  kpi_retail_revenue_7days: {
+    id: "kpi_retail_revenue_7days",
+    titleKey: "retailRevenueLast7Days",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
+  },
+  kpi_retail_transactions: {
+    id: "kpi_retail_transactions",
+    titleKey: "retailTransactions",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
+  },
+  kpi_pos_sessions_active: {
+    id: "kpi_pos_sessions_active",
+    titleKey: "activePosSessions",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
+  },
+  kpi_avg_basket: {
+    id: "kpi_avg_basket",
+    titleKey: "averageBasket",
+    category: "retail",
+    defaultWidth: 3,
+    defaultHeight: 1,
+    requiredModule: "pos",
   },
 
   // ── Chart widgets ──
@@ -258,6 +432,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
 
 export const widgetCategories: { key: WidgetCategory; labelKey: string }[] = [
   { key: "kpi", labelKey: "kpiWidgets" },
+  { key: "retail", labelKey: "retailWidgets" },
   { key: "chart", labelKey: "chartWidgets" },
   { key: "action", labelKey: "actionWidgets" },
   { key: "list", labelKey: "listWidgets" },
@@ -265,3 +440,11 @@ export const widgetCategories: { key: WidgetCategory; labelKey: string }[] = [
 ];
 
 export const allWidgetIds = Object.keys(widgetRegistry);
+
+/** Available width options for widget resize */
+export const WIDGET_WIDTH_OPTIONS = [
+  { cols: 3, label: "1/4" },
+  { cols: 4, label: "1/3" },
+  { cols: 6, label: "1/2" },
+  { cols: 12, label: "Full" },
+] as const;

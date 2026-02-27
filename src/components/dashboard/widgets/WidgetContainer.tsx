@@ -2,9 +2,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageContext";
 import type { WidgetConfig } from "@/hooks/useDashboardLayout";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { WidgetShortcutEditor } from "./WidgetShortcutEditor";
+import { WIDGET_WIDTH_OPTIONS } from "@/config/widgetRegistry";
 
 const CONFIGURABLE_WIDGETS = new Set(["quick_actions"]);
 
@@ -13,9 +15,11 @@ interface Props {
   editMode: boolean;
   onRemove: (id: string) => void;
   onUpdateConfig?: (id: string, configJson: Record<string, any>) => void;
+  onResize?: (id: string, width: number) => void;
 }
 
-export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConfig }: Props) {
+export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConfig, onResize }: Props) {
+  const { t } = useLanguage();
   const {
     attributes,
     listeners,
@@ -29,6 +33,7 @@ export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConf
     transform: CSS.Transform.toString(transform),
     transition,
     gridColumn: `span ${widgetConfig.width}`,
+    ...(widgetConfig.height > 1 ? { gridRow: `span ${widgetConfig.height}` } : {}),
   };
 
   return (
@@ -60,6 +65,26 @@ export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConf
           </button>
           {CONFIGURABLE_WIDGETS.has(widgetConfig.widgetId) && onUpdateConfig && (
             <WidgetShortcutEditor widgetConfig={widgetConfig} onUpdateConfig={onUpdateConfig} />
+          )}
+          {/* Width resize buttons */}
+          {onResize && (
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 flex gap-0.5 bg-muted/90 rounded-md p-0.5">
+              {WIDGET_WIDTH_OPTIONS.map((opt) => (
+                <button
+                  key={opt.cols}
+                  onClick={() => onResize(widgetConfig.id, opt.cols)}
+                  className={cn(
+                    "px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors",
+                    widgetConfig.width === opt.cols
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted-foreground/10"
+                  )}
+                  title={`${t("widgetSize" as any) || "Size"}: ${opt.label}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           )}
         </>
       )}
