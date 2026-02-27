@@ -2754,11 +2754,14 @@ export type Database = {
       chart_of_accounts: {
         Row: {
           account_type: string
+          analytics_type: string | null
           code: string
           created_at: string
           description: string | null
           id: string
           is_active: boolean
+          is_closing_account: boolean
+          is_foreign_currency: boolean
           is_system: boolean
           is_variable_cost: boolean | null
           level: number
@@ -2766,15 +2769,20 @@ export type Database = {
           name_sr: string | null
           parent_id: string | null
           tenant_id: string
+          tracks_cost_bearer: boolean
+          tracks_cost_center: boolean
           updated_at: string
         }
         Insert: {
           account_type?: string
+          analytics_type?: string | null
           code: string
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          is_closing_account?: boolean
+          is_foreign_currency?: boolean
           is_system?: boolean
           is_variable_cost?: boolean | null
           level?: number
@@ -2782,15 +2790,20 @@ export type Database = {
           name_sr?: string | null
           parent_id?: string | null
           tenant_id: string
+          tracks_cost_bearer?: boolean
+          tracks_cost_center?: boolean
           updated_at?: string
         }
         Update: {
           account_type?: string
+          analytics_type?: string | null
           code?: string
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          is_closing_account?: boolean
+          is_foreign_currency?: boolean
           is_system?: boolean
           is_variable_cost?: boolean | null
           level?: number
@@ -2798,6 +2811,8 @@ export type Database = {
           name_sr?: string | null
           parent_id?: string | null
           tenant_id?: string
+          tracks_cost_bearer?: boolean
+          tracks_cost_center?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -8321,9 +8336,12 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          efaktura_category: string | null
           id: string
           invoice_id: string
+          item_type: string | null
           line_total: number
+          popdv_field: string | null
           product_id: string | null
           quantity: number
           sort_order: number
@@ -8332,13 +8350,17 @@ export type Database = {
           tax_rate_value: number
           total_with_tax: number
           unit_price: number
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
           description?: string
+          efaktura_category?: string | null
           id?: string
           invoice_id: string
+          item_type?: string | null
           line_total?: number
+          popdv_field?: string | null
           product_id?: string | null
           quantity?: number
           sort_order?: number
@@ -8347,13 +8369,17 @@ export type Database = {
           tax_rate_value?: number
           total_with_tax?: number
           unit_price?: number
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
           description?: string
+          efaktura_category?: string | null
           id?: string
           invoice_id?: string
+          item_type?: string | null
           line_total?: number
+          popdv_field?: string | null
           product_id?: string | null
           quantity?: number
           sort_order?: number
@@ -8362,6 +8388,7 @@ export type Database = {
           tax_rate_value?: number
           total_with_tax?: number
           unit_price?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -8383,6 +8410,13 @@ export type Database = {
             columns: ["tax_rate_id"]
             isOneToOne: false
             referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_lines_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -8411,6 +8445,7 @@ export type Database = {
           partner_id: string | null
           partner_name: string
           partner_pib: string | null
+          posted_at: string | null
           proforma_id: string | null
           sale_type: string
           sales_channel_id: string | null
@@ -8450,6 +8485,7 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          posted_at?: string | null
           proforma_id?: string | null
           sale_type?: string
           sales_channel_id?: string | null
@@ -8489,6 +8525,7 @@ export type Database = {
           partner_id?: string | null
           partner_name?: string
           partner_pib?: string | null
+          posted_at?: string | null
           proforma_id?: string | null
           sale_type?: string
           sales_channel_id?: string | null
@@ -8727,35 +8764,56 @@ export type Database = {
       journal_lines: {
         Row: {
           account_id: string
+          analytics_label: string | null
+          analytics_reference_id: string | null
+          analytics_type: string | null
           cost_center_id: string | null
           created_at: string
           credit: number
           debit: number
           description: string | null
+          exchange_rate: number | null
+          foreign_amount: number | null
+          foreign_currency: string | null
           id: string
           journal_entry_id: string
+          popdv_field: string | null
           sort_order: number
         }
         Insert: {
           account_id: string
+          analytics_label?: string | null
+          analytics_reference_id?: string | null
+          analytics_type?: string | null
           cost_center_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           description?: string | null
+          exchange_rate?: number | null
+          foreign_amount?: number | null
+          foreign_currency?: string | null
           id?: string
           journal_entry_id: string
+          popdv_field?: string | null
           sort_order?: number
         }
         Update: {
           account_id?: string
+          analytics_label?: string | null
+          analytics_reference_id?: string | null
+          analytics_type?: string | null
           cost_center_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           description?: string | null
+          exchange_rate?: number | null
+          foreign_amount?: number | null
+          foreign_currency?: string | null
           id?: string
           journal_entry_id?: string
+          popdv_field?: string | null
           sort_order?: number
         }
         Relationships: [
@@ -12212,6 +12270,192 @@ export type Database = {
           },
         ]
       }
+      popdv_records: {
+        Row: {
+          created_at: string
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          period_month: number
+          period_year: number
+          section_1_1: number | null
+          section_1_2: number | null
+          section_1_3: number | null
+          section_1_4: number | null
+          section_10_1: number | null
+          section_10_2: number | null
+          section_11_net_tax: number | null
+          section_11_total_input_tax: number | null
+          section_11_total_output_tax: number | null
+          section_2_1: number | null
+          section_2_2: number | null
+          section_2_3: number | null
+          section_3_1_base: number | null
+          section_3_1_tax: number | null
+          section_3_2_base: number | null
+          section_3_2_tax: number | null
+          section_3_3_base: number | null
+          section_3_3_tax: number | null
+          section_3_4_base: number | null
+          section_3_4_tax: number | null
+          section_4_1_base: number | null
+          section_4_1_tax: number | null
+          section_4_2_base: number | null
+          section_4_2_tax: number | null
+          section_4_3_base: number | null
+          section_4_3_tax: number | null
+          section_4_4_base: number | null
+          section_4_4_tax: number | null
+          section_5_1_base: number | null
+          section_5_1_tax: number | null
+          section_6_1_base: number | null
+          section_6_1_tax: number | null
+          section_6_2_base: number | null
+          section_6_2_tax: number | null
+          section_7_1_base: number | null
+          section_7_1_tax: number | null
+          section_8_1: number | null
+          section_8_2: number | null
+          section_8_3: number | null
+          section_8_4: number | null
+          section_8_5: number | null
+          section_9_1: number | null
+          section_9_2: number | null
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          period_month: number
+          period_year: number
+          section_1_1?: number | null
+          section_1_2?: number | null
+          section_1_3?: number | null
+          section_1_4?: number | null
+          section_10_1?: number | null
+          section_10_2?: number | null
+          section_11_net_tax?: number | null
+          section_11_total_input_tax?: number | null
+          section_11_total_output_tax?: number | null
+          section_2_1?: number | null
+          section_2_2?: number | null
+          section_2_3?: number | null
+          section_3_1_base?: number | null
+          section_3_1_tax?: number | null
+          section_3_2_base?: number | null
+          section_3_2_tax?: number | null
+          section_3_3_base?: number | null
+          section_3_3_tax?: number | null
+          section_3_4_base?: number | null
+          section_3_4_tax?: number | null
+          section_4_1_base?: number | null
+          section_4_1_tax?: number | null
+          section_4_2_base?: number | null
+          section_4_2_tax?: number | null
+          section_4_3_base?: number | null
+          section_4_3_tax?: number | null
+          section_4_4_base?: number | null
+          section_4_4_tax?: number | null
+          section_5_1_base?: number | null
+          section_5_1_tax?: number | null
+          section_6_1_base?: number | null
+          section_6_1_tax?: number | null
+          section_6_2_base?: number | null
+          section_6_2_tax?: number | null
+          section_7_1_base?: number | null
+          section_7_1_tax?: number | null
+          section_8_1?: number | null
+          section_8_2?: number | null
+          section_8_3?: number | null
+          section_8_4?: number | null
+          section_8_5?: number | null
+          section_9_1?: number | null
+          section_9_2?: number | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          period_month?: number
+          period_year?: number
+          section_1_1?: number | null
+          section_1_2?: number | null
+          section_1_3?: number | null
+          section_1_4?: number | null
+          section_10_1?: number | null
+          section_10_2?: number | null
+          section_11_net_tax?: number | null
+          section_11_total_input_tax?: number | null
+          section_11_total_output_tax?: number | null
+          section_2_1?: number | null
+          section_2_2?: number | null
+          section_2_3?: number | null
+          section_3_1_base?: number | null
+          section_3_1_tax?: number | null
+          section_3_2_base?: number | null
+          section_3_2_tax?: number | null
+          section_3_3_base?: number | null
+          section_3_3_tax?: number | null
+          section_3_4_base?: number | null
+          section_3_4_tax?: number | null
+          section_4_1_base?: number | null
+          section_4_1_tax?: number | null
+          section_4_2_base?: number | null
+          section_4_2_tax?: number | null
+          section_4_3_base?: number | null
+          section_4_3_tax?: number | null
+          section_4_4_base?: number | null
+          section_4_4_tax?: number | null
+          section_5_1_base?: number | null
+          section_5_1_tax?: number | null
+          section_6_1_base?: number | null
+          section_6_1_tax?: number | null
+          section_6_2_base?: number | null
+          section_6_2_tax?: number | null
+          section_7_1_base?: number | null
+          section_7_1_tax?: number | null
+          section_8_1?: number | null
+          section_8_2?: number | null
+          section_8_3?: number | null
+          section_8_4?: number | null
+          section_8_5?: number | null
+          section_9_1?: number | null
+          section_9_2?: number | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popdv_records_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "popdv_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_daily_reports: {
         Row: {
           actual_cash_count: number | null
@@ -14845,6 +15089,95 @@ export type Database = {
           },
         ]
       }
+      supplier_invoice_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          efaktura_category: string | null
+          id: string
+          item_type: string | null
+          line_total: number
+          popdv_field: string | null
+          product_id: string | null
+          quantity: number
+          sort_order: number
+          supplier_invoice_id: string
+          tax_amount: number
+          tax_rate_id: string | null
+          tax_rate_value: number | null
+          total_with_tax: number
+          unit_price: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          efaktura_category?: string | null
+          id?: string
+          item_type?: string | null
+          line_total?: number
+          popdv_field?: string | null
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          supplier_invoice_id: string
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number | null
+          total_with_tax?: number
+          unit_price?: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          efaktura_category?: string | null
+          id?: string
+          item_type?: string | null
+          line_total?: number
+          popdv_field?: string | null
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          supplier_invoice_id?: string
+          tax_amount?: number
+          tax_rate_id?: string | null
+          tax_rate_value?: number | null
+          total_with_tax?: number
+          unit_price?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoice_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoice_lines_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoice_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoice_lines_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_invoices: {
         Row: {
           amount: number
@@ -15448,6 +15781,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      voucher_types: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          name_sr: string | null
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          name_sr?: string | null
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          name_sr?: string | null
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_types_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouses: {
         Row: {

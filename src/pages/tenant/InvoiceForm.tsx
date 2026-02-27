@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, ArrowLeft, Save, Send } from "lucide-react";
 import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
+import GlPostingPreview from "@/components/accounting/GlPostingPreview";
 
 interface InvoiceLine {
   id?: string;
@@ -31,6 +32,9 @@ interface InvoiceLine {
   tax_amount: number;
   total_with_tax: number;
   sort_order: number;
+  item_type: string;
+  popdv_field: string;
+  efaktura_category: string;
 }
 
 function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number): InvoiceLine {
@@ -44,6 +48,9 @@ function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number)
     tax_amount: 0,
     total_with_tax: 0,
     sort_order: order,
+    item_type: "service",
+    popdv_field: "",
+    efaktura_category: "",
   };
 }
 
@@ -209,6 +216,9 @@ export default function InvoiceForm() {
           tax_amount: 0,
           total_with_tax: 0,
           sort_order: i,
+          item_type: "service",
+          popdv_field: "",
+          efaktura_category: "",
         })));
       }
       window.history.replaceState({}, document.title);
@@ -279,6 +289,9 @@ export default function InvoiceForm() {
           tax_amount: Number(l.tax_amount),
           total_with_tax: Number(l.total_with_tax),
           sort_order: l.sort_order,
+          item_type: (l as any).item_type || "service",
+          popdv_field: (l as any).popdv_field || "",
+          efaktura_category: (l as any).efaktura_category || "",
         }))
       );
     }
@@ -380,6 +393,9 @@ export default function InvoiceForm() {
         tax_amount: l.tax_amount,
         total_with_tax: l.total_with_tax,
         sort_order: i,
+        item_type: l.item_type || "service",
+        popdv_field: l.popdv_field || null,
+        efaktura_category: l.efaktura_category || null,
       }));
 
       const { error: lineError } = await supabase.from("invoice_lines").insert(lineInserts);
@@ -570,15 +586,16 @@ export default function InvoiceForm() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[18%]">{t("product")}</TableHead>
-                <TableHead className="w-[22%]">{t("description")}</TableHead>
-                <TableHead className="w-[8%]">{t("quantity")}</TableHead>
-                <TableHead className="w-[10%]">{t("unitPrice")}</TableHead>
-                <TableHead className="w-[12%]">{t("taxRate")}</TableHead>
-                <TableHead className="text-right w-[10%]">{t("lineTotal")}</TableHead>
-                <TableHead className="text-right w-[10%]">{t("taxAmount")}</TableHead>
-                <TableHead className="text-right w-[10%]">{t("totalWithTax")}</TableHead>
-                {!isReadOnly && <TableHead className="w-[5%]" />}
+                <TableHead className="w-[14%]">{t("product")}</TableHead>
+                <TableHead className="w-[16%]">{t("description")}</TableHead>
+                <TableHead className="w-[8%]">{t("itemType")}</TableHead>
+                <TableHead className="w-[7%]">{t("quantity")}</TableHead>
+                <TableHead className="w-[8%]">{t("unitPrice")}</TableHead>
+                <TableHead className="w-[10%]">{t("taxRate")}</TableHead>
+                <TableHead className="text-right w-[9%]">{t("lineTotal")}</TableHead>
+                <TableHead className="text-right w-[9%]">{t("taxAmount")}</TableHead>
+                <TableHead className="text-right w-[9%]">{t("totalWithTax")}</TableHead>
+                {!isReadOnly && <TableHead className="w-[4%]" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -627,6 +644,20 @@ export default function InvoiceForm() {
                       disabled={isReadOnly}
                       placeholder={t("description")}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={line.item_type}
+                      onValueChange={(v) => updateLine(i, "item_type" as any, v)}
+                      disabled={isReadOnly}
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="goods">{t("itemTypeGoods")}</SelectItem>
+                        <SelectItem value="service">{t("itemTypeService")}</SelectItem>
+                        <SelectItem value="product">{t("itemTypeProduct")}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     <Input
@@ -712,6 +743,17 @@ export default function InvoiceForm() {
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isReadOnly} rows={3} />
         </CardContent>
       </Card>
+
+      {/* GL Posting Preview */}
+      <GlPostingPreview
+        lines={lines}
+        partnerName={partnerName}
+        invoiceType={invoiceType}
+        currency={currency}
+        subtotal={subtotal}
+        totalTax={totalTax}
+        grandTotal={grandTotal}
+      />
 
       {/* Actions */}
       {!isReadOnly && (
