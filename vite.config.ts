@@ -32,6 +32,9 @@ export default defineConfig(({ mode }) => ({
           vendor: ["react", "react-dom", "react-router-dom"],
           charts: ["recharts"],
           supabase: ["@supabase/supabase-js"],
+          query: ["@tanstack/react-query"],
+          dnd: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+          motion: ["framer-motion"],
           ui: [
             "@radix-ui/react-dialog",
             "@radix-ui/react-dropdown-menu",
@@ -39,6 +42,8 @@ export default defineConfig(({ mode }) => ({
             "@radix-ui/react-select",
             "@radix-ui/react-tabs",
             "@radix-ui/react-tooltip",
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-checkbox",
           ],
         },
       },

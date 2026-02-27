@@ -9568,6 +9568,97 @@ export type Database = {
           },
         ]
       }
+      ios_confirmations: {
+        Row: {
+          as_of_date: string
+          confirmation_date: string
+          confirmation_number: string
+          confirmed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          dispute_reason: string | null
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          our_payable: number | null
+          our_receivable: number | null
+          partner_id: string
+          partner_payable: number | null
+          partner_receivable: number | null
+          sent_at: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          as_of_date?: string
+          confirmation_date?: string
+          confirmation_number: string
+          confirmed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          dispute_reason?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          our_payable?: number | null
+          our_receivable?: number | null
+          partner_id: string
+          partner_payable?: number | null
+          partner_receivable?: number | null
+          sent_at?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          as_of_date?: string
+          confirmation_date?: string
+          confirmation_number?: string
+          confirmed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          dispute_reason?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          our_payable?: number | null
+          our_receivable?: number | null
+          partner_id?: string
+          partner_payable?: number | null
+          partner_receivable?: number | null
+          sent_at?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ios_confirmations_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ios_confirmations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ios_confirmations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -20616,6 +20707,20 @@ export type Database = {
       get_member_department_ids: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: string[]
+      }
+      get_partner_ios_balance: {
+        Args: {
+          p_as_of_date?: string
+          p_legal_entity_id?: string
+          p_partner_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          open_bills: number
+          open_invoices: number
+          payable_total: number
+          receivable_total: number
+        }[]
       }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_action_permission: {
