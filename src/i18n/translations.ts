@@ -2960,6 +2960,18 @@ export const translations = {
     activeLeads: "Active Leads",
     todaySalesCount: "Today's Sales",
     todaySalesTotal: "Today's Revenue",
+    // Dashboard widgets
+    customize: "Customize",
+    addWidget: "Add Widget",
+    kpiWidgets: "KPI",
+    chartWidgets: "Charts",
+    actionWidgets: "Actions",
+    listWidgets: "Lists",
+    hrWidgets: "HR",
+    lowStockAlerts: "Low Stock Alerts",
+    leaveBalance: "Leave Balance",
+    payrollCost: "Payroll Cost",
+    pendingReceipts: "Pending Receipts",
   },
   sr: {
     // Auth
@@ -5876,6 +5888,18 @@ export const translations = {
     activeLeads: "Aktivni lidovi",
     todaySalesCount: "Današnja prodaja",
     todaySalesTotal: "Današnji prihod",
+    // Dashboard widgets
+    customize: "Prilagodi",
+    addWidget: "Dodaj widget",
+    kpiWidgets: "KPI",
+    chartWidgets: "Grafikoni",
+    actionWidgets: "Akcije",
+    listWidgets: "Liste",
+    hrWidgets: "HR",
+    lowStockAlerts: "Upozorenja za nisku zalihu",
+    leaveBalance: "Stanje odsustva",
+    payrollCost: "Troškovi plata",
+    pendingReceipts: "Prijemnice na čekanju",
   },
 } as const;
 
