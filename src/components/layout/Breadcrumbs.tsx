@@ -61,6 +61,7 @@ const routeLabels: Record<string, string> = {
   terminal: "posTerminal",
   sessions: "posSessions",
   settings: "settings",
+  "tenant-profile": "tenantProfile",
   users: "users",
   "audit-log": "auditLog",
   "tax-rates": "taxRates",
