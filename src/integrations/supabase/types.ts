@@ -9372,6 +9372,8 @@ export type Database = {
           journal_entry_id: string | null
           kalkulacija_date: string
           kalkulacija_number: string
+          legal_entity_id: string | null
+          location_id: string | null
           notes: string | null
           status: string
           supplier_invoice_id: string | null
@@ -9387,6 +9389,8 @@ export type Database = {
           journal_entry_id?: string | null
           kalkulacija_date?: string
           kalkulacija_number: string
+          legal_entity_id?: string | null
+          location_id?: string | null
           notes?: string | null
           status?: string
           supplier_invoice_id?: string | null
@@ -9402,6 +9406,8 @@ export type Database = {
           journal_entry_id?: string | null
           kalkulacija_date?: string
           kalkulacija_number?: string
+          legal_entity_id?: string | null
+          location_id?: string | null
           notes?: string | null
           status?: string
           supplier_invoice_id?: string | null
@@ -9415,6 +9421,20 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacije_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kalkulacije_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -10893,6 +10913,7 @@ export type Database = {
           new_retail_price: number
           nivelacija_id: string
           old_retail_price: number
+          pdv_rate: number
           price_difference: number
           product_id: string
           quantity_on_hand: number
@@ -10903,6 +10924,7 @@ export type Database = {
           new_retail_price?: number
           nivelacija_id: string
           old_retail_price?: number
+          pdv_rate?: number
           price_difference?: number
           product_id: string
           quantity_on_hand?: number
@@ -10913,6 +10935,7 @@ export type Database = {
           new_retail_price?: number
           nivelacija_id?: string
           old_retail_price?: number
+          pdv_rate?: number
           price_difference?: number
           product_id?: string
           quantity_on_hand?: number
@@ -10941,6 +10964,8 @@ export type Database = {
           created_by: string | null
           id: string
           journal_entry_id: string | null
+          legal_entity_id: string | null
+          location_id: string | null
           nivelacija_date: string
           nivelacija_number: string
           notes: string | null
@@ -10954,6 +10979,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
           nivelacija_date?: string
           nivelacija_number: string
           notes?: string | null
@@ -10967,6 +10994,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          location_id?: string | null
           nivelacija_date?: string
           nivelacija_number?: string
           notes?: string | null
@@ -10981,6 +11010,20 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nivelacije_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nivelacije_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {

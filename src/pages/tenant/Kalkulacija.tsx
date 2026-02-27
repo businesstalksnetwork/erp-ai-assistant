@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -12,10 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Trash2, Calculator, Send } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
-import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface KalkulacijaItem {
   product_id: string;
@@ -37,9 +38,10 @@ export default function Kalkulacija() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { entities: legalEntities } = useLegalEntities();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ warehouse_id: "", notes: "" });
+  const [form, setForm] = useState({ warehouse_id: "", notes: "", location_id: "", legal_entity_id: "" });
   const [items, setItems] = useState<KalkulacijaItem[]>([]);
 
   const { data: kalkulacije = [] } = useQuery({
@@ -47,7 +49,7 @@ export default function Kalkulacija() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("kalkulacije")
-        .select("*, warehouses(name)")
+        .select("*, warehouses(name), locations(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -60,6 +62,15 @@ export default function Kalkulacija() {
     queryKey: ["warehouses_active", tenantId],
     queryFn: async () => {
       const { data } = await supabase.from("warehouses").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations_active", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name, type").eq("tenant_id", tenantId!).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -82,10 +93,14 @@ export default function Kalkulacija() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!form.location_id) throw new Error(t("selectLocation"));
+      if (!form.legal_entity_id) throw new Error(t("selectLegalEntity"));
+
       const { data: doc, error } = await supabase.from("kalkulacije").insert({
         tenant_id: tenantId!, kalkulacija_number: getNextNumber(),
         warehouse_id: form.warehouse_id || null, status: "draft",
         notes: form.notes, created_by: user?.id,
+        location_id: form.location_id, legal_entity_id: form.legal_entity_id,
       }).select().single();
       if (error) throw error;
       if (items.length > 0) {
@@ -105,25 +120,22 @@ export default function Kalkulacija() {
 
   const postMutation = useMutation({
     mutationFn: async (id: string) => {
-      // 1. Post the kalkulacija (inventory movement)
       const { data, error } = await supabase.rpc("post_kalkulacija", { p_kalkulacija_id: id });
       if (error) throw error;
 
-      // 2. Fetch items for master data sync
       const { data: postedItems } = await supabase
         .from("kalkulacija_items")
         .select("product_id, quantity, purchase_price, retail_price")
         .eq("kalkulacija_id", id);
 
-      // 3. Fetch kalkulacija header for warehouse_id
       const { data: kalDoc } = await supabase
         .from("kalkulacije")
-        .select("warehouse_id, kalkulacija_number")
+        .select("warehouse_id, kalkulacija_number, location_id")
         .eq("id", id)
         .single();
 
       if (postedItems && postedItems.length > 0) {
-        // 4. Insert purchase_prices history
+        // Insert purchase_prices history
         await supabase.from("purchase_prices").insert(
           postedItems.map(i => ({
             tenant_id: tenantId!,
@@ -139,7 +151,7 @@ export default function Kalkulacija() {
           }))
         );
 
-        // 5. Update product defaults
+        // Update product defaults
         for (const item of postedItems) {
           await supabase.from("products").update({
             default_purchase_price: item.purchase_price,
@@ -147,21 +159,37 @@ export default function Kalkulacija() {
           }).eq("id", item.product_id);
         }
 
-        // 6. Upsert retail_prices for default list
-        const { data: defaultList } = await supabase
-          .from("retail_price_lists")
-          .select("id")
-          .eq("tenant_id", tenantId!)
-          .eq("is_default", true)
-          .maybeSingle();
+        // Upsert retail_prices for LOCATION's price list (not global default)
+        let priceListId: string | null = null;
 
-        if (defaultList) {
+        if (kalDoc?.location_id) {
+          const { data: locList } = await supabase
+            .from("retail_price_lists")
+            .select("id")
+            .eq("tenant_id", tenantId!)
+            .eq("location_id", kalDoc.location_id)
+            .eq("is_active", true)
+            .maybeSingle();
+          priceListId = locList?.id || null;
+        }
+
+        // Fallback to default list
+        if (!priceListId) {
+          const { data: defaultList } = await supabase
+            .from("retail_price_lists")
+            .select("id")
+            .eq("tenant_id", tenantId!)
+            .eq("is_default", true)
+            .maybeSingle();
+          priceListId = defaultList?.id || null;
+        }
+
+        if (priceListId) {
           for (const item of postedItems) {
             await supabase.from("retail_prices").upsert({
-              tenant_id: tenantId!,
-              price_list_id: defaultList.id,
+              price_list_id: priceListId,
               product_id: item.product_id,
-              price: item.retail_price,
+              retail_price: item.retail_price,
             }, { onConflict: "price_list_id,product_id" });
           }
         }
@@ -200,12 +228,26 @@ export default function Kalkulacija() {
 
   const filtered = kalkulacije.filter((k: any) => k.kalkulacija_number?.toLowerCase().includes(search.toLowerCase()));
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "number", label: t("invoiceNumber"), primary: true, sortable: true, sortValue: (k) => k.kalkulacija_number, render: (k) => <span className="font-medium">{k.kalkulacija_number}</span> },
+    { key: "date", label: t("date"), sortable: true, sortValue: (k) => k.kalkulacija_date, render: (k) => new Date(k.kalkulacija_date).toLocaleDateString("sr-RS") },
+    { key: "location", label: t("location"), hideOnMobile: true, render: (k) => (k.locations as any)?.name || "—" },
+    { key: "warehouse", label: t("warehouse"), hideOnMobile: true, render: (k) => (k.warehouses as any)?.name || "—" },
+    { key: "status", label: t("status"), sortable: true, sortValue: (k) => k.status, render: (k) => <Badge variant={k.status === "posted" ? "default" : "secondary"}>{k.status}</Badge> },
+    { key: "actions", label: t("actions"), render: (k) => (
+      k.status === "draft" ? (
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); postMutation.mutate(k.id); }} disabled={postMutation.isPending}>
+          <Send className="h-3 w-3 mr-1" />{t("save")}
+        </Button>
+      ) : null
+    )},
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("kalkulacija")}</h1>
-        <Button onClick={() => { setDialogOpen(true); setItems([{ product_id: "", quantity: 1, purchase_price: 0, markup_percent: 20, pdv_rate: 20, retail_price: 0 }]); setForm({ warehouse_id: "", notes: "" }); }}>
+        <Button onClick={() => { setDialogOpen(true); setItems([{ product_id: "", quantity: 1, purchase_price: 0, markup_percent: 20, pdv_rate: 20, retail_price: 0 }]); setForm({ warehouse_id: "", notes: "", location_id: "", legal_entity_id: "" }); }}>
           <Plus className="h-4 w-4 mr-2" />{t("add")}
         </Button>
       </div>
@@ -215,49 +257,38 @@ export default function Kalkulacija() {
         <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("invoiceNumber")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                 <TableHead>{t("warehouse")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((k: any) => (
-                <TableRow key={k.id}>
-                  <TableCell className="font-medium">{k.kalkulacija_number}</TableCell>
-                  <TableCell>{new Date(k.kalkulacija_date).toLocaleDateString("sr-RS")}</TableCell>
-                  <TableCell>{(k.warehouses as any)?.name || "—"}</TableCell>
-                  <TableCell><Badge variant={k.status === "posted" ? "default" : "secondary"}>{k.status}</Badge></TableCell>
-                  <TableCell>
-                    {k.status === "draft" && (
-                      <Button size="sm" variant="outline" onClick={() => postMutation.mutate(k.id)} disabled={postMutation.isPending}>
-                        <Send className="h-3 w-3 mr-1" />{t("save")}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(k) => k.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="kalkulacije"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("kalkulacija")}</DialogTitle>
             <DialogDescription>{t("kalkulacijaDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("location")} *</Label>
+                <Select value={form.location_id} onValueChange={v => setForm(f => ({ ...f, location_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLocation")} /></SelectTrigger>
+                  <SelectContent>{locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("legalEntity")} *</Label>
+                <Select value={form.legal_entity_id} onValueChange={v => setForm(f => ({ ...f, legal_entity_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                  <SelectContent>{legalEntities.map((le: any) => <SelectItem key={le.id} value={le.id}>{le.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>{t("warehouse")}</Label>
                 <Select value={form.warehouse_id} onValueChange={v => setForm(f => ({ ...f, warehouse_id: v }))}>
@@ -318,7 +349,9 @@ export default function Kalkulacija() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}><Calculator className="h-4 w-4 mr-2" />{t("save")}</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.location_id || !form.legal_entity_id}>
+              <Calculator className="h-4 w-4 mr-2" />{t("save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
