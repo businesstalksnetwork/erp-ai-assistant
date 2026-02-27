@@ -33,31 +33,7 @@ export default function ProductDetail() {
     enabled: !!id,
   });
 
-  const { data: retailPrices = [] } = useQuery({
-    queryKey: ["product-retail-prices", id, tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("retail_prices" as any)
-        .select("*, retail_price_lists!inner(name, tenant_id)")
-        .eq("product_id", id!)
-        .eq("retail_price_lists.tenant_id", tenantId!);
-      return (data as any[]) || [];
-    },
-    enabled: !!id && !!tenantId,
-  });
-
-  const { data: webPrices = [] } = useQuery({
-    queryKey: ["product-web-prices", id, tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("web_prices" as any)
-        .select("*, web_price_lists(name)")
-        .eq("product_id", id!)
-        .eq("tenant_id", tenantId!);
-      return (data as any[]) || [];
-    },
-    enabled: !!id && !!tenantId,
-  });
+  // Retail/web prices now handled by PricingCenter
 
   const { data: stockLevels = [] } = useQuery({
     queryKey: ["product-stock", id, tenantId],
@@ -146,76 +122,35 @@ export default function ProductDetail() {
         </TabsContent>
 
         <TabsContent value="pricing">
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Wholesale */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t("wholesalePrice")}</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold font-mono">{fmtNum(wholesalePrice)}</p>
-                <p className="text-sm text-muted-foreground mt-1">{t("markup")} vs {t("purchasePrice")}: {calcMargin(wholesalePrice, purchasePrice)}</p>
-              </CardContent>
-            </Card>
-
-            {/* Retail */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t("retailPrices")}</CardTitle></CardHeader>
-              <CardContent>
-                {retailPrices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("noResults")}</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("priceList")}</TableHead>
-                        <TableHead className="text-right">{t("retailPrice")}</TableHead>
-                        <TableHead className="text-right">{t("markup")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {retailPrices.map((rp: any) => (
-                        <TableRow key={rp.id}>
-                          <TableCell>{rp.retail_price_lists?.name || "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{fmtNum(Number(rp.retail_price))}</TableCell>
-                          <TableCell className="text-right font-mono">{calcMargin(Number(rp.retail_price), wholesalePrice)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Web */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t("webPrices")}</CardTitle></CardHeader>
-              <CardContent>
-                {webPrices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("noResults")}</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("priceList")}</TableHead>
-                        <TableHead className="text-right">{t("webPrice")}</TableHead>
-                        <TableHead className="text-right">{t("compareAtPrice")}</TableHead>
-                        <TableHead className="text-right">{t("markup")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {webPrices.map((wp: any) => (
-                        <TableRow key={wp.id}>
-                          <TableCell>{wp.web_price_lists?.name || "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{fmtNum(Number(wp.price))}</TableCell>
-                          <TableCell className="text-right font-mono">{wp.compare_at_price ? fmtNum(Number(wp.compare_at_price)) : "—"}</TableCell>
-                          <TableCell className="text-right font-mono">{calcMargin(Number(wp.price), wholesalePrice)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("purchasePrice")}</p>
+                  <p className="text-2xl font-bold font-mono">{fmtNum(purchasePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("wholesalePrice")}</p>
+                  <p className="text-2xl font-bold font-mono">{fmtNum(wholesalePrice)}</p>
+                  <p className="text-xs text-muted-foreground">{t("markup")}: {calcMargin(wholesalePrice, purchasePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("retailPrice")}</p>
+                  <p className="text-2xl font-bold font-mono">{fmtNum(Number(product.default_retail_price || 0))}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("webPrice")}</p>
+                  <p className="text-2xl font-bold font-mono">{fmtNum(Number(product.default_web_price || 0))}</p>
+                </div>
+              </div>
+              <Button variant="outline" asChild>
+                <Link to={`/inventory/pricing-center?product=${id}`}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  {t("viewInPricingCenter")}
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="inventory">

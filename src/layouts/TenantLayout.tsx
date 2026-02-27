@@ -80,9 +80,9 @@ const inventoryNav: NavItem[] = [
   { key: "internalTransfers", url: "/inventory/internal-transfers", icon: Truck },
   { key: "internalReceipts", url: "/inventory/internal-receipts", icon: FileInput },
   { key: "dispatchNotes", url: "/inventory/dispatch-notes", icon: Truck },
-  { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator, section: "pricingOperations" },
+  { key: "pricingCenter", url: "/inventory/pricing-center", icon: DollarSign, section: "pricingOperations" },
+  { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator },
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
-  { key: "retailPrices", url: "/inventory/retail-prices", icon: Receipt },
   { key: "wmsDashboard", url: "/inventory/wms/dashboard", icon: LayoutDashboard, section: "wms" },
   { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
@@ -178,7 +178,6 @@ const salesNav: NavItem[] = [
   { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
   { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
   { key: "webSettings", url: "/sales/web-settings", icon: Globe, section: "webSales" },
-  { key: "webPrices", url: "/sales/web-prices", icon: Receipt },
 ];
 
 const purchasingNav: NavItem[] = [

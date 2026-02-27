@@ -2914,6 +2914,12 @@ export const translations = {
     selectBuyerPartner: "Select buyer partner...",
     productCategories: "Product Categories",
     autoPrice: "(auto)",
+    pricingCenter: "Pricing Center",
+    purchasePriceHistory: "Purchase Prices",
+    wholesalePrices: "Wholesale Prices",
+    filteredByProduct: "Filtered by product",
+    clearFilter: "Clear filter",
+    viewInPricingCenter: "View in Pricing Center",
   },
   sr: {
     // Auth
@@ -5784,6 +5790,12 @@ export const translations = {
     selectBuyerPartner: "Izaberite partnera kupca...",
     productCategories: "Kategorije proizvoda",
     autoPrice: "(auto)",
+    pricingCenter: "Centar cena",
+    purchasePriceHistory: "Nabavne cene",
+    wholesalePrices: "Veleprodajne cene",
+    filteredByProduct: "Filtrirano po proizvodu",
+    clearFilter: "Obriši filter",
+    viewInPricingCenter: "Pogledaj u Centru cena",
   },
 } as const;
 
