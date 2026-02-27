@@ -1,21 +1,28 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense, lazy } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, FileCheck } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FileCheck } from "lucide-react";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { fmtNum } from "@/lib/utils";
 import { format } from "date-fns";
 
+const IosConfirmations = lazy(() => import("@/pages/tenant/IosConfirmations"));
+
 export default function IosBalanceConfirmation() {
   const { tenantId } = useTenant();
+  const { locale } = useLanguage();
+  const sr = locale === "sr";
   const [cutoffDate, setCutoffDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [tab, setTab] = useState("report");
 
   const { data: openItems = [], isLoading } = useQuery({
     queryKey: ["ios-open-items", tenantId, cutoffDate],
@@ -40,22 +47,13 @@ export default function IosBalanceConfirmation() {
       const pid = item.partner_id || "unknown";
       const partner = item.partners as any;
       if (!map.has(pid)) {
-        map.set(pid, {
-          name: partner?.name || "Nepoznat",
-          pib: partner?.pib || "",
-          receivable: 0,
-          payable: 0,
-          items: 0,
-        });
+        map.set(pid, { name: partner?.name || "Nepoznat", pib: partner?.pib || "", receivable: 0, payable: 0, items: 0 });
       }
       const entry = map.get(pid)!;
       entry.items++;
       const remaining = Number(item.remaining_amount || item.original_amount || 0);
-      if (item.direction === "receivable") {
-        entry.receivable += remaining;
-      } else {
-        entry.payable += remaining;
-      }
+      if (item.direction === "receivable") entry.receivable += remaining;
+      else entry.payable += remaining;
     }
     return Array.from(map.entries())
       .map(([id, v]) => ({ id, ...v, net: v.receivable - v.payable }))
@@ -68,87 +66,93 @@ export default function IosBalanceConfirmation() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       <PageHeader
-        title="IOS — Izvod otvorenih stavki"
-        description="Potvrda salda sa partnerima (Izvod Otvorenih Stavki)"
+        title={sr ? "IOS — Izvod otvorenih stavki" : "IOS — Statement of Open Items"}
+        description={sr ? "Potvrda salda sa partnerima" : "Balance confirmations with partners"}
         actions={
-          tenantId ? (
-            <DownloadPdfButton
-              type="ios_report"
-              params={{ tenant_id: tenantId, cutoff_date: cutoffDate }}
-            />
+          tenantId && tab === "report" ? (
+            <DownloadPdfButton type="ios_report" params={{ tenant_id: tenantId, cutoff_date: cutoffDate }} />
           ) : undefined
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 items-end">
-        <div>
-          <Label>Datum preseka</Label>
-          <Input type="date" value={cutoffDate} onChange={(e) => setCutoffDate(e.target.value)} className="w-48" />
-        </div>
-      </div>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="report">{sr ? "Izveštaj" : "Report"}</TabsTrigger>
+          <TabsTrigger value="confirmations">{sr ? "Potvrde salda" : "Confirmations"}</TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Ukupna potraživanja</p>
-            <p className="text-lg font-bold text-green-600">{fmtNum(totalReceivable)} RSD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Ukupne obaveze</p>
-            <p className="text-lg font-bold text-red-600">{fmtNum(totalPayable)} RSD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Neto saldo</p>
-            <p className="text-lg font-bold">{fmtNum(totalReceivable - totalPayable)} RSD</p>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="report" className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div>
+              <Label>{sr ? "Datum preseka" : "Cutoff Date"}</Label>
+              <Input type="date" value={cutoffDate} onChange={(e) => setCutoffDate(e.target.value)} className="w-48" />
+            </div>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileCheck className="h-4 w-4" /> Saldo po partnerima
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground text-sm">Učitavanje...</p>
-          ) : partnerSummary.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nema otvorenih stavki za izabrani datum.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Partner</TableHead>
-                  <TableHead>PIB</TableHead>
-                  <TableHead className="text-right">Potraživanja</TableHead>
-                  <TableHead className="text-right">Obaveze</TableHead>
-                  <TableHead className="text-right">Neto</TableHead>
-                  <TableHead className="text-center">Stavke</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {partnerSummary.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{p.pib || "—"}</TableCell>
-                    <TableCell className="text-right text-green-600">{fmtNum(p.receivable)}</TableCell>
-                    <TableCell className="text-right text-red-600">{fmtNum(p.payable)}</TableCell>
-                    <TableCell className={`text-right font-semibold ${p.net >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {fmtNum(p.net)}
-                    </TableCell>
-                    <TableCell className="text-center">{p.items}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-xs text-muted-foreground">{sr ? "Ukupna potraživanja" : "Total Receivables"}</p>
+              <p className="text-lg font-bold text-primary">{fmtNum(totalReceivable)} RSD</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-xs text-muted-foreground">{sr ? "Ukupne obaveze" : "Total Payables"}</p>
+              <p className="text-lg font-bold text-destructive">{fmtNum(totalPayable)} RSD</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4 text-center">
+              <p className="text-xs text-muted-foreground">{sr ? "Neto saldo" : "Net Balance"}</p>
+              <p className="text-lg font-bold">{fmtNum(totalReceivable - totalPayable)} RSD</p>
+            </CardContent></Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileCheck className="h-4 w-4" /> {sr ? "Saldo po partnerima" : "Balance by Partner"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : partnerSummary.length === 0 ? (
+                <p className="text-muted-foreground text-sm">{sr ? "Nema otvorenih stavki za izabrani datum." : "No open items for selected date."}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{sr ? "Partner" : "Partner"}</TableHead>
+                      <TableHead>PIB</TableHead>
+                      <TableHead className="text-right">{sr ? "Potraživanja" : "Receivables"}</TableHead>
+                      <TableHead className="text-right">{sr ? "Obaveze" : "Payables"}</TableHead>
+                      <TableHead className="text-right">{sr ? "Neto" : "Net"}</TableHead>
+                      <TableHead className="text-center">{sr ? "Stavke" : "Items"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {partnerSummary.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="font-mono text-xs">{p.pib || "—"}</TableCell>
+                        <TableCell className="text-right text-primary">{fmtNum(p.receivable)}</TableCell>
+                        <TableCell className="text-right text-destructive">{fmtNum(p.payable)}</TableCell>
+                        <TableCell className={`text-right font-semibold ${p.net >= 0 ? "text-primary" : "text-destructive"}`}>
+                          {fmtNum(p.net)}
+                        </TableCell>
+                        <TableCell className="text-center">{p.items}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="confirmations">
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <IosConfirmations />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
