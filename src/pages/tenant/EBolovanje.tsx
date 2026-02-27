@@ -322,6 +322,30 @@ export default function EBolovanje() {
                 {detailClaim.rfzo_claim_number && <div><span className="text-muted-foreground">{t("rfzoNumber")}:</span> {detailClaim.rfzo_claim_number}</div>}
                 {detailClaim.amount && <div><span className="text-muted-foreground">{t("amount")}:</span> {Number(detailClaim.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })} RSD</div>}
               </div>
+
+              {/* Employer / RFZO day split */}
+              {detailClaim.end_date && (() => {
+                const totalDays = Math.max(0, Math.ceil((new Date(detailClaim.end_date).getTime() - new Date(detailClaim.start_date).getTime()) / 86400000) + 1);
+                const employerDays = Math.min(totalDays, 30);
+                const rfzoDays = Math.max(0, totalDays - 30);
+                return (
+                  <div className="grid grid-cols-3 gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">Ukupno dana</p>
+                      <p className="text-lg font-semibold">{totalDays}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">{t("eBolovanjeEmployer")}</p>
+                      <p className="text-lg font-semibold text-primary">{employerDays}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">{t("eBolovanjeRFZO")}</p>
+                      <p className="text-lg font-semibold text-primary">{rfzoDays}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {detailClaim.notes && <p className="text-sm text-muted-foreground">{detailClaim.notes}</p>}
 
               {/* Doznake */}
