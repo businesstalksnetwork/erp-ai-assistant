@@ -2976,6 +2976,11 @@ export const translations = {
     leaveBalance: "Leave Balance",
     payrollCost: "Payroll Cost",
     pendingReceipts: "Pending Receipts",
+    personalTasks: "Tasks & Reminders",
+    dailyTasks: "Daily Tasks",
+    addTask: "Add task...",
+    noTasks: "No tasks yet",
+    noDailyTasks: "No tasks for today",
   },
   sr: {
     // Auth
@@ -5908,6 +5913,11 @@ export const translations = {
     leaveBalance: "Stanje odsustva",
     payrollCost: "Troškovi plata",
     pendingReceipts: "Prijemnice na čekanju",
+    personalTasks: "Zadaci i podsetnici",
+    dailyTasks: "Dnevni zadaci",
+    addTask: "Dodaj zadatak...",
+    noTasks: "Nema zadataka",
+    noDailyTasks: "Nema zadataka za danas",
   },
 } as const;
 

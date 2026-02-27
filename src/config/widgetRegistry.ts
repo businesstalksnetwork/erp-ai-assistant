@@ -228,6 +228,32 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     defaultHeight: 2,
     requiredModule: "hr",
   },
+
+  // ── AI & Personal widgets ──
+  ai_briefing: {
+    id: "ai_briefing",
+    titleKey: "aiBriefing",
+    category: "action",
+    defaultWidth: 6,
+    defaultHeight: 2,
+    requiredModule: "dashboard",
+  },
+  personal_tasks: {
+    id: "personal_tasks",
+    titleKey: "personalTasks",
+    category: "action",
+    defaultWidth: 6,
+    defaultHeight: 2,
+    requiredModule: "dashboard",
+  },
+  daily_tasks: {
+    id: "daily_tasks",
+    titleKey: "dailyTasks",
+    category: "action",
+    defaultWidth: 6,
+    defaultHeight: 2,
+    requiredModule: "dashboard",
+  },
 };
 
 export const widgetCategories: { key: WidgetCategory; labelKey: string }[] = [
