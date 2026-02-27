@@ -6,6 +6,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
+import { usePdvPeriodCheck } from "@/hooks/usePdvPeriodCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,13 +15,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, ArrowLeft, Save, Send } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, Send, BookOpen, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
 import GlPostingPreview from "@/components/accounting/GlPostingPreview";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
 const EFAKTURA_OPTIONS = [
   { value: "S10", label: "S10 — PDV 10%" },
@@ -105,6 +108,8 @@ export default function InvoiceForm() {
   const [salesOrderId, setSalesOrderId] = useState<string | null>(null);
   const { entities: legalEntities } = useLegalEntities();
   const [partnerQuickAddOpen, setPartnerQuickAddOpen] = useState(false);
+
+  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, vatDate);
 
   // Auto-select legal entity if only one exists
   useEffect(() => {
@@ -426,7 +431,86 @@ export default function InvoiceForm() {
     },
   });
 
-  const isReadOnly = status === "sent" || status === "paid" || status === "cancelled";
+  // "Proknjizi" — Post to GL
+  const postMutation = useMutation({
+    mutationFn: async () => {
+      if (!id || !tenantId) throw new Error("Missing invoice or tenant");
+
+      // Build revenue lines by item type
+      const revenueByType: Record<string, number> = {};
+      lines.forEach((l) => {
+        if (l.line_total <= 0) return;
+        const type = l.item_type || "service";
+        revenueByType[type] = (revenueByType[type] || 0) + l.line_total;
+      });
+
+      const revenueAccounts: Record<string, { code: string; name: string }> = {
+        goods: { code: "6120", name: "Prihodi od prodaje robe" },
+        service: { code: "6500", name: "Prihodi od usluga" },
+        product: { code: "6100", name: "Prihodi od prodaje proizvoda" },
+      };
+
+      const fallbackLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }> = [];
+
+      // DR: Kupci
+      fallbackLines.push({
+        accountCode: invoiceType === "advance" ? "2040" : "2040",
+        debit: grandTotal, credit: 0,
+        description: `${partnerName} — ${invoiceNumber}`,
+        sortOrder: 0,
+      });
+
+      // CR: Revenue lines
+      let sortOrder = 1;
+      Object.entries(revenueByType).forEach(([type, amount]) => {
+        const acc = revenueAccounts[type] || revenueAccounts.service;
+        fallbackLines.push({
+          accountCode: acc.code, debit: 0, credit: amount,
+          description: `Prihod — ${invoiceNumber}`,
+          sortOrder: sortOrder++,
+        });
+      });
+
+      // CR: PDV
+      if (totalTax > 0) {
+        fallbackLines.push({
+          accountCode: "4700", debit: 0, credit: totalTax,
+          description: `PDV — ${invoiceNumber}`,
+          sortOrder: sortOrder++,
+        });
+      }
+
+      await postWithRuleOrFallback({
+        tenantId,
+        userId: user?.id || null,
+        modelCode: "INVOICE_POST",
+        amount: grandTotal,
+        entryDate: vatDate || invoiceDate,
+        description: `Knjiženje fakture ${invoiceNumber}`,
+        reference: `INV:${id}`,
+        legalEntityId: legalEntityId || undefined,
+        context: { partnerReceivableCode: "2040" },
+        currency,
+        fallbackLines,
+      });
+
+      // Update invoice status to posted
+      const { error } = await supabase.from("invoices").update({ status: "posted" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      toast({ title: t("success"), description: "Faktura je proknjižena u Glavnu knjigu." });
+      setStatus("posted");
+    },
+    onError: (err: any) => {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const isReadOnly = status === "sent" || status === "paid" || status === "cancelled" || status === "posted";
+  const canPost = isEdit && status === "sent" && grandTotal > 0;
 
   return (
     <div className="space-y-6 w-full">
@@ -436,6 +520,16 @@ export default function InvoiceForm() {
         </Button>
         <h1 className="text-2xl font-bold">{isEdit ? t("editInvoice") : t("newInvoice")}</h1>
       </div>
+
+      {/* Locked PDV period warning */}
+      {isLocked && (
+        <Alert variant="destructive" className="border-yellow-500 bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            PDV period <strong>{periodName}</strong> je zaključen. Knjiženje u ovom periodu nije moguće bez otključavanja.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Header */}
       <Card>
@@ -455,6 +549,9 @@ export default function InvoiceForm() {
             </Label>
             <Input type="date" value={vatDate} onChange={(e) => setVatDate(e.target.value)} disabled={isReadOnly}
               className={vatDate !== invoiceDate ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
+            {periodName && (
+              <p className="text-xs text-muted-foreground mt-1">PDV period: <strong>{periodName}</strong></p>
+            )}
           </div>
           <div>
             <Label>{t("dueDate")}</Label>
@@ -800,19 +897,33 @@ export default function InvoiceForm() {
       />
 
       {/* Actions */}
-      {!isReadOnly && (
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
-            <Save className="h-4 w-4 mr-2" /> {t("saveDraft")}
+      <div className="flex gap-3">
+        {!isReadOnly && (
+          <>
+            <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
+              <Save className="h-4 w-4 mr-2" /> {t("saveDraft")}
+            </Button>
+            <Button onClick={() => saveMutation.mutate("sent")} disabled={saveMutation.isPending}>
+              <Send className="h-4 w-4 mr-2" /> {t("postInvoice")}
+            </Button>
+          </>
+        )}
+        {canPost && (
+          <Button
+            onClick={() => postMutation.mutate()}
+            disabled={postMutation.isPending || isLocked}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <BookOpen className="h-4 w-4 mr-2" />
+            {postMutation.isPending ? "Knjiženje..." : "Proknjizi"}
           </Button>
-          <Button onClick={() => saveMutation.mutate("sent")} disabled={saveMutation.isPending}>
-            <Send className="h-4 w-4 mr-2" /> {t("postInvoice")}
-          </Button>
+        )}
+        {!isReadOnly && (
           <Button variant="ghost" onClick={() => navigate("/accounting/invoices")}>
             {t("cancel")}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Partner Quick Add */}
       <PartnerQuickAdd

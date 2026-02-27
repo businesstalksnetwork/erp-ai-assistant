@@ -56,8 +56,8 @@ export function PopdvFieldSelect({ direction, value, onValueChange, disabled, cl
         {Array.from(sections.entries()).map(([sec, items]) => (
           <SelectGroup key={sec}>
             <SelectLabel className="text-xs text-muted-foreground">{SECTION_LABELS[sec] || `Sekcija ${sec}`}</SelectLabel>
-            {items.filter((t: any) => !t.is_special_record).map((t: any) => (
-              <SelectItem key={t.id} value={t.id}>
+            {items.map((t: any) => (
+              <SelectItem key={t.id} value={t.id} className={t.parent_id ? "pl-12" : ""}>
                 <span className="font-mono text-xs mr-1">{t.id}</span>
                 <span className={t.is_special_record ? "italic text-muted-foreground" : ""}>{t.description_short}</span>
               </SelectItem>

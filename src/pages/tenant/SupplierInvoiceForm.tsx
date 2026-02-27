@@ -6,6 +6,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
+import { usePdvPeriodCheck } from "@/hooks/usePdvPeriodCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, ArrowLeft, Save, CheckCircle } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, CheckCircle, AlertTriangle } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
@@ -48,26 +50,33 @@ interface SILine {
   vat_non_deductible: number;
   fee_value: number;
   account_id: string;
+  cost_center_id: string;
   sort_order: number;
 }
 
-function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number): SILine {
+function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number, defaultPopdv = ""): SILine {
   return {
-    description: "", item_type: "service", popdv_field: "", efaktura_category: "",
+    description: "", item_type: "service", popdv_field: defaultPopdv, efaktura_category: "",
     quantity: 1, unit_price: 0, tax_rate_id: defaultTaxRateId, tax_rate_value: defaultRate,
     line_total: 0, tax_amount: 0, total_with_tax: 0, vat_non_deductible: 0, fee_value: 0,
-    account_id: "", sort_order: order,
+    account_id: "", cost_center_id: "", sort_order: order,
   };
 }
 
 function calcLine(line: SILine): SILine {
   const lineTotal = line.quantity * line.unit_price;
-  // Section 9: non-deductible VAT
   if (line.popdv_field.startsWith("9")) {
     return { ...line, line_total: lineTotal, tax_amount: 0, vat_non_deductible: lineTotal * (line.tax_rate_value / 100), total_with_tax: lineTotal + lineTotal * (line.tax_rate_value / 100) };
   }
   const taxAmount = lineTotal * (line.tax_rate_value / 100);
   return { ...line, line_total: lineTotal, tax_amount: taxAmount, total_with_tax: lineTotal + taxAmount, vat_non_deductible: 0 };
+}
+
+/** Check if PIB is non-Serbian (not exactly 9 digits) */
+function isForeignPib(pib: string | null | undefined): boolean {
+  if (!pib) return false;
+  const cleaned = pib.replace(/\s/g, "");
+  return cleaned.length > 0 && !/^\d{9}$/.test(cleaned);
 }
 
 export default function SupplierInvoiceForm() {
@@ -94,18 +103,29 @@ export default function SupplierInvoiceForm() {
   const [legalEntityId, setLegalEntityId] = useState("");
   const [lines, setLines] = useState<SILine[]>([]);
   const [partnerQuickAddOpen, setPartnerQuickAddOpen] = useState(false);
+  const [isForeignSupplier, setIsForeignSupplier] = useState(false);
+
+  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, vatDate);
 
   useEffect(() => {
     if (legalEntities.length === 1 && !legalEntityId) setLegalEntityId(legalEntities[0].id);
   }, [legalEntities, legalEntityId]);
 
-  // Auto-set vatDate when invoiceDate changes
   useEffect(() => { if (!isEdit) setVatDate(invoiceDate); }, [invoiceDate, isEdit]);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers-list", tenantId],
     queryFn: async () => {
       const { data } = await supabase.from("partners").select("id, name, pib, address, city, country").eq("tenant_id", tenantId!).eq("is_active", true).in("type", ["supplier", "both"]).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: costCenters = [] } = useQuery({
+    queryKey: ["cost-centers", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("cost_centers").select("id, code, name").eq("tenant_id", tenantId!).eq("is_active", true).order("code");
       return data || [];
     },
     enabled: !!tenantId,
@@ -139,6 +159,24 @@ export default function SupplierInvoiceForm() {
   });
 
   const defaultTaxRate = taxRates.find((r) => r.is_default) || taxRates[0];
+
+  // Foreign entity detection: when supplier changes
+  const handleSupplierChange = (v: string) => {
+    if (v !== "__none") {
+      const s = suppliers.find((s: any) => s.id === v);
+      setSupplierId(v);
+      setSupplierName(s?.name || "");
+      const foreign = isForeignPib(s?.pib) || (s?.country && !["RS", "SRB", "Srbija", "Serbia"].includes(s.country));
+      setIsForeignSupplier(!!foreign);
+      // Auto-set POPDV to 8g.1 for foreign suppliers
+      if (foreign && !isEdit) {
+        setLines((prev) => prev.map((l) => ({ ...l, popdv_field: l.popdv_field || "8g.1" })));
+      }
+    } else {
+      setSupplierId("");
+      setIsForeignSupplier(false);
+    }
+  };
 
   // Init empty line
   useEffect(() => {
@@ -191,7 +229,8 @@ export default function SupplierInvoiceForm() {
         tax_rate_id: l.tax_rate_id || "", tax_rate_value: Number(l.tax_rate_value || 0),
         line_total: Number(l.line_total), tax_amount: Number(l.tax_amount),
         total_with_tax: Number(l.total_with_tax), vat_non_deductible: Number(l.vat_non_deductible || 0),
-        fee_value: Number(l.fee_value || 0), account_id: l.account_id || "", sort_order: l.sort_order,
+        fee_value: Number(l.fee_value || 0), account_id: l.account_id || "",
+        cost_center_id: (l as any).cost_center_id || "", sort_order: l.sort_order,
       })));
     }
   }, [existingLines]);
@@ -211,7 +250,8 @@ export default function SupplierInvoiceForm() {
 
   const addLine = () => {
     if (!defaultTaxRate) return;
-    setLines((prev) => [...prev, emptyLine(prev.length, defaultTaxRate.id, Number(defaultTaxRate.rate))]);
+    const defaultPopdv = isForeignSupplier ? "8g.1" : "";
+    setLines((prev) => [...prev, emptyLine(prev.length, defaultTaxRate.id, Number(defaultTaxRate.rate), defaultPopdv)]);
   };
 
   const removeLine = (index: number) => {
@@ -223,6 +263,11 @@ export default function SupplierInvoiceForm() {
   const totalTax = useMemo(() => lines.reduce((s, l) => s + l.tax_amount, 0), [lines]);
   const totalNonDeductible = useMemo(() => lines.reduce((s, l) => s + l.vat_non_deductible, 0), [lines]);
   const grandTotal = subtotal + totalTax + totalNonDeductible;
+
+  const previewLines = useMemo(() =>
+    buildSupplierInvoicePreviewLines({ amount: subtotal, tax_amount: totalTax, total: grandTotal, invoice_number: invoiceNumber }),
+    [subtotal, totalTax, grandTotal, invoiceNumber]
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -255,7 +300,7 @@ export default function SupplierInvoiceForm() {
         tax_rate_id: l.tax_rate_id || null, tax_rate_value: l.tax_rate_value,
         line_total: l.line_total, tax_amount: l.tax_amount, total_with_tax: l.total_with_tax,
         vat_non_deductible: l.vat_non_deductible, fee_value: l.fee_value,
-        account_id: l.account_id || null, sort_order: i,
+        account_id: l.account_id || null, cost_center_id: l.cost_center_id || null, sort_order: i,
       }));
 
       const { error: lineError } = await supabase.from("supplier_invoice_lines").insert(lineInserts);
@@ -275,7 +320,6 @@ export default function SupplierInvoiceForm() {
   const isReadOnly = status === "approved" || status === "paid" || status === "cancelled";
   const vatDateDiffers = vatDate !== invoiceDate;
 
-  // Account select helper
   const accountOptions = accounts.filter((a: any) => a.code.length >= 4);
 
   return (
@@ -286,6 +330,25 @@ export default function SupplierInvoiceForm() {
         </Button>
         <h1 className="text-2xl font-bold">{isEdit ? t("editSupplierInvoice") : t("addSupplierInvoice")}</h1>
       </div>
+
+      {/* Locked PDV period warning */}
+      {isLocked && (
+        <Alert variant="destructive" className="border-yellow-500 bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            PDV period <strong>{periodName}</strong> je zaključen. Knjiženje u ovom periodu nije moguće bez otključavanja.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Foreign supplier info */}
+      {isForeignSupplier && (
+        <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+          <AlertDescription>
+            Inostrani dobavljač detektovan — POPDV polje automatski postavljeno na <strong>8g.1</strong> (nabavka od inostranih lica).
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Header */}
       <Card>
@@ -305,6 +368,9 @@ export default function SupplierInvoiceForm() {
             </Label>
             <Input type="date" value={vatDate} onChange={(e) => setVatDate(e.target.value)} disabled={isReadOnly}
               className={vatDateDiffers ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
+            {periodName && (
+              <p className="text-xs text-muted-foreground mt-1">PDV period: <strong>{periodName}</strong></p>
+            )}
           </div>
           <div>
             <Label>{t("dueDate")}</Label>
@@ -389,15 +455,7 @@ export default function SupplierInvoiceForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>{t("selectPartner")}</Label>
-              <Select value={supplierId || "__none"} onValueChange={(v) => {
-                if (v !== "__none") {
-                  const s = suppliers.find((s: any) => s.id === v);
-                  setSupplierId(v);
-                  setSupplierName(s?.name || "");
-                } else {
-                  setSupplierId("");
-                }
-              }} disabled={isReadOnly}>
+              <Select value={supplierId || "__none"} onValueChange={handleSupplierChange} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">—</SelectItem>
@@ -439,6 +497,7 @@ export default function SupplierInvoiceForm() {
                 <TableHead className="text-right min-w-[80px]">{t("lineTotal")}</TableHead>
                 <TableHead className="text-right min-w-[80px]">{t("taxAmount")}</TableHead>
                 <TableHead className="min-w-[140px]">{t("account") || "Konto"}</TableHead>
+                {costCenters.length > 0 && <TableHead className="min-w-[120px]">Mesto troška</TableHead>}
                 {!isReadOnly && <TableHead className="w-[40px]" />}
               </TableRow>
             </TableHeader>
@@ -501,6 +560,17 @@ export default function SupplierInvoiceForm() {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  {costCenters.length > 0 && (
+                    <TableCell>
+                      <Select value={line.cost_center_id || "__none__"} onValueChange={(v) => updateLine(i, "cost_center_id", v === "__none__" ? "" : v)} disabled={isReadOnly}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          <SelectItem value="__none__">—</SelectItem>
+                          {costCenters.map((cc: any) => <SelectItem key={cc.id} value={cc.id}>{cc.code} — {cc.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  )}
                   {!isReadOnly && (
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
@@ -549,6 +619,9 @@ export default function SupplierInvoiceForm() {
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isReadOnly} rows={3} />
         </CardContent>
       </Card>
+
+      {/* Posting Preview */}
+      <PostingPreviewPanel lines={previewLines} currency={currency} title="Pregled knjiženja — ulazna faktura" />
 
       {/* Actions */}
       {!isReadOnly && (
