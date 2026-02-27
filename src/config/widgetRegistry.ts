@@ -234,7 +234,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     id: "ai_briefing",
     titleKey: "aiBriefing",
     category: "action",
-    defaultWidth: 6,
+    defaultWidth: 12,
     defaultHeight: 2,
     requiredModule: "dashboard",
   },

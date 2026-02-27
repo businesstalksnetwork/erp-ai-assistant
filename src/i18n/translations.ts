@@ -2983,6 +2983,13 @@ export const translations = {
     addTask: "Add task...",
     noTasks: "No tasks yet",
     noDailyTasks: "No tasks for today",
+    linkEntity: "Link to...",
+    linkedTo: "Linked to",
+    setReminder: "Set Reminder",
+    reminderSet: "Reminder set",
+    removeReminder: "Remove reminder",
+    reminderAt: "Remind at",
+    unlinkEntity: "Unlink",
   },
   sr: {
     // Auth
@@ -5922,6 +5929,13 @@ export const translations = {
     addTask: "Dodaj zadatak...",
     noTasks: "Nema zadataka",
     noDailyTasks: "Nema zadataka za danas",
+    linkEntity: "Poveži sa...",
+    linkedTo: "Povezano sa",
+    setReminder: "Postavi podsetnik",
+    reminderSet: "Podsetnik postavljen",
+    removeReminder: "Ukloni podsetnik",
+    reminderAt: "Podseti u",
+    unlinkEntity: "Ukloni vezu",
   },
 } as const;
 
