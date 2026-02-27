@@ -13,15 +13,13 @@ interface PopdvFieldSelectProps {
 const SECTION_LABELS: Record<number, string> = {
   1: "1 — Oslobođenja sa pravom na odbitak",
   2: "2 — Oslobođenja bez prava na odbitak",
-  3: "3/3a — Opšta stopa 20%",
-  4: "4/4a — Posebna stopa 10%",
-  5: "5 — Ukupan promet",
-  6: "6 — Prethodni porez (domaći)",
-  7: "7 — Prethodni porez (inostranstvo)",
-  8: "8 — Nabavke / Ispravke",
-  9: "9 — Neodbivi PDV",
-  10: "10 — Poreska obaveza",
-  11: "11 — Posebna evidencija",
+  3: "3 — Oporezivi promet i obračunati PDV",
+  4: "4 — Posebni postupci oporezivanja",
+  6: "6 — Uvoz dobara",
+  7: "7 — Nabavka od poljoprivrednika",
+  8: "8 — Nabavke dobara i usluga (8a–8g, 8v, 8d, 8e)",
+  9: "9 — Bez prava odbitka PDV",
+  11: "11 — Promet van Republike / ostalo",
 };
 
 export function PopdvFieldSelect({ direction, value, onValueChange, disabled, className }: PopdvFieldSelectProps) {
