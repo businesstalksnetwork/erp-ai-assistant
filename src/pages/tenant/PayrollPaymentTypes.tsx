@@ -4,6 +4,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -86,18 +87,9 @@ export default function PayrollPaymentTypes() {
     enabled: !!tenantId,
   });
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["coa_codes", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("chart_of_accounts")
-        .select("code, name")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .order("code");
-      return data || [];
-    },
-    enabled: !!tenantId,
+  const { data: accounts = [] } = useChartOfAccounts<{ code: string; name: string }>({
+    select: "code, name",
+    queryKeySuffix: "payroll",
   });
 
   const { data: glOverrides = [] } = useQuery({

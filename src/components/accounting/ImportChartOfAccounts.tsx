@@ -169,13 +169,26 @@ export default function ImportChartOfAccounts() {
       setProgressLabel(t("importPhase2") || "Faza 2: Povezivanje hijerarhije...");
       setProgress(55);
 
-      // Fetch all accounts for this tenant
-      const { data: allAccounts, error: fetchErr } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code")
-        .eq("tenant_id", tenantId);
-
-      if (fetchErr) throw fetchErr;
+      // Fetch all accounts for this tenant (batch to avoid 1000-row limit)
+      const allAccounts: { id: string; code: string }[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error: fetchErr } = await supabase
+          .from("chart_of_accounts")
+          .select("id, code")
+          .eq("tenant_id", tenantId)
+          .range(offset, offset + batchSize - 1);
+        if (fetchErr) throw fetchErr;
+        if (data && data.length > 0) {
+          allAccounts.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       const codeToId: Record<string, string> = {};
       for (const a of allAccounts || []) {

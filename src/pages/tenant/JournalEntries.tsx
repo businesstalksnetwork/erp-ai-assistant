@@ -7,6 +7,7 @@ import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,20 +86,8 @@ export default function JournalEntries() {
     enabled: !!tenantId,
   });
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["chart-of-accounts", tenantId],
-    queryFn: async () => {
-      if (!tenantId) return [];
-      const { data, error } = await supabase
-        .from("chart_of_accounts")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!tenantId,
+  const { data: accounts = [] } = useChartOfAccounts({
+    select: "*",
   });
 
   const createMutation = useMutation({
