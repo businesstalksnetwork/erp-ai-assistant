@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -112,6 +112,7 @@ const accountingNav: NavItem[] = [
   { key: "withholdingTax", url: "/accounting/withholding-tax", icon: Percent },
   { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
   { key: "cashFlowStatement", url: "/accounting/cash-flow-statement", icon: ArrowLeftRight },
+  { key: "complianceChecker", url: "/accounting/compliance", icon: ShieldCheck },
   { key: "intercompanyTransactions", url: "/accounting/intercompany", icon: ArrowLeftRight, section: "consolidation" },
   { key: "consolidatedStatements", url: "/accounting/reports/consolidated", icon: Layers },
   { key: "transferPricing", url: "/accounting/transfer-pricing", icon: DollarSign },

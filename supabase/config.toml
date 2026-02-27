@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.generate-apr-xml]
 verify_jwt = false
+
+[functions.compliance-checker]
+verify_jwt = false
