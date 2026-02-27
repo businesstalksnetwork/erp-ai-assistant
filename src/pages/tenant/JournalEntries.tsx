@@ -31,9 +31,13 @@ interface JournalLine {
   description: string;
   debit: number;
   credit: number;
+  analytics_type?: string;
+  analytics_reference_id?: string;
+  analytics_label?: string;
+  popdv_field?: string;
 }
 
-const emptyLine: JournalLine = { account_id: "", description: "", debit: 0, credit: 0 };
+const emptyLine: JournalLine = { account_id: "", description: "", debit: 0, credit: 0, analytics_type: "", popdv_field: "" };
 
 export default function JournalEntries() {
   const { t } = useLanguage();
@@ -312,34 +316,52 @@ export default function JournalEntries() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[250px]">{t("account")}</TableHead>
+                      <TableHead className="w-[220px]">{t("account")}</TableHead>
                       <TableHead>{t("description")}</TableHead>
-                      <TableHead className="w-[120px]">{t("debit")}</TableHead>
-                      <TableHead className="w-[120px]">{t("credit")}</TableHead>
+                      <TableHead className="w-[110px]">{t("analyticsLabel")}</TableHead>
+                      <TableHead className="w-[110px]">{t("debit")}</TableHead>
+                      <TableHead className="w-[110px]">{t("credit")}</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lines.map((line, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>
-                          <Select value={line.account_id} onValueChange={v => updateLine(idx, "account_id", v)}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
-                            <SelectContent>
-                              {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell><Input className="h-8" value={line.description} onChange={e => updateLine(idx, "description", e.target.value)} /></TableCell>
-                        <TableCell><Input className="h-8 text-right" type="number" min="0" step="0.01" value={line.debit || ""} onChange={e => updateLine(idx, "debit", e.target.value)} /></TableCell>
-                        <TableCell><Input className="h-8 text-right" type="number" min="0" step="0.01" value={line.credit || ""} onChange={e => updateLine(idx, "credit", e.target.value)} /></TableCell>
-                        <TableCell>
-                          {lines.length > 2 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLines(p => p.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3" /></Button>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {lines.map((line, idx) => {
+                      const selectedAccount = accounts.find((a: any) => a.id === line.account_id);
+                      const accountAnalyticsType = (selectedAccount as any)?.analytics_type || null;
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            <Select value={line.account_id} onValueChange={v => {
+                              updateLine(idx, "account_id", v);
+                              const acc = accounts.find((a: any) => a.id === v);
+                              if (acc && (acc as any).analytics_type) {
+                                updateLine(idx, "analytics_type" as any, (acc as any).analytics_type);
+                              }
+                            }}>
+                              <SelectTrigger className="h-8"><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
+                              <SelectContent>
+                                {accounts.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell><Input className="h-8" value={line.description} onChange={e => updateLine(idx, "description", e.target.value)} /></TableCell>
+                          <TableCell>
+                            {accountAnalyticsType ? (
+                              <Input className="h-8 text-xs" placeholder={accountAnalyticsType} value={line.analytics_label || ""} onChange={e => updateLine(idx, "analytics_label" as any, e.target.value)} />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell><Input className="h-8 text-right" type="number" min="0" step="0.01" value={line.debit || ""} onChange={e => updateLine(idx, "debit", e.target.value)} /></TableCell>
+                          <TableCell><Input className="h-8 text-right" type="number" min="0" step="0.01" value={line.credit || ""} onChange={e => updateLine(idx, "credit", e.target.value)} /></TableCell>
+                          <TableCell>
+                            {lines.length > 2 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLines(p => p.filter((_, i) => i !== idx))}><Trash2 className="h-3 w-3" /></Button>}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     <TableRow className="font-semibold bg-muted/50">
-                      <TableCell colSpan={2} className="text-right">{t("totalDebit")} / {t("totalCredit")}</TableCell>
+                      <TableCell colSpan={3} className="text-right">{t("totalDebit")} / {t("totalCredit")}</TableCell>
                       <TableCell className="text-right">{totalDebit.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{totalCredit.toFixed(2)}</TableCell>
                       <TableCell />
