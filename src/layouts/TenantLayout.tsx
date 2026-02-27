@@ -278,6 +278,7 @@ const settingsNav: NavItem[] = [
   { key: "companySettings", url: "/settings", icon: Settings, section: "settingsOrganization" },
   { key: "tenantProfile", url: "/settings/tenant-profile", icon: Building },
   { key: "legalEntities", url: "/settings/legal-entities", icon: Building2 },
+  { key: "orgCompanies", url: "/settings/org-companies", icon: Building2 },
   { key: "locations", url: "/settings/locations", icon: MapPin },
   { key: "warehouses", url: "/settings/warehouses", icon: Warehouse },
   { key: "costCenters", url: "/settings/cost-centers", icon: Coins },

@@ -3077,6 +3077,7 @@ export type Database = {
           legal_name: string
           maticni_broj: string | null
           notes: string | null
+          parent_id: string | null
           partner_id: string | null
           phone: string | null
           pib: string | null
@@ -3099,6 +3100,7 @@ export type Database = {
           legal_name: string
           maticni_broj?: string | null
           notes?: string | null
+          parent_id?: string | null
           partner_id?: string | null
           phone?: string | null
           pib?: string | null
@@ -3121,6 +3123,7 @@ export type Database = {
           legal_name?: string
           maticni_broj?: string | null
           notes?: string | null
+          parent_id?: string | null
           partner_id?: string | null
           phone?: string | null
           pib?: string | null
@@ -3136,6 +3139,13 @@ export type Database = {
             columns: ["legal_entity_id"]
             isOneToOne: false
             referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -4369,6 +4379,7 @@ export type Database = {
           is_active: boolean
           manager_employee_id: string | null
           name: string
+          parent_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -4380,6 +4391,7 @@ export type Database = {
           is_active?: boolean
           manager_employee_id?: string | null
           name: string
+          parent_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -4391,6 +4403,7 @@ export type Database = {
           is_active?: boolean
           manager_employee_id?: string | null
           name?: string
+          parent_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -4407,6 +4420,13 @@ export type Database = {
             columns: ["manager_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
           {
@@ -10661,6 +10681,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          company_id: string | null
           created_at: string
           default_price_list_id: string | null
           default_warehouse_id: string | null
@@ -10668,12 +10689,14 @@ export type Database = {
           is_active: boolean
           location_type_id: string | null
           name: string
+          parent_id: string | null
           tenant_id: string
           type: string
         }
         Insert: {
           address?: string | null
           city?: string | null
+          company_id?: string | null
           created_at?: string
           default_price_list_id?: string | null
           default_warehouse_id?: string | null
@@ -10681,12 +10704,14 @@ export type Database = {
           is_active?: boolean
           location_type_id?: string | null
           name: string
+          parent_id?: string | null
           tenant_id: string
           type?: string
         }
         Update: {
           address?: string | null
           city?: string | null
+          company_id?: string | null
           created_at?: string
           default_price_list_id?: string | null
           default_warehouse_id?: string | null
@@ -10694,10 +10719,18 @@ export type Database = {
           is_active?: boolean
           location_type_id?: string | null
           name?: string
+          parent_id?: string | null
           tenant_id?: string
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "locations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "locations_default_price_list_id_fkey"
             columns: ["default_price_list_id"]
@@ -10717,6 +10750,13 @@ export type Database = {
             columns: ["location_type_id"]
             isOneToOne: false
             referencedRelation: "location_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locations_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -14150,31 +14190,51 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          department_id: string | null
           description: string | null
           id: string
           is_active: boolean
           name: string
+          reports_to_position_id: string | null
           tenant_id: string
         }
         Insert: {
           code: string
           created_at?: string
+          department_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
           name: string
+          reports_to_position_id?: string | null
           tenant_id: string
         }
         Update: {
           code?: string
           created_at?: string
+          department_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          reports_to_position_id?: string | null
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "position_templates_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "position_templates_reports_to_position_id_fkey"
+            columns: ["reports_to_position_id"]
+            isOneToOne: false
+            referencedRelation: "position_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "position_templates_tenant_id_fkey"
             columns: ["tenant_id"]
