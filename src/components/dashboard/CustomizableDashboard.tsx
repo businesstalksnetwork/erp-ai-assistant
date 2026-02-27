@@ -53,7 +53,6 @@ export default function CustomizableDashboard() {
       const newIndex = widgets.findIndex((w) => w.id === over.id);
       if (oldIndex === -1 || newIndex === -1) return;
 
-      // Build new order
       const reordered = [...widgets];
       const [moved] = reordered.splice(oldIndex, 1);
       reordered.splice(newIndex, 0, moved);
@@ -61,6 +60,15 @@ export default function CustomizableDashboard() {
       updateLayout(
         reordered.map((w, i) => ({ id: w.id, positionIndex: i })),
       );
+    },
+    [widgets, updateLayout],
+  );
+
+  const handleResize = useCallback(
+    (id: string, newWidth: number) => {
+      const w = widgets.find((w) => w.id === id);
+      if (!w) return;
+      updateLayout([{ id, positionIndex: w.positionIndex, width: newWidth }]);
     },
     [widgets, updateLayout],
   );
@@ -151,7 +159,7 @@ export default function CustomizableDashboard() {
     );
   }
 
-  // Desktop: 12-column grid with drag-and-drop
+  // Desktop: 12-column grid with drag-and-drop + resize
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -177,7 +185,7 @@ export default function CustomizableDashboard() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={widgets.map((w) => w.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-12 gap-3">
+          <div className="grid grid-cols-12 gap-3" style={{ gridAutoRows: "minmax(120px, auto)" }}>
             {widgets.map((w) => (
               <WidgetContainer
                 key={w.id}
@@ -185,6 +193,7 @@ export default function CustomizableDashboard() {
                 editMode={editMode}
                 onRemove={removeWidget}
                 onUpdateConfig={updateConfig}
+                onResize={handleResize}
               />
             ))}
           </div>
