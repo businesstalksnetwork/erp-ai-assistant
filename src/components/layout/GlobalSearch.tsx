@@ -140,6 +140,8 @@ export function GlobalSearch() {
     { label: "Compliance Dashboard", path: "/accounting/compliance", icon: Shield, group: "accounting", module: "accounting" },
     { label: "PK-1 Blagajna", path: "/accounting/reports/pk1-book", icon: BookText, group: "accounting", module: "accounting" },
     { label: "PPP-PO Godišnji", path: "/accounting/reports/ppp-po", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
+    { label: "OD-O Obračun", path: "/accounting/reports/od-o", icon: FileText, group: "accounting", module: "accounting" },
+    { label: "M4 PIO Izveštaj", path: "/accounting/reports/m4", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
 
     // Analytics
     { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
