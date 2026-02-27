@@ -5,12 +5,12 @@ import { useTenant } from "@/hooks/useTenant";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const MOVEMENT_TYPES = ["in", "out", "adjustment", "transfer"];
 
@@ -42,8 +42,6 @@ export default function InventoryMovements() {
     return true;
   });
 
-  
-
   const typeColor = (type: string) => {
     switch (type) {
       case "in": return "default";
@@ -53,6 +51,16 @@ export default function InventoryMovements() {
       default: return "secondary";
     }
   };
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "date", label: t("date"), sortable: true, sortValue: (m) => m.created_at, render: (m) => format(new Date(m.created_at), "dd.MM.yyyy HH:mm") },
+    { key: "product", label: t("product"), primary: true, sortable: true, sortValue: (m) => (m.products as any)?.name || "", render: (m) => <span className="font-medium">{(m.products as any)?.name}</span> },
+    { key: "warehouse", label: t("warehouse"), hideOnMobile: true, sortable: true, sortValue: (m) => (m.warehouses as any)?.name || "", render: (m) => (m.warehouses as any)?.name },
+    { key: "type", label: t("type"), sortable: true, sortValue: (m) => m.movement_type, render: (m) => <Badge variant={typeColor(m.movement_type) as any}>{m.movement_type}</Badge> },
+    { key: "quantity", label: t("quantity"), align: "right" as const, sortable: true, sortValue: (m) => Number(m.quantity), render: (m) => <span className="font-mono">{fmtNum(Number(m.quantity))}</span> },
+    { key: "reference", label: t("reference"), hideOnMobile: true, render: (m) => m.reference || "—" },
+    { key: "notes", label: t("notes"), hideOnMobile: true, render: (m) => <span className="max-w-[200px] truncate block">{m.notes || "—"}</span> },
+  ];
 
   return (
     <div className="space-y-6">
@@ -77,37 +85,15 @@ export default function InventoryMovements() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("product")}</TableHead>
-                <TableHead>{t("warehouse")}</TableHead>
-                <TableHead>{t("type")}</TableHead>
-                <TableHead className="text-right">{t("quantity")}</TableHead>
-                <TableHead>{t("reference")}</TableHead>
-                <TableHead>{t("notes")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell>{format(new Date(m.created_at), "dd.MM.yyyy HH:mm")}</TableCell>
-                  <TableCell className="font-medium">{(m.products as any)?.name}</TableCell>
-                  <TableCell>{(m.warehouses as any)?.name}</TableCell>
-                  <TableCell>
-                    <Badge variant={typeColor(m.movement_type) as any}>{m.movement_type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(Number(m.quantity))}</TableCell>
-                  <TableCell>{m.reference || "—"}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{m.notes || "—"}</TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <ResponsiveTable
+            data={filtered}
+            columns={columns}
+            keyExtractor={(m) => m.id}
+            emptyMessage={t("noResults")}
+            enableExport
+            exportFilename="inventory-movements"
+            enableColumnToggle
+          />
         </CardContent>
       </Card>
     </div>

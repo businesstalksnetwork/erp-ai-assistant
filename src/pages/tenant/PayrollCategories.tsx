@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Layers, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface Category {
   id: string; code: string; name: string; ovp_code: string; ola_code: string; ben_code: string;
@@ -96,6 +96,27 @@ export default function PayrollCategories() {
 
   const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
+  const columns: ResponsiveColumn<Category>[] = [
+    { key: "code", label: t("code"), primary: true, sortable: true, sortValue: (c) => c.code, render: (c) => <span className="font-mono font-semibold">{c.code}</span> },
+    { key: "name", label: t("name"), sortable: true, sortValue: (c) => c.name, render: (c) => c.name },
+    { key: "ovp", label: "OVP", hideOnMobile: true, render: (c) => <Badge variant="outline">{c.ovp_code}</Badge> },
+    { key: "ola", label: "OLA", hideOnMobile: true, render: (c) => <Badge variant="outline">{c.ola_code}</Badge> },
+    { key: "ben", label: "BEN", hideOnMobile: true, render: (c) => <Badge variant="outline">{c.ben_code}</Badge> },
+    { key: "tax", label: t("tax"), align: "right" as const, hideOnMobile: true, sortable: true, sortValue: (c) => c.tax_rate, render: (c) => <span className="tabular-nums">{fmtPct(c.tax_rate)}</span> },
+    { key: "pioR", label: "PIO-R", align: "right" as const, hideOnMobile: true, render: (c) => <span className="tabular-nums">{fmtPct(c.pio_employee_rate)}</span> },
+    { key: "pioP", label: "PIO-P", align: "right" as const, hideOnMobile: true, render: (c) => <span className="tabular-nums">{fmtPct(c.pio_employer_rate)}</span> },
+    { key: "zdravR", label: "Zdrav-R", align: "right" as const, hideOnMobile: true, defaultVisible: false, render: (c) => <span className="tabular-nums">{fmtPct(c.health_employee_rate)}</span> },
+    { key: "zdravP", label: "Zdrav-P", align: "right" as const, hideOnMobile: true, defaultVisible: false, render: (c) => <span className="tabular-nums">{fmtPct(c.health_employer_rate)}</span> },
+    { key: "unemp", label: t("unemploymentPct"), align: "right" as const, hideOnMobile: true, defaultVisible: false, render: (c) => <span className="tabular-nums">{fmtPct(c.unemployment_employee_rate)}</span> },
+    { key: "benCoeff", label: t("benCoefficient"), align: "right" as const, hideOnMobile: true, render: (c) => <span className="tabular-nums">{c.ben_coefficient}</span> },
+    { key: "actions", label: "", render: (c) => (
+      <div className="flex items-center gap-1">
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(c); }}><Pencil className="h-3.5 w-3.5" /></Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(c.id); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+      </div>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader title={t("incomeCategories")} icon={Layers} description={t("incomeCategoriesDesc")}
@@ -108,44 +129,16 @@ export default function PayrollCategories() {
       {isLoading ? <Skeleton className="h-80" /> : categories.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t("noCategoriesSeed")}</CardContent></Card>
       ) : (
-        <Card><CardContent className="pt-6 overflow-x-auto">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>{t("code")}</TableHead><TableHead>{t("name")}</TableHead>
-              <TableHead>OVP</TableHead><TableHead>OLA</TableHead><TableHead>BEN</TableHead>
-              <TableHead className="text-right">{t("tax")}</TableHead>
-              <TableHead className="text-right">PIO-R</TableHead><TableHead className="text-right">PIO-P</TableHead>
-              <TableHead className="text-right">Zdrav-R</TableHead><TableHead className="text-right">Zdrav-P</TableHead>
-              <TableHead className="text-right">{t("unemploymentPct")}</TableHead>
-              <TableHead className="text-right">{t("benCoefficient")}</TableHead>
-              <TableHead></TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {categories.map((c) => (
-                <TableRow key={c.id} className={!c.is_active ? "opacity-50" : ""}>
-                  <TableCell className="font-mono font-semibold">{c.code}</TableCell>
-                  <TableCell>{c.name}</TableCell>
-                  <TableCell><Badge variant="outline">{c.ovp_code}</Badge></TableCell>
-                  <TableCell><Badge variant="outline">{c.ola_code}</Badge></TableCell>
-                  <TableCell><Badge variant="outline">{c.ben_code}</Badge></TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.tax_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.pio_employee_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.pio_employer_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.health_employee_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.health_employer_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtPct(c.unemployment_employee_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.ben_coefficient}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent></Card>
+        <ResponsiveTable
+          data={categories}
+          columns={columns}
+          keyExtractor={(c) => c.id}
+          emptyMessage={t("noResults")}
+          enableExport
+          exportFilename="payroll-categories"
+          enableColumnToggle
+          mobileMode="scroll"
+        />
       )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setEditId(null); } }}>

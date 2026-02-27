@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -18,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface AssetForm {
   name: string;
@@ -90,7 +89,6 @@ export default function FixedAssets() {
         const { error } = await supabase.from("fixed_assets").update(payload).eq("id", editId);
         if (error) throw error;
 
-        // Disposal journal entry when status changes to "disposed"
         if (previousStatus !== "disposed" && form.status === "disposed") {
           const accum = getAccumulated(editId);
           const cost = form.acquisition_cost;
@@ -102,20 +100,13 @@ export default function FixedAssets() {
           const lines: any[] = [];
           let sortOrder = 0;
 
-          // Debit Accumulated Depreciation (clear it)
           if (accum > 0) {
             lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `Clear accum. dep. - ${form.name}`, sortOrder: sortOrder++ });
           }
-
-          // If sold, debit bank/cash for sale proceeds
           if (form.disposal_type === "sold" && salePrice > 0) {
             lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `Sale proceeds - ${form.name}`, sortOrder: sortOrder++ });
           }
-
-          // Credit the asset at cost
           lines.push({ accountCode: "0120", debit: 0, credit: cost, description: `Remove asset - ${form.name}`, sortOrder: sortOrder++ });
-
-          // Gain or loss
           if (gainLoss > 0) {
             lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("gainOnDisposal")} - ${form.name}`, sortOrder: sortOrder++ });
           } else if (gainLoss < 0) {
@@ -182,7 +173,6 @@ export default function FixedAssets() {
       const period = format(new Date(), "yyyy-MM");
       const entryDate = new Date().toISOString().split("T")[0];
 
-      // Create journal entry: Debit Depreciation Expense / Credit Accumulated Depreciation
       const journalId = await postWithRuleOrFallback({
         tenantId: tenantId!, userId: user?.id || null, entryDate,
         modelCode: "ASSET_DEPRECIATION", amount,
@@ -195,7 +185,6 @@ export default function FixedAssets() {
         ],
       });
 
-      // Create depreciation record with journal link
       const { error } = await supabase.from("fixed_asset_depreciation").insert({
         tenant_id: tenantId,
         asset_id: asset.id,
@@ -212,7 +201,6 @@ export default function FixedAssets() {
     },
   });
 
-  // Batch depreciation: run for all active assets, skip already depreciated for current period
   const batchDepreciationMutation = useMutation({
     mutationFn: async () => {
       if (!tenantId) return 0;
@@ -248,6 +236,32 @@ export default function FixedAssets() {
 
   const statusColor = (s: string) => s === "active" ? "default" as const : s === "disposed" ? "destructive" as const : "secondary" as const;
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, sortable: true, sortValue: (a) => a.name, render: (a) => <span className="font-medium">{a.name}</span> },
+    { key: "acqDate", label: t("acquisitionDate"), sortable: true, sortValue: (a) => a.acquisition_date, render: (a) => a.acquisition_date },
+    { key: "acqCost", label: t("acquisitionCost"), align: "right" as const, sortable: true, sortValue: (a) => Number(a.acquisition_cost), render: (a) => `${Number(a.acquisition_cost).toLocaleString()} RSD` },
+    { key: "method", label: t("depreciationMethod"), hideOnMobile: true, render: (a) => a.depreciation_method === "straight_line" ? t("straightLine") : t("decliningBalance") },
+    { key: "life", label: t("usefulLife"), hideOnMobile: true, render: (a) => `${a.useful_life_months} ${t("months")}` },
+    { key: "bookValue", label: t("bookValue"), align: "right" as const, sortable: true, sortValue: (a) => Number(a.acquisition_cost) - getAccumulated(a.id), render: (a) => `${(Number(a.acquisition_cost) - getAccumulated(a.id)).toLocaleString()} RSD` },
+    { key: "depRun", label: t("depreciationRun"), hideOnMobile: true, render: (a) => {
+      const currentPeriod = format(new Date(), "yyyy-MM");
+      const done = depreciations.some((d: any) => d.asset_id === a.id && d.period === currentPeriod);
+      return done ? <Badge variant="default">✓</Badge> : <Badge variant="outline">—</Badge>;
+    }},
+    { key: "status", label: t("status"), sortable: true, sortValue: (a) => a.status, render: (a) => <Badge variant={statusColor(a.status)}>{t(a.status)}</Badge> },
+    { key: "actions", label: t("actions"), render: (a) => (
+      <div className="flex gap-1">
+        {a.status === "active" && (
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); depreciationMutation.mutate(a); }} title={t("runDepreciation")}>
+            <Play className="h-4 w-4" />
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(a); }}><Pencil className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(a.id); }}><Trash2 className="h-4 w-4" /></Button>
+      </div>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -259,67 +273,20 @@ export default function FixedAssets() {
           <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t("addAsset")}</Button>
         </div>
       </div>
-      <Card>
-        <CardHeader><CardTitle>{t("fixedAssets")}</CardTitle></CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">{t("loading")}</p>
-          ) : assets.length === 0 ? (
-            <p className="text-muted-foreground">{t("noResults")}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("name")}</TableHead>
-                  <TableHead>{t("acquisitionDate")}</TableHead>
-                  <TableHead>{t("acquisitionCost")}</TableHead>
-                  <TableHead>{t("depreciationMethod")}</TableHead>
-                  <TableHead>{t("usefulLife")}</TableHead>
-                   <TableHead>{t("bookValue")}</TableHead>
-                   <TableHead>{t("depreciationRun")}</TableHead>
-                   <TableHead>{t("status")}</TableHead>
-                  <TableHead>{t("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assets.map((a: any) => {
-                  const accum = getAccumulated(a.id);
-                  const bv = Number(a.acquisition_cost) - accum;
-                  return (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-medium">{a.name}</TableCell>
-                      <TableCell>{a.acquisition_date}</TableCell>
-                      <TableCell>{Number(a.acquisition_cost).toLocaleString()} RSD</TableCell>
-                      <TableCell>{a.depreciation_method === "straight_line" ? t("straightLine") : t("decliningBalance")}</TableCell>
-                      <TableCell>{a.useful_life_months} {t("months")}</TableCell>
-                      <TableCell>{bv.toLocaleString()} RSD</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const currentPeriod = format(new Date(), "yyyy-MM");
-                          const done = depreciations.some((d: any) => d.asset_id === a.id && d.period === currentPeriod);
-                          return done ? <Badge variant="default">✓</Badge> : <Badge variant="outline">—</Badge>;
-                        })()}
-                      </TableCell>
-                      <TableCell><Badge variant={statusColor(a.status)}>{t(a.status)}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {a.status === "active" && (
-                            <Button variant="ghost" size="icon" onClick={() => depreciationMutation.mutate(a)} title={t("runDepreciation")}>
-                              <Play className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(a)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(a.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+
+      {isLoading ? (
+        <p className="text-muted-foreground">{t("loading")}</p>
+      ) : (
+        <ResponsiveTable
+          data={assets}
+          columns={columns}
+          keyExtractor={(a) => a.id}
+          emptyMessage={t("noResults")}
+          enableExport
+          exportFilename="fixed-assets"
+          enableColumnToggle
+        />
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -380,33 +347,34 @@ export default function FixedAssets() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("disposalType")}</Label>
-                  <Select value={form.disposal_type || "scrapped"} onValueChange={(v) => setForm({ ...form, disposal_type: v })}>
+                  <Select value={form.disposal_type} onValueChange={(v) => setForm({ ...form, disposal_type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="scrapped">{t("scrapped")}</SelectItem>
                       <SelectItem value="sold">{t("sold")}</SelectItem>
-                      <SelectItem value="transferred">{t("transferred")}</SelectItem>
+                      <SelectItem value="scrapped">{t("scrapped")}</SelectItem>
+                      <SelectItem value="donated">{t("donated" as any)}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {form.disposal_type === "sold" && (
                   <div className="grid gap-2">
                     <Label>{t("salePrice")}</Label>
-                    <Input type="number" min={0} step={0.01} value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
+                    <Input type="number" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
                   </div>
                 )}
               </div>
             )}
-            <div className="grid gap-2">
-              <Label>{t("legalEntity")}</Label>
-              <Select value={form.legal_entity_id || "__none__"} onValueChange={(v) => setForm({ ...form, legal_entity_id: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {entities.length > 1 && (
+              <div className="grid gap-2">
+                <Label>{t("legalEntity")}</Label>
+                <Select value={form.legal_entity_id} onValueChange={(v) => setForm({ ...form, legal_entity_id: v })}>
+                  <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
+                  <SelectContent>
+                    {entities.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>

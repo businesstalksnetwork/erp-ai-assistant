@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Trash2, TrendingUp, TrendingDown, Send } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface NivelacijaItem {
   product_id: string;
@@ -123,8 +124,21 @@ export default function Nivelacija() {
   };
 
   const filtered = nivelacije.filter((n: any) => n.nivelacija_number?.toLowerCase().includes(search.toLowerCase()));
-  
   const totalDiff = items.reduce((s, i) => s + (i.new_retail_price - i.old_retail_price) * i.quantity_on_hand, 0);
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "number", label: t("invoiceNumber"), primary: true, sortable: true, sortValue: (n) => n.nivelacija_number, render: (n) => <span className="font-medium">{n.nivelacija_number}</span> },
+    { key: "date", label: t("date"), sortable: true, sortValue: (n) => n.nivelacija_date, render: (n) => new Date(n.nivelacija_date).toLocaleDateString("sr-RS") },
+    { key: "warehouse", label: t("warehouse"), hideOnMobile: true, render: (n) => (n.warehouses as any)?.name || "—" },
+    { key: "status", label: t("status"), sortable: true, sortValue: (n) => n.status, render: (n) => <Badge variant={n.status === "posted" ? "default" : "secondary"}>{n.status}</Badge> },
+    { key: "actions", label: t("actions"), render: (n) => (
+      n.status === "draft" ? (
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); postMutation.mutate(n.id); }} disabled={postMutation.isPending}>
+          <Send className="h-3 w-3 mr-1" />{t("save")}
+        </Button>
+      ) : null
+    )},
+  ];
 
   return (
     <div className="space-y-6">
@@ -140,41 +154,14 @@ export default function Nivelacija() {
         <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("invoiceNumber")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("warehouse")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((n: any) => (
-                <TableRow key={n.id}>
-                  <TableCell className="font-medium">{n.nivelacija_number}</TableCell>
-                  <TableCell>{new Date(n.nivelacija_date).toLocaleDateString("sr-RS")}</TableCell>
-                  <TableCell>{(n.warehouses as any)?.name || "—"}</TableCell>
-                  <TableCell><Badge variant={n.status === "posted" ? "default" : "secondary"}>{n.status}</Badge></TableCell>
-                  <TableCell>
-                    {n.status === "draft" && (
-                      <Button size="sm" variant="outline" onClick={() => postMutation.mutate(n.id)} disabled={postMutation.isPending}>
-                        <Send className="h-3 w-3 mr-1" />{t("save")}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(n) => n.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="nivelacije"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">

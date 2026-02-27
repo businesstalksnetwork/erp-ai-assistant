@@ -11,9 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import type { Tables } from "@/integrations/supabase/types";
 
 type SalesChannel = Tables<"sales_channels">;
@@ -61,16 +61,24 @@ export default function SalesChannels() {
     onError: () => toast({ title: t("error"), variant: "destructive" }),
   });
 
-  const openEdit = (ch: SalesChannel) => {
-    setEditing(ch);
-    setForm({ name: ch.name, type: ch.type, is_active: ch.is_active });
-    setDialogOpen(true);
-  };
+  const openEdit = (ch: SalesChannel) => { setEditing(ch); setForm({ name: ch.name, type: ch.type, is_active: ch.is_active }); setDialogOpen(true); };
   const openAdd = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const closeDialog = () => { setDialogOpen(false); setEditing(null); };
   const filtered = channels.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
   if (tenantLoading || isLoading) return <div className="p-6">{t("loading")}</div>;
+
+  const columns: ResponsiveColumn<SalesChannel>[] = [
+    { key: "name", label: t("name"), primary: true, sortable: true, sortValue: (c) => c.name, render: (c) => <span className="font-medium">{c.name}</span> },
+    { key: "type", label: t("type"), sortable: true, sortValue: (c) => c.type, render: (c) => <span className="capitalize">{c.type}</span> },
+    { key: "status", label: t("status"), sortable: true, sortValue: (c) => c.is_active ? 1 : 0, render: (c) => <Badge variant={c.is_active ? "default" : "secondary"}>{c.is_active ? t("active") : t("inactive")}</Badge> },
+    { key: "actions", label: t("actions"), render: (c) => (
+      <div className="flex gap-1">
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(c); }}><Pencil className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(c.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+      </div>
+    )},
+  ];
 
   return (
     <div className="space-y-6">
@@ -82,35 +90,15 @@ export default function SalesChannels() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("name")}</TableHead>
-              <TableHead>{t("type")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead className="w-24">{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-            ) : filtered.map(c => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell className="capitalize">{c.type}</TableCell>
-                <TableCell><Badge variant={c.is_active ? "default" : "secondary"}>{c.is_active ? t("active") : t("inactive")}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(c) => c.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="sales-channels"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
