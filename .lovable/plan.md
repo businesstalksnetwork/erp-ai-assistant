@@ -1,38 +1,48 @@
 
 
-## Bug Fix Plan: 7 Issues
+## Fix Plan: 6 Remaining Items
 
-### Issue Analysis
+### Analysis Summary
 
-| # | Bug | Status | Fix |
-|---|-----|--------|-----|
-| 1 | Leave notification missing | Real | Insert into `notifications` table after successful `submitMutation` in `useLeaveRequest.ts` |
-| 2 | `as any` casts on table names | Real, limited | Cannot edit `types.ts` (auto-generated). Will note for user to regenerate types. No code fix possible. |
-| 3 | `attendance_records` in KpiWidget | Real | Add try-catch around the query so it fails gracefully instead of silently |
-| 4 | PersonalTasksWidget `as any` on mutate | Real | Fix typing on `saveTaskEdits` — cast properly with typed mutation signature |
-| 5 | IosConfirmations `SelectItem value=""` | Real | Change to `value="__all__"` and handle in logic |
-| 6 | AopPositions `get_aop_report` as any | Real, limited | Same as #2 — types not generated. Cannot fix without regeneration. |
-| 7 | `process_pos_sale_v2` / `complete_production_order_v2` | Not found | These functions do not exist in the codebase. Frontend already calls the original versions. No action needed. |
+| # | Item | Assessment | Action |
+|---|------|-----------|--------|
+| 1 | Leave notification in LeaveRequests.tsx approve/reject | Missing — approve/reject mutations don't notify employee | Add notification dispatch to both `approveMutation.onSuccess` and `rejectMutation.onSuccess` |
+| 2 | Regenerate Supabase types | Needed — many `as any` casts on tables/RPCs not in types | Create a no-op migration to trigger type regeneration |
+| 3 | Frontend v2 RPC switch | **Not applicable** — `process_pos_sale_v2` and `complete_production_order_v2` do not exist anywhere in codebase or DB. Frontend already calls originals correctly. | No action needed |
+| 4 | Widget shortcut editor | New feature — `WidgetShortcutEditor.tsx` doesn't exist yet | Create component allowing per-widget shortcut customization in edit mode |
+| 5 | Mobile reorder arrows | Already implemented in `CustomizableDashboard.tsx` lines 118-145 | Already done — no action needed |
+| 6 | AI daily digest personalization | Partially done — already passes `user.id`, fetches role, filters sections by `ROLE_SECTIONS[userRole]` | Already implemented in edge function. No action needed. |
+
+### Actual work: 3 items
 
 ---
 
-### Step 1 — Leave Notification (useLeaveRequest.ts)
+### Step 1 — Leave approve/reject notifications (LeaveRequests.tsx)
 
-In `submitMutation.onSuccess`, insert a notification to the `notifications` table for the employee's manager/HR. Requires fetching the employee's `reports_to` or falling back to tenant-level HR notification. Pattern: insert row with `category: "hr"`, `type: "info"`, `title: "New leave request"`.
+In `approveMutation.onSuccess`: invoke `create-notification` edge function targeting the employee who submitted the request, with title "Zahtev odobren" / message including dates.
 
-### Step 2 — IosConfirmations SelectItem fix
+In `rejectMutation.onSuccess`: same pattern, title "Zahtev odbijen", include rejection reason in message.
 
-Line 249: change `<SelectItem value="">` to `<SelectItem value="__all__">`. Update form initialization and `createMutation` to treat `"__all__"` as null/empty for `legal_entity_id`.
+Need to look up the request's `employee_id` from the mutation context — pass the full request row to mutation, or capture it via `onMutate`.
 
-### Step 3 — KpiWidget attendance safety
+### Step 2 — Trigger Supabase type regeneration
 
-Wrap the `attendance_records` query (line 86-89) in a try-catch, returning `{ value: 0 }` on error so the widget doesn't break if the table query fails.
+Create a no-op migration (`SELECT 1;`) to force the auto-generated `types.ts` to refresh. This will add `user_tasks`, `user_daily_tasks`, `aop_positions`, `ios_confirmations`, and all missing RPCs to the generated types, eliminating most `as any` casts automatically.
 
-### Step 4 — PersonalTasksWidget typing
+### Step 3 — Widget shortcut editor
 
-Replace `updateTask.mutate(updates as any)` on line 157 with a properly typed call. The mutation already accepts `Partial<UserTask> & { id: string }`, so just type the `updates` object correctly instead of using `Record<string, unknown>`.
+Create `WidgetShortcutEditor.tsx`:
+- Small dialog/popover accessible from widget edit mode (gear icon on `QuickActionsWidget`)
+- Lists current shortcuts with delete button
+- "Add shortcut" form: label + path (from a preset list or free text)
+- Saves to `dashboard_widget_layouts` table's existing config or a new `shortcuts` JSON column
+- Only applies to `quick_actions` widget type
 
-### Step 5 — Types regeneration note
+Register in `WidgetContainer.tsx`: show gear icon in edit mode for widgets that support shortcuts (`quick_actions`).
 
-After implementation, inform user that `as any` casts on `aop_positions`, `ios_confirmations`, `user_tasks`, `user_daily_tasks` table names require Supabase types regeneration — which happens automatically on next schema change or can be triggered manually.
+### Technical Details
+
+- Notification dispatch reuses the existing `create-notification` edge function pattern already in `useLeaveRequest.ts`
+- Type regeneration is automatic on migration — no manual steps needed
+- Shortcut editor stores data in the widget layout's existing config, avoiding schema changes
 
