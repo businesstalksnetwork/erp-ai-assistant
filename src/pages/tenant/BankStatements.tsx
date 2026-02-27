@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, Suspense, lazy } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,13 +14,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck, BookOpen } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Upload, Search, Link2, Check, X, Eye, FileText, CheckCheck, BookOpen, ChevronDown, FileUp, AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-react";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import PostingPreviewPanel, { type PreviewLine } from "@/components/accounting/PostingPreviewPanel";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSearchParams } from "react-router-dom";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
+
+/* ─── Document Import Status Config ─── */
+const IMPORT_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; color: string; label: string }> = {
+  PENDING: { icon: Clock, color: "text-yellow-500", label: "Pending" },
+  PROCESSING: { icon: Clock, color: "text-blue-500", label: "Processing" },
+  PARSED: { icon: CheckCircle, color: "text-primary", label: "Parsed" },
+  MATCHED: { icon: CheckCircle, color: "text-primary", label: "Matched" },
+  ERROR: { icon: XCircle, color: "text-destructive", label: "Error" },
+  QUARANTINE: { icon: AlertTriangle, color: "text-destructive", label: "Quarantine" },
+};
 
 export default function BankStatements() {
   const { t } = useLanguage();
@@ -42,11 +55,18 @@ export default function BankStatements() {
   const [postLineDialog, setPostLineDialog] = useState<any>(null);
   const [selectedPaymentModel, setSelectedPaymentModel] = useState("CUSTOMER_PAYMENT");
 
+  /* ─── File Upload State ─── */
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedUploadAccountId, setSelectedUploadAccountId] = useState<string>("all");
+  const [importTab, setImportTab] = useState("all");
+
   // Pre-select bank account from URL query param
   useEffect(() => {
     const accountId = searchParams.get("account_id");
     if (accountId) {
       setImportForm(f => ({ ...f, bank_account_id: accountId }));
+      setSelectedUploadAccountId(accountId);
     }
   }, [searchParams]);
 
@@ -72,6 +92,123 @@ export default function BankStatements() {
     staleTime: 5 * 60 * 1000,
   });
 
+  /* ─── Document Imports Query ─── */
+  const { data: imports = [] } = useQuery({
+    queryKey: ["document_imports", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("document_imports")
+        .select("*, bank_accounts(bank_name, account_number)")
+        .eq("tenant_id", tenantId!)
+        .order("imported_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  const { data: csvProfiles = [] } = useQuery({
+    queryKey: ["csv_import_profiles", tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("csv_import_profiles").select("*, banks(name)").order("profile_name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  /* ─── File Upload Logic ─── */
+  const detectFormat = (filename: string): string => {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext === "xml") return "NBS_XML";
+    if (ext === "csv") return "CSV";
+    if (ext === "pdf") return "PDF";
+    return "CSV";
+  };
+
+  const hashFile = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const uploadMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const results = [];
+      for (const file of files) {
+        const sha256 = await hashFile(file);
+        const format = detectFormat(file.name);
+
+        const { data: existing } = await supabase.from("document_imports")
+          .select("id").eq("tenant_id", tenantId!).eq("sha256_hash", sha256).maybeSingle();
+        if (existing) {
+          toast({ title: t("duplicateFile"), description: file.name, variant: "destructive" });
+          continue;
+        }
+
+        const { data: importRecord, error } = await supabase.from("document_imports").insert({
+          tenant_id: tenantId!,
+          original_filename: file.name,
+          file_format: format,
+          file_size_bytes: file.size,
+          sha256_hash: sha256,
+          status: "PENDING",
+          source_type: "MANUAL_UPLOAD",
+          bank_account_id: selectedUploadAccountId !== "all" ? selectedUploadAccountId : null,
+        }).select("id").single();
+        if (error) throw error;
+
+        if (format === "NBS_XML" || format === "CAMT053" || format === "MT940") {
+          try {
+            const text = await file.text();
+            const { data: parseResult, error: parseError } = await supabase.functions.invoke("parse-bank-xml", {
+              body: { xml: text, importId: importRecord.id, tenantId: tenantId! },
+            });
+            if (parseError) throw parseError;
+            results.push({ file: file.name, status: "parsed", transactions: parseResult?.transactions_count || 0 });
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            await supabase.from("document_imports").update({ status: "ERROR", error_message: msg }).eq("id", importRecord.id);
+            results.push({ file: file.name, status: "error" });
+          }
+        } else {
+          results.push({ file: file.name, status: "pending" });
+        }
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      qc.invalidateQueries({ queryKey: ["document_imports"] });
+      const parsedCount = results.filter(r => r.status === "parsed").length;
+      const pendingCount = results.filter(r => r.status === "pending").length;
+      toast({ title: t("importComplete"), description: `${parsedCount} ${t("parsed")}, ${pendingCount} ${t("pending")}` });
+    },
+    onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
+  });
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(f =>
+      f.name.endsWith(".xml") || f.name.endsWith(".csv") || f.name.endsWith(".pdf")
+    );
+    if (files.length > 0) uploadMutation.mutate(files);
+  }, [uploadMutation]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 0) uploadMutation.mutate(files);
+    e.target.value = "";
+  };
+
+  const filteredImports = imports.filter(i => {
+    if (importTab === "quarantine") return i.status === "QUARANTINE" || i.status === "ERROR";
+    if (importTab === "parsed") return i.status === "PARSED" || i.status === "MATCHED";
+    return true;
+  });
+
+  const importErrorCount = imports.filter(i => i.status === "ERROR" || i.status === "QUARANTINE").length;
+
   // Auto-generate statement number when bank account is selected
   const generateStatementNumber = useCallback(async (bankAccountId: string) => {
     if (!bankAccountId || !tenantId) return;
@@ -79,7 +216,6 @@ export default function BankStatements() {
     if (!bankAccount) return;
     const acctNum = bankAccount.account_number || "";
     const suffix = acctNum.length >= 3 ? acctNum.slice(-3) : acctNum;
-    // Filter by fiscal year for proper sequential numbering
     const fiscalYear = new Date().getFullYear();
     const yearStart = `${fiscalYear}-01-01`;
     const yearEnd = `${fiscalYear}-12-31`;
@@ -141,7 +277,6 @@ export default function BankStatements() {
       const lines = csvData.trim().split("\n");
       const header = lines[0].split(",").map(h => h.trim().toLowerCase());
 
-      // Expected CSV columns: date, description, amount, direction, partner_name, partner_account, payment_reference, payment_purpose
       const dateIdx = header.findIndex(h => h.includes("date") || h.includes("datum"));
       const descIdx = header.findIndex(h => h.includes("desc") || h.includes("opis"));
       const amountIdx = header.findIndex(h => h.includes("amount") || h.includes("iznos"));
@@ -153,7 +288,6 @@ export default function BankStatements() {
 
       if (dateIdx === -1 || amountIdx === -1) throw new Error("CSV must have date and amount columns");
 
-      // Create statement
       const bankAccount = bankAccounts.find(ba => ba.id === importForm.bank_account_id);
       const { data: stmt, error: stmtErr } = await supabase.from("bank_statements").insert({
         tenant_id: tenantId!,
@@ -165,7 +299,6 @@ export default function BankStatements() {
       }).select("id").single();
       if (stmtErr) throw stmtErr;
 
-      // Parse and insert lines
       const parsedLines = [];
       let totalIn = 0, totalOut = 0;
       for (let i = 1; i < lines.length; i++) {
@@ -205,7 +338,6 @@ export default function BankStatements() {
       const { error: linesErr } = await supabase.from("bank_statement_lines").insert(parsedLines);
       if (linesErr) throw linesErr;
 
-      // Update statement balances
       await supabase.from("bank_statements").update({ closing_balance: totalIn - totalOut }).eq("id", stmt.id);
 
       return { count: parsedLines.length };
@@ -225,7 +357,6 @@ export default function BankStatements() {
       const { data: lines } = await supabase.from("bank_statement_lines").select("*").eq("statement_id", statementId).eq("match_status", "unmatched");
       if (!lines?.length) return { matched: 0, total: 0 };
 
-      // Load all open invoices and supplier invoices for matching
       const { data: invoices = [] } = await supabase.from("invoices").select("id, invoice_number, total, partner_name, due_date, status").eq("tenant_id", tenantId!).in("status", ["sent", "overdue"]);
       const { data: supplierInvoices = [] } = await supabase.from("supplier_invoices").select("id, invoice_number, total, supplier_name, due_date, status").eq("tenant_id", tenantId!).in("status", ["received", "approved"]);
 
@@ -239,29 +370,23 @@ export default function BankStatements() {
           const docTotal = Number(doc.total);
           const lineAmt = Number(line.amount);
 
-          // 1. Exact amount match: +40 points
           if (Math.abs(docTotal - lineAmt) < 0.01) confidence += 40;
-          // Near amount match (within 1%): +20 points
           else if (Math.abs(docTotal - lineAmt) / Math.max(docTotal, 1) < 0.01) confidence += 20;
-          else continue; // Skip if amount doesn't match at all
+          else continue;
 
-          // 2. Reference match: +40 points
           const ref = line.payment_reference?.trim() || "";
           const invNum = doc.invoice_number?.trim() || "";
           if (ref && invNum && (ref.includes(invNum) || invNum.includes(ref))) confidence += 40;
           else if (ref && invNum) {
-            // Partial match
             const refDigits = ref.replace(/\D/g, "");
             const invDigits = invNum.replace(/\D/g, "");
             if (refDigits.length > 3 && invDigits.length > 3 && (refDigits.includes(invDigits) || invDigits.includes(refDigits))) confidence += 25;
           }
 
-          // 3. Partner name match: +15 points
           const partnerName = line.partner_name?.toLowerCase() || "";
           const docPartner = ((doc as any).partner_name || (doc as any).supplier_name || "").toLowerCase();
           if (partnerName && docPartner && (partnerName.includes(docPartner) || docPartner.includes(partnerName))) confidence += 15;
 
-          // 4. Date proximity: +5 points if within 7 days of due date
           if ((doc as any).due_date && line.line_date) {
             const daysDiff = Math.abs(new Date(line.line_date).getTime() - new Date((doc as any).due_date).getTime()) / 86400000;
             if (daysDiff <= 7) confidence += 5;
@@ -371,7 +496,6 @@ export default function BankStatements() {
       let posted = 0;
       for (const line of lines) {
         try {
-          // Use posting rules engine with fallback
           const modelCode = line.direction === "credit" ? "CUSTOMER_PAYMENT" : "VENDOR_PAYMENT";
           const fallbackLines = line.direction === "credit"
             ? [
@@ -390,17 +514,12 @@ export default function BankStatements() {
             modelCode, amount: line.amount,
             description: `${t("bankPayment")}: ${line.description || line.partner_name || ""}`,
             reference: `BS-${line.payment_reference || line.id.slice(0, 8)}`,
-            context: {
-              bankAccountGlCode: "2410",
-              partnerReceivableCode: "2040",
-              partnerPayableCode: "4350",
-            },
+            context: { bankAccountGlCode: "2410", partnerReceivableCode: "2040", partnerPayableCode: "4350" },
             fallbackLines,
           });
 
           await supabase.from("bank_statement_lines").update({ journal_entry_id: jeId }).eq("id", line.id);
 
-          // Update invoice/supplier invoice status
           if (line.matched_invoice_id) {
             await supabase.from("invoices").update({ status: "paid" }).eq("id", line.matched_invoice_id);
           }
@@ -414,7 +533,6 @@ export default function BankStatements() {
         }
       }
 
-      // Update statement status
       await supabase.from("bank_statements").update({ status: "reconciled" }).eq("id", statementId);
       return posted;
     },
@@ -466,16 +584,141 @@ export default function BankStatements() {
     return statementLines;
   }, [statementLines, lineFilter]);
 
-  if (isLoading) return <p className="p-6">{t("loading")}</p>;
+  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-40" /><Skeleton className="h-64" /></div>;
 
   return (
     <div className="space-y-6">
       {tenantId && <AiModuleInsights tenantId={tenantId} module="accounting" compact />}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("bankStatements")}</h1>
-        <Button onClick={() => setImportDialogOpen(true)}><Upload className="h-4 w-4 mr-2" />{t("importStatement")}</Button>
-      </div>
 
+      <PageHeader
+        title={t("bankStatements")}
+        icon={FileText}
+        actions={
+          <Button onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />{t("importStatement")}
+          </Button>
+        }
+      />
+
+      {/* ─── Collapsible File Upload / Import History ─── */}
+      <Collapsible open={uploadOpen} onOpenChange={setUploadOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <FileUp className="h-4 w-4" />
+              {t("bankDocumentImport")}
+              {imports.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{imports.length}</Badge>
+              )}
+              {importErrorCount > 0 && (
+                <Badge variant="destructive" className="ml-1">{importErrorCount} {t("errors")}</Badge>
+              )}
+            </span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${uploadOpen ? "rotate-180" : ""}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4 space-y-4">
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
+          >
+            <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm font-medium">{t("dropFilesHere")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("orClickToSelect")}</p>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <div>
+                <Label className="text-xs">{t("account")}</Label>
+                <Select value={selectedUploadAccountId} onValueChange={setSelectedUploadAccountId}>
+                  <SelectTrigger className="w-56 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("autoDetect")}</SelectItem>
+                    {bankAccounts.map(ba => <SelectItem key={ba.id} value={ba.id}>{ba.bank_name} — {ba.account_number}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="pt-4">
+                <label>
+                  <input type="file" multiple accept=".xml,.csv,.pdf" className="hidden" onChange={handleFileInput} />
+                  <Button variant="outline" size="sm" asChild><span><Upload className="h-3.5 w-3.5 mr-1.5" />{t("selectFiles")}</span></Button>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Import stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card><CardContent className="pt-3 pb-3 text-center"><p className="text-xl font-bold">{imports.length}</p><p className="text-xs text-muted-foreground">{t("total")}</p></CardContent></Card>
+            <Card><CardContent className="pt-3 pb-3 text-center"><p className="text-xl font-bold text-primary">{imports.filter(i => i.status === "PARSED" || i.status === "MATCHED").length}</p><p className="text-xs text-muted-foreground">{t("parsed")}</p></CardContent></Card>
+            <Card><CardContent className="pt-3 pb-3 text-center"><p className="text-xl font-bold">{imports.filter(i => i.status === "PENDING").length}</p><p className="text-xs text-muted-foreground">{t("pending")}</p></CardContent></Card>
+            <Card><CardContent className="pt-3 pb-3 text-center"><p className="text-xl font-bold text-destructive">{importErrorCount}</p><p className="text-xs text-muted-foreground">{t("errors")}</p></CardContent></Card>
+          </div>
+
+          {/* Import history table */}
+          <Tabs value={importTab} onValueChange={setImportTab}>
+            <TabsList>
+              <TabsTrigger value="all">{t("oiAll")} ({imports.length})</TabsTrigger>
+              <TabsTrigger value="parsed">{t("parsed")}</TabsTrigger>
+              <TabsTrigger value="quarantine">{t("quarantine")} ({importErrorCount})</TabsTrigger>
+            </TabsList>
+            <TabsContent value={importTab}>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("file")}</TableHead>
+                      <TableHead>{t("type")}</TableHead>
+                      <TableHead>{t("account")}</TableHead>
+                      <TableHead>{t("transactions")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredImports.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                    ) : filteredImports.map(imp => {
+                      const st = IMPORT_STATUS_CONFIG[imp.status] || IMPORT_STATUS_CONFIG.PENDING;
+                      const StIcon = st.icon;
+                      return (
+                        <TableRow key={imp.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm truncate max-w-[200px]">{imp.original_filename}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell><Badge variant="outline">{imp.file_format}</Badge></TableCell>
+                          <TableCell className="text-sm">{(imp as any).bank_accounts?.bank_name || "—"}</TableCell>
+                          <TableCell className="font-mono">{imp.transactions_count || 0}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <StIcon className={`h-3.5 w-3.5 ${st.color}`} />
+                              <span className="text-xs">{st.label}</span>
+                            </div>
+                            {imp.error_message && <p className="text-xs text-destructive mt-1 truncate max-w-[200px]">{imp.error_message}</p>}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(imp.imported_at).toLocaleDateString("sr-RS")}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {csvProfiles.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              {t("availableCsvProfiles")}: {csvProfiles.map(p => p.profile_name).join(", ")}
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* ─── Statements List / Detail ─── */}
       {!selectedStatement ? (
         <>
           <div className="relative max-w-sm">
