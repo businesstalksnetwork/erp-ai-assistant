@@ -1,120 +1,48 @@
 
 
-# POPDV Implementation Plan
+# Fix POPDV Seed Data
 
-This is a large-scale upgrade covering the full Serbian POPDV (VAT reporting) system. Given the scope (~20-24 day estimate in the PRD), I'll break it into implementable phases.
+## Problem
+The `popdv_tax_types` table has ~80 entries with incorrect generic descriptions and is missing ~40% of real entries from the Excel catalogs, including:
+- **Missing OUTPUT entries**: 1.4.q, 1.4.w, 1.4.x, 1.4.y, 1.4.z, 1.6, 2.4, 2.6, 3.2.x, 3.4, 3.5.x, 3.6.1, 3.6.x, 3.7.x, 4.1.1, 4.1.3, 4.1.4, 4.2.1, 4.2.2, 4.2.3, 4.2.4, 11.9
+- **Missing INPUT entries**: 6.2.3, 8a.2.a, 8a.2.x, 8a.2.y, 8a.2.z, 8a.3, 8a.5.x, 8b.3, 8b.4, 8b.5, 8b.5.x, 8d.1, 8d.2.x, 8d.3, 8e.1.a, 8e.2.a, 9.01–9.19 (15 entries)
+- **Wrong IDs**: Current DB has fabricated IDs like 1.5, 3a.3, 4a.*, 5.*, 6.2, 6.3, 6.5, 8dj.1, 8e.1, 8e.2, 8e.5, 9.1–9.3, 10.1, 11.4–11.7 that don't exist in the real POPDV form
+- **Wrong descriptions**: Nearly all existing entries have short generic placeholders instead of the official Serbian POPDV descriptions from the Excel files
+- **Section headers missing**: Parent section rows (1, 2, 3, 4, 6, 7, 8a, 8b, 8d, 8g, 8v, 9, 11) are absent
 
----
+## Solution
+Single migration that:
+1. **DELETE all existing rows** from `popdv_tax_types`
+2. **INSERT ~115 correct entries** from both Excel catalogs with:
+   - Exact official Serbian descriptions from the uploaded XLSX files
+   - Correct `direction` (OUTPUT/INPUT/BOTH)
+   - Correct `is_special_record` flags
+   - Correct `parent_id` references (from "ID opšte evidencije" column)
+   - Proper `popdv_section` assignment
+   - Sequential `sort_order` values
+3. **Update any `invoice_lines.popdv_field` and `supplier_invoice_lines.popdv_field`** references that used now-removed IDs (e.g., map old fabricated IDs to correct ones where possible, set to NULL where no mapping exists)
 
-## Phase 1: Database Schema (Migration)
+## Technical Details
 
-Create a single migration that:
+### Data Mapping (Old → New)
+Old fabricated IDs that need cleanup:
+- `1.5` → NULL (doesn't exist in real POPDV)
+- `3.6` (was special_record) → `3.6` (exists but not special)
+- `3a.3` → NULL (doesn't exist)
+- `4a.*` → NULL (don't exist; real form uses 4.1.1–4.2.4)
+- `5.*` → NULL (Section 5 is computed, not input fields)
+- `6.2`, `6.3`, `6.5` → NULL
+- `8dj.1` → NULL
+- `8e.1`, `8e.2`, `8e.5` → NULL (real ones are 8e.1.a, 8e.2.a)
+- `9.1`→`9.01`, `9.2`→`9.02`, `9.3`→`9.03`
+- `10.1` → NULL (Section 10 is computed)
+- `11.4`–`11.7` → NULL
 
-1. **Create `popdv_tax_types` reference table** with all ~95 POPDV field entries from both Excel catalogs (OUTPUT, INPUT, BOTH directions), including `description_short`, `parent_id`, `is_special_record`, `popdv_section`, `sort_order`, `law_reference`
-2. **Seed all POPDV types** — exact data from PRD Section 3.2 (OUTPUT sections 1-4, 6.1, 8a.4/8a.5, 8d, 8e.3/8e.4, 11; INPUT sections 4.1.2, 6, 7, 8a, 8b, 8v, 8g, 8d, 8e, 9, 11.8)
-3. **Add `vat_date`** column to `invoices` and `supplier_invoices`, backfill from `invoice_date`, add filtered indexes
-4. **Add `vat_non_deductible`** column to `invoice_lines` and `supplier_invoice_lines`
-5. **Add `fee_value`** column to `supplier_invoice_lines`
-6. **Add missing columns** to `supplier_invoice_lines`: `account_id`, `cost_center_id`, `tenant_id`
-7. **Create `reverse_charge_entries`** table for tracking 8g→3a / 8b→3a auto-generated output entries
-8. **Create `popdv_snapshots`** table for period snapshots with PP-PDV data
-9. **RLS policies** on all new tables (tenant isolation)
+Since this is early in adoption, these references are likely empty. The migration will set unmatched `popdv_field` values to NULL with a safe UPDATE.
 
----
-
-## Phase 2: PopdvFieldSelect Component
-
-Create `src/components/accounting/PopdvFieldSelect.tsx`:
-- Fetches from `popdv_tax_types` table (cached 1 hour)
-- Filters by `direction` prop (OUTPUT / INPUT / BOTH)
-- Groups options by `popdv_section` with Serbian section labels
-- Shows `description_short` with mono-font ID prefix
-- Italic styling for `is_special_record` entries
-- Uses existing `Select` component with `SelectGroup` / `SelectLabel`
-
----
-
-## Phase 3: Update InvoiceForm.tsx (Izlazne)
-
-1. **Remove** the hardcoded `POPDV_OPTIONS` array (lines 24-38)
-2. **Import** and use `PopdvFieldSelect` with `direction="OUTPUT"` in line items table
-3. **Add `vat_date` field** next to `invoiceDate` — auto-defaults to invoice date, editable, yellow highlight when different
-4. **POPDV auto-default**: When tax rate changes and rate > 0, auto-suggest `3.2`; when partner is foreign, suggest `1.1` or `11.1`
-5. **Save `vat_date`** in the save mutation alongside invoice data
-6. **Full-width responsive** layout maintained
-
----
-
-## Phase 4: Rework SupplierInvoices.tsx (Ulazne) — Major
-
-The current page is header-only with no line items. Create a new `SupplierInvoiceForm.tsx` (similar to InvoiceForm) with:
-
-1. **Line items table** with columns: description, item_type, POPDV (via `PopdvFieldSelect direction="INPUT"`), eFaktura, quantity, unit_price, tax_rate, line_total, tax_amount, vat_non_deductible, account (GL expense account via AccountCombobox)
-2. **vat_date field** with same behavior as InvoiceForm
-3. **POPDV auto-default**: `8a.2` for domestic VAT payer, `8g.1` for foreign entity, `6.2.1` for import
-4. **Section 9 behavior**: When POPDV starts with `9`, populate `vat_non_deductible` instead of `tax_amount`
-5. **Section 8v/8d behavior**: When POPDV starts with `8v` or `8d`, show `fee_value` field instead of base/VAT
-6. **Save/load line items** to/from `supplier_invoice_lines` table
-7. **Keep existing list view** in `SupplierInvoices.tsx`, add route for `/supplier-invoices/new` and `/supplier-invoices/:id`
-8. **GL posting preview** before approval using `PostingPreviewPanel`
-
----
-
-## Phase 5: Reverse Charge Auto-Generation
-
-When a supplier invoice line has POPDV `8g.*` or `8b.*`:
-1. Auto-create a corresponding entry in `reverse_charge_entries` table with the mapped output POPDV field (8g.1→3a.2, 8b.2→3a.2, etc.)
-2. GL posting creates matching DR 2700 (Input VAT) / CR 4700 (Output VAT)
-3. These entries feed into OUTPUT section 3a during POPDV aggregation
-4. Implement as part of the approval/posting mutation in SupplierInvoiceForm
-
----
-
-## Phase 6: POPDV Aggregation Engine
-
-Create `src/lib/popdvAggregation.ts`:
-1. Query output invoice lines by `vat_date` period, grouped by `popdv_field`
-2. Query input supplier invoice lines by `vat_date` period, grouped by `popdv_field`
-3. Include reverse charge entries as output 3a entries
-4. Calculate Section 5 totals (output summary)
-5. Calculate Section 8e (deductible input VAT = 8đ - Section 9)
-6. Calculate Section 10 (net VAT = 5.7 - 8e.5)
-7. Generate PP-PDV fields via documented formulas (PRD Section 14.2)
-8. Store snapshots in `popdv_snapshots` table
-
----
-
-## Phase 7: POPDV Form UI + PP-PDV
-
-Update `PdvPeriods.tsx` to:
-1. Show POPDV form with all 11 sections, pre-filled from aggregation
-2. Allow manual adjustments before finalizing
-3. Generate PP-PDV form from POPDV data
-4. Export PP-PDV as XML for ePorezi filing
-
----
-
-## Phase 8: Invoice Register Reports (Knjiga)
-
-Create Knjiga izlaznih/ulaznih računa reports:
-1. Group entries by POPDV section with subtotals
-2. Show all 20 register columns per PRD Section 7.1
-3. Filter by vat_date period
-4. Export to PDF/Excel
-
----
-
-## Implementation Order
-
-Due to message size limits, I'll implement **Phases 1-4** first (database + PopdvFieldSelect + both invoice forms), then Phases 5-8 in a follow-up.
-
----
-
-## Technical Notes
-
-- The `popdv_tax_types` table uses `TEXT` primary keys (e.g., '3.2', '8a.2') for readability and direct use as POPDV field values
-- All POPDV aggregation uses `vat_date`, never `invoice_date`
-- `supplier_invoice_lines` needs `tenant_id` for RLS (currently missing)
-- The eFaktura categories remain unchanged (S10, S20, AE10, AE20, Z, E, O, SS are correct per PRD Section 4)
-- New route needed: `/accounting/supplier-invoices/new` and `/accounting/supplier-invoices/:id` for the line-item form
+### Entry Count
+- OUTPUT: ~44 entries (sections 1–4, 6.1, 8a.4/8a.5, 8d, 8e.3/8e.4, 11)
+- INPUT: ~54 entries (sections 4.1.2, 6, 7, 8a–8g, 8v, 9, 11.8)
+- BOTH: ~6 entries (shared like 8a.4, 8a.5, 8e.3, 8e.4)
+- Section headers: ~15 entries (direction=BOTH, is_special_record=true)
 
