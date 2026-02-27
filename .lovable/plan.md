@@ -100,11 +100,38 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phases 4-7 (Future — executed sequentially after Phase 3)
+## Phase 4: Payroll Completion — ✅ COMPLETED
+
+### Already Working (Pre-existing)
+- `calculate_payroll_for_run` RPC with full Serbian regulatory matrix (52 income categories, contribution clamping, subsidies)
+- PPP-PD XML generation edge function with JMBG validation
+- Salary payment orders CSV generation
+- Payslip PDF generation in `generate-pdf` edge function
+- GL posting on approval (accrual) and payment (bank) via `postWithRuleOrFallback`
+- Full payroll UI: create run → calculate → approve → pay workflow
+
+### 4A. Tax Payment Orders ✅
+- Enhanced `generate-tax-payment-orders` edge function to support bulk payroll mode
+- Generates CSV with separate payment orders for: PIT (porez na zarade), PIO employee/employer, health employee/employer, unemployment
+- Uses Model 97 reference numbers with PIB + period
+- Added "Nalozi porezi" button to payroll UI for approved/paid runs
+
+### 4B. Posting Preview ✅
+- Added `PostingPreviewPanel` dialog before payroll approval
+- Shows all GL lines (gross expense, net payable, tax, contributions, employer costs) before confirming
+- Reuses existing `PostingPreviewPanel` component from Phase 2
+
+### 4C. Journal Entry Linking ✅
+- Added `journal_entry_id`, `employer_journal_entry_id`, `payment_journal_entry_id` columns to `payroll_runs`
+- GL posting now saves journal entry IDs back to the payroll run for full audit trail
+- Enables storno/reversal from journal entries page
+
+---
+
+## Phases 5-7 (Future — executed sequentially after Phase 4)
 
 | Phase | Focus | Key Deliverables |
 |-------|-------|-----------------|
-| **4** | Payroll Completion | Verify/fix calculation, PPP-PD XML generation, payment orders, payslips, GL posting |
 | **5** | Reports & Closing | Account card (kartica konta), partner card (IOS), daily journal, cash flow statement, year-end workflow |
 | **6** | AI Agent | Serbian accounting law RAG agent, inline validation hooks, compliance checker |
 | **7** | Polish | Credit/debit notes workflow, proforma invoices, fixed asset improvements, multi-currency |
