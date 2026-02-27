@@ -29,6 +29,7 @@ const EventMonitor = React.lazy(() => import("@/pages/tenant/EventMonitor"));
 const DataProtection = React.lazy(() => import("@/pages/tenant/DataProtection"));
 const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
 const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/NotificationCategorySettings"));
+const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHealth"));
 
 export const settingsRoutes = (
   <>
@@ -59,5 +60,6 @@ export const settingsRoutes = (
     <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><DataProtection /></ProtectedRoute>} />
     <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><DmsSettings /></ProtectedRoute>} />
     <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><NotificationCategorySettings /></ProtectedRoute>} />
+    <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><IntegrationHealth /></ProtectedRoute>} />
   </>
 );

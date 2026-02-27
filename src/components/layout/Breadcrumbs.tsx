@@ -1,5 +1,8 @@
 import { useLocation, Link } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -182,7 +185,56 @@ const routeLabels: Record<string, string> = {
   mrp: "mrpEngine",
   maintenance: "productionMaintenance",
   labor: "wmsLabor",
+  "integration-health": "integrationHealth",
 };
+
+/**
+ * Maps a route parent segment to the DB table + name column for UUID resolution.
+ * Key = the segment BEFORE the UUID. Value = { table, nameCol }.
+ */
+const entityLookup: Record<string, { table: string; nameCol: string }> = {
+  companies: { table: "companies", nameCol: "name" },
+  contacts: { table: "contacts", nameCol: "first_name" },
+  opportunities: { table: "opportunities", nameCol: "name" },
+  employees: { table: "employees", nameCol: "first_name" },
+  products: { table: "products", nameCol: "name" },
+  invoices: { table: "invoices", nameCol: "invoice_number" },
+  "supplier-invoices": { table: "supplier_invoices", nameCol: "invoice_number" },
+  "sales-orders": { table: "sales_orders", nameCol: "order_number" },
+  quotes: { table: "quotes", nameCol: "quote_number" },
+  "dispatch-notes": { table: "dispatch_notes", nameCol: "dispatch_number" },
+  orders: { table: "production_orders", nameCol: "order_number" },
+  registry: { table: "assets", nameCol: "name" },
+  vehicles: { table: "fleet_vehicles", nameCol: "plate_number" },
+  leases: { table: "lease_contracts", nameCol: "contract_number" },
+  "inventory-count": { table: "asset_inventory_counts", nameCol: "count_number" },
+};
+
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}/.test(s);
+
+function useEntityName(parentSegment: string, uuid: string | null) {
+  const { tenantId } = useTenant();
+  const lookup = uuid ? entityLookup[parentSegment] : null;
+
+  return useQuery({
+    queryKey: ["breadcrumb-entity", lookup?.table, uuid],
+    queryFn: async () => {
+      if (!lookup || !uuid) return null;
+      const { data } = await supabase
+        .from(lookup.table as any)
+        .select(lookup.nameCol)
+        .eq("id", uuid)
+        .eq("tenant_id", tenantId!)
+        .maybeSingle();
+      if (!data) return null;
+      const val = (data as any)[lookup.nameCol];
+      // For contacts: combine first_name
+      return val ? String(val) : null;
+    },
+    enabled: !!lookup && !!uuid && !!tenantId,
+    staleTime: 1000 * 60 * 10,
+  });
+}
 
 export function Breadcrumbs() {
   const location = useLocation();
@@ -192,8 +244,12 @@ export function Breadcrumbs() {
   // Don't show breadcrumbs on dashboard
   if (segments.length <= 1 && segments[0] === "dashboard") return null;
 
-  // Skip UUID segments for display but keep in path
-  const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}/.test(s);
+  // Find UUID segment and its parent for entity name resolution
+  const uuidIdx = segments.findIndex(isUuid);
+  const parentSegment = uuidIdx > 0 ? segments[uuidIdx - 1] : "";
+  const uuidValue = uuidIdx >= 0 ? segments[uuidIdx] : null;
+
+  const { data: entityName } = useEntityName(parentSegment, uuidValue);
 
   return (
     <Breadcrumb>
@@ -209,7 +265,13 @@ export function Breadcrumbs() {
           const path = "/" + segments.slice(0, idx + 1).join("/");
           const isLast = idx === segments.length - 1;
           const labelKey = routeLabels[segment];
-          const label = isUuid(segment) ? t("detail") : (labelKey ? t(labelKey as any) : segment);
+
+          let label: string;
+          if (isUuid(segment)) {
+            label = entityName || t("detail");
+          } else {
+            label = labelKey ? t(labelKey as any) : segment;
+          }
 
           return (
             <span key={path} className="contents">
