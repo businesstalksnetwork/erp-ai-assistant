@@ -111,7 +111,4 @@ SupplierInvoices.tsx → createCodeBasedJournalEntry({
 | Inventory | writes (planned) | Stock deduction not yet implemented |
 
 ## Known Gaps
-- POS does not yet deduct inventory stock on sale
 - Supplier invoice GL posting uses hardcoded accounts, not posting rules engine
-- No credit note / return invoice flow with automatic reversal journal
-- Sales order → Invoice conversion does not auto-post

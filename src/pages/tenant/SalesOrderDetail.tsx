@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft, FileText, Plus, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -160,6 +161,8 @@ export default function SalesOrderDetail() {
     }
   };
 
+  const [autoPostInvoice, setAutoPostInvoice] = useState(true);
+
   const createInvoice = async () => {
     // Fetch SO lines to pass to invoice form
     const { data: soLines } = await supabase
@@ -167,6 +170,11 @@ export default function SalesOrderDetail() {
       .select("*, products(name)")
       .eq("sales_order_id", id!)
       .order("sort_order");
+
+    // Update SO status to 'invoiced'
+    await supabase.from("sales_orders").update({ status: "invoiced" }).eq("id", id!);
+    qc.invalidateQueries({ queryKey: ["sales-order-detail", id] });
+
     navigate("/accounting/invoices/new", {
       state: {
         fromSalesOrder: {
@@ -175,6 +183,7 @@ export default function SalesOrderDetail() {
           currency: order!.currency,
           notes: `From Sales Order ${order!.order_number}`,
           sales_order_id: order!.id,
+          autoPost: autoPostInvoice,
           lines: (soLines || []).map((l: any) => ({
             product_id: l.product_id,
             description: l.products?.name || l.description,
@@ -237,6 +246,14 @@ export default function SalesOrderDetail() {
             <Button size="sm" variant="outline" onClick={createDispatchNote}>
               <Truck className="h-4 w-4 mr-1" /> {t("dispatchNotes")}
             </Button>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="autoPost"
+                checked={autoPostInvoice}
+                onCheckedChange={(v) => setAutoPostInvoice(!!v)}
+              />
+              <label htmlFor="autoPost" className="text-sm cursor-pointer">{"Auto-post"}</label>
+            </div>
             <Button size="sm" onClick={createInvoice}>
               <FileText className="h-4 w-4 mr-1" /> {t("createInvoiceFromOrder")}
             </Button>

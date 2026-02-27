@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, TrendingDown, TrendingUp, BookOpen, Loader2 } from "lucide-react";
+import { Plus, TrendingDown, TrendingUp, BookOpen, Loader2, FileSearch } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { format } from "date-fns";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
@@ -57,6 +57,9 @@ export default function CreditDebitNotes() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<NoteForm>(emptyForm);
+  const [invoicePickerOpen, setInvoicePickerOpen] = useState(false);
+  const [selectedInvoiceLines, setSelectedInvoiceLines] = useState<any[]>([]);
+  const [invoiceLineSelections, setInvoiceLineSelections] = useState<Record<number, { selected: boolean; quantity: number }>>({});
 
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-notes", tenantId],
@@ -183,7 +186,75 @@ export default function CreditDebitNotes() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  const openNew = (type: "credit" | "debit") => { setTab(type); setEditId(null); setForm(emptyForm); setDialogOpen(true); };
+  // "Create from Invoice" flow
+  const openFromInvoice = () => { setInvoicePickerOpen(true); };
+
+  const selectInvoiceForCredit = async (inv: any) => {
+    setInvoicePickerOpen(false);
+    // Fetch invoice items
+    const { data: items } = await supabase.from("invoice_items" as any)
+      .select("*, products(name)")
+      .eq("invoice_id", inv.id);
+    const lineItems = (items || []) as any[];
+    setSelectedInvoiceLines(lineItems);
+    const selections: Record<number, { selected: boolean; quantity: number }> = {};
+    lineItems.forEach((item: any, idx: number) => { selections[idx] = { selected: true, quantity: Number(item.quantity) || 1 }; });
+    setInvoiceLineSelections(selections);
+    setTab("credit");
+    setEditId(null);
+    setForm({
+      ...emptyForm,
+      invoice_id: inv.id,
+      partner_id: inv.partner_id || "",
+      amount: Number(inv.total) || 0,
+    });
+    setDialogOpen(true);
+  };
+
+  // Recalculate amount from selected lines
+  const recalcFromLines = (lines: any[], sels: Record<number, { selected: boolean; quantity: number }>) => {
+    let total = 0;
+    lines.forEach((line, idx) => {
+      const sel = sels[idx];
+      if (sel?.selected && sel.quantity > 0) {
+        const lineTotal = sel.quantity * Number(line.unit_price) * (1 + (Number(line.tax_rate) || 0) / 100);
+        total += lineTotal;
+      }
+    });
+    setForm(f => ({ ...f, amount: Math.round(total * 100) / 100 }));
+  };
+
+  // Enhanced save for credit notes with inventory restoration
+  const saveCreditNoteEnhanced = async (f: NoteForm) => {
+    await saveCreditNote.mutateAsync(f);
+    // Restore inventory for credited product lines
+    if (f.status === "issued" && selectedInvoiceLines.length > 0 && tenantId) {
+      for (const [idx, line] of selectedInvoiceLines.entries()) {
+        const sel = invoiceLineSelections[idx];
+        if (sel?.selected && sel.quantity > 0 && line.product_id) {
+          try {
+            // Find a default warehouse for restoration
+            const { data: wh } = await supabase.from("warehouses").select("id").eq("tenant_id", tenantId).limit(1).single();
+            if (wh) {
+              await supabase.rpc("adjust_inventory_stock", {
+                p_tenant_id: tenantId,
+                p_product_id: line.product_id,
+                p_warehouse_id: wh.id,
+                p_quantity: sel.quantity,
+                p_reference: `Credit note ${f.number} - inventory restoration`,
+              });
+            }
+          } catch (e) {
+            console.warn("Inventory restoration failed for product:", line.product_id, e);
+          }
+        }
+      }
+    }
+    setSelectedInvoiceLines([]);
+    setInvoiceLineSelections({});
+  };
+
+  const openNew = (type: "credit" | "debit") => { setTab(type); setEditId(null); setForm(emptyForm); setSelectedInvoiceLines([]); setInvoiceLineSelections({}); setDialogOpen(true); };
   const openEdit = (type: "credit" | "debit", note: any) => {
     setTab(type); setEditId(note.id);
     setForm({
@@ -196,7 +267,15 @@ export default function CreditDebitNotes() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => { if (tab === "credit") saveCreditNote.mutate(form); else saveDebitNote.mutate(form); };
+  const handleSave = () => {
+    if (tab === "credit" && selectedInvoiceLines.length > 0) {
+      saveCreditNoteEnhanced(form);
+    } else if (tab === "credit") {
+      saveCreditNote.mutate(form);
+    } else {
+      saveDebitNote.mutate(form);
+    }
+  };
   const saving = saveCreditNote.isPending || saveDebitNote.isPending;
 
   const renderTable = (items: any[], type: "credit" | "debit", loading: boolean) => (
@@ -237,7 +316,12 @@ export default function CreditDebitNotes() {
             <TabsTrigger value="credit" className="gap-2"><TrendingDown className="h-4 w-4" />{t("creditNotes")}</TabsTrigger>
             <TabsTrigger value="debit" className="gap-2"><TrendingUp className="h-4 w-4" />{t("debitNotes") as string}</TabsTrigger>
           </TabsList>
-          <Button onClick={() => openNew(tab as "credit" | "debit")} size="sm"><Plus className="h-4 w-4 mr-1" />{t("add")}</Button>
+          <div className="flex gap-2">
+            {tab === "credit" && (
+              <Button onClick={openFromInvoice} size="sm" variant="outline"><FileSearch className="h-4 w-4 mr-1" />{"Od fakture"}</Button>
+            )}
+            <Button onClick={() => openNew(tab as "credit" | "debit")} size="sm"><Plus className="h-4 w-4 mr-1" />{t("add")}</Button>
+          </div>
         </div>
         <TabsContent value="credit">{renderTable(creditNotes, "credit", loadingCN)}</TabsContent>
         <TabsContent value="debit">{renderTable(debitNotes, "debit", loadingDN)}</TabsContent>
@@ -286,6 +370,45 @@ export default function CreditDebitNotes() {
             <div className="col-span-2"><Label>{t("reason")}</Label><Textarea value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} rows={2} /></div>
             <div className="col-span-2"><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2} /></div>
           </div>
+          {/* Invoice line item selector */}
+          {tab === "credit" && selectedInvoiceLines.length > 0 && (
+            <div className="space-y-2">
+              <Label>{"Stavke za knjižno odobrenje"}</Label>
+              <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                {selectedInvoiceLines.map((line: any, idx: number) => {
+                  const sel = invoiceLineSelections[idx] || { selected: true, quantity: line.quantity };
+                  return (
+                    <div key={idx} className="flex items-center gap-3 p-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={sel.selected}
+                        onChange={e => {
+                          const updated = { ...invoiceLineSelections, [idx]: { ...sel, selected: e.target.checked } };
+                          setInvoiceLineSelections(updated);
+                          recalcFromLines(selectedInvoiceLines, updated);
+                        }}
+                      />
+                      <span className="flex-1 truncate">{line.products?.name || line.description || "—"}</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={line.quantity}
+                        value={sel.quantity}
+                        onChange={e => {
+                          const val = Math.min(Math.max(1, Number(e.target.value)), line.quantity);
+                          const updated = { ...invoiceLineSelections, [idx]: { ...sel, quantity: val } };
+                          setInvoiceLineSelections(updated);
+                          recalcFromLines(selectedInvoiceLines, updated);
+                        }}
+                        className="w-16 h-7 text-center"
+                      />
+                      <span className="w-24 text-right font-mono">{fmtNum(sel.quantity * Number(line.unit_price))}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {form.amount > 0 && form.status === "issued" && (
             <PostingPreviewPanel lines={buildPreviewLines(tab as "credit" | "debit", form.amount, form.number)} title={t("glPostingPreview")} />
           )}
@@ -296,6 +419,27 @@ export default function CreditDebitNotes() {
               {form.status === "issued" ? t("postEntry") : t("save")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Invoice Picker Dialog */}
+      <Dialog open={invoicePickerOpen} onOpenChange={setInvoicePickerOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{"Izaberi fakturu"}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            {invoices.map((inv: any) => (
+              <div
+                key={inv.id}
+                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => selectInvoiceForCredit(inv)}
+              >
+                <div>
+                  <p className="font-mono text-sm font-medium">{inv.invoice_number}</p>
+                  <p className="text-xs text-muted-foreground">{inv.partner_name || "—"}</p>
+                </div>
+                <span className="font-mono font-medium">{fmtNum(inv.total)}</span>
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
