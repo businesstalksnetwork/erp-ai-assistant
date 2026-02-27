@@ -1,32 +1,40 @@
 
 
-## Add Serbian Vocative Case for Names in Greeting
+## Fix Role Display Names in Role Permissions Page
 
-Serbian grammar requires the **vocative case** (vokativ) when addressing someone directly. For example:
-- Bogdan → Bogdane
-- Marko → Marko (no change)
-- Nikola → Nikola (no change)  
-- Stefan → Stefane
-- Milan → Milane
-- Ana → Ana (no change for most female names)
-
-### Rules for Serbian vocative (masculine names ending in consonant):
-- Names ending in a hard consonant (d, n, l, r, k, g, t, s, z, b, p, m, v) → add **-e**
-  - Bogdan → Bogdane, Milan → Milane, Stefan → Stefane, Petar → Petre
-- Names ending in **-ko, -go** → no change (Marko, Darko stay same)
-- Names ending in **-a** (female or male like Nikola, Luka) → no change
-- Names ending in **-e** → no change (Danijele stays)
-- Special: names ending in **-ar** → **-re** (Petar → Petre)
-- Names ending in **-k** → **-če** (palatalization: k→č): Novak → Novače
+The role dropdown currently shows raw internal values like `Finance_director`, `Hr_manager`, `Sales_manager`. These need proper human-readable labels in both EN and SR.
 
 ### Changes
 
-**`src/components/dashboard/WelcomeHeader.tsx`**
-- Add a `toVocative(name: string)` helper function implementing the rules above
-- When `locale === "sr"`, apply vocative to the first name before displaying
-- When `locale === "en"`, use name as-is
+**`src/i18n/translations.ts`**
+Add translation keys for all tenant roles:
 
-The function will handle the most common Serbian name patterns. It's a best-effort heuristic since perfect vocative requires a dictionary, but the rules cover 90%+ of Serbian first names.
+| Key | EN | SR |
+|-----|----|----|
+| `roleAdmin` | Administrator | Administrator |
+| `roleManager` | Manager | Menadžer |
+| `roleFinanceDirector` | Finance Director | Finansijski direktor |
+| `roleAccountant` | Accountant | Računovođa |
+| `roleHrManager` | HR Manager | HR menadžer |
+| `roleHrStaff` | HR Staff | HR osoblje |
+| `roleSalesManager` | Sales Manager | Menadžer prodaje |
+| `roleSalesRep` | Sales Representative | Prodajni predstavnik |
+| `roleSales` | Sales | Prodaja |
+| `roleHr` | Human Resources | Ljudski resursi |
+| `roleStoreManager` | Store Manager | Menadžer prodavnice |
+| `roleStore` | Store | Prodavnica |
+| `roleCashier` | Cashier | Kasir |
+| `roleWarehouseManager` | Warehouse Manager | Menadžer magacina |
+| `roleWarehouseWorker` | Warehouse Worker | Magacioner |
+| `roleProductionManager` | Production Manager | Menadžer proizvodnje |
+| `roleProductionWorker` | Production Worker | Radnik u proizvodnji |
+| `roleUser` | User | Korisnik |
+| `roleViewer` | Viewer | Pregledač |
 
-Also: move the hardcoded greeting strings (`"Dobro jutro"`, etc.) to translation keys to comply with the i18n enforcement policy.
+**`src/pages/tenant/RolePermissions.tsx`**
+- Add a `ROLE_LABELS` map: `Record<TenantRole, string>` mapping each role to its translation key (e.g., `"admin" → "roleAdmin"`)
+- In the `<SelectItem>` for roles, use `t(ROLE_LABELS[r])` instead of raw `{r}`
+- Same for any other place the role name is displayed on this page
+
+This keeps the internal `value` as the database key while showing proper translated names.
 
