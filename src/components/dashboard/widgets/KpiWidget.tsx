@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { widgetRegistry } from "@/config/widgetRegistry";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -316,7 +317,8 @@ export function KpiWidget({ metricKey, locationId }: Props) {
 
   const Icon = ICON_MAP[metricKey] || DollarSign;
   const border = BORDER_MAP[metricKey] || BORDER_MAP.default;
-  const baseLabel = t(metricKey as any) || metricKey;
+  const registryKey = widgetRegistry[`kpi_${metricKey}`]?.titleKey || metricKey;
+  const baseLabel = t(registryKey as any) || metricKey;
   const label = locationName ? `${baseLabel} · ${locationName}` : baseLabel;
 
   if (isLoading) {
