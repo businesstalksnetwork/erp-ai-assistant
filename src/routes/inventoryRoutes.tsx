@@ -18,6 +18,7 @@ const InternalGoodsReceipts = React.lazy(() => import("@/pages/tenant/InternalGo
 const Kalkulacija = React.lazy(() => import("@/pages/tenant/Kalkulacija"));
 const Nivelacija = React.lazy(() => import("@/pages/tenant/Nivelacija"));
 const RetailPrices = React.lazy(() => import("@/pages/tenant/RetailPrices"));
+const PricingCenter = React.lazy(() => import("@/pages/tenant/PricingCenter"));
 const WarehouseDetail = React.lazy(() => import("@/pages/tenant/WarehouseDetail"));
 const WmsDashboard = React.lazy(() => import("@/pages/tenant/WmsDashboard"));
 const WmsZones = React.lazy(() => import("@/pages/tenant/WmsZones"));
@@ -50,6 +51,7 @@ export const inventoryRoutes = (
     <Route path="inventory/kalkulacija" element={<ProtectedRoute requiredModule={m}><B><Kalkulacija /></B></ProtectedRoute>} />
     <Route path="inventory/nivelacija" element={<ProtectedRoute requiredModule={m}><B><Nivelacija /></B></ProtectedRoute>} />
     <Route path="inventory/retail-prices" element={<ProtectedRoute requiredModule={m}><B><RetailPrices /></B></ProtectedRoute>} />
+    <Route path="inventory/pricing-center" element={<ProtectedRoute requiredModule={m}><B><PricingCenter /></B></ProtectedRoute>} />
     <Route path="inventory/warehouses/:id" element={<ProtectedRoute requiredModule={m}><B><WarehouseDetail /></B></ProtectedRoute>} />
     <Route path="inventory/wms/dashboard" element={<ProtectedRoute requiredModule={m}><B><WmsDashboard /></B></ProtectedRoute>} />
     <Route path="inventory/wms/zones" element={<ProtectedRoute requiredModule={m}><B><WmsZones /></B></ProtectedRoute>} />
