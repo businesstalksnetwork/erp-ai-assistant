@@ -65,6 +65,8 @@ const BusinessPlanning = React.lazy(() => import("@/pages/tenant/BusinessPlannin
 const WorkingCapitalStress = React.lazy(() => import("@/pages/tenant/WorkingCapitalStress"));
 const CustomerRiskScoring = React.lazy(() => import("@/pages/tenant/CustomerRiskScoring"));
 const SupplierDependency = React.lazy(() => import("@/pages/tenant/SupplierDependency"));
+const SupplierEvaluation = React.lazy(() => import("@/pages/tenant/SupplierEvaluation"));
+const DemandForecasting = React.lazy(() => import("@/pages/tenant/DemandForecasting"));
 const MarginBridge = React.lazy(() => import("@/pages/tenant/MarginBridge"));
 const PayrollBenchmark = React.lazy(() => import("@/pages/tenant/PayrollBenchmark"));
 const VatCashTrap = React.lazy(() => import("@/pages/tenant/VatCashTrap"));
@@ -153,6 +155,8 @@ export const analyticsRoutes = (
     <Route path="analytics/working-capital" element={<ProtectedRoute requiredModule="analytics"><B><WorkingCapitalStress /></B></ProtectedRoute>} />
     <Route path="analytics/customer-risk" element={<ProtectedRoute requiredModule="analytics"><B><CustomerRiskScoring /></B></ProtectedRoute>} />
     <Route path="analytics/supplier-risk" element={<ProtectedRoute requiredModule="analytics"><B><SupplierDependency /></B></ProtectedRoute>} />
+    <Route path="analytics/supplier-evaluation" element={<ProtectedRoute requiredModule="analytics"><B><SupplierEvaluation /></B></ProtectedRoute>} />
+    <Route path="analytics/demand-forecast" element={<ProtectedRoute requiredModule="analytics"><B><DemandForecasting /></B></ProtectedRoute>} />
     <Route path="analytics/margin-bridge" element={<ProtectedRoute requiredModule="analytics"><B><MarginBridge /></B></ProtectedRoute>} />
     <Route path="analytics/payroll-benchmark" element={<ProtectedRoute requiredModule="analytics"><B><PayrollBenchmark /></B></ProtectedRoute>} />
     <Route path="analytics/vat-trap" element={<ProtectedRoute requiredModule="analytics"><B><VatCashTrap /></B></ProtectedRoute>} />

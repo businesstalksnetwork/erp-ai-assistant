@@ -4187,6 +4187,72 @@ export type Database = {
           },
         ]
       }
+      demand_forecasts: {
+        Row: {
+          actual_qty: number | null
+          created_at: string
+          forecast_date: string
+          forecast_qty: number | null
+          id: string
+          lead_time_days: number | null
+          method: string | null
+          moving_avg_qty: number | null
+          period_label: string
+          product_id: string
+          reorder_point: number | null
+          safety_stock: number | null
+          seasonal_index: number | null
+          tenant_id: string
+        }
+        Insert: {
+          actual_qty?: number | null
+          created_at?: string
+          forecast_date?: string
+          forecast_qty?: number | null
+          id?: string
+          lead_time_days?: number | null
+          method?: string | null
+          moving_avg_qty?: number | null
+          period_label: string
+          product_id: string
+          reorder_point?: number | null
+          safety_stock?: number | null
+          seasonal_index?: number | null
+          tenant_id: string
+        }
+        Update: {
+          actual_qty?: number | null
+          created_at?: string
+          forecast_date?: string
+          forecast_qty?: number | null
+          id?: string
+          lead_time_days?: number | null
+          method?: string | null
+          moving_avg_qty?: number | null
+          period_label?: string
+          product_id?: string
+          reorder_point?: number | null
+          safety_stock?: number | null
+          seasonal_index?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_forecasts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demand_forecasts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       department_positions: {
         Row: {
           department_id: string
@@ -16258,6 +16324,87 @@ export type Database = {
           },
           {
             foreignKeyName: "sef_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_evaluations: {
+        Row: {
+          created_at: string
+          delivery_score: number | null
+          delivery_weight: number | null
+          evaluated_by: string | null
+          evaluation_date: string
+          id: string
+          notes: string | null
+          partner_id: string
+          period_end: string
+          period_start: string
+          price_score: number | null
+          price_weight: number | null
+          quality_score: number | null
+          quality_weight: number | null
+          service_score: number | null
+          service_weight: number | null
+          tenant_id: string
+          updated_at: string
+          weighted_score: number | null
+        }
+        Insert: {
+          created_at?: string
+          delivery_score?: number | null
+          delivery_weight?: number | null
+          evaluated_by?: string | null
+          evaluation_date?: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          period_end: string
+          period_start: string
+          price_score?: number | null
+          price_weight?: number | null
+          quality_score?: number | null
+          quality_weight?: number | null
+          service_score?: number | null
+          service_weight?: number | null
+          tenant_id: string
+          updated_at?: string
+          weighted_score?: number | null
+        }
+        Update: {
+          created_at?: string
+          delivery_score?: number | null
+          delivery_weight?: number | null
+          evaluated_by?: string | null
+          evaluation_date?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          period_end?: string
+          period_start?: string
+          price_score?: number | null
+          price_weight?: number | null
+          quality_score?: number | null
+          quality_weight?: number | null
+          service_score?: number | null
+          service_weight?: number | null
+          tenant_id?: string
+          updated_at?: string
+          weighted_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_evaluations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_evaluations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
