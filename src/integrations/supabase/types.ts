@@ -3712,6 +3712,95 @@ export type Database = {
           },
         ]
       }
+      data_retention_log: {
+        Row: {
+          action_taken: string
+          entity_id: string
+          entity_type: string
+          executed_at: string
+          executed_by: string | null
+          id: string
+          policy_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          action_taken: string
+          entity_id: string
+          entity_type: string
+          executed_at?: string
+          executed_by?: string | null
+          id?: string
+          policy_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          action_taken?: string
+          entity_id?: string
+          entity_type?: string
+          executed_at?: string
+          executed_by?: string | null
+          id?: string
+          policy_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_retention_log_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "data_retention_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_retention_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_retention_policies: {
+        Row: {
+          action_type: string
+          created_at: string
+          entity_type: string
+          id: string
+          is_active: boolean
+          retention_years: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action_type?: string
+          created_at?: string
+          entity_type: string
+          id?: string
+          is_active?: boolean
+          retention_years?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          retention_years?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_retention_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_subject_requests: {
         Row: {
           completed_at: string | null
@@ -7443,6 +7532,95 @@ export type Database = {
           },
           {
             foreignKeyName: "fleet_vehicles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fx_cash_register: {
+        Row: {
+          amount: number
+          amount_rsd: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          direction: string
+          document_ref: string | null
+          entry_date: string
+          entry_number: string
+          exchange_rate: number
+          id: string
+          journal_entry_id: string | null
+          legal_entity_id: string | null
+          partner_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          amount_rsd?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description: string
+          direction: string
+          document_ref?: string | null
+          entry_date?: string
+          entry_number: string
+          exchange_rate?: number
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          partner_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          amount_rsd?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          direction?: string
+          document_ref?: string | null
+          entry_date?: string
+          entry_number?: string
+          exchange_rate?: number
+          id?: string
+          journal_entry_id?: string | null
+          legal_entity_id?: string | null
+          partner_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_cash_register_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_cash_register_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_cash_register_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fx_cash_register_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -15442,6 +15620,77 @@ export type Database = {
           },
           {
             foreignKeyName: "salespeople_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_incidents: {
+        Row: {
+          affected_data_types: string[] | null
+          affected_records: number | null
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          id: string
+          incident_type: string
+          notification_deadline: string | null
+          notified_at: string | null
+          reported_by: string | null
+          resolved_at: string | null
+          response_notes: string | null
+          severity: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_data_types?: string[] | null
+          affected_records?: number | null
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          incident_type?: string
+          notification_deadline?: string | null
+          notified_at?: string | null
+          reported_by?: string | null
+          resolved_at?: string | null
+          response_notes?: string | null
+          severity?: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_data_types?: string[] | null
+          affected_records?: number | null
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          incident_type?: string
+          notification_deadline?: string | null
+          notified_at?: string | null
+          reported_by?: string | null
+          resolved_at?: string | null
+          response_notes?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_incidents_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

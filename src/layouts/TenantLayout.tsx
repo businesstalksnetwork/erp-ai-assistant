@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -103,6 +103,7 @@ const accountingNav: NavItem[] = [
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
   { key: "documentImport", url: "/accounting/document-import", icon: FileInput },
   { key: "cashRegister", url: "/accounting/cash-register", icon: CreditCard },
+  { key: "fxCashRegister", url: "/accounting/fx-cash-register", icon: Globe },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "iosBalanceConfirmation", url: "/accounting/ios", icon: CheckSquare },
   { key: "expensesOverview", url: "/accounting/expenses", icon: TrendingDown },
@@ -293,6 +294,8 @@ const settingsNav: NavItem[] = [
   { key: "aiAuditLog", url: "/settings/ai-audit-log", icon: Shield },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
   { key: "dataProtection", url: "/settings/data-protection", icon: Shield },
+  { key: "dataRetention", url: "/settings/data-retention", icon: Clock },
+  { key: "securityIncidents", url: "/settings/security-incidents", icon: ShieldAlert },
   { key: "accountingArchitecture", url: "/settings/accounting-architecture", icon: Layers, section: "settingsAdvanced" },
   { key: "legacyImport", url: "/settings/legacy-import", icon: FileInput },
   { key: "dmsSettings", url: "/settings/dms", icon: FolderOpen },

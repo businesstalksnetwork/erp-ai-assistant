@@ -475,6 +475,37 @@ export default function InvoiceForm() {
           }
         }
       }
+
+      // Emit invoice.posted event for stock deduction via event bus
+      const hasProducts = lines.some(l => l.product_id);
+      if (hasProducts) {
+        try {
+          // Get default warehouse for tenant
+          const { data: wh } = await supabase
+            .from("warehouses")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("is_active", true)
+            .limit(1)
+            .single();
+
+          if (wh) {
+            const { data: evt } = await supabase.from("module_events").insert({
+              tenant_id: tenantId,
+              source_module: "invoicing",
+              entity_type: "invoice",
+              event_type: "invoice.posted",
+              entity_id: id,
+              payload: { invoice_number: invoiceNumber, warehouse_id: wh.id },
+            }).select("id").single();
+            if (evt) {
+              await supabase.functions.invoke("process-module-event", { body: { event_id: evt.id } });
+            }
+          }
+        } catch (e) {
+          console.warn("Stock deduction event failed:", e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });

@@ -32,6 +32,7 @@ const RecurringJournals = React.lazy(() => import("@/pages/tenant/RecurringJourn
 const IosBalanceConfirmation = React.lazy(() => import("@/pages/tenant/IosBalanceConfirmation"));
 const CostCenterPL = React.lazy(() => import("@/pages/tenant/CostCenterPL"));
 const CashRegister = React.lazy(() => import("@/pages/tenant/CashRegister"));
+const FxCashRegister = React.lazy(() => import("@/pages/tenant/FxCashRegister"));
 const IntercompanyTransactions = React.lazy(() => import("@/pages/tenant/IntercompanyTransactions"));
 const ConsolidatedStatements = React.lazy(() => import("@/pages/tenant/ConsolidatedStatements"));
 const WithholdingTax = React.lazy(() => import("@/pages/tenant/WithholdingTax"));
@@ -89,6 +90,7 @@ export const accountingRoutes = (
     <Route path="accounting/kompenzacija" element={<ProtectedRoute requiredModule={m}><B><Kompenzacija /></B></ProtectedRoute>} />
     <Route path="accounting/intercompany" element={<ProtectedRoute requiredModule={m}><B><IntercompanyTransactions /></B></ProtectedRoute>} />
     <Route path="accounting/cash-register" element={<ProtectedRoute requiredModule={m}><B><CashRegister /></B></ProtectedRoute>} />
+    <Route path="accounting/fx-cash-register" element={<ProtectedRoute requiredModule={m}><B><FxCashRegister /></B></ProtectedRoute>} />
     <Route path="accounting/recurring-invoices" element={<ProtectedRoute requiredModule={m}><B><RecurringInvoices /></B></ProtectedRoute>} />
     <Route path="accounting/recurring-journals" element={<ProtectedRoute requiredModule={m}><B><RecurringJournals /></B></ProtectedRoute>} />
     <Route path="accounting/statisticki-aneks" element={<ProtectedRoute requiredModule={m}><B><StatistickiAneks /></B></ProtectedRoute>} />

@@ -28,6 +28,8 @@ const PendingApprovals = React.lazy(() => import("@/pages/tenant/PendingApproval
 const Currencies = React.lazy(() => import("@/pages/tenant/Currencies"));
 const EventMonitor = React.lazy(() => import("@/pages/tenant/EventMonitor"));
 const DataProtection = React.lazy(() => import("@/pages/tenant/DataProtection"));
+const DataRetentionPolicies = React.lazy(() => import("@/pages/tenant/DataRetentionPolicies"));
+const SecurityIncidents = React.lazy(() => import("@/pages/tenant/SecurityIncidents"));
 const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
 const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/NotificationCategorySettings"));
 const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHealth"));
@@ -59,6 +61,8 @@ export const settingsRoutes = (
     <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><PageErrorBoundary><Currencies /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><PageErrorBoundary><EventMonitor /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DataProtection /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/data-retention" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DataRetentionPolicies /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/security-incidents" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><SecurityIncidents /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DmsSettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationCategorySettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><PageErrorBoundary><IntegrationHealth /></PageErrorBoundary></ProtectedRoute>} />
