@@ -15348,6 +15348,123 @@ export type Database = {
           },
         ]
       }
+      sef_invoices: {
+        Row: {
+          created_at: string
+          currency: string | null
+          due_date: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          invoice_type: string
+          linked_supplier_invoice_id: string | null
+          raw_payload: Json | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sef_invoice_id: string
+          status: string
+          subtotal: number | null
+          supplier_name: string | null
+          supplier_pib: string | null
+          tax_amount: number | null
+          tenant_id: string
+          total: number | null
+          updated_at: string
+          xml_content: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_type?: string
+          linked_supplier_invoice_id?: string | null
+          raw_payload?: Json | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sef_invoice_id: string
+          status?: string
+          subtotal?: number | null
+          supplier_name?: string | null
+          supplier_pib?: string | null
+          tax_amount?: number | null
+          tenant_id: string
+          total?: number | null
+          updated_at?: string
+          xml_content?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoice_type?: string
+          linked_supplier_invoice_id?: string | null
+          raw_payload?: Json | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sef_invoice_id?: string
+          status?: string
+          subtotal?: number | null
+          supplier_name?: string | null
+          supplier_pib?: string | null
+          tax_amount?: number | null
+          tenant_id?: string
+          total?: number | null
+          updated_at?: string
+          xml_content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sef_invoices_linked_supplier_invoice_id_fkey"
+            columns: ["linked_supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sef_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sef_registry: {
+        Row: {
+          id: string
+          last_updated: string
+          name: string | null
+          pib: string
+          registration_date: string | null
+          status: string | null
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          name?: string | null
+          pib: string
+          registration_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          name?: string | null
+          pib?: string
+          registration_date?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       sef_submissions: {
         Row: {
           error_message: string | null
@@ -17777,6 +17894,19 @@ export type Database = {
       confirm_internal_transfer: {
         Args: { p_transfer_id: string }
         Returns: undefined
+      }
+      consume_fifo_layers: {
+        Args: {
+          p_product_id: string
+          p_quantity: number
+          p_tenant_id: string
+          p_warehouse_id: string
+        }
+        Returns: {
+          consumed_qty: number
+          layer_id: string
+          unit_cost: number
+        }[]
       }
       create_journal_entry_with_lines: {
         Args: {

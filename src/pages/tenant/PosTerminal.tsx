@@ -207,6 +207,26 @@ export default function PosTerminal() {
 
       // Step 3: Only post accounting after successful fiscalization
       if (fiscalized) {
+        // Step 3a: Consume FIFO cost layers for each item
+        const warehouseId = activeSession.warehouse_id;
+        if (warehouseId) {
+          for (const item of cart) {
+            if (item.product_id) {
+              try {
+                await supabase.rpc("consume_fifo_layers", {
+                  p_tenant_id: tenantId,
+                  p_product_id: item.product_id,
+                  p_warehouse_id: warehouseId,
+                  p_quantity: item.quantity,
+                });
+              } catch (e) {
+                console.warn("FIFO layer consumption failed for product:", item.product_id, e);
+              }
+            }
+          }
+        }
+
+        // Step 3b: Post accounting entry
         try {
           await supabase.rpc("process_pos_sale", {
             p_transaction_id: tx.id,

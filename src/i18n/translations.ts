@@ -2005,6 +2005,11 @@ export const translations = {
     pfrConnection: "PFR / eFiskalizacija",
     pfrConnectionDesc: "Fiscal receipt printer connection for POS fiscalization",
     pfrEnvironment: "PFR Environment",
+    incomingEfakture: "Incoming eFakture",
+    incomingEfaktureDesc: "Review and approve/reject incoming purchase invoices from SEF",
+    invoiceAccepted: "Invoice accepted",
+    invoiceRejected: "Invoice rejected",
+    rejectionReason: "Rejection reason",
 
     // PIB lookup (Companies.tsx)
     pibMustBe9Digits: "PIB must be 9 digits",
@@ -4735,6 +4740,11 @@ export const translations = {
     pfrConnection: "PFR / eFiskalizacija",
     pfrConnectionDesc: "Konekcija fiskalnog štampača za POS fiskalizaciju",
     pfrEnvironment: "PFR okruženje",
+    incomingEfakture: "Ulazne eFakture",
+    incomingEfaktureDesc: "Pregled i odobravanje/odbijanje ulaznih faktura sa SEF portala",
+    invoiceAccepted: "Faktura prihvaćena",
+    invoiceRejected: "Faktura odbijena",
+    rejectionReason: "Razlog odbijanja",
 
     // AI Audit Log page (missing SR keys)
     modelVersion: "Model",

@@ -58,6 +58,7 @@ interface InvoiceLine {
   total_with_tax: number;
   sort_order: number;
   product_id: string | null;
+  efaktura_category: string | null;
 }
 
 interface SupplierInfo {
@@ -118,18 +119,23 @@ function buildUblXml(
 
   const taxSubtotals = Array.from(taxGroups.entries())
     .map(
-      ([rate, amounts]) => `
+      ([rate, amounts]) => {
+        // Find a line with this rate to check efaktura_category override
+        const sampleLine = lines.find(l => l.tax_rate_value === rate);
+        const categoryId = sampleLine?.efaktura_category || getTaxCategoryId(rate, isReverseCharge, invoiceDate);
+        return `
       <cac:TaxSubtotal>
         <cbc:TaxableAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.taxable)}</cbc:TaxableAmount>
         <cbc:TaxAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(amounts.tax)}</cbc:TaxAmount>
         <cac:TaxCategory>
-          <cbc:ID>${getTaxCategoryId(rate, isReverseCharge, invoiceDate)}</cbc:ID>
+          <cbc:ID>${categoryId}</cbc:ID>
           <cbc:Percent>${rate}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
           </cac:TaxScheme>
         </cac:TaxCategory>
-      </cac:TaxSubtotal>`
+      </cac:TaxSubtotal>`;
+      }
     )
     .join("");
 
@@ -151,7 +157,7 @@ function buildUblXml(
           : ""
       }
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>${getTaxCategoryId(line.tax_rate_value, isReverseCharge, invoiceDate)}</cbc:ID>
+          <cbc:ID>${line.efaktura_category || getTaxCategoryId(line.tax_rate_value, isReverseCharge, invoiceDate)}</cbc:ID>
           <cbc:Percent>${line.tax_rate_value}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
@@ -473,6 +479,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // SEF Registry PIB validation — warn if buyer not registered
+    const { data: registryEntry } = await supabase
+      .from("sef_registry")
+      .select("pib, status")
+      .eq("pib", buyerPib)
+      .maybeSingle();
+
+    const pib_warning = !registryEntry
+      ? `Buyer PIB ${buyerPib} not found in SEF registry. Invoice may be rejected.`
+      : registryEntry.status !== 'active'
+        ? `Buyer PIB ${buyerPib} is registered but status is '${registryEntry.status}'.`
+        : null;
+
     // Build supplier and buyer info
     const supplierInfo: SupplierInfo = {
       pib: legalEntity.pib,
@@ -522,6 +541,7 @@ Deno.serve(async (req) => {
       total_with_tax: line.total_with_tax,
       sort_order: line.sort_order,
       product_id: line.product_id,
+      efaktura_category: line.efaktura_category || null,
     }));
 
     // Generate UBL 2.1 XML — detect reverse charge from sale_type
@@ -562,7 +582,7 @@ Deno.serve(async (req) => {
       await supabase.from("sef_connections").update({ last_sync_at: new Date().toISOString(), last_error: null }).eq("id", connection.id);
 
       return new Response(
-        JSON.stringify({ success: true, status: "accepted", sef_invoice_id: fakeSefId, simulated: true, format: "UBL2.1" }),
+        JSON.stringify({ success: true, status: "accepted", sef_invoice_id: fakeSefId, simulated: true, format: "UBL2.1", pib_warning }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -608,7 +628,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
           success: true, status: "submitted",
           message: "UBL 2.1 XML uploaded. Poll status endpoint to confirm acceptance.",
-          format: "UBL2.1",
+          format: "UBL2.1", pib_warning,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } else {
         await supabase.from("sef_submissions").update({
