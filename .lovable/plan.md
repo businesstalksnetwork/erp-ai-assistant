@@ -1,97 +1,134 @@
 
 
-## Phase 1: Fix 7 Critical Bugs
+## Phase 2: Fix 15 HIGH Bugs
 
-After verification, **DB-CRIT-1** (RLS `USING(true)`) is already fixed — policies now use `get_user_tenant_ids()`. That leaves 7 bugs to fix.
+Based on audit PRD verification against the codebase, here are the confirmed issues and fixes.
 
-### Bug 1: CR-CRIT-1 — Posting Engine passes UUID where account code expected
+### Bug 1: CR-HIGH-1 — Credit note GL reversal ignores VAT
 
-**File:** `src/lib/journalUtils.ts` — add `findAccountById()` function
-**File:** `src/lib/postingRuleEngine.ts` line 201 — change `findAccountByCode` to `findAccountById`
+**File:** `src/pages/tenant/Returns.tsx` lines 322-325
 
+The credit note fallback lines only reverse revenue (6000) and AR (2040) but ignore VAT. If the original invoice had VAT, the credit note must also reverse the output VAT line.
+
+**Fix:** Add a third fallback line for output VAT reversal. Since credit notes currently lack line-item detail (no tax_rate stored), add a `tax_amount` field to the credit note form, and include a VAT reversal line when > 0:
 ```typescript
-// journalUtils.ts — new function
-export async function findAccountById(tenantId: string, accountId: string) {
-  const { data } = await supabase
-    .from("chart_of_accounts")
-    .select("id, code, name")
-    .eq("tenant_id", tenantId)
-    .eq("id", accountId)
-    .eq("is_active", true)
-    .single();
-  return data;
-}
+fallbackLines: [
+  { accountCode: "6000", debit: f.amount - (f.tax_amount || 0), credit: 0, ... },
+  { accountCode: "4700", debit: f.tax_amount || 0, credit: 0, ... },  // Reverse output VAT
+  { accountCode: "2040", debit: 0, credit: f.amount, ... },
+]
 ```
 
-### Bug 2: CR-CRIT-2 — Hardcoded Supabase URLs (7 locations, 4 files)
+### Bug 2: CR-HIGH-2 — Credit note does not restore inventory
 
-Replace all `https://hfvoehsrsimvgyyxirwj.supabase.co` with `` `${import.meta.env.VITE_SUPABASE_URL}` `` in:
-- `CreateTenantWizard.tsx` line 51
-- `Payroll.tsx` lines 258, 274, 290
-- `PayrollRunDetail.tsx` lines 135, 151
-- `EmployeeDetail.tsx` line 327
+**File:** `src/pages/tenant/Returns.tsx` — credit note mutation (line 312-326)
 
-### Bug 3: CR-CRIT-3 — POS unlimited re-refunds
+When a credit note is issued, there's no inventory restoration. The return case resolution does restock, but issuing a standalone credit note from an invoice skips it.
 
-**File:** `PosTerminal.tsx` `openRefundDialog` function (line 202)
+**Fix:** After GL posting, if `f.invoice_id` exists, fetch invoice lines with product quantities, and call `adjust_inventory_stock` for each product item to restore stock.
 
-Query prior refunds for `original_transaction_id`, sum already-refunded quantities per item name, subtract from `maxQuantity`. If no items remain, show toast and return.
+### Bug 3: CR-HIGH-3 — Payroll posting missing legalEntityId
 
-### Bug 4: CR-CRIT-4 — POS double-counts VAT on retail prices
+**Files:** `src/pages/tenant/Payroll.tsx` lines 189-210, `src/pages/tenant/PayrollRunDetail.tsx` lines 81-114
 
-**File:** `PosTerminal.tsx` lines 197-199 (sale) and 229-231 (refund)
+All 4 `postWithRuleOrFallback` calls in payroll omit `legalEntityId`. Multi-PIB tenants get journal entries that can't be filtered by legal entity.
 
-Change from adding tax on top to extracting tax from inclusive price:
-```typescript
-// Sale calculation (lines 197-199)
-const total = cart.reduce((s, c) => s + c.unit_price * c.quantity, 0);
-const taxAmount = cart.reduce((s, c) => s + (c.unit_price * c.quantity * c.tax_rate) / (100 + c.tax_rate), 0);
-const subtotal = total - taxAmount;
+**Fix:** Fetch `legal_entity_id` from the payroll run record and pass it to all `postWithRuleOrFallback` calls.
 
-// Same fix for refund calculation (lines 229-231)
-```
+### Bug 4: CR-HIGH-4 — XML injection in SEF UBL generation
 
-### Bug 5: INTER-CRIT-1 — Invoice posts even if inventory deduction fails
+**File:** `supabase/functions/sef-send-invoice/index.ts` lines 140, 153, 160, 649, 662, 669
 
-**File:** `InvoiceForm.tsx` line 546
+`client_pib`, `client_maticni_broj`, and `company.maticni_broj` are interpolated into XML without `escapeXml()`. A PIB containing `<` or `&` would produce malformed XML or enable injection.
 
-Change `console.warn` to re-throw the error so the mutation fails and the user sees a toast. The invoice remains in its current status.
+**Fix:** Wrap all unescaped interpolations with `escapeXml()`:
+- Line 140: `${escapeXml(invoice.client_pib)}`
+- Line 153: `${escapeXml(...)}`
+- Line 160: `${escapeXml(invoice.client_maticni_broj)}`
+- Line 133: `${escapeXml(company.maticni_broj)}`
+- Same for credit note XML (lines 649-669)
 
-### Bug 6: INTER-CRIT-2 — Production module has zero inventory/GL integration
+### Bug 5: CR-HIGH-5 — No ActionGuard on mutation buttons
 
-**Database:** Create `complete_production_order` RPC that:
-1. Deducts BOM component stock via `adjust_inventory_stock`
-2. Adds finished goods to stock
-3. Updates production order status, actual_quantity, actual_end_date
-4. Creates GL entry via posting rules engine (DR Finished Goods / CR WIP)
+`ActionGuard` component exists but is never used anywhere in the app. All create/edit/delete buttons are visible to all roles regardless of permissions.
 
-**File:** `ProductionOrderDetail.tsx` — call the new RPC instead of just updating status
+**Fix:** Add `ActionGuard` wrapping to key mutation buttons across major pages:
+- Invoices: create/delete buttons → `ActionGuard module="accounting" action="create/delete"`
+- Sales orders/quotes: create buttons → `ActionGuard module="sales" action="create"`
+- HR employees: create/edit → `ActionGuard module="hr" action="create/edit"`
+- Inventory products: create → `ActionGuard module="inventory" action="create"`
+- POS terminal: refund → `ActionGuard module="pos" action="delete"`
+- Settings pages: add/edit buttons → appropriate guards
 
-### Bug 7: DB-CRIT-2 — journal_lines missing tenant_id
+This is a broad change touching ~15 pages. Focus on the highest-risk actions first (delete, approve).
 
-**Database migration:**
-1. Add `tenant_id UUID REFERENCES tenants(id)` column
-2. Backfill from `journal_entries`
-3. Set NOT NULL
-4. Add index `idx_journal_lines_tenant`
-5. Update RLS policies to use direct column
+### Bug 6: CR-HIGH-6 — Payroll payment uses same model code as accrual
+
+**File:** `src/pages/tenant/Payroll.tsx` line 223, `PayrollRunDetail.tsx` line 106
+
+Payment posting uses `modelCode: "PAYROLL_NET"` — same as the accrual posting. If a tenant configures a posting rule for PAYROLL_NET, the same rule fires for both accrual and payment, which are different GL entries.
+
+**Fix:** Change payment model code to `"PAYROLL_PAYMENT"` in both files.
+
+### Bug 7: CR-HIGH-7 — Credit note form lacks tax_amount field
+
+**File:** `src/pages/tenant/Returns.tsx`
+
+The `CreditNoteForm` interface has no `tax_amount` field. Without it, Bug 1 can't be properly fixed — we need a way to specify how much VAT is being reversed.
+
+**Fix:** Add `tax_amount: number` to `CreditNoteForm`, add an input field in the dialog, default to 0.
+
+### Bug 8: CR-HIGH-8 — Return case restock uses first warehouse blindly
+
+**File:** `src/pages/tenant/Returns.tsx` line 169
+
+`const defaultWarehouse = warehouses[0]` — picks the first warehouse alphabetically, not the warehouse the items were shipped from. Could restock wrong location.
+
+**Fix:** If the return case has a linked invoice/sales order, look up the dispatch warehouse. Fall back to first warehouse only if none found.
+
+### Bug 9: CR-HIGH-9 — Payroll run detail doesn't save journal_entry_id
+
+**File:** `src/pages/tenant/PayrollRunDetail.tsx` lines 81-119
+
+The `postWithRuleOrFallback` calls return journal entry IDs but they're not saved back to `payroll_runs`. The main `Payroll.tsx` does save them, but `PayrollRunDetail.tsx` doesn't.
+
+**Fix:** Capture return values from `postWithRuleOrFallback` and include `journal_entry_id`, `employer_journal_entry_id`, `payment_journal_entry_id` in the update.
+
+### Bug 10: CR-HIGH-10 — escapeXml doesn't handle null/undefined safely for non-string inputs
+
+**File:** `supabase/functions/sef-send-invoice/index.ts` line 206
+
+`escapeXml` checks `if (!str)` which handles empty string but numeric 0 or boolean false would also return empty. Low risk for current usage but should be hardened.
+
+**Fix:** Change to `if (str == null) return '';` then `return String(str).replace(...)`.
+
+### Bugs 11-15: Additional HIGH items
+
+**Bug 11:** `ai/briefing` route has no `ProtectedRoute` wrapper — any authenticated user can access regardless of role (line 188 in otherRoutes.tsx)
+
+**Bug 12:** Profile route has no `ProtectedRoute` — accessible without authentication check at route level (relies on layout, but inconsistent)
+
+**Bug 13:** Settings pages missing granular `requiredAction` — all settings routes use `requiredModule` with default "view" action, even for pages that perform writes
+
+**Bug 14:** `PayrollRunDetail.tsx` duplicates the entire posting logic from `Payroll.tsx` — DRY violation creating divergence risk (refactor to shared function)
+
+**Bug 15:** Credit note `open_items` update doesn't handle case where credit amount exceeds remaining — `Math.max(0)` prevents negative but doesn't warn user
 
 ### Execution Order
-1. DB migration (Bug 7 — journal_lines tenant_id)
-2. DB migration (Bug 6 — complete_production_order RPC)
-3. Code fixes: Bugs 1, 2, 3, 4, 5, 6 (all client-side changes)
+1. SEF XML injection fix (Bug 4) — deploy edge function
+2. Payroll fixes (Bugs 3, 6, 9, 14) — code changes
+3. Credit note GL + inventory (Bugs 1, 2, 7) — code changes
+4. ActionGuard rollout (Bug 5) — broad UI changes
+5. Route protection fixes (Bugs 11, 12) — quick route changes
+6. Minor fixes (Bugs 8, 10, 13, 15)
 
 ### Files Modified
 | File | Bugs |
 |------|------|
-| `src/lib/journalUtils.ts` | 1 |
-| `src/lib/postingRuleEngine.ts` | 1 |
-| `src/components/super-admin/CreateTenantWizard.tsx` | 2 |
-| `src/pages/tenant/Payroll.tsx` | 2 |
-| `src/pages/tenant/PayrollRunDetail.tsx` | 2 |
-| `src/pages/tenant/EmployeeDetail.tsx` | 2 |
-| `src/pages/tenant/PosTerminal.tsx` | 3, 4 |
-| `src/pages/tenant/InvoiceForm.tsx` | 5 |
-| `src/pages/tenant/ProductionOrderDetail.tsx` | 6 |
-| 2 database migrations | 6, 7 |
+| `supabase/functions/sef-send-invoice/index.ts` | 4, 10 |
+| `src/pages/tenant/Returns.tsx` | 1, 2, 7, 8, 15 |
+| `src/pages/tenant/Payroll.tsx` | 3, 6 |
+| `src/pages/tenant/PayrollRunDetail.tsx` | 3, 6, 9, 14 |
+| `src/routes/otherRoutes.tsx` | 11, 12 |
+| ~15 pages for ActionGuard | 5 |
 
