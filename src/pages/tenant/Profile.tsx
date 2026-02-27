@@ -64,7 +64,7 @@ export default function Profile() {
       if (!tenantId || !user) return null;
       const { data } = await supabase
         .from("employees")
-        .select("*, departments!employees_department_id_fkey(name), locations(name)")
+        .select("*, departments!employees_department_id_fkey(name), locations(name), manager:employees!employees_manager_id_fkey(full_name)")
         .eq("tenant_id", tenantId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -182,6 +182,7 @@ export default function Profile() {
                   employee={myEmployee}
                   departmentName={(myEmployee as any).departments?.name}
                   locationName={(myEmployee as any).locations?.name}
+                  managerName={(myEmployee as any).manager?.full_name}
                 />
                 <div className="space-y-6">
                   <ProfileLeaveCard

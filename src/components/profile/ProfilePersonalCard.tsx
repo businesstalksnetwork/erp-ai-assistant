@@ -7,9 +7,10 @@ interface Props {
   employee: any;
   departmentName?: string;
   locationName?: string;
+  managerName?: string;
 }
 
-export function ProfilePersonalCard({ employee, departmentName, locationName }: Props) {
+export function ProfilePersonalCard({ employee, departmentName, locationName, managerName }: Props) {
   const { t } = useLanguage();
 
   const maskJmbg = (jmbg: string | null) => {
@@ -28,6 +29,7 @@ export function ProfilePersonalCard({ employee, departmentName, locationName }: 
     [t("profileLocation" as any), locationName],
     [t("profileEmploymentType" as any), employee.employment_type],
     [t("profileDailyHours" as any), employee.daily_work_hours ? `${employee.daily_work_hours}h` : null],
+    ["Manager", managerName],
   ];
 
   return (

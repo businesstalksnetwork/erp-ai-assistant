@@ -11,7 +11,14 @@ import { toast } from "@/components/ui/sonner";
 import { RefreshCw, Save, RotateCcw } from "lucide-react";
 import type { TenantRole } from "@/config/rolePermissions";
 
-const ROLES: TenantRole[] = ["admin", "manager", "accountant", "sales", "hr", "store", "user"];
+const ROLES: TenantRole[] = [
+  "admin", "manager", "finance_director", "accountant",
+  "hr_manager", "hr_staff", "sales_manager", "sales_rep", "sales", "hr",
+  "store_manager", "store", "cashier",
+  "warehouse_manager", "warehouse_worker",
+  "production_manager", "production_worker",
+  "user", "viewer",
+];
 const MODULES = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory",
   "accounting", "analytics", "hr", "production", "documents",
@@ -206,11 +213,23 @@ function getDefaultModules(role: TenantRole): string[] {
   const map: Record<string, string[]> = {
     admin: MODULES,
     manager: ["dashboard", "crm", "sales", "web", "purchasing", "inventory", "returns", "production", "documents", "pos", "analytics", "assets", "settings"],
+    finance_director: ["dashboard", "accounting", "analytics", "assets", "settings"],
     accountant: ["dashboard", "accounting", "analytics", "assets", "settings"],
+    hr_manager: ["dashboard", "hr", "documents", "analytics", "settings"],
+    hr_staff: ["dashboard", "hr", "documents"],
+    sales_manager: ["dashboard", "crm", "sales", "web", "inventory", "documents", "analytics"],
+    sales_rep: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
     sales: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
     hr: ["dashboard", "hr", "documents"],
+    store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "analytics"],
     store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets"],
+    cashier: ["dashboard", "pos"],
+    warehouse_manager: ["dashboard", "inventory", "purchasing", "returns", "assets"],
+    warehouse_worker: ["dashboard", "inventory", "returns"],
+    production_manager: ["dashboard", "production", "inventory", "documents", "analytics"],
+    production_worker: ["dashboard", "production", "inventory"],
     user: ["dashboard", "documents", "pos"],
+    viewer: ["dashboard"],
   };
   return map[role] || ["dashboard"];
 }

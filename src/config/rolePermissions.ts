@@ -1,4 +1,11 @@
-export type TenantRole = "admin" | "manager" | "accountant" | "sales" | "hr" | "store" | "user";
+export type TenantRole =
+  | "admin" | "manager" | "accountant" | "sales" | "hr" | "store" | "user"
+  | "finance_director" | "hr_manager" | "hr_staff"
+  | "sales_manager" | "sales_rep"
+  | "store_manager" | "cashier"
+  | "warehouse_manager" | "warehouse_worker"
+  | "production_manager" | "production_worker"
+  | "viewer";
 
 export type ModuleGroup =
   | "dashboard"
@@ -36,19 +43,34 @@ const ALL_MODULES: ModuleGroup[] = [
 ];
 
 export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
-  admin: ALL_MODULES,  // includes settings-role-permissions
+  admin: ALL_MODULES,
   manager: [
     "dashboard", "crm", "sales", "web", "purchasing", "inventory", "returns",
     "production", "documents", "pos", "analytics", "assets", "settings",
+  ],
+  finance_director: [
+    "dashboard", "accounting", "analytics", "assets", "settings",
+    "settings-tax-rates", "settings-currencies", "settings-audit-log",
   ],
   accountant: [
     "dashboard", "accounting", "analytics", "assets", "settings",
     "settings-tax-rates", "settings-currencies",
   ],
+  hr_manager: ["dashboard", "hr", "documents", "analytics", "settings"],
+  hr_staff: ["dashboard", "hr", "documents"],
+  sales_manager: ["dashboard", "crm", "sales", "web", "inventory", "documents", "analytics"],
+  sales_rep: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
   sales: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
   hr: ["dashboard", "hr", "documents"],
+  store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "analytics"],
   store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets"],
+  cashier: ["dashboard", "pos"],
+  warehouse_manager: ["dashboard", "inventory", "purchasing", "returns", "assets"],
+  warehouse_worker: ["dashboard", "inventory", "returns"],
+  production_manager: ["dashboard", "production", "inventory", "documents", "analytics"],
+  production_worker: ["dashboard", "production", "inventory"],
   user: ["dashboard", "documents", "pos"],
+  viewer: ["dashboard"],
 };
 
 /** Map route prefixes to module groups */

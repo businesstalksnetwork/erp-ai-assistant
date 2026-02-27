@@ -5954,6 +5954,55 @@ export type Database = {
           },
         ]
       }
+      employee_locations: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_primary: boolean
+          location_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_primary?: boolean
+          location_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_primary?: boolean
+          location_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_locations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_locations_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_onboarding_tasks: {
         Row: {
           checklist_id: string
@@ -6092,7 +6141,9 @@ export type Database = {
           jmbg: string | null
           last_name: string | null
           location_id: string | null
+          manager_id: string | null
           municipal_tax_rate: number | null
+          org_level: number
           payroll_category_id: string | null
           phone: string | null
           pib: string | null
@@ -6133,7 +6184,9 @@ export type Database = {
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
+          manager_id?: string | null
           municipal_tax_rate?: number | null
+          org_level?: number
           payroll_category_id?: string | null
           phone?: string | null
           pib?: string | null
@@ -6174,7 +6227,9 @@ export type Database = {
           jmbg?: string | null
           last_name?: string | null
           location_id?: string | null
+          manager_id?: string | null
           municipal_tax_rate?: number | null
+          org_level?: number
           payroll_category_id?: string | null
           phone?: string | null
           pib?: string | null
@@ -6210,6 +6265,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -20144,6 +20206,110 @@ export type Database = {
         Args: { p_fiscal_year: number; p_tenant_id: string }
         Returns: number
       }
+      get_all_subordinates: {
+        Args: { p_manager_id: string }
+        Returns: {
+          address: string | null
+          annual_leave_days: number
+          anonymized_at: string | null
+          bank_account_iban: string | null
+          bank_name: string | null
+          city: string | null
+          company_id: string | null
+          created_at: string
+          daily_work_hours: number
+          data_retention_expiry: string | null
+          department_id: string | null
+          early_termination_date: string | null
+          email: string | null
+          employment_type: Database["public"]["Enums"]["employment_type"]
+          end_date: string | null
+          first_name: string | null
+          full_name: string
+          hire_date: string | null
+          id: string
+          is_archived: boolean
+          is_ghost: boolean | null
+          jmbg: string | null
+          last_name: string | null
+          location_id: string | null
+          manager_id: string | null
+          municipal_tax_rate: number | null
+          org_level: number
+          payroll_category_id: string | null
+          phone: string | null
+          pib: string | null
+          position: string | null
+          position_template_id: string | null
+          recipient_code: string | null
+          recipient_type_code: string | null
+          slava_date: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["employee_status"]
+          tenant_id: string
+          termination_date: string | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "employees"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_direct_reports: {
+        Args: { p_manager_id: string }
+        Returns: {
+          address: string | null
+          annual_leave_days: number
+          anonymized_at: string | null
+          bank_account_iban: string | null
+          bank_name: string | null
+          city: string | null
+          company_id: string | null
+          created_at: string
+          daily_work_hours: number
+          data_retention_expiry: string | null
+          department_id: string | null
+          early_termination_date: string | null
+          email: string | null
+          employment_type: Database["public"]["Enums"]["employment_type"]
+          end_date: string | null
+          first_name: string | null
+          full_name: string
+          hire_date: string | null
+          id: string
+          is_archived: boolean
+          is_ghost: boolean | null
+          jmbg: string | null
+          last_name: string | null
+          location_id: string | null
+          manager_id: string | null
+          municipal_tax_rate: number | null
+          org_level: number
+          payroll_category_id: string | null
+          phone: string | null
+          pib: string | null
+          position: string | null
+          position_template_id: string | null
+          recipient_code: string | null
+          recipient_type_code: string | null
+          slava_date: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["employee_status"]
+          tenant_id: string
+          termination_date: string | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "employees"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_member_data_scope: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: string
@@ -20291,6 +20457,18 @@ export type Database = {
         | "hr"
         | "user"
         | "store"
+        | "finance_director"
+        | "hr_manager"
+        | "hr_staff"
+        | "sales_manager"
+        | "sales_rep"
+        | "store_manager"
+        | "cashier"
+        | "warehouse_manager"
+        | "warehouse_worker"
+        | "production_manager"
+        | "production_worker"
+        | "viewer"
       attendance_status:
         | "present"
         | "absent"
@@ -20487,6 +20665,18 @@ export const Constants = {
         "hr",
         "user",
         "store",
+        "finance_director",
+        "hr_manager",
+        "hr_staff",
+        "sales_manager",
+        "sales_rep",
+        "store_manager",
+        "cashier",
+        "warehouse_manager",
+        "warehouse_worker",
+        "production_manager",
+        "production_worker",
+        "viewer",
       ],
       attendance_status: [
         "present",
