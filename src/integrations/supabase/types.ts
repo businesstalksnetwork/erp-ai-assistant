@@ -9932,6 +9932,60 @@ export type Database = {
           },
         ]
       }
+      m4_reports: {
+        Row: {
+          created_at: string
+          generated_data: Json | null
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          report_year: number
+          status: string
+          tenant_id: string
+          updated_at: string
+          xml_data: string | null
+        }
+        Insert: {
+          created_at?: string
+          generated_data?: Json | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          report_year: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          xml_data?: string | null
+        }
+        Update: {
+          created_at?: string
+          generated_data?: Json | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          report_year?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          xml_data?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "m4_reports_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "m4_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_participants: {
         Row: {
           company_id: string | null
@@ -10690,6 +10744,94 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      od_o_reports: {
+        Row: {
+          created_at: string
+          employee_id: string
+          gross_amount: number
+          health_amount: number
+          id: string
+          income_type: string
+          legal_entity_id: string | null
+          net_amount: number
+          notes: string | null
+          period_month: number
+          period_year: number
+          pio_amount: number
+          status: string
+          tax_amount: number
+          tax_base: number
+          tenant_id: string
+          unemployment_amount: number
+          updated_at: string
+          xml_data: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          gross_amount?: number
+          health_amount?: number
+          id?: string
+          income_type?: string
+          legal_entity_id?: string | null
+          net_amount?: number
+          notes?: string | null
+          period_month: number
+          period_year: number
+          pio_amount?: number
+          status?: string
+          tax_amount?: number
+          tax_base?: number
+          tenant_id: string
+          unemployment_amount?: number
+          updated_at?: string
+          xml_data?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          gross_amount?: number
+          health_amount?: number
+          id?: string
+          income_type?: string
+          legal_entity_id?: string | null
+          net_amount?: number
+          notes?: string | null
+          period_month?: number
+          period_year?: number
+          pio_amount?: number
+          status?: string
+          tax_amount?: number
+          tax_base?: number
+          tenant_id?: string
+          unemployment_amount?: number
+          updated_at?: string
+          xml_data?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "od_o_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "od_o_reports_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "od_o_reports_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

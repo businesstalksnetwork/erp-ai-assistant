@@ -48,6 +48,8 @@ const ProformaInvoices = React.lazy(() => import("@/pages/tenant/ProformaInvoice
 const InvoiceRegister = React.lazy(() => import("@/pages/tenant/InvoiceRegister"));
 const PK1Book = React.lazy(() => import("@/pages/tenant/reports/PK1Book"));
 const PPPPO = React.lazy(() => import("@/pages/tenant/reports/PPPPO"));
+const OdOForm = React.lazy(() => import("@/pages/tenant/reports/OdOForm"));
+const M4Report = React.lazy(() => import("@/pages/tenant/reports/M4Report"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -100,5 +102,7 @@ export const accountingRoutes = (
     <Route path="accounting/invoice-register" element={<ProtectedRoute requiredModule={m}><B><InvoiceRegister /></B></ProtectedRoute>} />
     <Route path="accounting/reports/pk1-book" element={<ProtectedRoute requiredModule={m}><B><PK1Book /></B></ProtectedRoute>} />
     <Route path="accounting/reports/ppp-po" element={<ProtectedRoute requiredModule={m}><B><PPPPO /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/od-o" element={<ProtectedRoute requiredModule={m}><B><OdOForm /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/m4" element={<ProtectedRoute requiredModule={m}><B><M4Report /></B></ProtectedRoute>} />
   </>
 );

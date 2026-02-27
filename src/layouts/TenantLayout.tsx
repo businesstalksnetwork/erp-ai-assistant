@@ -129,6 +129,8 @@ const accountingNav: NavItem[] = [
   { key: "kpoBook", url: "/accounting/kpo-book", icon: BookText },
   { key: "pk1Book", url: "/accounting/reports/pk1-book", icon: BookText },
   { key: "ppppo", url: "/accounting/reports/ppp-po", icon: FileSpreadsheet },
+  { key: "odO", url: "/accounting/reports/od-o", icon: FileText },
+  { key: "m4Report", url: "/accounting/reports/m4", icon: FileSpreadsheet },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
 ];
 

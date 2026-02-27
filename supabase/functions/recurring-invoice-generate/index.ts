@@ -5,11 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Recurring Invoice Generator
- * Triggered by cron schedule or manual invocation.
- * Processes all active recurring_invoices where next_run_date <= today.
- */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -21,7 +16,6 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().split("T")[0];
 
-    // Fetch all active templates due today or earlier
     const { data: templates, error: fetchErr } = await supabase
       .from("recurring_invoices")
       .select("*")
@@ -40,7 +34,6 @@ Deno.serve(async (req) => {
 
     for (const tpl of templates) {
       try {
-        // Generate invoice number
         const { count } = await supabase
           .from("invoices")
           .select("id", { count: "exact", head: true })
@@ -48,8 +41,30 @@ Deno.serve(async (req) => {
         const seq = (count ?? 0) + 1;
         const invoiceNumber = `REC-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`;
 
-        // Create invoice from template
-        const { error: insertErr } = await supabase.from("invoices").insert({
+        // Parse template lines
+        let lines: any[] = [];
+        if (tpl.lines) {
+          try {
+            lines = typeof tpl.lines === "string" ? JSON.parse(tpl.lines) : tpl.lines;
+            if (!Array.isArray(lines)) lines = [];
+          } catch { lines = []; }
+        }
+
+        // Calculate totals from lines
+        let subtotal = 0;
+        let taxAmount = 0;
+        for (const line of lines) {
+          const qty = Number(line.quantity) || 0;
+          const price = Number(line.unit_price) || 0;
+          const lineTotal = qty * price;
+          const rate = Number(line.tax_rate) || 0;
+          subtotal += lineTotal;
+          taxAmount += lineTotal * (rate / 100);
+        }
+        const total = subtotal + taxAmount;
+
+        // Create invoice header
+        const { data: invoice, error: insertErr } = await supabase.from("invoices").insert({
           tenant_id: tpl.tenant_id,
           invoice_number: invoiceNumber,
           partner_id: tpl.partner_id || null,
@@ -60,16 +75,38 @@ Deno.serve(async (req) => {
           currency: tpl.currency || "RSD",
           status: tpl.auto_post ? "sent" : "draft",
           notes: `Auto-generated from template: ${tpl.template_name}`,
-          subtotal: 0,
-          tax_amount: 0,
-          total: 0,
-        });
+          subtotal,
+          tax_amount: taxAmount,
+          total,
+        }).select("id").single();
         if (insertErr) throw insertErr;
+
+        // Insert invoice lines
+        if (lines.length > 0 && invoice) {
+          const invoiceLines = lines.map((line: any, idx: number) => {
+            const qty = Number(line.quantity) || 0;
+            const price = Number(line.unit_price) || 0;
+            const lineTotal = qty * price;
+            const rate = Number(line.tax_rate) || 0;
+            const lineTax = lineTotal * (rate / 100);
+            return {
+              invoice_id: invoice.id,
+              description: line.description || "",
+              quantity: qty,
+              unit_price: price,
+              tax_rate_value: rate,
+              line_total: lineTotal,
+              tax_amount: lineTax,
+              total_with_tax: lineTotal + lineTax,
+              sort_order: idx + 1,
+            };
+          });
+          const { error: linesErr } = await supabase.from("invoice_lines").insert(invoiceLines);
+          if (linesErr) console.error("Failed to insert invoice lines:", linesErr);
+        }
 
         // Advance next_run_date
         const nextDate = computeNextDate(tpl.next_run_date, tpl.frequency);
-
-        // Check if template should be deactivated (past end_date)
         const isExpired = tpl.end_date && nextDate > tpl.end_date;
 
         await supabase.from("recurring_invoices").update({
