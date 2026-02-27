@@ -2964,6 +2964,8 @@ export const translations = {
     activeLeads: "Active Leads",
     todaySalesCount: "Today's Sales",
     todaySalesTotal: "Today's Revenue",
+    todaySales: "Today's Sales",
+    lowStock: "Low Stock",
     // Dashboard widgets
     customize: "Customize",
     addWidget: "Add Widget",
@@ -5901,6 +5903,8 @@ export const translations = {
     activeLeads: "Aktivni lidovi",
     todaySalesCount: "Današnja prodaja",
     todaySalesTotal: "Današnji prihod",
+    todaySales: "Današnja prodaja",
+    lowStock: "Niske zalihe",
     // Dashboard widgets
     customize: "Prilagodi",
     addWidget: "Dodaj widget",
