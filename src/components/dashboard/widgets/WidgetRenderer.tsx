@@ -14,6 +14,11 @@ const PayrollCostWidget = React.lazy(() => import("@/components/dashboard/Payrol
 import { KpiWidget } from "@/components/dashboard/widgets/KpiWidget";
 import { PendingActionsWidget } from "@/components/dashboard/widgets/PendingActionsWidget";
 import { QuickActionsWidget } from "@/components/dashboard/widgets/QuickActionsWidget";
+import { PersonalTasksWidget } from "@/components/dashboard/widgets/PersonalTasksWidget";
+import { DailyTasksWidget } from "@/components/dashboard/widgets/DailyTasksWidget";
+
+// Lazy loaded
+const AiBriefingWidget = React.lazy(() => import("@/components/dashboard/widgets/AiBriefingWidget").then(m => ({ default: m.AiBriefingWidget })));
 
 // KPI metric key extraction from widget_id (e.g. "kpi_revenue" -> "revenue")
 const KPI_PREFIX = "kpi_";
@@ -58,6 +63,12 @@ export function WidgetRenderer({ widgetConfig }: Props) {
       return <KpiWidget metricKey="leave_pending" />;
     case "leave_balance":
       return <KpiWidget metricKey="attendance" />;
+    case "ai_briefing":
+      return tenantId ? <Suspense fallback={fallback}><AiBriefingWidget tenantId={tenantId} /></Suspense> : null;
+    case "personal_tasks":
+      return <PersonalTasksWidget />;
+    case "daily_tasks":
+      return <DailyTasksWidget />;
     default:
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4">

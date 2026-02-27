@@ -18625,6 +18625,47 @@ export type Database = {
           },
         ]
       }
+      user_daily_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean
+          sort_order: number
+          task_date: string
+          tenant_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          sort_order?: number
+          task_date?: string
+          tenant_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          sort_order?: number
+          task_date?: string
+          tenant_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_daily_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -18642,6 +18683,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          due_time: string | null
+          id: string
+          is_completed: boolean
+          linked_entity_id: string | null
+          linked_entity_type: string | null
+          priority: string
+          reminder_at: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          is_completed?: boolean
+          linked_entity_id?: string | null
+          linked_entity_type?: string | null
+          priority?: string
+          reminder_at?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          is_completed?: boolean
+          linked_entity_id?: string | null
+          linked_entity_type?: string | null
+          priority?: string
+          reminder_at?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       voucher_types: {
         Row: {

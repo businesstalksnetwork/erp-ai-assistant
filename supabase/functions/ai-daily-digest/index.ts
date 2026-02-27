@@ -6,7 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Role → allowed digest sections mapping
 const ROLE_SECTIONS: Record<string, string[]> = {
   admin: ["invoices", "journals", "pos", "purchasing", "payroll", "stock", "alerts"],
   manager: ["invoices", "journals", "pos", "purchasing", "stock", "alerts"],
@@ -29,24 +28,24 @@ const ROLE_SECTIONS: Record<string, string[]> = {
   viewer: ["alerts"],
 };
 
-const ROLE_LABELS_SR: Record<string, string> = {
-  admin: "Administratore", manager: "Menadžeru", finance_director: "Finansijski direktore",
-  accountant: "Računovođo", sales: "Prodavče", sales_manager: "Menadžeru prodaje",
-  sales_rep: "Prodajni predstavniče", hr: "HR", hr_manager: "HR menadžeru",
-  hr_staff: "HR saradniče", store: "Prodavče", store_manager: "Menadžeru prodavnice",
-  cashier: "Kasiru", warehouse_manager: "Menadžeru magacina", warehouse_worker: "Magacineru",
-  production_manager: "Menadžeru proizvodnje", production_worker: "Radniče",
-  user: "Korisniče", viewer: "Korisniče",
+type TimeOfDay = "morning" | "midday" | "evening";
+
+const GREETINGS: Record<TimeOfDay, Record<string, string>> = {
+  morning: { sr: "Dobro jutro", en: "Good morning" },
+  midday: { sr: "Dnevni pregled", en: "Midday Update" },
+  evening: { sr: "Završni pregled dana", en: "End of Day Recap" },
 };
 
-const ROLE_LABELS_EN: Record<string, string> = {
-  admin: "Admin", manager: "Manager", finance_director: "Finance Director",
-  accountant: "Accountant", sales: "Sales", sales_manager: "Sales Manager",
-  sales_rep: "Sales Rep", hr: "HR", hr_manager: "HR Manager",
-  hr_staff: "HR Staff", store: "Store", store_manager: "Store Manager",
-  cashier: "Cashier", warehouse_manager: "Warehouse Manager", warehouse_worker: "Warehouse Worker",
-  production_manager: "Production Manager", production_worker: "Production Worker",
-  user: "User", viewer: "Viewer",
+const DIGEST_TITLES: Record<TimeOfDay, Record<string, string>> = {
+  morning: { sr: "Jutarnji pregled", en: "Morning Briefing" },
+  midday: { sr: "Podnevni pregled", en: "Midday Briefing" },
+  evening: { sr: "Večernji pregled", en: "Evening Briefing" },
+};
+
+const EMOJIS: Record<TimeOfDay, string> = {
+  morning: "☀️",
+  midday: "🌤️",
+  evening: "🌙",
 };
 
 serve(async (req) => {
@@ -66,10 +65,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { tenant_id, language = "en", user_id } = await req.json();
+    const { tenant_id, language = "en", time_of_day } = await req.json();
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Determine time period
+    const period: TimeOfDay = time_of_day || "morning";
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -87,12 +89,12 @@ serve(async (req) => {
       if (!superRole) {
         return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      userRole = "admin"; // super_admin sees everything
+      userRole = "admin";
     } else {
       userRole = member.role || "user";
     }
 
-    // Get user's first name for personalized greeting
+    // Get user's first name
     const { data: employee } = await supabase.from("employees")
       .select("first_name")
       .eq("user_id", user.id)
@@ -103,17 +105,22 @@ serve(async (req) => {
     const allowedSections = ROLE_SECTIONS[userRole] || ROLE_SECTIONS.user;
 
     const sr = language === "sr";
+    const lang = sr ? "sr" : "en";
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const today = new Date().toISOString().split("T")[0];
 
-    // Gather yesterday's key changes
+    // Date range depends on period:
+    // morning → yesterday's data; midday/evening → today's data so far
+    const rangeStart = period === "morning" ? yesterday : today;
+    const rangeEnd = period === "morning" ? today : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
     const [invoicesRes, journalsRes, stockRes, payrollRes, posRes, poRes] = await Promise.all([
-      supabase.from("invoices").select("id, total, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", yesterday).lt("created_at", today),
-      supabase.from("journal_entries").select("id", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", yesterday).lt("created_at", today),
+      supabase.from("invoices").select("id, total, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", rangeStart).lt("created_at", rangeEnd),
+      supabase.from("journal_entries").select("id", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", rangeStart).lt("created_at", rangeEnd),
       supabase.from("inventory_stock").select("product_id, quantity_on_hand, min_stock_level").eq("tenant_id", tenant_id).gt("min_stock_level", 0),
-      supabase.from("payroll_runs").select("id, total_gross, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", yesterday).lt("created_at", today),
-      supabase.from("pos_transactions").select("id, total_amount, transaction_type", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", yesterday).lt("created_at", today),
-      supabase.from("purchase_orders").select("id, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", yesterday).lt("created_at", today),
+      supabase.from("payroll_runs").select("id, total_gross, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", rangeStart).lt("created_at", rangeEnd),
+      supabase.from("pos_transactions").select("id, total_amount, transaction_type", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", rangeStart).lt("created_at", rangeEnd),
+      supabase.from("purchase_orders").select("id, status", { count: "exact" }).eq("tenant_id", tenant_id).gte("created_at", rangeStart).lt("created_at", rangeEnd),
     ]);
 
     const newInvoiceCount = invoicesRes.count || 0;
@@ -127,19 +134,25 @@ serve(async (req) => {
     const posTotal = (posRes.data || []).reduce((s: number, t: any) => s + Number(t.total_amount || 0), 0);
     const newPOCount = poRes.count || 0;
 
-    // Build digest sections — filtered by role
+    // Period-specific labels
+    const periodLabel = period === "morning"
+      ? (sr ? "jučerašnji" : "yesterday's")
+      : period === "midday"
+        ? (sr ? "današnji (do sada)" : "today's (so far)")
+        : (sr ? "današnji" : "today's");
+
     const sections: string[] = [];
 
     if (allowedSections.includes("invoices") && newInvoiceCount > 0) {
       sections.push(sr
-        ? `📄 **Fakture**: ${newInvoiceCount} novih faktura (ukupno ${invoiceTotal.toLocaleString("sr-RS")} RSD)`
-        : `📄 **Invoices**: ${newInvoiceCount} new invoices (total ${invoiceTotal.toLocaleString("en-US")} RSD)`);
+        ? `📄 **Fakture**: ${newInvoiceCount} ${periodLabel} faktura (ukupno ${invoiceTotal.toLocaleString("sr-RS")} RSD)`
+        : `📄 **Invoices**: ${newInvoiceCount} ${periodLabel} invoices (total ${invoiceTotal.toLocaleString("en-US")} RSD)`);
     }
 
     if (allowedSections.includes("journals") && newJournalCount > 0) {
       sections.push(sr
-        ? `📝 **Knjiženja**: ${newJournalCount} novih naloga za knjiženje`
-        : `📝 **Journal Entries**: ${newJournalCount} new entries`);
+        ? `📝 **Knjiženja**: ${newJournalCount} ${periodLabel} naloga za knjiženje`
+        : `📝 **Journal Entries**: ${newJournalCount} ${periodLabel} entries`);
     }
 
     if (allowedSections.includes("pos") && posCount > 0) {
@@ -150,8 +163,8 @@ serve(async (req) => {
 
     if (allowedSections.includes("purchasing") && newPOCount > 0) {
       sections.push(sr
-        ? `🚚 **Nabavka**: ${newPOCount} novih naloga za nabavku`
-        : `🚚 **Purchasing**: ${newPOCount} new purchase orders`);
+        ? `🚚 **Nabavka**: ${newPOCount} naloga za nabavku`
+        : `🚚 **Purchasing**: ${newPOCount} purchase orders`);
     }
 
     if (allowedSections.includes("payroll") && newPayrollCount > 0) {
@@ -172,7 +185,23 @@ serve(async (req) => {
       }
     }
 
-    // AI alerts always shown if allowed
+    // Pending tasks summary for evening briefing
+    if (period === "evening") {
+      const { count: pendingTaskCount } = await supabase
+        .from("user_tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenant_id)
+        .eq("is_completed", false);
+
+      if (pendingTaskCount && pendingTaskCount > 0) {
+        sections.push(sr
+          ? `📋 **Zadaci**: ${pendingTaskCount} otvorenih zadataka za sutra`
+          : `📋 **Tasks**: ${pendingTaskCount} open tasks to carry over`);
+      }
+    }
+
+    // AI alerts
     if (allowedSections.includes("alerts")) {
       const { data: criticalInsights } = await supabase
         .from("ai_insights_cache")
@@ -192,32 +221,37 @@ serve(async (req) => {
       }
     }
 
-    // Personalized greeting
-    const roleLabel = sr ? (ROLE_LABELS_SR[userRole] || "") : (ROLE_LABELS_EN[userRole] || "");
-    const greeting = firstName
-      ? (sr ? `Dobro jutro, ${firstName}` : `Good morning, ${firstName}`)
-      : (sr ? `Dobro jutro` : `Good morning`);
+    // Build personalized greeting
+    const greetingText = firstName
+      ? `${GREETINGS[period][lang]}, ${firstName}`
+      : GREETINGS[period][lang];
 
-    const digestTitle = sr ? "Jutarnji pregled" : "Morning Briefing";
-    const dateStr = new Date(yesterday).toLocaleDateString(sr ? "sr-Latn-RS" : "en-US", {
+    const digestTitle = DIGEST_TITLES[period][lang];
+    const dateStr = new Date(rangeStart).toLocaleDateString(sr ? "sr-Latn-RS" : "en-US", {
       weekday: "long", year: "numeric", month: "long", day: "numeric",
     });
 
-    const header = `## ${greeting} 👋\n### ${digestTitle} — ${dateStr}`;
+    const header = `## ${greetingText} ${EMOJIS[period]}\n### ${digestTitle} — ${dateStr}`;
+
+    const noDataMsg = period === "morning"
+      ? (sr ? `Nema značajnih promena za ${dateStr}.` : `No significant changes for ${dateStr}.`)
+      : period === "midday"
+        ? (sr ? `Nema aktivnosti danas do sada.` : `No activity today so far.`)
+        : (sr ? `Miran dan — nema značajnih promena.` : `Quiet day — no significant changes.`);
 
     const digest = sections.length > 0
       ? `${header}\n\n${sections.join("\n\n")}`
-      : (sr ? `${header}\n\nNema značajnih promena za ${dateStr}.` : `${header}\n\nNo significant changes for ${dateStr}.`);
+      : `${header}\n\n${noDataMsg}`;
 
     // Log action
     try {
       await supabase.from("ai_action_log").insert({
         tenant_id, user_id: user.id, action_type: "daily_digest", module: "analytics",
-        model_version: "rule-based-v2", reasoning: `Generated personalized digest for role=${userRole} with ${sections.length} sections`,
+        model_version: "rule-based-v3", reasoning: `Generated ${period} digest for role=${userRole} with ${sections.length} sections`,
       });
-    } catch (_) { /* ignore logging errors */ }
+    } catch (_) { /* ignore */ }
 
-    return new Response(JSON.stringify({ digest, date: yesterday, sections_count: sections.length }), {
+    return new Response(JSON.stringify({ digest, date: rangeStart, sections_count: sections.length, time_of_day: period }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
