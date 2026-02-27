@@ -2525,6 +2525,8 @@ export const translations = {
     subsidyAmount: "Subsidy",
     transportAllowance: "Transport",
     mealAllowanceShort: "Meal",
+    sickLeaveDays: "Sick days",
+    sickLeaveCompensation: "Sick comp.",
 
     // Legacy Import
     legacyDataImport: "Legacy Data Import",
@@ -5341,6 +5343,8 @@ export const translations = {
     subsidyAmount: "Subvencija",
     transportAllowance: "Prevoz",
     mealAllowanceShort: "Topli obrok",
+    sickLeaveDays: "Bol. dani",
+    sickLeaveCompensation: "Bol. naknada",
 
     // Legacy Import
     legacyDataImport: "Uvoz starih podataka",

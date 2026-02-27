@@ -11844,6 +11844,8 @@ export type Database = {
           payroll_run_id: string
           pension_contribution: number
           pension_employer: number
+          sick_leave_compensation: number | null
+          sick_leave_days: number | null
           subsidy_amount: number
           taxable_base: number
           total_cost: number
@@ -11878,6 +11880,8 @@ export type Database = {
           payroll_run_id: string
           pension_contribution?: number
           pension_employer?: number
+          sick_leave_compensation?: number | null
+          sick_leave_days?: number | null
           subsidy_amount?: number
           taxable_base?: number
           total_cost?: number
@@ -11912,6 +11916,8 @@ export type Database = {
           payroll_run_id?: string
           pension_contribution?: number
           pension_employer?: number
+          sick_leave_compensation?: number | null
+          sick_leave_days?: number | null
           subsidy_amount?: number
           taxable_base?: number
           total_cost?: number
