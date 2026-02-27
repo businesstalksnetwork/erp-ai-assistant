@@ -663,6 +663,7 @@ export type Database = {
           employee_id: string
           entitled_days: number
           id: string
+          pending_days: number
           tenant_id: string
           updated_at: string
           used_days: number
@@ -674,6 +675,7 @@ export type Database = {
           employee_id: string
           entitled_days?: number
           id?: string
+          pending_days?: number
           tenant_id: string
           updated_at?: string
           used_days?: number
@@ -685,6 +687,7 @@ export type Database = {
           employee_id?: string
           entitled_days?: number
           id?: string
+          pending_days?: number
           tenant_id?: string
           updated_at?: string
           used_days?: number
@@ -10368,6 +10371,8 @@ export type Database = {
           id: string
           leave_type: Database["public"]["Enums"]["leave_type"]
           reason: string | null
+          rejection_reason: string | null
+          requested_by: string | null
           start_date: string
           status: Database["public"]["Enums"]["leave_status"]
           tenant_id: string
@@ -10384,6 +10389,8 @@ export type Database = {
           id?: string
           leave_type?: Database["public"]["Enums"]["leave_type"]
           reason?: string | null
+          rejection_reason?: string | null
+          requested_by?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["leave_status"]
           tenant_id: string
@@ -10400,6 +10407,8 @@ export type Database = {
           id?: string
           leave_type?: Database["public"]["Enums"]["leave_type"]
           reason?: string | null
+          rejection_reason?: string | null
+          requested_by?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["leave_status"]
           tenant_id?: string
@@ -20438,8 +20447,30 @@ export type Database = {
         Args: { p_journal_entry_id: string }
         Returns: string
       }
+      submit_leave_request: {
+        Args: {
+          p_employee_id: string
+          p_end_date: string
+          p_leave_type: string
+          p_reason?: string
+          p_start_date: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       three_way_match: {
         Args: { p_supplier_invoice_id: string }
+        Returns: Json
+      }
+      validate_leave_request: {
+        Args: {
+          p_employee_id: string
+          p_end_date: string
+          p_leave_type: string
+          p_start_date: string
+          p_tenant_id: string
+          p_year?: number
+        }
         Returns: Json
       }
       validate_popdv_completeness: {
