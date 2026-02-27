@@ -1949,6 +1949,7 @@ export type Database = {
           employee_id: string
           hours_worked: number | null
           id: string
+          leave_request_id: string | null
           notes: string | null
           status: Database["public"]["Enums"]["attendance_status"]
           tenant_id: string
@@ -1961,6 +1962,7 @@ export type Database = {
           employee_id: string
           hours_worked?: number | null
           id?: string
+          leave_request_id?: string | null
           notes?: string | null
           status?: Database["public"]["Enums"]["attendance_status"]
           tenant_id: string
@@ -1973,6 +1975,7 @@ export type Database = {
           employee_id?: string
           hours_worked?: number | null
           id?: string
+          leave_request_id?: string | null
           notes?: string | null
           status?: Database["public"]["Enums"]["attendance_status"]
           tenant_id?: string
@@ -1983,6 +1986,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
             referencedColumns: ["id"]
           },
           {
