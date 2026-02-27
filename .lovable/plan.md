@@ -1,136 +1,89 @@
 
 
-## Phase 5: Legal Gaps — Full Implementation Plan
+## Phase 2: Enhanced RBAC — Expanded Roles + Action-Level Permissions + RLS Data Scoping
 
-This phase addresses 8 legally required fixes and missing features. Estimated effort: ~20h.
+### Current State
 
----
+- **Roles**: `app_role` enum with 8 values: `super_admin`, `admin`, `manager`, `accountant`, `sales`, `hr`, `store`, `user`
+- **Permission model**: Hardcoded in `src/config/rolePermissions.ts` — maps roles to module groups (coarse module-level access)
+- **RLS**: Most tables use `get_user_tenant_ids(auth.uid())` for tenant isolation; a few sensitive tables (HR, payroll) additionally check `role IN ('admin', 'hr')` inline
+- **No action-level permissions** (e.g., can view but not edit/delete)
+- **No custom permissions per tenant** — all tenants share the same static role→module map
+- **No data scoping** (e.g., sales rep sees only their own deals, store user sees only their location)
 
-### Current State Summary
+### Plan
 
-| Task | Status | What Exists |
-|------|--------|-------------|
-| 5.6 BilansUspeha class 7 bug | BUG | Line 26: `"7": { name: "Poslovni rashodi" }` — should be "Otvaranje i zaključak" |
-| 5.7 eBolovanje → leave_requests sync | BROKEN | `calculate_payroll_for_run` queries `leave_requests` for sick days, but `ebolovanje_claims` don't create `leave_requests` records |
-| 5.2 Minuli rad | MISSING | `calculate_payroll_for_run` has no seniority bonus; no `minuli_rad` column on `payroll_items` |
-| 5.3 Otpremnina | MISSING | No `severance_payments` table, no calculation page, no GL posting |
-| 5.1 KEP Knjiga | MISSING | No `kep_entries` table, no page |
-| 5.4 Popisna lista robe | MISSING | No inventory stock-take with commission protocol |
-| 5.5 Otpisi robe | MISSING | No inventory write-off with commission + GL 585 posting |
-| 5.8 APR AOP mapping | PARTIAL | APR XML export exists but no AOP position mapping table |
+#### Step 1: Database — New permissions infrastructure
 
----
+Create migration with:
 
-### Implementation Steps
+1. **`tenant_role_permissions` table** — per-tenant, per-role, per-module action grants:
+   ```
+   id uuid PK
+   tenant_id uuid FK → tenants NOT NULL
+   role app_role NOT NULL
+   module text NOT NULL          -- e.g. 'sales', 'crm', 'hr'
+   action text NOT NULL          -- 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export'
+   allowed boolean DEFAULT true
+   UNIQUE(tenant_id, role, module, action)
+   ```
+   RLS: tenant members can SELECT; admins can ALL.
 
-#### Step 1: BilansUspeha class 7 label fix (5 min)
-- `src/pages/tenant/BilansUspeha.tsx` line 26: Change `"Poslovni rashodi"` to `"Otvaranje i zaključak"` (and Cyrillic equivalent)
+2. **`data_scope` column on `tenant_members`** — enum `('all', 'department', 'own')` DEFAULT `'all'`:
+   - `all` — sees all tenant data (current behavior)
+   - `department` — sees data linked to their department(s)
+   - `own` — sees only records they created / are assigned to
 
-#### Step 2: eBolovanje → leave_requests sync bridge (2h)
-- Add a DB trigger or RPC: when `ebolovanje_claims.status` changes to `confirmed`, auto-create a `leave_requests` record with `leave_type = 'sick_leave'`, matching employee, dates, and `status = 'approved'`
-- Add migration: trigger function `sync_ebolovanje_to_leave_requests()`
-- Update `EBolovanje.tsx`: after status change, invalidate `leave_requests` query cache
+3. **Security-definer helper functions**:
+   - `has_action_permission(p_user_id uuid, p_tenant_id uuid, p_module text, p_action text) → boolean` — checks `tenant_role_permissions`; falls back to hardcoded defaults if no row exists (backward compatible)
+   - `get_member_data_scope(p_user_id uuid, p_tenant_id uuid) → text` — returns the data_scope value
+   - `get_member_department_ids(p_user_id uuid, p_tenant_id uuid) → uuid[]` — returns department IDs for department-scoped filtering
 
-#### Step 3: Minuli rad in payroll (3h)
-- **Migration**: Add `minuli_rad_years numeric DEFAULT 0` and `minuli_rad_amount numeric DEFAULT 0` columns to `payroll_items`
-- **Migration**: Update `calculate_payroll_for_run` function:
-  - Calculate years of service from `employees.start_date` (or `hire_date`) to period start
-  - Compute `minuli_rad = 0.004 * years * gross_salary` (0.4% per year, per Zakon o radu cl. 108)
-  - Add to gross before tax/contribution calculation
-  - Store in new columns
-- **Frontend**: Show minuli rad line in `Payroll.tsx` run detail accordion and payroll item table
+4. **Seed default permissions** for all existing tenants by materializing the current `rolePermissions` config into `tenant_role_permissions` rows with actions `['view','create','edit','delete']`.
 
-#### Step 4: Otpremnina calculation + GL posting (4h)
-- **Migration**: Create `severance_payments` table:
-  - `id, tenant_id, employee_id, reason (retirement|redundancy|other), years_of_service, calculation_base, multiplier, total_amount, gl_posted, journal_entry_id, created_by, created_at`
-- **Migration**: RLS policy (tenant isolation)
-- **New page**: `src/pages/tenant/Otpremnina.tsx`
-  - Calculate per Zakon o radu cl. 158: 1/3 average salary × years of service (minimum)
-  - GL posting to account 5290 (Otpremnine) DR / 4500 CR
-  - Table of all severance payments with status
-- **Route**: Add to `hrRoutes.tsx` at `/hr/severance`
-- **Sidebar**: Add to HR nav in `TenantLayout.tsx`
+#### Step 2: Frontend — `usePermissions` hook upgrade
 
-#### Step 5: KEP Knjiga (4h)
-- **Migration**: Create `kep_entries` table:
-  - `id, tenant_id, location_id, entry_date, entry_number, document_type, document_number, description, goods_value, services_value, total_value, payment_type (cash|card|transfer), created_at`
-- **Migration**: RLS policy (tenant isolation)
-- **New page**: `src/pages/tenant/KepKnjiga.tsx`
-  - Daily retail sales register per location (Pravilnik o evidenciji prometa)
-  - Auto-populate from POS transactions for selected location + date range
-  - Running entry numbers, daily totals
-  - Print/PDF/Export support
-- **Route**: Add to `posRoutes` or `accountingRoutes` at `/accounting/kep`
-- **Sidebar**: Add to accounting nav
+Extend `usePermissions.ts`:
+- Fetch `tenant_role_permissions` for the user's role + tenant (alongside existing `tenant_modules` query)
+- Expose `canPerform(module: ModuleGroup, action: Action): boolean` in addition to existing `canAccess(module)`
+- `canAccess` becomes `canPerform(module, 'view')` internally
+- Expose `dataScope: 'all' | 'department' | 'own'` from `tenant_members`
+- Update `useTenant.ts` to also fetch `data_scope` from `tenant_members`
 
-#### Step 6: Popisna lista robe — Inventory Stock Take (4h)
-- **Migration**: Create `inventory_stock_takes` table:
-  - `id, tenant_id, location_id, warehouse_id, stock_take_date, status (draft|in_progress|completed|approved), commission_members text[], notes, created_by, approved_by, approved_at, created_at`
-- **Migration**: Create `inventory_stock_take_items` table:
-  - `id, stock_take_id, product_id, expected_qty, counted_qty, difference_qty, unit_cost, difference_value, notes`
-- **Migration**: RLS policies
-- **New page**: `src/pages/tenant/InventoryStockTake.tsx`
-  - Create stock take for a location/warehouse
-  - Enter counted quantities, auto-calculate differences
-  - Commission protocol with member names
-  - Approve → generates adjustment entries (surplus GL 6700 / shortage GL 5850)
-  - Print popisna lista with legal format
-- **Route**: Add to `inventoryRoutes` at `/inventory/stock-take`
-- **Sidebar**: Add to inventory nav
+#### Step 3: Frontend — Permission-aware UI guards
 
-#### Step 7: Otpisi robe — Write-offs with GL 585 (3h)
-- **Migration**: Create `inventory_write_offs` table:
-  - `id, tenant_id, location_id, warehouse_id, write_off_date, reason, commission_members text[], commission_protocol_number, status (draft|approved|posted), journal_entry_id, total_value, notes, created_by, approved_by, created_at`
-- **Migration**: Create `inventory_write_off_items` table:
-  - `id, write_off_id, product_id, quantity, unit_cost, total_cost, reason`
-- **Migration**: RLS policies
-- **New page**: `src/pages/tenant/InventoryWriteOff.tsx`
-  - Create write-off with commission protocol
-  - Select products + quantities from current stock
-  - Approve → GL posting: DR 5850 (Rashodi po osnovu rashodovanja) / CR 1320 (Roba u magacinu)
-  - Commission protocol PDF export
-- **Route**: Add to `inventoryRoutes` at `/inventory/write-offs`
-- **Sidebar**: Add to inventory nav
+- Create `<ActionGuard module="sales" action="create">` wrapper component that hides children if user lacks the action permission
+- Apply `ActionGuard` to key mutation buttons across modules: Create, Edit, Delete, Approve, Export
+- Disable/hide buttons rather than showing errors
 
-#### Step 8: APR AOP position mapping (2h, P1 — can defer)
-- Create `apr_aop_mappings` table mapping account codes to AOP positions
-- Update `generate-apr-xml` edge function to use mappings
-- This is lower priority; can be done after the P0 items
+#### Step 4: Settings UI — Role Permission Management page
 
----
+New page at `/settings/role-permissions`:
+- Matrix grid: roles (columns) × modules (rows) × actions (checkboxes)
+- Admins can customize which actions each role can perform within their tenant
+- Include a "Reset to Defaults" button
+- Add data scope selector per role (all / department / own)
+
+#### Step 5: RLS hardening — Data scope enforcement
+
+Update RLS policies on key data tables to respect `data_scope`:
+- Tables: `invoices`, `orders`, `crm_contacts`, `crm_deals`, `inventory_transactions`
+- Pattern: existing tenant isolation PLUS:
+  - If scope = `'own'` → `created_by = auth.uid()` or `assigned_to = auth.uid()`
+  - If scope = `'department'` → record's `department_id` IN user's department IDs
+  - If scope = `'all'` → current behavior (tenant-wide)
+- Use the security-definer helpers to avoid recursion
+
+#### Step 6: Navigation & route guards
+
+- Update `ProtectedRoute` to accept optional `requiredAction` prop
+- Update sidebar items to use `canPerform(module, 'view')` for visibility
+- Add translations for new UI labels
 
 ### Technical Details
 
-**Database migrations needed** (6 migrations):
-1. `payroll_items` add columns + update `calculate_payroll_for_run` (minuli rad)
-2. `sync_ebolovanje_to_leave_requests` trigger function
-3. `severance_payments` table + RLS
-4. `kep_entries` table + RLS
-5. `inventory_stock_takes` + `inventory_stock_take_items` tables + RLS
-6. `inventory_write_offs` + `inventory_write_off_items` tables + RLS
-
-**New pages** (4):
-- `Otpremnina.tsx`
-- `KepKnjiga.tsx`
-- `InventoryStockTake.tsx`
-- `InventoryWriteOff.tsx`
-
-**Modified files**:
-- `BilansUspeha.tsx` (class 7 label fix)
-- `Payroll.tsx` (show minuli rad column)
-- `TenantLayout.tsx` (sidebar entries)
-- `hrRoutes.tsx` / `inventoryRoutes.tsx` / `accountingRoutes.tsx` (new routes)
-- `rolePermissions.ts` (if new modules need permission mapping)
-- `GlobalSearch.tsx` (add new pages to search index)
-- `translations.ts` (add SR/EN keys for new features)
-
-**Implementation order** (respecting dependencies):
-1. BilansUspeha fix (trivial, immediate)
-2. eBolovanje sync bridge (unblocks payroll accuracy)
-3. Minuli rad (payroll calculation fix)
-4. Otpremnina (standalone HR feature)
-5. KEP Knjiga (standalone accounting/POS feature)
-6. Popisna lista (inventory)
-7. Otpisi robe (inventory, similar pattern to #6)
-8. APR AOP (if time permits)
+- **Backward compatibility**: If no rows exist in `tenant_role_permissions` for a tenant, the system falls back to the current hardcoded `rolePermissions` map — no breaking change for existing tenants.
+- **Performance**: `tenant_role_permissions` query is cached with 5min staleTime (same as modules). The security-definer functions use `STABLE` marking for query planner optimization.
+- **Data scope enum**: Added as a Postgres enum `data_scope_type` with values `('all', 'department', 'own')`.
+- **Super admins**: Always bypass all permission checks (both action-level and data-scope), consistent with current architecture.
 
