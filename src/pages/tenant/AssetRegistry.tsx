@@ -7,9 +7,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -55,26 +57,40 @@ export default function AssetRegistry() {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("sr-Latn-RS", { style: "decimal", minimumFractionDigits: 2 }).format(val || 0);
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "code", label: t("code" as any), primary: true, sortable: true, sortValue: (a) => a.asset_code || "", render: (a) => <span className="font-mono text-sm">{a.asset_code}</span> },
+    { key: "name", label: t("name" as any), sortable: true, sortValue: (a) => a.name, render: (a) => <span className="font-medium">{a.name}</span> },
+    { key: "category", label: t("assetsCategory" as any), hideOnMobile: true, sortable: true, sortValue: (a) => a.asset_categories?.name || "", render: (a) => a.asset_categories?.name || "—" },
+    { key: "supplier", label: t("supplier" as any), hideOnMobile: true, render: (a) => a.partners?.name || "—" },
+    { key: "warehouse", label: t("warehouse" as any), hideOnMobile: true, render: (a) => a.warehouses?.name || "—" },
+    { key: "employee", label: t("assetsCrossEmployee" as any), hideOnMobile: true, render: (a) => a.employees?.full_name || "—" },
+    { key: "status", label: t("status"), sortable: true, sortValue: (a) => a.status, render: (a) => <Badge className={STATUS_COLORS[a.status] || ""}>{a.status}</Badge> },
+    { key: "value", label: t("assetsCurrentValue" as any), align: "right" as const, sortable: true, sortValue: (a) => Number(a.current_value || 0), render: (a) => <span className="font-mono">{formatCurrency(a.current_value)}</span> },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 p-1">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("assetsRegistry" as any)}</h1>
-        <Button onClick={() => navigate("/assets/registry/new")}>
-          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAsset" as any)}
-        </Button>
-      </div>
+      <PageHeader
+        title={t("assetsRegistry" as any)}
+        actions={
+          <Button onClick={() => navigate("/assets/registry/new")}>
+            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAsset" as any)}
+          </Button>
+        }
+      />
 
-      <div className="flex gap-2 items-center flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
+      <MobileFilterBar
+        search={<Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} />}
+        filters={<></>}
+      />
 
       <Tabs value={typeFilter} onValueChange={setTypeFilter}>
         <TabsList>
@@ -86,56 +102,16 @@ export default function AssetRegistry() {
         </TabsList>
       </Tabs>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("code" as any)}</TableHead>
-              <TableHead>{t("name" as any)}</TableHead>
-              <TableHead>{t("assetsCategory" as any)}</TableHead>
-              <TableHead>{t("supplier" as any)}</TableHead>
-              <TableHead>{t("warehouse" as any)}</TableHead>
-              <TableHead>{t("assetsCrossEmployee" as any)}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead className="text-right">{t("assetsCurrentValue" as any)}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  {t("noResults")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((asset: any) => (
-                <TableRow
-                  key={asset.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/assets/registry/${asset.id}`)}
-                >
-                  <TableCell className="font-mono text-sm">{asset.asset_code}</TableCell>
-                  <TableCell className="font-medium">{asset.name}</TableCell>
-                  <TableCell>{(asset.asset_categories as any)?.name || "—"}</TableCell>
-                  <TableCell>{(asset as any).partners?.name || "—"}</TableCell>
-                  <TableCell>{(asset as any).warehouses?.name || "—"}</TableCell>
-                  <TableCell>{(asset as any).employees?.full_name || "—"}</TableCell>
-                  <TableCell>
-                    <Badge className={STATUS_COLORS[asset.status] || ""}>{asset.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{formatCurrency(asset.current_value)}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-        </div>
-      )}
+      <ResponsiveTable
+        data={filtered}
+        columns={columns}
+        keyExtractor={(a) => a.id}
+        onRowClick={(a) => navigate(`/assets/registry/${a.id}`)}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="assets-registry"
+        enableColumnToggle
+      />
     </div>
   );
 }

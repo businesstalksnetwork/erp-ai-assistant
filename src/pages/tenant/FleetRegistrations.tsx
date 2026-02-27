@@ -2,17 +2,17 @@ import { useState } from "react";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
-import { Plus, FileText } from "lucide-react";
+import { Plus } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 export default function FleetRegistrations() {
   const { tenantId } = useTenant();
@@ -32,7 +32,7 @@ export default function FleetRegistrations() {
     enabled: !!tenantId,
   });
 
-  const { data: regs, isLoading } = useQuery({
+  const { data: regs = [], isLoading } = useQuery({
     queryKey: ["fleet-registrations", tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,13 +52,10 @@ export default function FleetRegistrations() {
     mutationFn: async () => {
       if (!tenantId || !form.vehicle_id) throw new Error("Izaberite vozilo");
       const { error } = await supabase.from("fleet_registrations").insert({
-        tenant_id: tenantId,
-        vehicle_id: form.vehicle_id,
-        registration_date: form.registration_date,
-        expiry_date: form.expiry_date,
+        tenant_id: tenantId, vehicle_id: form.vehicle_id,
+        registration_date: form.registration_date, expiry_date: form.expiry_date,
         registration_number: form.registration_number || null,
-        inspection_date: form.inspection_date || null,
-        inspection_expiry: form.inspection_expiry || null,
+        inspection_date: form.inspection_date || null, inspection_expiry: form.inspection_expiry || null,
         cost: form.cost ? parseFloat(form.cost) : 0,
       });
       if (error) throw error;
@@ -79,79 +76,67 @@ export default function FleetRegistrations() {
     return <Badge variant="default">Aktivna</Badge>;
   };
 
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "vehicle", label: "Vozilo", primary: true, sortable: true, sortValue: (r) => r.fleet_vehicles?.registration_plate || "", render: (r) => <span className="font-mono">{r.fleet_vehicles?.registration_plate}</span> },
+    { key: "reg", label: "Reg. broj", hideOnMobile: true, render: (r) => r.registration_number || "—" },
+    { key: "from", label: "Od", sortable: true, sortValue: (r) => r.registration_date, render: (r) => format(new Date(r.registration_date), "dd.MM.yyyy") },
+    { key: "to", label: "Do", sortable: true, sortValue: (r) => r.expiry_date, render: (r) => format(new Date(r.expiry_date), "dd.MM.yyyy") },
+    { key: "insp", label: "Tehnički do", hideOnMobile: true, render: (r) => r.inspection_expiry ? format(new Date(r.inspection_expiry), "dd.MM.yyyy") : "—" },
+    { key: "cost", label: "Trošak", align: "right" as const, sortable: true, sortValue: (r) => Number(r.cost), render: (r) => Number(r.cost).toLocaleString("sr", { minimumFractionDigits: 2 }) },
+    { key: "status", label: "Status", render: (r) => expiryBadge(r.expiry_date) },
+  ];
+
+  if (isLoading) {
+    return <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
+
   return (
     <div className="space-y-4 p-1">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Registracije vozila</h1>
-          <p className="text-muted-foreground text-sm">Pregled registracija i tehničkih pregleda</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova registracija</Button></DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Nova registracija</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Vozilo</Label>
-                <Select value={form.vehicle_id} onValueChange={v => set("vehicle_id", v)}>
-                  <SelectTrigger><SelectValue placeholder="Izaberite" /></SelectTrigger>
-                  <SelectContent>
-                    {(vehicles || []).map((v: any) => (
-                      <SelectItem key={v.id} value={v.id}>{v.registration_plate} — {v.make} {v.model}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <PageHeader
+        title="Registracije vozila"
+        description="Pregled registracija i tehničkih pregleda"
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova registracija</Button></DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Nova registracija</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Vozilo</Label>
+                  <Select value={form.vehicle_id} onValueChange={v => set("vehicle_id", v)}>
+                    <SelectTrigger><SelectValue placeholder="Izaberite" /></SelectTrigger>
+                    <SelectContent>
+                      {(vehicles || []).map((v: any) => (
+                        <SelectItem key={v.id} value={v.id}>{v.registration_plate} — {v.make} {v.model}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Datum registracije</Label><Input type="date" value={form.registration_date} onChange={e => set("registration_date", e.target.value)} /></div>
+                  <div><Label>Važi do</Label><Input type="date" value={form.expiry_date} onChange={e => set("expiry_date", e.target.value)} /></div>
+                </div>
+                <div><Label>Registarski broj</Label><Input value={form.registration_number} onChange={e => set("registration_number", e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Tehnički pregled</Label><Input type="date" value={form.inspection_date} onChange={e => set("inspection_date", e.target.value)} /></div>
+                  <div><Label>Važi do</Label><Input type="date" value={form.inspection_expiry} onChange={e => set("inspection_expiry", e.target.value)} /></div>
+                </div>
+                <div><Label>Trošak (RSD)</Label><Input type="number" value={form.cost} onChange={e => set("cost", e.target.value)} /></div>
+                <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>Sačuvaj</Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Datum registracije</Label><Input type="date" value={form.registration_date} onChange={e => set("registration_date", e.target.value)} /></div>
-                <div><Label>Važi do</Label><Input type="date" value={form.expiry_date} onChange={e => set("expiry_date", e.target.value)} /></div>
-              </div>
-              <div><Label>Registarski broj</Label><Input value={form.registration_number} onChange={e => set("registration_number", e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Tehnički pregled</Label><Input type="date" value={form.inspection_date} onChange={e => set("inspection_date", e.target.value)} /></div>
-                <div><Label>Važi do</Label><Input type="date" value={form.inspection_expiry} onChange={e => set("inspection_expiry", e.target.value)} /></div>
-              </div>
-              <div><Label>Trošak (RSD)</Label><Input type="number" value={form.cost} onChange={e => set("cost", e.target.value)} /></div>
-              <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>Sačuvaj</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vozilo</TableHead>
-                <TableHead>Reg. broj</TableHead>
-                <TableHead>Od</TableHead>
-                <TableHead>Do</TableHead>
-                <TableHead>Tehnički do</TableHead>
-                <TableHead className="text-right">Trošak</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8">Učitavanje...</TableCell></TableRow>
-              ) : (regs || []).length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nema registracija</TableCell></TableRow>
-              ) : (regs || []).map((r: any) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono">{r.fleet_vehicles?.registration_plate}</TableCell>
-                  <TableCell>{r.registration_number || "—"}</TableCell>
-                  <TableCell>{format(new Date(r.registration_date), "dd.MM.yyyy")}</TableCell>
-                  <TableCell>{format(new Date(r.expiry_date), "dd.MM.yyyy")}</TableCell>
-                  <TableCell>{r.inspection_expiry ? format(new Date(r.inspection_expiry), "dd.MM.yyyy") : "—"}</TableCell>
-                  <TableCell className="text-right">{Number(r.cost).toLocaleString("sr", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell>{expiryBadge(r.expiry_date)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={regs}
+        columns={columns}
+        keyExtractor={(r) => r.id}
+        emptyMessage="Nema registracija"
+        enableExport
+        exportFilename="fleet-registrations"
+      />
     </div>
   );
 }
