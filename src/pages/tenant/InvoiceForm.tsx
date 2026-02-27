@@ -66,7 +66,7 @@ function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number)
     total_with_tax: 0,
     sort_order: order,
     item_type: "service",
-    popdv_field: "",
+    popdv_field: "3.2",
     efaktura_category: "",
   };
 }
