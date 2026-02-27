@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -52,18 +53,8 @@ export default function PostingRules() {
     enabled: !!tenantId,
   });
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["coa_full", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .order("code");
-      return data || [];
-    },
-    enabled: !!tenantId,
+  const { data: accounts = [] } = useChartOfAccounts<{ id: string; code: string; name: string }>({
+    select: "id, code, name",
   });
 
   const { data: bankAccounts = [] } = useQuery({

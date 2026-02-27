@@ -3,6 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -24,20 +25,7 @@ export default function GeneralLedger() {
   const [dateTo, setDateTo] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["chart_of_accounts", tenantId],
-    queryFn: async () => {
-      if (!tenantId) return [];
-      const { data, error } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name, name_sr, account_type")
-        .eq("tenant_id", tenantId)
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!tenantId,
+  const { data: accounts = [] } = useChartOfAccounts<{ id: string; code: string; name: string; name_sr: string | null; account_type: string }>({
   });
 
   // Opening balances: all posted entries BEFORE dateFrom

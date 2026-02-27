@@ -3,6 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsBar, type StatItem } from "@/components/shared/StatsBar";
@@ -24,19 +25,10 @@ export default function BreakEvenAnalysis() {
   const qc = useQueryClient();
 
   // Fetch expense accounts with is_variable_cost flag
-  const { data: expenseAccounts, isLoading } = useQuery({
-    queryKey: ["break-even-accounts", tenantId],
-    enabled: !!tenantId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name, name_sr, is_variable_cost")
-        .eq("tenant_id", tenantId!)
-        .eq("account_type", "expense")
-        .eq("is_active", true)
-        .order("code");
-      return data || [];
-    },
+  const { data: expenseAccounts, isLoading } = useChartOfAccounts<{ id: string; code: string; name: string; name_sr: string | null; is_variable_cost: boolean | null }>({
+    select: "id, code, name, name_sr, is_variable_cost",
+    accountTypes: ["expense"],
+    queryKeySuffix: "break-even",
   });
 
   // Fetch actuals

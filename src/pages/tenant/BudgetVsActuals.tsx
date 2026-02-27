@@ -3,6 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,19 +30,9 @@ export default function BudgetVsActuals() {
   const [editingBudgets, setEditingBudgets] = useState<Record<string, number>>({});
 
   // Fetch accounts
-  const { data: accounts } = useQuery({
-    queryKey: ["budget-accounts", tenantId],
-    enabled: !!tenantId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name, name_sr, account_type")
-        .eq("tenant_id", tenantId!)
-        .in("account_type", ["revenue", "expense"])
-        .eq("is_active", true)
-        .order("code");
-      return data || [];
-    },
+  const { data: accounts } = useChartOfAccounts<{ id: string; code: string; name: string; name_sr: string | null; account_type: string }>({
+    accountTypes: ["revenue", "expense"],
+    queryKeySuffix: "budget",
   });
 
   // Fetch budgets for year

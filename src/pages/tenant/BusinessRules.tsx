@@ -2,6 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useChartOfAccounts } from "@/hooks/useChartOfAccounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,18 +72,9 @@ export default function BusinessRules() {
     enabled: !!tenantId,
   });
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["coa-for-rules", tenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code, name, account_type")
-        .eq("tenant_id", tenantId!)
-        .eq("is_active", true)
-        .order("code");
-      return data || [];
-    },
-    enabled: !!tenantId,
+  const { data: accounts = [] } = useChartOfAccounts<{ id: string; code: string; name: string; account_type: string }>({
+    select: "id, code, name, account_type",
+    queryKeySuffix: "rules",
   });
 
   useEffect(() => {
