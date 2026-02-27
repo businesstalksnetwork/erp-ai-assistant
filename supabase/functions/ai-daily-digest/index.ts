@@ -48,6 +48,19 @@ const EMOJIS: Record<TimeOfDay, string> = {
   evening: "🌙",
 };
 
+/**
+ * Convert a Serbian first name to vocative case (vokativ).
+ */
+function toVocative(name: string): string {
+  if (!name || name.length < 2) return name;
+  const lower = name.toLowerCase();
+  if (lower.endsWith("a") || lower.endsWith("e") || lower.endsWith("o") || lower.endsWith("i")) return name;
+  if (lower.endsWith("ar")) return name.slice(0, -2) + "re";
+  if (lower.endsWith("k")) return name.slice(0, -1) + "če";
+  if (lower.endsWith("g")) return name.slice(0, -1) + "že";
+  return name + "e";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -221,9 +234,10 @@ serve(async (req) => {
       }
     }
 
-    // Build personalized greeting
-    const greetingText = firstName
-      ? `${GREETINGS[period][lang]}, ${firstName}`
+    // Build personalized greeting (apply Serbian vocative case)
+    const displayName = sr ? toVocative(firstName) : firstName;
+    const greetingText = displayName
+      ? `${GREETINGS[period][lang]}, ${displayName}`
       : GREETINGS[period][lang];
 
     const digestTitle = DIGEST_TITLES[period][lang];
