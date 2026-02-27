@@ -64,8 +64,18 @@ function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number,
   };
 }
 
+/** Check if POPDV field is fee-based (8v/8d) */
+function isFeeField(popdv: string): boolean {
+  return /^8[vd]/.test(popdv);
+}
+
 function calcLine(line: SILine): SILine {
   const lineTotal = line.quantity * line.unit_price;
+  // 8v/8d: fee_value is the tax base (provizija), tax calculated on fee_value
+  if (isFeeField(line.popdv_field)) {
+    const taxAmount = line.fee_value * (line.tax_rate_value / 100);
+    return { ...line, line_total: lineTotal, tax_amount: taxAmount, total_with_tax: lineTotal + taxAmount, vat_non_deductible: 0 };
+  }
   if (line.popdv_field.startsWith("9")) {
     return { ...line, line_total: lineTotal, tax_amount: 0, vat_non_deductible: lineTotal * (line.tax_rate_value / 100), total_with_tax: lineTotal + lineTotal * (line.tax_rate_value / 100) };
   }
@@ -258,6 +268,30 @@ export default function SupplierInvoiceForm() {
   const removeLine = (index: number) => {
     if (lines.length <= 1) return;
     setLines((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /** Split line into deductible (8a) + non-deductible (9) portions */
+  const splitLine = (index: number) => {
+    setLines((prev) => {
+      const original = prev[index];
+      const deductibleLine: SILine = calcLine({
+        ...original,
+        popdv_field: original.popdv_field.startsWith("8a") ? original.popdv_field : "8a.1",
+        description: `${original.description} (odbivi deo)`,
+        sort_order: original.sort_order,
+      });
+      const nonDeductibleLine: SILine = calcLine({
+        ...original,
+        popdv_field: "9.01",
+        description: `${original.description} (neodbivi deo)`,
+        quantity: 0,
+        unit_price: original.unit_price,
+        sort_order: original.sort_order + 0.5,
+      });
+      const result = [...prev];
+      result.splice(index, 1, deductibleLine, nonDeductibleLine);
+      return result;
+    });
   };
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.line_total, 0), [lines]);
@@ -511,6 +545,7 @@ export default function SupplierInvoiceForm() {
                 <TableHead className="min-w-[90px]">eFaktura</TableHead>
                 <TableHead className="min-w-[60px]">{t("quantity")}</TableHead>
                 <TableHead className="min-w-[80px]">{t("unitPrice")}</TableHead>
+                <TableHead className="min-w-[80px]">Provizija</TableHead>
                 <TableHead className="min-w-[90px]">{t("taxRate")}</TableHead>
                 <TableHead className="text-right min-w-[80px]">{t("lineTotal")}</TableHead>
                 <TableHead className="text-right min-w-[80px]">{t("taxAmount")}</TableHead>
@@ -556,6 +591,15 @@ export default function SupplierInvoiceForm() {
                     <Input type="number" min={0} step={0.01} value={line.unit_price} onChange={(e) => updateLine(i, "unit_price", Number(e.target.value))} disabled={isReadOnly} className="h-8" />
                   </TableCell>
                   <TableCell>
+                    {isFeeField(line.popdv_field) ? (
+                      <Input type="number" min={0} step={0.01} value={line.fee_value}
+                        onChange={(e) => updateLine(i, "fee_value", Number(e.target.value))}
+                        disabled={isReadOnly} className="h-8" placeholder="Provizija" title="PDV se obračunava na proviziju (8v/8d)" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground px-2">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Select value={line.tax_rate_id} onValueChange={(v) => updateLine(i, "tax_rate_id", v)} disabled={isReadOnly}>
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -591,9 +635,16 @@ export default function SupplierInvoiceForm() {
                   )}
                   {!isReadOnly && (
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        {line.popdv_field.startsWith("8a") && (
+                          <Button size="icon" variant="ghost" onClick={() => splitLine(i)} title="Podeli na odbivi/neodbivi (8a + 9)">
+                            <span className="text-xs font-bold">⅔</span>
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
