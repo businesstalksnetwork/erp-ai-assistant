@@ -2950,6 +2950,14 @@ export const translations = {
     filteredByProduct: "Filtered by product",
     clearFilter: "Clear filter",
     viewInPricingCenter: "View in Pricing Center",
+    // Per-role dashboards
+    noPendingActions: "No pending actions",
+    employeeCount: "Employees",
+    pendingLeaveRequests: "Pending Leave",
+    latestPayroll: "Latest Payroll",
+    activeLeads: "Active Leads",
+    todaySalesCount: "Today's Sales",
+    todaySalesTotal: "Today's Revenue",
   },
   sr: {
     // Auth
@@ -5856,6 +5864,14 @@ export const translations = {
     filteredByProduct: "Filtrirano po proizvodu",
     clearFilter: "Obriši filter",
     viewInPricingCenter: "Pogledaj u Centru cena",
+    // Per-role dashboards
+    noPendingActions: "Nema akcija na čekanju",
+    employeeCount: "Zaposleni",
+    pendingLeaveRequests: "Odsustva na čekanju",
+    latestPayroll: "Poslednja plata",
+    activeLeads: "Aktivni lidovi",
+    todaySalesCount: "Današnja prodaja",
+    todaySalesTotal: "Današnji prihod",
   },
 } as const;
 
