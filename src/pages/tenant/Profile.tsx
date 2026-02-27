@@ -21,6 +21,7 @@ import { ProfileInsuranceCard } from "@/components/profile/ProfileInsuranceCard"
 import { ProfileLeaveCard } from "@/components/profile/ProfileLeaveCard";
 import { ProfileAttendanceCard } from "@/components/profile/ProfileAttendanceCard";
 import { ProfileReversesCard } from "@/components/profile/ProfileReversesCard";
+import { LeaveRequestHistory } from "@/components/profile/LeaveRequestHistory";
 import { EmployeeAssetsTab } from "@/components/assets/EmployeeAssetsTab";
 import { toast } from "sonner";
 import {
@@ -190,6 +191,7 @@ export default function Profile() {
                     annualLeaveDays={myEmployee.annual_leave_days}
                   />
                   <ProfileAttendanceCard employeeId={myEmployee.id} />
+                  <LeaveRequestHistory employeeId={myEmployee.id} />
                 </div>
               </div>
             ) : (
