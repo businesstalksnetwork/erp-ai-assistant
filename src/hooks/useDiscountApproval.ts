@@ -18,7 +18,7 @@ export function useDiscountApproval({ tenantId, quoteId, discountPct }: UseDisco
     queryFn: async () => {
       if (!tenantId || roles.length === 0) return null;
       const { data } = await supabase
-        .from("discount_approval_rules" as any)
+        .from("discount_approval_rules")
         .select("*")
         .eq("tenant_id", tenantId)
         .in("role", roles)

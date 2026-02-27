@@ -60,7 +60,7 @@ export default function Opportunities() {
     queryKey: ["opportunity-tags-all", tenantId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("opportunity_tags" as any)
+        .from("opportunity_tags")
         .select("*")
         .eq("tenant_id", tenantId!);
       return data || [];
@@ -118,12 +118,12 @@ export default function Opportunities() {
 
       // Sync opportunity_partners junction
       if (oppId) {
-        await supabase.from("opportunity_partners" as any).delete().eq("opportunity_id", oppId);
+        await supabase.from("opportunity_partners").delete().eq("opportunity_id", oppId);
         if (selectedPartnerIds.length > 0) {
           const rows = selectedPartnerIds.map(pid => ({
             opportunity_id: oppId!, partner_id: pid, tenant_id: tenantId!,
           }));
-          await supabase.from("opportunity_partners" as any).insert(rows);
+          await supabase.from("opportunity_partners").insert(rows);
         }
       }
     },
@@ -140,7 +140,7 @@ export default function Opportunities() {
       expected_close_date: o.expected_close_date || "", description: o.description || "", notes: o.notes || "",
     });
     // Load linked partners
-    const { data: linked } = await supabase.from("opportunity_partners" as any).select("partner_id").eq("opportunity_id", o.id);
+    const { data: linked } = await supabase.from("opportunity_partners").select("partner_id").eq("opportunity_id", o.id);
     setSelectedPartnerIds((linked || []).map((l: any) => l.partner_id));
     setOpen(true);
   };

@@ -46,14 +46,14 @@ export default function PayrollCategories() {
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["payroll-categories", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase.from("payroll_income_categories").select("*").eq("tenant_id", tenantId!).order("code") as any);
+      const { data } = await supabase.from("payroll_income_categories").select("*").eq("tenant_id", tenantId!).order("code");
       return (data || []) as Category[];
     },
     enabled: !!tenantId,
   });
 
   const seedMutation = useMutation({
-    mutationFn: async () => { const { error } = await supabase.rpc("seed_payroll_income_categories" as any, { p_tenant_id: tenantId! }); if (error) throw error; },
+    mutationFn: async () => { const { error } = await supabase.rpc("seed_payroll_income_categories", { p_tenant_id: tenantId! }); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-categories"] }); toast({ title: t("categoriesSeeded") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -68,15 +68,15 @@ export default function PayrollCategories() {
         subsidy_tax_pct: parseFloat(form.subsidy_tax_pct), subsidy_pio_employee_pct: parseFloat(form.subsidy_pio_employee_pct),
         subsidy_pio_employer_pct: parseFloat(form.subsidy_pio_employer_pct), is_active: form.is_active,
       };
-      if (editId) { const { error } = await (supabase.from("payroll_income_categories").update(payload).eq("id", editId) as any); if (error) throw error; }
-      else { const { error } = await (supabase.from("payroll_income_categories").insert(payload) as any); if (error) throw error; }
+      if (editId) { const { error } = await supabase.from("payroll_income_categories").update(payload).eq("id", editId); if (error) throw error; }
+      else { const { error } = await supabase.from("payroll_income_categories").insert(payload); if (error) throw error; }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-categories"] }); setOpen(false); setEditId(null); setForm(emptyForm); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await (supabase.from("payroll_income_categories").delete().eq("id", id) as any); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_income_categories").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-categories"] }); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });

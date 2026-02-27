@@ -23,12 +23,12 @@ export function RateChangeHistory({ employeeId, tenantId }: Props) {
   const { data: history = [] } = useQuery({
     queryKey: ["payroll-rate-history", employeeId],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from("payroll_rate_history" as any)
         .select("*")
         .eq("employee_id", employeeId)
         .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false }) as any);
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },

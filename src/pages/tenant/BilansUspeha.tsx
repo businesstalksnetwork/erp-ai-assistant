@@ -80,7 +80,7 @@ export default function BilansUspeha() {
         p_legal_entity_id: legalEntityId || null,
       });
       if (error) throw error;
-      return (data && data[0]) || null;
+      return (data && (data as any[])[0]) || null;
     },
     enabled: !!tenantId,
   });

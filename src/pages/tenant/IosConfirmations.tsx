@@ -48,7 +48,7 @@ export default function IosConfirmations() {
     queryKey: ["ios-confirmations", tenantId, statusFilter],
     queryFn: async () => {
       let q = supabase
-        .from("ios_confirmations" as any)
+        .from("ios_confirmations")
         .select("*, partners(name), legal_entities(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
@@ -82,7 +82,7 @@ export default function IosConfirmations() {
     if (!partnerId || !tenantId) return;
     setLoadingBalance(true);
     try {
-      const { data, error } = await supabase.rpc("get_partner_ios_balance" as any, {
+      const { data, error } = await supabase.rpc("get_partner_ios_balance", {
         p_tenant_id: tenantId, p_partner_id: partnerId, p_as_of_date: form.as_of_date,
         p_legal_entity_id: form.legal_entity_id === "__all__" ? null : (form.legal_entity_id || null),
       });
@@ -100,7 +100,7 @@ export default function IosConfirmations() {
 
   const createMutation = useMutation({
     mutationFn: async (f: IosForm) => {
-      const { error } = await supabase.from("ios_confirmations" as any).insert({
+      const { error } = await supabase.from("ios_confirmations").insert({
         tenant_id: tenantId!,
         partner_id: f.partner_id,
         legal_entity_id: f.legal_entity_id === "__all__" ? null : (f.legal_entity_id || null),
@@ -125,7 +125,7 @@ export default function IosConfirmations() {
       if (status === "sent") updates.sent_at = new Date().toISOString();
       if (status === "confirmed") updates.confirmed_at = new Date().toISOString();
       if (dispute_reason) updates.dispute_reason = dispute_reason;
-      const { error } = await supabase.from("ios_confirmations" as any).update(updates).eq("id", id);
+      const { error } = await supabase.from("ios_confirmations").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["ios-confirmations"] }); toast.success(t("success")); },

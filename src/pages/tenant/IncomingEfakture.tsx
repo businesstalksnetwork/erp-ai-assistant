@@ -35,7 +35,7 @@ export default function IncomingEfakture() {
     queryKey: ["sef_invoices", tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("sef_invoices" as any)
+        .from("sef_invoices")
         .select("*")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
@@ -53,8 +53,8 @@ export default function IncomingEfakture() {
       if (error) throw error;
       // Also update local status
       await supabase
-        .from("sef_invoices" as any)
-        .update({ status: "accepted", reviewed_at: new Date().toISOString() } as any)
+        .from("sef_invoices")
+        .update({ status: "accepted", reviewed_at: new Date().toISOString() })
         .eq("id", id);
     },
     onSuccess: () => {
@@ -71,8 +71,8 @@ export default function IncomingEfakture() {
       });
       if (error) throw error;
       await supabase
-        .from("sef_invoices" as any)
-        .update({ status: "rejected", rejection_reason: reason, reviewed_at: new Date().toISOString() } as any)
+        .from("sef_invoices")
+        .update({ status: "rejected", rejection_reason: reason, reviewed_at: new Date().toISOString() })
         .eq("id", id);
     },
     onSuccess: () => {

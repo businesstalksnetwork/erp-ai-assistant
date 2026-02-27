@@ -157,7 +157,7 @@ export default function JournalEntries() {
         account_id: l.account_id, description: l.description || null,
         debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, sort_order: i,
       }));
-      const { error } = await supabase.rpc("create_journal_entry_with_lines" as any, {
+      const { error } = await supabase.rpc("create_journal_entry_with_lines", {
         p_tenant_id: tenantId!, p_entry_number: form.entry_number, p_entry_date: form.entry_date,
         p_description: form.description || null, p_reference: form.reference || null,
         p_legal_entity_id: form.legal_entity_id || null, p_lines: linePayloads,
@@ -190,7 +190,7 @@ export default function JournalEntries() {
 
   const stornoMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("storno_journal_entry" as any, { p_journal_entry_id: id });
+      const { error } = await supabase.rpc("storno_journal_entry", { p_journal_entry_id: id });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("stornoCreated") }); },

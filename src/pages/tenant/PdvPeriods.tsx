@@ -246,7 +246,7 @@ export default function PdvPeriods() {
 
   const settlePdvMutation = useMutation({
     mutationFn: async (periodId: string) => {
-      const { data, error } = await supabase.rpc("create_pdv_settlement_journal" as any, {
+      const { data, error } = await supabase.rpc("create_pdv_settlement_journal", {
         p_pdv_period_id: periodId, p_tenant_id: tenantId,
       });
       if (error) throw error;
@@ -276,7 +276,7 @@ export default function PdvPeriods() {
 
   const toggleLockMutation = useMutation({
     mutationFn: async ({ id, lock }: { id: string; lock: boolean }) => {
-      const { error } = await supabase.from("pdv_periods").update({ is_locked: lock } as any).eq("id", id);
+      const { error } = await supabase.from("pdv_periods").update({ is_locked: lock }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pdv_periods"] }); toast({ title: t("success") }); },
