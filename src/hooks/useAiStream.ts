@@ -16,9 +16,10 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant
 interface UseAiStreamOptions {
   tenantId: string | null;
   locale: string;
+  role?: string | null;
 }
 
-export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
+export function useAiStream({ tenantId, locale, role }: UseAiStreamOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -153,7 +154,7 @@ export function useAiStream({ tenantId, locale }: UseAiStreamOptions) {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ messages: allMessages, tenant_id: tenantId, language: locale }),
+        body: JSON.stringify({ messages: allMessages, tenant_id: tenantId, language: locale, role: role || undefined }),
         signal: controller.signal,
       });
 

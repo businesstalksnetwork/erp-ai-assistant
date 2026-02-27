@@ -85,6 +85,20 @@ Be direct, data-driven, and highlight action items.`,
 };
 
 function detectRole(memberRole: string): string {
+  // Direct mapping from app_role enum values
+  const roleMap: Record<string, string> = {
+    admin: "admin",
+    super_admin: "admin",
+    manager: "manager",
+    accountant: "accountant",
+    sales: "sales",
+    hr: "hr",
+    store: "warehouse",
+    user: "warehouse",
+  };
+  const mapped = roleMap[(memberRole || "").toLowerCase()];
+  if (mapped) return mapped;
+  // Legacy fallback for non-enum values
   const r = (memberRole || "").toLowerCase();
   if (r.includes("owner") || r.includes("ceo") || r.includes("director")) return "owner";
   if (r.includes("admin")) return "admin";
