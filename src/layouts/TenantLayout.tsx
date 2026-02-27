@@ -111,6 +111,7 @@ const accountingNav: NavItem[] = [
   { key: "citTaxReturn", url: "/accounting/cit-return", icon: FileText },
   { key: "withholdingTax", url: "/accounting/withholding-tax", icon: Percent },
   { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
+  { key: "cashFlowStatement", url: "/accounting/cash-flow-statement", icon: ArrowLeftRight },
   { key: "intercompanyTransactions", url: "/accounting/intercompany", icon: ArrowLeftRight, section: "consolidation" },
   { key: "consolidatedStatements", url: "/accounting/reports/consolidated", icon: Layers },
   { key: "transferPricing", url: "/accounting/transfer-pricing", icon: DollarSign },
