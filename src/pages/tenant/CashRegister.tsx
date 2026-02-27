@@ -30,19 +30,22 @@ export default function CashRegister() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [filterMonth, setFilterMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [form, setForm] = useState({ direction: "in" as "in" | "out", amount: "", description: "", document_ref: "" });
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["cash-register", tenantId, filterMonth],
+    queryKey: ["cash-register", tenantId, filterMonth, sourceFilter],
     queryFn: async () => {
       if (!tenantId) return [];
       const start = `${filterMonth}-01`;
       const endDate = new Date(Number(filterMonth.split("-")[0]), Number(filterMonth.split("-")[1]), 0);
       const end = format(endDate, "yyyy-MM-dd");
-      const { data, error } = await supabase
+      let q = supabase
         .from("cash_register").select("*").eq("tenant_id", tenantId)
         .gte("entry_date", start).lte("entry_date", end)
         .order("entry_date").order("entry_number");
+      if (sourceFilter !== "all") q = q.eq("source", sourceFilter);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
@@ -74,7 +77,7 @@ export default function CashRegister() {
   });
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "entry_number", label: t("entryNumber"), primary: true, sortable: true, sortValue: (e) => e.entry_number, render: (e) => <span className="font-mono text-xs">{e.entry_number}</span> },
+    { key: "entry_number", label: t("entryNumber"), primary: true, sortable: true, sortValue: (e) => e.entry_number, render: (e) => <span className="font-mono text-xs">{e.entry_number} {(e as any).source === "pos" && <Badge variant="secondary" className="ml-1 text-[10px]">POS</Badge>}</span> },
     { key: "date", label: t("date"), sortable: true, sortValue: (e) => e.entry_date, render: (e) => e.entry_date },
     { key: "direction", label: t("direction"), sortable: true, sortValue: (e) => e.direction, render: (e) =>
       e.direction === "in"
@@ -92,8 +95,19 @@ export default function CashRegister() {
       <PageHeader title={t("cashRegister")} description={t("cashRegisterDesc")} />
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div><Label>{t("month")}</Label><Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-48" /></div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> {t("newEntry")}</Button>
+        <div className="flex gap-2">
+          <Label>{t("month")}</Label><Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-48" />
+        </div>
+        <div className="flex gap-2 items-end">
+          <div className="flex gap-1">
+            {["all", "manual", "pos"].map(s => (
+              <Button key={s} size="sm" variant={sourceFilter === s ? "default" : "outline"} onClick={() => setSourceFilter(s)}>
+                {s === "all" ? t("allSources" as any) : s === "manual" ? t("manualEntrySource" as any) : t("posSource" as any)}
+              </Button>
+            ))}
+          </div>
+          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> {t("newEntry")}</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

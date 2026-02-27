@@ -24,6 +24,7 @@ export default function PosSessions() {
   const [openingBalance, setOpeningBalance] = useState(0);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("");
+  const [selectedFiscalDevice, setSelectedFiscalDevice] = useState("");
   const [closeDialog, setCloseDialog] = useState<string | null>(null);
   const [closingBalance, setClosingBalance] = useState(0);
   const [locationFilter, setLocationFilter] = useState<string>("all");
@@ -58,10 +59,23 @@ export default function PosSessions() {
     enabled: !!tenantId,
   });
 
+  // Fiscal devices for selected location
+  const { data: locationFiscalDevices = [] } = useQuery({
+    queryKey: ["fiscal_devices_for_location", tenantId, selectedLocation],
+    queryFn: async () => {
+      if (!selectedLocation) return [];
+      const { data } = await supabase.from("fiscal_devices").select("id, device_name").eq("tenant_id", tenantId!).eq("location_id", selectedLocation).eq("is_active", true);
+      return data || [];
+    },
+    enabled: !!tenantId && !!selectedLocation,
+  });
+
   const openSession = useMutation({
     mutationFn: async () => {
       if (!tenantId) throw new Error("No tenant");
       const loc = locations.find((l: any) => l.id === selectedLocation);
+      // Auto-select fiscal device if only one available
+      const fiscalDeviceId = selectedFiscalDevice || (locationFiscalDevices.length === 1 ? locationFiscalDevices[0].id : null);
       await supabase.from("pos_sessions").insert({
         tenant_id: tenantId,
         opened_by: user?.id,
@@ -69,7 +83,8 @@ export default function PosSessions() {
         location_id: selectedLocation || null,
         warehouse_id: loc?.default_warehouse_id || null,
         salesperson_id: selectedSalesperson || null,
-      });
+        fiscal_device_id: fiscalDeviceId,
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pos_sessions"] });
@@ -102,7 +117,7 @@ export default function PosSessions() {
               {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setOpeningBalance(0); setSelectedLocation(""); setSelectedSalesperson(""); setOpenDialog(true); }}>
+          <Button onClick={() => { setOpeningBalance(0); setSelectedLocation(""); setSelectedSalesperson(""); setSelectedFiscalDevice(""); setOpenDialog(true); }}>
             <Plus className="h-4 w-4 mr-2" />{t("openSession")}
           </Button>
         </div>
@@ -160,6 +175,17 @@ export default function PosSessions() {
               </Select>
             </div>
             <div><Label>{t("openingBalance")}</Label><Input type="number" value={openingBalance} onChange={e => setOpeningBalance(Number(e.target.value))} /></div>
+            <div><Label>{t("selectFiscalDevice" as any)}</Label>
+              {locationFiscalDevices.length === 0 && selectedLocation && (
+                <p className="text-xs text-destructive mt-1">{t("noFiscalDevicesWarning" as any)}</p>
+              )}
+              {locationFiscalDevices.length > 0 && (
+                <Select value={selectedFiscalDevice || (locationFiscalDevices.length === 1 ? locationFiscalDevices[0].id : "")} onValueChange={setSelectedFiscalDevice}>
+                  <SelectTrigger><SelectValue placeholder={t("selectFiscalDevice" as any)} /></SelectTrigger>
+                  <SelectContent>{locationFiscalDevices.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.device_name}</SelectItem>)}</SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
           <DialogFooter><Button onClick={() => openSession.mutate()} disabled={!selectedLocation}>{t("open")}</Button></DialogFooter>
         </DialogContent>
