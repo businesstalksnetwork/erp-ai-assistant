@@ -17609,6 +17609,7 @@ export type Database = {
           model: string | null
           notes: string | null
           partner_id: string | null
+          product_id: string | null
           purchase_date: string | null
           serial_number: string | null
           tenant_id: string
@@ -17627,6 +17628,7 @@ export type Database = {
           model?: string | null
           notes?: string | null
           partner_id?: string | null
+          product_id?: string | null
           purchase_date?: string | null
           serial_number?: string | null
           tenant_id: string
@@ -17645,6 +17647,7 @@ export type Database = {
           model?: string | null
           notes?: string | null
           partner_id?: string | null
+          product_id?: string | null
           purchase_date?: string | null
           serial_number?: string | null
           tenant_id?: string
@@ -17671,6 +17674,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_devices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -17820,6 +17830,9 @@ export type Database = {
           cost_center_id: string | null
           created_at: string
           created_by: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           delivered_at: string | null
           device_id: string | null
           diagnosed_at: string | null
@@ -17856,6 +17869,9 @@ export type Database = {
           cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           device_id?: string | null
           diagnosed_at?: string | null
@@ -17892,6 +17908,9 @@ export type Database = {
           cost_center_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           device_id?: string | null
           diagnosed_at?: string | null
