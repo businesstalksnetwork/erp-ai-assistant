@@ -58,7 +58,7 @@ export function GlobalSearch() {
     { label: t("salesChannels"), path: "/sales/sales-channels", icon: Grid3X3, group: "salesModule", module: "sales" },
     { label: t("salespeople"), path: "/sales/salespeople", icon: UserCheck, group: "salesModule", module: "sales" },
     { label: t("salesPerformance"), path: "/sales/sales-performance", icon: BarChart3, group: "salesModule", module: "sales" },
-    { label: t("retailPrices"), path: "/inventory/retail-prices", icon: Receipt, group: "salesModule", module: "sales" },
+    { label: t("retailPrices"), path: "/inventory/pricing-center", icon: Receipt, group: "salesModule", module: "sales" },
 
     // Purchasing
     { label: `${t("purchasing") || "Purchasing"} — ${t("dashboard")}`, path: "/purchasing", icon: LayoutDashboard, group: "purchasing", module: "purchasing" },
@@ -87,7 +87,7 @@ export function GlobalSearch() {
     { label: t("wmsPicking"), path: "/inventory/wms/picking", icon: ScanBarcode, group: "inventory", module: "inventory" },
     { label: t("wmsCycleCounts"), path: "/inventory/wms/cycle-counts", icon: RefreshCw, group: "inventory", module: "inventory" },
     { label: t("wmsSlotting"), path: "/inventory/wms/slotting", icon: Brain, group: "inventory", module: "inventory" },
-    { label: "WMS Labor", path: "/inventory/wms/labor", icon: Users, group: "inventory", module: "inventory" },
+    { label: "WMS Labor", path: "/inventory/wms/dashboard", icon: Users, group: "inventory", module: "inventory" },
     { label: "WMS Returns", path: "/inventory/wms/returns", icon: RotateCcw, group: "inventory", module: "inventory" },
 
     // Production
@@ -132,7 +132,7 @@ export function GlobalSearch() {
     { label: "KPO Book", path: "/accounting/kpo-book", icon: BookText, group: "accounting", module: "accounting" },
     { label: "Transfer Pricing", path: "/accounting/transfer-pricing", icon: Scale, group: "accounting", module: "accounting" },
     { label: "Report Snapshots", path: "/accounting/report-snapshots", icon: Archive, group: "accounting", module: "accounting" },
-    { label: "Document Import", path: "/accounting/document-import", icon: Import, group: "accounting", module: "accounting" },
+    { label: "Document Import", path: "/accounting/bank-statements", icon: Import, group: "accounting", module: "accounting" },
     { label: "Credit/Debit Notes", path: "/accounting/credit-debit-notes", icon: FileText, group: "accounting", module: "accounting" },
     { label: "Proforma Invoices", path: "/accounting/proforma-invoices", icon: FileCheck, group: "accounting", module: "accounting" },
     { label: "Invoice Register", path: "/accounting/invoice-register", icon: List, group: "accounting", module: "accounting" },
@@ -174,10 +174,10 @@ export function GlobalSearch() {
     { label: t("departments"), path: "/hr/departments", icon: Building, group: "hr", module: "hr" },
     { label: t("positionTemplates"), path: "/hr/position-templates", icon: Briefcase, group: "hr", module: "hr" },
     { label: t("workLogs"), path: "/hr/work-logs", icon: Clock, group: "hr", module: "hr" },
-    { label: "Work Logs — Bulk", path: "/hr/work-logs/bulk", icon: FileSpreadsheet, group: "hr", module: "hr" },
-    { label: "Work Logs — Calendar", path: "/hr/work-logs/calendar", icon: Calendar, group: "hr", module: "hr" },
-    { label: t("overtimeHours"), path: "/hr/overtime", icon: Timer, group: "hr", module: "hr" },
-    { label: t("nightWork"), path: "/hr/night-work", icon: Moon, group: "hr", module: "hr" },
+    { label: "Work Logs — Bulk", path: "/hr/work-logs?tab=bulk", icon: FileSpreadsheet, group: "hr", module: "hr" },
+    { label: "Work Logs — Calendar", path: "/hr/work-logs?tab=calendar", icon: Calendar, group: "hr", module: "hr" },
+    { label: t("overtimeHours"), path: "/hr/special-hours", icon: Timer, group: "hr", module: "hr" },
+    { label: t("nightWork"), path: "/hr/special-hours", icon: Moon, group: "hr", module: "hr" },
     { label: t("annualLeaveBalance"), path: "/hr/annual-leave", icon: CalendarOff, group: "hr", module: "hr" },
     { label: t("holidays"), path: "/hr/holidays", icon: Calendar, group: "hr", module: "hr" },
     { label: t("attendance"), path: "/hr/attendance", icon: Clock, group: "hr", module: "hr" },
@@ -188,8 +188,8 @@ export function GlobalSearch() {
     { label: t("externalWorkers"), path: "/hr/external-workers", icon: Users, group: "hr", module: "hr" },
     { label: t("insuranceRecords"), path: "/hr/insurance", icon: Shield, group: "hr", module: "hr" },
     { label: t("payroll"), path: "/hr/payroll", icon: Banknote, group: "hr", module: "hr" },
-    { label: "Payroll Categories", path: "/hr/payroll/categories", icon: FolderTree, group: "hr", module: "hr" },
-    { label: "Payment Types", path: "/hr/payroll/payment-types", icon: CreditCard, group: "hr", module: "hr" },
+    { label: "Payroll Categories", path: "/settings/payroll-parameters", icon: FolderTree, group: "hr", module: "hr" },
+    { label: "Payment Types", path: "/settings/payroll-parameters", icon: CreditCard, group: "hr", module: "hr" },
     { label: "PPPD Review", path: "/hr/payroll/pppd", icon: FileText, group: "hr", module: "hr" },
     { label: t("eBolovanje"), path: "/hr/ebolovanje", icon: Heart, group: "hr", module: "hr" },
     { label: t("hrReports"), path: "/hr/reports", icon: BarChart3, group: "hr", module: "hr" },
@@ -229,15 +229,15 @@ export function GlobalSearch() {
 
     // Web Sales
     { label: t("webSettings"), path: "/sales/web-settings", icon: Globe, group: "webSales", module: "web" },
-    { label: t("webPrices"), path: "/sales/web-prices", icon: Receipt, group: "webSales", module: "web" },
+    { label: t("webPrices"), path: "/inventory/pricing-center", icon: Receipt, group: "webSales", module: "web" },
 
     // Documents
     { label: t("dmsRegistry"), path: "/documents", icon: FolderOpen, group: "documents", module: "documents" },
     { label: t("dmsArchiveBook"), path: "/documents/archive-book", icon: BookOpen, group: "documents", module: "documents" },
     { label: t("dmsArchiving"), path: "/documents/archiving", icon: FileText, group: "documents", module: "documents" },
     { label: t("dmsProjects"), path: "/documents/projects", icon: Layers, group: "documents", module: "documents" },
-    { label: t("dmsBrowser"), path: "/documents/browser", icon: Search, group: "documents", module: "documents" },
-    { label: t("dmsReports"), path: "/documents/reports", icon: BarChart3, group: "documents", module: "documents" },
+    { label: t("dmsBrowser"), path: "/documents?tab=browser", icon: Search, group: "documents", module: "documents" },
+    { label: t("dmsReports"), path: "/documents?tab=reports", icon: BarChart3, group: "documents", module: "documents" },
     { label: t("dmsSettings"), path: "/documents/settings", icon: Settings, group: "documents", module: "documents" },
     { label: "Drive", path: "/drive", icon: HardDrive, group: "documents", module: "documents" },
 
