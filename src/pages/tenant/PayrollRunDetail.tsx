@@ -132,7 +132,7 @@ export default function PayrollRunDetail() {
       toast({ title: t("generatingPppdXml") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pppd-xml`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: id }) }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
@@ -148,7 +148,7 @@ export default function PayrollRunDetail() {
       toast({ title: t("generatingPaymentOrders") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-payment-orders`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: id }) }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }

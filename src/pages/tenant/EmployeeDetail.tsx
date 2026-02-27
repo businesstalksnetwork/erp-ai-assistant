@@ -324,7 +324,7 @@ export default function EmployeeDetail() {
       toast.info(t("generatingPdf"));
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pdf`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pdf`,
         {
           method: "POST",
           headers: {

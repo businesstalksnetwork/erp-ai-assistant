@@ -255,7 +255,7 @@ export default function Payroll() {
       toast({ title: t("generatingPppdXml") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-pppd-xml`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pppd-xml`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
@@ -271,7 +271,7 @@ export default function Payroll() {
       toast({ title: t("generatingPaymentOrders") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-payment-orders`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-payment-orders`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
@@ -287,7 +287,7 @@ export default function Payroll() {
       toast({ title: t("generatingPaymentOrders") });
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/generate-tax-payment-orders`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-tax-payment-orders`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }

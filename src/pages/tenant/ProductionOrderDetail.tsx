@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Package, ClipboardList, DollarSign, AlertTriangle } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function ProductionOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +29,7 @@ export default function ProductionOrderDetail() {
   const queryClient = useQueryClient();
   const [wasteOpen, setWasteOpen] = useState(false);
   const [wasteForm, setWasteForm] = useState({ product_id: "", quantity: 0, reason: "" });
+  const [completing, setCompleting] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["production_order", id],
@@ -146,6 +148,32 @@ export default function ProductionOrderDetail() {
           <p className="text-muted-foreground">{order.products?.name || t("productionOrders")}</p>
         </div>
         <Badge variant={statusColor(order.status)} className="ml-auto">{t(order.status as any)}</Badge>
+        {(order.status === "in_progress" || order.status === "planned") && (
+          <Button
+            disabled={completing}
+            onClick={async () => {
+              setCompleting(true);
+              try {
+                const { error } = await supabase.rpc("complete_production_order", {
+                  p_tenant_id: tenantId!,
+                  p_order_id: order.id,
+                  p_actual_quantity: order.quantity,
+                });
+                if (error) throw error;
+                toast({ title: t("success"), description: "Production order completed with inventory adjustments" });
+                queryClient.invalidateQueries({ queryKey: ["production_order", id] });
+                queryClient.invalidateQueries({ queryKey: ["production_movements"] });
+              } catch (e: any) {
+                toast({ title: t("error"), description: e.message, variant: "destructive" });
+              } finally {
+                setCompleting(false);
+              }
+            }}
+          >
+            {completing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {t("markCompleted" as any)}
+          </Button>
+        )}
       </div>
 
       {/* Header cards */}
