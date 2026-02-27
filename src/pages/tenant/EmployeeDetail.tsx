@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { RateChangeHistory } from "@/components/hr/RateChangeHistory";
 
 type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 
@@ -477,6 +478,9 @@ export default function EmployeeDetail() {
               </TableBody>
             </Table>
           </CardContent></Card>
+
+          {/* Rate Change History */}
+          <RateChangeHistory employeeId={id!} tenantId={tenantId!} />
         </TabsContent>
 
         {/* Payslips */}

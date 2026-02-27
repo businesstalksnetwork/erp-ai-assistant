@@ -240,13 +240,24 @@ ${xmlLines}
 
     // Try real API if configured, otherwise store XML for manual export
     let apiResult: any = null;
+    const encryptionKey = Deno.env.get("SEF_ENCRYPTION_KEY");
     if (connection.api_url_encrypted && connection.api_key_encrypted) {
       try {
-        const apiResp = await fetch(connection.api_url_encrypted, {
+        // Decrypt API URL and key
+        let apiUrl = connection.api_url_encrypted;
+        let apiKey = connection.api_key_encrypted;
+        if (encryptionKey) {
+          const { data: decUrl } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_url_encrypted, passphrase: encryptionKey });
+          if (decUrl) apiUrl = decUrl;
+          const { data: decKey } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_key_encrypted, passphrase: encryptionKey });
+          if (decKey) apiKey = decKey;
+        }
+
+        const apiResp = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/xml",
-            "Authorization": `Bearer ${connection.api_key_encrypted}`,
+            "Authorization": `Bearer ${apiKey}`,
             "Accept": "application/json",
           },
           body: xml,

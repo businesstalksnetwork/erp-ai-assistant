@@ -458,6 +458,22 @@ export default function InvoiceForm() {
       // Update invoice status to posted
       const { error } = await supabase.from("invoices").update({ status: "posted" }).eq("id", id);
       if (error) throw error;
+
+      // FIFO: consume cost layers for each product line
+      for (const line of lines) {
+        if (line.product_id && line.quantity > 0) {
+          try {
+            await supabase.rpc("consume_fifo_layers", {
+              p_tenant_id: tenantId,
+              p_product_id: line.product_id,
+              p_warehouse_id: (line as any).warehouse_id || null,
+              p_quantity: line.quantity,
+            });
+          } catch (e) {
+            console.warn("FIFO layer consumption failed for product:", line.product_id, e);
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
