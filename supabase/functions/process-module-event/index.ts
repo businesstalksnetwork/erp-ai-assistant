@@ -220,7 +220,8 @@ async function handleEvent(
       return { action: "add_finished_goods", message: "Production output placeholder", entity_id: entityId };
     }
     if (eventType === "pos.transaction_completed") {
-      return { action: "deduct_pos_stock", message: "POS stock deduction placeholder", entity_id: entityId };
+      // POS stock deduction is handled directly by PosTerminal.tsx (FIFO + adjust_inventory_stock)
+      return { action: "skip", message: "POS stock deduction handled directly by PosTerminal", entity_id: entityId };
     }
     if (eventType === "return_case.approved") {
       return await handleReturnApprovedInventory(supabase, tenantId, entityId, payload);
@@ -233,7 +234,8 @@ async function handleEvent(
   // --- Accounting handlers ---
   if (handlerModule === "accounting") {
     if (eventType === "pos.transaction_completed") {
-      return { action: "create_pos_journal", message: "POS journal entry placeholder", entity_id: entityId };
+      // POS journal entry is handled directly by PosTerminal.tsx via process_pos_sale RPC
+      return { action: "skip", message: "POS journal entry handled directly by PosTerminal", entity_id: entityId };
     }
     if (eventType === "credit_note.issued") {
       return { action: "create_storno_journal", message: "Credit note storno journal placeholder", entity_id: entityId };

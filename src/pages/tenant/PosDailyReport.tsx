@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, DollarSign, CreditCard, Banknote, RotateCcw, Printer, Clock } from "lucide-react";
+import { FileText, DollarSign, CreditCard, Banknote, RotateCcw, Printer, Clock, Shield } from "lucide-react";
 
 interface TaxGroup {
   rate: number;
@@ -23,6 +24,7 @@ interface TaxGroup {
 export default function PosDailyReport() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [locationFilter, setLocationFilter] = useState<string>("all");
@@ -54,6 +56,7 @@ export default function PosDailyReport() {
     queryKey: ["pos_sessions_daily", tenantId, locationFilter, reportDate],
     queryFn: async () => {
       let q = supabase.from("pos_sessions").select("*, profiles:opened_by(full_name)").eq("tenant_id", tenantId!).gte("opened_at", `${reportDate}T00:00:00`).lt("opened_at", `${reportDate}T23:59:59`);
+      // GAP 5: also select fiscal_device_id from sessions
       if (locationFilter !== "all") q = q.eq("location_id", locationFilter);
       const { data } = await q;
       return (data as any[]) || [];
@@ -125,6 +128,12 @@ export default function PosDailyReport() {
         acc[`${g.rate}%`] = { taxableBase: g.taxableBase, taxAmount: g.taxAmount, total: g.total };
         return acc;
       }, {} as Record<string, any>);
+      // GAP 5: resolve fiscal_device_id from sessions
+      const sessionDeviceIds = sessions
+        .map((s: any) => s.fiscal_device_id)
+        .filter(Boolean);
+      const fiscalDeviceId = sessionDeviceIds.length > 0 ? sessionDeviceIds[0] : null;
+
       const { error } = await supabase.from("pos_daily_reports").insert({
         tenant_id: tenantId!,
         location_id: locationFilter !== "all" ? locationFilter : null,
@@ -141,11 +150,54 @@ export default function PosDailyReport() {
         opening_float: openingFloat,
         actual_cash_count: actualCashCount,
         cash_variance: cashVariance,
+        fiscal_device_id: fiscalDeviceId,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pos_daily_reports"] }); toast({ title: t("success") }); },
     onError: () => toast({ title: t("error"), variant: "destructive" }),
+  });
+
+  // GAP 6: Fetch PFR-signed Z-report journal
+  const fetchPfrJournal = useMutation({
+    mutationFn: async (reportId: string) => {
+      const report = savedReports.find((r: any) => r.id === reportId);
+      if (!report) throw new Error("Report not found");
+
+      // Find fiscal device for this report's location
+      let deviceId = (report as any).fiscal_device_id;
+      if (!deviceId) {
+        const locId = (report as any).location_id;
+        if (locId) {
+          const { data: devices } = await supabase.from("fiscal_devices").select("id").eq("tenant_id", tenantId!).eq("location_id", locId).eq("is_active", true).limit(1);
+          deviceId = devices?.[0]?.id;
+        }
+      }
+      if (!deviceId) throw new Error("No fiscal device found");
+
+      const { data: result, error: fiscalErr } = await supabase.functions.invoke("fiscalize-receipt", {
+        body: {
+          tenant_id: tenantId,
+          device_id: deviceId,
+          journal_report: {
+            date_from: `${(report as any).report_date}T00:00:00`,
+            date_to: `${(report as any).report_date}T23:59:59`,
+          },
+        },
+      });
+
+      if (fiscalErr) throw fiscalErr;
+
+      // Store PFR response
+      await supabase.from("pos_daily_reports").update({
+        pfr_journal_response: result,
+        pfr_journal_fetched_at: new Date().toISOString(),
+      } as any).eq("id", reportId);
+
+      return result;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pos_daily_reports"] }); toast({ title: t("pfrJournalFetched" as any) }); },
+    onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -302,7 +354,8 @@ export default function PosDailyReport() {
                 <TableHead className="text-right">{t("totalSales")}</TableHead>
                 <TableHead className="text-right">{t("totalRefunds")}</TableHead>
                 <TableHead className="text-right">{t("netSales")}</TableHead>
-                <TableHead className="text-right">{t("transactions")}</TableHead>
+                 <TableHead className="text-right">{t("transactions")}</TableHead>
+                 <TableHead>{t("pfrZReport" as any)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -313,6 +366,17 @@ export default function PosDailyReport() {
                   <TableCell className="text-right text-destructive">{Number(r.total_refunds).toFixed(2)}</TableCell>
                   <TableCell className="text-right font-bold">{Number(r.net_sales).toFixed(2)}</TableCell>
                   <TableCell className="text-right">{r.transaction_count}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {r.pfr_journal_response ? (
+                        <Badge variant="default" className="text-xs gap-1"><Shield className="h-3 w-3" /> PFR</Badge>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => fetchPfrJournal.mutate(r.id)} disabled={fetchPfrJournal.isPending}>
+                          <Shield className="h-3 w-3 mr-1" />{t("fetchPfrJournal" as any)}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -2685,6 +2685,8 @@ export type Database = {
           journal_entry_id: string | null
           legal_entity_id: string | null
           partner_id: string | null
+          pos_transaction_id: string | null
+          source: string
           tenant_id: string
           updated_at: string
         }
@@ -2701,6 +2703,8 @@ export type Database = {
           journal_entry_id?: string | null
           legal_entity_id?: string | null
           partner_id?: string | null
+          pos_transaction_id?: string | null
+          source?: string
           tenant_id: string
           updated_at?: string
         }
@@ -2717,6 +2721,8 @@ export type Database = {
           journal_entry_id?: string | null
           legal_entity_id?: string | null
           partner_id?: string | null
+          pos_transaction_id?: string | null
+          source?: string
           tenant_id?: string
           updated_at?: string
         }
@@ -2740,6 +2746,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_pos_transaction_id_fkey"
+            columns: ["pos_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
             referencedColumns: ["id"]
           },
           {
@@ -13358,6 +13371,8 @@ export type Database = {
           net_sales: number
           opening_float: number
           other_total: number
+          pfr_journal_fetched_at: string | null
+          pfr_journal_response: Json | null
           refund_count: number
           report_date: string
           session_id: string | null
@@ -13379,6 +13394,8 @@ export type Database = {
           net_sales?: number
           opening_float?: number
           other_total?: number
+          pfr_journal_fetched_at?: string | null
+          pfr_journal_response?: Json | null
           refund_count?: number
           report_date: string
           session_id?: string | null
@@ -13400,6 +13417,8 @@ export type Database = {
           net_sales?: number
           opening_float?: number
           other_total?: number
+          pfr_journal_fetched_at?: string | null
+          pfr_journal_response?: Json | null
           refund_count?: number
           report_date?: string
           session_id?: string | null
@@ -13533,6 +13552,7 @@ export type Database = {
       pos_transactions: {
         Row: {
           buyer_id: string | null
+          buyer_partner_id: string | null
           created_at: string
           customer_name: string | null
           fiscal_device_id: string | null
@@ -13560,6 +13580,7 @@ export type Database = {
         }
         Insert: {
           buyer_id?: string | null
+          buyer_partner_id?: string | null
           created_at?: string
           customer_name?: string | null
           fiscal_device_id?: string | null
@@ -13587,6 +13608,7 @@ export type Database = {
         }
         Update: {
           buyer_id?: string | null
+          buyer_partner_id?: string | null
           created_at?: string
           customer_name?: string | null
           fiscal_device_id?: string | null
@@ -13613,6 +13635,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pos_transactions_buyer_partner_id_fkey"
+            columns: ["buyer_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pos_transactions_fiscal_device_id_fkey"
             columns: ["fiscal_device_id"]

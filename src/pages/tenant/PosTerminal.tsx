@@ -13,6 +13,7 @@ import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2 } 
 import { PosPinDialog } from "@/components/pos/PosPinDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EntitySelector } from "@/components/shared/EntitySelector";
 
 interface CartItem {
   product_id: string;
@@ -47,6 +48,7 @@ export default function PosTerminal() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [buyerId, setBuyerId] = useState("");
+  const [buyerPartnerId, setBuyerPartnerId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [voucherType, setVoucherType] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<{ number: string; qr?: string } | null>(null);
@@ -67,6 +69,9 @@ export default function PosTerminal() {
     },
     enabled: !!tenantId,
   });
+
+  // Resolve fiscal device: prefer session's fiscal_device_id, fallback to location query
+  const sessionFiscalDeviceId = (activeSession as any)?.fiscal_device_id;
 
   // Fetch salespeople at this location for PIN verification
   const { data: locationSalespeople = [] } = useQuery({
@@ -106,8 +111,13 @@ export default function PosTerminal() {
   });
 
   const { data: fiscalDevices = [] } = useQuery({
-    queryKey: ["fiscal_devices_location", tenantId, activeSession?.location_id],
+    queryKey: ["fiscal_devices_location", tenantId, activeSession?.location_id, sessionFiscalDeviceId],
     queryFn: async () => {
+      // If session has a bound fiscal device, use it directly
+      if (sessionFiscalDeviceId) {
+        const { data } = await supabase.from("fiscal_devices").select("*").eq("id", sessionFiscalDeviceId).eq("is_active", true);
+        return data || [];
+      }
       if (!activeSession?.location_id) return [];
       const { data } = await supabase.from("fiscal_devices").select("*").eq("tenant_id", tenantId!).eq("location_id", activeSession.location_id).eq("is_active", true);
       return data || [];
@@ -121,7 +131,7 @@ export default function PosTerminal() {
     queryFn: async () => {
       if (!tenantId) return [];
       const { data } = await supabase.from("pos_transactions")
-        .select("id, transaction_number, total, items, created_at, receipt_type, payment_method")
+        .select("id, transaction_number, fiscal_receipt_number, total, items, created_at, receipt_type, payment_method")
         .eq("tenant_id", tenantId)
         .eq("receipt_type", "sale")
         .in("status", ["fiscalized", "completed"])
@@ -131,6 +141,17 @@ export default function PosTerminal() {
     },
     enabled: !!tenantId && refundMode,
   });
+
+  // GAP 4: Partners for buyer linkage
+  const { data: partners = [] } = useQuery({
+    queryKey: ["partners_for_pos", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("partners").select("id, name, pib").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+  const partnerOptions = partners.map((p: any) => ({ value: p.id, label: p.name, sublabel: p.pib || "" }));
 
   const filteredProducts = products.filter((p: any) =>
     !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search)
@@ -175,6 +196,11 @@ export default function PosTerminal() {
   const processRefund = useMutation({
     mutationFn: async () => {
       if (!tenantId || !activeSession || !selectedOriginalTx) throw new Error("Missing data");
+
+      // GAP 7: Block refund if original has no fiscal receipt number
+      if (!selectedOriginalTx.fiscal_receipt_number) {
+        throw new Error(t("noFiscalReceipt" as any));
+      }
 
       const selectedItems = refundItems.filter(i => i.selected && i.quantity > 0);
       if (selectedItems.length === 0) throw new Error("No items selected for refund");
@@ -228,7 +254,8 @@ export default function PosTerminal() {
               payments: [{ amount: refundTotal, method: selectedOriginalTx.payment_method || "cash" }],
               receipt_type: "refund",
               transaction_type: "refund",
-              referent_receipt_number: selectedOriginalTx.transaction_number,
+              referent_receipt_number: selectedOriginalTx.fiscal_receipt_number,
+              referent_receipt_date: selectedOriginalTx.created_at ? new Date(selectedOriginalTx.created_at).toISOString().split("T")[0] : undefined,
             },
           });
 
@@ -268,6 +295,25 @@ export default function PosTerminal() {
         }
       }
 
+      // GAP 3: Bridge cash refund to cash register
+      if ((selectedOriginalTx.payment_method || "cash") === "cash") {
+        try {
+          await supabase.from("cash_register").insert({
+            tenant_id: tenantId,
+            entry_number: `POS-REF-${tx.transaction_number}`,
+            entry_date: new Date().toISOString().split("T")[0],
+            direction: "out",
+            amount: refundTotal,
+            description: `POS refund ${tx.transaction_number}`,
+            created_by: user?.id || null,
+            pos_transaction_id: tx.id,
+            source: "pos",
+          } as any);
+        } catch (e) {
+          console.warn("Cash register bridge failed for refund:", e);
+        }
+      }
+
       return tx;
     },
     onSuccess: () => {
@@ -301,6 +347,7 @@ export default function PosTerminal() {
         warehouse_id: activeSession.warehouse_id || null,
         salesperson_id: identifiedSeller?.id || activeSession.salesperson_id || null,
         buyer_id: buyerId || null,
+        buyer_partner_id: buyerPartnerId || null,
         receipt_type: "sale",
         status: "pending_fiscal",
         voucher_type: voucherType || null,
@@ -402,6 +449,25 @@ export default function PosTerminal() {
           console.error("POS accounting failed:", e);
           toast({ title: "Upozorenje", description: "Fiskalni račun je izdat ali knjiženje nije uspelo. Kontaktirajte administratora.", variant: "destructive" });
         }
+
+        // GAP 3: Bridge cash sale to cash register
+        if (paymentMethod === "cash") {
+          try {
+            await supabase.from("cash_register").insert({
+              tenant_id: tenantId,
+              entry_number: `POS-${txNum}`,
+              entry_date: new Date().toISOString().split("T")[0],
+              direction: "in",
+              amount: total,
+              description: `POS sale ${txNum}`,
+              created_by: user?.id || null,
+              pos_transaction_id: tx.id,
+              source: "pos",
+            } as any);
+          } catch (e) {
+            console.warn("Cash register bridge failed:", e);
+          }
+        }
       }
 
       return tx;
@@ -410,6 +476,7 @@ export default function PosTerminal() {
       setCart([]);
       setCustomerName("");
       setBuyerId("");
+      setBuyerPartnerId(null);
       queryClient.invalidateQueries({ queryKey: ["pos_transactions"] });
       toast({ title: t("posTransactionComplete") });
     },
@@ -546,6 +613,18 @@ export default function PosTerminal() {
 
             <div className="border-t pt-4 mt-4 space-y-2">
               <Input placeholder={t("customerName")} value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              <EntitySelector
+                options={partnerOptions}
+                value={buyerPartnerId}
+                onValueChange={(val) => {
+                  setBuyerPartnerId(val);
+                  if (val) {
+                    const partner = partners.find((p: any) => p.id === val);
+                    if (partner?.pib) setBuyerId(partner.pib);
+                  }
+                }}
+                placeholder={t("selectBuyerPartner" as any)}
+              />
               <Input placeholder={t("buyerId")} value={buyerId} onChange={e => setBuyerId(e.target.value)} />
               <div className="flex gap-2 flex-wrap">
                 {["cash", "card", "wire_transfer", "voucher", "mobile"].map(m => (
@@ -586,6 +665,12 @@ export default function PosTerminal() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("refund")}: {selectedOriginalTx?.transaction_number}</DialogTitle>
+            {selectedOriginalTx?.fiscal_receipt_number && (
+              <p className="text-xs text-muted-foreground">{t("fiscalReceiptRef" as any)}: {selectedOriginalTx.fiscal_receipt_number}</p>
+            )}
+            {!selectedOriginalTx?.fiscal_receipt_number && (
+              <p className="text-xs text-destructive">{t("noFiscalReceipt" as any)}</p>
+            )}
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t("refundItems")}</p>
