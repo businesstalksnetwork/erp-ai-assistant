@@ -1,53 +1,54 @@
 
 
-## Phase 1: Data Foundation — Implementation Plan
+## Phase 2: Employee Self-Service Leave — Implementation Plan
 
-This is the first phase of the PRD v2.5 upgrade. Nothing from this PRD has been implemented yet. Phase 1 has three parts.
+### 2.1 Schema Changes (Migration)
 
-### 1.1 Add `manager_id` + `org_level` to employees
+**`annual_leave_balances`** — add `pending_days NUMERIC NOT NULL DEFAULT 0`
 
-**Database migration:**
-- Add `manager_id UUID` (self-referencing FK) and `org_level INT DEFAULT 3` to `employees`
-- Create indexes on both columns
-- Create `get_direct_reports(p_manager_id)` and `get_all_subordinates(p_manager_id)` recursive SQL functions
+**`leave_requests`** — add:
+- `requested_by UUID REFERENCES auth.users(id)` (who submitted)
+- `rejection_reason TEXT`
 
-**Frontend changes:**
-- `src/pages/tenant/EmployeeDetail.tsx` — add manager picker (select from employees in same tenant) and org_level dropdown (0=CEO, 1=Director, 2=Manager, 3=Staff) in the edit form
-- `src/pages/tenant/Profile.tsx` — show manager name from employee join
+**New RLS policies on `leave_requests`:**
+- Employees can INSERT their own leave requests (employee's `user_id = auth.uid()`)
+- Employees can UPDATE own pending requests to `cancelled` status only
 
-### 1.2 `employee_locations` junction table
+### 2.2 Validation RPC: `validate_leave_request`
 
-**Database migration:**
-- Create `employee_locations` table with `employee_id`, `location_id`, `is_primary`
-- Enable RLS with tenant isolation policy
-- Create trigger `ensure_single_primary_location` to enforce one primary per employee
-- Migrate existing `employees.location_id` data into the junction table
+Server-side function that checks:
+- `end_date >= start_date`
+- No overlapping pending/approved requests for same employee
+- For `vacation` type: sufficient balance (entitled + carried_over - used - pending >= days)
+- Returns `{valid, days, error?}` as JSONB
 
-### 1.3 Expand `app_role` enum from 7 → 15 roles
+### 2.3 Submit RPC: `submit_leave_request`
 
-**Database migration:**
-- Add 11 new enum values: `finance_director`, `hr_manager`, `hr_staff`, `sales_manager`, `sales_rep`, `store_manager`, `cashier`, `warehouse_manager`, `warehouse_worker`, `production_manager`, `production_worker`, `viewer`
+- Validates via `validate_leave_request`, inserts row, increments `pending_days` for vacation type
+- Returns the new request ID
 
-**Frontend changes:**
+### 2.4 Auto-balance Trigger: `handle_leave_request_status_change`
 
-- `src/config/rolePermissions.ts` — extend `TenantRole` union type with all 15 roles, add module permission mappings per the PRD table
-- `src/config/roleNotificationCategories.ts` — add new roles to the category mapping (finance_director → all, hr_manager/hr_staff → hr+approval, sales_manager/sales_rep → invoice, etc.)
-- `src/pages/tenant/Dashboard.tsx` — extend role switch to map new roles to existing dashboard components (finance_director→Accountant, hr_manager/hr_staff→HR, sales_manager/sales_rep→Sales, store_manager/cashier→Store, warehouse_manager/warehouse_worker→Store, production_manager/production_worker→Manager, viewer→Store)
-- `src/pages/tenant/RolePermissions.tsx` — extend ROLES array with all 15 roles
+On `leave_requests` status change:
+- `pending → approved`: decrement pending_days, increment used_days
+- `pending → rejected`: decrement pending_days
+- `pending → cancelled`: decrement pending_days
+- `approved → cancelled`: decrement used_days
 
-### Files to create
-- None (all changes to existing files)
+### 2.5 New Files
 
-### Files to modify
-- `src/config/rolePermissions.ts`
-- `src/config/roleNotificationCategories.ts`
-- `src/pages/tenant/Dashboard.tsx`
-- `src/pages/tenant/RolePermissions.tsx`
-- `src/pages/tenant/EmployeeDetail.tsx`
-- `src/pages/tenant/Profile.tsx`
+| File | Purpose |
+|------|---------|
+| `src/components/profile/LeaveRequestDialog.tsx` | Dialog: leave_type select, date pickers, auto-calc days, balance display, reason textarea |
+| `src/components/profile/LeaveRequestHistory.tsx` | Table of user's own requests with status badges + cancel button for pending |
+| `src/hooks/useLeaveRequest.ts` | Hook: validate, submit, cancel, query own requests |
 
-### Database migrations (3 separate)
-1. `add_employee_manager_hierarchy` — manager_id, org_level, indexes, helper functions
-2. `create_employee_locations` — junction table, RLS, trigger, data migration
-3. `expand_app_role_enum` — 11 new enum values
+### 2.6 Modified Files
 
+| File | Change |
+|------|--------|
+| `src/components/profile/ProfileLeaveCard.tsx` | Add "Zatraži odsustvo" button → opens LeaveRequestDialog. Show pending_days |
+| `src/pages/tenant/Profile.tsx` | Add LeaveRequestHistory below ProfileLeaveCard in Overview tab |
+
+### Database migrations (1)
+1. `add_leave_self_service` — pending_days column, requested_by + rejection_reason columns, RLS policies, validate + submit RPCs, auto-balance trigger
