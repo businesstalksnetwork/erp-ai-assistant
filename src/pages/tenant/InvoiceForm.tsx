@@ -26,57 +26,17 @@ import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 
-const EFAKTURA_OPTIONS = [
-  { value: "S10", label: "S10 — PDV 10%" },
-  { value: "S20", label: "S20 — PDV 20%" },
-  { value: "AE10", label: "AE10 — Obrnuto 10%" },
-  { value: "AE20", label: "AE20 — Obrnuto 20%" },
-  { value: "Z", label: "Z — Nulta stopa" },
-  { value: "E", label: "E — Oslobođeno" },
-  { value: "O", label: "O — Van sistema PDV" },
-  { value: "SS", label: "SS — Posebni postupci" },
-];
+import {
+  EFAKTURA_OPTIONS,
+  calcInvoiceLine,
+  emptyInvoiceLine,
+  type InvoiceLineCalc,
+} from "@/lib/lineCalculations";
 
+type InvoiceLine = InvoiceLineCalc;
 
-interface InvoiceLine {
-  id?: string;
-  product_id?: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate_id: string;
-  tax_rate_value: number;
-  line_total: number;
-  tax_amount: number;
-  total_with_tax: number;
-  sort_order: number;
-  item_type: string;
-  popdv_field: string;
-  efaktura_category: string;
-}
-
-function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number): InvoiceLine {
-  return {
-    description: "",
-    quantity: 1,
-    unit_price: 0,
-    tax_rate_id: defaultTaxRateId,
-    tax_rate_value: defaultRate,
-    line_total: 0,
-    tax_amount: 0,
-    total_with_tax: 0,
-    sort_order: order,
-    item_type: "service",
-    popdv_field: "3.2",
-    efaktura_category: "",
-  };
-}
-
-function calcLine(line: InvoiceLine): InvoiceLine {
-  const lineTotal = line.quantity * line.unit_price;
-  const taxAmount = lineTotal * (line.tax_rate_value / 100);
-  return { ...line, line_total: lineTotal, tax_amount: taxAmount, total_with_tax: lineTotal + taxAmount };
-}
+const emptyLine = emptyInvoiceLine;
+const calcLine = calcInvoiceLine;
 
 export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
