@@ -338,19 +338,22 @@ export default function SupplierInvoiceForm() {
         account_id: l.account_id || null, cost_center_id: l.cost_center_id || null, sort_order: i,
       }));
 
-      const { error: lineError } = await supabase.from("supplier_invoice_lines").insert(lineInserts);
+      const { data: insertedLines, error: lineError } = await supabase
+        .from("supplier_invoice_lines")
+        .insert(lineInserts)
+        .select("id, popdv_field, line_total, tax_amount");
       if (lineError) throw lineError;
 
       // Trigger reverse charge entries for applicable lines (8g, 8b → 3a)
-      const rcLines = lines.filter((l) => l.popdv_field && isReverseChargeField(l.popdv_field));
+      const rcLines = (insertedLines || []).filter((l) => l.popdv_field && isReverseChargeField(l.popdv_field));
       if (rcLines.length > 0 && (status === "approved" || status === "received")) {
         await createReverseChargeEntries(
           tenantId!,
           invoiceId!,
           vatDate || invoiceDate,
           rcLines.map((l) => ({
-            id: l.id || crypto.randomUUID(),
-            popdv_field: l.popdv_field,
+            id: l.id,
+            popdv_field: l.popdv_field!,
             line_total: l.line_total,
             tax_amount: l.tax_amount,
           }))
