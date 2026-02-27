@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +26,7 @@ import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines } from "@/components/accounting/PostingPreviewPanel";
 import { createReverseChargeEntries, isReverseChargeField } from "@/lib/popdvAggregation";
 import { EntitySelector } from "@/components/shared/EntitySelector";
+import { supplierInvoiceFormSchema, type SupplierInvoiceFormValues } from "@/lib/invoiceSchema";
 
 import {
   EFAKTURA_OPTIONS,
@@ -31,13 +34,7 @@ import {
   emptySupplierInvoiceLine,
   isFeeField,
   isForeignPib,
-  type SupplierInvoiceLineCalc,
 } from "@/lib/lineCalculations";
-
-type SILine = SupplierInvoiceLineCalc;
-
-const emptyLine = emptySupplierInvoiceLine;
-const calcLine = calcSupplierInvoiceLine;
 
 export default function SupplierInvoiceForm() {
   const { id } = useParams<{ id: string }>();
@@ -49,29 +46,46 @@ export default function SupplierInvoiceForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { entities: legalEntities } = useLegalEntities();
-
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
-  const [vatDate, setVatDate] = useState(new Date().toISOString().split("T")[0]);
-  const [dueDate, setDueDate] = useState("");
-  const [supplierId, setSupplierId] = useState<string>("");
-  const [supplierName, setSupplierName] = useState("");
-  const [purchaseOrderId, setPurchaseOrderId] = useState<string>("");
-  const [currency, setCurrency] = useState("RSD");
-  const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState("draft");
-  const [legalEntityId, setLegalEntityId] = useState("");
-  const [lines, setLines] = useState<SILine[]>([]);
   const [partnerQuickAddOpen, setPartnerQuickAddOpen] = useState(false);
-  const [isForeignSupplier, setIsForeignSupplier] = useState(false);
 
-  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, vatDate);
+  const form = useForm<SupplierInvoiceFormValues>({
+    resolver: zodResolver(supplierInvoiceFormSchema),
+    defaultValues: {
+      invoiceNumber: "",
+      invoiceDate: new Date().toISOString().split("T")[0],
+      vatDate: new Date().toISOString().split("T")[0],
+      dueDate: "",
+      supplierId: "",
+      supplierName: "",
+      purchaseOrderId: "",
+      currency: "RSD",
+      notes: "",
+      status: "draft",
+      legalEntityId: "",
+      isForeignSupplier: false,
+      lines: [],
+    },
+  });
+
+  const { fields, append, remove, replace, update } = useFieldArray({
+    control: form.control,
+    name: "lines",
+  });
+
+  const watchedLines = useWatch({ control: form.control, name: "lines" });
+  const watchedVatDate = useWatch({ control: form.control, name: "vatDate" });
+  const watchedInvoiceDate = useWatch({ control: form.control, name: "invoiceDate" });
+  const watchedStatus = useWatch({ control: form.control, name: "status" });
+  const watchedCurrency = useWatch({ control: form.control, name: "currency" });
+  const watchedIsForeignSupplier = useWatch({ control: form.control, name: "isForeignSupplier" });
+
+  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, watchedVatDate);
 
   useEffect(() => {
-    if (legalEntities.length === 1 && !legalEntityId) setLegalEntityId(legalEntities[0].id);
-  }, [legalEntities, legalEntityId]);
+    if (legalEntities.length === 1 && !form.getValues("legalEntityId")) form.setValue("legalEntityId", legalEntities[0].id);
+  }, [legalEntities, form]);
 
-  useEffect(() => { if (!isEdit) setVatDate(invoiceDate); }, [invoiceDate, isEdit]);
+  useEffect(() => { if (!isEdit) form.setValue("vatDate", watchedInvoiceDate); }, [watchedInvoiceDate, isEdit, form]);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers-list", tenantId],
@@ -120,30 +134,30 @@ export default function SupplierInvoiceForm() {
 
   const defaultTaxRate = taxRates.find((r) => r.is_default) || taxRates[0];
 
-  // Foreign entity detection: when supplier changes
   const handleSupplierChange = (v: string) => {
     if (v && v !== "__none") {
       const s = suppliers.find((s: any) => s.id === v);
-      setSupplierId(v);
-      setSupplierName(s?.name || "");
+      form.setValue("supplierId", v);
+      form.setValue("supplierName", s?.name || "");
       const foreign = isForeignPib(s?.pib) || (s?.country && !["RS", "SRB", "Srbija", "Serbia"].includes(s.country));
-      setIsForeignSupplier(!!foreign);
+      form.setValue("isForeignSupplier", !!foreign);
       if (foreign && !isEdit) {
-        setLines((prev) => prev.map((l) => ({ ...l, popdv_field: l.popdv_field || "8g.1" })));
+        const currentLines = form.getValues("lines");
+        replace(currentLines.map((l) => ({ ...l, popdv_field: l.popdv_field || "8g.1" })));
       }
     } else {
-      setSupplierId("");
-      setSupplierName("");
-      setIsForeignSupplier(false);
+      form.setValue("supplierId", "");
+      form.setValue("supplierName", "");
+      form.setValue("isForeignSupplier", false);
     }
   };
 
   // Init empty line
   useEffect(() => {
-    if (!isEdit && lines.length === 0 && defaultTaxRate) {
-      setLines([emptyLine(0, defaultTaxRate.id, Number(defaultTaxRate.rate))]);
+    if (!isEdit && fields.length === 0 && defaultTaxRate) {
+      append(emptySupplierInvoiceLine(0, defaultTaxRate.id, Number(defaultTaxRate.rate)));
     }
-  }, [defaultTaxRate, isEdit, lines.length]);
+  }, [defaultTaxRate, isEdit, fields.length, append]);
 
   // Fetch existing invoice
   const { data: existing } = useQuery({
@@ -166,23 +180,26 @@ export default function SupplierInvoiceForm() {
 
   useEffect(() => {
     if (existing) {
-      setInvoiceNumber(existing.invoice_number);
-      setInvoiceDate(existing.invoice_date);
-      setVatDate(existing.vat_date || existing.invoice_date);
-      setDueDate(existing.due_date || "");
-      setSupplierId(existing.supplier_id || "");
-      setSupplierName(existing.supplier_name);
-      setPurchaseOrderId(existing.purchase_order_id || "");
-      setCurrency(existing.currency);
-      setNotes(existing.notes || "");
-      setStatus(existing.status);
-      setLegalEntityId(existing.legal_entity_id || "");
+      form.reset({
+        ...form.getValues(),
+        invoiceNumber: existing.invoice_number,
+        invoiceDate: existing.invoice_date,
+        vatDate: existing.vat_date || existing.invoice_date,
+        dueDate: existing.due_date || "",
+        supplierId: existing.supplier_id || "",
+        supplierName: existing.supplier_name,
+        purchaseOrderId: existing.purchase_order_id || "",
+        currency: existing.currency,
+        notes: existing.notes || "",
+        status: existing.status,
+        legalEntityId: existing.legal_entity_id || "",
+      });
     }
-  }, [existing]);
+  }, [existing, form]);
 
   useEffect(() => {
     if (existingLines.length > 0) {
-      setLines(existingLines.map((l: any) => ({
+      replace(existingLines.map((l: any) => ({
         id: l.id, description: l.description || "", item_type: l.item_type || "service",
         popdv_field: l.popdv_field || "", efaktura_category: l.efaktura_category || "",
         quantity: Number(l.quantity), unit_price: Number(l.unit_price),
@@ -193,75 +210,72 @@ export default function SupplierInvoiceForm() {
         cost_center_id: (l as any).cost_center_id || "", sort_order: l.sort_order,
       })));
     }
-  }, [existingLines]);
+  }, [existingLines, replace]);
 
-  const updateLine = (index: number, field: keyof SILine, value: any) => {
-    setLines((prev) => {
-      const updated = [...prev];
-      const line = { ...updated[index], [field]: value };
-      if (field === "tax_rate_id") {
-        const rate = taxRates.find((r) => r.id === value);
-        line.tax_rate_value = rate ? Number(rate.rate) : 0;
-      }
-      updated[index] = calcLine(line);
-      return updated;
-    });
+  const updateLine = (index: number, field: string, value: any) => {
+    const currentLine = form.getValues(`lines.${index}`);
+    const updatedLine = { ...currentLine, [field]: value } as any;
+    if (field === "tax_rate_id") {
+      const rate = taxRates.find((r) => r.id === value);
+      updatedLine.tax_rate_value = rate ? Number(rate.rate) : 0;
+    }
+    update(index, calcSupplierInvoiceLine(updatedLine));
   };
 
   const addLine = () => {
     if (!defaultTaxRate) return;
-    const defaultPopdv = isForeignSupplier ? "8g.1" : "";
-    setLines((prev) => [...prev, emptyLine(prev.length, defaultTaxRate.id, Number(defaultTaxRate.rate), defaultPopdv)]);
+    const defaultPopdv = watchedIsForeignSupplier ? "8g.1" : "";
+    append(emptySupplierInvoiceLine(fields.length, defaultTaxRate.id, Number(defaultTaxRate.rate), defaultPopdv));
   };
 
   const removeLine = (index: number) => {
-    if (lines.length <= 1) return;
-    setLines((prev) => prev.filter((_, i) => i !== index));
+    if (fields.length <= 1) return;
+    remove(index);
   };
 
-  /** Split line into deductible (8a) + non-deductible (9) portions */
   const splitLine = (index: number) => {
-    setLines((prev) => {
-      const original = prev[index];
-      const deductibleLine: SILine = calcLine({
-        ...original,
-        popdv_field: original.popdv_field.startsWith("8a") ? original.popdv_field : "8a.1",
-        description: `${original.description} (odbivi deo)`,
-        sort_order: original.sort_order,
-      });
-      const nonDeductibleLine: SILine = calcLine({
-        ...original,
-        popdv_field: "9.01",
-        description: `${original.description} (neodbivi deo)`,
-        quantity: 0,
-        unit_price: original.unit_price,
-        sort_order: original.sort_order + 0.5,
-      });
-      const result = [...prev];
-      result.splice(index, 1, deductibleLine, nonDeductibleLine);
-      return result;
+    const original = form.getValues(`lines.${index}`) as any;
+    const deductibleLine = calcSupplierInvoiceLine({
+      ...original,
+      popdv_field: original.popdv_field.startsWith("8a") ? original.popdv_field : "8a.1",
+      description: `${original.description} (odbivi deo)`,
+      sort_order: original.sort_order,
     });
+    const nonDeductibleLine = calcSupplierInvoiceLine({
+      ...original,
+      popdv_field: "9.01",
+      description: `${original.description} (neodbivi deo)`,
+      quantity: 0,
+      unit_price: original.unit_price,
+      sort_order: original.sort_order + 0.5,
+    });
+    const allLines = form.getValues("lines");
+    const result = [...allLines];
+    result.splice(index, 1, deductibleLine as any, nonDeductibleLine as any);
+    replace(result);
   };
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + l.line_total, 0), [lines]);
-  const totalTax = useMemo(() => lines.reduce((s, l) => s + l.tax_amount, 0), [lines]);
-  const totalNonDeductible = useMemo(() => lines.reduce((s, l) => s + l.vat_non_deductible, 0), [lines]);
+  const lines = watchedLines || [];
+  const subtotal = useMemo(() => lines.reduce((s, l) => s + (l?.line_total || 0), 0), [lines]);
+  const totalTax = useMemo(() => lines.reduce((s, l) => s + (l?.tax_amount || 0), 0), [lines]);
+  const totalNonDeductible = useMemo(() => lines.reduce((s, l) => s + (l?.vat_non_deductible || 0), 0), [lines]);
   const grandTotal = subtotal + totalTax + totalNonDeductible;
 
   const previewLines = useMemo(() =>
-    buildSupplierInvoicePreviewLines({ amount: subtotal, tax_amount: totalTax, total: grandTotal, invoice_number: invoiceNumber, vat_non_deductible: totalNonDeductible }),
-    [subtotal, totalTax, grandTotal, invoiceNumber, totalNonDeductible]
+    buildSupplierInvoicePreviewLines({ amount: subtotal, tax_amount: totalTax, total: grandTotal, invoice_number: form.getValues("invoiceNumber"), vat_non_deductible: totalNonDeductible }),
+    [subtotal, totalTax, grandTotal, totalNonDeductible, form]
   );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const values = form.getValues();
       const payload: any = {
-        tenant_id: tenantId!, invoice_number: invoiceNumber, invoice_date: invoiceDate,
-        vat_date: vatDate, due_date: dueDate || null,
-        supplier_id: supplierId || null, supplier_name: supplierName,
-        purchase_order_id: purchaseOrderId || null,
+        tenant_id: tenantId!, invoice_number: values.invoiceNumber, invoice_date: values.invoiceDate,
+        vat_date: values.vatDate, due_date: values.dueDate || null,
+        supplier_id: values.supplierId || null, supplier_name: values.supplierName,
+        purchase_order_id: values.purchaseOrderId || null,
         amount: subtotal, tax_amount: totalTax, total: grandTotal,
-        currency, status, notes: notes || null, legal_entity_id: legalEntityId || null,
+        currency: values.currency, status: values.status, notes: values.notes || null, legal_entity_id: values.legalEntityId || null,
       };
 
       let invoiceId = id;
@@ -276,7 +290,7 @@ export default function SupplierInvoiceForm() {
         invoiceId = data.id;
       }
 
-      const lineInserts = lines.map((l, i) => ({
+      const lineInserts = values.lines.map((l, i) => ({
         supplier_invoice_id: invoiceId!,
         tenant_id: tenantId!,
         description: l.description, item_type: l.item_type || "service",
@@ -296,11 +310,11 @@ export default function SupplierInvoiceForm() {
 
       // Trigger reverse charge entries for applicable lines (8g, 8b → 3a)
       const rcLines = (insertedLines || []).filter((l) => l.popdv_field && isReverseChargeField(l.popdv_field));
-      if (rcLines.length > 0 && (status === "approved" || status === "received")) {
+      if (rcLines.length > 0 && (values.status === "approved" || values.status === "received")) {
         await createReverseChargeEntries(
           tenantId!,
           invoiceId!,
-          vatDate || invoiceDate,
+          values.vatDate || values.invoiceDate,
           rcLines.map((l) => ({
             id: l.id,
             popdv_field: l.popdv_field!,
@@ -322,8 +336,8 @@ export default function SupplierInvoiceForm() {
     },
   });
 
-  const isReadOnly = status === "approved" || status === "paid" || status === "cancelled";
-  const vatDateDiffers = vatDate !== invoiceDate;
+  const isReadOnly = watchedStatus === "approved" || watchedStatus === "paid" || watchedStatus === "cancelled";
+  const vatDateDiffers = watchedVatDate !== watchedInvoiceDate;
 
   const accountOptions = accounts.filter((a: any) => a.code.length >= 4);
 
@@ -347,7 +361,7 @@ export default function SupplierInvoiceForm() {
       )}
 
       {/* Foreign supplier info */}
-      {isForeignSupplier && (
+      {watchedIsForeignSupplier && (
         <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
           <AlertDescription>
             Inostrani dobavljač detektovan — POPDV polje automatski postavljeno na <strong>8g.1</strong> (nabavka od inostranih lica).
@@ -361,17 +375,17 @@ export default function SupplierInvoiceForm() {
         <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>{t("invoiceNumber")} *</Label>
-            <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} disabled={isReadOnly} />
+            <Input {...form.register("invoiceNumber")} disabled={isReadOnly} />
           </div>
           <div>
             <Label>{t("invoiceDate")}</Label>
-            <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} disabled={isReadOnly} />
+            <Input type="date" {...form.register("invoiceDate")} disabled={isReadOnly} />
           </div>
           <div>
             <Label className={vatDateDiffers ? "text-yellow-600 font-semibold" : ""}>
               {"Datum PDV"} {vatDateDiffers && "⚠"}
             </Label>
-            <Input type="date" value={vatDate} onChange={(e) => setVatDate(e.target.value)} disabled={isReadOnly}
+            <Input type="date" {...form.register("vatDate")} disabled={isReadOnly}
               className={vatDateDiffers ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
             {periodName && (
               <p className="text-xs text-muted-foreground mt-1">PDV period: <strong>{periodName}</strong></p>
@@ -379,11 +393,11 @@ export default function SupplierInvoiceForm() {
           </div>
           <div>
             <Label>{t("dueDate")}</Label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isReadOnly} />
+            <Input type="date" {...form.register("dueDate")} disabled={isReadOnly} />
           </div>
           <div>
             <Label>{t("currency")}</Label>
-            <Select value={currency} onValueChange={setCurrency} disabled={isReadOnly}>
+            <Select value={watchedCurrency} onValueChange={(v) => form.setValue("currency", v)} disabled={isReadOnly}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="RSD">RSD</SelectItem>
@@ -394,7 +408,7 @@ export default function SupplierInvoiceForm() {
           </div>
           <div>
             <Label>{t("status")}</Label>
-            <Select value={status} onValueChange={setStatus} disabled={isReadOnly}>
+            <Select value={watchedStatus} onValueChange={(v) => form.setValue("status", v)} disabled={isReadOnly}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["draft", "received", "approved", "paid", "cancelled"].map(s => (
@@ -405,16 +419,16 @@ export default function SupplierInvoiceForm() {
           </div>
           <div>
             <Label>{t("purchaseOrder")}</Label>
-            <Select value={purchaseOrderId || "__none"} onValueChange={(v) => {
+            <Select value={form.getValues("purchaseOrderId") || "__none"} onValueChange={(v) => {
               if (v !== "__none") {
                 const po = purchaseOrders.find((p: any) => p.id === v);
                 if (po) {
-                  setPurchaseOrderId(v);
-                  setSupplierId(po.supplier_id || "");
-                  setSupplierName(po.supplier_name || "");
+                  form.setValue("purchaseOrderId", v);
+                  form.setValue("supplierId", po.supplier_id || "");
+                  form.setValue("supplierName", po.supplier_name || "");
                 }
               } else {
-                setPurchaseOrderId("");
+                form.setValue("purchaseOrderId", "");
               }
             }} disabled={isReadOnly}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -433,7 +447,7 @@ export default function SupplierInvoiceForm() {
           <CardHeader><CardTitle>{t("legalEntity")}</CardTitle></CardHeader>
           <CardContent>
             <div className="max-w-sm">
-              <Select value={legalEntityId} onValueChange={setLegalEntityId} disabled={isReadOnly}>
+              <Select value={form.getValues("legalEntityId")} onValueChange={(v) => form.setValue("legalEntityId", v)} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
                 <SelectContent>
                   {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
@@ -466,7 +480,7 @@ export default function SupplierInvoiceForm() {
                   label: s.name,
                   sublabel: s.pib || undefined,
                 }))}
-                value={supplierId || null}
+                value={form.getValues("supplierId") || null}
                 onValueChange={(v) => handleSupplierChange(v || "__none")}
                 placeholder={t("selectPartner")}
                 disabled={isReadOnly}
@@ -474,7 +488,7 @@ export default function SupplierInvoiceForm() {
             </div>
             <div>
               <Label>{"Naziv dobavljača"}</Label>
-              <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} disabled={isReadOnly} />
+              <Input {...form.register("supplierName")} disabled={isReadOnly} />
             </div>
           </div>
         </CardContent>
@@ -512,8 +526,10 @@ export default function SupplierInvoiceForm() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lines.map((line, i) => (
-                <TableRow key={i}>
+              {fields.map((field, i) => {
+                const line = lines[i] || field;
+                return (
+                <TableRow key={field.id}>
                   <TableCell>
                     <Input value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)}
                       disabled={isReadOnly} placeholder={t("description")} className="h-8" />
@@ -566,7 +582,7 @@ export default function SupplierInvoiceForm() {
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{fmtNum(line.line_total)}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {line.popdv_field.startsWith("9") ? (
+                    {line.popdv_field?.startsWith("9") ? (
                       <span className="text-destructive" title="Neodbivi PDV">{fmtNum(line.vat_non_deductible)}</span>
                     ) : fmtNum(line.tax_amount)}
                   </TableCell>
@@ -593,19 +609,20 @@ export default function SupplierInvoiceForm() {
                   {!isReadOnly && (
                     <TableCell>
                       <div className="flex gap-1">
-                        {line.popdv_field.startsWith("8a") && (
+                        {line.popdv_field?.startsWith("8a") && (
                           <Button size="icon" variant="ghost" onClick={() => splitLine(i)} title="Podeli na odbivi/neodbivi (8a + 9)">
                             <span className="text-xs font-bold">⅔</span>
                           </Button>
                         )}
-                        <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
+                        <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={fields.length <= 1}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
                   )}
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -617,22 +634,22 @@ export default function SupplierInvoiceForm() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex justify-between w-72">
               <span>{t("subtotal")}:</span>
-              <span className="font-mono">{fmtNum(subtotal)} {currency}</span>
+              <span className="font-mono">{fmtNum(subtotal)} {watchedCurrency}</span>
             </div>
             <div className="flex justify-between w-72 text-sm text-muted-foreground">
               <span>PDV:</span>
-              <span className="font-mono">{fmtNum(totalTax)} {currency}</span>
+              <span className="font-mono">{fmtNum(totalTax)} {watchedCurrency}</span>
             </div>
             {totalNonDeductible > 0 && (
               <div className="flex justify-between w-72 text-sm text-destructive">
                 <span>Neodbivi PDV (sek. 9):</span>
-                <span className="font-mono">{fmtNum(totalNonDeductible)} {currency}</span>
+                <span className="font-mono">{fmtNum(totalNonDeductible)} {watchedCurrency}</span>
               </div>
             )}
             <Separator className="w-72" />
             <div className="flex justify-between w-72 font-bold text-lg">
               <span>{t("total")}:</span>
-              <span className="font-mono">{fmtNum(grandTotal)} {currency}</span>
+              <span className="font-mono">{fmtNum(grandTotal)} {watchedCurrency}</span>
             </div>
           </div>
         </CardContent>
@@ -642,17 +659,17 @@ export default function SupplierInvoiceForm() {
       <Card>
         <CardContent className="pt-6">
           <Label>{t("notes")}</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isReadOnly} rows={3} />
+          <Textarea {...form.register("notes")} disabled={isReadOnly} rows={3} />
         </CardContent>
       </Card>
 
       {/* Posting Preview */}
-      <PostingPreviewPanel lines={previewLines} currency={currency} title="Pregled knjiženja — ulazna faktura" />
+      <PostingPreviewPanel lines={previewLines} currency={watchedCurrency} title="Pregled knjiženja — ulazna faktura" />
 
       {/* Actions */}
       {!isReadOnly && (
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => saveMutation.mutate()} disabled={!invoiceNumber || saveMutation.isPending}>
+          <Button variant="outline" onClick={() => saveMutation.mutate()} disabled={!form.getValues("invoiceNumber") || saveMutation.isPending}>
             <Save className="h-4 w-4 mr-2" /> {t("save")}
           </Button>
           <Button variant="ghost" onClick={() => navigate("/purchasing/supplier-invoices")}>
@@ -667,8 +684,8 @@ export default function SupplierInvoiceForm() {
         tenantId={tenantId!}
         onPartnerCreated={(partner) => {
           queryClient.invalidateQueries({ queryKey: ["suppliers-list"] });
-          setSupplierId(partner.id);
-          setSupplierName(partner.name);
+          form.setValue("supplierId", partner.id);
+          form.setValue("supplierName", partner.name);
         }}
       />
     </div>

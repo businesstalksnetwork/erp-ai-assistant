@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell, Building, ShieldAlert } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -14,6 +14,7 @@ export default function TenantSettings() {
     {
       title: t("organization"),
       links: [
+        { label: t("tenantProfile" as any), icon: Building, to: "/settings/tenant-profile" },
         { label: t("legalEntities"), icon: Building2, to: "/settings/legal-entities" },
         { label: t("locations"), icon: MapPin, to: "/settings/locations" },
         { label: t("warehouses"), icon: Warehouse, to: "/settings/warehouses" },
@@ -42,6 +43,7 @@ export default function TenantSettings() {
         { label: t("businessRules"), icon: FileText, to: "/settings/business-rules" },
         { label: t("salesChannels"), icon: ShoppingBag, to: "/sales/sales-channels" },
         { label: t("apiConfiguration"), icon: Plug, to: "/settings/integrations" },
+        { label: t("integrationHealth" as any), icon: Activity, to: "/settings/integration-health" },
         ...(canAccess("web") ? [{ label: t("webSales"), icon: Globe, to: "/sales/web-settings" }] : []),
         { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
         { label: t("discountApprovalRules" as any), icon: Percent, to: "/settings/discount-rules" },
@@ -58,6 +60,8 @@ export default function TenantSettings() {
         { label: t("eventMonitor"), icon: Clock, to: "/settings/events" },
         { label: t("legacyImport"), icon: Upload, to: "/settings/legacy-import" },
         { label: t("dataProtection"), icon: Lock, to: "/settings/data-protection" },
+        { label: t("dataRetention" as any), icon: Clock, to: "/settings/data-retention" },
+        { label: t("securityIncidents" as any), icon: ShieldAlert, to: "/settings/security-incidents" },
       ],
     },
     {

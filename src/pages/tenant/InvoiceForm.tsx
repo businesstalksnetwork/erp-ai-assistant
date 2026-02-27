@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,18 +28,15 @@ import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { EntitySelector } from "@/components/shared/EntitySelector";
+import { invoiceFormSchema, type InvoiceFormValues } from "@/lib/invoiceSchema";
 
 import {
   EFAKTURA_OPTIONS,
   calcInvoiceLine,
   emptyInvoiceLine,
-  type InvoiceLineCalc,
 } from "@/lib/lineCalculations";
 
-type InvoiceLine = InvoiceLineCalc;
-
-const emptyLine = emptyInvoiceLine;
-const calcLine = calcInvoiceLine;
+import { useState } from "react";
 
 export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
@@ -49,36 +48,53 @@ export default function InvoiceForm() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [dueDate, setDueDate] = useState("");
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string>("");
-  const [partnerName, setPartnerName] = useState("");
-  const [partnerPib, setPartnerPib] = useState("");
-  const [partnerAddress, setPartnerAddress] = useState("");
-  const [currency, setCurrency] = useState("RSD");
-  const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState("draft");
-  const [lines, setLines] = useState<InvoiceLine[]>([]);
-  const [vatDate, setVatDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final" | "proforma" | "credit_note" | "debit_note">("regular");
-  const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
-  const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
-  const [legalEntityId, setLegalEntityId] = useState<string>("");
-  const [salespersonId, setSalespersonId] = useState<string>("");
-  const [salesOrderId, setSalesOrderId] = useState<string | null>(null);
   const { entities: legalEntities } = useLegalEntities();
   const [partnerQuickAddOpen, setPartnerQuickAddOpen] = useState(false);
 
-  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, vatDate);
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(invoiceFormSchema),
+    defaultValues: {
+      invoiceNumber: "",
+      invoiceDate: format(new Date(), "yyyy-MM-dd"),
+      dueDate: "",
+      vatDate: format(new Date(), "yyyy-MM-dd"),
+      selectedPartnerId: "",
+      partnerName: "",
+      partnerPib: "",
+      partnerAddress: "",
+      currency: "RSD",
+      notes: "",
+      status: "draft",
+      invoiceType: "regular",
+      advanceInvoiceId: "",
+      advanceAmountApplied: 0,
+      legalEntityId: "",
+      salespersonId: "",
+      salesOrderId: null,
+      lines: [],
+    },
+  });
+
+  const { fields, append, remove, replace, update } = useFieldArray({
+    control: form.control,
+    name: "lines",
+  });
+
+  const watchedLines = useWatch({ control: form.control, name: "lines" });
+  const watchedVatDate = useWatch({ control: form.control, name: "vatDate" });
+  const watchedInvoiceType = useWatch({ control: form.control, name: "invoiceType" });
+  const watchedInvoiceDate = useWatch({ control: form.control, name: "invoiceDate" });
+  const watchedStatus = useWatch({ control: form.control, name: "status" });
+  const watchedCurrency = useWatch({ control: form.control, name: "currency" });
+
+  const { isLocked, periodName } = usePdvPeriodCheck(tenantId, watchedVatDate);
 
   // Auto-select legal entity if only one exists
   useEffect(() => {
-    if (legalEntities.length === 1 && !legalEntityId) {
-      setLegalEntityId(legalEntities[0].id);
+    if (legalEntities.length === 1 && !form.getValues("legalEntityId")) {
+      form.setValue("legalEntityId", legalEntities[0].id);
     }
-  }, [legalEntities, legalEntityId]);
+  }, [legalEntities, form]);
 
   // Fetch partners
   const { data: partners = [] } = useQuery({
@@ -118,7 +134,7 @@ export default function InvoiceForm() {
       if (error) throw error;
       return data;
     },
-    enabled: !!tenantId && invoiceType === "advance_final",
+    enabled: !!tenantId && watchedInvoiceType === "advance_final",
   });
 
   // Fetch products
@@ -166,10 +182,10 @@ export default function InvoiceForm() {
         .gte("invoice_date", `${year}-01-01`)
         .then(({ count }) => {
           const num = ((count ?? 0) + 1).toString().padStart(5, "0");
-          setInvoiceNumber(`INV-${year}-${num}`);
+          form.setValue("invoiceNumber", `INV-${year}-${num}`);
         });
     }
-  }, [isEdit, tenantId]);
+  }, [isEdit, tenantId, form]);
 
   // Handle pre-fill from Sales Order
   useEffect(() => {
@@ -177,16 +193,16 @@ export default function InvoiceForm() {
     if (!isEdit && state?.fromSalesOrder) {
       const so = state.fromSalesOrder;
       if (so.partner_id) {
-        setSelectedPartnerId(so.partner_id);
-        setPartnerName(so.partner_name || "");
+        form.setValue("selectedPartnerId", so.partner_id);
+        form.setValue("partnerName", so.partner_name || "");
       }
-      if (so.currency) setCurrency(so.currency);
-      if (so.notes) setNotes(so.notes);
-      if (so.salesperson_id) setSalespersonId(so.salesperson_id);
-      if (so.sales_order_id) setSalesOrderId(so.sales_order_id);
-      if (so.legal_entity_id) setLegalEntityId(so.legal_entity_id);
+      if (so.currency) form.setValue("currency", so.currency);
+      if (so.notes) form.setValue("notes", so.notes);
+      if (so.salesperson_id) form.setValue("salespersonId", so.salesperson_id);
+      if (so.sales_order_id) form.setValue("salesOrderId", so.sales_order_id);
+      if (so.legal_entity_id) form.setValue("legalEntityId", so.legal_entity_id);
       if (so.lines && so.lines.length > 0 && defaultTaxRate) {
-        setLines(so.lines.map((l: any, i: number) => calcLine({
+        replace(so.lines.map((l: any, i: number) => calcInvoiceLine({
           product_id: l.product_id || undefined,
           description: l.description || "",
           quantity: l.quantity || 1,
@@ -204,14 +220,14 @@ export default function InvoiceForm() {
       }
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, isEdit, defaultTaxRate]);
+  }, [location.state, isEdit, defaultTaxRate, form, replace]);
 
   // Init empty line when tax rates load
   useEffect(() => {
-    if (!isEdit && lines.length === 0 && defaultTaxRate) {
-      setLines([emptyLine(0, defaultTaxRate.id, Number(defaultTaxRate.rate))]);
+    if (!isEdit && fields.length === 0 && defaultTaxRate) {
+      append(emptyInvoiceLine(0, defaultTaxRate.id, Number(defaultTaxRate.rate)));
     }
-  }, [defaultTaxRate, isEdit, lines.length]);
+  }, [defaultTaxRate, isEdit, fields.length, append]);
 
   // Fetch existing invoice for edit
   const { data: existingInvoice } = useQuery({
@@ -244,22 +260,25 @@ export default function InvoiceForm() {
 
   useEffect(() => {
     if (existingInvoice) {
-      setInvoiceNumber(existingInvoice.invoice_number);
-      setInvoiceDate(existingInvoice.invoice_date);
-      setDueDate(existingInvoice.due_date || "");
-      setPartnerName(existingInvoice.partner_name);
-      setPartnerPib(existingInvoice.partner_pib || "");
-      setPartnerAddress(existingInvoice.partner_address || "");
-      setCurrency(existingInvoice.currency);
-      setNotes(existingInvoice.notes || "");
-      setStatus(existingInvoice.status);
-      setVatDate((existingInvoice as any).vat_date || existingInvoice.invoice_date);
+      form.reset({
+        ...form.getValues(),
+        invoiceNumber: existingInvoice.invoice_number,
+        invoiceDate: existingInvoice.invoice_date,
+        dueDate: existingInvoice.due_date || "",
+        partnerName: existingInvoice.partner_name,
+        partnerPib: existingInvoice.partner_pib || "",
+        partnerAddress: existingInvoice.partner_address || "",
+        currency: existingInvoice.currency,
+        notes: existingInvoice.notes || "",
+        status: existingInvoice.status,
+        vatDate: (existingInvoice as any).vat_date || existingInvoice.invoice_date,
+      });
     }
-  }, [existingInvoice]);
+  }, [existingInvoice, form]);
 
   useEffect(() => {
     if (existingLines.length > 0) {
-      setLines(
+      replace(
         existingLines.map((l) => ({
           id: l.id,
           description: l.description,
@@ -277,39 +296,39 @@ export default function InvoiceForm() {
         }))
       );
     }
-  }, [existingLines]);
+  }, [existingLines, replace]);
 
-  const updateLine = (index: number, field: keyof InvoiceLine, value: any) => {
-    setLines((prev) => {
-      const updated = [...prev];
-      const line = { ...updated[index], [field]: value };
-      if (field === "tax_rate_id") {
-        const rate = taxRates.find((r) => r.id === value);
-        line.tax_rate_value = rate ? Number(rate.rate) : 0;
-      }
-      updated[index] = calcLine(line);
-      return updated;
-    });
+  const updateLine = (index: number, field: string, value: any) => {
+    const currentLine = form.getValues(`lines.${index}`);
+    const updatedLine = { ...currentLine, [field]: value } as any;
+    if (field === "tax_rate_id") {
+      const rate = taxRates.find((r) => r.id === value);
+      updatedLine.tax_rate_value = rate ? Number(rate.rate) : 0;
+    }
+    const calculated = calcInvoiceLine(updatedLine);
+    update(index, calculated);
   };
 
   const addLine = () => {
     if (!defaultTaxRate) return;
-    setLines((prev) => [...prev, emptyLine(prev.length, defaultTaxRate.id, Number(defaultTaxRate.rate))]);
+    append(emptyInvoiceLine(fields.length, defaultTaxRate.id, Number(defaultTaxRate.rate)));
   };
 
   const removeLine = (index: number) => {
-    if (lines.length <= 1) return;
-    setLines((prev) => prev.filter((_, i) => i !== index));
+    if (fields.length <= 1) return;
+    remove(index);
   };
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + l.line_total, 0), [lines]);
-  const totalTax = useMemo(() => lines.reduce((s, l) => s + l.tax_amount, 0), [lines]);
+  const lines = watchedLines || [];
+  const subtotal = useMemo(() => lines.reduce((s, l) => s + (l?.line_total || 0), 0), [lines]);
+  const totalTax = useMemo(() => lines.reduce((s, l) => s + (l?.tax_amount || 0), 0), [lines]);
   const grandTotal = subtotal + totalTax;
 
   // Tax breakdown by rate
   const taxBreakdown = useMemo(() => {
     const map: Record<string, { rate: number; name: string; amount: number }> = {};
     lines.forEach((l) => {
+      if (!l) return;
       const key = l.tax_rate_id;
       if (!map[key]) {
         const tr = taxRates.find((r) => r.id === key);
@@ -322,30 +341,31 @@ export default function InvoiceForm() {
 
   const saveMutation = useMutation({
     mutationFn: async (newStatus: string) => {
+      const values = form.getValues();
       const invoiceData: any = {
         tenant_id: tenantId!,
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        due_date: dueDate || null,
-        partner_name: partnerName,
-        partner_pib: partnerPib || null,
-        partner_address: partnerAddress || null,
-        partner_id: selectedPartnerId && selectedPartnerId !== "__manual__" ? selectedPartnerId : null,
-        salesperson_id: salespersonId || null,
-        sales_order_id: salesOrderId || null,
+        invoice_number: values.invoiceNumber,
+        invoice_date: values.invoiceDate,
+        due_date: values.dueDate || null,
+        partner_name: values.partnerName,
+        partner_pib: values.partnerPib || null,
+        partner_address: values.partnerAddress || null,
+        partner_id: values.selectedPartnerId && values.selectedPartnerId !== "__manual__" ? values.selectedPartnerId : null,
+        salesperson_id: values.salespersonId || null,
+        sales_order_id: values.salesOrderId || null,
         subtotal,
         tax_amount: totalTax,
         total: grandTotal,
-        currency,
+        currency: values.currency,
         status: newStatus,
-        notes: notes || null,
+        notes: values.notes || null,
         created_by: user?.id || null,
-        invoice_type: invoiceType,
-        advance_invoice_id: advanceInvoiceId || null,
-        advance_amount_applied: advanceAmountApplied,
-        legal_entity_id: legalEntityId || null,
+        invoice_type: values.invoiceType,
+        advance_invoice_id: values.advanceInvoiceId || null,
+        advance_amount_applied: values.advanceAmountApplied,
+        legal_entity_id: values.legalEntityId || null,
         voucher_type: null,
-        vat_date: vatDate || invoiceDate,
+        vat_date: values.vatDate || values.invoiceDate,
       };
 
       let invoiceId = id;
@@ -361,7 +381,7 @@ export default function InvoiceForm() {
       }
 
       // Insert lines
-      const lineInserts = lines.map((l, i) => ({
+      const lineInserts = values.lines.map((l, i) => ({
         invoice_id: invoiceId!,
         product_id: l.product_id || null,
         description: l.description,
@@ -397,10 +417,11 @@ export default function InvoiceForm() {
   const postMutation = useMutation({
     mutationFn: async () => {
       if (!id || !tenantId) throw new Error("Missing invoice or tenant");
+      const values = form.getValues();
 
       // Build revenue lines by item type
       const revenueByType: Record<string, number> = {};
-      lines.forEach((l) => {
+      values.lines.forEach((l) => {
         if (l.line_total <= 0) return;
         const type = l.item_type || "service";
         revenueByType[type] = (revenueByType[type] || 0) + l.line_total;
@@ -416,9 +437,9 @@ export default function InvoiceForm() {
 
       // DR: Kupci
       fallbackLines.push({
-        accountCode: invoiceType === "advance" ? "2040" : "2040",
+        accountCode: values.invoiceType === "advance" ? "2040" : "2040",
         debit: grandTotal, credit: 0,
-        description: `${partnerName} — ${invoiceNumber}`,
+        description: `${values.partnerName} — ${values.invoiceNumber}`,
         sortOrder: 0,
       });
 
@@ -428,7 +449,7 @@ export default function InvoiceForm() {
         const acc = revenueAccounts[type] || revenueAccounts.service;
         fallbackLines.push({
           accountCode: acc.code, debit: 0, credit: amount,
-          description: `Prihod — ${invoiceNumber}`,
+          description: `Prihod — ${values.invoiceNumber}`,
           sortOrder: sortOrder++,
         });
       });
@@ -437,7 +458,7 @@ export default function InvoiceForm() {
       if (totalTax > 0) {
         fallbackLines.push({
           accountCode: "4700", debit: 0, credit: totalTax,
-          description: `PDV — ${invoiceNumber}`,
+          description: `PDV — ${values.invoiceNumber}`,
           sortOrder: sortOrder++,
         });
       }
@@ -447,12 +468,12 @@ export default function InvoiceForm() {
         userId: user?.id || null,
         modelCode: "INVOICE_POST",
         amount: grandTotal,
-        entryDate: vatDate || invoiceDate,
-        description: `Knjiženje fakture ${invoiceNumber}`,
+        entryDate: values.vatDate || values.invoiceDate,
+        description: `Knjiženje fakture ${values.invoiceNumber}`,
         reference: `INV:${id}`,
-        legalEntityId: legalEntityId || undefined,
+        legalEntityId: values.legalEntityId || undefined,
         context: { partnerReceivableCode: "2040" },
-        currency,
+        currency: values.currency,
         fallbackLines,
       });
 
@@ -461,7 +482,7 @@ export default function InvoiceForm() {
       if (error) throw error;
 
       // FIFO: consume cost layers for each product line
-      for (const line of lines) {
+      for (const line of values.lines) {
         if (line.product_id && line.quantity > 0) {
           try {
             await supabase.rpc("consume_fifo_layers", {
@@ -477,10 +498,9 @@ export default function InvoiceForm() {
       }
 
       // Emit invoice.posted event for stock deduction via event bus
-      const hasProducts = lines.some(l => l.product_id);
+      const hasProducts = values.lines.some(l => l.product_id);
       if (hasProducts) {
         try {
-          // Get default warehouse for tenant
           const { data: wh } = await supabase
             .from("warehouses")
             .select("id")
@@ -496,7 +516,7 @@ export default function InvoiceForm() {
               entity_type: "invoice",
               event_type: "invoice.posted",
               entity_id: id,
-              payload: { invoice_number: invoiceNumber, warehouse_id: wh.id },
+              payload: { invoice_number: values.invoiceNumber, warehouse_id: wh.id },
             }).select("id").single();
             if (evt) {
               await supabase.functions.invoke("process-module-event", { body: { event_id: evt.id } });
@@ -511,16 +531,16 @@ export default function InvoiceForm() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       toast({ title: t("success"), description: "Faktura je proknjižena u Glavnu knjigu." });
-      setStatus("posted");
+      form.setValue("status", "posted");
     },
     onError: (err: any) => {
       toast({ title: t("error"), description: err.message, variant: "destructive" });
     },
   });
 
-  const isReadOnly = status === "sent" || status === "paid" || status === "cancelled" || status === "posted";
-  const isProforma = invoiceType === "proforma";
-  const canPost = isEdit && status === "sent" && grandTotal > 0 && !isProforma;
+  const isReadOnly = watchedStatus === "sent" || watchedStatus === "paid" || watchedStatus === "cancelled" || watchedStatus === "posted";
+  const isProforma = watchedInvoiceType === "proforma";
+  const canPost = isEdit && watchedStatus === "sent" && grandTotal > 0 && !isProforma;
 
   const INVOICE_TYPE_TABS = [
     { value: "regular", label: t("invoiceTypeFinal") },
@@ -541,7 +561,7 @@ export default function InvoiceForm() {
 
       {/* Invoice Type Tabs */}
       {!isReadOnly && (
-        <Tabs value={invoiceType} onValueChange={(v) => setInvoiceType(v as any)} className="w-full">
+        <Tabs value={watchedInvoiceType} onValueChange={(v) => form.setValue("invoiceType", v as any)} className="w-full">
           <TabsList className="w-full grid grid-cols-5">
             {INVOICE_TYPE_TABS.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-xs sm:text-sm">
@@ -578,38 +598,41 @@ export default function InvoiceForm() {
         <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>{t("invoiceNumber")}</Label>
-            <Input value={invoiceNumber} readOnly className="bg-muted" />
+            <Input {...form.register("invoiceNumber")} readOnly className="bg-muted" />
           </div>
           <div>
             <Label>{t("invoiceDate")}</Label>
-            <Input type="date" value={invoiceDate} onChange={(e) => { setInvoiceDate(e.target.value); if (vatDate === invoiceDate) setVatDate(e.target.value); }} disabled={isReadOnly} />
+            <Input type="date" {...form.register("invoiceDate")} onChange={(e) => {
+              form.setValue("invoiceDate", e.target.value);
+              if (watchedVatDate === watchedInvoiceDate) form.setValue("vatDate", e.target.value);
+            }} disabled={isReadOnly} />
           </div>
           <div>
-            <Label className={vatDate !== invoiceDate ? "text-yellow-600 font-semibold" : ""}>
-              {"Datum PDV"} {vatDate !== invoiceDate && "⚠"}
+            <Label className={watchedVatDate !== watchedInvoiceDate ? "text-yellow-600 font-semibold" : ""}>
+              {"Datum PDV"} {watchedVatDate !== watchedInvoiceDate && "⚠"}
             </Label>
-            <Input type="date" value={vatDate} onChange={(e) => setVatDate(e.target.value)} disabled={isReadOnly}
-              className={vatDate !== invoiceDate ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
+            <Input type="date" {...form.register("vatDate")} disabled={isReadOnly}
+              className={watchedVatDate !== watchedInvoiceDate ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""} />
             {periodName && (
               <p className="text-xs text-muted-foreground mt-1">PDV period: <strong>{periodName}</strong></p>
             )}
           </div>
           <div>
             <Label>{t("dueDate")}</Label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isReadOnly} />
+            <Input type="date" {...form.register("dueDate")} disabled={isReadOnly} />
           </div>
-          {/* Invoice type shown as read-only badge in header since tabs control it */}
+          {/* Invoice type shown as read-only badge */}
           <div>
             <Label>{t("invoiceType")}</Label>
-            <Input value={INVOICE_TYPE_TABS.find(t => t.value === invoiceType)?.label || invoiceType} readOnly className="bg-muted" />
+            <Input value={INVOICE_TYPE_TABS.find(tab => tab.value === watchedInvoiceType)?.label || watchedInvoiceType} readOnly className="bg-muted" />
           </div>
-          {invoiceType === "advance_final" && (
+          {watchedInvoiceType === "advance_final" && (
             <div className="md:col-span-2">
               <Label>{t("selectAdvanceInvoice")}</Label>
-              <Select value={advanceInvoiceId} onValueChange={(v) => {
-                setAdvanceInvoiceId(v);
+              <Select value={form.getValues("advanceInvoiceId")} onValueChange={(v) => {
+                form.setValue("advanceInvoiceId", v);
                 const adv = advanceInvoices.find(a => a.id === v);
-                if (adv) setAdvanceAmountApplied(Number(adv.total));
+                if (adv) form.setValue("advanceAmountApplied", Number(adv.total));
               }} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue placeholder={t("selectAdvanceInvoice")} /></SelectTrigger>
                 <SelectContent>
@@ -618,7 +641,7 @@ export default function InvoiceForm() {
                   ))}
                 </SelectContent>
               </Select>
-              {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {fmtNum(advanceAmountApplied)}</p>}
+              {form.getValues("advanceAmountApplied") > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {fmtNum(form.getValues("advanceAmountApplied"))}</p>}
             </div>
           )}
         </CardContent>
@@ -631,7 +654,7 @@ export default function InvoiceForm() {
           <CardContent>
             <div className="max-w-sm">
               <Label>{t("selectLegalEntity")}</Label>
-              <Select value={legalEntityId} onValueChange={setLegalEntityId} disabled={isReadOnly}>
+              <Select value={form.getValues("legalEntityId")} onValueChange={(v) => form.setValue("legalEntityId", v)} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
                 <SelectContent>
                   {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
@@ -666,16 +689,16 @@ export default function InvoiceForm() {
                   sublabel: p.pib || undefined,
                 })),
               ]}
-              value={selectedPartnerId || null}
+              value={form.getValues("selectedPartnerId") || null}
               onValueChange={(v) => {
                 const val = v || "";
-                setSelectedPartnerId(val);
+                form.setValue("selectedPartnerId", val);
                 if (val && val !== "__manual__") {
                   const p = partners.find((p) => p.id === val);
                   if (p) {
-                    setPartnerName(p.name);
-                    setPartnerPib(p.pib || "");
-                    setPartnerAddress([p.address, p.city].filter(Boolean).join(", "));
+                    form.setValue("partnerName", p.name);
+                    form.setValue("partnerPib", p.pib || "");
+                    form.setValue("partnerAddress", [p.address, p.city].filter(Boolean).join(", "));
                   }
                 }
               }}
@@ -687,15 +710,15 @@ export default function InvoiceForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>{t("partnerName")}</Label>
-              <Input value={partnerName} onChange={(e) => setPartnerName(e.target.value)} disabled={isReadOnly} />
+              <Input {...form.register("partnerName")} disabled={isReadOnly} />
             </div>
             <div>
               <Label>{t("pib")}</Label>
-              <Input value={partnerPib} onChange={(e) => setPartnerPib(e.target.value)} disabled={isReadOnly} />
+              <Input {...form.register("partnerPib")} disabled={isReadOnly} />
             </div>
             <div>
               <Label>{t("address")}</Label>
-              <Input value={partnerAddress} onChange={(e) => setPartnerAddress(e.target.value)} disabled={isReadOnly} />
+              <Input {...form.register("partnerAddress")} disabled={isReadOnly} />
             </div>
           </div>
         </CardContent>
@@ -707,7 +730,7 @@ export default function InvoiceForm() {
           <CardHeader><CardTitle>{t("salesperson")}</CardTitle></CardHeader>
           <CardContent>
             <div className="max-w-sm">
-              <Select value={salespersonId || "__none"} onValueChange={(v) => setSalespersonId(v === "__none" ? "" : v)} disabled={isReadOnly}>
+              <Select value={form.getValues("salespersonId") || "__none"} onValueChange={(v) => form.setValue("salespersonId", v === "__none" ? "" : v)} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue placeholder={t("salesperson")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">—</SelectItem>
@@ -750,8 +773,10 @@ export default function InvoiceForm() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lines.map((line, i) => (
-                <TableRow key={i}>
+              {fields.map((field, i) => {
+                const line = lines[i] || field;
+                return (
+                <TableRow key={field.id}>
                   <TableCell>
                     <Select
                       value={line.product_id || "__none__"}
@@ -762,19 +787,16 @@ export default function InvoiceForm() {
                         }
                         const prod = products.find((p) => p.id === v);
                         if (prod) {
-                          setLines((prev) => {
-                            const updated = [...prev];
-                            const l = {
-                              ...updated[i],
-                              product_id: prod.id,
-                              description: prod.name,
-                              unit_price: Number(prod.default_sale_price),
-                              tax_rate_id: prod.tax_rate_id || updated[i].tax_rate_id,
-                              tax_rate_value: prod.tax_rate_id && (prod as any).tax_rates ? Number((prod as any).tax_rates.rate) : updated[i].tax_rate_value,
-                            };
-                            updated[i] = calcLine(l);
-                            return updated;
-                          });
+                          const currentLine = form.getValues(`lines.${i}`);
+                          const l = {
+                            ...currentLine,
+                            product_id: prod.id,
+                            description: prod.name,
+                            unit_price: Number(prod.default_sale_price),
+                            tax_rate_id: prod.tax_rate_id || currentLine.tax_rate_id,
+                            tax_rate_value: prod.tax_rate_id && (prod as any).tax_rates ? Number((prod as any).tax_rates.rate) : currentLine.tax_rate_value,
+                          } as any;
+                          update(i, calcInvoiceLine(l));
                         }
                       }}
                       disabled={isReadOnly}
@@ -800,7 +822,7 @@ export default function InvoiceForm() {
                   <TableCell>
                     <Select
                       value={line.item_type}
-                      onValueChange={(v) => updateLine(i, "item_type" as any, v)}
+                      onValueChange={(v) => updateLine(i, "item_type", v)}
                       disabled={isReadOnly}
                     >
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -811,20 +833,18 @@ export default function InvoiceForm() {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  {/* POPDV Field */}
                   <TableCell>
                     <PopdvFieldSelect
                       direction="OUTPUT"
                       value={line.popdv_field}
-                      onValueChange={(v) => updateLine(i, "popdv_field" as any, v)}
+                      onValueChange={(v) => updateLine(i, "popdv_field", v)}
                       disabled={isReadOnly}
                     />
                   </TableCell>
-                  {/* eFaktura Category */}
                   <TableCell>
                     <Select
                       value={line.efaktura_category || "__none__"}
-                      onValueChange={(v) => updateLine(i, "efaktura_category" as any, v === "__none__" ? "" : v)}
+                      onValueChange={(v) => updateLine(i, "efaktura_category", v === "__none__" ? "" : v)}
                       disabled={isReadOnly}
                     >
                       <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
@@ -880,13 +900,14 @@ export default function InvoiceForm() {
                   <TableCell className="text-right font-mono text-sm">{fmtNum(line.total_with_tax)}</TableCell>
                   {!isReadOnly && (
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
+                      <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={fields.length <= 1}>
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </TableCell>
                   )}
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -898,18 +919,18 @@ export default function InvoiceForm() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex justify-between w-64">
               <span>{t("subtotal")}:</span>
-              <span className="font-mono">{fmtNum(subtotal)} {currency}</span>
+              <span className="font-mono">{fmtNum(subtotal)} {watchedCurrency}</span>
             </div>
             {taxBreakdown.map((tb, i) => (
               <div key={i} className="flex justify-between w-64 text-sm text-muted-foreground">
                 <span>PDV {tb.name}:</span>
-                <span className="font-mono">{fmtNum(tb.amount)} {currency}</span>
+                <span className="font-mono">{fmtNum(tb.amount)} {watchedCurrency}</span>
               </div>
             ))}
             <Separator className="w-64" />
             <div className="flex justify-between w-64 font-bold text-lg">
               <span>{t("total")}:</span>
-              <span className="font-mono">{fmtNum(grandTotal)} {currency}</span>
+              <span className="font-mono">{fmtNum(grandTotal)} {watchedCurrency}</span>
             </div>
           </div>
         </CardContent>
@@ -919,17 +940,17 @@ export default function InvoiceForm() {
       <Card>
         <CardContent className="pt-6">
           <Label>{t("notes")}</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={isReadOnly} rows={3} />
+          <Textarea {...form.register("notes")} disabled={isReadOnly} rows={3} />
         </CardContent>
       </Card>
 
       {/* GL Posting Preview — hidden for proforma */}
       {!isProforma && (
         <GlPostingPreview
-          lines={lines}
-          partnerName={partnerName}
-          invoiceType={invoiceType}
-          currency={currency}
+          lines={lines as any}
+          partnerName={form.getValues("partnerName")}
+          invoiceType={watchedInvoiceType}
+          currency={watchedCurrency}
           subtotal={subtotal}
           totalTax={totalTax}
           grandTotal={grandTotal}
@@ -940,12 +961,10 @@ export default function InvoiceForm() {
       <div className="flex flex-wrap gap-3">
         {!isReadOnly && (
           <>
-            {/* Save Draft */}
             <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
               <Save className="h-4 w-4 mr-2" /> {t("saveDraft")}
             </Button>
 
-            {/* Proknjizi (post to GL only) — not for proforma */}
             {!isProforma && (
               <Button
                 onClick={() => saveMutation.mutate("sent")}
@@ -956,7 +975,6 @@ export default function InvoiceForm() {
               </Button>
             )}
 
-            {/* Proknjizi i pošalji na SEF — not for proforma */}
             {!isProforma && (
               <Button
                 onClick={() => saveMutation.mutate("sent")}
@@ -992,10 +1010,10 @@ export default function InvoiceForm() {
         tenantId={tenantId!}
         onPartnerCreated={(partner) => {
           queryClient.invalidateQueries({ queryKey: ["partners"] });
-          setSelectedPartnerId(partner.id);
-          setPartnerName(partner.name);
-          setPartnerPib(partner.pib || "");
-          setPartnerAddress([partner.address, partner.city].filter(Boolean).join(", "));
+          form.setValue("selectedPartnerId", partner.id);
+          form.setValue("partnerName", partner.name);
+          form.setValue("partnerPib", partner.pib || "");
+          form.setValue("partnerAddress", [partner.address, partner.city].filter(Boolean).join(", "));
         }}
       />
     </div>
