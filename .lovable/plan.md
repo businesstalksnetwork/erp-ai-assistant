@@ -1,44 +1,60 @@
 
 
-## v2.4 Round 1 — POS Stock + Credit Notes + SO→Invoice
+## v2.4 Round 2 — HR Enhancements
 
-### Current State
+### #4 Employee Document Uploads
 
-1. **POS stock**: `completeSale` calls `consume_fifo_layers` but never calls `adjust_inventory_stock` — physical stock quantity is not decremented. `processRefund` does neither stock restoration nor FIFO reversal.
-2. **Credit notes**: `credit_notes` table already exists (with `invoice_id`, `journal_entry_id`, `subtotal`, `tax_amount`). `CreditDebitNotes.tsx` is a manual amount-entry form — no line-item selection from original invoice, no inventory restoration.
-3. **SO→Invoice**: Already implemented in `SalesOrderDetail.tsx` (line 163-188) — navigates to `InvoiceForm` with pre-filled lines. Missing: auto-post option and SO status update after conversion.
+**Approach**: Add a "Dokumenti" tab to `EmployeeDetail.tsx` using the `documents` table's polymorphic `entity_type`/`entity_id` pattern. Reuse the `OpportunityDocumentsTab` pattern (upload to `tenant-documents` storage bucket, insert row into `documents` with `entity_type = 'employee'`).
 
-### Implementation Plan
+**Changes**:
+- Create `src/components/hr/EmployeeDocumentsTab.tsx` — clone of `OpportunityDocumentsTab` adapted for employees, using `documents` table with `entity_type='employee'`, `entity_id=employeeId`
+- Edit `src/pages/tenant/EmployeeDetail.tsx` — add "Dokumenti" tab trigger + content rendering `EmployeeDocumentsTab`
+- Add translation keys: `employeeDocuments`
 
-**#1 POS inventory stock deduction (PosTerminal.tsx)**
-- In `completeSale`, after FIFO consumption loop (line 346-359), add a parallel loop calling `adjust_inventory_stock` with negative quantity for each cart item
-- In `processRefund`, after fiscalization succeeds, add `adjust_inventory_stock` with positive quantity to restore stock for each refunded item
-- Also add `consume_fifo_layers` reversal consideration (or skip — FIFO layers are consumed, refund creates new receipt layer via goods-receipt pattern)
+### #5 Employee Onboarding Checklists
 
-**#2 Enhanced Credit Note flow (CreditDebitNotes.tsx)**
-- Add "Create from Invoice" button that opens invoice picker
-- When invoice selected, fetch `invoice_items` and display line-item selector with quantity controls (partial credit)
-- Auto-calculate subtotal/tax from selected lines
-- On post: call `postWithRuleOrFallback` with reversed DR/CR (already done for manual entry)
-- Add `adjust_inventory_stock` for credited product lines to restore inventory
-- No new DB tables needed — `credit_notes` already has `invoice_id`, `subtotal`, `tax_amount` columns
+**DB migration** — two new tables:
+- `onboarding_checklists` (id, tenant_id, name, items JSONB `[{title, description}]`, is_active, created_at)
+- `employee_onboarding_tasks` (id, tenant_id, employee_id FK, checklist_id FK, item_index int, completed bool default false, completed_at, completed_by)
+- RLS: `tenant_id IN (SELECT get_user_tenant_ids(auth.uid()))`
 
-**#3 SO→Invoice auto-post + status update (SalesOrderDetail.tsx)**
-- Add checkbox "Auto-post invoice" in the conversion flow state passed to `InvoiceForm`
-- After conversion, update `sales_orders.status` to `'invoiced'`
-- In `InvoiceForm`, detect `fromSalesOrder.autoPost` flag and trigger posting after save
+**Changes**:
+- Create `src/components/hr/EmployeeOnboardingTab.tsx` — shows assigned checklist progress bar + task toggles; "Assign Checklist" button to pick from templates
+- Edit `src/pages/tenant/EmployeeDetail.tsx` — add "Onboarding" tab
+- Create `src/pages/tenant/OnboardingChecklists.tsx` — CRUD page for checklist templates (name + JSONB items editor)
+- Add route `/hr/onboarding-checklists` in `hrRoutes.tsx`
+- Add Settings link under Operations section in `Settings.tsx`
+- Add translation keys
 
-**#4 Update documentation**
-- Remove "POS does not yet deduct inventory stock" from `docs/06-sales-purchasing-pos.md`
-- Remove "No credit note / return invoice flow" gap
-- Remove "Sales order → Invoice conversion does not auto-post" gap
+### #6 Payroll-Bank Reconciliation
 
-### Files Modified
-- `src/pages/tenant/PosTerminal.tsx` — add `adjust_inventory_stock` in sale + refund
-- `src/pages/tenant/CreditDebitNotes.tsx` — add invoice line picker, inventory restoration
-- `src/pages/tenant/SalesOrderDetail.tsx` — add auto-post flag, status update on conversion
-- `docs/06-sales-purchasing-pos.md` — remove resolved known gaps
+**DB migration**:
+- `payroll_bank_reconciliation` (id, tenant_id, payroll_run_id FK, bank_statement_line_id FK, employee_id FK, expected_amount numeric, matched_amount numeric, status text default 'unmatched', matched_at, notes)
+- RLS: standard tenant isolation
 
-### No DB migration needed
-All required tables and columns already exist.
+**Changes**:
+- Create `src/pages/tenant/PayrollBankReconciliation.tsx`:
+  - Select a payroll run → load `payroll_items` with employee names + net_salary
+  - Select bank statement(s) → load `bank_statement_lines` where `direction='outgoing'` and `transaction_type='SALARY'` or unmatched
+  - Auto-match engine: compare employee name vs `partner_name` (fuzzy) + `net_salary` vs `amount` (exact/tolerance)
+  - Display matched/unmatched items with manual override controls
+  - Status badges: matched, unmatched, partial
+- Add route `/hr/payroll/bank-reconciliation` in `hrRoutes.tsx`
+- Add sidebar link in `TenantLayout.tsx` under HR/Payroll section
+- Add translation keys
+
+### Files Summary
+
+| Action | File |
+|--------|------|
+| Create | `src/components/hr/EmployeeDocumentsTab.tsx` |
+| Create | `src/components/hr/EmployeeOnboardingTab.tsx` |
+| Create | `src/pages/tenant/OnboardingChecklists.tsx` |
+| Create | `src/pages/tenant/PayrollBankReconciliation.tsx` |
+| Create | Migration SQL (2 tables + RLS) |
+| Edit | `src/pages/tenant/EmployeeDetail.tsx` (2 new tabs) |
+| Edit | `src/routes/hrRoutes.tsx` (2 new routes) |
+| Edit | `src/layouts/TenantLayout.tsx` (sidebar links) |
+| Edit | `src/pages/tenant/Settings.tsx` (onboarding templates link) |
+| Edit | `src/i18n/translations.ts` |
 
