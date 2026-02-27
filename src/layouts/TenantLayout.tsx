@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -131,6 +131,7 @@ const accountingNav: NavItem[] = [
   { key: "ppppo", url: "/accounting/reports/ppp-po", icon: FileSpreadsheet },
   { key: "odO", url: "/accounting/reports/od-o", icon: FileText },
   { key: "m4Report", url: "/accounting/reports/m4", icon: FileSpreadsheet },
+  { key: "zpppdv", url: "/accounting/reports/zpppdv", icon: FileText },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
 ];
 
@@ -208,6 +209,7 @@ const hrNav: NavItem[] = [
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
   { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
   { key: "travelOrders", url: "/hr/travel-orders", icon: Plane, section: "travelExpenses" },
+  { key: "employeeDataExport", url: "/hr/employee-data-export", icon: Download },
 ];
 
 const productionNav: NavItem[] = [

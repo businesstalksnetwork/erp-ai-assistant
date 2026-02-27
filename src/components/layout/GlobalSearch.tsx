@@ -19,7 +19,7 @@ import {
   CalendarOff, Moon, Calendar, FileSignature, Shield, Heart, Briefcase, Globe, Grid3X3,
   MapPin, ScanBarcode, RefreshCw, Brain, Layers, Search, Building2, List, FolderTree,
   Car, Fuel, Wrench, FileKey, Scale, PieChart, AlertTriangle, Repeat, Archive, Trash2,
-  HardDrive, GitBranch, Eye, Kanban, GanttChart, Cog, Import, Key, Database,
+  HardDrive, GitBranch, Eye, Kanban, GanttChart, Cog, Import, Key, Database, Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -142,6 +142,7 @@ export function GlobalSearch() {
     { label: "PPP-PO Godišnji", path: "/accounting/reports/ppp-po", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
     { label: "OD-O Obračun", path: "/accounting/reports/od-o", icon: FileText, group: "accounting", module: "accounting" },
     { label: "M4 PIO Izveštaj", path: "/accounting/reports/m4", icon: FileSpreadsheet, group: "accounting", module: "accounting" },
+    { label: "ZPPPDV Povraćaj PDV", path: "/accounting/reports/zpppdv", icon: FileText, group: "accounting", module: "accounting" },
 
     // Analytics
     { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
@@ -188,6 +189,7 @@ export function GlobalSearch() {
     { label: t("hrReports"), path: "/hr/reports", icon: BarChart3, group: "hr", module: "hr" },
     { label: "Non-Employment Income", path: "/hr/non-employment-income", icon: Coins, group: "hr", module: "hr" },
     { label: "Putni Nalozi", path: "/hr/travel-orders", icon: Briefcase, group: "hr", module: "hr" },
+    { label: "Eksport podataka zaposlenog", path: "/hr/employee-data-export", icon: Download, group: "hr", module: "hr" },
 
     // POS
     { label: `POS — ${t("dashboard")}`, path: "/pos", icon: LayoutDashboard, group: "pos", module: "pos" },

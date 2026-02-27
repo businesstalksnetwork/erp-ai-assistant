@@ -5,31 +5,34 @@
 ### Completed Items
 
 **#9 — Cron schedule for recurring engines ✅**
-- Added `recurring-invoice-generate` and `recurring-journal-generate` to `config.toml`
-- Created pg_cron jobs: daily at 06:00 UTC (invoices) and 06:05 UTC (journals)
-- Both call edge function URLs with anon key auth
-
 **#10 — Recurring invoice line items ✅**
-- Updated `recurring-invoice-generate/index.ts` to parse `tpl.lines` JSON array
-- Inserts each line into `invoice_lines` with calculated totals
-- Updated `RecurringInvoices.tsx` with full line items editor (description, qty, price, VAT rate)
-- Template dialog now shows running subtotal/tax/total
-
 **#1 — OD-O Form ✅**
-- Created `od_o_reports` table with RLS
-- Created `src/pages/tenant/reports/OdOForm.tsx` with:
-  - Employee selector, period picker, income type dropdown
-  - Real-time calculation preview with Serbian OD-O rates (normirani troškovi, PIO, zdravstveno)
-  - Generate/download XML button
-- Created `generate-od-o-xml` edge function
-- Added route `/accounting/reports/od-o` and sidebar entry
-
 **#2 — M4 Annual PIO Report ✅**
-- Created `m4_reports` table with RLS
-- Created `src/pages/tenant/reports/M4Report.tsx` with:
-  - Year selector, generate button
-  - Per-employee breakdown: months worked, PIO base, PIO employee, PIO employer
-  - Summary totals row
-  - Download XML button
-- Created `generate-m4-xml` edge function (aggregates from payroll_items)
-- Added route `/accounting/reports/m4` and sidebar entry
+
+---
+
+## v2.3 Round 2 — P2 Quick Wins (4 items) ✅ COMPLETED
+
+**#3 — ZPPPDV VAT Refund Form ✅**
+- Created `src/pages/tenant/reports/ZpppdvForm.tsx`
+- Reads from `pdv_periods`, filters where `input_vat > output_vat`
+- Summary cards showing eligible periods and total refund amount
+- Generates ZPPPDV XML for ePorezi submission
+- Route: `/accounting/reports/zpppdv`, sidebar + global search
+
+**#16 — Employee Data Export / Portability ✅**
+- Created `src/pages/tenant/reports/EmployeeDataExport.tsx`
+- PDPA compliant: exports personal data, attendance, leave, allowances, payroll history
+- Supports JSON and CSV formats with BOM for Serbian characters
+- Route: `/hr/employee-data-export`, sidebar + global search
+
+**#17 — Lead → Partner Conversion Flow ✅**
+- Added `convertToPartnerMutation` in `Leads.tsx`
+- Creates partner record pre-filled from lead data (name, company, email, phone)
+- New action button "Konvertuj u partnera" in lead action menu
+- Marks lead as converted after partner creation
+
+**#18 — Discount Approval Workflow ✅ (Already functional)**
+- `useDiscountApproval` hook already wires discount approvals into `approval_requests`
+- `PendingApprovals.tsx` already shows all pending approvals including `quote_discount` type
+- No additional code needed — the pipeline was already complete
