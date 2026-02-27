@@ -48,7 +48,7 @@ export default function CreateTenantWizard({ open, onOpenChange, onCreated }: Pr
       const token = session.session?.access_token;
 
       const res = await fetch(
-        `https://hfvoehsrsimvgyyxirwj.supabase.co/functions/v1/create-tenant`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-tenant`,
         {
           method: "POST",
           headers: {

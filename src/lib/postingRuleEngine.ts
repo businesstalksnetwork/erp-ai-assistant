@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { findAccountByCode } from "@/lib/journalUtils";
+import { findAccountByCode, findAccountById } from "@/lib/journalUtils";
 
 export interface PostingRuleLine {
   id: string;
@@ -198,7 +198,7 @@ export async function resolvePostingRuleToJournalLines(
       if (cached) {
         accountCode = cached.code;
       } else {
-        const acct = await findAccountByCode(tenantId, line.account_id);
+        const acct = await findAccountById(tenantId, line.account_id);
         if (!acct) throw new Error(`Account ${line.account_id} not found`);
         accountCode = acct.code;
       }

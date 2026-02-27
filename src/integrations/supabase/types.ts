@@ -9830,6 +9830,7 @@ export type Database = {
           journal_entry_id: string
           popdv_field: string | null
           sort_order: number
+          tenant_id: string
         }
         Insert: {
           account_id: string
@@ -9848,6 +9849,7 @@ export type Database = {
           journal_entry_id: string
           popdv_field?: string | null
           sort_order?: number
+          tenant_id: string
         }
         Update: {
           account_id?: string
@@ -9866,6 +9868,7 @@ export type Database = {
           journal_entry_id?: string
           popdv_field?: string | null
           sort_order?: number
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -9887,6 +9890,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -21255,10 +21265,10 @@ export type Database = {
       }
       complete_production_order: {
         Args: {
+          p_actual_quantity: number
           p_order_id: string
-          p_quantity_to_complete?: number
-          p_user_id?: string
-          p_warehouse_id: string
+          p_tenant_id: string
+          p_warehouse_id?: string
         }
         Returns: Json
       }

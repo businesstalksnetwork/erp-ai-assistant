@@ -543,7 +543,7 @@ export default function InvoiceForm() {
             }
           }
         } catch (e) {
-          console.warn("Stock deduction event failed:", e);
+          throw new Error(`Stock deduction failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     },

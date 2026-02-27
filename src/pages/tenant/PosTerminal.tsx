@@ -194,21 +194,49 @@ export default function PosTerminal() {
 
   const removeFromCart = (productId: string) => setCart(prev => prev.filter(c => c.product_id !== productId));
 
-  const subtotal = cart.reduce((s, c) => s + c.unit_price * c.quantity, 0);
-  const taxAmount = cart.reduce((s, c) => s + c.unit_price * c.quantity * (c.tax_rate / 100), 0);
-  const total = subtotal + taxAmount;
+  // Serbian retail prices are PDV-inclusive — extract tax from inclusive price
+  const total = cart.reduce((s, c) => s + c.unit_price * c.quantity, 0);
+  const taxAmount = cart.reduce((s, c) => s + (c.unit_price * c.quantity * c.tax_rate) / (100 + c.tax_rate), 0);
+  const subtotal = total - taxAmount;
 
   // Open refund dialog for a specific transaction
-  const openRefundDialog = (tx: any) => {
+  const openRefundDialog = async (tx: any) => {
     setSelectedOriginalTx(tx);
-    const items = (tx.items as any[] || []).map((item: any) => ({
-      name: item.name,
-      quantity: item.quantity,
-      maxQuantity: item.quantity,
-      unit_price: item.unit_price,
-      tax_rate: item.tax_rate || 20,
-      selected: true,
-    }));
+
+    // CR-CRIT-3: Query prior refunds to prevent unlimited re-refunds
+    const { data: priorRefunds } = await supabase
+      .from("pos_transactions")
+      .select("items")
+      .eq("original_transaction_id", tx.id)
+      .eq("receipt_type", "refund")
+      .neq("status", "voided");
+
+    // Sum already-refunded quantities per item name
+    const refundedQtyMap: Record<string, number> = {};
+    (priorRefunds || []).forEach((ref: any) => {
+      ((ref.items as any[]) || []).forEach((item: any) => {
+        refundedQtyMap[item.name] = (refundedQtyMap[item.name] || 0) + (item.quantity || 0);
+      });
+    });
+
+    const items = (tx.items as any[] || []).map((item: any) => {
+      const alreadyRefunded = refundedQtyMap[item.name] || 0;
+      const remaining = Math.max(0, item.quantity - alreadyRefunded);
+      return {
+        name: item.name,
+        quantity: remaining,
+        maxQuantity: remaining,
+        unit_price: item.unit_price,
+        tax_rate: item.tax_rate || 20,
+        selected: remaining > 0,
+      };
+    }).filter(i => i.maxQuantity > 0);
+
+    if (items.length === 0) {
+      toast({ title: t("error"), description: "All items have already been refunded", variant: "destructive" });
+      return;
+    }
+
     setRefundItems(items);
     setRefundDialogOpen(true);
   };
@@ -226,9 +254,10 @@ export default function PosTerminal() {
       const selectedItems = refundItems.filter(i => i.selected && i.quantity > 0);
       if (selectedItems.length === 0) throw new Error("No items selected for refund");
 
-      const refundSubtotal = selectedItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
-      const refundTax = selectedItems.reduce((s, i) => s + i.unit_price * i.quantity * (i.tax_rate / 100), 0);
-      const refundTotal = refundSubtotal + refundTax;
+      // CR-CRIT-4: Extract tax from inclusive price (same as sale calculation)
+      const refundTotal = selectedItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+      const refundTax = selectedItems.reduce((s, i) => s + (i.unit_price * i.quantity * i.tax_rate) / (100 + i.tax_rate), 0);
+      const refundSubtotal = refundTotal - refundTax;
 
       const txNum = `REF-${Date.now()}`;
 

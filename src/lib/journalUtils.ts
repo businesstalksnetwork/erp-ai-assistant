@@ -3,6 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 /**
  * Finds a chart of accounts entry by code for a given tenant.
  */
+export async function findAccountById(tenantId: string, accountId: string) {
+  const { data } = await supabase
+    .from("chart_of_accounts")
+    .select("id, code, name")
+    .eq("tenant_id", tenantId)
+    .eq("id", accountId)
+    .eq("is_active", true)
+    .limit(1)
+    .single();
+  return data;
+}
+
+/**
+ * Finds a chart of accounts entry by code for a given tenant.
+ */
 export async function findAccountByCode(tenantId: string, code: string) {
   const { data } = await supabase
     .from("chart_of_accounts")

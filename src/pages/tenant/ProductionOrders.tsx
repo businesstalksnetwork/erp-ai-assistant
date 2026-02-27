@@ -154,8 +154,8 @@ export default function ProductionOrders() {
     mutationFn: async () => {
       if (!completeOrder || !selectedWarehouse) throw new Error("Missing data");
       const { data, error } = await supabase.rpc("complete_production_order", {
-        p_order_id: completeOrder.id, p_warehouse_id: selectedWarehouse,
-        p_quantity_to_complete: quantityToComplete, p_user_id: user?.id || null,
+        p_tenant_id: tenantId!, p_order_id: completeOrder.id, p_actual_quantity: quantityToComplete,
+        p_warehouse_id: selectedWarehouse,
       });
       if (error) throw error;
 
