@@ -46,6 +46,7 @@ import {
   driveRoutes,
   posRoutes,
   analyticsRoutes,
+  serviceRoutes,
   miscRoutes,
 } from "@/routes/otherRoutes";
 import { assetsRoutes } from "@/routes/assetsRoutes";
@@ -104,6 +105,7 @@ const App = () => (
                 {posRoutes}
                 {analyticsRoutes}
                 {assetsRoutes}
+                {serviceRoutes}
                 {miscRoutes}
               </Route>
 
