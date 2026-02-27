@@ -20,14 +20,30 @@
   - Replaced ~20 useState → single `useForm<InvoiceFormValues>()` per form
   - Line items managed via `useFieldArray` with proper `calcInvoiceLine` / `calcSupplierInvoiceLine` recalc on update
 
-### Remaining: 5 Items → 3 Rounds
+### Round 2 — ResponsiveTable Migration ✅ DONE
 
-**Round 2 — ResponsiveTable Migration (~10 hr)**
-- **v2.2 #15-16**: Migrate ~19 list pages from raw `<Table>` to `<ResponsiveTable>` with sorting, export, column toggle
+- **v2.2 #15-16**: Migrated 16 list pages from raw `<Table>` to `<ResponsiveTable>` with sorting, export, column toggle
+  - Batch 1 (10 pages): ReportSnapshots, InventoryMovements, InventoryCostLayers, FixedAssets, QualityControl, ApprovalWorkflows, SalesChannels, Nivelacija, PayrollCategories, OpportunityStagesSettings
+  - Batch 2 (6 pages): SecurityIncidents, ProductionOrders, EBolovanje, CashRegister, WmsLabor, AssetReports
 
-**Round 3 — IFRS Modules (~14 hr)**
-- **v2.3 #12**: IFRS 16 lease enhancements — modification/reassessment, short-term exemptions, disclosure report, maturity analysis
-- **v2.3 #13**: IFRS 15 revenue recognition — new module with 5-step model, contract-based deferred revenue, percentage-of-completion
+### Round 3 — IFRS Modules ✅ DONE
+
+- **v2.3 #12**: IFRS 16 lease enhancements
+  - Modification/reassessment dialog in LeaseContractDetail with full schedule recalculation
+  - Short-term and low-value exemption checkboxes on LeaseContractForm
+  - `LeaseDisclosure.tsx` — full IFRS 16 disclosure report with maturity analysis (5 time buckets), P&L impact, liability reconciliation, modifications log
+  - `lease_modifications` DB table for audit trail
+  - Sidebar nav: disclosure link added to assets section
+
+- **v2.3 #13**: IFRS 15 revenue recognition — NEW MODULE
+  - DB tables: `revenue_contracts`, `revenue_performance_obligations`, `revenue_recognition_entries`
+  - `RevenueContracts.tsx` — list page with ResponsiveTable
+  - `RevenueContractForm.tsx` — 5-step model (identify contract, identify POs, determine price, allocate via relative SSP, recognize method selection)
+  - `RevenueContractDetail.tsx` — KPIs (transaction price, recognized, deferred, % complete), PO table with progress bars, recognition dialog with cost-to-cost support, recognition history journal
+  - GL posting via `postWithRuleOrFallback` (IFRS15_REVENUE model code)
+  - Routes added to accountingRoutes.tsx, sidebar nav under "IFRS Modules" section
+
+### Remaining: 2 Items → 1 Round
 
 **Round 4 — Supply Chain Intelligence (~8 hr)**
 - **v2.3 #19**: Supplier evaluation — weighted scoring (quality/delivery/price), trend charts, comparison dashboard
@@ -35,10 +51,8 @@
 
 ### Recommended Order
 ```text
-Round 2: ResponsiveTable batch migration               ~10 hr
-Round 3: IFRS 16 + IFRS 15 modules                    ~14 hr
 Round 4: Supplier evaluation + Demand forecasting       ~8 hr
-                                                Total: ~32 hr
+                                                 Total: ~8 hr
 ```
 
-Ready to start Round 2 on approval.
+Ready to start Round 4 on approval.

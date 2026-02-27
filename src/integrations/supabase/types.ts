@@ -9464,6 +9464,7 @@ export type Database = {
           lessor_name: string | null
           lessor_partner_id: string | null
           liability_account: string | null
+          low_value_exempt: boolean | null
           monthly_payment: number
           notes: string | null
           residual_value_guarantee: number | null
@@ -9471,6 +9472,7 @@ export type Database = {
           rou_asset_account: string | null
           rou_depreciation_account: string | null
           rou_net_book_value: number | null
+          short_term_exempt: boolean | null
           start_date: string
           status: string | null
           tenant_id: string
@@ -9496,6 +9498,7 @@ export type Database = {
           lessor_name?: string | null
           lessor_partner_id?: string | null
           liability_account?: string | null
+          low_value_exempt?: boolean | null
           monthly_payment: number
           notes?: string | null
           residual_value_guarantee?: number | null
@@ -9503,6 +9506,7 @@ export type Database = {
           rou_asset_account?: string | null
           rou_depreciation_account?: string | null
           rou_net_book_value?: number | null
+          short_term_exempt?: boolean | null
           start_date: string
           status?: string | null
           tenant_id: string
@@ -9528,6 +9532,7 @@ export type Database = {
           lessor_name?: string | null
           lessor_partner_id?: string | null
           liability_account?: string | null
+          low_value_exempt?: boolean | null
           monthly_payment?: number
           notes?: string | null
           residual_value_guarantee?: number | null
@@ -9535,6 +9540,7 @@ export type Database = {
           rou_asset_account?: string | null
           rou_depreciation_account?: string | null
           rou_net_book_value?: number | null
+          short_term_exempt?: boolean | null
           start_date?: string
           status?: string | null
           tenant_id?: string
@@ -9564,6 +9570,78 @@ export type Database = {
           },
           {
             foreignKeyName: "lease_contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_modifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          gain_loss_on_modification: number | null
+          id: string
+          lease_id: string
+          modification_date: string
+          modification_type: string
+          new_discount_rate: number | null
+          new_lease_term_months: number | null
+          new_monthly_payment: number | null
+          notes: string | null
+          recalculated_liability: number | null
+          recalculated_rou: number | null
+          remaining_liability_before: number | null
+          remaining_rou_before: number | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          gain_loss_on_modification?: number | null
+          id?: string
+          lease_id: string
+          modification_date?: string
+          modification_type?: string
+          new_discount_rate?: number | null
+          new_lease_term_months?: number | null
+          new_monthly_payment?: number | null
+          notes?: string | null
+          recalculated_liability?: number | null
+          recalculated_rou?: number | null
+          remaining_liability_before?: number | null
+          remaining_rou_before?: number | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          gain_loss_on_modification?: number | null
+          id?: string
+          lease_id?: string
+          modification_date?: string
+          modification_type?: string
+          new_discount_rate?: number | null
+          new_lease_term_months?: number | null
+          new_monthly_payment?: number | null
+          notes?: string | null
+          recalculated_liability?: number | null
+          recalculated_rou?: number | null
+          remaining_liability_before?: number | null
+          remaining_rou_before?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_modifications_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "lease_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_modifications_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -15095,6 +15173,257 @@ export type Database = {
             columns: ["return_case_id"]
             isOneToOne: false
             referencedRelation: "return_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_contracts: {
+        Row: {
+          contract_date: string
+          contract_number: string
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          customer_name: string | null
+          customer_partner_id: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          start_date: string
+          status: string | null
+          step1_identification: string | null
+          step2_obligations: string | null
+          step3_price_notes: string | null
+          step4_allocation_method: string | null
+          step5_recognition_method: string | null
+          tenant_id: string
+          total_transaction_price: number
+          updated_at: string
+        }
+        Insert: {
+          contract_date?: string
+          contract_number: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          customer_name?: string | null
+          customer_partner_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          start_date: string
+          status?: string | null
+          step1_identification?: string | null
+          step2_obligations?: string | null
+          step3_price_notes?: string | null
+          step4_allocation_method?: string | null
+          step5_recognition_method?: string | null
+          tenant_id: string
+          total_transaction_price?: number
+          updated_at?: string
+        }
+        Update: {
+          contract_date?: string
+          contract_number?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          customer_name?: string | null
+          customer_partner_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          start_date?: string
+          status?: string | null
+          step1_identification?: string | null
+          step2_obligations?: string | null
+          step3_price_notes?: string | null
+          step4_allocation_method?: string | null
+          step5_recognition_method?: string | null
+          tenant_id?: string
+          total_transaction_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_contracts_customer_partner_id_fkey"
+            columns: ["customer_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_contracts_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_performance_obligations: {
+        Row: {
+          allocated_price: number
+          contract_id: string
+          cost_incurred_to_date: number | null
+          created_at: string
+          deferred_revenue: number | null
+          description: string
+          end_date: string | null
+          gl_contract_asset_account: string | null
+          gl_deferred_revenue_account: string | null
+          gl_revenue_account: string | null
+          id: string
+          obligation_number: number
+          percent_complete: number | null
+          recognition_method: string | null
+          revenue_recognized: number | null
+          satisfaction_date: string | null
+          standalone_selling_price: number
+          start_date: string | null
+          status: string | null
+          tenant_id: string
+          total_cost_estimate: number | null
+          updated_at: string
+        }
+        Insert: {
+          allocated_price?: number
+          contract_id: string
+          cost_incurred_to_date?: number | null
+          created_at?: string
+          deferred_revenue?: number | null
+          description: string
+          end_date?: string | null
+          gl_contract_asset_account?: string | null
+          gl_deferred_revenue_account?: string | null
+          gl_revenue_account?: string | null
+          id?: string
+          obligation_number?: number
+          percent_complete?: number | null
+          recognition_method?: string | null
+          revenue_recognized?: number | null
+          satisfaction_date?: string | null
+          standalone_selling_price?: number
+          start_date?: string | null
+          status?: string | null
+          tenant_id: string
+          total_cost_estimate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allocated_price?: number
+          contract_id?: string
+          cost_incurred_to_date?: number | null
+          created_at?: string
+          deferred_revenue?: number | null
+          description?: string
+          end_date?: string | null
+          gl_contract_asset_account?: string | null
+          gl_deferred_revenue_account?: string | null
+          gl_revenue_account?: string | null
+          id?: string
+          obligation_number?: number
+          percent_complete?: number | null
+          recognition_method?: string | null
+          revenue_recognized?: number | null
+          satisfaction_date?: string | null
+          standalone_selling_price?: number
+          start_date?: string | null
+          status?: string | null
+          tenant_id?: string
+          total_cost_estimate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_performance_obligations_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_performance_obligations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_recognition_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          entry_date: string
+          entry_type: string
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          obligation_id: string
+          percent_at_recognition: number | null
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          entry_date: string
+          entry_type?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          obligation_id: string
+          percent_at_recognition?: number | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          obligation_id?: string
+          percent_at_recognition?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_recognition_entries_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_entries_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_performance_obligations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_recognition_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

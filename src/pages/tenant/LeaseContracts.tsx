@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText } from "lucide-react";
+import { Plus, Search, FileText, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 
 export default function LeaseContracts() {
@@ -47,9 +47,14 @@ export default function LeaseContracts() {
           <h1 className="text-2xl font-bold">IFRS 16 — Ugovori o lizingu</h1>
           <p className="text-muted-foreground text-sm">Right-of-use sredstva i lease liability</p>
         </div>
-        <Button onClick={() => navigate("/assets/leases/new")}>
-          <Plus className="h-4 w-4 mr-2" /> Novi ugovor
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/assets/leases/disclosure")}>
+            <BarChart3 className="h-4 w-4 mr-2" /> Obelodanjivanja
+          </Button>
+          <Button onClick={() => navigate("/assets/leases/new")}>
+            <Plus className="h-4 w-4 mr-2" /> Novi ugovor
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">

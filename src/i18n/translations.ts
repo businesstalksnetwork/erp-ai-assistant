@@ -2729,6 +2729,10 @@ export const translations = {
     leaseAccounting: "IFRS 16 Leases",
     leaseContracts: "Lease Contracts",
     leaseNewContract: "New Contract",
+    leaseDisclosure: "IFRS 16 Disclosures",
+    // IFRS 15
+    ifrsModules: "IFRS Modules",
+    revenueContracts: "Revenue Recognition (IFRS 15)",
     // Revers
     reversDocuments: "Revers Documents",
     reversNew: "New Revers",
@@ -5558,6 +5562,10 @@ export const translations = {
     leaseAccounting: "IFRS 16 Lizing",
     leaseContracts: "Ugovori o lizingu",
     leaseNewContract: "Novi ugovor",
+    leaseDisclosure: "IFRS 16 Obelodanjivanja",
+    // IFRS 15
+    ifrsModules: "IFRS moduli",
+    revenueContracts: "Priznavanje prihoda (IFRS 15)",
     // Revers
     reversDocuments: "Reversi",
     reversNew: "Novi revers",

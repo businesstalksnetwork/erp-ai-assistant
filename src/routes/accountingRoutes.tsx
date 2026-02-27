@@ -55,6 +55,9 @@ const ZpppdvForm = React.lazy(() => import("@/pages/tenant/reports/ZpppdvForm"))
 const NotesToFinancialStatements = React.lazy(() => import("@/pages/tenant/reports/NotesToFinancialStatements"));
 const IFRSIncomeStatement = React.lazy(() => import("@/pages/tenant/reports/IFRSIncomeStatement"));
 const IFRSBalanceSheet = React.lazy(() => import("@/pages/tenant/reports/IFRSBalanceSheet"));
+const RevenueContracts = React.lazy(() => import("@/pages/tenant/RevenueContracts"));
+const RevenueContractForm = React.lazy(() => import("@/pages/tenant/RevenueContractForm"));
+const RevenueContractDetail = React.lazy(() => import("@/pages/tenant/RevenueContractDetail"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -114,5 +117,8 @@ export const accountingRoutes = (
     <Route path="accounting/reports/notes-to-fs" element={<ProtectedRoute requiredModule={m}><B><NotesToFinancialStatements /></B></ProtectedRoute>} />
     <Route path="accounting/reports/ifrs-income-statement" element={<ProtectedRoute requiredModule={m}><B><IFRSIncomeStatement /></B></ProtectedRoute>} />
     <Route path="accounting/reports/ifrs-balance-sheet" element={<ProtectedRoute requiredModule={m}><B><IFRSBalanceSheet /></B></ProtectedRoute>} />
+    <Route path="accounting/revenue-contracts" element={<ProtectedRoute requiredModule={m}><B><RevenueContracts /></B></ProtectedRoute>} />
+    <Route path="accounting/revenue-contracts/new" element={<ProtectedRoute requiredModule={m}><B><RevenueContractForm /></B></ProtectedRoute>} />
+    <Route path="accounting/revenue-contracts/:id" element={<ProtectedRoute requiredModule={m}><B><RevenueContractDetail /></B></ProtectedRoute>} />
   </>
 );

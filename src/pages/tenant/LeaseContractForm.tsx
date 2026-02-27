@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Save, Calculator } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { addMonths, format } from "date-fns";
@@ -79,6 +80,8 @@ export default function LeaseContractForm() {
     liability_account: "4140",
     interest_expense_account: "5620",
     notes: "",
+    short_term_exempt: false,
+    low_value_exempt: false,
   });
 
   const [preview, setPreview] = useState<ReturnType<typeof calculateLeaseSchedule> | null>(null);
@@ -147,6 +150,8 @@ export default function LeaseContractForm() {
         interest_expense_account: form.interest_expense_account,
         notes: form.notes || null,
         created_by: user?.id,
+        short_term_exempt: form.short_term_exempt,
+        low_value_exempt: form.low_value_exempt,
         status: "active",
       }).select("id").single();
       if (le) throw le;
@@ -216,6 +221,16 @@ export default function LeaseContractForm() {
               <div><Label>Diskontna stopa (% godišnje)</Label><Input type="number" step="0.01" value={form.annual_discount_rate} onChange={e => set("annual_discount_rate", e.target.value)} /></div>
             </div>
             <div><Label>Napomene</Label><Textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2} /></div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Checkbox id="short_term" checked={form.short_term_exempt} onCheckedChange={v => setForm(p => ({ ...p, short_term_exempt: !!v }))} />
+                <Label htmlFor="short_term" className="text-sm">Kratkoročni izuzetak (≤12 mes.)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="low_value" checked={form.low_value_exempt} onCheckedChange={v => setForm(p => ({ ...p, low_value_exempt: !!v }))} />
+                <Label htmlFor="low_value" className="text-sm">Niska vrednost sredstva</Label>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
