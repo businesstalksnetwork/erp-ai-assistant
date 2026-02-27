@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Pencil, Factory } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { fmtNum } from "@/lib/utils";
 
 export default function BomTemplates() {
   const { t } = useLanguage();
@@ -40,7 +41,7 @@ export default function BomTemplates() {
     queryKey: ["products", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("products").select("id, name").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, default_purchase_price").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -142,19 +143,32 @@ export default function BomTemplates() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between"><Label>{t("materials")}</Label><Button size="sm" variant="outline" onClick={addLine}><Plus className="h-3 w-3 mr-1" />{t("addLine")}</Button></div>
-              {lines.map((line, i) => (
-                <div key={i} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Select value={line.material_product_id} onValueChange={v => updateLine(i, "material_product_id", v)}>
-                      <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
-                      <SelectContent>{products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                    </Select>
+              {lines.map((line, i) => {
+                const materialProduct = products.find((p: any) => p.id === line.material_product_id);
+                const estCost = (materialProduct?.default_purchase_price || 0) * line.quantity;
+                return (
+                  <div key={i} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Select value={line.material_product_id} onValueChange={v => updateLine(i, "material_product_id", v)}>
+                        <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
+                        <SelectContent>{products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-24"><Input type="number" value={line.quantity} onChange={e => updateLine(i, "quantity", Number(e.target.value))} /></div>
+                    <div className="w-20"><Input value={line.unit} onChange={e => updateLine(i, "unit", e.target.value)} /></div>
+                    <div className="w-24 text-right text-sm text-muted-foreground self-center" title={t("estimatedUnitCost")}>{estCost > 0 ? fmtNum(estCost) : "—"}</div>
+                    <Button size="icon" variant="ghost" onClick={() => removeLine(i)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
-                  <div className="w-24"><Input type="number" value={line.quantity} onChange={e => updateLine(i, "quantity", Number(e.target.value))} /></div>
-                  <div className="w-20"><Input value={line.unit} onChange={e => updateLine(i, "unit", e.target.value)} /></div>
-                  <Button size="icon" variant="ghost" onClick={() => removeLine(i)}><Trash2 className="h-3 w-3" /></Button>
+                );
+              })}
+              {lines.length > 0 && (
+                <div className="flex justify-end text-sm font-medium border-t pt-2">
+                  <span>{t("estimatedCost")}: {fmtNum(lines.reduce((sum, l) => {
+                    const p = products.find((pr: any) => pr.id === l.material_product_id);
+                    return sum + (p?.default_purchase_price || 0) * l.quantity;
+                  }, 0))}</span>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           <DialogFooter><Button onClick={() => saveMutation.mutate()} disabled={!form.name}>{t("save")}</Button></DialogFooter>

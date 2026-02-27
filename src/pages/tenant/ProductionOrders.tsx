@@ -34,6 +34,7 @@ export default function ProductionOrders() {
   const [completeOrder, setCompleteOrder] = useState<any>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
   const [quantityToComplete, setQuantityToComplete] = useState<number>(0);
+  const [costInputs, setCostInputs] = useState({ material: 0, labor: 0, overhead: 0 });
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["production_orders", tenantId],
@@ -157,12 +158,46 @@ export default function ProductionOrders() {
         p_quantity_to_complete: quantityToComplete, p_user_id: user?.id || null,
       });
       if (error) throw error;
+
+      // Save actual costs on the production order
+      const totalCost = costInputs.material + costInputs.labor + costInputs.overhead;
+      const unitCost = quantityToComplete > 0 ? Math.round(totalCost / quantityToComplete * 100) / 100 : 0;
+      await supabase.from("production_orders").update({
+        actual_material_cost: (Number(completeOrder.actual_material_cost) || 0) + costInputs.material,
+        actual_labor_cost: (Number(completeOrder.actual_labor_cost) || 0) + costInputs.labor,
+        actual_overhead_cost: (Number(completeOrder.actual_overhead_cost) || 0) + costInputs.overhead,
+        unit_production_cost: unitCost,
+      }).eq("id", completeOrder.id);
+
+      // Insert purchase_prices for production cost tracking
+      if (completeOrder.product_id && totalCost > 0) {
+        await supabase.from("purchase_prices").insert({
+          tenant_id: tenantId!,
+          product_id: completeOrder.product_id,
+          unit_cost: unitCost,
+          currency: "RSD",
+          purchase_date: new Date().toISOString().slice(0, 10),
+          quantity: quantityToComplete,
+          document_ref: completeOrder.order_number || completeOrder.id.substring(0, 8),
+          document_type: "production" as const,
+          document_id: completeOrder.id,
+          warehouse_id: selectedWarehouse,
+        });
+
+        // Update product default_purchase_price
+        await supabase.from("products").update({
+          default_purchase_price: unitCost,
+        }).eq("id", completeOrder.product_id);
+      }
+
       return data;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["production_orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       setCompleteDialogOpen(false); setCompleteOrder(null); setSelectedWarehouse("");
+      setCostInputs({ material: 0, labor: 0, overhead: 0 });
       toast({ title: data?.fully_completed ? t("wipJournalCreated") : t("materialsConsumed") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -183,7 +218,7 @@ export default function ProductionOrders() {
 
   const openCreate = () => { setEditId(null); setForm({ product_id: "", bom_template_id: "", quantity: 1, priority: 3, planned_start: "", planned_end: "", notes: "", warehouse_id: "" }); setOpen(true); };
   const openEdit = (o: any) => { if (o.status !== "draft") return; setEditId(o.id); setForm({ product_id: o.product_id || "", bom_template_id: o.bom_template_id || "", quantity: Number(o.quantity), priority: o.priority || 3, planned_start: o.planned_start || "", planned_end: o.planned_end || "", notes: o.notes || "", warehouse_id: o.warehouse_id || "" }); setOpen(true); };
-  const openComplete = (o: any) => { setCompleteOrder(o); setSelectedWarehouse(""); setQuantityToComplete(Number(o.quantity) - Number(o.completed_quantity || 0)); setCompleteDialogOpen(true); };
+  const openComplete = (o: any) => { setCompleteOrder(o); setSelectedWarehouse(""); setQuantityToComplete(Number(o.quantity) - Number(o.completed_quantity || 0)); setCostInputs({ material: 0, labor: 0, overhead: 0 }); setCompleteDialogOpen(true); };
 
   const statusColor = (s: string) => { switch (s) { case "completed": return "default"; case "in_progress": return "secondary"; case "cancelled": return "destructive"; default: return "outline"; } };
 
@@ -194,6 +229,7 @@ export default function ProductionOrders() {
     { key: "quantity", label: t("quantity"), align: "right", sortable: true, sortValue: (o) => o.quantity, render: (o) => o.quantity },
     { key: "priority", label: locale === "sr" ? "Prioritet" : "Priority", hideOnMobile: true, sortable: true, sortValue: (o) => o.priority || 3, render: (o) => <Badge variant="outline">{o.priority || 3}</Badge> },
     { key: "completed", label: t("completed"), align: "right", hideOnMobile: true, render: (o) => o.completed_quantity || 0 },
+    { key: "unit_cost", label: t("unitProductionCost"), align: "right", hideOnMobile: true, defaultVisible: false, render: (o) => o.unit_production_cost ? fmtNum(o.unit_production_cost) : "—" },
     { key: "status", label: t("status"), sortable: true, sortValue: (o) => o.status, render: (o) => <Badge variant={statusColor(o.status)}>{t(o.status as any)}</Badge> },
     { key: "planned_start", label: t("plannedStart"), hideOnMobile: true, defaultVisible: false, sortable: true, sortValue: (o) => o.planned_start || "", render: (o) => o.planned_start || "-" },
     { key: "actions", label: t("actions"), render: (o) => (
@@ -346,6 +382,27 @@ export default function ProductionOrders() {
                 </Table>
               </div>
             )}
+            <div className="border rounded-md p-3 space-y-3">
+              <Label className="text-xs font-medium text-muted-foreground">{t("totalActualCost")}</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-xs">{t("actualMaterialCost")}</Label>
+                  <Input type="number" step="0.01" min={0} value={costInputs.material} onChange={e => setCostInputs(c => ({ ...c, material: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("actualLaborCost")}</Label>
+                  <Input type="number" step="0.01" min={0} value={costInputs.labor} onChange={e => setCostInputs(c => ({ ...c, labor: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("actualOverheadCost")}</Label>
+                  <Input type="number" step="0.01" min={0} value={costInputs.overhead} onChange={e => setCostInputs(c => ({ ...c, overhead: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-2">
+                <span>{t("unitProductionCost")}:</span>
+                <strong>{quantityToComplete > 0 ? fmtNum((costInputs.material + costInputs.labor + costInputs.overhead) / quantityToComplete) : "—"}</strong>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCompleteDialogOpen(false)}>{t("cancel")}</Button>
