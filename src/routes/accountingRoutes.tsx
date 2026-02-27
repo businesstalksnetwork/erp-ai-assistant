@@ -60,6 +60,7 @@ const RevenueContractForm = React.lazy(() => import("@/pages/tenant/RevenueContr
 const RevenueContractDetail = React.lazy(() => import("@/pages/tenant/RevenueContractDetail"));
 const CashFlowStatement = React.lazy(() => import("@/pages/tenant/CashFlowStatement"));
 const ComplianceDashboard = React.lazy(() => import("@/pages/tenant/ComplianceDashboard"));
+const KepKnjiga = React.lazy(() => import("@/pages/tenant/KepKnjiga"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -124,5 +125,6 @@ export const accountingRoutes = (
     <Route path="accounting/revenue-contracts/:id" element={<ProtectedRoute requiredModule={m}><B><RevenueContractDetail /></B></ProtectedRoute>} />
     <Route path="accounting/cash-flow-statement" element={<ProtectedRoute requiredModule={m}><B><CashFlowStatement /></B></ProtectedRoute>} />
     <Route path="accounting/compliance" element={<ProtectedRoute requiredModule={m}><B><ComplianceDashboard /></B></ProtectedRoute>} />
+    <Route path="accounting/kep" element={<ProtectedRoute requiredModule={m}><B><KepKnjiga /></B></ProtectedRoute>} />
   </>
 );

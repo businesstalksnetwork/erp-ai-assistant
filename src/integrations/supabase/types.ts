@@ -9460,6 +9460,69 @@ export type Database = {
           },
         ]
       }
+      kep_entries: {
+        Row: {
+          created_at: string
+          description: string | null
+          document_number: string | null
+          document_type: string
+          entry_date: string
+          entry_number: number
+          goods_value: number
+          id: string
+          location_id: string | null
+          payment_type: string
+          services_value: number
+          tenant_id: string
+          total_value: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          document_number?: string | null
+          document_type?: string
+          entry_date?: string
+          entry_number: number
+          goods_value?: number
+          id?: string
+          location_id?: string | null
+          payment_type?: string
+          services_value?: number
+          tenant_id: string
+          total_value?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          document_number?: string | null
+          document_type?: string
+          entry_date?: string
+          entry_number?: number
+          goods_value?: number
+          id?: string
+          location_id?: string | null
+          payment_type?: string
+          services_value?: number
+          tenant_id?: string
+          total_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kep_entries_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kep_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kompenzacija: {
         Row: {
           created_at: string
@@ -16786,6 +16849,82 @@ export type Database = {
           },
           {
             foreignKeyName: "sef_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      severance_payments: {
+        Row: {
+          calculation_base: number
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          gl_posted: boolean
+          id: string
+          journal_entry_id: string | null
+          multiplier: number
+          notes: string | null
+          payment_date: string | null
+          reason: string
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+          years_of_service: number
+        }
+        Insert: {
+          calculation_base?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          gl_posted?: boolean
+          id?: string
+          journal_entry_id?: string | null
+          multiplier?: number
+          notes?: string | null
+          payment_date?: string | null
+          reason?: string
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string
+          years_of_service?: number
+        }
+        Update: {
+          calculation_base?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          gl_posted?: boolean
+          id?: string
+          journal_entry_id?: string | null
+          multiplier?: number
+          notes?: string | null
+          payment_date?: string | null
+          reason?: string
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+          years_of_service?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "severance_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "severance_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "severance_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
