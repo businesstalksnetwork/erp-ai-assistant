@@ -25,6 +25,7 @@ import GlPostingPreview from "@/components/accounting/GlPostingPreview";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import { EntitySelector } from "@/components/shared/EntitySelector";
 
 import {
   EFAKTURA_OPTIONS,
@@ -625,12 +626,21 @@ export default function InvoiceForm() {
         <CardContent className="space-y-4">
           <div>
             <Label>{t("selectPartner")}</Label>
-            <Select
-              value={selectedPartnerId}
+            <EntitySelector
+              options={[
+                { value: "__manual__", label: t("noPartner") },
+                ...partners.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                  sublabel: p.pib || undefined,
+                })),
+              ]}
+              value={selectedPartnerId || null}
               onValueChange={(v) => {
-                setSelectedPartnerId(v);
-                if (v && v !== "__manual__") {
-                  const p = partners.find((p) => p.id === v);
+                const val = v || "";
+                setSelectedPartnerId(val);
+                if (val && val !== "__manual__") {
+                  const p = partners.find((p) => p.id === val);
                   if (p) {
                     setPartnerName(p.name);
                     setPartnerPib(p.pib || "");
@@ -638,16 +648,10 @@ export default function InvoiceForm() {
                   }
                 }
               }}
+              placeholder={t("selectPartner")}
               disabled={isReadOnly}
-            >
-              <SelectTrigger><SelectValue placeholder={t("selectPartner")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__manual__">{t("noPartner")}</SelectItem>
-                {partners.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}{p.pib ? ` (${p.pib})` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              allowClear={false}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>

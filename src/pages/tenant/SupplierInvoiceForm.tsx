@@ -23,6 +23,7 @@ import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines } from "@/components/accounting/PostingPreviewPanel";
 import { createReverseChargeEntries, isReverseChargeField } from "@/lib/popdvAggregation";
+import { EntitySelector } from "@/components/shared/EntitySelector";
 
 import {
   EFAKTURA_OPTIONS,
@@ -121,18 +122,18 @@ export default function SupplierInvoiceForm() {
 
   // Foreign entity detection: when supplier changes
   const handleSupplierChange = (v: string) => {
-    if (v !== "__none") {
+    if (v && v !== "__none") {
       const s = suppliers.find((s: any) => s.id === v);
       setSupplierId(v);
       setSupplierName(s?.name || "");
       const foreign = isForeignPib(s?.pib) || (s?.country && !["RS", "SRB", "Srbija", "Serbia"].includes(s.country));
       setIsForeignSupplier(!!foreign);
-      // Auto-set POPDV to 8g.1 for foreign suppliers
       if (foreign && !isEdit) {
         setLines((prev) => prev.map((l) => ({ ...l, popdv_field: l.popdv_field || "8g.1" })));
       }
     } else {
       setSupplierId("");
+      setSupplierName("");
       setIsForeignSupplier(false);
     }
   };
@@ -459,13 +460,17 @@ export default function SupplierInvoiceForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>{t("selectPartner")}</Label>
-              <Select value={supplierId || "__none"} onValueChange={handleSupplierChange} disabled={isReadOnly}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">—</SelectItem>
-                  {suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}{s.pib ? ` (${s.pib})` : ""}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <EntitySelector
+                options={suppliers.map((s: any) => ({
+                  value: s.id,
+                  label: s.name,
+                  sublabel: s.pib || undefined,
+                }))}
+                value={supplierId || null}
+                onValueChange={(v) => handleSupplierChange(v || "__none")}
+                placeholder={t("selectPartner")}
+                disabled={isReadOnly}
+              />
             </div>
             <div>
               <Label>{"Naziv dobavljača"}</Label>
