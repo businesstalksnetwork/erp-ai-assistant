@@ -9,7 +9,7 @@ import { fmtNumCompact, fmtNumAuto } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, DollarSign, Wallet, FileText, Users,
   ShoppingCart, Package, AlertCircle, Briefcase, Clock, Factory, Warehouse,
-  Receipt, CreditCard, CheckCircle, UserPlus, Target, Store, BarChart3
+  Receipt, CreditCard, CheckCircle, UserPlus, Target, Store, BarChart3, CalendarDays
 } from "lucide-react";
 
 const ICON_MAP: Record<string, any> = {
@@ -31,6 +31,7 @@ const ICON_MAP: Record<string, any> = {
   new_customers: UserPlus,
   active_leads: Target,
   leave_pending: Clock,
+  leave_balance: CalendarDays,
   attendance: Users,
   today_sales: ShoppingCart,
   transactions: ShoppingCart,
@@ -96,16 +97,31 @@ export function KpiWidget({ metricKey }: Props) {
   const isMobile = useIsMobile();
   const fmt = isMobile ? fmtNumCompact : fmtNumAuto;
 
+  // Use shared query key for KPI summary metrics so React Query deduplicates
+  const kpiSummaryMetrics = ["revenue", "expenses", "profit", "cash_balance"];
+  const queryKey = kpiSummaryMetrics.includes(metricKey)
+    ? ["dashboard-kpi-summary", tenantId, metricKey]
+    : ["kpi-widget", metricKey, tenantId];
+
   const { data, isLoading } = useQuery({
-    queryKey: ["kpi-widget", metricKey, tenantId],
+    queryKey,
     queryFn: async () => {
       const today = new Date().toISOString().split("T")[0];
 
       switch (metricKey) {
         case "revenue":
-        case "expenses": {
+        case "expenses":
+        case "profit":
+        case "cash_balance": {
+          // All share the same RPC — React Query deduplicates by queryKey
           const { data: d } = await supabase.rpc("dashboard_kpi_summary", { _tenant_id: tenantId! });
           const row = (d as any)?.[0] ?? {};
+          if (metricKey === "profit") {
+            return { value: Number(row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
+          }
+          if (metricKey === "cash_balance") {
+            return { value: Number(row.cash_balance ?? row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
+          }
           return { value: Number(row[metricKey] ?? 0), suffix: "RSD" };
         }
         case "revenue_yesterday": {
@@ -126,15 +142,22 @@ export function KpiWidget({ metricKey }: Props) {
           const total = (inv || []).reduce((s, r) => s + Number(r.total || 0), 0);
           return { value: total, suffix: "RSD" };
         }
-        case "profit": {
-          const { data: d } = await supabase.rpc("dashboard_kpi_summary", { _tenant_id: tenantId! });
-          const row = (d as any)?.[0] ?? {};
-          return { value: Number(row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
-        }
-        case "cash_balance": {
-          const { data: d } = await supabase.rpc("dashboard_kpi_summary", { _tenant_id: tenantId! });
-          const row = (d as any)?.[0] ?? {};
-          return { value: Number(row.cash_balance ?? row.revenue ?? 0) - Number(row.expenses ?? 0), suffix: "RSD" };
+        case "leave_balance": {
+          const year = new Date().getFullYear();
+          const { data: bal } = await supabase
+            .from("annual_leave_balances")
+            .select("entitled_days, used_days, carried_over_days, pending_days")
+            .eq("tenant_id", tenantId!)
+            .eq("year", year);
+          if (!bal || bal.length === 0) return { value: 0 };
+          const totals = bal.reduce(
+            (acc, r) => ({
+              entitled: acc.entitled + Number(r.entitled_days || 0) + Number(r.carried_over_days || 0),
+              used: acc.used + Number(r.used_days || 0) + Number(r.pending_days || 0),
+            }),
+            { entitled: 0, used: 0 }
+          );
+          return { value: totals.entitled - totals.used };
         }
         case "invoices": {
           const { count } = await supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId!);

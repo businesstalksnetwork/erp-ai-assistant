@@ -108,19 +108,28 @@ export default function LeaveRequests() {
       qc.invalidateQueries({ queryKey: ["leave-requests"] });
       toast.success(t("requestApproved"));
       try {
-        const empName = request.employees?.full_name || "Zaposleni";
-        await supabase.functions.invoke("create-notification", {
-          body: {
-            tenant_id: tenantId,
-            target_user_ids: "all_tenant_members",
-            type: "info",
-            category: "hr",
-            title: "Zahtev odobren",
-            message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odobren.`,
-            entity_type: "leave_request",
-            entity_id: request.id,
-          },
-        });
+        // Look up the employee's user_id to notify only them
+        const { data: empRecord } = await supabase
+          .from("employees")
+          .select("user_id, full_name")
+          .eq("id", request.employee_id)
+          .single();
+        const empName = empRecord?.full_name || request.employees?.full_name || "Zaposleni";
+        const targetIds = empRecord?.user_id ? [empRecord.user_id] : [];
+        if (targetIds.length > 0) {
+          await supabase.functions.invoke("create-notification", {
+            body: {
+              tenant_id: tenantId,
+              target_user_ids: targetIds,
+              type: "info",
+              category: "hr",
+              title: "Zahtev odobren",
+              message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odobren.`,
+              entity_type: "leave_request",
+              entity_id: request.id,
+            },
+          });
+        }
       } catch { /* notification failure non-blocking */ }
     },
     onError: (e: Error) => toast.error(e.message),
@@ -143,19 +152,27 @@ export default function LeaveRequests() {
       setRejectionReason("");
       toast.success(t("requestRejected"));
       try {
-        const empName = request.employees?.full_name || "Zaposleni";
-        await supabase.functions.invoke("create-notification", {
-          body: {
-            tenant_id: tenantId,
-            target_user_ids: "all_tenant_members",
-            type: "warning",
-            category: "hr",
-            title: "Zahtev odbijen",
-            message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odbijen.${reason ? ` Razlog: ${reason}` : ""}`,
-            entity_type: "leave_request",
-            entity_id: request.id,
-          },
-        });
+        const { data: empRecord } = await supabase
+          .from("employees")
+          .select("user_id, full_name")
+          .eq("id", request.employee_id)
+          .single();
+        const empName = empRecord?.full_name || request.employees?.full_name || "Zaposleni";
+        const targetIds = empRecord?.user_id ? [empRecord.user_id] : [];
+        if (targetIds.length > 0) {
+          await supabase.functions.invoke("create-notification", {
+            body: {
+              tenant_id: tenantId,
+              target_user_ids: targetIds,
+              type: "warning",
+              category: "hr",
+              title: "Zahtev odbijen",
+              message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odbijen.${reason ? ` Razlog: ${reason}` : ""}`,
+              entity_type: "leave_request",
+              entity_id: request.id,
+            },
+          });
+        }
       } catch { /* notification failure non-blocking */ }
     },
     onError: (e: Error) => toast.error(e.message),
