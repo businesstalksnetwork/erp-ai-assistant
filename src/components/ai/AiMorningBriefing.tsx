@@ -24,7 +24,7 @@ export function AiMorningBriefing({ tenantId }: Props) {
       if (!session) throw new Error("Not authenticated");
 
       const { data, error } = await supabase.functions.invoke("ai-daily-digest", {
-        body: { tenant_id: tenantId, language: locale },
+        body: { tenant_id: tenantId, language: locale, user_id: session.user.id },
       });
       if (error) throw error;
       return data as { digest: string; date: string; sections_count: number };
