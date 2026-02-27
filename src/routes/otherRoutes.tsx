@@ -71,6 +71,7 @@ const VatCashTrap = React.lazy(() => import("@/pages/tenant/VatCashTrap"));
 const InventoryHealth = React.lazy(() => import("@/pages/tenant/InventoryHealth"));
 const EarlyWarningSystem = React.lazy(() => import("@/pages/tenant/EarlyWarningSystem"));
 const DataQualityDashboard = React.lazy(() => import("@/pages/tenant/DataQualityDashboard"));
+const PivotAnalytics = React.lazy(() => import("@/pages/tenant/PivotAnalytics"));
 
 // AI
 const AiBriefing = React.lazy(() => import("@/pages/tenant/AiBriefing"));
@@ -160,6 +161,7 @@ export const analyticsRoutes = (
     <Route path="analytics/inventory-health" element={<ProtectedRoute requiredModule="analytics"><B><InventoryHealth /></B></ProtectedRoute>} />
     <Route path="analytics/early-warning" element={<ProtectedRoute requiredModule="analytics"><B><EarlyWarningSystem /></B></ProtectedRoute>} />
     <Route path="analytics/data-quality" element={<ProtectedRoute requiredModule="analytics"><B><DataQualityDashboard /></B></ProtectedRoute>} />
+    <Route path="analytics/pivot" element={<ProtectedRoute requiredModule="analytics"><B><PivotAnalytics /></B></ProtectedRoute>} />
   </>
 );
 

@@ -166,6 +166,7 @@ export function GlobalSearch() {
     { label: "VAT Cash Trap", path: "/analytics/vat-trap", icon: AlertTriangle, group: "analytics", module: "analytics" },
     { label: "Inventory Health", path: "/analytics/inventory-health", icon: Package, group: "analytics", module: "analytics" },
     { label: "Early Warning System", path: "/analytics/early-warning", icon: AlertTriangle, group: "analytics", module: "analytics" },
+    { label: "Pivot Analitika", path: "/analytics/pivot", icon: BarChart3, group: "analytics", module: "analytics" },
 
     // HR
     { label: `HR — ${t("dashboard")}`, path: "/hr", icon: LayoutDashboard, group: "hr", module: "hr" },
