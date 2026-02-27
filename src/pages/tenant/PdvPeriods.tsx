@@ -20,22 +20,7 @@ import { Plus, Calculator, Eye, Send, FileDown, BookOpen, Lock, Unlock } from "l
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
-
-// POPDV sections per Serbian law
-const POPDV_SECTIONS = [
-  { code: "2.1", label: "Kamate na depozite i slično (finansijski prihodi)", direction: "output", rate: 0 },
-  { code: "3", label: "Promet dobara i usluga (opšta stopa)", direction: "output", rate: 20 },
-  { code: "3a", label: "Promet dobara i usluga (posebna stopa)", direction: "output", rate: 10 },
-  { code: "4", label: "Oslobođen promet sa pravom na odbitak", direction: "output", rate: 0 },
-  { code: "5", label: "Oslobođen promet bez prava na odbitak", direction: "output", rate: 0 },
-  { code: "6", label: "Promet izvršen van RS", direction: "output", rate: 0 },
-  { code: "8a", label: "Nabavke sa pravom na odbitak (opšta stopa)", direction: "input", rate: 20 },
-  { code: "8b", label: "Nabavke sa pravom na odbitak (posebna stopa)", direction: "input", rate: 10 },
-  { code: "8v", label: "Uvoz dobara", direction: "input", rate: 20 },
-  { code: "9", label: "Nabavke bez prava na odbitak", direction: "input", rate: 0 },
-  { code: "10", label: "Ispravka odbitka prethodnog poreza", direction: "input", rate: 0 },
-  { code: "11", label: "Posebni postupci oporezivanja", direction: "output", rate: 0 },
-];
+import { aggregatePopdvPeriod, generatePpPdvXml, type PopdvPeriodResult, type PpPdvForm } from "@/lib/popdvAggregation";
 
 export default function PdvPeriods() {
   const { t } = useLanguage();
@@ -50,6 +35,7 @@ export default function PdvPeriods() {
   const [formEnd, setFormEnd] = useState("");
   const [formLegalEntityId, setFormLegalEntityId] = useState("");
   const { entities: legalEntities } = useLegalEntities();
+  const [popdvResult, setPopdvResult] = useState<PopdvPeriodResult | null>(null);
 
   const { data: periods = [], isLoading } = useQuery({
     queryKey: ["pdv_periods", tenantId],
@@ -91,246 +77,153 @@ export default function PdvPeriods() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // Calculate PDV: aggregate from invoices and supplier invoices within the period dates
+  // NEW: Use the aggregation engine
   const calculateMutation = useMutation({
     mutationFn: async (periodId: string) => {
       const period = periods.find(p => p.id === periodId);
       if (!period) throw new Error("Period not found");
 
-      // Clear existing entries
+      // Run aggregation engine
+      const result = await aggregatePopdvPeriod(
+        tenantId!, period.start_date, period.end_date,
+        (period as any).legal_entity_id
+      );
+
+      // Clear existing entries and repopulate
       await supabase.from("pdv_entries").delete().eq("pdv_period_id", periodId);
 
-      // Fetch invoices (output VAT) in period
-      const { data: invoices } = await supabase.from("invoices")
-        .select("id, invoice_number, invoice_date, partner_name, partner_pib, subtotal, tax_amount, total, status, invoice_type")
-        .eq("tenant_id", tenantId!)
-        .in("status", ["sent", "paid"])
-        .gte("invoice_date", period.start_date)
-        .lte("invoice_date", period.end_date);
+      const pdvEntries: any[] = [];
 
-      // Batch-fetch all invoice lines for the period (avoids N+1)
-      const invoiceIds = (invoices || []).map(inv => inv.id);
-      const allLines: any[] = [];
-      if (invoiceIds.length > 0) {
-        // Supabase .in() has a limit, batch in chunks of 200
-        for (let i = 0; i < invoiceIds.length; i += 200) {
-          const chunk = invoiceIds.slice(i, i + 200);
-          const { data: lines } = await supabase.from("invoice_lines")
-            .select("invoice_id, line_total, tax_amount, tax_rate_value, popdv_field, item_type")
-            .in("invoice_id", chunk);
-          if (lines) allLines.push(...lines);
-        }
-      }
-
-      // Group lines by invoice_id
-      const linesByInvoice: Record<string, any[]> = {};
-      for (const l of allLines) {
-        if (!linesByInvoice[l.invoice_id]) linesByInvoice[l.invoice_id] = [];
-        linesByInvoice[l.invoice_id].push(l);
-      }
-
-      const outputEntries: any[] = [];
-      for (const inv of invoices || []) {
-        const lines = linesByInvoice[inv.id] || [];
-
-        // Group by popdv_field first, then fallback to rate-based grouping
-        const sectionGroups: Record<string, { base: number; vat: number; rate: number }> = {};
-        for (const l of lines) {
-          const rate = Number(l.tax_rate_value);
-          // Use popdv_field from invoice line if available, else infer from rate
-          let section = l.popdv_field;
-          if (!section) {
-            if (rate === 20) section = "3";
-            else if (rate === 10) section = "3a";
-            else section = "4";
-          }
-          if (inv.invoice_type === "advance") section = rate === 10 ? "3a" : "3";
-
-          if (!sectionGroups[section]) sectionGroups[section] = { base: 0, vat: 0, rate };
-          sectionGroups[section].base += Number(l.line_total);
-          sectionGroups[section].vat += Number(l.tax_amount);
-        }
-
-        for (const [section, amounts] of Object.entries(sectionGroups)) {
-          outputEntries.push({
-            tenant_id: tenantId!,
-            pdv_period_id: periodId,
-            popdv_section: section,
-            document_type: inv.invoice_type === "advance" ? "advance" : "invoice",
-            document_id: inv.id,
-            document_number: inv.invoice_number,
-            document_date: inv.invoice_date,
-            partner_name: inv.partner_name,
-            partner_pib: inv.partner_pib,
-            base_amount: amounts.base,
-            vat_amount: amounts.vat,
-            vat_rate: amounts.rate,
-            direction: "output",
-          });
-        }
-      }
-
-      // Fetch supplier invoices (input VAT) — no line-level breakdown, use header totals
-      const { data: supplierInvs } = await supabase.from("supplier_invoices")
-        .select("id, invoice_number, invoice_date, supplier_name, amount, tax_amount, total, status")
-        .eq("tenant_id", tenantId!)
-        .in("status", ["approved", "paid"])
-        .gte("invoice_date", period.start_date)
-        .lte("invoice_date", period.end_date);
-
-      const inputEntries: any[] = [];
-      for (const si of supplierInvs || []) {
-        const baseAmount = Number(si.amount);
-        const vatAmount = Number(si.tax_amount);
-        const effectiveRate = baseAmount > 0 ? Math.round((vatAmount / baseAmount) * 100) : 20;
-        let section = "8a";
-        if (effectiveRate === 10) section = "8b";
-        else if (effectiveRate === 0) section = "9";
-
-        inputEntries.push({
+      // Output entries
+      for (const line of [...result.outputLines, ...result.reverseChargeLines]) {
+        pdvEntries.push({
           tenant_id: tenantId!,
           pdv_period_id: periodId,
-          popdv_section: section,
-          document_type: "supplier_invoice",
-          document_id: si.id,
-          document_number: si.invoice_number,
-          document_date: si.invoice_date,
-          partner_name: si.supplier_name,
+          popdv_section: line.popdv_field,
+          document_type: "aggregated",
+          document_id: null,
+          document_number: `Σ ${line.entry_count} stavki`,
+          document_date: period.end_date,
+          partner_name: null,
           partner_pib: null,
-          base_amount: baseAmount,
-          vat_amount: vatAmount,
-          vat_rate: effectiveRate,
+          base_amount: line.total_base,
+          vat_amount: line.total_vat,
+          vat_rate: line.vat_os > 0 ? 20 : (line.vat_ps > 0 ? 10 : 0),
+          direction: "output",
+        });
+      }
+
+      // Input entries
+      for (const line of result.inputLines) {
+        pdvEntries.push({
+          tenant_id: tenantId!,
+          pdv_period_id: periodId,
+          popdv_section: line.popdv_field,
+          document_type: "aggregated",
+          document_id: null,
+          document_number: `Σ ${line.entry_count} stavki`,
+          document_date: period.end_date,
+          partner_name: null,
+          partner_pib: null,
+          base_amount: line.total_base,
+          vat_amount: line.total_vat,
+          vat_rate: line.vat_os > 0 ? 20 : (line.vat_ps > 0 ? 10 : 0),
           direction: "input",
         });
       }
 
-      // Item 11: Check for Class 77xx accounts (financial income — interest on deposits)
-      // If they exist and have balances in this period, auto-populate Section 2.1
-      const { data: financialIncomeJEs } = await supabase
-        .from("journal_lines")
-        .select("debit, credit, journal_entries!inner(tenant_id, entry_date, status)")
-        .filter("journal_entries.tenant_id", "eq", tenantId!)
-        .filter("journal_entries.status", "eq", "posted")
-        .filter("journal_entries.entry_date", "gte", period.start_date)
-        .filter("journal_entries.entry_date", "lte", period.end_date);
-
-      // Filter for 77xx accounts client-side (account code starts with 77)
-      const { data: finAccounts } = await supabase
-        .from("chart_of_accounts")
-        .select("id, code")
-        .eq("tenant_id", tenantId!)
-        .like("code", "77%")
-        .eq("is_active", true);
-
-      if (finAccounts && finAccounts.length > 0) {
-        const finAccountIds = new Set(finAccounts.map(a => a.id));
-        // Check if any JE lines reference these accounts
-        const { data: finLines } = await supabase
-          .from("journal_lines")
-          .select("credit, account_id, journal_entry_id, journal_entries!inner(entry_date, status, tenant_id)")
-          .in("account_id", Array.from(finAccountIds))
-          .filter("journal_entries.tenant_id", "eq", tenantId!)
-          .filter("journal_entries.status", "eq", "posted")
-          .filter("journal_entries.entry_date", "gte", period.start_date)
-          .filter("journal_entries.entry_date", "lte", period.end_date);
-
-        const totalFinIncome = (finLines || []).reduce((s, l) => s + Number(l.credit || 0), 0);
-        if (totalFinIncome > 0) {
-          outputEntries.push({
-            tenant_id: tenantId!,
-            pdv_period_id: periodId,
-            popdv_section: "2.1",
-            document_type: "financial_income",
-            document_id: null,
-            document_number: "Class 77xx",
-            document_date: period.end_date,
-            partner_name: "Kamate na depozite",
-            partner_pib: null,
-            base_amount: totalFinIncome,
-            vat_amount: 0,
-            vat_rate: 0,
-            direction: "output",
-          });
-        }
-      }
-
-      const allEntries = [...outputEntries, ...inputEntries];
-      if (allEntries.length > 0) {
-        const { error } = await supabase.from("pdv_entries").insert(allEntries);
+      if (pdvEntries.length > 0) {
+        const { error } = await supabase.from("pdv_entries").insert(pdvEntries);
         if (error) throw error;
       }
 
-      // Calculate totals
-      const totalOutput = outputEntries.reduce((s, e) => s + e.vat_amount, 0);
-      const totalInput = inputEntries.reduce((s, e) => s + e.vat_amount, 0);
-      const liability = totalOutput - totalInput;
+      // Store snapshot
+      await supabase.from("popdv_snapshots").upsert({
+        tenant_id: tenantId!,
+        period_start: period.start_date,
+        period_end: period.end_date,
+        legal_entity_id: (period as any).legal_entity_id || null,
+        popdv_data: result as any,
+        pppdv_data: result.ppPdv as any,
+        output_vat: result.section5.s5_7,
+        input_vat: result.section8e.s8e_5,
+        net_vat: result.section10,
+      } as any, { onConflict: "tenant_id,period_start,period_end" });
 
+      // Update period totals
       await supabase.from("pdv_periods").update({
-        output_vat: totalOutput,
-        input_vat: totalInput,
-        vat_liability: liability,
+        output_vat: result.section5.s5_7,
+        input_vat: result.section8e.s8e_5,
+        vat_liability: result.section10,
         status: "calculated",
       }).eq("id", periodId);
 
-      return { entries: allEntries.length, output: totalOutput, input: totalInput, liability };
+      setPopdvResult(result);
+      return result;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
       qc.invalidateQueries({ queryKey: ["pdv_entries"] });
-      toast({ title: t("pdvCalculated"), description: `${data.entries} ${t("pdvEntriesProcessed")}` });
+      toast({ title: t("pdvCalculated"), description: `Izlazni PDV: ${fmtNum(data.section5.s5_7)} | Ulazni PDV: ${fmtNum(data.section8e.s8e_5)}` });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const submitMutation = useMutation({
     mutationFn: async (periodId: string) => {
-      const { error } = await supabase.rpc("submit_pdv_period" as any, {
-        p_pdv_period_id: periodId,
-      });
+      const { error } = await supabase.rpc("submit_pdv_period" as any, { p_pdv_period_id: periodId });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
-      qc.invalidateQueries({ queryKey: ["pdv_entries"] });
-      toast({ title: t("pdvSubmitted"), description: t("pdvPeriodSubmittedSuccessfully") });
+      toast({ title: t("pdvSubmitted") });
     },
-    onError: (e: Error) => {
-      toast({
-        title: t("error"),
-        description: e.message || t("pdvSubmissionFailed"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const generatePppdvXml = useMutation({
-    mutationFn: async (periodId: string) => {
-      const { data, error } = await supabase.functions.invoke("generate-pppdv-xml", {
-        body: { tenant_id: tenantId, pdv_period_id: periodId },
-      });
-      if (error) throw error;
-      const blob = new Blob([data.xml], { type: "application/xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = data.filename; a.click();
-      URL.revokeObjectURL(url);
-    },
-    onSuccess: () => toast({ title: t("success") }),
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
+
+  const downloadPpPdvXml = async (period: any) => {
+    try {
+      const result = popdvResult || await aggregatePopdvPeriod(
+        tenantId!, period.start_date, period.end_date, (period as any).legal_entity_id
+      );
+
+      // Get company info
+      const le = legalEntities.find(e => e.id === (period as any).legal_entity_id) || legalEntities[0];
+      const startDate = new Date(period.start_date);
+
+      const xml = generatePpPdvXml(result.ppPdv, {
+        pib: le?.pib || "",
+        companyName: le?.name || "",
+        periodStart: period.start_date,
+        periodEnd: period.end_date,
+        periodYear: startDate.getFullYear(),
+        periodMonth: startDate.getMonth() + 1,
+      });
+
+      const blob = new Blob([xml], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PP-PDV_${period.period_name.replace(/\s/g, "_")}.xml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: t("success") });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    }
+  };
 
   const settlePdvMutation = useMutation({
     mutationFn: async (periodId: string) => {
       const { data, error } = await supabase.rpc("create_pdv_settlement_journal" as any, {
-        p_pdv_period_id: periodId,
-        p_tenant_id: tenantId,
+        p_pdv_period_id: periodId, p_tenant_id: tenantId,
       });
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pdv_periods"] });
-      toast({ title: "PDV knjiženje kreirano", description: "Nalog za knjiženje PDV obaveze/pretplate je automatski generisan." });
+      toast({ title: "PDV knjiženje kreirano" });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -339,13 +232,7 @@ export default function PdvPeriods() {
     mutationFn: async (period: any) => {
       const startDate = new Date(period.start_date);
       const { data, error } = await supabase.functions.invoke("generate-tax-payment-orders", {
-        body: {
-          tenant_id: tenantId,
-          tax_type: "pdv",
-          amount: period.vat_liability,
-          period_month: startDate.getMonth() + 1,
-          period_year: startDate.getFullYear(),
-        },
+        body: { tenant_id: tenantId, tax_type: "pdv", amount: period.vat_liability, period_month: startDate.getMonth() + 1, period_year: startDate.getFullYear() },
       });
       if (error) throw error;
       return data;
@@ -361,10 +248,7 @@ export default function PdvPeriods() {
       const { error } = await supabase.from("pdv_periods").update({ is_locked: lock } as any).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pdv_periods"] });
-      toast({ title: t("success") });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pdv_periods"] }); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
@@ -377,16 +261,75 @@ export default function PdvPeriods() {
     return <Badge variant="outline">{t("open")}</Badge>;
   };
 
-  // POPDV summary by section
-  const popdvSummary = POPDV_SECTIONS.map(sec => {
-    const sectionEntries = entries.filter(e => e.popdv_section === sec.code);
-    return {
-      ...sec,
-      baseTotal: sectionEntries.reduce((s, e) => s + Number(e.base_amount), 0),
-      vatTotal: sectionEntries.reduce((s, e) => s + Number(e.vat_amount), 0),
-      count: sectionEntries.length,
-    };
-  }).filter(s => s.count > 0 || ["3", "3a", "8a", "8b"].includes(s.code));
+  // Build POPDV summary from pdv_entries
+  const popdvSummary = (() => {
+    const groups: Record<string, { code: string; direction: string; baseTotal: number; vatTotal: number; count: number }> = {};
+    for (const e of entries) {
+      const code = e.popdv_section;
+      if (!groups[code]) groups[code] = { code, direction: e.direction, baseTotal: 0, vatTotal: 0, count: 0 };
+      groups[code].baseTotal += Number(e.base_amount || 0);
+      groups[code].vatTotal += Number(e.vat_amount || 0);
+      groups[code].count++;
+    }
+    return Object.values(groups).sort((a, b) => a.code.localeCompare(b.code));
+  })();
+
+  // PP-PDV display section
+  const renderPpPdv = () => {
+    if (!popdvResult) return null;
+    const pp = popdvResult.ppPdv;
+    const rows: Array<{ field: string; label: string; value: number }> = [
+      { field: "001", label: "Oslobođeni promet sa pravom na odbitak", value: pp.field_001 },
+      { field: "002", label: "Oslobođeni promet bez prava na odbitak", value: pp.field_002 },
+      { field: "003", label: "Oporeziva osnovica (izlaz)", value: pp.field_003 },
+      { field: "103", label: "Posebni postupci", value: pp.field_103 },
+      { field: "005", label: "Ukupna izlazna osnovica", value: pp.field_005 },
+      { field: "105", label: "UKUPAN IZLAZNI PDV", value: pp.field_105 },
+      { field: "006", label: "Uvoz — osnovica", value: pp.field_006 },
+      { field: "106", label: "Uvoz — PDV", value: pp.field_106 },
+      { field: "007", label: "Nabavka od poljoprivrednika", value: pp.field_007 },
+      { field: "107", label: "PDV nadoknada", value: pp.field_107 },
+      { field: "008", label: "Ukupan ulazni PDV pre odbitka (8đ)", value: pp.field_008 },
+      { field: "108", label: "Neodbivi PDV (sekcija 9)", value: pp.field_108 },
+      { field: "009", label: "Ispravke odbitka (neto)", value: pp.field_009 },
+      { field: "109", label: "UKUPAN ODBIVI ULAZNI PDV", value: pp.field_109 },
+      { field: "110", label: "NETO PDV (izlaz - ulaz)", value: pp.field_110 },
+      { field: "111", label: "Poreska obaveza", value: pp.field_111 },
+      { field: "112", label: "Poreski kredit (pretplata)", value: pp.field_112 },
+    ];
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileDown className="h-4 w-4" /> PP-PDV Poreska prijava
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">Polje</TableHead>
+                <TableHead>Opis</TableHead>
+                <TableHead className="text-right w-[150px]">Iznos (RSD)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.field} className={["105", "109", "110", "111", "112"].includes(r.field) ? "font-bold bg-muted/30" : ""}>
+                  <TableCell className="font-mono">{r.field}</TableCell>
+                  <TableCell>{r.label}</TableCell>
+                  <TableCell className={`text-right font-mono ${r.field === "111" && r.value > 0 ? "text-destructive" : ""} ${r.field === "112" && r.value > 0 ? "text-green-600" : ""}`}>
+                    {fmt(r.value)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (isLoading) return <p className="p-6">{t("loading")}</p>;
 
@@ -426,7 +369,7 @@ export default function PdvPeriods() {
                   <TableCell>{statusBadge(p.status)}{p.is_locked && <Badge variant="outline" className="ml-1 gap-1"><Lock className="h-3 w-3" />Zaključano</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedPeriod(p)} title={t("pdvViewDetails")}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedPeriod(p); setPopdvResult(null); }} title={t("pdvViewDetails")}><Eye className="h-4 w-4" /></Button>
                       {p.status === "open" && (
                         <Button variant="ghost" size="icon" onClick={() => calculateMutation.mutate(p.id)} disabled={calculateMutation.isPending} title={t("pdvCalculate")}>
                           <Calculator className="h-4 w-4" />
@@ -443,9 +386,9 @@ export default function PdvPeriods() {
                         </>
                       )}
                       {p.is_locked ? (
-                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: false })} title={"Otključaj"}><Unlock className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: false })} title="Otključaj"><Unlock className="h-4 w-4" /></Button>
                       ) : (p.status !== "open" && (
-                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: true })} title={"Zaključaj"}><Lock className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleLockMutation.mutate({ id: p.id, lock: true })} title="Zaključaj"><Lock className="h-4 w-4" /></Button>
                       ))}
                     </div>
                   </TableCell>
@@ -456,7 +399,7 @@ export default function PdvPeriods() {
         </div>
       ) : (
         <>
-          <Button variant="outline" onClick={() => setSelectedPeriod(null)}>← {t("back")}</Button>
+          <Button variant="outline" onClick={() => { setSelectedPeriod(null); setPopdvResult(null); }}>← {t("back")}</Button>
 
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
@@ -471,15 +414,13 @@ export default function PdvPeriods() {
                   { key: "document_number", label: t("oiDocumentNumber") },
                   { key: "document_date", label: t("date") },
                   { key: "partner_name", label: t("partnerName") },
-                  { key: "partner_pib", label: "PIB" },
                   { key: "base_amount", label: t("pdvBaseAmount") },
                   { key: "vat_amount", label: t("pdvVatAmount") },
-                  { key: "vat_rate", label: t("pdvVatRate") },
                 ]}
                 filename={`popdv_${selectedPeriod.period_name}`}
               />
               <DownloadPdfButton type="pdv_return" params={{ pdv_period_id: selectedPeriod.id }} />
-              <Button variant="outline" size="sm" onClick={() => generatePppdvXml.mutate(selectedPeriod.id)} disabled={generatePppdvXml.isPending}>
+              <Button variant="outline" size="sm" onClick={() => downloadPpPdvXml(selectedPeriod)}>
                 <FileDown className="h-4 w-4 mr-2" />PP-PDV XML
               </Button>
               {selectedPeriod.status === "submitted" && (
@@ -505,6 +446,7 @@ export default function PdvPeriods() {
           <Tabs defaultValue="popdv">
             <TabsList>
               <TabsTrigger value="popdv">{t("popdvForm")}</TabsTrigger>
+              <TabsTrigger value="pppdv">PP-PDV</TabsTrigger>
               <TabsTrigger value="details">{t("pdvDetails")}</TabsTrigger>
             </TabsList>
 
@@ -515,7 +457,6 @@ export default function PdvPeriods() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("popdvSection")}</TableHead>
-                      <TableHead>{t("description")}</TableHead>
                       <TableHead>{t("pdvDirection")}</TableHead>
                       <TableHead className="text-right">{t("pdvBaseAmount")}</TableHead>
                       <TableHead className="text-right">{t("pdvVatAmount")}</TableHead>
@@ -524,9 +465,8 @@ export default function PdvPeriods() {
                   </TableHeader>
                   <TableBody>
                     {popdvSummary.map(sec => (
-                      <TableRow key={sec.code} className={sec.count === 0 ? "text-muted-foreground" : ""}>
+                      <TableRow key={sec.code} className={sec.code.startsWith("3a") ? "bg-blue-50 dark:bg-blue-950/30" : ""}>
                         <TableCell className="font-mono font-bold">{sec.code}</TableCell>
-                        <TableCell>{sec.label}</TableCell>
                         <TableCell><Badge variant={sec.direction === "output" ? "default" : "destructive"}>{sec.direction === "output" ? t("pdvOutput") : t("pdvInput")}</Badge></TableCell>
                         <TableCell className="text-right font-mono">{fmt(sec.baseTotal)}</TableCell>
                         <TableCell className="text-right font-mono">{fmt(sec.vatTotal)}</TableCell>
@@ -534,13 +474,15 @@ export default function PdvPeriods() {
                       </TableRow>
                     ))}
                     <TableRow className="font-bold bg-muted/50">
-                      <TableCell colSpan={3} className="text-right">{t("pdvOutputVat")} (Σ):</TableCell>
+                      <TableCell className="text-right">{t("pdvOutputVat")} (Σ):</TableCell>
+                      <TableCell />
                       <TableCell className="text-right font-mono">{fmt(popdvSummary.filter(s => s.direction === "output").reduce((a, s) => a + s.baseTotal, 0))}</TableCell>
                       <TableCell className="text-right font-mono">{fmt(selectedPeriod.output_vat)}</TableCell>
                       <TableCell />
                     </TableRow>
                     <TableRow className="font-bold bg-muted/50">
-                      <TableCell colSpan={3} className="text-right">{t("pdvInputVat")} (Σ):</TableCell>
+                      <TableCell className="text-right">{t("pdvInputVat")} (Σ):</TableCell>
+                      <TableCell />
                       <TableCell className="text-right font-mono">{fmt(popdvSummary.filter(s => s.direction === "input").reduce((a, s) => a + s.baseTotal, 0))}</TableCell>
                       <TableCell className="text-right font-mono">{fmt(selectedPeriod.input_vat)}</TableCell>
                       <TableCell />
@@ -548,6 +490,19 @@ export default function PdvPeriods() {
                   </TableBody>
                 </Table>
               </div>
+            </TabsContent>
+
+            <TabsContent value="pppdv" className="space-y-4">
+              {popdvResult ? renderPpPdv() : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <p>Pokrenite kalkulaciju da vidite PP-PDV formu.</p>
+                    <Button className="mt-4" onClick={() => calculateMutation.mutate(selectedPeriod.id)} disabled={calculateMutation.isPending}>
+                      <Calculator className="h-4 w-4 mr-2" />Kalkuliši POPDV
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="details" className="space-y-4">
@@ -560,7 +515,6 @@ export default function PdvPeriods() {
                       <TableHead>{t("oiDocumentNumber")}</TableHead>
                       <TableHead>{t("date")}</TableHead>
                       <TableHead>{t("partnerName")}</TableHead>
-                      <TableHead>PIB</TableHead>
                       <TableHead className="text-right">{t("pdvBaseAmount")}</TableHead>
                       <TableHead className="text-right">{t("pdvVatAmount")}</TableHead>
                       <TableHead>{t("pdvVatRate")}</TableHead>
@@ -568,14 +522,13 @@ export default function PdvPeriods() {
                   </TableHeader>
                   <TableBody>
                     {entries.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
                     ) : entries.map(e => (
                       <TableRow key={e.id}>
                         <TableCell className="font-mono font-bold">{e.popdv_section}</TableCell>
                         <TableCell className="font-mono">{e.document_number}</TableCell>
                         <TableCell>{e.document_date}</TableCell>
                         <TableCell>{e.partner_name || "—"}</TableCell>
-                        <TableCell className="font-mono">{e.partner_pib || "—"}</TableCell>
                         <TableCell className="text-right font-mono">{fmt(Number(e.base_amount))}</TableCell>
                         <TableCell className="text-right font-mono">{fmt(Number(e.vat_amount))}</TableCell>
                         <TableCell>{e.vat_rate}%</TableCell>
