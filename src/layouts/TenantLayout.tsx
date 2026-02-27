@@ -206,6 +206,7 @@ const hrNav: NavItem[] = [
   { key: "allowance", url: "/hr/allowances", icon: Banknote },
   { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
   { key: "payroll", url: "/hr/payroll", icon: Banknote },
+  { key: "payrollBankReconciliation", url: "/hr/payroll/bank-reconciliation", icon: ArrowLeftRight },
   { key: "nonEmploymentIncome", url: "/hr/non-employment-income", icon: FileText },
   { key: "pppdReview", url: "/hr/payroll/pppd", icon: FileSpreadsheet },
   { key: "externalWorkers", url: "/hr/external-workers", icon: Users, section: "other" },

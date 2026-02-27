@@ -2,7 +2,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell, Building, ShieldAlert } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell, Building, ShieldAlert, ListChecks } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -48,6 +48,7 @@ export default function TenantSettings() {
         { label: t("opportunityStages"), icon: TrendingUp, to: "/settings/opportunity-stages" },
         { label: t("discountApprovalRules" as any), icon: Percent, to: "/settings/discount-rules" },
         { label: t("notificationCategorySettings" as any), icon: Bell, to: "/settings/notification-categories" },
+        { label: t("onboardingChecklists" as any), icon: ListChecks, to: "/hr/onboarding-checklists" },
       ],
     },
     {

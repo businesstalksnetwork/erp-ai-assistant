@@ -34,6 +34,8 @@ const PppdReview = React.lazy(() => import("@/pages/tenant/PppdReview"));
 const TravelOrders = React.lazy(() => import("@/pages/tenant/TravelOrders"));
 const TravelOrderForm = React.lazy(() => import("@/pages/tenant/TravelOrderForm"));
 const EmployeeDataExport = React.lazy(() => import("@/pages/tenant/reports/EmployeeDataExport"));
+const OnboardingChecklists = React.lazy(() => import("@/pages/tenant/OnboardingChecklists"));
+const PayrollBankReconciliation = React.lazy(() => import("@/pages/tenant/PayrollBankReconciliation"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -72,5 +74,7 @@ export const hrRoutes = (
     <Route path="hr/travel-orders/new" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
     <Route path="hr/travel-orders/:id" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
     <Route path="hr/employee-data-export" element={<ProtectedRoute requiredModule={m}><B><EmployeeDataExport /></B></ProtectedRoute>} />
+    <Route path="hr/onboarding-checklists" element={<ProtectedRoute requiredModule={m}><B><OnboardingChecklists /></B></ProtectedRoute>} />
+    <Route path="hr/payroll/bank-reconciliation" element={<ProtectedRoute requiredModule={m}><B><PayrollBankReconciliation /></B></ProtectedRoute>} />
   </>
 );

@@ -5863,6 +5863,64 @@ export type Database = {
           },
         ]
       }
+      employee_onboarding_tasks: {
+        Row: {
+          checklist_id: string
+          completed: boolean
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          item_index: number
+          tenant_id: string
+        }
+        Insert: {
+          checklist_id: string
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          item_index: number
+          tenant_id: string
+        }
+        Update: {
+          checklist_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          item_index?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_onboarding_tasks_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_tasks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_onboarding_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_salaries: {
         Row: {
           amount: number
@@ -11161,6 +11219,44 @@ export type Database = {
           },
         ]
       }
+      onboarding_checklists: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          items: Json
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_checklists_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       open_item_payments: {
         Row: {
           amount: number
@@ -12178,6 +12274,77 @@ export type Database = {
           requires_invoice?: boolean
         }
         Relationships: []
+      }
+      payroll_bank_reconciliation: {
+        Row: {
+          bank_statement_line_id: string | null
+          created_at: string
+          employee_id: string
+          expected_amount: number
+          id: string
+          matched_amount: number
+          matched_at: string | null
+          notes: string | null
+          payroll_run_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          bank_statement_line_id?: string | null
+          created_at?: string
+          employee_id: string
+          expected_amount?: number
+          id?: string
+          matched_amount?: number
+          matched_at?: string | null
+          notes?: string | null
+          payroll_run_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          bank_statement_line_id?: string | null
+          created_at?: string
+          employee_id?: string
+          expected_amount?: number
+          id?: string
+          matched_amount?: number
+          matched_at?: string | null
+          notes?: string | null
+          payroll_run_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_bank_reconciliation_bank_statement_line_id_fkey"
+            columns: ["bank_statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bank_reconciliation_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bank_reconciliation_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bank_reconciliation_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_income_categories: {
         Row: {
