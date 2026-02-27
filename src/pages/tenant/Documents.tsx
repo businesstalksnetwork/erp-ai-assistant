@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,13 +16,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Download, Trash2, Search, Eye, FileText, Filter, X } from "lucide-react";
+import { Plus, Download, Trash2, Search, Eye, FileText, Filter, X, FolderOpen, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { exportToCsv } from "@/lib/exportCsv";
+
+const DocumentBrowserTab = lazy(() => import("@/components/documents/DocumentBrowserTab"));
+const DocumentReportsTab = lazy(() => import("@/components/documents/DocumentReportsTab"));
 
 const STATUS_OPTIONS = ["aktivan", "arhiviran", "za_izlucivanje"];
 
 export default function Documents() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "registry";
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
@@ -192,6 +199,14 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="registry"><FileText className="h-4 w-4 mr-2" />{t("dmsRegistry")}</TabsTrigger>
+          <TabsTrigger value="browser"><FolderOpen className="h-4 w-4 mr-2" />{t("dmsBrowser")}</TabsTrigger>
+          <TabsTrigger value="reports"><BarChart3 className="h-4 w-4 mr-2" />{t("dmsReports")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="registry">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t("dmsRegistry")}</h1>
@@ -390,6 +405,20 @@ export default function Documents() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </TabsContent>
+
+      <TabsContent value="browser">
+        <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+          <DocumentBrowserTab />
+        </Suspense>
+      </TabsContent>
+
+      <TabsContent value="reports">
+        <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+          <DocumentReportsTab />
+        </Suspense>
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }

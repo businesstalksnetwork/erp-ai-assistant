@@ -1,14 +1,22 @@
+import { lazy, Suspense, useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
-import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell, Building, ShieldAlert, ListChecks } from "lucide-react";
+import { Building2, MapPin, Warehouse, ShoppingBag, CircleDollarSign, Landmark, Plug, FileText, Percent, Users, Globe, BookOpen, GitBranch, Settings, Upload, Calculator, ShieldCheck, DollarSign, GitPullRequest, Clock, Activity, CheckSquare, Tag, TrendingUp, CreditCard, List, Lock, Printer, FolderOpen, Bell, Building, ShieldAlert, ListChecks, ChevronDown } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const CompanyCategoriesSettings = lazy(() => import("@/pages/tenant/CompanyCategoriesSettings"));
+const OpportunityStagesSettings = lazy(() => import("@/pages/tenant/OpportunityStagesSettings"));
 
 export default function TenantSettings() {
   const { t } = useLanguage();
   const { canAccess } = usePermissions();
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const sections = [
     {
@@ -96,6 +104,26 @@ export default function TenantSettings() {
       ))}
 
       <NotificationPreferences />
+
+      {/* Inline expandable settings sections */}
+      {[
+        { key: "partner-categories", label: t("partnerCategories"), icon: Tag, Component: CompanyCategoriesSettings },
+        { key: "opportunity-stages", label: t("opportunityStages"), icon: TrendingUp, Component: OpportunityStagesSettings },
+      ].map(({ key, label, icon: Icon, Component }) => (
+        <Collapsible key={key} open={openSections[key]} onOpenChange={(o) => setOpenSections(prev => ({ ...prev, [key]: o }))}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full justify-between h-12">
+              <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{label}</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform", openSections[key] && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+              <Component />
+            </Suspense>
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
     </div>
   );
 }
