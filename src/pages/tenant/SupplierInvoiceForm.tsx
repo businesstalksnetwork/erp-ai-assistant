@@ -300,8 +300,8 @@ export default function SupplierInvoiceForm() {
   const grandTotal = subtotal + totalTax + totalNonDeductible;
 
   const previewLines = useMemo(() =>
-    buildSupplierInvoicePreviewLines({ amount: subtotal, tax_amount: totalTax, total: grandTotal, invoice_number: invoiceNumber }),
-    [subtotal, totalTax, grandTotal, invoiceNumber]
+    buildSupplierInvoicePreviewLines({ amount: subtotal, tax_amount: totalTax, total: grandTotal, invoice_number: invoiceNumber, vat_non_deductible: totalNonDeductible }),
+    [subtotal, totalTax, grandTotal, invoiceNumber, totalNonDeductible]
   );
 
   const saveMutation = useMutation({
