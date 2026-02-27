@@ -1,44 +1,61 @@
 
+# Phase 1: Navigation & Quick Fixes
 
-# Fix 6 Issues
+This phase fixes all orphaned routes, dead links, wrong module tags, and missing breadcrumb labels. No database changes needed — purely frontend navigation fixes.
 
-## Issue 1: InvoiceRegister unreachable in UI
-Add link to AccountingHub in "Porezi i periodi" section pointing to `/accounting/invoice-register`.
+## Changes
 
-**File**: `src/pages/tenant/AccountingHub.tsx`
-- Add `{ to: "/accounting/invoice-register", icon: FileText, label: "Knjiga računa", desc: "Knjiga izlaznih i ulaznih računa po POPDV sekcijama" }` to the "Porezi i periodi" section
+### 1. Fix GlobalSearch dead link and wrong module tags
+**File: `src/components/layout/GlobalSearch.tsx`**
+- Line 57: Change path `/sales/retail-prices` → `/inventory/retail-prices`
+- Lines 104-110: Change `module: "accounting"` → `module: "analytics"` for all 7 analytics items
 
-## Issue 2: submit_pdv_period RPC doesn't exist
-Replace the RPC call with a simple status update since the function doesn't exist in DB.
+### 2. Fix CRM sidebar partners link
+**File: `src/layouts/TenantLayout.tsx`**
+- Line 148 (`crmNav`): Change `url: "/crm/companies"` → `url: "/crm/partners"`
 
-**File**: `src/pages/tenant/PdvPeriods.tsx` (lines 169-173)
-- Replace `supabase.rpc("submit_pdv_period" as any, ...)` with `supabase.from("pdv_periods").update({ status: "submitted" }).eq("id", periodId)`
+### 3. Add orphaned accounting pages to sidebar
+**File: `src/layouts/TenantLayout.tsx`** — add to `accountingNav`:
+- `{ key: "bankAccounts", url: "/accounting/bank-accounts", icon: Landmark, section: "bookkeeping" }` (after ledger)
+- `{ key: "documentImport", url: "/accounting/document-import", icon: FileInput }` (after bank-statements)
+- `{ key: "invoiceRegister", url: "/accounting/invoice-register", icon: FileText }` (after pdvPeriods in taxClosing)
 
-## Issue 3: Input register PIB always empty
-The supplier_invoices table has `supplier_id` which references `partners.id`, and partners has `pib`. Join through supplier_id to get PIB.
+### 4. Add 6 orphaned production pages to sidebar
+**File: `src/layouts/TenantLayout.tsx`** — add to `productionNav`:
+- `{ key: "productionKanban", url: "/production/kanban", icon: LayoutDashboard, section: "shopFloor" }`
+- `{ key: "productionGantt", url: "/production/gantt", icon: CalendarDays }`
+- `{ key: "qualityControl", url: "/production/quality", icon: ClipboardCheck }`
+- `{ key: "productionMaintenance", url: "/production/maintenance", icon: Settings }`
+- `{ key: "mrpEngine", url: "/production/mrp", icon: Calculator, section: "planning" }`
+- `{ key: "costVarianceAnalysis", url: "/production/cost-variance", icon: TrendingDown, section: "reporting" }`
 
-**File**: `src/pages/tenant/InvoiceRegister.tsx` (lines 112-142)
-- Change the supplier_invoices select to include `supplier_id`
-- After fetching invoices, batch-fetch partner PIBs: `supabase.from("partners").select("id, pib").in("id", supplierIds)`
-- Map PIB into the register entries
+### 5. Add WMS labor + returns to sidebar
+**File: `src/layouts/TenantLayout.tsx`** — add to `inventoryNav` after wmsSlotting:
+- `{ key: "wmsLabor", url: "/inventory/wms/labor", icon: UserCheck }`
+- `{ key: "wmsReturns", url: "/inventory/wms/returns", icon: RotateCcw }`
 
-## Issue 4: Legal entity filter not applied
-Add `.eq("legal_entity_id", legalEntityId)` to both output and input queries when `legalEntityId` is set and not `"__all"`.
+### 6. Add HR work-logs/bulk and calendar to sidebar
+**File: `src/layouts/TenantLayout.tsx`** — add to `hrNav` after workLogs:
+- `{ key: "workLogsBulk", url: "/hr/work-logs/bulk", icon: ClipboardCheck }`
+- `{ key: "workLogsCalendar", url: "/hr/work-logs/calendar", icon: Calendar }`
 
-**File**: `src/pages/tenant/InvoiceRegister.tsx` (lines 60-65, 112-117)
-- After the `.lte("vat_date", periodEnd)` line, add conditional filter: `if (legalEntityId && legalEntityId !== "__all") query = query.eq("legal_entity_id", legalEntityId)`
-- Apply to both output and input queries
+### 7. Add documents/settings to sidebar
+**File: `src/layouts/TenantLayout.tsx`** — add to `documentsNav`:
+- `{ key: "dmsSettings", url: "/documents/settings", icon: Settings, section: "dmsConfiguration" }`
 
-## Issue 5: Reverse charge entries not cleaned up on re-save
-Add delete of old reverse_charge_entries when editing an existing supplier invoice.
+### 8. Add ~25 missing breadcrumb labels
+**File: `src/components/layout/Breadcrumbs.tsx`** — add to `routeLabels`:
+- Accounting: `compliance`, `"cash-flow-statement"`, `"statisticki-aneks"`, `"kpo-book"`, `"report-snapshots"`, `intercompany`, `"transfer-pricing"`, `ios`, `"credit-debit-notes"`, `"proforma-invoices"`, `"recurring-invoices"`, `"recurring-journals"`, `"invoice-register"`, `"document-import"`
+- Analytics: `"early-warning"`, `"vat-trap"`, `"supplier-risk"`, `"customer-risk"`, `"margin-bridge"`, `"inventory-health"`, `"payroll-benchmark"`, `"working-capital"`, `"break-even"`, `planning`
+- HR: `"non-employment-income"`, `pppd`
+- Production: `kanban`, `gantt`, `quality`, `"cost-variance"`, `mrp`, `maintenance`
+- WMS: `labor`
 
-**File**: `src/pages/tenant/SupplierInvoiceForm.tsx` (line 322)
-- After the `supplier_invoice_lines` delete, add: `await supabase.from("reverse_charge_entries").delete().eq("supplier_invoice_id", id!)`
+### 9. Remove dead settings permission check
+**File: `src/layouts/TenantLayout.tsx`** — line 451: `business-rules` is checked in the filter but not in `settingsNav` array. Add it to `settingsNav`:
+- `{ key: "businessRules", url: "/settings/business-rules", icon: FileText, section: "system" }`
 
-## Issue 6: Remove unnecessary `as any` casts
-**Files**: `PopdvFieldSelect.tsx`, `PdvPeriods.tsx`, `SupplierInvoiceForm.tsx`
-- Remove `as any` from `.from("popdv_tax_types" as any)` → `.from("popdv_tax_types")`
-- Remove `(period as any).legal_entity_id` → `period.legal_entity_id`
-- Remove `(existing as any).vat_date` → `existing.vat_date`
-- Remove snapshot upsert `as any` casts where types support the fields
-
+### Summary
+- **Files modified:** 3 (`TenantLayout.tsx`, `GlobalSearch.tsx`, `Breadcrumbs.tsx`)
+- **No database changes**
+- **No new components**
