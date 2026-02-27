@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Trash2, Calculator, Send } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 interface KalkulacijaItem {
   product_id: string;
@@ -134,7 +135,10 @@ export default function Kalkulacija() {
   };
 
   const filtered = kalkulacije.filter((k: any) => k.kalkulacija_number?.toLowerCase().includes(search.toLowerCase()));
-  
+
+      {tenantId && kalkulacije.length > 0 && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="kalkulacija" data={{ count: kalkulacije.length }} />
+      )}
 
   return (
     <div className="space-y-6">

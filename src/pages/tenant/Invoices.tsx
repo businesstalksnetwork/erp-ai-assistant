@@ -15,6 +15,7 @@ import { Plus, Send, BookOpen, DollarSign, RefreshCw, Receipt } from "lucide-rea
 import { format } from "date-fns";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
@@ -234,6 +235,7 @@ export default function Invoices() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="accounting" compact />}
       <PageHeader
         title={t("invoices")}
         description={t("invoicesDesc")}

@@ -17,6 +17,7 @@ import { Plus, Pencil, CheckCircle, Loader2, Play, X, Eye } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { fmtNum } from "@/lib/utils";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 
 export default function ProductionOrders() {
   const { t, locale } = useLanguage();
@@ -221,6 +222,7 @@ export default function ProductionOrders() {
 
   return (
     <div className="space-y-6">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="production" compact />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("productionOrders")}</h1>
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>

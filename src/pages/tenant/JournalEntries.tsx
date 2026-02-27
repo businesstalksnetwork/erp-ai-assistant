@@ -28,6 +28,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 
 interface JournalLine {
   id?: string;
@@ -259,6 +260,7 @@ export default function JournalEntries() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="accounting" compact />}
       <PageHeader
         title={t("journalEntries")}
         description={t("journalEntriesDesc")}

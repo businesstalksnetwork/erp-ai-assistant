@@ -11,6 +11,7 @@ import { Loader2, Banknote, CheckCircle, XCircle, ArrowRightLeft } from "lucide-
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 const formatNum = (n: number) =>
   n.toLocaleString("sr-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -165,6 +166,10 @@ export default function PayrollBankReconciliation() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("payrollBankReconciliation" as any)} icon={Banknote} description={t("payrollBankReconciliationDesc" as any)} />
+
+      {tenantId && autoMatches.length > 0 && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="payroll_recon" data={{ matched: matchedCount, unmatched: unmatchedCount, suggested: suggestedCount, total: autoMatches.length }} />
+      )}
 
       <Card>
         <CardContent className="pt-6">

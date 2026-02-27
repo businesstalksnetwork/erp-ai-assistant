@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 
@@ -224,6 +225,7 @@ export default function SalesOrders() {
 
   return (
     <div className="space-y-6">
+      {tenantId && <AiModuleInsights tenantId={tenantId} module="sales" compact />}
       <PageHeader
         title={t("salesOrders")}
         description={t("salesOrders")}

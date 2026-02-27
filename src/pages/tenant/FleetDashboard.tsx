@@ -9,6 +9,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { StatItem } from "@/components/shared/StatsBar";
+import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 
 const sections = [
   {
@@ -83,6 +84,9 @@ export default function FleetDashboard() {
       icon={Car}
       stats={stats}
     >
+      {tenantId && kpi && (
+        <AiAnalyticsNarrative tenantId={tenantId} contextType="fleet" data={{ totalVehicles: kpi.totalVehicles, expiringSoon: kpi.expiringSoon, serviceDue: kpi.serviceDue }} />
+      )}
       {sections.map((section) => (
         <div key={section.title} className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{section.title}</h2>
