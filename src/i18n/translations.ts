@@ -503,6 +503,16 @@ export const translations = {
     startProduction: "Start Production",
     insufficientStock: "Insufficient Stock",
     materialAvailability: "Material Availability",
+    productionKanban: "Kanban Board",
+    productionGantt: "Gantt Chart",
+    qualityControl: "Quality Control",
+    productionMaintenance: "Equipment Maintenance",
+    mrpEngine: "MRP Engine",
+    costVarianceAnalysis: "Cost Variance Analysis",
+    shopFloor: "Shop Floor",
+    planning: "Planning",
+    wmsLabor: "Labor Management",
+    wmsReturns: "Returns",
 
     // Documents
     documents: "Documents",
@@ -3429,6 +3439,16 @@ export const translations = {
     startProduction: "Pokreni proizvodnju",
     insufficientStock: "Nedovoljne zalihe",
     materialAvailability: "Raspoloživost materijala",
+    productionKanban: "Kanban tabla",
+    productionGantt: "Gantov dijagram",
+    qualityControl: "Kontrola kvaliteta",
+    productionMaintenance: "Održavanje opreme",
+    mrpEngine: "MRP Motor",
+    costVarianceAnalysis: "Analiza varijanse troškova",
+    shopFloor: "Pogon",
+    planning: "Planiranje",
+    wmsLabor: "Upravljanje radnom snagom",
+    wmsReturns: "Povrati",
 
     // Documents
     documents: "DMS",
