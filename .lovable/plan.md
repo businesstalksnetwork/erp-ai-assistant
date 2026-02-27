@@ -1,72 +1,56 @@
 
 
-## Phase 3: Per-Role Dashboards — 6 Specialized Views
+## Phase 4: AI Personalization — Role-Aware Briefings and Chat
 
 ### Current State
-- Single `TenantDashboard` for all roles showing financial KPIs, charts, AI widgets, pending actions
-- Role available via `useTenant().role` (from `tenant_members`)
-- Existing dashboard widgets in `src/components/dashboard/` are reusable
+- **Briefing** (`ai-executive-briefing`): Already has `roleSystemPrompts` and `detectRole()` but uses string matching on the role name (e.g., "account" → accountant). Does NOT use the actual `app_role` enum value directly.
+- **Chat** (`ai-assistant`): System prompt is generic — same for all roles. No role-aware tool filtering or context scoping.
+- **Frontend**: Neither `AiBriefing.tsx` nor `useAiStream.ts` sends the user's role to the edge functions. The briefing function fetches it server-side from `tenant_members`, but chat does not.
+- Both edge functions already fetch membership; the chat function fetches `membership.id` but not `membership.role`.
 
-### Architecture
-Keep the single `/dashboard` route and `Dashboard.tsx` as a router that renders the appropriate dashboard component based on `role`. No new routes needed.
+### Plan
 
-```text
-Dashboard.tsx (router)
-  ├─ role=admin/super_admin  → AdminDashboard (current full view)
-  ├─ role=manager            → ManagerDashboard
-  ├─ role=accountant         → AccountantDashboard
-  ├─ role=sales              → SalesDashboard
-  ├─ role=hr                 → HrDashboard
-  └─ role=store/user         → StoreDashboard
-```
+#### Step 1: Edge Function — Role-aware chat system prompt
 
-### Step 1: Refactor Dashboard.tsx into role router
+Modify `supabase/functions/ai-assistant/index.ts`:
+- Fetch `membership.role` and `membership.data_scope` (already querying `tenant_members`, just need to select more columns)
+- Add role-specific system prompt sections (similar to briefing's `roleSystemPrompts`) that shape the assistant's personality and focus areas per role
+- Restrict tool availability by role:
+  - `accountant` → prioritize `explain_account`, `query_tenant_data`, `forecast_cashflow`
+  - `sales` → prioritize `get_partner_dossier`, pipeline queries
+  - `hr` → payroll/employee focus, hide financial deep-dive tools
+  - `store` → POS/inventory focus, hide accounting tools
+  - `admin`/`super_admin`/`manager` → all tools
+- Include `data_scope` in context so AI knows to filter appropriately
 
-Convert `Dashboard.tsx` to a thin switcher that reads `role` from `useTenant()` and lazy-loads the matching dashboard component. Move current full dashboard content to `AdminDashboard.tsx`.
+#### Step 2: Edge Function — Briefing `detectRole` alignment
 
-### Step 2: Create 6 dashboard components in `src/components/dashboard/roles/`
+Modify `supabase/functions/ai-executive-briefing/index.ts`:
+- Replace fuzzy `detectRole()` string matching with direct use of the `app_role` enum value from `membership.role`
+- Map enum values directly: `admin`→admin, `accountant`→accountant, `sales`→sales, `hr`→hr, `store`→warehouse, `manager`→manager, `user`→warehouse
+- Keep super_admin fallback to admin prompt
 
-Each dashboard reuses existing widgets + adds role-specific KPIs and quick actions:
+#### Step 3: Frontend — Pass role to chat
 
-**AdminDashboard** — Current full dashboard (moved from Dashboard.tsx). All KPIs, all charts, all pending actions, module health, AI briefing.
+Modify `src/hooks/useAiStream.ts`:
+- Accept `role` in options, pass it in the request body to `ai-assistant`
 
-**ManagerDashboard** — Revenue/expenses/profit KPIs, pending approvals count, team performance summary, top customers chart, revenue chart, quick actions for approvals and reports.
+Modify `src/components/ai/AiContextSidebar.tsx`:
+- Read `role` from `useTenant()` and pass to `useAiStream`
 
-**AccountantDashboard** — Revenue/expenses/cash balance/profit KPIs, draft journal entries count, overdue invoices, invoice status chart, cash flow chart, cashflow forecast, compliance deadlines, quick actions for journal entry and invoice creation.
+#### Step 4: Role-filtered suggested questions
 
-**SalesDashboard** — Sales-specific KPIs (active quotes, confirmed orders, monthly revenue, pipeline value from CRM), top customers chart, revenue chart, quick actions for new quote/lead/invoice.
-
-**HrDashboard** — Employee count, payroll cost trend, upcoming payroll deadlines, pending leave requests count, payroll cost widget, quick actions for HR modules.
-
-**StoreDashboard** — POS fiscal receipt status, low stock alerts, today's sales count/total, inventory alerts, quick actions for POS and inventory.
-
-### Step 3: Role-specific KPI queries
-
-Each dashboard defines its own KPI queries relevant to that role. Reuse existing queries where applicable (e.g., `dashboard_kpi_summary` RPC for financial roles). Add lightweight new queries for:
-- Sales pipeline value (from `opportunities` table)
-- Employee count (from `employees` table)
-- Today's POS sales (from `pos_sessions`/`invoices`)
-
-### Step 4: Translations
-
-Add SR/EN keys for new dashboard labels: `salesDashboard`, `hrDashboard`, `storeDashboard`, `managerDashboard`, `accountantDashboard`, `employeeCount`, `pipelineValue`, `todaySales`, etc.
-
-### Files to create
-- `src/components/dashboard/roles/AdminDashboard.tsx`
-- `src/components/dashboard/roles/ManagerDashboard.tsx`
-- `src/components/dashboard/roles/AccountantDashboard.tsx`
-- `src/components/dashboard/roles/SalesDashboard.tsx`
-- `src/components/dashboard/roles/HrDashboard.tsx`
-- `src/components/dashboard/roles/StoreDashboard.tsx`
+Modify `AiContextSidebar.tsx`:
+- Filter `SUGGESTED_QUESTIONS` by role relevance (e.g., sales users don't see accounting questions on the dashboard, HR users see HR-focused prompts)
 
 ### Files to modify
-- `src/pages/tenant/Dashboard.tsx` — becomes role router
-- `src/i18n/translations.ts` — new keys
+- `supabase/functions/ai-assistant/index.ts` — role-aware prompt + tool filtering
+- `supabase/functions/ai-executive-briefing/index.ts` — fix `detectRole`
+- `src/hooks/useAiStream.ts` — pass role
+- `src/components/ai/AiContextSidebar.tsx` — role-filtered suggestions
 
 ### Technical Details
-- All dashboards lazy-loaded via `React.lazy` for code splitting
-- Each dashboard self-contained with its own queries (no shared query bloat)
-- `WelcomeHeader` and export CSV reused across all dashboards
-- Super admin always gets AdminDashboard
-- Fallback: unknown roles get StoreDashboard (minimal view)
+- No database changes needed — all role data already exists in `tenant_members`
+- Tool filtering is soft (AI instructions) not hard (tools still registered but prompt says "focus on X")
+- Backward compatible: if role is not sent, defaults to current behavior
 
