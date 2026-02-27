@@ -11,6 +11,9 @@ const reports = [
   { key: "bilansUspeha" as const, url: "/accounting/reports/bilans-uspeha", icon: TrendingUp, serbian: true },
   { key: "bilansStanja" as const, url: "/accounting/reports/bilans-stanja", icon: Scale, serbian: true },
   { key: "agingReports" as const, url: "/accounting/reports/aging", icon: PieChart },
+  { key: "ifrsIncomeStatement" as const, url: "/accounting/reports/ifrs-income-statement", icon: TrendingUp },
+  { key: "ifrsBalanceSheet" as const, url: "/accounting/reports/ifrs-balance-sheet", icon: Scale },
+  { key: "notesToFs" as const, url: "/accounting/reports/notes-to-fs", icon: FileText },
 ];
 
 export default function Reports() {

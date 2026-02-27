@@ -146,6 +146,9 @@ export function GlobalSearch() {
     { label: "Devizna blagajna / FX Cash Register", path: "/accounting/fx-cash-register", icon: Globe, group: "accounting", module: "accounting" },
     { label: "Data Retention / Zadržavanje podataka", path: "/settings/data-retention", icon: Clock, group: "settings", module: "settings" },
     { label: "Security Incidents / Bezbednosni incidenti", path: "/settings/security-incidents", icon: Shield, group: "settings", module: "settings" },
+    { label: "Notes to FS / Napomene uz FI", path: "/accounting/reports/notes-to-fs", icon: FileText, group: "accounting", module: "accounting" },
+    { label: "IFRS Income Statement / Bilans uspeha IFRS", path: "/accounting/reports/ifrs-income-statement", icon: FileText, group: "accounting", module: "accounting" },
+    { label: "IFRS Balance Sheet / Bilans stanja IFRS", path: "/accounting/reports/ifrs-balance-sheet", icon: FileText, group: "accounting", module: "accounting" },
 
     // Analytics
     { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
