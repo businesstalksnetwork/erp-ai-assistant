@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/sonner";
 import { RefreshCw, Save, RotateCcw } from "lucide-react";
 import type { TenantRole } from "@/config/rolePermissions";
+import type { TranslationKey } from "@/i18n/translations";
 
 const ROLES: TenantRole[] = [
   "admin", "manager", "finance_director", "accountant",
@@ -19,6 +20,28 @@ const ROLES: TenantRole[] = [
   "production_manager", "production_worker",
   "user", "viewer",
 ];
+
+const ROLE_LABELS: Record<TenantRole, TranslationKey> = {
+  admin: "roleAdmin",
+  manager: "roleManager",
+  finance_director: "roleFinanceDirector",
+  accountant: "roleAccountant",
+  hr_manager: "roleHrManager",
+  hr_staff: "roleHrStaff",
+  sales_manager: "roleSalesManager",
+  sales_rep: "roleSalesRep",
+  sales: "roleSales",
+  hr: "roleHr",
+  store_manager: "roleStoreManager",
+  store: "roleStore",
+  cashier: "roleCashier",
+  warehouse_manager: "roleWarehouseManager",
+  warehouse_worker: "roleWarehouseWorker",
+  production_manager: "roleProductionManager",
+  production_worker: "roleProductionWorker",
+  user: "roleUser",
+  viewer: "roleViewer",
+};
 const MODULES = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory",
   "accounting", "analytics", "hr", "production", "documents",
@@ -155,7 +178,7 @@ export default function RolePermissions() {
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
-                    <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                    <SelectItem key={r} value={r}>{t(ROLE_LABELS[r])}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
