@@ -1,54 +1,57 @@
 
 
-## v2.1 Remaining — Status Assessment
+## v2.2 Remaining — Status & Implementation Plan
 
-Items 1-3 are **already fully implemented**:
-- efaktura_category per-line in UBL XML: `sef-submit/index.ts` lines 124-125, 160
-- SEF PIB validation: `sef-submit/index.ts` lines 482-493 query `sef_registry`
-- FIFO in POS: `PosTerminal.tsx` line 349 calls `consume_fifo_layers`
+### Already Complete (12 of 22)
+Items verified as done in current codebase:
+- **#1**: `settings-business-rules` is a valid permission (used in `rolePermissions.ts` + `settingsRoutes.tsx`) — NOT dead
+- **#2**: All 10 accounting routes already in `accountingNav` (lines 93-133)
+- **#3**: Production sub-pages already in `productionNav` (kanban, gantt, quality, cost-variance, mrp, maintenance)
+- **#4**: WMS labor + returns already in `inventoryNav` (lines 89-90)
+- **#5**: Settings sidebar already grouped with sections (`settingsOrganization`, `settingsFinance`, etc.)
+- **#6**: 30+ settings sub-pages already in sidebar
+- **#7**: GlobalSearch already covers settings pages
+- **#17** (partial): `staleTime` already on legal entities, chart of accounts, permissions, tenants
+- **#18**: `CollapsibleNavGroup` already wrapped in `React.memo`
+- **#20**: All route pages already use `React.lazy` via route modules
 
-**Item 4 — eBolovanje → Payroll Bridge — needs work.**
+### Remaining: 10 Items across 4 Rounds
 
-The `ebolovanje-submit` edge function already creates an approved `leave_request` with `leave_type='sick_leave'` when a claim is submitted. However, the latest `calculate_payroll_for_run` function (migration `20260225132632`) only deducts for `leave_type='unpaid'` leave requests (line 164). Sick leave days are completely ignored in payroll calculation.
+---
 
-### What needs to change
+**Round 1 — Quick Wins (4 items, ~2 hr)**
 
-**Upgrade `calculate_payroll_for_run` SQL function** to:
+| # | Task | Detail |
+|---|------|--------|
+| 12 | Create `FormSkeleton` component | New `src/components/shared/FormSkeleton.tsx` — reusable skeleton with header + form field placeholders |
+| 17 | Add `staleTime` to remaining hooks | Grep for tax rates, currencies, warehouses, employees queries missing `staleTime` and add 5-min cache |
+| 19 | Add `rollup-plugin-visualizer` | Install package, add to `vite.config.ts` as optional plugin |
+| 21 | Wire `PageErrorBoundary` into routes | Wrap route elements in `settingsRoutes.tsx`, `accountingRoutes.tsx`, `hrRoutes.tsx`, etc. |
 
-1. Query approved `leave_requests` where `leave_type IN ('sick_leave', 'maternity_leave')` overlapping the payroll period
-2. Calculate employer-paid sick days (first 30 days per Serbian law) at 65% of daily rate
-3. Calculate RFZO days (days 31+) — excluded from employer payroll entirely
-4. Adjust gross: subtract full daily rate for sick days, add back 65% sick compensation for employer-paid days
-5. Store `sick_leave_days` and `sick_leave_compensation` in `payroll_items`
+**Round 2 — Table Migration Batch 1 (Items 13-14, ~4 hr)**
 
-**Add columns to `payroll_items`**:
-- `sick_leave_days INTEGER DEFAULT 0`
-- `sick_leave_compensation NUMERIC DEFAULT 0`
+Audit all 182 files importing raw `<Table>` and migrate the first 5-6 list pages to `ResponsiveTable`:
+- `TravelOrders.tsx`, `PK1Book.tsx`, `PPPPO.tsx`, `BankStatements.tsx` (already done), `JournalEntries.tsx`, `Employees.tsx`
+- Add sort, column toggle, CSV export where appropriate
 
-**Update `Payroll.tsx`** (or `PayrollRunDetail.tsx`) to display the sick leave columns in the payroll items table.
+**Round 3 — Table Migration Batch 2 (Items 15-16, ~8 hr)**
 
-**Add i18n keys** for sick leave labels.
+Migrate hub/detail pages:
+- `Invoices.tsx`, `Products.tsx` (already done), `Partners.tsx`, `Companies.tsx`, `ChartOfAccounts.tsx`, `PayrollCategories.tsx`, `EmployeeSalaries.tsx`, `BomTemplates.tsx`, `WmsTasks.tsx`, `WmsLabor.tsx`, `EventMonitor.tsx`, `SalesPerformance.tsx`
+- Remaining ~10 pages with simpler tables
 
-### Technical detail
+**Round 4 — Forms & Entity Selector (Items 8-11, 22, ~10 hr)**
 
-In the payroll loop, after the existing unpaid leave block (line ~164), add:
+| # | Task | Detail |
+|---|------|--------|
+| 8 | TenantProfile legal entity selector | Add `legal_entity_id` dropdown linking to `legal_entities` table |
+| 9 | Bank API connection test | Add "Test Connection" button to Integrations page that pings bank API endpoint |
+| 10 | InvoiceForm → RHF + Zod | Migrate ~900-line form from manual useState to `react-hook-form` with Zod schema validation |
+| 11 | SupplierInvoiceForm → RHF + Zod | Same migration for ~650-line supplier invoice form |
+| 22 | Extend `EntitySelector` usage | Replace inline partner/employee/product selects in InvoiceForm, SupplierInvoiceForm, TravelOrderForm |
 
-```sql
--- Sick leave from eBolovanje bridge
-SELECT COALESCE(SUM(days), 0) INTO v_sick_days
-FROM leave_requests
-WHERE employee_id = v_contract.emp_id
-  AND status = 'approved'
-  AND leave_type IN ('sick_leave', 'maternity_leave')
-  AND start_date <= v_period_end
-  AND end_date >= v_period_start;
+---
 
--- Cap at employer-paid days (30 per Serbian law)
-v_employer_sick_days := LEAST(v_sick_days, 30);
-v_sick_compensation := v_hourly_rate * 8 * v_employer_sick_days * 0.65;
-v_sick_deduction := v_hourly_rate * 8 * v_employer_sick_days;
-
--- Adjust gross: remove full pay for sick days, add 65% compensation
-v_gross := v_gross - v_sick_deduction + v_sick_compensation;
-```
+### Recommended Approach
+Start with **Round 1** (quick wins) to close out easy items, then tackle **Rounds 2-3** (table migration bulk) which is the heaviest lift at ~12 hours. Round 4 (form migration) is highest-risk and can be deferred if needed.
 
