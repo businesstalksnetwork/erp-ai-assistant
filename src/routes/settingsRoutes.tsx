@@ -1,6 +1,7 @@
 import React from "react";
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const TenantSettings = React.lazy(() => import("@/pages/tenant/Settings"));
 const TenantProfile = React.lazy(() => import("@/pages/tenant/TenantProfile"));
@@ -33,33 +34,33 @@ const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHea
 
 export const settingsRoutes = (
   <>
-    <Route path="settings" element={<ProtectedRoute requiredModule="settings"><TenantSettings /></ProtectedRoute>} />
-    <Route path="settings/tenant-profile" element={<ProtectedRoute requiredModule="settings"><TenantProfile /></ProtectedRoute>} />
-    <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><TenantUsers /></ProtectedRoute>} />
-    <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><AuditLog /></ProtectedRoute>} />
-    <Route path="settings/legal-entities" element={<ProtectedRoute requiredModule="settings"><LegalEntities /></ProtectedRoute>} />
-    <Route path="settings/locations" element={<ProtectedRoute requiredModule="settings"><Locations /></ProtectedRoute>} />
-    <Route path="settings/warehouses" element={<ProtectedRoute requiredModule="settings"><Warehouses /></ProtectedRoute>} />
-    <Route path="settings/cost-centers" element={<ProtectedRoute requiredModule="settings"><CostCenters /></ProtectedRoute>} />
-    <Route path="settings/bank-accounts" element={<ProtectedRoute requiredModule="settings"><BankAccounts /></ProtectedRoute>} />
-    <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><TenantIntegrations /></ProtectedRoute>} />
-    <Route path="settings/posting-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PostingRules /></ProtectedRoute>} />
-    <Route path="settings/accounting-architecture" element={<ProtectedRoute requiredModule="settings"><AccountingArchitecture /></ProtectedRoute>} />
-    <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><BusinessRules /></ProtectedRoute>} />
-    <Route path="settings/legacy-import" element={<ProtectedRoute requiredModule="settings"><LegacyImport /></ProtectedRoute>} />
-    <Route path="settings/payroll-parameters" element={<ProtectedRoute requiredModule="settings"><PayrollParameters /></ProtectedRoute>} />
-    <Route path="settings/ai-audit-log" element={<ProtectedRoute requiredModule="settings"><AiAuditLog /></ProtectedRoute>} />
-    <Route path="settings/partner-categories" element={<ProtectedRoute requiredModule="settings"><CompanyCategoriesSettings /></ProtectedRoute>} />
-    <Route path="settings/opportunity-stages" element={<ProtectedRoute requiredModule="settings"><OpportunityStagesSettings /></ProtectedRoute>} />
-    <Route path="settings/discount-rules" element={<ProtectedRoute requiredModule="settings-approvals"><DiscountApprovalRules /></ProtectedRoute>} />
-    <Route path="settings/tax-rates" element={<ProtectedRoute requiredModule="settings-tax-rates"><TaxRates /></ProtectedRoute>} />
-    <Route path="settings/approvals" element={<ProtectedRoute requiredModule="settings-approvals"><ApprovalWorkflows /></ProtectedRoute>} />
-    <Route path="settings/pending-approvals" element={<ProtectedRoute requiredModule="settings-approvals"><PendingApprovals /></ProtectedRoute>} />
-    <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><Currencies /></ProtectedRoute>} />
-    <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><EventMonitor /></ProtectedRoute>} />
-    <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><DataProtection /></ProtectedRoute>} />
-    <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><DmsSettings /></ProtectedRoute>} />
-    <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><NotificationCategorySettings /></ProtectedRoute>} />
-    <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><IntegrationHealth /></ProtectedRoute>} />
+    <Route path="settings" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><TenantSettings /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/tenant-profile" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><TenantProfile /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/users" element={<ProtectedRoute requiredModule="settings-users"><PageErrorBoundary><TenantUsers /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><PageErrorBoundary><AuditLog /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/legal-entities" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><LegalEntities /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/locations" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><Locations /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/warehouses" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><Warehouses /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/cost-centers" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><CostCenters /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/bank-accounts" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><BankAccounts /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/integrations" element={<ProtectedRoute requiredModule="settings-integrations"><PageErrorBoundary><TenantIntegrations /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/posting-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PageErrorBoundary><PostingRules /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/accounting-architecture" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><AccountingArchitecture /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/business-rules" element={<ProtectedRoute requiredModule="settings-business-rules"><PageErrorBoundary><BusinessRules /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/legacy-import" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><LegacyImport /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/payroll-parameters" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><PayrollParameters /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/ai-audit-log" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><AiAuditLog /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/partner-categories" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><CompanyCategoriesSettings /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/opportunity-stages" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><OpportunityStagesSettings /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/discount-rules" element={<ProtectedRoute requiredModule="settings-approvals"><PageErrorBoundary><DiscountApprovalRules /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/tax-rates" element={<ProtectedRoute requiredModule="settings-tax-rates"><PageErrorBoundary><TaxRates /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/approvals" element={<ProtectedRoute requiredModule="settings-approvals"><PageErrorBoundary><ApprovalWorkflows /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/pending-approvals" element={<ProtectedRoute requiredModule="settings-approvals"><PageErrorBoundary><PendingApprovals /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/currencies" element={<ProtectedRoute requiredModule="settings-currencies"><PageErrorBoundary><Currencies /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/events" element={<ProtectedRoute requiredModule="settings-events"><PageErrorBoundary><EventMonitor /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/data-protection" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DataProtection /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/dms" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DmsSettings /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationCategorySettings /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><PageErrorBoundary><IntegrationHealth /></PageErrorBoundary></ProtectedRoute>} />
   </>
 );

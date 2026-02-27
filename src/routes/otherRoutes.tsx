@@ -1,6 +1,7 @@
 import React from "react";
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 // Purchasing
 const PurchasingHub = React.lazy(() => import("@/pages/tenant/PurchasingHub"));
@@ -76,92 +77,94 @@ const AiBriefing = React.lazy(() => import("@/pages/tenant/AiBriefing"));
 // Profile
 const Profile = React.lazy(() => import("@/pages/tenant/Profile"));
 
+const B = PageErrorBoundary;
+
 export const purchasingRoutes = (
   <>
-    <Route path="purchasing" element={<ProtectedRoute requiredModule="purchasing"><PurchasingHub /></ProtectedRoute>} />
-    <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><PurchaseOrders /></ProtectedRoute>} />
-    <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><GoodsReceipts /></ProtectedRoute>} />
-    <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoices /></ProtectedRoute>} />
-    <Route path="purchasing/supplier-invoices/new" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoiceForm /></ProtectedRoute>} />
-    <Route path="purchasing/supplier-invoices/:id" element={<ProtectedRoute requiredModule="purchasing"><SupplierInvoiceForm /></ProtectedRoute>} />
-    <Route path="purchasing/incoming-efakture" element={<ProtectedRoute requiredModule="purchasing"><IncomingEfakture /></ProtectedRoute>} />
+    <Route path="purchasing" element={<ProtectedRoute requiredModule="purchasing"><B><PurchasingHub /></B></ProtectedRoute>} />
+    <Route path="purchasing/orders" element={<ProtectedRoute requiredModule="purchasing"><B><PurchaseOrders /></B></ProtectedRoute>} />
+    <Route path="purchasing/goods-receipts" element={<ProtectedRoute requiredModule="purchasing"><B><GoodsReceipts /></B></ProtectedRoute>} />
+    <Route path="purchasing/supplier-invoices" element={<ProtectedRoute requiredModule="purchasing"><B><SupplierInvoices /></B></ProtectedRoute>} />
+    <Route path="purchasing/supplier-invoices/new" element={<ProtectedRoute requiredModule="purchasing"><B><SupplierInvoiceForm /></B></ProtectedRoute>} />
+    <Route path="purchasing/supplier-invoices/:id" element={<ProtectedRoute requiredModule="purchasing"><B><SupplierInvoiceForm /></B></ProtectedRoute>} />
+    <Route path="purchasing/incoming-efakture" element={<ProtectedRoute requiredModule="purchasing"><B><IncomingEfakture /></B></ProtectedRoute>} />
   </>
 );
 
 export const productionRoutes = (
   <>
-    <Route path="production" element={<ProtectedRoute requiredModule="production"><ProductionHub /></ProtectedRoute>} />
-    <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><BomTemplates /></ProtectedRoute>} />
-    <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><ProductionOrders /></ProtectedRoute>} />
-    <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><ProductionOrderDetail /></ProtectedRoute>} />
-    <Route path="production/kanban" element={<ProtectedRoute requiredModule="production"><ProductionKanban /></ProtectedRoute>} />
-    <Route path="production/gantt" element={<ProtectedRoute requiredModule="production"><ProductionGantt /></ProtectedRoute>} />
-    <Route path="production/quality" element={<ProtectedRoute requiredModule="production"><QualityControl /></ProtectedRoute>} />
-    <Route path="production/cost-variance" element={<ProtectedRoute requiredModule="production"><CostVarianceAnalysis /></ProtectedRoute>} />
-    <Route path="production/mrp" element={<ProtectedRoute requiredModule="production"><MrpEngine /></ProtectedRoute>} />
-    <Route path="production/maintenance" element={<ProtectedRoute requiredModule="production"><ProductionMaintenance /></ProtectedRoute>} />
-    <Route path="production/ai-planning" element={<ProtectedRoute requiredModule="production"><AiPlanningDashboard /></ProtectedRoute>} />
-    <Route path="production/ai-planning/schedule" element={<ProtectedRoute requiredModule="production"><AiPlanningSchedule /></ProtectedRoute>} />
-    <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><AiBottleneckPrediction /></ProtectedRoute>} />
-    <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><AiCapacitySimulation /></ProtectedRoute>} />
-    <Route path="production/ai-planning/calendar" element={<ProtectedRoute requiredModule="production"><AiPlanningCalendar /></ProtectedRoute>} />
+    <Route path="production" element={<ProtectedRoute requiredModule="production"><B><ProductionHub /></B></ProtectedRoute>} />
+    <Route path="production/bom" element={<ProtectedRoute requiredModule="production"><B><BomTemplates /></B></ProtectedRoute>} />
+    <Route path="production/orders" element={<ProtectedRoute requiredModule="production"><B><ProductionOrders /></B></ProtectedRoute>} />
+    <Route path="production/orders/:id" element={<ProtectedRoute requiredModule="production"><B><ProductionOrderDetail /></B></ProtectedRoute>} />
+    <Route path="production/kanban" element={<ProtectedRoute requiredModule="production"><B><ProductionKanban /></B></ProtectedRoute>} />
+    <Route path="production/gantt" element={<ProtectedRoute requiredModule="production"><B><ProductionGantt /></B></ProtectedRoute>} />
+    <Route path="production/quality" element={<ProtectedRoute requiredModule="production"><B><QualityControl /></B></ProtectedRoute>} />
+    <Route path="production/cost-variance" element={<ProtectedRoute requiredModule="production"><B><CostVarianceAnalysis /></B></ProtectedRoute>} />
+    <Route path="production/mrp" element={<ProtectedRoute requiredModule="production"><B><MrpEngine /></B></ProtectedRoute>} />
+    <Route path="production/maintenance" element={<ProtectedRoute requiredModule="production"><B><ProductionMaintenance /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning" element={<ProtectedRoute requiredModule="production"><B><AiPlanningDashboard /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning/schedule" element={<ProtectedRoute requiredModule="production"><B><AiPlanningSchedule /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><B><AiBottleneckPrediction /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><B><AiCapacitySimulation /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning/calendar" element={<ProtectedRoute requiredModule="production"><B><AiPlanningCalendar /></B></ProtectedRoute>} />
   </>
 );
 
 export const driveRoutes = (
-  <Route path="drive" element={<ProtectedRoute requiredModule="documents"><Drive /></ProtectedRoute>} />
+  <Route path="drive" element={<ProtectedRoute requiredModule="documents"><B><Drive /></B></ProtectedRoute>} />
 );
 
 export const documentsRoutes = (
   <>
-    <Route path="documents" element={<ProtectedRoute requiredModule="documents"><Documents /></ProtectedRoute>} />
-    <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><DocumentDetail /></ProtectedRoute>} />
-    <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><ArchiveBook /></ProtectedRoute>} />
-    <Route path="documents/archiving" element={<ProtectedRoute requiredModule="documents"><Archiving /></ProtectedRoute>} />
-    <Route path="documents/projects" element={<ProtectedRoute requiredModule="documents"><DmsProjects /></ProtectedRoute>} />
-    <Route path="documents/projects/:id" element={<ProtectedRoute requiredModule="documents"><DmsProjectDetail /></ProtectedRoute>} />
-    <Route path="documents/browser" element={<ProtectedRoute requiredModule="documents"><DocumentBrowser /></ProtectedRoute>} />
-    <Route path="documents/reports" element={<ProtectedRoute requiredModule="documents"><DmsReports /></ProtectedRoute>} />
-    <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><DmsSettings /></ProtectedRoute>} />
+    <Route path="documents" element={<ProtectedRoute requiredModule="documents"><B><Documents /></B></ProtectedRoute>} />
+    <Route path="documents/:id" element={<ProtectedRoute requiredModule="documents"><B><DocumentDetail /></B></ProtectedRoute>} />
+    <Route path="documents/archive-book" element={<ProtectedRoute requiredModule="documents"><B><ArchiveBook /></B></ProtectedRoute>} />
+    <Route path="documents/archiving" element={<ProtectedRoute requiredModule="documents"><B><Archiving /></B></ProtectedRoute>} />
+    <Route path="documents/projects" element={<ProtectedRoute requiredModule="documents"><B><DmsProjects /></B></ProtectedRoute>} />
+    <Route path="documents/projects/:id" element={<ProtectedRoute requiredModule="documents"><B><DmsProjectDetail /></B></ProtectedRoute>} />
+    <Route path="documents/browser" element={<ProtectedRoute requiredModule="documents"><B><DocumentBrowser /></B></ProtectedRoute>} />
+    <Route path="documents/reports" element={<ProtectedRoute requiredModule="documents"><B><DmsReports /></B></ProtectedRoute>} />
+    <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><B><DmsSettings /></B></ProtectedRoute>} />
   </>
 );
 
 export const posRoutes = (
   <>
-    <Route path="pos" element={<ProtectedRoute requiredModule="pos"><PosHub /></ProtectedRoute>} />
-    <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><PosTerminal /></ProtectedRoute>} />
-    <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><PosSessions /></ProtectedRoute>} />
-    <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><FiscalDevices /></ProtectedRoute>} />
-    <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><PosDailyReport /></ProtectedRoute>} />
+    <Route path="pos" element={<ProtectedRoute requiredModule="pos"><B><PosHub /></B></ProtectedRoute>} />
+    <Route path="pos/terminal" element={<ProtectedRoute requiredModule="pos"><B><PosTerminal /></B></ProtectedRoute>} />
+    <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><B><PosSessions /></B></ProtectedRoute>} />
+    <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><B><FiscalDevices /></B></ProtectedRoute>} />
+    <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><B><PosDailyReport /></B></ProtectedRoute>} />
   </>
 );
 
 export const analyticsRoutes = (
   <>
-    <Route path="analytics" element={<ProtectedRoute requiredModule="analytics"><AnalyticsDashboard /></ProtectedRoute>} />
-    <Route path="analytics/ratios" element={<ProtectedRoute requiredModule="analytics"><FinancialRatios /></ProtectedRoute>} />
-    <Route path="analytics/profitability" element={<ProtectedRoute requiredModule="analytics"><ProfitabilityAnalysis /></ProtectedRoute>} />
-    <Route path="analytics/cashflow-forecast" element={<ProtectedRoute requiredModule="analytics"><CashFlowForecast /></ProtectedRoute>} />
-    <Route path="accounting/cash-flow-statement" element={<ProtectedRoute requiredModule="accounting"><CashFlowStatement /></ProtectedRoute>} />
-    <Route path="accounting/compliance" element={<ProtectedRoute requiredModule="accounting"><ComplianceDashboard /></ProtectedRoute>} />
-    <Route path="analytics/budget" element={<ProtectedRoute requiredModule="analytics"><BudgetVsActuals /></ProtectedRoute>} />
-    <Route path="analytics/break-even" element={<ProtectedRoute requiredModule="analytics"><BreakEvenAnalysis /></ProtectedRoute>} />
-    <Route path="analytics/planning" element={<ProtectedRoute requiredModule="analytics"><BusinessPlanning /></ProtectedRoute>} />
-    <Route path="analytics/working-capital" element={<ProtectedRoute requiredModule="analytics"><WorkingCapitalStress /></ProtectedRoute>} />
-    <Route path="analytics/customer-risk" element={<ProtectedRoute requiredModule="analytics"><CustomerRiskScoring /></ProtectedRoute>} />
-    <Route path="analytics/supplier-risk" element={<ProtectedRoute requiredModule="analytics"><SupplierDependency /></ProtectedRoute>} />
-    <Route path="analytics/margin-bridge" element={<ProtectedRoute requiredModule="analytics"><MarginBridge /></ProtectedRoute>} />
-    <Route path="analytics/payroll-benchmark" element={<ProtectedRoute requiredModule="analytics"><PayrollBenchmark /></ProtectedRoute>} />
-    <Route path="analytics/vat-trap" element={<ProtectedRoute requiredModule="analytics"><VatCashTrap /></ProtectedRoute>} />
-    <Route path="analytics/inventory-health" element={<ProtectedRoute requiredModule="analytics"><InventoryHealth /></ProtectedRoute>} />
-    <Route path="analytics/early-warning" element={<ProtectedRoute requiredModule="analytics"><EarlyWarningSystem /></ProtectedRoute>} />
+    <Route path="analytics" element={<ProtectedRoute requiredModule="analytics"><B><AnalyticsDashboard /></B></ProtectedRoute>} />
+    <Route path="analytics/ratios" element={<ProtectedRoute requiredModule="analytics"><B><FinancialRatios /></B></ProtectedRoute>} />
+    <Route path="analytics/profitability" element={<ProtectedRoute requiredModule="analytics"><B><ProfitabilityAnalysis /></B></ProtectedRoute>} />
+    <Route path="analytics/cashflow-forecast" element={<ProtectedRoute requiredModule="analytics"><B><CashFlowForecast /></B></ProtectedRoute>} />
+    <Route path="accounting/cash-flow-statement" element={<ProtectedRoute requiredModule="accounting"><B><CashFlowStatement /></B></ProtectedRoute>} />
+    <Route path="accounting/compliance" element={<ProtectedRoute requiredModule="accounting"><B><ComplianceDashboard /></B></ProtectedRoute>} />
+    <Route path="analytics/budget" element={<ProtectedRoute requiredModule="analytics"><B><BudgetVsActuals /></B></ProtectedRoute>} />
+    <Route path="analytics/break-even" element={<ProtectedRoute requiredModule="analytics"><B><BreakEvenAnalysis /></B></ProtectedRoute>} />
+    <Route path="analytics/planning" element={<ProtectedRoute requiredModule="analytics"><B><BusinessPlanning /></B></ProtectedRoute>} />
+    <Route path="analytics/working-capital" element={<ProtectedRoute requiredModule="analytics"><B><WorkingCapitalStress /></B></ProtectedRoute>} />
+    <Route path="analytics/customer-risk" element={<ProtectedRoute requiredModule="analytics"><B><CustomerRiskScoring /></B></ProtectedRoute>} />
+    <Route path="analytics/supplier-risk" element={<ProtectedRoute requiredModule="analytics"><B><SupplierDependency /></B></ProtectedRoute>} />
+    <Route path="analytics/margin-bridge" element={<ProtectedRoute requiredModule="analytics"><B><MarginBridge /></B></ProtectedRoute>} />
+    <Route path="analytics/payroll-benchmark" element={<ProtectedRoute requiredModule="analytics"><B><PayrollBenchmark /></B></ProtectedRoute>} />
+    <Route path="analytics/vat-trap" element={<ProtectedRoute requiredModule="analytics"><B><VatCashTrap /></B></ProtectedRoute>} />
+    <Route path="analytics/inventory-health" element={<ProtectedRoute requiredModule="analytics"><B><InventoryHealth /></B></ProtectedRoute>} />
+    <Route path="analytics/early-warning" element={<ProtectedRoute requiredModule="analytics"><B><EarlyWarningSystem /></B></ProtectedRoute>} />
   </>
 );
 
 export const miscRoutes = (
   <>
-    <Route path="returns" element={<ProtectedRoute requiredModule="returns"><Returns /></ProtectedRoute>} />
-    <Route path="ai/briefing" element={<AiBriefing />} />
-    <Route path="profile" element={<Profile />} />
+    <Route path="returns" element={<ProtectedRoute requiredModule="returns"><B><Returns /></B></ProtectedRoute>} />
+    <Route path="ai/briefing" element={<B><AiBriefing /></B>} />
+    <Route path="profile" element={<B><Profile /></B>} />
   </>
 );

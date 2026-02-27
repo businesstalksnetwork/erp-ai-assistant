@@ -12,7 +12,14 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(),
+    mode === "development" &&
+      import("rollup-plugin-visualizer").then((m) =>
+        m.visualizer({ open: false, filename: "dist/stats.html", gzipSize: true })
+      ),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

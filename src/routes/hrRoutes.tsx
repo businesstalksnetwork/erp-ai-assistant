@@ -1,6 +1,7 @@
 import React from "react";
 import { Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const HrHub = React.lazy(() => import("@/pages/tenant/HrHub"));
 const Employees = React.lazy(() => import("@/pages/tenant/Employees"));
@@ -34,39 +35,40 @@ const TravelOrders = React.lazy(() => import("@/pages/tenant/TravelOrders"));
 const TravelOrderForm = React.lazy(() => import("@/pages/tenant/TravelOrderForm"));
 
 const m = "hr";
+const B = PageErrorBoundary;
 
 export const hrRoutes = (
   <>
-    <Route path="hr" element={<ProtectedRoute requiredModule={m}><HrHub /></ProtectedRoute>} />
-    <Route path="hr/employees" element={<ProtectedRoute requiredModule={m}><Employees /></ProtectedRoute>} />
-    <Route path="hr/employees/:id" element={<ProtectedRoute requiredModule={m}><EmployeeDetail /></ProtectedRoute>} />
-    <Route path="hr/contracts" element={<ProtectedRoute requiredModule={m}><EmployeeContracts /></ProtectedRoute>} />
-    <Route path="hr/departments" element={<ProtectedRoute requiredModule={m}><Departments /></ProtectedRoute>} />
-    <Route path="hr/attendance" element={<ProtectedRoute requiredModule={m}><Attendance /></ProtectedRoute>} />
-    <Route path="hr/leave-requests" element={<ProtectedRoute requiredModule={m}><LeaveRequests /></ProtectedRoute>} />
-    <Route path="hr/payroll" element={<ProtectedRoute requiredModule={m}><Payroll /></ProtectedRoute>} />
-    <Route path="hr/payroll/categories" element={<ProtectedRoute requiredModule={m}><PayrollCategories /></ProtectedRoute>} />
-    <Route path="hr/payroll/payment-types" element={<ProtectedRoute requiredModule={m}><PayrollPaymentTypes /></ProtectedRoute>} />
-    <Route path="hr/payroll/pppd" element={<ProtectedRoute requiredModule={m}><PppdReview /></ProtectedRoute>} />
-    <Route path="hr/payroll/:id" element={<ProtectedRoute requiredModule={m}><PayrollRunDetail /></ProtectedRoute>} />
-    <Route path="hr/work-logs" element={<ProtectedRoute requiredModule={m}><WorkLogs /></ProtectedRoute>} />
-    <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule={m}><WorkLogsBulkEntry /></ProtectedRoute>} />
-    <Route path="hr/work-logs/calendar" element={<ProtectedRoute requiredModule={m}><WorkLogsCalendar /></ProtectedRoute>} />
-    <Route path="hr/overtime" element={<ProtectedRoute requiredModule={m}><OvertimeHours /></ProtectedRoute>} />
-    <Route path="hr/night-work" element={<ProtectedRoute requiredModule={m}><NightWork /></ProtectedRoute>} />
-    <Route path="hr/annual-leave" element={<ProtectedRoute requiredModule={m}><AnnualLeaveBalances /></ProtectedRoute>} />
-    <Route path="hr/holidays" element={<ProtectedRoute requiredModule={m}><HolidaysPage /></ProtectedRoute>} />
-    <Route path="hr/deductions" element={<ProtectedRoute requiredModule={m}><Deductions /></ProtectedRoute>} />
-    <Route path="hr/allowances" element={<ProtectedRoute requiredModule={m}><Allowances /></ProtectedRoute>} />
-    <Route path="hr/external-workers" element={<ProtectedRoute requiredModule={m}><ExternalWorkers /></ProtectedRoute>} />
-    <Route path="hr/salaries" element={<ProtectedRoute requiredModule={m}><EmployeeSalaries /></ProtectedRoute>} />
-    <Route path="hr/insurance" element={<ProtectedRoute requiredModule={m}><InsuranceRecords /></ProtectedRoute>} />
-    <Route path="hr/position-templates" element={<ProtectedRoute requiredModule={m}><PositionTemplates /></ProtectedRoute>} />
-    <Route path="hr/reports" element={<ProtectedRoute requiredModule={m}><HrReports /></ProtectedRoute>} />
-    <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule={m}><EBolovanje /></ProtectedRoute>} />
-    <Route path="hr/non-employment-income" element={<ProtectedRoute requiredModule={m}><NonEmploymentIncome /></ProtectedRoute>} />
-    <Route path="hr/travel-orders" element={<ProtectedRoute requiredModule={m}><TravelOrders /></ProtectedRoute>} />
-    <Route path="hr/travel-orders/new" element={<ProtectedRoute requiredModule={m}><TravelOrderForm /></ProtectedRoute>} />
-    <Route path="hr/travel-orders/:id" element={<ProtectedRoute requiredModule={m}><TravelOrderForm /></ProtectedRoute>} />
+    <Route path="hr" element={<ProtectedRoute requiredModule={m}><B><HrHub /></B></ProtectedRoute>} />
+    <Route path="hr/employees" element={<ProtectedRoute requiredModule={m}><B><Employees /></B></ProtectedRoute>} />
+    <Route path="hr/employees/:id" element={<ProtectedRoute requiredModule={m}><B><EmployeeDetail /></B></ProtectedRoute>} />
+    <Route path="hr/contracts" element={<ProtectedRoute requiredModule={m}><B><EmployeeContracts /></B></ProtectedRoute>} />
+    <Route path="hr/departments" element={<ProtectedRoute requiredModule={m}><B><Departments /></B></ProtectedRoute>} />
+    <Route path="hr/attendance" element={<ProtectedRoute requiredModule={m}><B><Attendance /></B></ProtectedRoute>} />
+    <Route path="hr/leave-requests" element={<ProtectedRoute requiredModule={m}><B><LeaveRequests /></B></ProtectedRoute>} />
+    <Route path="hr/payroll" element={<ProtectedRoute requiredModule={m}><B><Payroll /></B></ProtectedRoute>} />
+    <Route path="hr/payroll/categories" element={<ProtectedRoute requiredModule={m}><B><PayrollCategories /></B></ProtectedRoute>} />
+    <Route path="hr/payroll/payment-types" element={<ProtectedRoute requiredModule={m}><B><PayrollPaymentTypes /></B></ProtectedRoute>} />
+    <Route path="hr/payroll/pppd" element={<ProtectedRoute requiredModule={m}><B><PppdReview /></B></ProtectedRoute>} />
+    <Route path="hr/payroll/:id" element={<ProtectedRoute requiredModule={m}><B><PayrollRunDetail /></B></ProtectedRoute>} />
+    <Route path="hr/work-logs" element={<ProtectedRoute requiredModule={m}><B><WorkLogs /></B></ProtectedRoute>} />
+    <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule={m}><B><WorkLogsBulkEntry /></B></ProtectedRoute>} />
+    <Route path="hr/work-logs/calendar" element={<ProtectedRoute requiredModule={m}><B><WorkLogsCalendar /></B></ProtectedRoute>} />
+    <Route path="hr/overtime" element={<ProtectedRoute requiredModule={m}><B><OvertimeHours /></B></ProtectedRoute>} />
+    <Route path="hr/night-work" element={<ProtectedRoute requiredModule={m}><B><NightWork /></B></ProtectedRoute>} />
+    <Route path="hr/annual-leave" element={<ProtectedRoute requiredModule={m}><B><AnnualLeaveBalances /></B></ProtectedRoute>} />
+    <Route path="hr/holidays" element={<ProtectedRoute requiredModule={m}><B><HolidaysPage /></B></ProtectedRoute>} />
+    <Route path="hr/deductions" element={<ProtectedRoute requiredModule={m}><B><Deductions /></B></ProtectedRoute>} />
+    <Route path="hr/allowances" element={<ProtectedRoute requiredModule={m}><B><Allowances /></B></ProtectedRoute>} />
+    <Route path="hr/external-workers" element={<ProtectedRoute requiredModule={m}><B><ExternalWorkers /></B></ProtectedRoute>} />
+    <Route path="hr/salaries" element={<ProtectedRoute requiredModule={m}><B><EmployeeSalaries /></B></ProtectedRoute>} />
+    <Route path="hr/insurance" element={<ProtectedRoute requiredModule={m}><B><InsuranceRecords /></B></ProtectedRoute>} />
+    <Route path="hr/position-templates" element={<ProtectedRoute requiredModule={m}><B><PositionTemplates /></B></ProtectedRoute>} />
+    <Route path="hr/reports" element={<ProtectedRoute requiredModule={m}><B><HrReports /></B></ProtectedRoute>} />
+    <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule={m}><B><EBolovanje /></B></ProtectedRoute>} />
+    <Route path="hr/non-employment-income" element={<ProtectedRoute requiredModule={m}><B><NonEmploymentIncome /></B></ProtectedRoute>} />
+    <Route path="hr/travel-orders" element={<ProtectedRoute requiredModule={m}><B><TravelOrders /></B></ProtectedRoute>} />
+    <Route path="hr/travel-orders/new" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
+    <Route path="hr/travel-orders/:id" element={<ProtectedRoute requiredModule={m}><B><TravelOrderForm /></B></ProtectedRoute>} />
   </>
 );
