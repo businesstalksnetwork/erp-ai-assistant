@@ -205,6 +205,7 @@ const hrNav: NavItem[] = [
   { key: "holidays", url: "/hr/holidays", icon: Calendar },
   { key: "leaveRequests", url: "/hr/leave-requests", icon: CalendarOff },
   { key: "leavePolicies", url: "/hr/leave-policies", icon: Shield },
+  { key: "leaveAnalytics", url: "/hr/leave-analytics", icon: BarChart3 },
   { key: "deductionsModule", url: "/hr/deductions", icon: Coins, section: "compensation" },
   { key: "allowance", url: "/hr/allowances", icon: Banknote },
   { key: "salaryHistory", url: "/hr/salaries", icon: Banknote },
