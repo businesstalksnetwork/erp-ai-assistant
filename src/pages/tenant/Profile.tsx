@@ -65,11 +65,23 @@ export default function Profile() {
       if (!tenantId || !user) return null;
       const { data } = await supabase
         .from("employees")
-        .select("*, departments!employees_department_id_fkey(name), locations(name), manager:employees!employees_manager_id_fkey(full_name)")
+        .select("*, departments!employees_department_id_fkey(name), locations(name)")
         .eq("tenant_id", tenantId)
         .eq("user_id", user.id)
         .maybeSingle();
-      return data;
+      if (!data) return null;
+
+      let managerData = null;
+      if (data.manager_id) {
+        const { data: mgr } = await supabase
+          .from("employees")
+          .select("full_name")
+          .eq("id", data.manager_id)
+          .maybeSingle();
+        managerData = mgr;
+      }
+
+      return { ...data, manager: managerData };
     },
     enabled: !!tenantId && !!user,
   });

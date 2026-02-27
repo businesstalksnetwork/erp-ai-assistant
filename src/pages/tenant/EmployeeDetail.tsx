@@ -93,11 +93,23 @@ export default function EmployeeDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employees")
-        .select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name), manager:employees!employees_manager_id_fkey(id, full_name)")
+        .select("*, departments!employees_department_id_fkey(name), locations(name), position_templates(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data;
+
+      // Fetch manager name separately (self-referencing FK not supported by PostgREST embed)
+      let managerData = null;
+      if (data?.manager_id) {
+        const { data: mgr } = await supabase
+          .from("employees")
+          .select("id, full_name")
+          .eq("id", data.manager_id)
+          .maybeSingle();
+        managerData = mgr;
+      }
+
+      return { ...data, manager: managerData };
     },
     enabled: !!id && !!tenantId,
   });
