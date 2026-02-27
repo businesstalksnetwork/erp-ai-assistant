@@ -124,6 +124,12 @@ export const PAYMENT_MODEL_KEYS: Record<string, string> = {
   // Payroll (new engine)
   PAYROLL_NET: "payrollNet",
   PAYROLL_TAX: "payrollTax",
+  // POS (Phase 5)
+  POS_SALE_REVENUE: "posSaleRevenue",
+  POS_SALE_COGS: "posSaleCogs",
+  POS_SALE_RETAIL: "posSaleRetail",
+  // Production (Phase 5)
+  PRODUCTION_COMPLETION: "productionCompletion",
 };
 
 export const DYNAMIC_SOURCES = [
