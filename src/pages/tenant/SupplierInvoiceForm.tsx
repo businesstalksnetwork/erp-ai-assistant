@@ -22,6 +22,7 @@ import { fmtNum } from "@/lib/utils";
 import { PopdvFieldSelect } from "@/components/accounting/PopdvFieldSelect";
 import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines } from "@/components/accounting/PostingPreviewPanel";
+import { createReverseChargeEntries, isReverseChargeField } from "@/lib/popdvAggregation";
 
 const EFAKTURA_OPTIONS = [
   { value: "S10", label: "S10 — PDV 10%" },
@@ -305,6 +306,23 @@ export default function SupplierInvoiceForm() {
 
       const { error: lineError } = await supabase.from("supplier_invoice_lines").insert(lineInserts);
       if (lineError) throw lineError;
+
+      // Trigger reverse charge entries for applicable lines (8g, 8b → 3a)
+      const rcLines = lines.filter((l) => l.popdv_field && isReverseChargeField(l.popdv_field));
+      if (rcLines.length > 0 && (status === "approved" || status === "received")) {
+        await createReverseChargeEntries(
+          tenantId!,
+          invoiceId!,
+          vatDate || invoiceDate,
+          rcLines.map((l) => ({
+            id: l.id || crypto.randomUUID(),
+            popdv_field: l.popdv_field,
+            line_total: l.line_total,
+            tax_amount: l.tax_amount,
+          }))
+        );
+      }
+
       return invoiceId;
     },
     onSuccess: () => {

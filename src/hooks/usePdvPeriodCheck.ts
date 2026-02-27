@@ -16,16 +16,17 @@ export function usePdvPeriodCheck(tenantId: string | null, vatDate: string) {
   const { data: isLocked } = useQuery({
     queryKey: ["pdv-period-check", tenantId, periodYear, periodMonth],
     queryFn: async () => {
+      // pdv_periods uses start_date/end_date, not year/month columns
       const { data } = await supabase
-        .from("pdv_periods" as any)
+        .from("pdv_periods")
         .select("is_locked")
         .eq("tenant_id", tenantId!)
-        .eq("year", periodYear!)
-        .eq("month", periodMonth!)
+        .lte("start_date", vatDate)
+        .gte("end_date", vatDate)
         .maybeSingle();
-      return !!(data as any)?.is_locked;
+      return !!data?.is_locked;
     },
-    enabled: !!tenantId && !!periodMonth && !!periodYear,
+    enabled: !!tenantId && !!vatDate && !!periodMonth && !!periodYear,
     staleTime: 60_000,
   });
 

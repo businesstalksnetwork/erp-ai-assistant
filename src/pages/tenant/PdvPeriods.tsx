@@ -137,17 +137,14 @@ export default function PdvPeriods() {
         if (error) throw error;
       }
 
-      // Store snapshot
+      // Store snapshot — table has snapshot_data (JSON) and pp_pdv_data columns
       await supabase.from("popdv_snapshots").upsert({
         tenant_id: tenantId!,
         period_start: period.start_date,
         period_end: period.end_date,
         legal_entity_id: (period as any).legal_entity_id || null,
-        popdv_data: result as any,
-        pppdv_data: result.ppPdv as any,
-        output_vat: result.section5.s5_7,
-        input_vat: result.section8e.s8e_5,
-        net_vat: result.section10,
+        snapshot_data: result as any,
+        pp_pdv_data: result.ppPdv as any,
       } as any, { onConflict: "tenant_id,period_start,period_end" });
 
       // Update period totals
