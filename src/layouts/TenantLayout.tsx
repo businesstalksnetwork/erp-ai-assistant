@@ -53,7 +53,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -130,6 +130,7 @@ const accountingNav: NavItem[] = [
   { key: "multiPeriodReports", url: "/accounting/reports/multi-period", icon: BarChart3 },
   { key: "statistickiAneks", url: "/accounting/statisticki-aneks", icon: FileSpreadsheet },
   { key: "kpoBook", url: "/accounting/kpo-book", icon: BookText },
+  { key: "kepKnjiga", url: "/accounting/kep", icon: BookText },
   { key: "pk1Book", url: "/accounting/reports/pk1-book", icon: BookText },
   { key: "ppppo", url: "/accounting/reports/ppp-po", icon: FileSpreadsheet },
   { key: "odO", url: "/accounting/reports/od-o", icon: FileText },
@@ -215,6 +216,7 @@ const hrNav: NavItem[] = [
   { key: "travelOrders", url: "/hr/travel-orders", icon: Plane, section: "travelExpenses" },
   { key: "employeeDataExport", url: "/hr/employee-data-export", icon: Download },
   { key: "onboardingChecklists", url: "/hr/onboarding-checklists", icon: ListChecks },
+  { key: "severance", url: "/hr/severance", icon: UserMinus },
 ];
 
 const productionNav: NavItem[] = [
