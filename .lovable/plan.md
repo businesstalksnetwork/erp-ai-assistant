@@ -194,11 +194,32 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phase 7 (Future)
+## Phase 7: Polish — ✅ COMPLETED
 
-| Phase | Focus | Key Deliverables |
-|-------|-------|-----------------|
-| **7** | Polish | Credit/debit notes workflow, proforma invoices, fixed asset improvements, multi-currency |
+### 7A. Credit/Debit Notes ✅
+- Created `debit_notes` table with RLS (mirrors `credit_notes`)
+- Built `CreditDebitNotes.tsx` — tabbed UI for managing both credit (Knjižno odobrenje) and debit (Knjižno zaduženje) notes
+- GL posting via `postWithRuleOrFallback` with CREDIT_NOTE_ISSUED / DEBIT_NOTE_ISSUED models
+- Posting preview panel shows DR/CR before issuing
+- Links to original invoices and partners
+
+### 7B. Proforma Invoices ✅
+- Built `ProformaInvoices.tsx` — full CRUD with line items
+- Convert-to-invoice workflow: creates real invoice + lines from proforma, marks as converted
+- No GL posting (proformas are non-fiscal documents)
+- Tables already existed: `proforma_invoices`, `proforma_invoice_lines`
+
+### 7C. Fixed Asset Improvements ✅ (Pre-existing)
+- `AssetDisposals.tsx` — disposal with GL posting (sale/scrap/donation)
+- `AssetRevaluations.tsx` — revaluation with journal entry creation
+- `AssetDepreciation.tsx` — batch depreciation runs with GL posting
+- Full lifecycle management already in place
+
+### 7D. Multi-Currency Support ✅ (Pre-existing)
+- `FxRevaluation.tsx` — foreign currency revaluation with NBS rates
+- `journal_lines` already has `foreign_currency`, `foreign_amount`, `exchange_rate` columns (Phase 1)
+- `Currencies.tsx` — currency management page
+- NBS exchange rate integration via `nbs-exchange-rates` edge function
 
 ---
 
