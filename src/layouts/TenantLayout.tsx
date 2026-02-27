@@ -159,12 +159,12 @@ const analyticsNav: NavItem[] = [
   { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
   { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator, section: "strategicPlanning" },
   { key: "businessPlanning", url: "/analytics/planning", icon: Briefcase },
+  { key: "dataQualityDashboard", url: "/analytics/data-quality", icon: ShieldCheck },
 ];
 
 const crmNav: NavItem[] = [
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
   { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
-  { key: "partners", url: "/crm/companies", icon: Handshake },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
@@ -197,10 +197,7 @@ const hrNav: NavItem[] = [
   { key: "departments", url: "/hr/departments", icon: Building },
   { key: "positionTemplates", url: "/hr/position-templates", icon: Briefcase },
   { key: "workLogs", url: "/hr/work-logs", icon: Clock, section: "workingTime" },
-  { key: "workLogsBulk", url: "/hr/work-logs/bulk", icon: ClipboardCheck },
-  { key: "workLogsCalendar", url: "/hr/work-logs/calendar", icon: Calendar },
-  { key: "overtimeHours", url: "/hr/overtime", icon: Timer },
-  { key: "nightWork", url: "/hr/night-work", icon: Moon },
+  { key: "specialHours", url: "/hr/special-hours", icon: Timer },
   { key: "attendance", url: "/hr/attendance", icon: Clock },
   { key: "annualLeaveBalance", url: "/hr/annual-leave", icon: CalendarOff, section: "leave" },
   { key: "holidays", url: "/hr/holidays", icon: Calendar },
@@ -218,6 +215,7 @@ const hrNav: NavItem[] = [
   { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
   { key: "travelOrders", url: "/hr/travel-orders", icon: Plane, section: "travelExpenses" },
   { key: "employeeDataExport", url: "/hr/employee-data-export", icon: Download },
+  { key: "onboardingChecklists", url: "/hr/onboarding-checklists", icon: ListChecks },
 ];
 
 const productionNav: NavItem[] = [

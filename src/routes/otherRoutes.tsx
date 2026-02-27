@@ -57,8 +57,6 @@ const AnalyticsDashboard = React.lazy(() => import("@/pages/tenant/AnalyticsDash
 const FinancialRatios = React.lazy(() => import("@/pages/tenant/FinancialRatios"));
 const ProfitabilityAnalysis = React.lazy(() => import("@/pages/tenant/ProfitabilityAnalysis"));
 const CashFlowForecast = React.lazy(() => import("@/pages/tenant/CashFlowForecast"));
-const CashFlowStatement = React.lazy(() => import("@/pages/tenant/CashFlowStatement"));
-const ComplianceDashboard = React.lazy(() => import("@/pages/tenant/ComplianceDashboard"));
 const BudgetVsActuals = React.lazy(() => import("@/pages/tenant/BudgetVsActuals"));
 const BreakEvenAnalysis = React.lazy(() => import("@/pages/tenant/BreakEvenAnalysis"));
 const BusinessPlanning = React.lazy(() => import("@/pages/tenant/BusinessPlanning"));
@@ -148,8 +146,6 @@ export const analyticsRoutes = (
     <Route path="analytics/ratios" element={<ProtectedRoute requiredModule="analytics"><B><FinancialRatios /></B></ProtectedRoute>} />
     <Route path="analytics/profitability" element={<ProtectedRoute requiredModule="analytics"><B><ProfitabilityAnalysis /></B></ProtectedRoute>} />
     <Route path="analytics/cashflow-forecast" element={<ProtectedRoute requiredModule="analytics"><B><CashFlowForecast /></B></ProtectedRoute>} />
-    <Route path="accounting/cash-flow-statement" element={<ProtectedRoute requiredModule="accounting"><B><CashFlowStatement /></B></ProtectedRoute>} />
-    <Route path="accounting/compliance" element={<ProtectedRoute requiredModule="accounting"><B><ComplianceDashboard /></B></ProtectedRoute>} />
     <Route path="analytics/budget" element={<ProtectedRoute requiredModule="analytics"><B><BudgetVsActuals /></B></ProtectedRoute>} />
     <Route path="analytics/break-even" element={<ProtectedRoute requiredModule="analytics"><B><BreakEvenAnalysis /></B></ProtectedRoute>} />
     <Route path="analytics/planning" element={<ProtectedRoute requiredModule="analytics"><B><BusinessPlanning /></B></ProtectedRoute>} />

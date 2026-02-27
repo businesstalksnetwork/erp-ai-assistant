@@ -4,7 +4,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const CrmDashboard = React.lazy(() => import("@/pages/tenant/CrmDashboard"));
-const Partners = React.lazy(() => import("@/pages/tenant/Partners"));
 const Companies = React.lazy(() => import("@/pages/tenant/Companies"));
 const CompanyDetail = React.lazy(() => import("@/pages/tenant/CompanyDetail"));
 const Contacts = React.lazy(() => import("@/pages/tenant/Contacts"));
@@ -20,7 +19,6 @@ const B = PageErrorBoundary;
 export const crmRoutes = (
   <>
     <Route path="crm" element={<ProtectedRoute requiredModule="crm"><B><CrmDashboard /></B></ProtectedRoute>} />
-    <Route path="crm/partners" element={<ProtectedRoute requiredModule="crm"><B><Partners /></B></ProtectedRoute>} />
     <Route path="crm/companies" element={<ProtectedRoute requiredModule="crm"><B><Companies /></B></ProtectedRoute>} />
     <Route path="crm/companies/:id" element={<ProtectedRoute requiredModule="crm"><B><CompanyDetail /></B></ProtectedRoute>} />
     <Route path="crm/contacts" element={<ProtectedRoute requiredModule="crm"><B><Contacts /></B></ProtectedRoute>} />
