@@ -67,7 +67,6 @@ interface NavItem {
 
 const mainNav: (NavItem & { badge?: number })[] = [
   { key: "dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { key: "aiBriefing", url: "/ai/briefing", icon: Brain },
 ];
 
 const inventoryNav: NavItem[] = [
@@ -90,7 +89,7 @@ const inventoryNav: NavItem[] = [
   { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
   { key: "wmsCycleCounts", url: "/inventory/wms/cycle-counts", icon: RefreshCw },
   { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain },
-  { key: "wmsLabor", url: "/inventory/wms/labor", icon: UserCheck },
+  
   { key: "wmsReturns", url: "/inventory/wms/returns", icon: RotateCcw },
 ];
 
@@ -143,6 +142,7 @@ const accountingNav: NavItem[] = [
 
 const analyticsNav: NavItem[] = [
   { key: "analyticsDashboard", url: "/analytics", icon: BarChart3, section: "analyticsOverview" },
+  { key: "aiBriefing", url: "/ai/briefing", icon: Brain },
   { key: "workingCapitalStress", url: "/analytics/working-capital", icon: Activity, section: "financialHealth" },
   { key: "financialRatios", url: "/analytics/ratios", icon: Activity },
   { key: "profitabilityAnalysis", url: "/analytics/profitability", icon: TrendingUp },
@@ -223,9 +223,7 @@ const productionNav: NavItem[] = [
   { key: "productionOrders", url: "/production/orders", icon: Factory },
   { key: "aiPlanningDashboard", url: "/production/ai-planning", icon: Brain, section: "aiPlanningSection" },
   { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays },
-  { key: "bottleneckPrediction", url: "/production/ai-planning/bottlenecks", icon: AlertTriangle },
   { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3 },
-  { key: "productionCalendar", url: "/production/ai-planning/calendar", icon: Calendar },
   { key: "productionKanban", url: "/production/kanban", icon: LayoutDashboard, section: "shopFloor" },
   { key: "productionGantt", url: "/production/gantt", icon: CalendarDays },
   { key: "qualityControl", url: "/production/quality", icon: ClipboardCheck },
@@ -239,8 +237,6 @@ const documentsNav: NavItem[] = [
   { key: "dmsArchiveBook", url: "/documents/archive-book", icon: BookOpen },
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
   { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
-  { key: "dmsBrowser", url: "/documents/browser", icon: Search },
-  { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
   { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
   { key: "dmsSettings", url: "/documents/settings", icon: Settings, section: "dmsConfiguration" },
 ];

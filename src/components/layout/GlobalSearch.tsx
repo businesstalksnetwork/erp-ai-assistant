@@ -245,7 +245,7 @@ export function GlobalSearch() {
     { label: t("returns"), path: "/returns", icon: RotateCcw, group: "returns", module: "returns" },
 
     // AI
-    { label: "AI Briefing", path: "/ai/briefing", icon: Brain, group: "navigation" },
+    { label: "AI Briefing", path: "/ai/briefing", icon: Brain, group: "analytics", module: "analytics" },
     { label: "Profile", path: "/profile", icon: Users, group: "navigation" },
 
     // Settings
