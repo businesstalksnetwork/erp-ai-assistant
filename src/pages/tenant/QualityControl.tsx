@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatsBar } from "@/components/shared/StatsBar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,8 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ShieldCheck, Plus, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Plus, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 const CHECK_TYPES = ["incoming", "in_process", "final", "random"] as const;
 
@@ -107,7 +106,6 @@ export default function QualityControl() {
 
   const passed = checks.filter((c: any) => c.status === "passed").length;
   const failed = checks.filter((c: any) => c.status === "failed").length;
-  const pending = checks.filter((c: any) => c.status === "pending").length;
   const totalInspected = checks.reduce((s: number, c: any) => s + (c.quantity_inspected || 0), 0);
   const totalFailed = checks.reduce((s: number, c: any) => s + (c.quantity_failed || 0), 0);
   const overallDefectRate = totalInspected > 0 ? ((totalFailed / totalInspected) * 100).toFixed(1) : "0";
@@ -119,10 +117,33 @@ export default function QualityControl() {
     { label: locale === "sr" ? "Stopa defekta" : "Defect Rate", value: `${overallDefectRate}%`, icon: AlertTriangle, color: "text-amber-500" },
   ];
 
-  const statusBadge = (s: string) => {
-    const v: Record<string, "default" | "secondary" | "destructive" | "outline"> = { passed: "default", failed: "destructive", pending: "outline", on_hold: "secondary" };
-    return <Badge variant={v[s] || "outline"}>{s}</Badge>;
-  };
+  const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = { passed: "default", failed: "destructive", pending: "outline", on_hold: "secondary" };
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "number", label: "#", primary: true, sortable: true, sortValue: (c) => c.check_number, render: (c) => <span className="font-mono text-xs">{c.check_number}</span> },
+    { key: "type", label: t("type"), sortable: true, sortValue: (c) => c.check_type, render: (c) => <Badge variant="outline" className="text-[10px]">{c.check_type}</Badge> },
+    { key: "product", label: t("product"), sortable: true, sortValue: (c) => c.products?.name || "", render: (c) => c.products?.name || "—" },
+    { key: "order", label: locale === "sr" ? "Nalog" : "Order", hideOnMobile: true, render: (c) => <span className="text-xs">{c.production_orders?.order_number || "—"}</span> },
+    { key: "inspected", label: locale === "sr" ? "Pregledano" : "Inspected", align: "right" as const, sortable: true, sortValue: (c) => c.quantity_inspected || 0, render: (c) => c.quantity_inspected },
+    { key: "passed", label: locale === "sr" ? "Prošlo" : "Passed", align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-green-600">{c.quantity_passed}</span> },
+    { key: "failed", label: locale === "sr" ? "Neuspelo" : "Failed", align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-destructive">{c.quantity_failed}</span> },
+    { key: "rate", label: locale === "sr" ? "Stopa %" : "Rate %", hideOnMobile: true, render: (c) => `${c.defect_rate || 0}%` },
+    { key: "status", label: t("status"), sortable: true, sortValue: (c) => c.status, render: (c) => <Badge variant={statusVariant[c.status] || "outline"}>{c.status}</Badge> },
+    { key: "actions", label: t("actions"), render: (c) => (
+      <div className="flex gap-1">
+        {c.status === "pending" && (
+          <>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: c.id, status: "passed" }); }}>
+              <CheckCircle className="h-3 w-3" />
+            </Button>
+            <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: c.id, status: "failed" }); }}>
+              <XCircle className="h-3 w-3" />
+            </Button>
+          </>
+        )}
+      </div>
+    )},
+  ];
 
   return (
     <div className="space-y-6">
@@ -135,57 +156,15 @@ export default function QualityControl() {
 
       <StatsBar stats={stats} />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>{t("type")}</TableHead>
-                <TableHead>{t("product")}</TableHead>
-                <TableHead>{locale === "sr" ? "Nalog" : "Order"}</TableHead>
-                <TableHead>{locale === "sr" ? "Pregledano" : "Inspected"}</TableHead>
-                <TableHead>{locale === "sr" ? "Prošlo" : "Passed"}</TableHead>
-                <TableHead>{locale === "sr" ? "Neuspelo" : "Failed"}</TableHead>
-                <TableHead>{locale === "sr" ? "Stopa %" : "Rate %"}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {checks.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
-              ) : checks.map((check: any) => (
-                <TableRow key={check.id}>
-                  <TableCell className="font-mono text-xs">{check.check_number}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-[10px]">{check.check_type}</Badge></TableCell>
-                  <TableCell>{check.products?.name || "—"}</TableCell>
-                  <TableCell className="text-xs">{check.production_orders?.order_number || "—"}</TableCell>
-                  <TableCell>{check.quantity_inspected}</TableCell>
-                  <TableCell className="text-green-600">{check.quantity_passed}</TableCell>
-                  <TableCell className="text-destructive">{check.quantity_failed}</TableCell>
-                  <TableCell>{check.defect_rate || 0}%</TableCell>
-                  <TableCell>{statusBadge(check.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {check.status === "pending" && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => updateStatusMutation.mutate({ id: check.id, status: "passed" })}>
-                            <CheckCircle className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => updateStatusMutation.mutate({ id: check.id, status: "failed" })}>
-                            <XCircle className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        data={checks}
+        columns={columns}
+        keyExtractor={(c) => c.id}
+        emptyMessage={t("noResults")}
+        enableExport
+        exportFilename="quality-checks"
+        enableColumnToggle
+      />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="w-[95vw] sm:max-w-lg">

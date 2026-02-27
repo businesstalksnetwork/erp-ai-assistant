@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +13,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
 interface WorkflowForm {
   name: string;
@@ -62,13 +61,9 @@ export default function ApprovalWorkflows() {
     mutationFn: async () => {
       if (!tenantId) return;
       const payload = {
-        name: form.name,
-        entity_type: form.entity_type,
-        min_approvers: form.min_approvers,
+        name: form.name, entity_type: form.entity_type, min_approvers: form.min_approvers,
         threshold_amount: form.threshold_amount ? Number(form.threshold_amount) : null,
-        is_active: form.is_active,
-        required_roles: form.required_roles,
-        tenant_id: tenantId,
+        is_active: form.is_active, required_roles: form.required_roles, tenant_id: tenantId,
       };
       if (editId) {
         const { error } = await supabase.from("approval_workflows").update(payload).eq("id", editId);
@@ -100,14 +95,7 @@ export default function ApprovalWorkflows() {
   const openAdd = () => { setEditId(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (w: any) => {
     setEditId(w.id);
-    setForm({
-      name: w.name,
-      entity_type: w.entity_type,
-      min_approvers: w.min_approvers,
-      threshold_amount: w.threshold_amount ? String(w.threshold_amount) : "",
-      is_active: w.is_active,
-      required_roles: w.required_roles || [],
-    });
+    setForm({ name: w.name, entity_type: w.entity_type, min_approvers: w.min_approvers, threshold_amount: w.threshold_amount ? String(w.threshold_amount) : "", is_active: w.is_active, required_roles: w.required_roles || [] });
     setDialogOpen(true);
   };
 
@@ -117,10 +105,26 @@ export default function ApprovalWorkflows() {
     }
     setNewRole("");
   };
-
   const removeRole = (role: string) => {
     setForm({ ...form, required_roles: form.required_roles.filter((r) => r !== role) });
   };
+
+  const columns: ResponsiveColumn<any>[] = [
+    { key: "name", label: t("name"), primary: true, sortable: true, sortValue: (w) => w.name, render: (w) => <span className="font-medium">{w.name}</span> },
+    { key: "entityType", label: t("entityType"), sortable: true, sortValue: (w) => w.entity_type, render: (w) => w.entity_type },
+    { key: "minApprovers", label: t("minApprovers"), hideOnMobile: true, render: (w) => w.min_approvers },
+    { key: "threshold", label: t("thresholdAmount"), hideOnMobile: true, sortable: true, sortValue: (w) => Number(w.threshold_amount || 0), render: (w) => w.threshold_amount ? Number(w.threshold_amount).toLocaleString() : "—" },
+    { key: "roles", label: t("requiredRoles"), hideOnMobile: true, render: (w) => (
+      <div className="flex gap-1 flex-wrap">{(w.required_roles || []).map((r: string) => <Badge key={r} variant="outline">{r}</Badge>)}</div>
+    )},
+    { key: "status", label: t("status"), sortable: true, sortValue: (w) => w.is_active ? 1 : 0, render: (w) => <Badge variant={w.is_active ? "default" : "secondary"}>{w.is_active ? t("active") : t("inactive")}</Badge> },
+    { key: "actions", label: t("actions"), render: (w) => (
+      <div className="flex gap-1">
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(w); }}><Pencil className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(w.id); }}><Trash2 className="h-4 w-4" /></Button>
+      </div>
+    )},
+  ];
 
   return (
     <div className="space-y-6">
@@ -128,54 +132,20 @@ export default function ApprovalWorkflows() {
         <h1 className="text-2xl font-bold">{t("approvalWorkflows")}</h1>
         <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t("addWorkflow")}</Button>
       </div>
-      <Card>
-        <CardHeader><CardTitle>{t("approvalWorkflows")}</CardTitle></CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">{t("loading")}</p>
-          ) : workflows.length === 0 ? (
-            <p className="text-muted-foreground">{t("noResults")}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("name")}</TableHead>
-                  <TableHead>{t("entityType")}</TableHead>
-                  <TableHead>{t("minApprovers")}</TableHead>
-                  <TableHead>{t("thresholdAmount")}</TableHead>
-                  <TableHead>{t("requiredRoles")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                  <TableHead>{t("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workflows.map((w: any) => (
-                  <TableRow key={w.id}>
-                    <TableCell className="font-medium">{w.name}</TableCell>
-                    <TableCell>{w.entity_type}</TableCell>
-                    <TableCell>{w.min_approvers}</TableCell>
-                    <TableCell>{w.threshold_amount ? Number(w.threshold_amount).toLocaleString() : "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {(w.required_roles || []).map((r: string) => (
-                          <Badge key={r} variant="outline">{r}</Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell><Badge variant={w.is_active ? "default" : "secondary"}>{w.is_active ? t("active") : t("inactive")}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(w)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(w.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+
+      {isLoading ? (
+        <p className="text-muted-foreground">{t("loading")}</p>
+      ) : (
+        <ResponsiveTable
+          data={workflows}
+          columns={columns}
+          keyExtractor={(w) => w.id}
+          emptyMessage={t("noResults")}
+          enableExport
+          exportFilename="approval-workflows"
+          enableColumnToggle
+        />
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -189,11 +159,7 @@ export default function ApprovalWorkflows() {
               <Label>{t("entityType")}</Label>
               <Select value={form.entity_type} onValueChange={(v) => setForm({ ...form, entity_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ENTITY_TYPES.map((et) => (
-                    <SelectItem key={et} value={et}>{et.replace("_", " ")}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{ENTITY_TYPES.map((et) => <SelectItem key={et} value={et}>{et.replace("_", " ")}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -214,19 +180,12 @@ export default function ApprovalWorkflows() {
               <Label>{t("requiredRoles")}</Label>
               <div className="flex gap-1 flex-wrap mb-2">
                 {form.required_roles.map((r) => (
-                  <Badge key={r} variant="secondary" className="gap-1">
-                    {r}
-                    <button onClick={() => removeRole(r)}><X className="h-3 w-3" /></button>
-                  </Badge>
+                  <Badge key={r} variant="secondary" className="gap-1">{r}<button onClick={() => removeRole(r)}><X className="h-3 w-3" /></button></Badge>
                 ))}
               </div>
               <Select value={newRole} onValueChange={(v) => addRole(v)}>
                 <SelectTrigger><SelectValue placeholder={t("add")} /></SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_ROLES.filter((r) => !form.required_roles.includes(r)).map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{AVAILABLE_ROLES.filter((r) => !form.required_roles.includes(r)).map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>

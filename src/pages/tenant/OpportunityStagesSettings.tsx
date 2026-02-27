@@ -10,11 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, TrendingUp, Check } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import type { OpportunityStage } from "@/hooks/useOpportunityStages";
 
 const defaultColors = [
@@ -23,13 +23,7 @@ const defaultColors = [
 ];
 
 interface FormData {
-  code: string;
-  name: string;
-  name_sr: string;
-  color: string;
-  sort_order: number;
-  is_won: boolean;
-  is_lost: boolean;
+  code: string; name: string; name_sr: string; color: string; sort_order: number; is_won: boolean; is_lost: boolean;
 }
 
 const emptyForm: FormData = { code: "", name: "", name_sr: "", color: defaultColors[0], sort_order: 0, is_won: false, is_lost: false };
@@ -46,11 +40,7 @@ export default function OpportunityStagesSettings() {
   const { data: stages = [], isLoading } = useQuery({
     queryKey: ["opportunity-stages", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("opportunity_stages" as any)
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .order("sort_order");
+      const { data, error } = await supabase.from("opportunity_stages" as any).select("*").eq("tenant_id", tenantId!).order("sort_order");
       if (error) throw error;
       return (data || []) as unknown as OpportunityStage[];
     },
@@ -60,10 +50,7 @@ export default function OpportunityStagesSettings() {
   const { data: stagesInUse } = useQuery({
     queryKey: ["stages-in-use", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("opportunities")
-        .select("stage")
-        .eq("tenant_id", tenantId!);
+      const { data } = await supabase.from("opportunities").select("stage").eq("tenant_id", tenantId!);
       return new Set((data || []).map((o: any) => o.stage));
     },
     enabled: !!tenantId,
@@ -72,59 +59,30 @@ export default function OpportunityStagesSettings() {
   const createMutation = useMutation({
     mutationFn: async (d: FormData) => {
       const { error } = await supabase.from("opportunity_stages" as any).insert({
-        code: d.code.toLowerCase().replace(/\s+/g, "_"),
-        name: d.name,
-        name_sr: d.name_sr || null,
-        color: d.color,
-        sort_order: d.sort_order,
-        is_won: d.is_won,
-        is_lost: d.is_lost,
-        is_system: false,
-        tenant_id: tenantId!,
+        code: d.code.toLowerCase().replace(/\s+/g, "_"), name: d.name, name_sr: d.name_sr || null,
+        color: d.color, sort_order: d.sort_order, is_won: d.is_won, is_lost: d.is_lost, is_system: false, tenant_id: tenantId!,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["opportunity-stages"] });
-      toast.success(t("success"));
-      setIsAddOpen(false);
-      setForm(emptyForm);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-stages"] }); toast.success(t("success")); setIsAddOpen(false); setForm(emptyForm); },
     onError: (e: any) => toast.error(e.message?.includes("unique") ? "Kod već postoji" : e.message),
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, d }: { id: string; d: FormData }) => {
       const { error } = await supabase.from("opportunity_stages" as any).update({
-        name: d.name,
-        name_sr: d.name_sr || null,
-        color: d.color,
-        sort_order: d.sort_order,
-        is_won: d.is_won,
-        is_lost: d.is_lost,
+        name: d.name, name_sr: d.name_sr || null, color: d.color, sort_order: d.sort_order, is_won: d.is_won, is_lost: d.is_lost,
         ...(editing && !editing.is_system ? { code: d.code.toLowerCase().replace(/\s+/g, "_") } : {}),
       }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["opportunity-stages"] });
-      toast.success(t("success"));
-      setEditing(null);
-      setForm(emptyForm);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-stages"] }); toast.success(t("success")); setEditing(null); setForm(emptyForm); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("opportunity_stages" as any).delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["opportunity-stages"] });
-      toast.success(t("success"));
-      setDeleting(null);
-    },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("opportunity_stages" as any).delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-stages"] }); toast.success(t("success")); setDeleting(null); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -142,6 +100,34 @@ export default function OpportunityStagesSettings() {
 
   const canDelete = (s: OpportunityStage) => !s.is_system && !stagesInUse?.has(s.code);
   const displayName = (s: OpportunityStage) => s.name_sr || s.name;
+
+  const columns: ResponsiveColumn<OpportunityStage>[] = [
+    { key: "order", label: "Order", sortable: true, sortValue: (s) => s.sort_order, render: (s) => s.sort_order },
+    { key: "name", label: t("name"), primary: true, sortable: true, sortValue: (s) => displayName(s), render: (s) => <span className="font-medium">{displayName(s)}</span> },
+    { key: "code", label: t("stageCode"), render: (s) => <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{s.code}</code> },
+    { key: "color", label: t("categoryColor"), hideOnMobile: true, render: (s) => (
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: s.color || "#888" }} />
+        <span className="text-xs text-muted-foreground">{s.color}</span>
+      </div>
+    )},
+    { key: "flags", label: "Flags", hideOnMobile: true, render: (s) => (
+      <div className="flex gap-1">
+        {s.is_won && <Badge variant="default" className="text-xs">Won</Badge>}
+        {s.is_lost && <Badge variant="destructive" className="text-xs">Lost</Badge>}
+      </div>
+    )},
+    { key: "type", label: "Tip", render: (s) => <Badge variant={s.is_system ? "secondary" : "outline"}>{s.is_system ? "System" : "Custom"}</Badge> },
+    { key: "actions", label: t("actions"), align: "right" as const, render: (s) => (
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(s); }}><Pencil className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" disabled={!canDelete(s)} onClick={(e) => { e.stopPropagation(); setDeleting(s); }}
+          title={!canDelete(s) ? (s.is_system ? "System stage" : t("cannotDeleteStageInUse")) : t("delete")}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    )},
+  ];
 
   const StageForm = () => (
     <div className="space-y-4 py-4">
@@ -224,57 +210,16 @@ export default function OpportunityStagesSettings() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("stageCode")}</TableHead>
-                <TableHead>{t("categoryColor")}</TableHead>
-                <TableHead>Flags</TableHead>
-                <TableHead>Tip</TableHead>
-                <TableHead className="text-right">{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stages.map(s => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.sort_order}</TableCell>
-                  <TableCell className="font-medium">{displayName(s)}</TableCell>
-                  <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{s.code}</code></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: s.color || "#888" }} />
-                      <span className="text-xs text-muted-foreground">{s.color}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {s.is_won && <Badge variant="default" className="text-xs">Won</Badge>}
-                      {s.is_lost && <Badge variant="destructive" className="text-xs">Lost</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell><Badge variant={s.is_system ? "secondary" : "outline"}>{s.is_system ? "System" : "Custom"}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" disabled={!canDelete(s)} onClick={() => setDeleting(s)}
-                        title={!canDelete(s) ? (s.is_system ? "System stage" : t("cannotDeleteStageInUse")) : t("delete")}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {stages.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("noResults")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <ResponsiveTable
+            data={stages}
+            columns={columns}
+            keyExtractor={(s) => s.id}
+            emptyMessage={t("noResults")}
+            enableColumnToggle
+          />
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={!!editing} onOpenChange={o => { if (!o) { setEditing(null); setForm(emptyForm); } }}>
         <DialogContent>
           <form onSubmit={handleSubmit}>
@@ -288,7 +233,6 @@ export default function OpportunityStagesSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
