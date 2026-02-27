@@ -815,10 +815,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before sending another message." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Tenant membership check ──
+    // ── Tenant membership check + role fetch ──
     const { data: membership } = await supabase
-      .from("tenant_members").select("id")
+      .from("tenant_members").select("id, role, data_scope")
       .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+    let memberRole = "admin";
+    let dataScope = "all";
     if (!membership) {
       const { data: isSuperAdmin } = await supabase
         .from("user_roles").select("id")
@@ -826,6 +828,10 @@ serve(async (req) => {
       if (!isSuperAdmin) {
         return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      memberRole = "admin";
+    } else {
+      memberRole = membership.role || "user";
+      dataScope = membership.data_scope || "all";
     }
 
     const [schemaContext, invoiceStats, partnerCount, productCount, employeeCount] = await Promise.all([
@@ -849,8 +855,50 @@ Current tenant data summary:
 - Active employees: ${employeeCount.count || 0}
 - User language: ${language || "en"}`;
 
+    // Role-specific system prompt additions
+    const rolePromptSections: Record<string, string> = {
+      admin: `You are helping a company ADMINISTRATOR. Provide full operational overview across all departments. All tools are available.`,
+      super_admin: `You are helping a SUPER ADMIN with full system access. All tools are available across all tenants.`,
+      manager: `You are helping a MANAGER. Focus on team performance, approvals, revenue/profit trends, and operational efficiency. All tools are available.`,
+      accountant: `You are helping an ACCOUNTANT. Prioritize financial accuracy and compliance. Focus on:
+- GL accounts, journal entries, reconciliation (use explain_account, query_tenant_data)
+- Cash flow and liquidity (use forecast_cashflow)
+- Invoice aging and overdue items
+- Tax compliance and PDV periods
+Prioritize tools: explain_account, query_tenant_data, forecast_cashflow, get_kpi_scorecard, compare_periods.
+Avoid: CRM pipeline details, HR specifics unless asked.`,
+      sales: `You are helping a SALES team member. Focus on revenue generation and customer relationships:
+- Pipeline value, deal stages, conversion rates
+- Customer profiles and history (use get_partner_dossier)
+- Quote and order status
+- Revenue targets and comparisons (use compare_periods, analyze_trend)
+Prioritize tools: get_partner_dossier, analyze_trend, compare_periods, query_tenant_data, generate_report.
+Avoid: Deep accounting details, payroll, inventory management unless asked.`,
+      hr: `You are helping an HR team member. Focus on people management:
+- Employee headcount, turnover, contract status
+- Payroll costs and trends (use analyze_trend with payroll_cost)
+- Leave requests and balances
+- Compliance and deadlines
+Prioritize tools: query_tenant_data, analyze_trend, compare_periods, generate_report.
+Avoid: Deep financial accounting, inventory, CRM pipeline unless asked.`,
+      store: `You are helping a STORE/WAREHOUSE team member. Focus on operations:
+- POS transactions and daily sales
+- Inventory levels and low stock alerts
+- Product movements and stock counts
+- Order fulfillment status
+Prioritize tools: query_tenant_data, detect_anomalies, generate_report.
+Avoid: Deep financial accounting, HR/payroll, CRM pipeline unless asked.`,
+      user: `You are helping a general USER. Focus on providing helpful information about the data they can access. All basic tools are available.`,
+    };
+
+    const roleSection = rolePromptSections[memberRole] || rolePromptSections["user"];
+    const dataScopeHint = dataScope !== "all" ? `\nIMPORTANT: This user's data scope is '${dataScope}'. Filter results accordingly when possible.` : "";
+
     const systemPrompt = `You are an AI assistant for a Serbian ERP system. You have access to these database tables (all scoped to tenant_id = '${tenant_id}'):
 ${schemaContext}
+
+## Your Role Context
+${roleSection}${dataScopeHint}
 
 You have 12 tools available:
 1. query_tenant_data: Execute read-only SQL queries. ALWAYS filter by tenant_id = '${tenant_id}'.

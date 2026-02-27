@@ -123,9 +123,28 @@ const FALLBACK_QUESTIONS: SuggestedQ[] = [
   { sr: "Pronađi anomalije", en: "Detect anomalies" },
 ];
 
-function getSuggestedQuestions(path: string, sr: boolean): string[] {
+// Role-to-relevant-prefix mapping for filtering suggested questions
+const ROLE_PREFIX_FILTER: Record<string, string[]> = {
+  accountant: ["/accounting", "/analytics", "/dashboard"],
+  sales: ["/sales", "/crm", "/dashboard"],
+  hr: ["/hr", "/dashboard"],
+  store: ["/pos", "/inventory", "/dashboard"],
+  // admin, manager, super_admin, user: no filter (see all)
+};
+
+function getSuggestedQuestions(path: string, sr: boolean, role?: string | null): string[] {
   const match = SUGGESTED_QUESTIONS.find(entry => path.startsWith(entry.prefix));
-  const qs = match ? match.questions : FALLBACK_QUESTIONS;
+  let qs = match ? match.questions : FALLBACK_QUESTIONS;
+
+  // On dashboard, filter by role relevance
+  if (path.startsWith("/dashboard") && role && ROLE_PREFIX_FILTER[role]) {
+    const allowedPrefixes = ROLE_PREFIX_FILTER[role];
+    const roleQuestions = SUGGESTED_QUESTIONS
+      .filter(entry => allowedPrefixes.some(p => entry.prefix.startsWith(p)))
+      .flatMap(entry => entry.questions);
+    if (roleQuestions.length > 0) qs = roleQuestions.slice(0, 4);
+  }
+
   return qs.map(q => sr ? q.sr : q.en);
 }
 
@@ -162,12 +181,12 @@ interface AiContextSidebarProps {
 
 export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
   const { locale } = useLanguage();
-  const { tenantId } = useTenant();
+  const { tenantId, role } = useTenant();
   const location = useLocation();
   const {
     messages, isLoading, send, clear, newChat,
     conversations, loadConversation, togglePin, searchConversations, deleteConversation,
-  } = useAiStream({ tenantId, locale });
+  } = useAiStream({ tenantId, locale, role });
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -349,7 +368,7 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
                       {sr ? "Pitajte o vašim podacima..." : "Ask about your data..."}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {getSuggestedQuestions(location.pathname, sr).map((q, i) => (
+                      {getSuggestedQuestions(location.pathname, sr, role).map((q, i) => (
                         <button
                           key={i}
                           onClick={() => send(q)}
