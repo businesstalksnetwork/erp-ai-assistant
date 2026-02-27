@@ -2197,6 +2197,61 @@ export type Database = {
           },
         ]
       }
+      bank_categorization_rules: {
+        Row: {
+          account_id: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          partner_id: string | null
+          pattern: string
+          tenant_id: string
+          usage_count: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          partner_id?: string | null
+          pattern: string
+          tenant_id: string
+          usage_count?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          partner_id?: string | null
+          pattern?: string
+          tenant_id?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_categorization_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_categorization_rules_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_categorization_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_reconciliation_lines: {
         Row: {
           confidence: number | null
