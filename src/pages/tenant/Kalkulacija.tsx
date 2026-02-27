@@ -105,11 +105,75 @@ export default function Kalkulacija() {
 
   const postMutation = useMutation({
     mutationFn: async (id: string) => {
+      // 1. Post the kalkulacija (inventory movement)
       const { data, error } = await supabase.rpc("post_kalkulacija", { p_kalkulacija_id: id });
       if (error) throw error;
+
+      // 2. Fetch items for master data sync
+      const { data: postedItems } = await supabase
+        .from("kalkulacija_items")
+        .select("product_id, quantity, purchase_price, retail_price")
+        .eq("kalkulacija_id", id);
+
+      // 3. Fetch kalkulacija header for warehouse_id
+      const { data: kalDoc } = await supabase
+        .from("kalkulacije")
+        .select("warehouse_id, kalkulacija_number")
+        .eq("id", id)
+        .single();
+
+      if (postedItems && postedItems.length > 0) {
+        // 4. Insert purchase_prices history
+        await supabase.from("purchase_prices").insert(
+          postedItems.map(i => ({
+            tenant_id: tenantId!,
+            product_id: i.product_id,
+            unit_cost: i.purchase_price,
+            currency: "RSD",
+            purchase_date: new Date().toISOString().slice(0, 10),
+            quantity: i.quantity,
+            document_ref: kalDoc?.kalkulacija_number || "",
+            document_type: "kalkulacija" as const,
+            document_id: id,
+            warehouse_id: kalDoc?.warehouse_id || null,
+          }))
+        );
+
+        // 5. Update product defaults
+        for (const item of postedItems) {
+          await supabase.from("products").update({
+            default_purchase_price: item.purchase_price,
+            default_retail_price: item.retail_price,
+          }).eq("id", item.product_id);
+        }
+
+        // 6. Upsert retail_prices for default list
+        const { data: defaultList } = await supabase
+          .from("retail_price_lists")
+          .select("id")
+          .eq("tenant_id", tenantId!)
+          .eq("is_default", true)
+          .maybeSingle();
+
+        if (defaultList) {
+          for (const item of postedItems) {
+            await supabase.from("retail_prices").upsert({
+              tenant_id: tenantId!,
+              price_list_id: defaultList.id,
+              product_id: item.product_id,
+              price: item.retail_price,
+            }, { onConflict: "price_list_id,product_id" });
+          }
+        }
+      }
+
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["kalkulacije"] }); toast({ title: t("posted") || "Posted" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["kalkulacije"] });
+      qc.invalidateQueries({ queryKey: ["products_list"] });
+      toast({ title: t("posted") || "Posted" });
+    },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
@@ -136,9 +200,6 @@ export default function Kalkulacija() {
 
   const filtered = kalkulacije.filter((k: any) => k.kalkulacija_number?.toLowerCase().includes(search.toLowerCase()));
 
-      {tenantId && kalkulacije.length > 0 && (
-        <AiAnalyticsNarrative tenantId={tenantId} contextType="kalkulacija" data={{ count: kalkulacije.length }} />
-      )}
 
   return (
     <div className="space-y-6">

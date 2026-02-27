@@ -100,11 +100,51 @@ export default function Nivelacija() {
 
   const postMutation = useMutation({
     mutationFn: async (id: string) => {
+      // 1. Post the nivelacija (price adjustment)
       const { data, error } = await supabase.rpc("post_nivelacija", { p_nivelacija_id: id });
       if (error) throw error;
+
+      // 2. Fetch items for master data sync
+      const { data: postedItems } = await supabase
+        .from("nivelacija_items")
+        .select("product_id, new_retail_price")
+        .eq("nivelacija_id", id);
+
+      if (postedItems && postedItems.length > 0) {
+        // 3. Update products.default_retail_price
+        for (const item of postedItems) {
+          await supabase.from("products").update({
+            default_retail_price: item.new_retail_price,
+          }).eq("id", item.product_id);
+        }
+
+        // 4. Upsert retail_prices for default list
+        const { data: defaultList } = await supabase
+          .from("retail_price_lists")
+          .select("id")
+          .eq("tenant_id", tenantId!)
+          .eq("is_default", true)
+          .maybeSingle();
+
+        if (defaultList) {
+          for (const item of postedItems) {
+            await supabase.from("retail_prices").upsert({
+              tenant_id: tenantId!,
+              price_list_id: defaultList.id,
+              product_id: item.product_id,
+              price: item.new_retail_price,
+            }, { onConflict: "price_list_id,product_id" });
+          }
+        }
+      }
+
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["nivelacije"] }); toast({ title: t("posted") || "Posted" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["nivelacije"] });
+      qc.invalidateQueries({ queryKey: ["products_list"] });
+      toast({ title: t("posted") || "Posted" });
+    },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
