@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -15,8 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Eye, CheckCircle, Trash2, RotateCcw, Calculator } from "lucide-react";
+import { Plus, Eye, CheckCircle, Trash2, RotateCcw, Calculator, ChevronsUpDown, Check } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
@@ -25,6 +27,7 @@ import { MobileActionMenu, type ActionItem } from "@/components/shared/MobileAct
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePaginatedQuery } from "@/hooks/usePaginatedQuery";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 
 interface JournalLine {
   id?: string;
@@ -39,6 +42,49 @@ interface JournalLine {
 }
 
 const emptyLine: JournalLine = { account_id: "", description: "", debit: 0, credit: 0, analytics_type: "", popdv_field: "" };
+
+function AccountCombobox({ accounts, value, onChange }: { accounts: any[]; value: string; onChange: (v: string, acc?: any) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const { t } = useLanguage();
+
+  const selected = accounts.find((a: any) => a.id === value);
+  const filtered = useMemo(() => {
+    if (!search) return accounts.slice(0, 100);
+    const q = search.toLowerCase();
+    return accounts.filter((a: any) =>
+      a.code?.toLowerCase().includes(q) || a.name?.toLowerCase().includes(q)
+    ).slice(0, 100);
+  }, [accounts, search]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="h-8 w-full justify-between text-xs font-normal truncate">
+          {selected ? `${selected.code} — ${selected.name}` : t("selectAccount")}
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[320px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="Pretraži konto..." value={search} onValueChange={setSearch} />
+          <CommandList>
+            <CommandEmpty>Nema rezultata</CommandEmpty>
+            <CommandGroup>
+              {filtered.map((a: any) => (
+                <CommandItem key={a.id} value={a.id} onSelect={() => { onChange(a.id, a); setOpen(false); setSearch(""); }}>
+                  <Check className={cn("mr-2 h-3 w-3", value === a.id ? "opacity-100" : "opacity-0")} />
+                  <span className="font-mono text-xs mr-2">{a.code}</span>
+                  <span className="text-xs truncate">{a.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function JournalEntries() {
   const { t } = useLanguage();
@@ -96,6 +142,16 @@ export default function JournalEntries() {
       const totalCredit = lines.reduce((s, l) => s + Number(l.credit), 0);
       if (Math.abs(totalDebit - totalCredit) > 0.001) throw new Error(t("journalMustBalance"));
       if (lines.some(l => !l.account_id)) throw new Error(t("selectAccount"));
+
+      // Validate 4-digit minimum account codes
+      for (const line of lines) {
+        if (!line.account_id) continue;
+        const acc = accounts.find((a: any) => a.id === line.account_id);
+        if (acc && (acc as any).code?.length < 4) {
+          throw new Error(`Knjiženje dozvoljeno samo na konta sa 4+ cifara (konto ${(acc as any).code})`);
+        }
+      }
+
       const linePayloads = lines.filter(l => l.account_id).map((l, i) => ({
         account_id: l.account_id, description: l.description || null,
         debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, sort_order: i,
@@ -305,7 +361,7 @@ export default function JournalEntries() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[220px]">{t("account")}</TableHead>
+                      <TableHead className="w-[260px]">{t("account")}</TableHead>
                       <TableHead>{t("description")}</TableHead>
                       <TableHead className="w-[110px]">{t("analyticsLabel")}</TableHead>
                       <TableHead className="w-[110px]">{t("debit")}</TableHead>
@@ -320,18 +376,16 @@ export default function JournalEntries() {
                       return (
                         <TableRow key={idx}>
                           <TableCell>
-                            <Select value={line.account_id} onValueChange={v => {
-                              updateLine(idx, "account_id", v);
-                              const acc = accounts.find((a: any) => a.id === v);
-                              if (acc && (acc as any).analytics_type) {
-                                updateLine(idx, "analytics_type" as any, (acc as any).analytics_type);
-                              }
-                            }}>
-                              <SelectTrigger className="h-8"><SelectValue placeholder={t("selectAccount")} /></SelectTrigger>
-                              <SelectContent>
-                                {accounts.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                            <AccountCombobox
+                              accounts={accounts}
+                              value={line.account_id}
+                              onChange={(v, acc) => {
+                                updateLine(idx, "account_id", v);
+                                if (acc?.analytics_type) {
+                                  updateLine(idx, "analytics_type" as any, acc.analytics_type);
+                                }
+                              }}
+                            />
                           </TableCell>
                           <TableCell><Input className="h-8" value={line.description} onChange={e => updateLine(idx, "description", e.target.value)} /></TableCell>
                           <TableCell>

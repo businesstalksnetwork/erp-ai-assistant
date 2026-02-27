@@ -31,6 +31,17 @@ interface ParseResult {
   transactions: ParsedTransaction[];
 }
 
+// Strip XML namespaces and CDATA for simpler parsing
+function stripNamespaces(xml: string): string {
+  // Remove XML declaration
+  let clean = xml.replace(/<\?xml[^?]*\?>/gi, "");
+  // Remove namespace prefixes (e.g., <ns2:Amt> → <Amt>)
+  clean = clean.replace(/<\/?[\w]+:/g, (m) => m[0] === "<" && m[1] === "/" ? "</" : "<");
+  // Unwrap CDATA
+  clean = clean.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+  return clean;
+}
+
 // Simple XML tag extractor (no DOMParser in Deno edge)
 function getTagContent(xml: string, tag: string): string | null {
   const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i");
@@ -56,7 +67,12 @@ function getAttr(xml: string, attr: string): string | null {
 function detectFormat(xml: string): string {
   if (xml.includes("camt.053.001")) return "CAMT053";
   if (xml.includes(":20:") && xml.includes(":60F:")) return "MT940";
-  if (xml.includes("<DnevniIzvod") || xml.includes("<Izvod") || xml.includes("<NalogZaPrenos")) return "NBS_XML";
+  // Extended NBS XML detection for Serbian banks
+  if (xml.includes("<DnevniIzvod") || xml.includes("<Izvod") || xml.includes("<NalogZaPrenos") ||
+      xml.includes("<PrometStavka") || xml.includes("<Nalog>") || xml.includes("<Prenos>") ||
+      xml.includes("<IzvodZaRacun") || xml.includes("<BankarskiIzvod") ||
+      xml.includes("<Stavka>") || xml.includes("<Transakcija>") ||
+      xml.includes("<PodaciOIzvodu") || xml.includes("<ZaglavljeIzvoda")) return "NBS_XML";
   if (xml.includes("<BkToCstmrStmt") || xml.includes("<Stmt>")) return "CAMT053";
   return "UNKNOWN";
 }
@@ -145,38 +161,149 @@ function parseCamt053(xml: string): ParseResult {
   return result;
 }
 
-// Parse NBS XML (Serbian national format)
+// Parse NBS XML (Serbian national format) — enhanced for all major bank variants
 function parseNbsXml(xml: string): ParseResult {
   const result: ParseResult = { format: "NBS_XML", transactions: [] };
 
-  result.statement_number = getTagContent(xml, "BrojIzvoda") || getTagContent(xml, "RedniBroj") || undefined;
-  result.iban = getTagContent(xml, "BrojRacuna") || getTagContent(xml, "Racun") || undefined;
-  result.opening_balance = parseFloat(getTagContent(xml, "PrethodnoStanje") || "0");
-  result.closing_balance = parseFloat(getTagContent(xml, "NovoStanje") || "0");
+  // Statement metadata — try multiple tag names used by different banks
+  result.statement_number = getTagContent(xml, "BrojIzvoda") || getTagContent(xml, "RedniBroj") ||
+    getTagContent(xml, "BrojDokumenta") || getTagContent(xml, "RbIzvoda") || undefined;
+  result.iban = getTagContent(xml, "BrojRacuna") || getTagContent(xml, "Racun") ||
+    getTagContent(xml, "IBAN") || getTagContent(xml, "RacunKlijenta") || undefined;
+  
+  // Opening/closing balance — try various tag names
+  const openBal = getTagContent(xml, "PrethodnoStanje") || getTagContent(xml, "PocetnoStanje") ||
+    getTagContent(xml, "SaldoPrethodniDan") || getTagContent(xml, "OtvaranjeStanje") || "0";
+  const closeBal = getTagContent(xml, "NovoStanje") || getTagContent(xml, "ZavrsnoStanje") ||
+    getTagContent(xml, "SaldoTekuciDan") || getTagContent(xml, "ZatvaranjeStanje") || "0";
+  result.opening_balance = parseFloat(openBal.replace(/\s/g, "").replace(",", "."));
+  result.closing_balance = parseFloat(closeBal.replace(/\s/g, "").replace(",", "."));
 
-  const items = getAllTags(xml, "Stavka").length > 0 ? getAllTags(xml, "Stavka") : getAllTags(xml, "Transakcija");
+  // Period dates
+  const datumIzvoda = getTagContent(xml, "DatumIzvoda") || getTagContent(xml, "Datum") || getTagContent(xml, "DatumObrade") || "";
+  if (datumIzvoda) {
+    const d = datumIzvoda.substring(0, 10);
+    result.period_start = d;
+    result.period_end = d;
+  }
+
+  // Collect transaction items from all known tag variants
+  const tagVariants = ["Stavka", "Transakcija", "Nalog", "NalogZaPrenos", "Prenos",
+    "PrometStavka", "StavkaPrometa", "NalogZaPlacanje", "Uplata", "Isplata",
+    "StavkaIzvoda", "PrometDnevni"];
+  
+  let items: string[] = [];
+  for (const tag of tagVariants) {
+    const found = getAllTags(xml, tag);
+    if (found.length > 0) {
+      items = found;
+      break;
+    }
+  }
+
+  // If no items found in specific tags, try to find items inside wrapper tags
+  if (items.length === 0) {
+    const wrappers = ["Stavke", "Promet", "ListaTransakcija", "Nalozi", "ListaNaloga"];
+    for (const wrapper of wrappers) {
+      const wrapperContent = getTagContent(xml, wrapper);
+      if (wrapperContent) {
+        for (const tag of tagVariants) {
+          const found = getAllTags(wrapperContent, tag);
+          if (found.length > 0) {
+            items = found;
+            break;
+          }
+        }
+        if (items.length > 0) break;
+      }
+    }
+  }
+
   for (const item of items) {
-    const datum = getTagContent(item, "Datum") || getTagContent(item, "DatumValute") || "";
-    const valDate = getTagContent(item, "DatumValute") || undefined;
-    const iznos = getTagContent(item, "Iznos") || "0";
-    const smer = getTagContent(item, "Smer") || getTagContent(item, "Tip") || "";
-    const opis = getTagContent(item, "Opis") || getTagContent(item, "Svrha") || "";
-    const nalogodavac = getTagContent(item, "Nalogodavac") || getTagContent(item, "Naziv") || "";
-    const racun = getTagContent(item, "RacunNalogodavca") || getTagContent(item, "Racun") || "";
-    const poziv = getTagContent(item, "PozivNaBroj") || "";
+    // Date — try many variants
+    const datum = getTagContent(item, "Datum") || getTagContent(item, "DatumValute") ||
+      getTagContent(item, "DatumNaloga") || getTagContent(item, "DatumKnjizenja") ||
+      getTagContent(item, "DatumObrade") || getTagContent(item, "DatumPrometa") || datumIzvoda || "";
+    const valDate = getTagContent(item, "DatumValute") || getTagContent(item, "ValutaDatum") || undefined;
+    
+    // Amount — try many variants
+    const iznosRaw = getTagContent(item, "Iznos") || getTagContent(item, "IznosDinara") ||
+      getTagContent(item, "Duguje") || getTagContent(item, "Potrazuje") ||
+      getTagContent(item, "IznosRSD") || getTagContent(item, "Suma") || "0";
+    
+    // Direction — try many variants
+    const smer = getTagContent(item, "Smer") || getTagContent(item, "Tip") ||
+      getTagContent(item, "TipPrometa") || getTagContent(item, "SmerId") ||
+      getTagContent(item, "VrstaPoslovanja") || getTagContent(item, "Strana") || "";
+    
+    // Description/purpose
+    const opis = getTagContent(item, "Opis") || getTagContent(item, "Svrha") ||
+      getTagContent(item, "SvrhaPlacanja") || getTagContent(item, "SvrhaDoznake") ||
+      getTagContent(item, "OpisTransakcije") || getTagContent(item, "NapomenaPlacanja") || "";
+    
+    // Partner info
+    const nalogodavac = getTagContent(item, "Nalogodavac") || getTagContent(item, "Naziv") ||
+      getTagContent(item, "NazivNalogodavca") || getTagContent(item, "NazivPrimaoca") ||
+      getTagContent(item, "ImeNalogodavca") || getTagContent(item, "Partner") ||
+      getTagContent(item, "NazivDrugogUcesnika") || "";
+    
+    // Account info
+    const racun = getTagContent(item, "RacunNalogodavca") || getTagContent(item, "Racun") ||
+      getTagContent(item, "RacunPrimaoca") || getTagContent(item, "BrojRacunaUcesnika") ||
+      getTagContent(item, "RacunDrugogUcesnika") || "";
+    
+    // Payment reference (poziv na broj)
+    const poziv = getTagContent(item, "PozivNaBroj") || getTagContent(item, "PozivNaBrojOdobrenja") ||
+      getTagContent(item, "PozivNaBrojZaduzenja") || getTagContent(item, "ModelIOdobrenje") ||
+      getTagContent(item, "PozivOdobrenja") || "";
 
-    const direction = smer.includes("2") || smer.toLowerCase().includes("rashod") || smer.toLowerCase().includes("out") ? "debit" : "credit";
+    // Sifra placanja (payment code)
+    const sifraPlacanja = getTagContent(item, "SifraPlacanja") || getTagContent(item, "SifraPl") || "";
+
+    // Determine direction
+    let direction: string;
+    const duguje = getTagContent(item, "Duguje");
+    const potrazuje = getTagContent(item, "Potrazuje");
+    
+    if (duguje && !potrazuje) {
+      direction = "debit";
+    } else if (potrazuje && !duguje) {
+      direction = "credit";
+    } else if (smer.includes("2") || smer.toLowerCase().includes("rashod") || smer.toLowerCase().includes("out") ||
+               smer.toLowerCase().includes("duguje") || smer === "D" || smer.toLowerCase() === "debit") {
+      direction = "debit";
+    } else if (smer.includes("1") || smer.toLowerCase().includes("prihod") || smer.toLowerCase().includes("in") ||
+               smer.toLowerCase().includes("potrazuje") || smer === "P" || smer.toLowerCase() === "credit") {
+      direction = "credit";
+    } else {
+      // Try to infer from amount sign
+      const rawAmt = parseFloat(iznosRaw.replace(/\s/g, "").replace(",", "."));
+      direction = rawAmt < 0 ? "debit" : "credit";
+    }
+
+    const amount = Math.abs(parseFloat(iznosRaw.replace(/\s/g, "").replace(",", ".")));
+    if (isNaN(amount) || amount === 0) continue;
+
+    // Determine transaction type from sifra placanja
+    let txType = "WIRE";
+    if (sifraPlacanja) {
+      const code = parseInt(sifraPlacanja);
+      if (code >= 240 && code <= 249) txType = "SALARY";
+      else if (code >= 250 && code <= 259) txType = "TAX";
+      else if (code >= 280 && code <= 289) txType = "FEE";
+      else if (code >= 160 && code <= 169) txType = "CARD";
+    }
 
     result.transactions.push({
       line_date: datum.substring(0, 10),
       value_date: valDate?.substring(0, 10),
-      amount: Math.abs(parseFloat(iznos.replace(",", "."))),
+      amount,
       direction,
-      description: opis || undefined,
+      description: opis.substring(0, 500) || undefined,
       partner_name: nalogodavac || undefined,
       partner_account: racun || undefined,
       payment_reference: poziv || undefined,
-      transaction_type: "WIRE",
+      transaction_type: txType,
     });
   }
 
@@ -187,32 +314,26 @@ function parseNbsXml(xml: string): ParseResult {
 function parseMT940(text: string): ParseResult {
   const result: ParseResult = { format: "MT940", transactions: [] };
 
-  // :25: Account
   const acctMatch = text.match(/:25:(.+)/);
   if (acctMatch) result.iban = acctMatch[1].trim();
 
-  // :28C: Statement number
   const stmtMatch = text.match(/:28C:(.+)/);
   if (stmtMatch) result.statement_number = stmtMatch[1].trim();
 
-  // :60F: Opening balance
   const openMatch = text.match(/:60F:([CD])(\d{6})([A-Z]{3})([\d,]+)/);
   if (openMatch) {
     result.opening_balance = parseFloat(openMatch[4].replace(",", "."));
     if (openMatch[1] === "D") result.opening_balance = -result.opening_balance;
   }
 
-  // :62F: Closing balance
   const closeMatch = text.match(/:62F:([CD])(\d{6})([A-Z]{3})([\d,]+)/);
   if (closeMatch) {
     result.closing_balance = parseFloat(closeMatch[4].replace(",", "."));
     if (closeMatch[1] === "D") result.closing_balance = -result.closing_balance;
   }
 
-  // :61: Transaction lines
   const txRegex = /:61:(\d{6})(\d{4})?([CD])([\d,]+)/g;
   let txMatch;
-  const txPositions: number[] = [];
   while ((txMatch = txRegex.exec(text)) !== null) {
     const dateStr = txMatch[1];
     const year = parseInt("20" + dateStr.substring(0, 2));
@@ -229,7 +350,6 @@ function parseMT940(text: string): ParseResult {
       direction,
       transaction_type: "WIRE",
     });
-    txPositions.push(txMatch.index);
   }
 
   // :86: descriptions
@@ -248,8 +368,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { xml, importId, tenantId } = await req.json();
-    if (!xml || !importId || !tenantId) {
+    const { xml: rawXml, importId, tenantId } = await req.json();
+    if (!rawXml || !importId || !tenantId) {
       return new Response(JSON.stringify({ error: "Missing xml, importId, or tenantId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -261,6 +381,9 @@ Deno.serve(async (req) => {
     // Update status to processing
     await supabase.from("document_imports").update({ status: "PROCESSING" }).eq("id", importId);
 
+    // Pre-process: strip namespaces for easier parsing
+    const xml = stripNamespaces(rawXml);
+
     const format = detectFormat(xml);
     let result: ParseResult;
 
@@ -269,13 +392,13 @@ Deno.serve(async (req) => {
       case "NBS_XML": result = parseNbsXml(xml); break;
       case "MT940": result = parseMT940(xml); break;
       default:
-        await supabase.from("document_imports").update({ status: "QUARANTINE", error_message: `Unknown format` }).eq("id", importId);
-        return new Response(JSON.stringify({ error: "Unknown XML format" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        await supabase.from("document_imports").update({ status: "QUARANTINE", error_message: `Unknown format. Detected tags: ${xml.substring(0, 200)}` }).eq("id", importId);
+        return new Response(JSON.stringify({ error: "Unknown XML format", hint: "Supported formats: CAMT.053, MT940, NBS XML (Serbian bank formats)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (result.transactions.length === 0) {
-      await supabase.from("document_imports").update({ status: "QUARANTINE", error_message: "No transactions found" }).eq("id", importId);
-      return new Response(JSON.stringify({ error: "No transactions found", format }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      await supabase.from("document_imports").update({ status: "QUARANTINE", error_message: `No transactions found in ${format} format. XML snippet: ${xml.substring(0, 300)}` }).eq("id", importId);
+      return new Response(JSON.stringify({ error: "No transactions found", format, hint: "File was recognized as " + format + " but no transaction items were extracted." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Auto-detect bank account from IBAN
@@ -286,12 +409,17 @@ Deno.serve(async (req) => {
     if (!bankAccountId && result.iban) {
       const { data: accts } = await supabase.from("bank_accounts").select("id").eq("tenant_id", tenantId).eq("iban", result.iban).limit(1);
       if (accts?.length) bankAccountId = accts[0].id;
-      // Try account_number match
       if (!bankAccountId) {
         const cleanIban = result.iban.replace(/\s/g, "");
         const acctNum = cleanIban.length > 4 ? cleanIban.substring(4) : cleanIban;
         const { data: accts2 } = await supabase.from("bank_accounts").select("id").eq("tenant_id", tenantId).eq("account_number", acctNum).limit(1);
         if (accts2?.length) bankAccountId = accts2[0].id;
+      }
+      // Also try matching the raw IBAN/account number directly
+      if (!bankAccountId) {
+        const cleanNum = result.iban.replace(/[\s-]/g, "");
+        const { data: accts3 } = await supabase.from("bank_accounts").select("id").eq("tenant_id", tenantId).ilike("account_number", `%${cleanNum.slice(-10)}%`).limit(1);
+        if (accts3?.length) bankAccountId = accts3[0].id;
       }
     }
 

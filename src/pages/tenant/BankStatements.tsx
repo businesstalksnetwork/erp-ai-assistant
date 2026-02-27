@@ -56,6 +56,18 @@ export default function BankStatements() {
     enabled: !!tenantId,
   });
 
+  // Auto-generate statement number when bank account is selected
+  const generateStatementNumber = useCallback(async (bankAccountId: string) => {
+    if (!bankAccountId || !tenantId) return;
+    const bankAccount = bankAccounts.find(ba => ba.id === bankAccountId);
+    if (!bankAccount) return;
+    const acctNum = bankAccount.account_number || "";
+    const suffix = acctNum.length >= 3 ? acctNum.slice(-3) : acctNum;
+    const { count } = await supabase.from("bank_statements").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("bank_account_id", bankAccountId);
+    const seq = (count ?? 0) + 1;
+    setImportForm(f => ({ ...f, statement_number: `IZ${suffix}-${seq}` }));
+  }, [bankAccounts, tenantId]);
+
   // Fetch statements
   const { data: statements = [], isLoading } = useQuery({
     queryKey: ["bank_statements", tenantId],
@@ -522,7 +534,7 @@ export default function BankStatements() {
           <DialogHeader><DialogTitle>{t("importStatement")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div><Label>{t("bankAccount")}</Label>
-              <Select value={importForm.bank_account_id} onValueChange={v => setImportForm(f => ({ ...f, bank_account_id: v }))}>
+              <Select value={importForm.bank_account_id} onValueChange={v => { setImportForm(f => ({ ...f, bank_account_id: v })); generateStatementNumber(v); }}>
                 <SelectTrigger><SelectValue placeholder={t("selectBankAccount")} /></SelectTrigger>
                 <SelectContent>
                   {bankAccounts.map(ba => <SelectItem key={ba.id} value={ba.id}>{ba.bank_name} — {ba.account_number}</SelectItem>)}
