@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, FileText, Calculator, TrendingUp, ShoppingCart, Package, Users } from "lucide-react";
 import type { WidgetConfig } from "@/hooks/useDashboardLayout";
+import type { ShortcutItem } from "./WidgetShortcutEditor";
+
+const ICON_MAP: Record<string, any> = {
+  FileText, Calculator, TrendingUp, ShoppingCart, Package, Users,
+};
 
 const DEFAULT_SHORTCUTS = [
   { labelKey: "newInvoice", path: "/accounting/invoices/new", module: "accounting", icon: FileText },
@@ -26,7 +31,10 @@ export function QuickActionsWidget({ config }: Props) {
   const { canAccess } = usePermissions();
   const isMobile = useIsMobile();
 
-  const shortcuts = DEFAULT_SHORTCUTS.filter((s) => canAccess(s.module as any));
+  const customShortcuts: ShortcutItem[] | undefined = config?.configJson?.shortcuts;
+  const hasCustom = customShortcuts && customShortcuts.length > 0;
+
+  const defaultFiltered = DEFAULT_SHORTCUTS.filter((s) => canAccess(s.module as any));
 
   return (
     <Card className="h-full">
@@ -37,11 +45,17 @@ export function QuickActionsWidget({ config }: Props) {
       </CardHeader>
       <CardContent>
         <div className={`flex gap-2 ${isMobile ? "overflow-x-auto pb-2" : "flex-wrap"}`}>
-          {shortcuts.map((s) => (
-            <Button key={s.path} variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate(s.path)}>
-              <s.icon className="h-4 w-4 mr-1.5" /> {t(s.labelKey as any)}
-            </Button>
-          ))}
+          {hasCustom
+            ? customShortcuts.map((s) => (
+                <Button key={s.path} variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate(s.path)}>
+                  {s.label}
+                </Button>
+              ))
+            : defaultFiltered.map((s) => (
+                <Button key={s.path} variant="outline" size="sm" className="whitespace-nowrap" onClick={() => navigate(s.path)}>
+                  <s.icon className="h-4 w-4 mr-1.5" /> {t(s.labelKey as any)}
+                </Button>
+              ))}
         </div>
       </CardContent>
     </Card>
