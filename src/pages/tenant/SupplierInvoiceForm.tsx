@@ -219,7 +219,7 @@ export default function SupplierInvoiceForm() {
     if (existing) {
       setInvoiceNumber(existing.invoice_number);
       setInvoiceDate(existing.invoice_date);
-      setVatDate((existing as any).vat_date || existing.invoice_date);
+      setVatDate(existing.vat_date || existing.invoice_date);
       setDueDate(existing.due_date || "");
       setSupplierId(existing.supplier_id || "");
       setSupplierName(existing.supplier_name);
@@ -227,7 +227,7 @@ export default function SupplierInvoiceForm() {
       setCurrency(existing.currency);
       setNotes(existing.notes || "");
       setStatus(existing.status);
-      setLegalEntityId((existing as any).legal_entity_id || "");
+      setLegalEntityId(existing.legal_entity_id || "");
     }
   }, [existing]);
 
@@ -320,6 +320,7 @@ export default function SupplierInvoiceForm() {
         const { error } = await supabase.from("supplier_invoices").update(payload).eq("id", id!);
         if (error) throw error;
         await supabase.from("supplier_invoice_lines").delete().eq("supplier_invoice_id", id!);
+        await supabase.from("reverse_charge_entries").delete().eq("supplier_invoice_id", id!);
       } else {
         const { data, error } = await supabase.from("supplier_invoices").insert(payload).select("id").single();
         if (error) throw error;

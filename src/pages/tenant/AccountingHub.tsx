@@ -34,6 +34,7 @@ const sections = [
     title: "Porezi i periodi",
     links: [
       { to: "/accounting/pdv", icon: Calculator, label: "PDV periodi", desc: "Obračun i prijava poreza na dodatu vrednost" },
+      { to: "/accounting/invoice-register", icon: FileText, label: "Knjiga računa", desc: "Knjiga izlaznih i ulaznih računa po POPDV sekcijama" },
       { to: "/accounting/fiscal-periods", icon: CalendarCheck, label: "Fiskalni periodi", desc: "Upravljanje fiskalnim periodima" },
       { to: "/accounting/withholding-tax", icon: Scale, label: "Porez po odbitku", desc: "Obračun poreza na isplate nerezidentima" },
       { to: "/accounting/cit-return", icon: FileSpreadsheet, label: "PDP prijava", desc: "Godišnji porez na dobit (15%)" },

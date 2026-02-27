@@ -57,12 +57,14 @@ export default function InvoiceRegister() {
   const { data: outputEntries = [], isLoading: loadingOutput } = useQuery({
     queryKey: ["invoice-register-output", tenantId, periodStart, periodEnd, legalEntityId],
     queryFn: async () => {
-      const { data: invoices } = await supabase.from("invoices")
+      let query = supabase.from("invoices")
         .select("id, invoice_number, invoice_date, vat_date, partner_name, partner_pib, status, total")
         .eq("tenant_id", tenantId!)
         .in("status", ["sent", "paid", "posted"])
         .gte("vat_date", periodStart)
         .lte("vat_date", periodEnd);
+      if (legalEntityId && legalEntityId !== "__all") query = query.eq("legal_entity_id", legalEntityId);
+      const { data: invoices } = await query;
 
       if (!invoices || invoices.length === 0) return [];
 
@@ -109,14 +111,24 @@ export default function InvoiceRegister() {
   const { data: inputEntries = [], isLoading: loadingInput } = useQuery({
     queryKey: ["invoice-register-input", tenantId, periodStart, periodEnd, legalEntityId],
     queryFn: async () => {
-      const { data: invoices } = await supabase.from("supplier_invoices")
-        .select("id, invoice_number, invoice_date, vat_date, supplier_name, status, total")
+      let query = supabase.from("supplier_invoices")
+        .select("id, invoice_number, invoice_date, vat_date, supplier_id, supplier_name, status, total")
         .eq("tenant_id", tenantId!)
         .in("status", ["approved", "paid", "posted"])
         .gte("vat_date", periodStart)
         .lte("vat_date", periodEnd);
+      if (legalEntityId && legalEntityId !== "__all") query = query.eq("legal_entity_id", legalEntityId);
+      const { data: invoices } = await query;
 
       if (!invoices || invoices.length === 0) return [];
+
+      // Fetch partner PIBs
+      const supplierIds = [...new Set(invoices.map(i => i.supplier_id).filter(Boolean))] as string[];
+      const pibMap: Record<string, string> = {};
+      if (supplierIds.length > 0) {
+        const { data: partners } = await supabase.from("partners").select("id, pib").in("id", supplierIds);
+        if (partners) partners.forEach(p => { if (p.pib) pibMap[p.id] = p.pib; });
+      }
 
       const ids = invoices.map(i => i.id);
       const allLines: any[] = [];
@@ -135,14 +147,14 @@ export default function InvoiceRegister() {
         const rate = Number(l.tax_rate_value || 0);
         return {
           popdv_field: l.popdv_field,
-          posting_date: (inv as any)?.vat_date || inv?.invoice_date,
+          posting_date: inv?.vat_date || inv?.invoice_date,
           posting_number: "",
           partner_code: "",
           partner_name: inv?.supplier_name || "",
-          pib: "",
+          pib: (inv?.supplier_id && pibMap[inv.supplier_id]) || "",
           document_number: inv?.invoice_number || "",
           document_date: inv?.invoice_date,
-          vat_date: (inv as any)?.vat_date || inv?.invoice_date,
+          vat_date: inv?.vat_date || inv?.invoice_date,
           total_with_vat: Number(l.total_with_tax || 0),
           fee_value: Number(l.fee_value || 0),
           base_standard: rate === 20 ? Number(l.line_total) : 0,
