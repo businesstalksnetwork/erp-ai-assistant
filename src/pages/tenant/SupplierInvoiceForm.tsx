@@ -24,71 +24,19 @@ import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
 import PostingPreviewPanel, { buildSupplierInvoicePreviewLines } from "@/components/accounting/PostingPreviewPanel";
 import { createReverseChargeEntries, isReverseChargeField } from "@/lib/popdvAggregation";
 
-const EFAKTURA_OPTIONS = [
-  { value: "S10", label: "S10 — PDV 10%" },
-  { value: "S20", label: "S20 — PDV 20%" },
-  { value: "AE10", label: "AE10 — Obrnuto 10%" },
-  { value: "AE20", label: "AE20 — Obrnuto 20%" },
-  { value: "Z", label: "Z — Nulta stopa" },
-  { value: "E", label: "E — Oslobođeno" },
-  { value: "O", label: "O — Van sistema PDV" },
-  { value: "SS", label: "SS — Posebni postupci" },
-];
+import {
+  EFAKTURA_OPTIONS,
+  calcSupplierInvoiceLine,
+  emptySupplierInvoiceLine,
+  isFeeField,
+  isForeignPib,
+  type SupplierInvoiceLineCalc,
+} from "@/lib/lineCalculations";
 
-interface SILine {
-  id?: string;
-  description: string;
-  item_type: string;
-  popdv_field: string;
-  efaktura_category: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate_id: string;
-  tax_rate_value: number;
-  line_total: number;
-  tax_amount: number;
-  total_with_tax: number;
-  vat_non_deductible: number;
-  fee_value: number;
-  account_id: string;
-  cost_center_id: string;
-  sort_order: number;
-}
+type SILine = SupplierInvoiceLineCalc;
 
-function emptyLine(order: number, defaultTaxRateId: string, defaultRate: number, defaultPopdv = ""): SILine {
-  return {
-    description: "", item_type: "service", popdv_field: defaultPopdv, efaktura_category: "",
-    quantity: 1, unit_price: 0, tax_rate_id: defaultTaxRateId, tax_rate_value: defaultRate,
-    line_total: 0, tax_amount: 0, total_with_tax: 0, vat_non_deductible: 0, fee_value: 0,
-    account_id: "", cost_center_id: "", sort_order: order,
-  };
-}
-
-/** Check if POPDV field is fee-based (8v/8d) */
-function isFeeField(popdv: string): boolean {
-  return /^8[vd]/.test(popdv);
-}
-
-function calcLine(line: SILine): SILine {
-  const lineTotal = line.quantity * line.unit_price;
-  // 8v/8d: fee_value is the tax base (provizija), tax calculated on fee_value
-  if (isFeeField(line.popdv_field)) {
-    const taxAmount = line.fee_value * (line.tax_rate_value / 100);
-    return { ...line, line_total: lineTotal, tax_amount: taxAmount, total_with_tax: lineTotal + taxAmount, vat_non_deductible: 0 };
-  }
-  if (line.popdv_field.startsWith("9")) {
-    return { ...line, line_total: lineTotal, tax_amount: 0, vat_non_deductible: lineTotal * (line.tax_rate_value / 100), total_with_tax: lineTotal + lineTotal * (line.tax_rate_value / 100) };
-  }
-  const taxAmount = lineTotal * (line.tax_rate_value / 100);
-  return { ...line, line_total: lineTotal, tax_amount: taxAmount, total_with_tax: lineTotal + taxAmount, vat_non_deductible: 0 };
-}
-
-/** Check if PIB is non-Serbian (not exactly 9 digits) */
-function isForeignPib(pib: string | null | undefined): boolean {
-  if (!pib) return false;
-  const cleaned = pib.replace(/\s/g, "");
-  return cleaned.length > 0 && !/^\d{9}$/.test(cleaned);
-}
+const emptyLine = emptySupplierInvoiceLine;
+const calcLine = calcSupplierInvoiceLine;
 
 export default function SupplierInvoiceForm() {
   const { id } = useParams<{ id: string }>();

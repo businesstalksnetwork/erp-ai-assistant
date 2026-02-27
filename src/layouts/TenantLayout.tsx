@@ -290,7 +290,7 @@ const settingsNav: NavItem[] = [
   { key: "notificationCategorySettings", url: "/settings/notification-categories", icon: Activity },
 ];
 
-function CollapsibleNavGroup({
+const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   label,
   items,
   currentPath,
@@ -355,7 +355,7 @@ function CollapsibleNavGroup({
       </Collapsible>
     </SidebarGroup>
   );
-}
+});
 
 export default function TenantLayout() {
   const { t, locale, setLocale } = useLanguage();
