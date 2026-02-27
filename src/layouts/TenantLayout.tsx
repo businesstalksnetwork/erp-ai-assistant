@@ -50,7 +50,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -127,6 +127,8 @@ const accountingNav: NavItem[] = [
   { key: "multiPeriodReports", url: "/accounting/reports/multi-period", icon: BarChart3 },
   { key: "statistickiAneks", url: "/accounting/statisticki-aneks", icon: FileSpreadsheet },
   { key: "kpoBook", url: "/accounting/kpo-book", icon: BookText },
+  { key: "pk1Book", url: "/accounting/reports/pk1-book", icon: BookText },
+  { key: "ppppo", url: "/accounting/reports/ppp-po", icon: FileSpreadsheet },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
 ];
 
@@ -151,7 +153,7 @@ const analyticsNav: NavItem[] = [
 const crmNav: NavItem[] = [
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
   { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
-  { key: "partners", url: "/crm/partners", icon: Handshake },
+  { key: "partners", url: "/crm/companies", icon: Handshake },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
@@ -203,6 +205,7 @@ const hrNav: NavItem[] = [
   { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
   { key: "hrReports", url: "/hr/reports", icon: BarChart3 },
+  { key: "travelOrders", url: "/hr/travel-orders", icon: Plane, section: "travelExpenses" },
 ];
 
 const productionNav: NavItem[] = [

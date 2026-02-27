@@ -30,6 +30,8 @@ const PayrollPaymentTypes = React.lazy(() => import("@/pages/tenant/PayrollPayme
 const PayrollRunDetail = React.lazy(() => import("@/pages/tenant/PayrollRunDetail"));
 const NonEmploymentIncome = React.lazy(() => import("@/pages/tenant/NonEmploymentIncome"));
 const PppdReview = React.lazy(() => import("@/pages/tenant/PppdReview"));
+const TravelOrders = React.lazy(() => import("@/pages/tenant/TravelOrders"));
+const TravelOrderForm = React.lazy(() => import("@/pages/tenant/TravelOrderForm"));
 
 const m = "hr";
 
@@ -63,5 +65,8 @@ export const hrRoutes = (
     <Route path="hr/reports" element={<ProtectedRoute requiredModule={m}><HrReports /></ProtectedRoute>} />
     <Route path="hr/ebolovanje" element={<ProtectedRoute requiredModule={m}><EBolovanje /></ProtectedRoute>} />
     <Route path="hr/non-employment-income" element={<ProtectedRoute requiredModule={m}><NonEmploymentIncome /></ProtectedRoute>} />
+    <Route path="hr/travel-orders" element={<ProtectedRoute requiredModule={m}><TravelOrders /></ProtectedRoute>} />
+    <Route path="hr/travel-orders/new" element={<ProtectedRoute requiredModule={m}><TravelOrderForm /></ProtectedRoute>} />
+    <Route path="hr/travel-orders/:id" element={<ProtectedRoute requiredModule={m}><TravelOrderForm /></ProtectedRoute>} />
   </>
 );
