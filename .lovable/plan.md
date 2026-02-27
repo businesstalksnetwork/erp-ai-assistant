@@ -1,238 +1,88 @@
 
 
-# Accounting Module Restructuring — Implementation Plan
+# Accounting Module Fix Plan — Batch 1 & 2
 
-## Current State Assessment
-
-The PRD identifies **20 critical issues** from an accountant review and targets feature parity with BizniSoft, Minimax, and Pantheon ERP across **7 phases / 20 weeks**.
-
-**What exists today:**
-- Chart of accounts: 4,750 accounts loaded, but missing `analytics_type`, `is_foreign_currency`, `tracks_cost_center`, `tracks_cost_bearer`, `is_closing_account`
-- Invoices: has `invoice_type`, `advance_invoice_id`, `journal_entry_id` — but missing `posted_at`; invoice lines missing `item_type`, `popdv_field`, `efaktura_category`
-- Journal lines: missing `analytics_type`, `analytics_reference_id`, `foreign_currency`, `foreign_amount`, `exchange_rate`, `popdv_field`
-- Supplier invoices: no line-items table, no POPDV mapping
-- No `popdv_records` table
-- Payroll: schema exists, calculation RPC exists, but the PRD says "nothing works" (this may be outdated — payroll has had significant work since)
-- Bank statements: XML import exists but flagged as broken
-
-**This is a ~20-week project. I recommend executing it phase by phase, starting with Phase 1.**
+Based on the detailed status review, here's the implementation plan organized by priority. The 11 broken/missing issues are grouped into two batches.
 
 ---
 
-## Phase 1: Foundation Fixes (PRD Sections 4, 5, 6, 7) — ✅ COMPLETED
+## Batch 1: Quick UI Fixes (6 tasks)
 
-### 1A. Database Schema Migration ✅
-- Added `analytics_type`, `is_foreign_currency`, `tracks_cost_center`, `tracks_cost_bearer`, `is_closing_account` to `chart_of_accounts`
-- Added `item_type`, `popdv_field`, `efaktura_category`, `warehouse_id` to `invoice_lines`
-- Added `posted_at` to `invoices`
-- Added `analytics_type`, `analytics_reference_id`, `analytics_label`, `foreign_currency`, `foreign_amount`, `exchange_rate`, `popdv_field` to `journal_lines`
-- Created `voucher_types` table with proper RLS
-- Created `supplier_invoice_lines` table with proper RLS
-- Created `popdv_records` table (full POPDV form with all 11 sections) with proper RLS
-- Added performance indexes for all new columns
+### 1. Add POPDV Field Dropdown to Invoice Lines
+- **File**: `src/pages/tenant/InvoiceForm.tsx`
+- Add a `<Select>` column for `popdv_field` in the line items table (after item_type column)
+- Options: sections 1-11 matching Serbian POPDV regulation (`1` – Promet dobara, `2` – Promet usluga, `3` – PDV 20%, `3a` – PDV 10%, etc.)
+- Data already saves to DB (`popdv_field` column exists on `invoice_lines`)
 
-### 1B. Chart of Accounts Upgrade ✅
-- Added analytics type display with color-coded badges (PARTNER=blue, EMPLOYEE=green, OBJECT=orange)
-- Added foreign currency flag with globe icon
-- Added cost center tracking indicator
-- Added analytics type filter dropdown
-- Added account flags editor in dialog (foreign currency, cost center, cost bearer, closing account)
-- Added all translations (EN + SR)
+### 2. Add eFaktura Category Dropdown to Invoice Lines
+- **File**: `src/pages/tenant/InvoiceForm.tsx`
+- Add a `<Select>` column for `efaktura_category` in the same line items table
+- Options: standard eFaktura categories (`S10`, `S20`, `AE10`, `AE20`, `Z`, `E`, `O`, `SS`)
+- Data already saves to DB (`efaktura_category` column exists)
 
-### 1C. Invoice Form Redesign ✅
-- Added `item_type` selector per line (Goods/Service/Product)
-- Added GL Posting Preview panel showing estimated journal entries before save
-- Item type saved to `invoice_lines.item_type` column
-- Preview shows receivable (2040), revenue by item type (6120/6500/6100), and output VAT (4700)
+### 3. Hide Voucher Type from Invoice Form
+- **File**: `src/pages/tenant/InvoiceForm.tsx`
+- Remove the voucher type `<Select>` block (lines ~474-486) from the invoice form
+- Keep the field in the data model for POS terminal use only
+- Set `voucher_type: null` in `invoiceData` instead of binding to state
 
-### 1D. Journal Entry Improvements ✅
-- Added analytics label column per line (auto-shows when account has analytics_type)
-- Account selection auto-detects analytics_type and prompts for label
-- Analytics data saved per journal line
+### 4. Add Account Typeahead Search in Journal Entries
+- **File**: `src/pages/tenant/JournalEntries.tsx`
+- Replace the plain `<Select>` for account selection with a searchable combobox (using `cmdk` which is already installed)
+- Allow typing account code or name to filter
+- Show `code — name` format in results
 
----
+### 5. Add 4-Digit Minimum Account Validation in Journal Entries
+- **File**: `src/pages/tenant/JournalEntries.tsx`
+- In `createMutation`, before submission, validate that every selected account has a code ≥ 4 characters
+- Look up the account from the loaded `accounts` array by ID, check `code.length >= 4`
+- Show toast error if validation fails: "Knjiženje dozvoljeno samo na konta sa 4+ cifara"
 
-## Phase 2: Full Posting Chain — ✅ COMPLETED
-
-### 2A. Item-Type-Aware Invoice Posting ✅
-- Upgraded `process_invoice_post` RPC to aggregate revenue by `item_type` from `invoice_lines`
-- Goods → 6120, Service → 6500, Product → 6100, fallback → 6000
-- Revenue lines split per item type in journal entries
-
-### 2B. Posting Preview on All Document Types ✅
-- Created generic `PostingPreviewPanel` component with helper builders
-- Added posting preview to Supplier Invoices (approval flow shows GL preview before confirming)
-- Added posting preview to Cash Register (shows DR/CR before saving)
-- Invoice posting preview already existed from Phase 1 (`GlPostingPreview`)
-- All previews show balanced/unbalanced badge and full debit/credit breakdown
-
-### 2C. Storno Reversal ✅
-- Already implemented via `storno_journal_entry` RPC in JournalEntries.tsx
-- All document types that post journals link `journal_entry_id`, enabling storno from journal entries page
-
-### 2D. Supplier Invoice Posting ✅
-- Already uses `postWithRuleOrFallback` with `SUPPLIER_INVOICE_POST` and `SUPPLIER_INVOICE_PAYMENT` models
-- Added posting preview dialog before approval (shows expected GL entries)
+### 6. Implement Bank Statement Auto-Numbering
+- **File**: `src/pages/tenant/BankStatements.tsx`
+- When creating a new statement via CSV import, auto-generate `statement_number` in format `IZ{accountSuffix}-{sequentialNumber}` (e.g., `IZ567-1`, `IZ567-2`)
+- Query existing statements for the same bank account to determine next sequence number
+- Pre-fill in the import form, allow manual override
 
 ---
 
-## Phase 3: VAT & POPDV — ✅ COMPLETED
+## Batch 2: Critical Workflows (4 tasks)
 
-### 3A. POPDV Field Mapping ✅
-- Enhanced POPDV calculation in `PdvPeriods.tsx` to use `popdv_field` from `invoice_lines` when available
-- Falls back to rate-based heuristic (20%→section 3, 10%→3a, 0%→4) when `popdv_field` is not set
-- Fetches `popdv_field` and `item_type` alongside line data for accurate section assignment
+### 7. Wire Up Invoice "Proknjizi" (Post) Button from Invoices List
+- **File**: `src/pages/tenant/Invoices.tsx`
+- The Post button already exists in the actions column (calls `postMutation` via `process_invoice_post` RPC)
+- The `postMutation` already calls the RPC + updates status + triggers SEF
+- **Issue**: The `postMutation` exists and works. Verify it's correctly shown for `draft` status invoices
+- Actually, reviewing the code — the Post button IS wired up (line ~225 in the actions render). The button calls `checkApproval → setPostDialog → postMutation.mutate`. This appears functional. Mark as **already working** and verify.
 
-### 3B. PP-PDV XML Export ✅
-- Already existed via `generate-pppdv-xml` edge function
-- Generates ePorezi-compatible XML with full POPDV section mapping
-- Includes legal entity details (PIB, MB, address) and period information
+### 8. Fix Legal Entity Auto-Hide When Single Entity
+- **File**: `src/pages/tenant/InvoiceForm.tsx`
+- Legal entity card (lines 491-506) already auto-selects + disables when `legalEntities.length === 1`
+- Enhance: hide the entire Card when there's only 1 legal entity (no need to show it at all)
 
-### 3C. Tax Period Locking ✅
-- Added `is_locked` column to `pdv_periods` table
-- Created `trg_check_pdv_period_locked` trigger on `journal_entries` — prevents posting to locked periods
-- Created `trg_auto_lock_pdv_period` trigger — auto-locks when period status changes to submitted/closed
-- Added Lock/Unlock buttons to PDV periods UI with visual indicator
+### 9. Build Partner Quick-Add Sidebar
+- **File**: Create `src/components/accounting/PartnerQuickAdd.tsx`
+- **File**: Update `src/pages/tenant/InvoiceForm.tsx`
+- Add a "+" button next to the partner dropdown that opens a Sheet/Dialog
+- Fields: Name, PIB, MB, Address, City, Country, Contact email/phone
+- On save, insert into `partners` table, auto-select in the invoice form
+- Future enhancement: APR lookup by PIB (separate task)
 
-### 3D. PDV Settlement & Payment Orders ✅
-- Already existed: `create_pdv_settlement_journal` RPC for closing VAT accounts
-- Already existed: `generate-tax-payment-orders` edge function with Model 97 reference logic
-
----
-
-## Phase 4: Payroll Completion — ✅ COMPLETED
-
-### Already Working (Pre-existing)
-- `calculate_payroll_for_run` RPC with full Serbian regulatory matrix (52 income categories, contribution clamping, subsidies)
-- PPP-PD XML generation edge function with JMBG validation
-- Salary payment orders CSV generation
-- Payslip PDF generation in `generate-pdf` edge function
-- GL posting on approval (accrual) and payment (bank) via `postWithRuleOrFallback`
-- Full payroll UI: create run → calculate → approve → pay workflow
-
-### 4A. Tax Payment Orders ✅
-- Enhanced `generate-tax-payment-orders` edge function to support bulk payroll mode
-- Generates CSV with separate payment orders for: PIT (porez na zarade), PIO employee/employer, health employee/employer, unemployment
-- Uses Model 97 reference numbers with PIB + period
-- Added "Nalozi porezi" button to payroll UI for approved/paid runs
-
-### 4B. Posting Preview ✅
-- Added `PostingPreviewPanel` dialog before payroll approval
-- Shows all GL lines (gross expense, net payable, tax, contributions, employer costs) before confirming
-- Reuses existing `PostingPreviewPanel` component from Phase 2
-
-### 4C. Journal Entry Linking ✅
-- Added `journal_entry_id`, `employer_journal_entry_id`, `payment_journal_entry_id` columns to `payroll_runs`
-- GL posting now saves journal entry IDs back to the payroll run for full audit trail
-- Enables storno/reversal from journal entries page
+### 10. Fix Bank Statement XML Import
+- **File**: `supabase/functions/parse-bank-xml/index.ts`
+- The edge function already handles CAMT.053, NBS_XML, and MT940 formats
+- The `BankDocumentImport.tsx` page correctly invokes it for `.xml` files
+- **Issue may be**: the simple regex-based XML parser fails on real-world Serbian bank XML files with namespaces, CDATA, or different tag structures
+- Enhance NBS XML parser to handle additional tag variants: `<Nalog>`, `<Prenos>`, `<PrometStavka>`, and bank-specific XML schemas from major Serbian banks (Intesa, OTP, Raiffeisen, Komercijalna)
+- Add better error reporting to surface parse failures in the UI
 
 ---
 
-## Phase 5: Reports & Closing — ✅ COMPLETED
+## Technical Notes
 
-### Already Working (Pre-existing)
-- Trial Balance (Bruto Bilans) with PDF export
-- Income Statement (Bilans Uspeha) with PDF export
-- Balance Sheet (Bilans Stanja) with PDF export
-- Year-End Closing workflow with revenue/expense account zeroing
-- IOS Balance Confirmation with partner summary
-- Cash Flow Forecast (analytics)
-- Aging Reports (AR/AP)
+- **POPDV section options** follow the official form structure: sections 1-11 covering different transaction types
+- **eFaktura categories** follow Serbian eFaktura specification aligned with EN16931
+- **Account typeahead** will use the existing `cmdk` (Command Menu) dependency — no new packages needed
+- **Bank statement numbering** uses the Serbian convention where the last 3 digits of the bank account number form the suffix
+- All UI changes use existing Shadcn/UI components; no new dependencies required
 
-### 5A. Kartica Konta Upgrade ✅
-- Added opening balance row (Početno stanje) when date range is set
-- Added running balance per line with proper fmtNum formatting
-- Added account search/filter with Serbian name support
-- Added CSV export for all displayed data
-- Added PDF export via `account_card` type in generate-pdf edge function
-- Uses PageHeader component with proper icon
-
-### 5B. IOS PDF Export ✅
-- Added PDF export button to IOS Balance Confirmation page
-- Added `ios_report` PDF type to generate-pdf edge function
-- Generates partner-by-partner receivable/payable summary with totals
-
-### 5C. Cash Flow Statement ✅
-- Created `CashFlowStatement.tsx` — actual cash flow statement (indirect method)
-- Three sections: Operating (net income + adjustments + working capital), Investing, Financing
-- Account prefix mapping follows Serbian kontni okvir (540=depreciation, 02=fixed assets, etc.)
-- Shows opening/closing cash positions
-- Added PDF export via `cash_flow_statement` type
-- Route: `/accounting/cash-flow-statement`
-- Added to accounting navigation
-
----
-
-## Phase 6: AI Agent & Compliance — ✅ COMPLETED
-
-### 6A. Serbian Accounting Compliance Checker ✅
-- Created `compliance-checker` edge function with 12+ rule-based checks covering:
-  - Journal entries: unbalanced entries, missing descriptions, future dates
-  - VAT/PDV: missing VAT, late submissions, GL vs invoice VAT mismatch
-  - Invoicing: numbering gaps, missing PIB
-  - Payroll: uncalculated payroll, employees without contracts
-  - Fixed assets: missing depreciation schedules
-  - Reporting: unbalanced trial balance
-  - General: incomplete legal entity data
-- All checks reference specific Serbian laws (Zakon o računovodstvu, Zakon o PDV, Zakon o radu, MRS/MSFI)
-- AI enrichment via Gemini generates executive summary and prioritized corrective actions
-
-### 6B. Inline Validation Hooks ✅
-- Created `useAccountingValidation` hook — runs full compliance scan via edge function
-- Created `useJournalEntryValidation` hook with:
-  - `validateBeforePost()`: checks balance, empty lines, dual-side entries
-  - `validateInvoice()`: checks VAT presence, missing PIB with law references
-- Both hooks are bilingual (EN/SR) based on locale
-
-### 6C. Compliance Dashboard UI ✅
-- Created `/accounting/compliance` page with:
-  - Stats cards (total, errors, warnings, info)
-  - AI-powered summary with prioritized corrective actions
-  - Checks grouped by category with law references
-  - Severity-sorted display with badges and icons
-- Added to accounting navigation and routing
-
----
-
-## Phase 7: Polish — ✅ COMPLETED
-
-### 7A. Credit/Debit Notes ✅
-- Created `debit_notes` table with RLS (mirrors `credit_notes`)
-- Built `CreditDebitNotes.tsx` — tabbed UI for managing both credit (Knjižno odobrenje) and debit (Knjižno zaduženje) notes
-- GL posting via `postWithRuleOrFallback` with CREDIT_NOTE_ISSUED / DEBIT_NOTE_ISSUED models
-- Posting preview panel shows DR/CR before issuing
-- Links to original invoices and partners
-
-### 7B. Proforma Invoices ✅
-- Built `ProformaInvoices.tsx` — full CRUD with line items
-- Convert-to-invoice workflow: creates real invoice + lines from proforma, marks as converted
-- No GL posting (proformas are non-fiscal documents)
-- Tables already existed: `proforma_invoices`, `proforma_invoice_lines`
-
-### 7C. Fixed Asset Improvements ✅ (Pre-existing)
-- `AssetDisposals.tsx` — disposal with GL posting (sale/scrap/donation)
-- `AssetRevaluations.tsx` — revaluation with journal entry creation
-- `AssetDepreciation.tsx` — batch depreciation runs with GL posting
-- Full lifecycle management already in place
-
-### 7D. Multi-Currency Support ✅ (Pre-existing)
-- `FxRevaluation.tsx` — foreign currency revaluation with NBS rates
-- `journal_lines` already has `foreign_currency`, `foreign_amount`, `exchange_rate` columns (Phase 1)
-- `Currencies.tsx` — currency management page
-- NBS exchange rate integration via `nbs-exchange-rates` edge function
-
----
-
-## Technical Approach
-
-- All schema changes via single migration
-- PRD copied to `docs/PRD-Accounting-Module-v2.md` for reference
-- Existing posting rules engine (`postWithRuleOrFallback`) extended for item-type-aware routing
-- New components: `GlPostingPreview` ✅
-- Reuse existing patterns: `useTenant`, `useLegalEntities`, `fmtNum`, `Select` components
-
----
-
-## Recommendation
-
-Phase 3 is complete. To continue, say "proceed to Phase 4" to implement payroll completion.
