@@ -54,7 +54,7 @@ export function GlobalSearch() {
     { label: t("salesChannels"), path: "/sales/sales-channels", icon: Grid3X3, group: "salesModule", module: "sales" },
     { label: t("salespeople"), path: "/sales/salespeople", icon: UserCheck, group: "salesModule", module: "sales" },
     { label: t("salesPerformance"), path: "/sales/sales-performance", icon: BarChart3, group: "salesModule", module: "sales" },
-    { label: t("retailPrices"), path: "/sales/retail-prices", icon: Receipt, group: "salesModule", module: "sales" },
+    { label: t("retailPrices"), path: "/inventory/retail-prices", icon: Receipt, group: "salesModule", module: "sales" },
 
     // Purchasing
     { label: t("purchaseOrders"), path: "/purchasing/orders", icon: Truck, group: "purchasing", module: "purchasing" },
@@ -101,13 +101,13 @@ export function GlobalSearch() {
     { label: t("reports"), path: "/accounting/reports", icon: BarChart3, group: "accounting", module: "accounting" },
 
     // Analytics
-    { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "accounting" },
-    { label: t("financialRatios"), path: "/analytics/ratios", icon: Activity, group: "analytics", module: "accounting" },
-    { label: t("profitabilityAnalysis"), path: "/analytics/profitability", icon: TrendingUp, group: "analytics", module: "accounting" },
-    { label: t("cashFlowForecast"), path: "/analytics/cashflow-forecast", icon: DollarSign, group: "analytics", module: "accounting" },
-    { label: t("budgetVsActuals"), path: "/analytics/budget", icon: Target, group: "analytics", module: "accounting" },
-    { label: t("breakEvenAnalysis"), path: "/analytics/break-even", icon: Calculator, group: "analytics", module: "accounting" },
-    { label: t("businessPlanning"), path: "/analytics/planning", icon: Briefcase, group: "analytics", module: "accounting" },
+    { label: t("analyticsDashboard"), path: "/analytics", icon: BarChart3, group: "analytics", module: "analytics" },
+    { label: t("financialRatios"), path: "/analytics/ratios", icon: Activity, group: "analytics", module: "analytics" },
+    { label: t("profitabilityAnalysis"), path: "/analytics/profitability", icon: TrendingUp, group: "analytics", module: "analytics" },
+    { label: t("cashFlowForecast"), path: "/analytics/cashflow-forecast", icon: DollarSign, group: "analytics", module: "analytics" },
+    { label: t("budgetVsActuals"), path: "/analytics/budget", icon: Target, group: "analytics", module: "analytics" },
+    { label: t("breakEvenAnalysis"), path: "/analytics/break-even", icon: Calculator, group: "analytics", module: "analytics" },
+    { label: t("businessPlanning"), path: "/analytics/planning", icon: Briefcase, group: "analytics", module: "analytics" },
 
     // HR
     { label: t("employees"), path: "/hr/employees", icon: UserCheck, group: "hr", module: "hr" },
