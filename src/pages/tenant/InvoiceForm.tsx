@@ -440,7 +440,7 @@ export default function InvoiceForm() {
   const isReadOnly = status === "sent" || status === "paid" || status === "cancelled";
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/accounting/invoices")}>
           <ArrowLeft className="h-4 w-4" />
