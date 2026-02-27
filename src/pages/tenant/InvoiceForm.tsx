@@ -19,6 +19,34 @@ import { Plus, Trash2, ArrowLeft, Save, Send } from "lucide-react";
 import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
 import GlPostingPreview from "@/components/accounting/GlPostingPreview";
+import { PartnerQuickAdd } from "@/components/accounting/PartnerQuickAdd";
+
+const POPDV_OPTIONS = [
+  { value: "1", label: "1 — Promet dobara" },
+  { value: "2", label: "2 — Promet usluga" },
+  { value: "3", label: "3 — PDV 20%" },
+  { value: "3a", label: "3a — PDV 10%" },
+  { value: "4", label: "4 — Uvoz dobara" },
+  { value: "5", label: "5 — Oslobođenja sa pravom na odbitak" },
+  { value: "6", label: "6 — Oslobođenja bez prava na odbitak" },
+  { value: "7", label: "7 — Posebni postupci" },
+  { value: "8", label: "8 — Prethodni porez" },
+  { value: "8a", label: "8a — Ispravka odbitka prethodnog poreza" },
+  { value: "9", label: "9 — Naknada putnih troškova" },
+  { value: "10", label: "10 — Promet bez naknade" },
+  { value: "11", label: "11 — Izmena poreske osnovice" },
+];
+
+const EFAKTURA_OPTIONS = [
+  { value: "S10", label: "S10 — PDV 10%" },
+  { value: "S20", label: "S20 — PDV 20%" },
+  { value: "AE10", label: "AE10 — Obrnuto 10%" },
+  { value: "AE20", label: "AE20 — Obrnuto 20%" },
+  { value: "Z", label: "Z — Nulta stopa" },
+  { value: "E", label: "E — Oslobođeno" },
+  { value: "O", label: "O — Van sistema PDV" },
+  { value: "SS", label: "SS — Posebni postupci" },
+];
 
 interface InvoiceLine {
   id?: string;
@@ -82,7 +110,6 @@ export default function InvoiceForm() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
-  const [voucherType, setVoucherType] = useState<string | null>(null);
   const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
@@ -90,6 +117,7 @@ export default function InvoiceForm() {
   const [salespersonId, setSalespersonId] = useState<string>("");
   const [salesOrderId, setSalesOrderId] = useState<string | null>(null);
   const { entities: legalEntities } = useLegalEntities();
+  const [partnerQuickAddOpen, setPartnerQuickAddOpen] = useState(false);
 
   // Auto-select legal entity if only one exists
   useEffect(() => {
@@ -203,7 +231,6 @@ export default function InvoiceForm() {
       if (so.salesperson_id) setSalespersonId(so.salesperson_id);
       if (so.sales_order_id) setSalesOrderId(so.sales_order_id);
       if (so.legal_entity_id) setLegalEntityId(so.legal_entity_id);
-      // Pre-fill lines from sales order
       if (so.lines && so.lines.length > 0 && defaultTaxRate) {
         setLines(so.lines.map((l: any, i: number) => calcLine({
           product_id: l.product_id || undefined,
@@ -362,17 +389,14 @@ export default function InvoiceForm() {
         advance_invoice_id: advanceInvoiceId || null,
         advance_amount_applied: advanceAmountApplied,
         legal_entity_id: legalEntityId || null,
-        voucher_type: voucherType || null,
+        voucher_type: null,
       };
-
-
 
       let invoiceId = id;
 
       if (isEdit) {
         const { error } = await supabase.from("invoices").update(invoiceData).eq("id", id!);
         if (error) throw error;
-        // Delete old lines, re-insert
         await supabase.from("invoice_lines").delete().eq("invoice_id", id!);
       } else {
         const { data, error } = await supabase.from("invoices").insert(invoiceData).select("id").single();
@@ -414,8 +438,6 @@ export default function InvoiceForm() {
   });
 
   const isReadOnly = status === "sent" || status === "paid" || status === "cancelled";
-
-  
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -471,30 +493,17 @@ export default function InvoiceForm() {
               {advanceAmountApplied > 0 && <p className="text-sm text-muted-foreground mt-1">{t("advanceAmount")}: {fmtNum(advanceAmountApplied)}</p>}
             </div>
           )}
-          {/* Voucher Type */}
-          <div>
-            <Label>{t("voucherType")}</Label>
-            <Select value={voucherType || "none"} onValueChange={(v) => setVoucherType(v === "none" ? null : v)} disabled={isReadOnly}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                <SelectItem value="single_purpose">{t("singlePurpose")}</SelectItem>
-                <SelectItem value="multi_purpose">{t("multiPurpose")}</SelectItem>
-              </SelectContent>
-            </Select>
-            {voucherType && <p className="text-xs text-muted-foreground mt-1">{t("voucherTypeHint")}</p>}
-          </div>
         </CardContent>
       </Card>
 
-      {/* Legal Entity */}
-      {legalEntities.length > 0 && (
+      {/* Legal Entity — hidden when only 1 entity */}
+      {legalEntities.length > 1 && (
         <Card>
           <CardHeader><CardTitle>{t("legalEntity")}</CardTitle></CardHeader>
           <CardContent>
             <div className="max-w-sm">
               <Label>{t("selectLegalEntity")}</Label>
-              <Select value={legalEntityId} onValueChange={setLegalEntityId} disabled={isReadOnly || legalEntities.length === 1}>
+              <Select value={legalEntityId} onValueChange={setLegalEntityId} disabled={isReadOnly}>
                 <SelectTrigger><SelectValue placeholder={t("selectLegalEntity")} /></SelectTrigger>
                 <SelectContent>
                   {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
@@ -507,7 +516,16 @@ export default function InvoiceForm() {
 
       {/* Partner */}
       <Card>
-        <CardHeader><CardTitle>{t("partner")}</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>{t("partner")}</CardTitle>
+            {!isReadOnly && (
+              <Button size="sm" variant="outline" onClick={() => setPartnerQuickAddOpen(true)}>
+                <Plus className="h-3 w-3 mr-1" /> {t("addPartner") || "Novi partner"}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <Label>{t("selectPartner")}</Label>
@@ -582,20 +600,22 @@ export default function InvoiceForm() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[14%]">{t("product")}</TableHead>
-                <TableHead className="w-[16%]">{t("description")}</TableHead>
-                <TableHead className="w-[8%]">{t("itemType")}</TableHead>
-                <TableHead className="w-[7%]">{t("quantity")}</TableHead>
-                <TableHead className="w-[8%]">{t("unitPrice")}</TableHead>
-                <TableHead className="w-[10%]">{t("taxRate")}</TableHead>
-                <TableHead className="text-right w-[9%]">{t("lineTotal")}</TableHead>
-                <TableHead className="text-right w-[9%]">{t("taxAmount")}</TableHead>
-                <TableHead className="text-right w-[9%]">{t("totalWithTax")}</TableHead>
-                {!isReadOnly && <TableHead className="w-[4%]" />}
+                <TableHead className="min-w-[120px]">{t("product")}</TableHead>
+                <TableHead className="min-w-[120px]">{t("description")}</TableHead>
+                <TableHead className="min-w-[90px]">{t("itemType")}</TableHead>
+                <TableHead className="min-w-[90px]">POPDV</TableHead>
+                <TableHead className="min-w-[90px]">eFaktura</TableHead>
+                <TableHead className="min-w-[60px]">{t("quantity")}</TableHead>
+                <TableHead className="min-w-[80px]">{t("unitPrice")}</TableHead>
+                <TableHead className="min-w-[90px]">{t("taxRate")}</TableHead>
+                <TableHead className="text-right min-w-[80px]">{t("lineTotal")}</TableHead>
+                <TableHead className="text-right min-w-[80px]">{t("taxAmount")}</TableHead>
+                <TableHead className="text-right min-w-[80px]">{t("totalWithTax")}</TableHead>
+                {!isReadOnly && <TableHead className="w-[40px]" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -628,7 +648,7 @@ export default function InvoiceForm() {
                       }}
                       disabled={isReadOnly}
                     >
-                      <SelectTrigger><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
+                      <SelectTrigger className="h-8"><SelectValue placeholder={t("selectProduct")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">— {t("manual")}</SelectItem>
                         {products.map((p) => (
@@ -643,6 +663,7 @@ export default function InvoiceForm() {
                       onChange={(e) => updateLine(i, "description", e.target.value)}
                       disabled={isReadOnly}
                       placeholder={t("description")}
+                      className="h-8"
                     />
                   </TableCell>
                   <TableCell>
@@ -659,6 +680,38 @@ export default function InvoiceForm() {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  {/* POPDV Field */}
+                  <TableCell>
+                    <Select
+                      value={line.popdv_field || "__none__"}
+                      onValueChange={(v) => updateLine(i, "popdv_field" as any, v === "__none__" ? "" : v)}
+                      disabled={isReadOnly}
+                    >
+                      <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {POPDV_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  {/* eFaktura Category */}
+                  <TableCell>
+                    <Select
+                      value={line.efaktura_category || "__none__"}
+                      onValueChange={(v) => updateLine(i, "efaktura_category" as any, v === "__none__" ? "" : v)}
+                      disabled={isReadOnly}
+                    >
+                      <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {EFAKTURA_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <Input
                       type="number"
@@ -666,6 +719,7 @@ export default function InvoiceForm() {
                       value={line.quantity}
                       onChange={(e) => updateLine(i, "quantity", Number(e.target.value))}
                       disabled={isReadOnly}
+                      className="h-8"
                     />
                   </TableCell>
                   <TableCell>
@@ -676,6 +730,7 @@ export default function InvoiceForm() {
                       value={line.unit_price}
                       onChange={(e) => updateLine(i, "unit_price", Number(e.target.value))}
                       disabled={isReadOnly}
+                      className="h-8"
                     />
                   </TableCell>
                   <TableCell>
@@ -684,7 +739,7 @@ export default function InvoiceForm() {
                       onValueChange={(v) => updateLine(i, "tax_rate_id", v)}
                       disabled={isReadOnly}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-8">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -696,9 +751,9 @@ export default function InvoiceForm() {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(line.line_total)}</TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(line.tax_amount)}</TableCell>
-                  <TableCell className="text-right font-mono">{fmtNum(line.total_with_tax)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{fmtNum(line.line_total)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{fmtNum(line.tax_amount)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{fmtNum(line.total_with_tax)}</TableCell>
                   {!isReadOnly && (
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => removeLine(i)} disabled={lines.length <= 1}>
@@ -769,6 +824,20 @@ export default function InvoiceForm() {
           </Button>
         </div>
       )}
+
+      {/* Partner Quick Add */}
+      <PartnerQuickAdd
+        open={partnerQuickAddOpen}
+        onOpenChange={setPartnerQuickAddOpen}
+        tenantId={tenantId!}
+        onPartnerCreated={(partner) => {
+          queryClient.invalidateQueries({ queryKey: ["partners"] });
+          setSelectedPartnerId(partner.id);
+          setPartnerName(partner.name);
+          setPartnerPib(partner.pib || "");
+          setPartnerAddress([partner.address, partner.city].filter(Boolean).join(", "));
+        }}
+      />
     </div>
   );
 }
