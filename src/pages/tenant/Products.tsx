@@ -37,6 +37,7 @@ interface ProductForm {
   tax_rate_id: string;
   is_active: boolean;
   costing_method: string;
+  category_id: string;
 }
 
 const emptyForm: ProductForm = {
@@ -44,6 +45,7 @@ const emptyForm: ProductForm = {
   unit_of_measure: "pcs", default_purchase_price: 0, default_sale_price: 0,
   default_retail_price: 0, default_web_price: 0,
   tax_rate_id: "", is_active: true, costing_method: "weighted_average",
+  category_id: "",
 };
 
 export default function Products() {
@@ -78,9 +80,18 @@ export default function Products() {
     enabled: !!tenantId,
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["product_categories", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_categories" as any).select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return (data as any[]) || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { ...form, tenant_id: tenantId! };
+      const payload: any = { ...form, tenant_id: tenantId!, category_id: form.category_id || null };
       if (editId) {
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
@@ -120,6 +131,7 @@ export default function Products() {
       default_web_price: Number(p.default_web_price || 0),
       tax_rate_id: p.tax_rate_id || "", is_active: p.is_active,
       costing_method: p.costing_method || "weighted_average",
+      category_id: p.category_id || "",
     });
     setDialogOpen(true);
   };
@@ -231,6 +243,16 @@ export default function Products() {
               <div><Label>{t("barcode")}</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
             </div>
             <div><Label>{t("description")}</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <div>
+              <Label>{t("category")}</Label>
+              <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder={t("category")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>{t("unitOfMeasure")}</Label>

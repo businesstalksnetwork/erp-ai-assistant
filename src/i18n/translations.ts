@@ -2912,6 +2912,8 @@ export const translations = {
     noFiscalDevicesWarning: "No fiscal devices configured for this location",
     buyerPartner: "Buyer (Partner)",
     selectBuyerPartner: "Select buyer partner...",
+    productCategories: "Product Categories",
+    autoPrice: "(auto)",
   },
   sr: {
     // Auth
@@ -5780,6 +5782,8 @@ export const translations = {
     noFiscalDevicesWarning: "Nema fiskalnih uređaja za ovu lokaciju",
     buyerPartner: "Kupac (Partner)",
     selectBuyerPartner: "Izaberite partnera kupca...",
+    productCategories: "Kategorije proizvoda",
+    autoPrice: "(auto)",
   },
 } as const;
 

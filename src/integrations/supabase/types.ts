@@ -2589,6 +2589,7 @@ export type Database = {
         Row: {
           bom_template_id: string
           created_at: string
+          estimated_unit_cost: number | null
           id: string
           material_product_id: string
           quantity: number
@@ -2598,6 +2599,7 @@ export type Database = {
         Insert: {
           bom_template_id: string
           created_at?: string
+          estimated_unit_cost?: number | null
           id?: string
           material_product_id: string
           quantity?: number
@@ -2607,6 +2609,7 @@ export type Database = {
         Update: {
           bom_template_id?: string
           created_at?: string
+          estimated_unit_cost?: number | null
           id?: string
           material_product_id?: string
           quantity?: number
@@ -13993,6 +13996,60 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          name_sr: string | null
+          parent_id: string | null
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_sr?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_consumption: {
         Row: {
           created_at: string
@@ -14101,6 +14158,9 @@ export type Database = {
       production_orders: {
         Row: {
           actual_end: string | null
+          actual_labor_cost: number | null
+          actual_material_cost: number | null
+          actual_overhead_cost: number | null
           actual_start: string | null
           bom_template_id: string | null
           completed_quantity: number
@@ -14110,17 +14170,22 @@ export type Database = {
           notes: string | null
           order_number: string | null
           planned_end: string | null
+          planned_material_cost: number | null
           planned_start: string | null
           priority: number | null
           product_id: string | null
           quantity: number
           status: string
           tenant_id: string
+          unit_production_cost: number | null
           updated_at: string
           warehouse_id: string | null
         }
         Insert: {
           actual_end?: string | null
+          actual_labor_cost?: number | null
+          actual_material_cost?: number | null
+          actual_overhead_cost?: number | null
           actual_start?: string | null
           bom_template_id?: string | null
           completed_quantity?: number
@@ -14130,17 +14195,22 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           planned_end?: string | null
+          planned_material_cost?: number | null
           planned_start?: string | null
           priority?: number | null
           product_id?: string | null
           quantity?: number
           status?: string
           tenant_id: string
+          unit_production_cost?: number | null
           updated_at?: string
           warehouse_id?: string | null
         }
         Update: {
           actual_end?: string | null
+          actual_labor_cost?: number | null
+          actual_material_cost?: number | null
+          actual_overhead_cost?: number | null
           actual_start?: string | null
           bom_template_id?: string | null
           completed_quantity?: number
@@ -14150,12 +14220,14 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           planned_end?: string | null
+          planned_material_cost?: number | null
           planned_start?: string | null
           priority?: number | null
           product_id?: string | null
           quantity?: number
           status?: string
           tenant_id?: string
+          unit_production_cost?: number | null
           updated_at?: string
           warehouse_id?: string | null
         }
@@ -14292,6 +14364,7 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          category_id: string | null
           costing_method: string | null
           created_at: string
           default_purchase_price: number
@@ -14311,6 +14384,7 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          category_id?: string | null
           costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
@@ -14330,6 +14404,7 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          category_id?: string | null
           costing_method?: string | null
           created_at?: string
           default_purchase_price?: number
@@ -14348,6 +14423,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_tax_rate_id_fkey"
             columns: ["tax_rate_id"]
@@ -14686,6 +14768,86 @@ export type Database = {
           },
           {
             foreignKeyName: "purchase_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_prices: {
+        Row: {
+          created_at: string
+          currency: string
+          document_id: string | null
+          document_ref: string | null
+          document_type: string
+          id: string
+          notes: string | null
+          partner_id: string | null
+          product_id: string
+          purchase_date: string
+          quantity: number
+          tenant_id: string
+          unit_cost: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          document_ref?: string | null
+          document_type?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          product_id: string
+          purchase_date?: string
+          quantity?: number
+          tenant_id: string
+          unit_cost?: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          document_ref?: string | null
+          document_type?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          product_id?: string
+          purchase_date?: string
+          quantity?: number
+          tenant_id?: string
+          unit_cost?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_prices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_prices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_prices_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
@@ -17851,6 +18013,120 @@ export type Database = {
           },
           {
             foreignKeyName: "web_sync_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wholesale_price_lists: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_price_lists_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wholesale_prices: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          min_quantity: number
+          price: number
+          price_list_id: string
+          product_id: string
+          tenant_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          min_quantity?: number
+          price?: number
+          price_list_id: string
+          product_id: string
+          tenant_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          min_quantity?: number
+          price?: number
+          price_list_id?: string
+          product_id?: string
+          tenant_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_prices_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wholesale_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wholesale_prices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
