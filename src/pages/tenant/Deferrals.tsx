@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { differenceInMonths, format } from "date-fns";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import PostingPreviewPanel, { buildDeferralPreviewLines } from "@/components/accounting/PostingPreviewPanel";
 
 interface DeferralForm {
   type: string;

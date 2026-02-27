@@ -19,6 +19,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useApprovalCheck } from "@/hooks/useApprovalCheck";
+import PostingPreviewPanel, { buildSupplierInvoicePreviewLines, buildSupplierPaymentPreviewLines } from "@/components/accounting/PostingPreviewPanel";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 
@@ -61,6 +62,7 @@ export default function SupplierInvoices() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<SIForm>({ ...emptyForm, legal_entity_id: "" } as any);
+  const [previewInv, setPreviewInv] = useState<any>(null);
   const { entities: legalEntities } = useLegalEntities();
 
   useEffect(() => {
@@ -306,7 +308,7 @@ export default function SupplierInvoices() {
       <div className="flex gap-1">
         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(inv); }}>{t("edit")}</Button>
         {(inv.status === "draft" || inv.status === "received") && (
-          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); initiateApprove(inv); }} disabled={approveMutation.isPending}>
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPreviewInv(inv); }} disabled={approveMutation.isPending}>
             <CheckCircle className="h-3 w-3 mr-1" />{t("approveInvoice")}
           </Button>
         )}
@@ -339,7 +341,25 @@ export default function SupplierInvoices() {
         emptyMessage={t("noResults")}
       />
 
-      {/* 3-Way Match Discrepancy Dialog */}
+      {/* Posting Preview Dialog */}
+      <Dialog open={!!previewInv} onOpenChange={(o) => { if (!o) setPreviewInv(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("glPostingPreview")} — {previewInv?.invoice_number}</DialogTitle>
+          </DialogHeader>
+          {previewInv && (
+            <PostingPreviewPanel lines={buildSupplierInvoicePreviewLines(previewInv)} currency={previewInv.currency} />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewInv(null)}>{t("cancel")}</Button>
+            <Button onClick={() => { const inv = previewInv; setPreviewInv(null); initiateApprove(inv); }} disabled={approveMutation.isPending}>
+              <CheckCircle className="h-4 w-4 mr-2" />{t("approveInvoice")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <AlertDialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
