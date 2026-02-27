@@ -72,6 +72,7 @@ const mainNav: (NavItem & { badge?: number })[] = [
 
 const inventoryNav: NavItem[] = [
   { key: "products", url: "/inventory/products", icon: Package, section: "coreInventory" },
+  { key: "productCategories", url: "/inventory/product-categories", icon: FolderTree },
   { key: "stockOverview", url: "/inventory/stock", icon: Warehouse },
   { key: "movementHistory", url: "/inventory/movements", icon: ArrowLeftRight },
   { key: "costLayers", url: "/inventory/cost-layers", icon: Coins },

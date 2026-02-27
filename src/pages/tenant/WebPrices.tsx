@@ -67,7 +67,7 @@ export default function WebPrices() {
     queryKey: ["web_prices", selectedList],
     queryFn: async () => {
       if (!selectedList) return [];
-      const { data } = await supabase.from("web_prices" as any).select("*").eq("price_list_id", selectedList);
+      const { data } = await supabase.from("web_prices" as any).select("*").eq("web_price_list_id", selectedList);
       return (data as any[]) || [];
     },
     enabled: !!selectedList,
@@ -92,12 +92,12 @@ export default function WebPrices() {
     mutationFn: async () => {
       if (!selectedList) return;
       const { error } = await supabase.from("web_prices" as any).upsert({
-        price_list_id: selectedList,
+        web_price_list_id: selectedList,
         product_id: priceForm.product_id,
         web_price: priceForm.web_price,
         compare_at_price: priceForm.compare_at_price || null,
         valid_from: new Date().toISOString().split("T")[0],
-      } as any, { onConflict: "price_list_id,product_id,valid_from" });
+      } as any, { onConflict: "web_price_list_id,product_id,valid_from" });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["web_prices"] }); toast({ title: t("success") }); setPriceDialog(false); },

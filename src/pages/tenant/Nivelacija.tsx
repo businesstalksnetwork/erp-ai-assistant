@@ -61,7 +61,7 @@ export default function Nivelacija() {
   const { data: products = [] } = useQuery({
     queryKey: ["products_list", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("id, name, sku, default_sale_price").eq("tenant_id", tenantId!).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, sku, default_retail_price").eq("tenant_id", tenantId!).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -117,7 +117,7 @@ export default function Nivelacija() {
       const updated = { ...it, [field]: value };
       if (field === "product_id") {
         const p = products.find((pr: any) => pr.id === value);
-        if (p) updated.old_retail_price = Number(p.default_sale_price) || 0;
+        if (p) updated.old_retail_price = Number(p.default_retail_price) || 0;
       }
       return updated;
     }));

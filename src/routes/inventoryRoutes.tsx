@@ -5,6 +5,7 @@ import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
 const InventoryHub = React.lazy(() => import("@/pages/tenant/InventoryHub"));
 const Products = React.lazy(() => import("@/pages/tenant/Products"));
+const ProductCategories = React.lazy(() => import("@/pages/tenant/ProductCategories"));
 const ProductDetail = React.lazy(() => import("@/pages/tenant/ProductDetail"));
 const InventoryStock = React.lazy(() => import("@/pages/tenant/InventoryStock"));
 const InventoryMovements = React.lazy(() => import("@/pages/tenant/InventoryMovements"));
@@ -36,6 +37,7 @@ export const inventoryRoutes = (
   <>
     <Route path="inventory" element={<ProtectedRoute requiredModule={m}><B><InventoryHub /></B></ProtectedRoute>} />
     <Route path="inventory/products" element={<ProtectedRoute requiredModule={m}><B><Products /></B></ProtectedRoute>} />
+    <Route path="inventory/product-categories" element={<ProtectedRoute requiredModule={m}><B><ProductCategories /></B></ProtectedRoute>} />
     <Route path="inventory/products/:id" element={<ProtectedRoute requiredModule={m}><B><ProductDetail /></B></ProtectedRoute>} />
     <Route path="inventory/stock" element={<ProtectedRoute requiredModule={m}><B><InventoryStock /></B></ProtectedRoute>} />
     <Route path="inventory/movements" element={<ProtectedRoute requiredModule={m}><B><InventoryMovements /></B></ProtectedRoute>} />
