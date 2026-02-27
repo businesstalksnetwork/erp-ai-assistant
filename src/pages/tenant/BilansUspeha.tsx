@@ -23,7 +23,7 @@ import { fmtNum } from "@/lib/utils";
 const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
   "5": { name: "Rashodi", nameSr: "Расходи" },
   "6": { name: "Prihodi", nameSr: "Приходи" },
-  "7": { name: "Poslovni rashodi", nameSr: "Пословни расходи" },
+  "7": { name: "Otvaranje i zaključak", nameSr: "Отварање и закључак" },
   "8": { name: "Vanredni rashodi", nameSr: "Ванредни расходи" },
 };
 

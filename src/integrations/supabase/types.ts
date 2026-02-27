@@ -12578,6 +12578,8 @@ export type Database = {
           leave_days_deducted: number
           leave_deduction_amount: number
           meal_allowance: number | null
+          minuli_rad_amount: number | null
+          minuli_rad_years: number | null
           municipal_tax: number
           net_salary: number
           night_work_hours_count: number
@@ -12614,6 +12616,8 @@ export type Database = {
           leave_days_deducted?: number
           leave_deduction_amount?: number
           meal_allowance?: number | null
+          minuli_rad_amount?: number | null
+          minuli_rad_years?: number | null
           municipal_tax?: number
           net_salary?: number
           night_work_hours_count?: number
@@ -12650,6 +12654,8 @@ export type Database = {
           leave_days_deducted?: number
           leave_deduction_amount?: number
           meal_allowance?: number | null
+          minuli_rad_amount?: number | null
+          minuli_rad_years?: number | null
           municipal_tax?: number
           net_salary?: number
           night_work_hours_count?: number
