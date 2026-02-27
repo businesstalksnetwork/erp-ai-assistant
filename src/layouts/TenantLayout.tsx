@@ -86,18 +86,22 @@ const inventoryNav: NavItem[] = [
   { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
   { key: "wmsCycleCounts", url: "/inventory/wms/cycle-counts", icon: RefreshCw },
   { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain },
+  { key: "wmsLabor", url: "/inventory/wms/labor", icon: UserCheck },
+  { key: "wmsReturns", url: "/inventory/wms/returns", icon: RotateCcw },
 ];
 
 const accountingNav: NavItem[] = [
   { key: "chartOfAccounts", url: "/accounting/chart-of-accounts", icon: BookOpen, section: "bookkeeping" },
   { key: "journalEntries", url: "/accounting/journal", icon: Calculator },
   { key: "generalLedger", url: "/accounting/ledger", icon: BookText },
+  { key: "bankAccounts", url: "/accounting/bank-accounts", icon: Landmark },
   { key: "recurringJournals", url: "/accounting/recurring-journals", icon: RefreshCw },
   { key: "invoices", url: "/accounting/invoices", icon: Receipt, section: "invoicingPayments" },
   { key: "proformaInvoices", url: "/accounting/proforma-invoices", icon: FileText },
   { key: "creditDebitNotes", url: "/accounting/credit-debit-notes", icon: BookOpen },
   { key: "recurringInvoices", url: "/accounting/recurring-invoices", icon: RefreshCw },
   { key: "bankStatements", url: "/accounting/bank-statements", icon: FileSpreadsheet },
+  { key: "documentImport", url: "/accounting/document-import", icon: FileInput },
   { key: "cashRegister", url: "/accounting/cash-register", icon: CreditCard },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "iosBalanceConfirmation", url: "/accounting/ios", icon: CheckSquare },
@@ -109,6 +113,7 @@ const accountingNav: NavItem[] = [
   { key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign },
   { key: "costCenterPL", url: "/accounting/reports/cost-center-pl", icon: BarChart3 },
   { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText, section: "taxClosing" },
+  { key: "invoiceRegister", url: "/accounting/invoice-register", icon: FileText },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "citTaxReturn", url: "/accounting/cit-return", icon: FileText },
   { key: "withholdingTax", url: "/accounting/withholding-tax", icon: Percent },
@@ -145,7 +150,7 @@ const analyticsNav: NavItem[] = [
 
 const crmNav: NavItem[] = [
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
-  { key: "partners", url: "/crm/companies", icon: Handshake, section: "records" },
+  { key: "partners", url: "/crm/partners", icon: Handshake, section: "records" },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
@@ -178,6 +183,8 @@ const hrNav: NavItem[] = [
   { key: "departments", url: "/hr/departments", icon: Building },
   { key: "positionTemplates", url: "/hr/position-templates", icon: Briefcase },
   { key: "workLogs", url: "/hr/work-logs", icon: Clock, section: "workingTime" },
+  { key: "workLogsBulk", url: "/hr/work-logs/bulk", icon: ClipboardCheck },
+  { key: "workLogsCalendar", url: "/hr/work-logs/calendar", icon: Calendar },
   { key: "overtimeHours", url: "/hr/overtime", icon: Timer },
   { key: "nightWork", url: "/hr/night-work", icon: Moon },
   { key: "attendance", url: "/hr/attendance", icon: Clock },
@@ -204,6 +211,12 @@ const productionNav: NavItem[] = [
   { key: "bottleneckPrediction", url: "/production/ai-planning/bottlenecks", icon: AlertTriangle },
   { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3 },
   { key: "productionCalendar", url: "/production/ai-planning/calendar", icon: Calendar },
+  { key: "productionKanban", url: "/production/kanban", icon: LayoutDashboard, section: "shopFloor" },
+  { key: "productionGantt", url: "/production/gantt", icon: CalendarDays },
+  { key: "qualityControl", url: "/production/quality", icon: ClipboardCheck },
+  { key: "productionMaintenance", url: "/production/maintenance", icon: Settings },
+  { key: "mrpEngine", url: "/production/mrp", icon: Calculator, section: "planning" },
+  { key: "costVarianceAnalysis", url: "/production/cost-variance", icon: TrendingDown, section: "reporting" },
 ];
 
 const documentsNav: NavItem[] = [
@@ -214,6 +227,7 @@ const documentsNav: NavItem[] = [
   { key: "dmsBrowser", url: "/documents/browser", icon: Search },
   { key: "dmsReports", url: "/documents/reports", icon: BarChart3 },
   { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
+  { key: "dmsSettings", url: "/documents/settings", icon: Settings, section: "dmsConfiguration" },
 ];
 
 const assetsNav: NavItem[] = [
@@ -252,7 +266,8 @@ const settingsNav: NavItem[] = [
   { key: "users", url: "/settings/users", icon: Users, section: "accessControl" },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
-  { key: "integrations", url: "/settings/integrations", icon: Plug, section: "system" },
+  { key: "businessRules", url: "/settings/business-rules", icon: FileText, section: "system" },
+  { key: "integrations", url: "/settings/integrations", icon: Plug },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
   { key: "dataProtection", url: "/settings/data-protection", icon: Shield },
