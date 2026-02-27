@@ -286,9 +286,12 @@ export default function ChartOfAccounts() {
           <DialogHeader><DialogTitle>{editId ? t("edit") : t("add")} — {t("account")}</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
+            <div className="space-y-1">
                 <Label>{t("accountCode")}</Label>
-                <Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} required />
+                <Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} required minLength={4} pattern=".{4,}" title="Account code must be at least 4 characters" />
+                {form.code.length > 0 && form.code.length < 4 && (
+                  <p className="text-xs text-destructive">Min. 4 characters required</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>{t("accountType")}</Label>

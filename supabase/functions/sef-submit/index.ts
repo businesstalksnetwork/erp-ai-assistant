@@ -589,11 +589,24 @@ Deno.serve(async (req) => {
 
     // Production mode: real API call with UBL XML payload
     try {
-      const uploadUrl = `${connection.api_url}/publicApi/sales-invoice/ubl/upload/${sefRequestId}`;
+      // Decrypt API key and URL if encrypted columns exist
+      let apiKey = connection.api_key_encrypted || connection.api_key || "";
+      let apiUrl = connection.api_url || "";
+      const encryptionKey = Deno.env.get("SEF_ENCRYPTION_KEY");
+      if (encryptionKey && connection.api_key_encrypted) {
+        const { data: decKey } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_key_encrypted, passphrase: encryptionKey });
+        if (decKey) apiKey = decKey;
+      }
+      if (encryptionKey && connection.api_url_encrypted) {
+        const { data: decUrl } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_url_encrypted, passphrase: encryptionKey });
+        if (decUrl) apiUrl = decUrl;
+      }
+
+      const uploadUrl = `${apiUrl}/publicApi/sales-invoice/ubl/upload/${sefRequestId}`;
       const apiRes = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          "ApiKey": connection.api_key_encrypted,
+          "ApiKey": apiKey,
           "Content-Type": "application/xml",
           "Accept": "application/json",
         },

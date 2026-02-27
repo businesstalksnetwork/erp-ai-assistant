@@ -250,16 +250,30 @@ Deno.serve(async (req) => {
 
     // Try real eUprava API if credentials configured
     let apiResult: any = null;
-    if (connection.euprava_username && connection.euprava_password_encrypted) {
+    const encryptionKey = Deno.env.get("SEF_ENCRYPTION_KEY");
+    if (connection.euprava_username && (connection.euprava_password_encrypted || connection.api_key_encrypted)) {
       try {
-        const eUpravaUrl = connection.environment === "production"
+        // Decrypt password if encryption key available
+        let password = connection.euprava_password_encrypted || "";
+        if (encryptionKey && connection.api_key_encrypted) {
+          const { data: decPwd } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_key_encrypted, passphrase: encryptionKey });
+          if (decPwd) password = decPwd;
+        }
+
+        // Decrypt custom URL if present
+        let eUpravaUrl = connection.environment === "production"
           ? "https://euprava.gov.rs/api/ebolovanje/submit"
           : "https://test.euprava.gov.rs/api/ebolovanje/submit";
+        if (encryptionKey && connection.api_url_encrypted) {
+          const { data: decUrl } = await supabase.rpc("decrypt_value", { encrypted_data: connection.api_url_encrypted, passphrase: encryptionKey });
+          if (decUrl) eUpravaUrl = decUrl;
+        }
+
         const apiResp = await fetch(eUpravaUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/xml",
-            "Authorization": `Basic ${btoa(`${connection.euprava_username}:${connection.euprava_password_encrypted}`)}`,
+            "Authorization": `Basic ${btoa(`${connection.euprava_username}:${password}`)}`,
           },
           body: rfzoXml,
         });
