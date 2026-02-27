@@ -34,6 +34,7 @@ export default function CustomizableDashboard() {
     addWidget,
     removeWidget,
     updateLayout,
+    updateConfig,
   } = useDashboardLayout();
 
   const [editMode, setEditMode] = useState(false);
@@ -183,6 +184,7 @@ export default function CustomizableDashboard() {
                 widgetConfig={w}
                 editMode={editMode}
                 onRemove={removeWidget}
+                onUpdateConfig={updateConfig}
               />
             ))}
           </div>

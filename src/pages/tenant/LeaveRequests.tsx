@@ -27,7 +27,7 @@ export default function LeaveRequests() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [rejectDialog, setRejectDialog] = useState<{ id: string } | null>(null);
+  const [rejectDialog, setRejectDialog] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -95,36 +95,68 @@ export default function LeaveRequests() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (request: any) => {
       const { error } = await supabase.from("leave_requests").update({
         status: "approved" as any,
         approved_by: user?.id,
         approved_at: new Date().toISOString(),
-      }).eq("id", id);
+      }).eq("id", request.id);
       if (error) throw error;
+      return request;
     },
-    onSuccess: () => {
+    onSuccess: async (request) => {
       qc.invalidateQueries({ queryKey: ["leave-requests"] });
       toast.success(t("requestApproved"));
+      try {
+        const empName = request.employees?.full_name || "Zaposleni";
+        await supabase.functions.invoke("create-notification", {
+          body: {
+            tenant_id: tenantId,
+            target_user_ids: "all_tenant_members",
+            type: "info",
+            category: "hr",
+            title: "Zahtev odobren",
+            message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odobren.`,
+            entity_type: "leave_request",
+            entity_id: request.id,
+          },
+        });
+      } catch { /* notification failure non-blocking */ }
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+    mutationFn: async ({ request, reason }: { request: any; reason: string }) => {
       const { error } = await supabase.from("leave_requests").update({
         status: "rejected" as any,
         approved_by: user?.id,
         approved_at: new Date().toISOString(),
         rejection_reason: reason || null,
-      }).eq("id", id);
+      }).eq("id", request.id);
       if (error) throw error;
+      return { request, reason };
     },
-    onSuccess: () => {
+    onSuccess: async ({ request, reason }) => {
       qc.invalidateQueries({ queryKey: ["leave-requests"] });
       setRejectDialog(null);
       setRejectionReason("");
       toast.success(t("requestRejected"));
+      try {
+        const empName = request.employees?.full_name || "Zaposleni";
+        await supabase.functions.invoke("create-notification", {
+          body: {
+            tenant_id: tenantId,
+            target_user_ids: "all_tenant_members",
+            type: "warning",
+            category: "hr",
+            title: "Zahtev odbijen",
+            message: `Zahtev za odsustvo (${empName}, ${request.start_date} - ${request.end_date}) je odbijen.${reason ? ` Razlog: ${reason}` : ""}`,
+            entity_type: "leave_request",
+            entity_id: request.id,
+          },
+        });
+      } catch { /* notification failure non-blocking */ }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -172,11 +204,11 @@ export default function LeaveRequests() {
       render: (r) => r.status === "pending" ? (
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" className="h-7 w-7"
-            onClick={() => approveMutation.mutate(r.id)} disabled={approveMutation.isPending}>
+            onClick={() => approveMutation.mutate(r)} disabled={approveMutation.isPending}>
             <Check className="h-4 w-4 text-primary" />
           </Button>
           <Button size="icon" variant="ghost" className="h-7 w-7"
-            onClick={() => { setRejectDialog({ id: r.id }); setRejectionReason(""); }}>
+            onClick={() => { setRejectDialog(r); setRejectionReason(""); }}>
             <X className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -326,7 +358,7 @@ export default function LeaveRequests() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialog(null)}>{t("cancel")}</Button>
             <Button variant="destructive" onClick={() => {
-              if (rejectDialog) rejectMutation.mutate({ id: rejectDialog.id, reason: rejectionReason });
+              if (rejectDialog) rejectMutation.mutate({ request: rejectDialog, reason: rejectionReason });
             }} disabled={rejectMutation.isPending}>
               {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("rejectRequest")}
             </Button>
