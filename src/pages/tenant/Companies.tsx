@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MobileFilterBar } from "@/components/shared/MobileFilterBar";
 import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/ResponsiveTable";
+import { usePartnerSuggestion } from "@/hooks/usePartnerSuggestion";
 
 const TYPE_COLORS: Record<string, string> = {
   customer: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -66,6 +67,7 @@ export default function Companies() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [pibLooking, setPibLooking] = useState(false);
+  const { suggestions, search: searchPartner, clear: clearSuggestions } = usePartnerSuggestion(tenantId);
 
   const { data: partners = [], isLoading } = useQuery({
     queryKey: ["partners-crm", tenantId],
@@ -164,7 +166,7 @@ export default function Companies() {
     }
   };
 
-  const openAdd = () => { setEditId(null); setForm(emptyForm); setSelectedCats([]); setOpen(true); };
+  const openAdd = () => { setEditId(null); setForm(emptyForm); setSelectedCats([]); clearSuggestions(); setOpen(true); };
   const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
@@ -298,7 +300,25 @@ export default function Companies() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>{t("name")} *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+              <div className="grid gap-2">
+                <Label>{t("name")} *</Label>
+                <Input value={form.name} onChange={e => {
+                  const val = e.target.value;
+                  setForm({ ...form, name: val });
+                  if (!editId) searchPartner(val, form.pib);
+                }} />
+                {!editId && suggestions.length > 0 && (
+                  <div className="border rounded-md p-2 bg-muted/50 space-y-1">
+                    <p className="text-[10px] text-muted-foreground font-medium">⚠️ Mogući duplikati:</p>
+                    {suggestions.map(s => (
+                      <div key={s.id} className="flex items-center justify-between text-xs py-0.5">
+                        <span className="font-medium">{s.name}</span>
+                        <span className="text-muted-foreground">{s.pib || ""} ({Math.round(s.similarity * 100)}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="grid gap-2"><Label>{t("displayName")}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
             </div>
             <div className="grid gap-2">

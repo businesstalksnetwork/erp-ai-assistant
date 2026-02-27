@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.generate-m4-xml]
 verify_jwt = false
+
+[functions.ai-weekly-email]
+verify_jwt = false
