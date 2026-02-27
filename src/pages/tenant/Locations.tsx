@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Search, Settings2 } from "lucide-react";
 
-const emptyForm = { name: "", type: "office", address: "", city: "", is_active: true, default_warehouse_id: "", default_price_list_id: "", location_type_id: "" };
+const emptyForm = { name: "", type: "office", address: "", city: "", is_active: true, default_warehouse_id: "", default_price_list_id: "", location_type_id: "", parent_id: "", company_id: "" };
 const emptyTypeForm = { name: "", code: "", has_warehouse: false, has_sellers: false, is_active: true };
 
 export default function Locations() {
@@ -55,6 +55,15 @@ export default function Locations() {
     enabled: !!tenantId,
   });
 
+  const { data: companies = [] } = useQuery({
+    queryKey: ["org-companies", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("id, legal_name").eq("tenant_id", tenantId!).order("legal_name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses_all", tenantId],
     queryFn: async () => {
@@ -86,6 +95,8 @@ export default function Locations() {
         default_warehouse_id: form.default_warehouse_id || null,
         default_price_list_id: form.default_price_list_id || null,
         location_type_id: form.location_type_id || null,
+        parent_id: form.parent_id || null,
+        company_id: form.company_id || null,
       };
       if (editing) {
         const { error } = await supabase.from("locations").update(payload).eq("id", editing.id);
@@ -132,6 +143,7 @@ export default function Locations() {
       name: loc.name, type: loc.type, address: loc.address || "", city: loc.city || "",
       is_active: loc.is_active, default_warehouse_id: loc.default_warehouse_id || "",
       default_price_list_id: loc.default_price_list_id || "", location_type_id: loc.location_type_id || "",
+      parent_id: loc.parent_id || "", company_id: loc.company_id || "",
     });
     setDialogOpen(true);
   };
@@ -179,8 +191,9 @@ export default function Locations() {
             <TableRow>
               <TableHead>{t("name")}</TableHead>
               <TableHead>{t("type")}</TableHead>
+              <TableHead>{t("parentLocation" as any)}</TableHead>
+              <TableHead>{t("company" as any)}</TableHead>
               <TableHead>{t("warehouse")}</TableHead>
-              <TableHead>{t("address")}</TableHead>
               <TableHead>{t("city")}</TableHead>
               <TableHead>{t("status")}</TableHead>
               <TableHead className="w-24">{t("actions")}</TableHead>
@@ -188,13 +201,14 @@ export default function Locations() {
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
             ) : filtered.map((l: any) => (
               <TableRow key={l.id}>
                 <TableCell className="font-medium">{l.name}</TableCell>
                 <TableCell><Badge variant="outline">{getTypeName(l)}</Badge></TableCell>
+                <TableCell>{l.parent_id ? locations.find((x: any) => x.id === l.parent_id)?.name || "—" : "—"}</TableCell>
+                <TableCell>{l.company_id ? companies.find((c: any) => c.id === l.company_id)?.legal_name || "—" : "—"}</TableCell>
                 <TableCell>{getWarehouseName(l) || "—"}</TableCell>
-                <TableCell>{l.address}</TableCell>
                 <TableCell>{l.city}</TableCell>
                 <TableCell><Badge variant={l.is_active ? "default" : "secondary"}>{l.is_active ? t("active") : t("inactive")}</Badge></TableCell>
                 <TableCell>
@@ -228,6 +242,30 @@ export default function Locations() {
                   {locationTypes.length === 0 && <SelectItem value="none">—</SelectItem>}
                   {locationTypes.filter((lt: any) => lt.is_active).map((lt: any) => (
                     <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("parentLocation" as any)}</Label>
+              <Select value={form.parent_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, parent_id: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— —</SelectItem>
+                  {locations.filter((l: any) => l.id !== editing?.id).map((l: any) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("company" as any)}</Label>
+              <Select value={form.company_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, company_id: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— —</SelectItem>
+                  {companies.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.legal_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

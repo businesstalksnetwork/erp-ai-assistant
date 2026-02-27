@@ -33,6 +33,7 @@ const SecurityIncidents = React.lazy(() => import("@/pages/tenant/SecurityIncide
 const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
 const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/NotificationCategorySettings"));
 const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHealth"));
+const OrgCompanies = React.lazy(() => import("@/pages/tenant/OrgCompanies"));
 
 export const settingsRoutes = (
   <>
@@ -42,6 +43,7 @@ export const settingsRoutes = (
     <Route path="settings/audit-log" element={<ProtectedRoute requiredModule="settings-audit-log"><PageErrorBoundary><AuditLog /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/legal-entities" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><LegalEntities /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/locations" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><Locations /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/org-companies" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><OrgCompanies /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/warehouses" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><Warehouses /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/cost-centers" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><CostCenters /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/bank-accounts" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><BankAccounts /></PageErrorBoundary></ProtectedRoute>} />
