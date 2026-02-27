@@ -16,8 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, ArrowLeft, Save, Send, BookOpen, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, Send, BookOpen, AlertTriangle, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
 import GlPostingPreview from "@/components/accounting/GlPostingPreview";
@@ -100,7 +101,7 @@ export default function InvoiceForm() {
   const [status, setStatus] = useState("draft");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [vatDate, setVatDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final">("regular");
+  const [invoiceType, setInvoiceType] = useState<"regular" | "advance" | "advance_final" | "proforma" | "credit_note" | "debit_note">("regular");
   const [advanceInvoiceId, setAdvanceInvoiceId] = useState<string>("");
   const [advanceAmountApplied, setAdvanceAmountApplied] = useState(0);
   const [legalEntityId, setLegalEntityId] = useState<string>("");
@@ -510,7 +511,16 @@ export default function InvoiceForm() {
   });
 
   const isReadOnly = status === "sent" || status === "paid" || status === "cancelled" || status === "posted";
-  const canPost = isEdit && status === "sent" && grandTotal > 0;
+  const isProforma = invoiceType === "proforma";
+  const canPost = isEdit && status === "sent" && grandTotal > 0 && !isProforma;
+
+  const INVOICE_TYPE_TABS = [
+    { value: "regular", label: t("invoiceTypeFinal") },
+    { value: "advance", label: t("invoiceTypeAdvance") },
+    { value: "proforma", label: t("invoiceTypeProforma") },
+    { value: "credit_note", label: t("invoiceTypeCreditNote") },
+    { value: "debit_note", label: t("invoiceTypeDebitNote") },
+  ];
 
   return (
     <div className="space-y-6 w-full">
@@ -520,6 +530,29 @@ export default function InvoiceForm() {
         </Button>
         <h1 className="text-2xl font-bold">{isEdit ? t("editInvoice") : t("newInvoice")}</h1>
       </div>
+
+      {/* Invoice Type Tabs */}
+      {!isReadOnly && (
+        <Tabs value={invoiceType} onValueChange={(v) => setInvoiceType(v as any)} className="w-full">
+          <TabsList className="w-full grid grid-cols-5">
+            {INVOICE_TYPE_TABS.map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className="text-xs sm:text-sm">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+
+      {/* Proforma notice */}
+      {isProforma && (
+        <Alert>
+          <FileText className="h-4 w-4" />
+          <AlertDescription>
+            {t("proformaNotice")}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Locked PDV period warning */}
       {isLocked && (
@@ -557,16 +590,10 @@ export default function InvoiceForm() {
             <Label>{t("dueDate")}</Label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isReadOnly} />
           </div>
+          {/* Invoice type shown as read-only badge in header since tabs control it */}
           <div>
             <Label>{t("invoiceType")}</Label>
-            <Select value={invoiceType} onValueChange={(v) => setInvoiceType(v as any)} disabled={isReadOnly}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="regular">{t("invoiceTypeRegular")}</SelectItem>
-                <SelectItem value="advance">{t("invoiceTypeAdvance")}</SelectItem>
-                <SelectItem value="advance_final">{t("invoiceTypeAdvanceFinal")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input value={INVOICE_TYPE_TABS.find(t => t.value === invoiceType)?.label || invoiceType} readOnly className="bg-muted" />
           </div>
           {invoiceType === "advance_final" && (
             <div className="md:col-span-2">
@@ -885,27 +912,49 @@ export default function InvoiceForm() {
         </CardContent>
       </Card>
 
-      {/* GL Posting Preview */}
-      <GlPostingPreview
-        lines={lines}
-        partnerName={partnerName}
-        invoiceType={invoiceType}
-        currency={currency}
-        subtotal={subtotal}
-        totalTax={totalTax}
-        grandTotal={grandTotal}
-      />
+      {/* GL Posting Preview — hidden for proforma */}
+      {!isProforma && (
+        <GlPostingPreview
+          lines={lines}
+          partnerName={partnerName}
+          invoiceType={invoiceType}
+          currency={currency}
+          subtotal={subtotal}
+          totalTax={totalTax}
+          grandTotal={grandTotal}
+        />
+      )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         {!isReadOnly && (
           <>
+            {/* Save Draft */}
             <Button variant="outline" onClick={() => saveMutation.mutate("draft")} disabled={saveMutation.isPending}>
               <Save className="h-4 w-4 mr-2" /> {t("saveDraft")}
             </Button>
-            <Button onClick={() => saveMutation.mutate("sent")} disabled={saveMutation.isPending}>
-              <Send className="h-4 w-4 mr-2" /> {t("postInvoice")}
-            </Button>
+
+            {/* Proknjizi (post to GL only) — not for proforma */}
+            {!isProforma && (
+              <Button
+                onClick={() => saveMutation.mutate("sent")}
+                disabled={saveMutation.isPending}
+                className="bg-primary text-primary-foreground"
+              >
+                <BookOpen className="h-4 w-4 mr-2" /> {t("postToGL")}
+              </Button>
+            )}
+
+            {/* Proknjizi i pošalji na SEF — not for proforma */}
+            {!isProforma && (
+              <Button
+                onClick={() => saveMutation.mutate("sent")}
+                disabled={saveMutation.isPending}
+                variant="default"
+              >
+                <Send className="h-4 w-4 mr-2" /> {t("postAndSendSEF")}
+              </Button>
+            )}
           </>
         )}
         {canPost && (
@@ -915,7 +964,7 @@ export default function InvoiceForm() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <BookOpen className="h-4 w-4 mr-2" />
-            {postMutation.isPending ? "Knjiženje..." : "Proknjizi"}
+            {postMutation.isPending ? "Knjiženje..." : t("postToGL")}
           </Button>
         )}
         {!isReadOnly && (

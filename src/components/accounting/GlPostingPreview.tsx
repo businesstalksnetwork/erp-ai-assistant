@@ -47,12 +47,16 @@ export default function GlPostingPreview({
 
     const result: PostingLine[] = [];
 
-    // DR: Receivable (Kupci - 2040)
+    // For credit notes, reverse debit/credit
+    const drSide = invoiceType === "credit_note" ? 0 : grandTotal;
+    const crSide = invoiceType === "credit_note" ? grandTotal : 0;
+
+    // DR/CR: Receivable (Kupci - 2040)
     result.push({
       accountCode: "2040",
       accountName: "Kupci u zemlji",
-      debit: grandTotal,
-      credit: 0,
+      debit: drSide,
+      credit: crSide,
       description: `${partnerName || t("partner")}`,
     });
 
@@ -63,6 +67,9 @@ export default function GlPostingPreview({
       const type = l.item_type || "service";
       revenueByType[type] = (revenueByType[type] || 0) + l.line_total;
     });
+
+    const isCredit = invoiceType === "credit_note";
+    const isDebit = invoiceType === "debit_note";
 
     const revenueAccounts: Record<string, { code: string; name: string }> = {
       goods: { code: "6120", name: "Prihodi od prodaje robe" },
@@ -75,8 +82,8 @@ export default function GlPostingPreview({
       result.push({
         accountCode: acc.code,
         accountName: acc.name,
-        debit: 0,
-        credit: amount,
+        debit: isCredit ? amount : 0,
+        credit: isCredit ? 0 : amount,
         description: l10nItemType(type),
       });
     });
@@ -86,8 +93,8 @@ export default function GlPostingPreview({
       result.push({
         accountCode: "4700",
         accountName: "Obaveze za PDV",
-        debit: 0,
-        credit: totalTax,
+        debit: isCredit ? totalTax : 0,
+        credit: isCredit ? 0 : totalTax,
         description: "PDV",
       });
     }

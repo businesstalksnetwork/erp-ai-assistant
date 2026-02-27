@@ -928,6 +928,13 @@ export const translations = {
     invoiceTypeRegular: "Regular",
     invoiceTypeAdvance: "Advance",
     invoiceTypeAdvanceFinal: "Final (advance deduction)",
+    invoiceTypeFinal: "Final",
+    invoiceTypeProforma: "Pro Forma",
+    invoiceTypeCreditNote: "Credit Note",
+    invoiceTypeDebitNote: "Debit Note",
+    proformaNotice: "Pro forma invoices do not affect the general ledger. They serve as a preliminary bill before the final invoice is issued.",
+    postToGL: "Post to GL",
+    postAndSendSEF: "Post & Send to SEF",
 
     // Year-End Closing
     yearEndClosing: "Year-End Closing",
@@ -3754,6 +3761,13 @@ export const translations = {
     invoiceTypeRegular: "Redovna",
     invoiceTypeAdvance: "Avansna",
     invoiceTypeAdvanceFinal: "Konačna (odbitak avansa)",
+    invoiceTypeFinal: "Konačna",
+    invoiceTypeProforma: "Predračun",
+    invoiceTypeCreditNote: "Knjižno odobrenje",
+    invoiceTypeDebitNote: "Knjižno zaduženje",
+    proformaNotice: "Predračuni ne utiču na Glavnu knjigu. Služe kao preliminarni račun pre izdavanja konačne fakture.",
+    postToGL: "Proknjizi",
+    postAndSendSEF: "Proknjizi i pošalji na SEF",
 
     // Year-End Closing
     yearEndClosing: "Godišnje zatvaranje",
