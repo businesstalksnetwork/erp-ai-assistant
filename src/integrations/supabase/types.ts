@@ -3806,6 +3806,56 @@ export type Database = {
           },
         ]
       }
+      dashboard_widget_configs: {
+        Row: {
+          config_json: Json
+          created_at: string
+          height: number
+          id: string
+          is_visible: boolean
+          position_index: number
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          widget_id: string
+          width: number
+        }
+        Insert: {
+          config_json?: Json
+          created_at?: string
+          height?: number
+          id?: string
+          is_visible?: boolean
+          position_index?: number
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          widget_id: string
+          width?: number
+        }
+        Update: {
+          config_json?: Json
+          created_at?: string
+          height?: number
+          id?: string
+          is_visible?: boolean
+          position_index?: number
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          widget_id?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_widget_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_retention_log: {
         Row: {
           action_taken: string
@@ -20519,6 +20569,10 @@ export type Database = {
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_default_dashboard: {
+        Args: { p_role: string; p_tenant_id: string; p_user_id: string }
         Returns: undefined
       }
       seed_default_posting_rules: {
