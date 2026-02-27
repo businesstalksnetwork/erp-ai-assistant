@@ -53,7 +53,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -162,6 +162,7 @@ const analyticsNav: NavItem[] = [
   { key: "breakEvenAnalysis", url: "/analytics/break-even", icon: Calculator, section: "strategicPlanning" },
   { key: "businessPlanning", url: "/analytics/planning", icon: Briefcase },
   { key: "dataQualityDashboard", url: "/analytics/data-quality", icon: ShieldCheck },
+  { key: "pivotAnalytics", url: "/analytics/pivot", icon: TableProperties },
 ];
 
 const crmNav: NavItem[] = [
