@@ -150,7 +150,8 @@ const analyticsNav: NavItem[] = [
 
 const crmNav: NavItem[] = [
   { key: "crmDashboard", url: "/crm", icon: LayoutDashboard, section: "overview" },
-  { key: "partners", url: "/crm/partners", icon: Handshake, section: "records" },
+  { key: "companies", url: "/crm/companies", icon: Building, section: "records" },
+  { key: "partners", url: "/crm/partners", icon: Handshake },
   { key: "contacts", url: "/crm/contacts", icon: Users },
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
@@ -277,6 +278,7 @@ const settingsNav: NavItem[] = [
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
   { key: "businessRules", url: "/settings/business-rules", icon: FileText },
   { key: "integrations", url: "/settings/integrations", icon: Plug, section: "settingsIntegrations" },
+  { key: "integrationHealth", url: "/settings/integration-health", icon: Activity },
   { key: "partnerCategories", url: "/settings/partner-categories", icon: Handshake },
   { key: "opportunityStages", url: "/settings/opportunity-stages", icon: TrendingUp },
   { key: "discountApprovalRules", url: "/settings/discount-rules", icon: Percent },
