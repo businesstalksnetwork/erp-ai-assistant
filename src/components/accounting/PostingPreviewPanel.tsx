@@ -77,13 +77,23 @@ export default function PostingPreviewPanel({ lines, currency = "RSD", title }: 
   );
 }
 
-/** Helper to build supplier invoice approval posting preview lines */
-export function buildSupplierInvoicePreviewLines(inv: { amount: number; tax_amount: number; total: number; invoice_number: string }): PreviewLine[] {
+/** Helper to build supplier invoice approval posting preview lines.
+ * Handles non-deductible VAT (Section 9): posts to expense account instead of input VAT.
+ */
+export function buildSupplierInvoicePreviewLines(inv: {
+  amount: number; tax_amount: number; total: number; invoice_number: string;
+  vat_non_deductible?: number;
+}): PreviewLine[] {
+  const nonDeductible = inv.vat_non_deductible || 0;
+  const deductibleVat = inv.tax_amount - nonDeductible;
   const lines: PreviewLine[] = [
     { accountCode: "7000", accountName: "Nabavna vrednost robe", debit: inv.amount, credit: 0, description: `COGS - ${inv.invoice_number}` },
   ];
-  if (inv.tax_amount > 0) {
-    lines.push({ accountCode: "2700", accountName: "PDV u primljenim fakturama", debit: inv.tax_amount, credit: 0, description: `Ulazni PDV - ${inv.invoice_number}` });
+  if (deductibleVat > 0) {
+    lines.push({ accountCode: "2700", accountName: "PDV u primljenim fakturama", debit: deductibleVat, credit: 0, description: `Ulazni PDV (odbivi) - ${inv.invoice_number}` });
+  }
+  if (nonDeductible > 0) {
+    lines.push({ accountCode: "5790", accountName: "Troškovi neodbivih poreza", debit: nonDeductible, credit: 0, description: `Neodbivi PDV (sek. 9) - ${inv.invoice_number}` });
   }
   lines.push({ accountCode: "4350", accountName: "Dobavljači u zemlji", debit: 0, credit: inv.total, description: `Obaveza - ${inv.invoice_number}` });
   return lines;

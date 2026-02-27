@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Calculator, Eye, Send, FileDown, BookOpen, Lock, Unlock } from "lucide-react";
+import { Plus, Calculator, Eye, Send, FileDown, BookOpen, Lock, Unlock, Edit2 } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
@@ -36,6 +36,8 @@ export default function PdvPeriods() {
   const [formLegalEntityId, setFormLegalEntityId] = useState("");
   const { entities: legalEntities } = useLegalEntities();
   const [popdvResult, setPopdvResult] = useState<PopdvPeriodResult | null>(null);
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editOverrides, setEditOverrides] = useState<Record<string, number>>({});
 
   const { data: periods = [], isLoading } = useQuery({
     queryKey: ["pdv_periods", tenantId],
@@ -210,6 +212,38 @@ export default function PdvPeriods() {
     }
   };
 
+  /** Download POPDV XML for ePorezi */
+  const downloadPopdvXml = (period: any) => {
+    try {
+      const le = legalEntities.find(e => e.id === (period as any).legal_entity_id) || legalEntities[0];
+      const xmlParts: string[] = [];
+      xmlParts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+      xmlParts.push(`<POPDV xmlns="http://www.purs.gov.rs/popdv">`);
+      xmlParts.push(`  <PIB>${le?.pib || ""}</PIB>`);
+      xmlParts.push(`  <NazivObveznika>${le?.name || ""}</NazivObveznika>`);
+      xmlParts.push(`  <PeriodOd>${period.start_date}</PeriodOd>`);
+      xmlParts.push(`  <PeriodDo>${period.end_date}</PeriodDo>`);
+      for (const sec of POPDV_SECTIONS) {
+        const sectionEntries = popdvSummary.filter(s => s.code.startsWith(sec.id + ".") || s.code === sec.id);
+        if (sectionEntries.length === 0) continue;
+        xmlParts.push(`  <Sekcija id="${sec.id}">`);
+        for (const entry of sectionEntries) {
+          xmlParts.push(`    <Polje id="${entry.code}"><Osnovica>${entry.baseTotal.toFixed(2)}</Osnovica><PDV>${entry.vatTotal.toFixed(2)}</PDV></Polje>`);
+        }
+        xmlParts.push(`  </Sekcija>`);
+      }
+      xmlParts.push(`</POPDV>`);
+      const blob = new Blob([xmlParts.join("\n")], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `POPDV_${period.period_name.replace(/\s/g, "_")}.xml`;
+      a.click(); URL.revokeObjectURL(url);
+      toast({ title: t("success") });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    }
+  };
+
   const settlePdvMutation = useMutation({
     mutationFn: async (periodId: string) => {
       const { data, error } = await supabase.rpc("create_pdv_settlement_journal" as any, {
@@ -258,8 +292,28 @@ export default function PdvPeriods() {
     return <Badge variant="outline">{t("open")}</Badge>;
   };
 
-  // Build POPDV summary from pdv_entries
-  const popdvSummary = (() => {
+  // Build full 11-section POPDV summary from pdv_entries with editable overrides
+  const POPDV_SECTIONS = [
+    { id: "1", name: "Oslobođeni promet sa pravom na odbitak prethodnog poreza" },
+    { id: "2", name: "Oslobođeni promet bez prava na odbitak prethodnog poreza" },
+    { id: "3", name: "Oporezivi promet dobara i usluga" },
+    { id: "3a", name: "Obračunati PDV za promet drugog lica (interno)" },
+    { id: "4", name: "Posebni postupci oporezivanja" },
+    { id: "5", name: "Ukupan promet i ukupno obračunati PDV" },
+    { id: "6", name: "Uvoz dobara" },
+    { id: "7", name: "Nabavka od poljoprivrednika" },
+    { id: "8a", name: "Nabavke dobara i usluga u zemlji" },
+    { id: "8b", name: "Nabavke dobara i usluga od stranih lica (interni obračun)" },
+    { id: "8v", name: "Nabavke uz proviziju posrednika" },
+    { id: "8g", name: "Nabavke od inostranih lica" },
+    { id: "8d", name: "Nabavke uz proviziju (ostalo)" },
+    { id: "8e", name: "Ukupan prethodni porez (odbivi)" },
+    { id: "9", name: "Bez prava odbitka prethodnog poreza" },
+    { id: "10", name: "Poreska obaveza / Poreski kredit" },
+    { id: "11", name: "Promet van Republike / Ostalo" },
+  ];
+
+  const popdvSummary = useMemo(() => {
     const groups: Record<string, { code: string; direction: string; baseTotal: number; vatTotal: number; count: number }> = {};
     for (const e of entries) {
       const code = e.popdv_section;
@@ -268,8 +322,16 @@ export default function PdvPeriods() {
       groups[code].vatTotal += Number(e.vat_amount || 0);
       groups[code].count++;
     }
+    // Apply overrides
+    for (const [key, val] of Object.entries(editOverrides)) {
+      const [code, field] = key.split(":");
+      if (groups[code]) {
+        if (field === "base") groups[code].baseTotal = val;
+        if (field === "vat") groups[code].vatTotal = val;
+      }
+    }
     return Object.values(groups).sort((a, b) => a.code.localeCompare(b.code));
-  })();
+  }, [entries, editOverrides]);
 
   // PP-PDV display section
   const renderPpPdv = () => {
@@ -420,6 +482,9 @@ export default function PdvPeriods() {
               <Button variant="outline" size="sm" onClick={() => downloadPpPdvXml(selectedPeriod)}>
                 <FileDown className="h-4 w-4 mr-2" />PP-PDV XML
               </Button>
+              <Button variant="outline" size="sm" onClick={() => downloadPopdvXml(selectedPeriod)}>
+                <FileDown className="h-4 w-4 mr-2" />POPDV XML
+              </Button>
               {selectedPeriod.status === "submitted" && (
                 <Button variant="outline" size="sm" onClick={() => settlePdvMutation.mutate(selectedPeriod.id)} disabled={settlePdvMutation.isPending}>
                   <BookOpen className="h-4 w-4 mr-2" />Zatvori PDV
@@ -448,45 +513,125 @@ export default function PdvPeriods() {
             </TabsList>
 
             <TabsContent value="popdv" className="space-y-4">
-              <h3 className="text-lg font-semibold">{t("popdvForm")} — {t("popdvSummary")}</h3>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("popdvSection")}</TableHead>
-                      <TableHead>{t("pdvDirection")}</TableHead>
-                      <TableHead className="text-right">{t("pdvBaseAmount")}</TableHead>
-                      <TableHead className="text-right">{t("pdvVatAmount")}</TableHead>
-                      <TableHead className="text-right">{t("pdvEntryCount")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {popdvSummary.map(sec => (
-                      <TableRow key={sec.code} className={sec.code.startsWith("3a") ? "bg-blue-50 dark:bg-blue-950/30" : ""}>
-                        <TableCell className="font-mono font-bold">{sec.code}</TableCell>
-                        <TableCell><Badge variant={sec.direction === "output" ? "default" : "destructive"}>{sec.direction === "output" ? t("pdvOutput") : t("pdvInput")}</Badge></TableCell>
-                        <TableCell className="text-right font-mono">{fmt(sec.baseTotal)}</TableCell>
-                        <TableCell className="text-right font-mono">{fmt(sec.vatTotal)}</TableCell>
-                        <TableCell className="text-right">{sec.count}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="font-bold bg-muted/50">
-                      <TableCell className="text-right">{t("pdvOutputVat")} (Σ):</TableCell>
-                      <TableCell />
-                      <TableCell className="text-right font-mono">{fmt(popdvSummary.filter(s => s.direction === "output").reduce((a, s) => a + s.baseTotal, 0))}</TableCell>
-                      <TableCell className="text-right font-mono">{fmt(selectedPeriod.output_vat)}</TableCell>
-                      <TableCell />
-                    </TableRow>
-                    <TableRow className="font-bold bg-muted/50">
-                      <TableCell className="text-right">{t("pdvInputVat")} (Σ):</TableCell>
-                      <TableCell />
-                      <TableCell className="text-right font-mono">{fmt(popdvSummary.filter(s => s.direction === "input").reduce((a, s) => a + s.baseTotal, 0))}</TableCell>
-                      <TableCell className="text-right font-mono">{fmt(selectedPeriod.input_vat)}</TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableBody>
-                </Table>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{t("popdvForm")} — {t("popdvSummary")}</h3>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Edit2 className="h-3 w-3" /> Kliknite na iznos za ručnu korekciju
+                </p>
               </div>
+              {/* Render by section groups */}
+              {POPDV_SECTIONS.map(sec => {
+                const sectionRows = popdvSummary.filter(s => {
+                  if (sec.id.includes(".")) return s.code === sec.id;
+                  return s.code.startsWith(sec.id + ".") || s.code === sec.id;
+                });
+                if (sectionRows.length === 0) return null;
+                const sectionBase = sectionRows.reduce((a, s) => a + s.baseTotal, 0);
+                const sectionVat = sectionRows.reduce((a, s) => a + s.vatTotal, 0);
+                return (
+                  <Card key={sec.id} className="border-l-4 border-l-primary/30">
+                    <CardHeader className="py-2 px-4">
+                      <CardTitle className="text-sm font-medium">
+                        <span className="font-mono text-primary mr-2">§{sec.id}</span>
+                        {sec.name}
+                        <span className="ml-auto float-right font-mono text-muted-foreground text-xs">
+                          Osnovica: {fmt(sectionBase)} | PDV: {fmt(sectionVat)}
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Polje</TableHead>
+                            <TableHead>Smer</TableHead>
+                            <TableHead className="text-right w-[150px]">Osnovica</TableHead>
+                            <TableHead className="text-right w-[150px]">PDV</TableHead>
+                            <TableHead className="text-right w-[80px]">Stavki</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sectionRows.map(row => (
+                            <TableRow key={row.code} className={row.code.startsWith("3a") ? "bg-accent/30" : ""}>
+                              <TableCell className="font-mono font-bold text-sm">{row.code}</TableCell>
+                              <TableCell>
+                                <Badge variant={row.direction === "output" ? "default" : "secondary"} className="text-xs">
+                                  {row.direction === "output" ? "Izlaz" : "Ulaz"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right p-1">
+                                {editingCell === `${row.code}:base` ? (
+                                  <Input
+                                    type="number" step="0.01" autoFocus
+                                    defaultValue={row.baseTotal}
+                                    className="h-7 text-right font-mono w-[130px] ml-auto"
+                                    onBlur={(e) => {
+                                      setEditOverrides(prev => ({ ...prev, [`${row.code}:base`]: Number(e.target.value) }));
+                                      setEditingCell(null);
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`font-mono text-sm cursor-pointer hover:underline ${editOverrides[`${row.code}:base`] !== undefined ? "text-primary font-semibold" : ""}`}
+                                    onClick={() => setEditingCell(`${row.code}:base`)}
+                                  >
+                                    {fmt(row.baseTotal)}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right p-1">
+                                {editingCell === `${row.code}:vat` ? (
+                                  <Input
+                                    type="number" step="0.01" autoFocus
+                                    defaultValue={row.vatTotal}
+                                    className="h-7 text-right font-mono w-[130px] ml-auto"
+                                    onBlur={(e) => {
+                                      setEditOverrides(prev => ({ ...prev, [`${row.code}:vat`]: Number(e.target.value) }));
+                                      setEditingCell(null);
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                  />
+                                ) : (
+                                  <span
+                                    className={`font-mono text-sm cursor-pointer hover:underline ${editOverrides[`${row.code}:vat`] !== undefined ? "text-primary font-semibold" : ""}`}
+                                    onClick={() => setEditingCell(`${row.code}:vat`)}
+                                  >
+                                    {fmt(row.vatTotal)}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">{row.count}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {/* Section totals */}
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-muted/30">
+                  <CardContent className="py-3 flex justify-between items-center">
+                    <span className="font-semibold">{t("pdvOutputVat")} (Σ)</span>
+                    <span className="font-mono font-bold">{fmt(popdvSummary.filter(s => s.direction === "output").reduce((a, s) => a + s.vatTotal, 0))} RSD</span>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/30">
+                  <CardContent className="py-3 flex justify-between items-center">
+                    <span className="font-semibold">{t("pdvInputVat")} (Σ)</span>
+                    <span className="font-mono font-bold">{fmt(popdvSummary.filter(s => s.direction === "input").reduce((a, s) => a + s.vatTotal, 0))} RSD</span>
+                  </CardContent>
+                </Card>
+              </div>
+              {Object.keys(editOverrides).length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">{Object.keys(editOverrides).length} ručnih korekcija</Badge>
+                  <Button variant="ghost" size="sm" onClick={() => setEditOverrides({})}>Poništi korekcije</Button>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="pppdv" className="space-y-4">
