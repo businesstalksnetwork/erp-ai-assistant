@@ -10370,6 +10370,65 @@ export type Database = {
           },
         ]
       }
+      leave_policies: {
+        Row: {
+          accrual_method: string
+          annual_entitlement: number
+          created_at: string
+          id: string
+          is_active: boolean
+          leave_type: string
+          max_carryover: number
+          max_consecutive_days: number | null
+          min_days_advance: number
+          name: string
+          probation_months: number
+          requires_approval: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          accrual_method?: string
+          annual_entitlement?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          leave_type?: string
+          max_carryover?: number
+          max_consecutive_days?: number | null
+          min_days_advance?: number
+          name: string
+          probation_months?: number
+          requires_approval?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          accrual_method?: string
+          annual_entitlement?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          leave_type?: string
+          max_carryover?: number
+          max_consecutive_days?: number | null
+          min_days_advance?: number
+          name?: string
+          probation_months?: number
+          requires_approval?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           approved_at: string | null
@@ -20059,6 +20118,10 @@ export type Database = {
         }
         Returns: string
       }
+      bulk_generate_entitlements: {
+        Args: { p_default_days?: number; p_tenant_id: string; p_year: number }
+        Returns: number
+      }
       calculate_depreciation_batch: {
         Args: { p_period_date?: string; p_tenant_id: string }
         Returns: {
@@ -20472,17 +20535,28 @@ export type Database = {
         Args: { p_supplier_invoice_id: string }
         Returns: Json
       }
-      validate_leave_request: {
-        Args: {
-          p_employee_id: string
-          p_end_date: string
-          p_leave_type: string
-          p_start_date: string
-          p_tenant_id: string
-          p_year?: number
-        }
-        Returns: Json
-      }
+      validate_leave_request:
+        | {
+            Args: {
+              p_employee_id: string
+              p_end_date: string
+              p_leave_type: string
+              p_start_date: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_employee_id: string
+              p_end_date: string
+              p_leave_type: string
+              p_start_date: string
+              p_tenant_id: string
+              p_year?: number
+            }
+            Returns: Json
+          }
       validate_popdv_completeness: {
         Args: { p_pdv_period_id: string; p_tenant_id: string }
         Returns: Json

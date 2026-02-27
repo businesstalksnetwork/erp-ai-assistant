@@ -48,6 +48,7 @@ const routeLabels: Record<string, string> = {
   departments: "departments",
   attendance: "attendance",
   "leave-requests": "leaveRequests",
+  "leave-policies": "leavePolicies",
   payroll: "payroll",
   production: "production",
   bom: "bomTemplates",
