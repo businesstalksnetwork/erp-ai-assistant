@@ -77,11 +77,11 @@ export default function PayrollPaymentTypes() {
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["payroll-payment-types", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await supabase
         .from("payroll_payment_types")
         .select("*")
         .eq("tenant_id", tenantId!)
-        .order("code") as any);
+        .order("code");
       return (data || []) as PaymentType[];
     },
     enabled: !!tenantId,
@@ -95,10 +95,10 @@ export default function PayrollPaymentTypes() {
   const { data: glOverrides = [] } = useQuery({
     queryKey: ["pt-gl-overrides", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await supabase
         .from("payroll_pt_gl_overrides")
         .select("*")
-        .eq("tenant_id", tenantId!) as any);
+        .eq("tenant_id", tenantId!);
       return (data || []) as (GlOverride & { id: string; tenant_id: string })[];
     },
     enabled: !!tenantId,
@@ -106,7 +106,7 @@ export default function PayrollPaymentTypes() {
 
   const seedMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("seed_payroll_payment_types" as any, { p_tenant_id: tenantId! });
+      const { error } = await supabase.rpc("seed_payroll_payment_types", { p_tenant_id: tenantId! });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast({ title: t("paymentTypesSeeded") }); },
@@ -129,10 +129,10 @@ export default function PayrollPaymentTypes() {
         is_advance: form.is_advance, is_storno: form.is_storno,
       };
       if (editId) {
-        const { error } = await (supabase.from("payroll_payment_types").update(payload).eq("id", editId) as any);
+        const { error } = await supabase.from("payroll_payment_types").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from("payroll_payment_types").insert(payload) as any);
+        const { error } = await supabase.from("payroll_payment_types").insert(payload);
         if (error) throw error;
       }
     },
@@ -146,7 +146,7 @@ export default function PayrollPaymentTypes() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("payroll_payment_types").delete().eq("id", id) as any);
+      const { error } = await supabase.from("payroll_payment_types").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast({ title: t("success") }); },
@@ -164,10 +164,10 @@ export default function PayrollPaymentTypes() {
         updated_at: new Date().toISOString(),
       };
       if (override.id) {
-        const { error } = await (supabase.from("payroll_pt_gl_overrides").update(payload).eq("id", override.id) as any);
+        const { error } = await supabase.from("payroll_pt_gl_overrides").update(payload).eq("id", override.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from("payroll_pt_gl_overrides").insert(payload) as any);
+        const { error } = await supabase.from("payroll_pt_gl_overrides").insert(payload);
         if (error) throw error;
       }
     },

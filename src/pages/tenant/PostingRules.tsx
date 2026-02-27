@@ -161,7 +161,7 @@ export default function PostingRules() {
   // Seed extended rules
   const seedExtendedMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("seed_extended_posting_rules" as any, { p_tenant_id: tenantId });
+      const { error } = await supabase.rpc("seed_extended_posting_rules", { p_tenant_id: tenantId });
       if (error) throw error;
     },
     onSuccess: () => {

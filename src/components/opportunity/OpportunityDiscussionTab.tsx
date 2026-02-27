@@ -28,7 +28,7 @@ export function OpportunityDiscussionTab({ opportunityId, tenantId, tenantMember
     queryKey: ["opportunity-comments", opportunityId, tenantId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("opportunity_comments" as any)
+        .from("opportunity_comments")
         .select("*, profiles(full_name)")
         .eq("opportunity_id", opportunityId)
         .is("parent_id", null)
@@ -45,7 +45,7 @@ export function OpportunityDiscussionTab({ opportunityId, tenantId, tenantMember
   const sendMutation = useMutation({
     mutationFn: async () => {
       if (!content.trim()) return;
-      const { error } = await supabase.from("opportunity_comments" as any).insert([{
+      const { error } = await supabase.from("opportunity_comments").insert([{
         tenant_id: tenantId,
         opportunity_id: opportunityId,
         user_id: user!.id,

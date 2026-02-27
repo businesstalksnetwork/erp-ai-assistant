@@ -74,11 +74,11 @@ export default function NonEmploymentIncome() {
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["non-employment-income", tenantId],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await supabase
         .from("non_employment_income")
         .select("*")
         .eq("tenant_id", tenantId!)
-        .order("income_date", { ascending: false }) as any);
+        .order("income_date", { ascending: false });
       return data || [];
     },
     enabled: !!tenantId,
@@ -105,10 +105,10 @@ export default function NonEmploymentIncome() {
       };
       if (editId) {
         payload.updated_at = new Date().toISOString();
-        const { error } = await (supabase.from("non_employment_income").update(payload).eq("id", editId) as any);
+        const { error } = await supabase.from("non_employment_income").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from("non_employment_income").insert(payload) as any);
+        const { error } = await supabase.from("non_employment_income").insert(payload);
         if (error) throw error;
       }
     },
@@ -122,7 +122,7 @@ export default function NonEmploymentIncome() {
 
   const calcMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("calculate_non_employment_income" as any, { p_id: id });
+      const { error } = await supabase.rpc("calculate_non_employment_income", { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -134,7 +134,7 @@ export default function NonEmploymentIncome() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("non_employment_income").delete().eq("id", id) as any);
+      const { error } = await supabase.from("non_employment_income").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

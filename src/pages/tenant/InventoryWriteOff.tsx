@@ -73,7 +73,7 @@ export default function InventoryWriteOff() {
     queryKey: ["inventory-write-offs", tenantId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("inventory_write_offs" as any)
+        .from("inventory_write_offs")
         .select("*, locations(name), warehouses(name)")
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false });
@@ -86,7 +86,7 @@ export default function InventoryWriteOff() {
     queryKey: ["write-off-items", selectedId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("inventory_write_off_items" as any)
+        .from("inventory_write_off_items")
         .select("*, products(name, sku)")
         .eq("write_off_id", selectedId!);
       return (data || []) as any[];
@@ -97,7 +97,7 @@ export default function InventoryWriteOff() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const members = form.commission_members.split(",").map((m) => m.trim()).filter(Boolean);
-      const { data, error } = await supabase.from("inventory_write_offs" as any).insert([{
+      const { data, error } = await supabase.from("inventory_write_offs").insert([{
         tenant_id: tenantId!,
         write_off_date: form.write_off_date,
         location_id: form.location_id || null,
@@ -108,7 +108,7 @@ export default function InventoryWriteOff() {
         notes: form.notes,
         created_by: user?.id,
         status: "draft",
-      }] as any).select().single();
+      }]).select().single();
       if (error) throw error;
       return (data as any).id;
     },
@@ -123,19 +123,19 @@ export default function InventoryWriteOff() {
 
   const addItemMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("inventory_write_off_items" as any).insert([{
+      const { error } = await supabase.from("inventory_write_off_items").insert([{
         write_off_id: selectedId,
         product_id: itemForm.product_id,
         quantity: itemForm.quantity,
         unit_cost: itemForm.unit_cost,
         reason: itemForm.reason,
-      }] as any);
+      }]);
       if (error) throw error;
 
       // Update total
-      const { data: allItems } = await supabase.from("inventory_write_off_items" as any).select("total_cost").eq("write_off_id", selectedId!);
-      const total = (allItems as any[] || []).reduce((s, i) => s + Number(i.total_cost), 0);
-      await supabase.from("inventory_write_offs" as any).update({ total_value: total } as any).eq("id", selectedId!);
+      const { data: allItems } = await supabase.from("inventory_write_off_items").select("total_cost").eq("write_off_id", selectedId!);
+      const total = (allItems || []).reduce((s: number, i: any) => s + Number(i.total_cost), 0);
+      await supabase.from("inventory_write_offs").update({ total_value: total }).eq("id", selectedId!);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["write-off-items"] });
@@ -166,11 +166,11 @@ export default function InventoryWriteOff() {
         ],
       });
 
-      await supabase.from("inventory_write_offs" as any).update({
+      await supabase.from("inventory_write_offs").update({
         status: "posted",
         journal_entry_id: journalId,
         approved_by: user.id,
-      } as any).eq("id", wo.id);
+      }).eq("id", wo.id);
 
       qc.invalidateQueries({ queryKey: ["inventory-write-offs"] });
       toast({ title: "Otpis proknjižen (5850 DR / 1320 CR)" });

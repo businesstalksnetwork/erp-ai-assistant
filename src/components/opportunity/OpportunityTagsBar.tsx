@@ -30,7 +30,7 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
     queryKey: ["opportunity-tags", opportunityId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("opportunity_tags" as any)
+        .from("opportunity_tags")
         .select("*")
         .eq("opportunity_id", opportunityId)
         .order("created_at");
@@ -41,7 +41,7 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!newTag.trim()) return;
-      const { error } = await supabase.from("opportunity_tags" as any).insert([{
+      const { error } = await supabase.from("opportunity_tags").insert([{
         tenant_id: tenantId,
         opportunity_id: opportunityId,
         tag: newTag.trim(),
@@ -61,7 +61,7 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
 
   const removeMutation = useMutation({
     mutationFn: async (tag: any) => {
-      const { error } = await supabase.from("opportunity_tags" as any).delete().eq("id", tag.id);
+      const { error } = await supabase.from("opportunity_tags").delete().eq("id", tag.id);
       if (error) throw error;
       onActivity("tag_removed", `Tag removed: ${tag.tag}`, { tag: tag.tag });
     },

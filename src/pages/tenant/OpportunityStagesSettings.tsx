@@ -40,7 +40,7 @@ export default function OpportunityStagesSettings() {
   const { data: stages = [], isLoading } = useQuery({
     queryKey: ["opportunity-stages", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("opportunity_stages" as any).select("*").eq("tenant_id", tenantId!).order("sort_order");
+      const { data, error } = await supabase.from("opportunity_stages").select("*").eq("tenant_id", tenantId!).order("sort_order");
       if (error) throw error;
       return (data || []) as unknown as OpportunityStage[];
     },
@@ -58,7 +58,7 @@ export default function OpportunityStagesSettings() {
 
   const createMutation = useMutation({
     mutationFn: async (d: FormData) => {
-      const { error } = await supabase.from("opportunity_stages" as any).insert({
+      const { error } = await supabase.from("opportunity_stages").insert({
         code: d.code.toLowerCase().replace(/\s+/g, "_"), name: d.name, name_sr: d.name_sr || null,
         color: d.color, sort_order: d.sort_order, is_won: d.is_won, is_lost: d.is_lost, is_system: false, tenant_id: tenantId!,
       });
@@ -70,7 +70,7 @@ export default function OpportunityStagesSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, d }: { id: string; d: FormData }) => {
-      const { error } = await supabase.from("opportunity_stages" as any).update({
+      const { error } = await supabase.from("opportunity_stages").update({
         name: d.name, name_sr: d.name_sr || null, color: d.color, sort_order: d.sort_order, is_won: d.is_won, is_lost: d.is_lost,
         ...(editing && !editing.is_system ? { code: d.code.toLowerCase().replace(/\s+/g, "_") } : {}),
       }).eq("id", id);
@@ -81,7 +81,7 @@ export default function OpportunityStagesSettings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("opportunity_stages" as any).delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("opportunity_stages").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-stages"] }); toast.success(t("success")); setDeleting(null); },
     onError: (e: any) => toast.error(e.message),
   });

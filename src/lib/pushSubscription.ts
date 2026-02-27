@@ -39,7 +39,7 @@ export async function subscribeToPush(userId: string, tenantId: string): Promise
 
   const json = subscription.toJSON();
 
-  const { error } = await (supabase.from("push_subscriptions" as any) as any).upsert(
+  const { error } = await supabase.from("push_subscriptions").upsert(
     {
       user_id: userId,
       tenant_id: tenantId,
@@ -55,7 +55,6 @@ export async function subscribeToPush(userId: string, tenantId: string): Promise
     return false;
   }
 
-  // Update profile flag
   await (supabase
     .from("profiles") as any)
     .update({ push_notifications_enabled: true })
@@ -74,7 +73,7 @@ export async function unsubscribeFromPush(userId: string): Promise<boolean> {
       await subscription.unsubscribe();
       // Remove from DB
       await supabase
-        .from("push_subscriptions" as any)
+        .from("push_subscriptions")
         .delete()
         .eq("user_id", userId)
         .eq("endpoint", subscription.endpoint);

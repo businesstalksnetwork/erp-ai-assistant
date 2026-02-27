@@ -54,7 +54,7 @@ export default function AopPositions() {
     queryKey: ["aop-positions", tenantId, tab],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aop_positions" as any)
+        .from("aop_positions")
         .select("*")
         .eq("tenant_id", tenantId!)
         .eq("report_type", tab)
@@ -68,7 +68,7 @@ export default function AopPositions() {
   const { data: previewData = [] } = useQuery({
     queryKey: ["aop-preview", tenantId, tab, previewYear],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_aop_report" as any, {
+      const { data, error } = await supabase.rpc("get_aop_report", {
         p_tenant_id: tenantId!,
         p_report_type: tab,
         p_to_date: `${previewYear}-12-31`,
@@ -96,10 +96,10 @@ export default function AopPositions() {
         sign_convention: f.sign_convention,
       };
       if (editId) {
-        const { error } = await supabase.from("aop_positions" as any).update(payload).eq("id", editId);
+        const { error } = await supabase.from("aop_positions").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("aop_positions" as any).insert(payload);
+        const { error } = await supabase.from("aop_positions").insert(payload);
         if (error) throw error;
       }
     },
@@ -114,7 +114,7 @@ export default function AopPositions() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("aop_positions" as any).delete().eq("id", id);
+      const { error } = await supabase.from("aop_positions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["aop-positions"] }); toast({ title: t("success") }); },
