@@ -128,11 +128,45 @@ The PRD identifies **20 critical issues** from an accountant review and targets 
 
 ---
 
-## Phases 5-7 (Future — executed sequentially after Phase 4)
+## Phase 5: Reports & Closing — ✅ COMPLETED
+
+### Already Working (Pre-existing)
+- Trial Balance (Bruto Bilans) with PDF export
+- Income Statement (Bilans Uspeha) with PDF export
+- Balance Sheet (Bilans Stanja) with PDF export
+- Year-End Closing workflow with revenue/expense account zeroing
+- IOS Balance Confirmation with partner summary
+- Cash Flow Forecast (analytics)
+- Aging Reports (AR/AP)
+
+### 5A. Kartica Konta Upgrade ✅
+- Added opening balance row (Početno stanje) when date range is set
+- Added running balance per line with proper fmtNum formatting
+- Added account search/filter with Serbian name support
+- Added CSV export for all displayed data
+- Added PDF export via `account_card` type in generate-pdf edge function
+- Uses PageHeader component with proper icon
+
+### 5B. IOS PDF Export ✅
+- Added PDF export button to IOS Balance Confirmation page
+- Added `ios_report` PDF type to generate-pdf edge function
+- Generates partner-by-partner receivable/payable summary with totals
+
+### 5C. Cash Flow Statement ✅
+- Created `CashFlowStatement.tsx` — actual cash flow statement (indirect method)
+- Three sections: Operating (net income + adjustments + working capital), Investing, Financing
+- Account prefix mapping follows Serbian kontni okvir (540=depreciation, 02=fixed assets, etc.)
+- Shows opening/closing cash positions
+- Added PDF export via `cash_flow_statement` type
+- Route: `/accounting/cash-flow-statement`
+- Added to accounting navigation
+
+---
+
+## Phases 6-7 (Future — executed sequentially after Phase 5)
 
 | Phase | Focus | Key Deliverables |
 |-------|-------|-----------------|
-| **5** | Reports & Closing | Account card (kartica konta), partner card (IOS), daily journal, cash flow statement, year-end workflow |
 | **6** | AI Agent | Serbian accounting law RAG agent, inline validation hooks, compliance checker |
 | **7** | Polish | Credit/debit notes workflow, proforma invoices, fixed asset improvements, multi-currency |
 

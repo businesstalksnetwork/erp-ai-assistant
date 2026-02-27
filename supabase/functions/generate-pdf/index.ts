@@ -150,6 +150,21 @@ Deno.serve(async (req) => {
       if (forbidden) return forbidden;
       return await generateAssetRegistryReport(admin, body, corsHeaders);
     }
+    if (type === "account_card") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateAccountCard(admin, body, corsHeaders);
+    }
+    if (type === "ios_report") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateIosReport(admin, body, corsHeaders);
+    }
+    if (type === "cash_flow_statement") {
+      const forbidden = await verifyMembership(body.tenant_id);
+      if (forbidden) return forbidden;
+      return await generateCashFlowStatementPdf(admin, body, corsHeaders);
+    }
 
     // --- Invoice PDF (default) ---
     const { invoice_id } = body;
@@ -731,4 +746,165 @@ async function generateAssetRegistryReport(admin: any, body: any, corsHeaders: R
   return new Response(wrapHtml("Registar imovine", content), {
     headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
   });
+}
+
+// ─── Account Card (Kartica Konta) ───
+async function generateAccountCard(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id, date_from, date_to, account_id } = body;
+  if (!tenant_id) return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+
+  // Opening balance
+  let openingBalance = 0;
+  if (date_from) {
+    let obQuery = admin.from("journal_lines").select("debit, credit, account_id, journal_entry:journal_entries!inner(status, entry_date, tenant_id)")
+      .eq("journal_entry.status", "posted").eq("journal_entry.tenant_id", tenant_id).lt("journal_entry.entry_date", date_from);
+    if (account_id) obQuery = obQuery.eq("account_id", account_id);
+    const { data: obLines = [] } = await obQuery;
+    openingBalance = (obLines as any[]).reduce((s: number, l: any) => s + Number(l.debit) - Number(l.credit), 0);
+  }
+
+  // Period lines
+  let query = admin.from("journal_lines").select("debit, credit, description, account:chart_of_accounts(code, name), journal_entry:journal_entries!inner(entry_number, entry_date, status, tenant_id, description)")
+    .eq("journal_entry.status", "posted").eq("journal_entry.tenant_id", tenant_id);
+  if (account_id) query = query.eq("account_id", account_id);
+  if (date_from) query = query.gte("journal_entry.entry_date", date_from);
+  if (date_to) query = query.lte("journal_entry.entry_date", date_to);
+  const { data: lines = [] } = await query;
+
+  // Group by account
+  const map = new Map<string, { code: string; name: string; lines: any[]; totalDebit: number; totalCredit: number }>();
+  for (const l of lines as any[]) {
+    if (!l.account) continue;
+    const key = l.account.code;
+    if (!map.has(key)) map.set(key, { code: l.account.code, name: l.account.name, lines: [], totalDebit: 0, totalCredit: 0 });
+    const g = map.get(key)!;
+    g.lines.push(l);
+    g.totalDebit += Number(l.debit);
+    g.totalCredit += Number(l.credit);
+  }
+  const accounts = Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  const periodLabel = date_from && date_to ? `${formatDate(date_from)} — ${formatDate(date_to)}` : "Svi periodi";
+
+  let html = `${companyHeader(legalEntity)}<div class="report-title">KARTICA KONTA</div><div class="report-subtitle">${periodLabel}</div>`;
+
+  for (const acc of accounts) {
+    let balance = date_from ? openingBalance : 0;
+    html += `<div class="section-header">${acc.code} — ${acc.name}</div><table><thead><tr><th>Datum</th><th>Nalog</th><th>Opis</th><th class="right">Duguje</th><th class="right">Potražuje</th><th class="right">Saldo</th></tr></thead><tbody>`;
+    if (date_from) {
+      html += `<tr style="background:#f0f4ff;font-style:italic"><td colspan="3">Početno stanje</td><td class="right">${openingBalance > 0 ? formatNum(openingBalance) : ""}</td><td class="right">${openingBalance < 0 ? formatNum(Math.abs(openingBalance)) : ""}</td><td class="right">${formatNum(openingBalance)}</td></tr>`;
+    }
+    for (const l of acc.lines) {
+      balance += Number(l.debit) - Number(l.credit);
+      html += `<tr><td>${l.journal_entry?.entry_date ? formatDate(l.journal_entry.entry_date) : ""}</td><td>${l.journal_entry?.entry_number || ""}</td><td>${escapeHtml(l.description || l.journal_entry?.description)}</td><td class="right">${Number(l.debit) > 0 ? formatNum(Number(l.debit)) : ""}</td><td class="right">${Number(l.credit) > 0 ? formatNum(Number(l.credit)) : ""}</td><td class="right" style="font-weight:600">${formatNum(balance)}</td></tr>`;
+    }
+    html += `<tr class="totals-row"><td colspan="3">Ukupno</td><td class="right">${formatNum(acc.totalDebit)}</td><td class="right">${formatNum(acc.totalCredit)}</td><td class="right">${formatNum(balance)}</td></tr></tbody></table>`;
+  }
+
+  return new Response(wrapHtml("Kartica Konta", html), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+}
+
+// ─── IOS Report PDF ───
+async function generateIosReport(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id, cutoff_date } = body;
+  if (!tenant_id) return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+
+  const cutoff = cutoff_date || new Date().toISOString().split("T")[0];
+  const { data: openItems = [] } = await admin.from("open_items")
+    .select("partner_id, original_amount, remaining_amount, direction, due_date, partners(name, pib)")
+    .eq("tenant_id", tenant_id).eq("status", "open").lte("created_at", cutoff + "T23:59:59");
+
+  const map = new Map<string, { name: string; pib: string; receivable: number; payable: number; items: number }>();
+  for (const item of openItems as any[]) {
+    const pid = item.partner_id || "unknown";
+    if (!map.has(pid)) map.set(pid, { name: item.partners?.name || "Nepoznat", pib: item.partners?.pib || "", receivable: 0, payable: 0, items: 0 });
+    const e = map.get(pid)!;
+    e.items++;
+    const amt = Number(item.remaining_amount || item.original_amount || 0);
+    if (item.direction === "receivable") e.receivable += amt; else e.payable += amt;
+  }
+  const partners = Array.from(map.values()).sort((a, b) => Math.abs(b.receivable - b.payable) - Math.abs(a.receivable - a.payable));
+  const totalRec = partners.reduce((s, p) => s + p.receivable, 0);
+  const totalPay = partners.reduce((s, p) => s + p.payable, 0);
+
+  const content = `${companyHeader(legalEntity)}
+  <div class="report-title">IOS — IZVOD OTVORENIH STAVKI</div>
+  <div class="report-subtitle">Datum preseka: ${formatDate(cutoff)}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
+    <div class="summary-box"><div class="summary-label">Potraživanja</div><div class="summary-value" style="color:#16a34a">${formatNum(totalRec)} RSD</div></div>
+    <div class="summary-box"><div class="summary-label">Obaveze</div><div class="summary-value" style="color:#dc2626">${formatNum(totalPay)} RSD</div></div>
+    <div class="summary-box"><div class="summary-label">Neto saldo</div><div class="summary-value">${formatNum(totalRec - totalPay)} RSD</div></div>
+  </div>
+  <table><thead><tr><th>Partner</th><th>PIB</th><th class="right">Potraživanja</th><th class="right">Obaveze</th><th class="right">Neto</th><th class="right">Stavke</th></tr></thead><tbody>
+    ${partners.map(p => `<tr><td>${escapeHtml(p.name)}</td><td>${p.pib}</td><td class="right" style="color:#16a34a">${formatNum(p.receivable)}</td><td class="right" style="color:#dc2626">${formatNum(p.payable)}</td><td class="right" style="font-weight:600;color:${p.receivable - p.payable >= 0 ? '#16a34a' : '#dc2626'}">${formatNum(p.receivable - p.payable)}</td><td class="right">${p.items}</td></tr>`).join("")}
+  </tbody><tfoot><tr class="totals-row"><td colspan="2">UKUPNO</td><td class="right">${formatNum(totalRec)}</td><td class="right">${formatNum(totalPay)}</td><td class="right">${formatNum(totalRec - totalPay)}</td><td class="right">${partners.reduce((s, p) => s + p.items, 0)}</td></tr></tfoot></table>`;
+
+  return new Response(wrapHtml("IOS — Izvod Otvorenih Stavki", content), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+}
+
+// ─── Cash Flow Statement PDF ───
+async function generateCashFlowStatementPdf(admin: any, body: any, corsHeaders: Record<string, string>) {
+  const { tenant_id, date_from, date_to } = body;
+  if (!tenant_id) return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  const { data: legalEntity } = await admin.from("legal_entities").select("*").eq("tenant_id", tenant_id).limit(1).maybeSingle();
+
+  // Fetch all posted lines for the period
+  let query = admin.from("journal_lines").select("debit, credit, account:chart_of_accounts!inner(code, account_type), journal_entry:journal_entries!inner(status, entry_date, tenant_id)")
+    .eq("journal_entry.status", "posted").eq("journal_entry.tenant_id", tenant_id);
+  if (date_from) query = query.gte("journal_entry.entry_date", date_from);
+  if (date_to) query = query.lte("journal_entry.entry_date", date_to);
+  const { data: lines = [] } = await query;
+
+  // Aggregate by prefix
+  const byPrefix = new Map<string, number>();
+  const revenue = { total: 0 }, expenses = { total: 0 };
+  for (const l of lines as any[]) {
+    const code = l.account?.code || "";
+    for (const len of [1, 2, 3]) {
+      const p = code.substring(0, len);
+      byPrefix.set(p, (byPrefix.get(p) || 0) + Number(l.debit) - Number(l.credit));
+    }
+    if (l.account?.account_type === "revenue") revenue.total += Number(l.credit) - Number(l.debit);
+    if (l.account?.account_type === "expense") expenses.total += Number(l.debit) - Number(l.credit);
+  }
+  const netIncome = revenue.total - expenses.total;
+  const depreciation = Math.abs(byPrefix.get("540") || 0);
+  const operatingCF = netIncome + depreciation;
+  const investingCF = -(Math.abs(byPrefix.get("02") || 0) + Math.abs(byPrefix.get("01") || 0));
+  const financingCF = byPrefix.get("41") || 0;
+
+  const periodLabel = date_from && date_to ? `${formatDate(date_from)} — ${formatDate(date_to)}` : "Svi periodi";
+
+  const row = (label: string, amount: number) => `<tr><td>${label}</td><td class="right" style="color:${amount >= 0 ? '#16a34a' : '#dc2626'}">${formatNum(amount)}</td></tr>`;
+  const totalRow = (label: string, amount: number) => `<tr class="totals-row"><td style="font-weight:bold">${label}</td><td class="right" style="font-weight:bold;color:${amount >= 0 ? '#16a34a' : '#dc2626'}">${formatNum(amount)}</td></tr>`;
+
+  const content = `${companyHeader(legalEntity)}
+  <div class="report-title">IZVEŠTAJ O TOKOVIMA GOTOVINE</div>
+  <div class="report-subtitle">${periodLabel} — Indirektni metod</div>
+  <div class="section-header">A. Poslovne aktivnosti</div>
+  <table><tbody>
+    ${row("Neto rezultat", netIncome)}
+    ${row("Amortizacija", depreciation)}
+    ${totalRow("Neto gotovina iz poslovnih aktivnosti", operatingCF)}
+  </tbody></table>
+  <div class="section-header">B. Investicione aktivnosti</div>
+  <table><tbody>
+    ${row("Nabavka osnovnih sredstava", -(Math.abs(byPrefix.get("02") || 0)))}
+    ${row("Nabavka nematerijalnih ulaganja", -(Math.abs(byPrefix.get("01") || 0)))}
+    ${totalRow("Neto gotovina iz investicija", investingCF)}
+  </tbody></table>
+  <div class="section-header">C. Finansijske aktivnosti</div>
+  <table><tbody>
+    ${row("Neto kreditna aktivnost", financingCF)}
+    ${totalRow("Neto gotovina iz finansiranja", financingCF)}
+  </tbody></table>
+  <div class="summary-box" style="display:flex;justify-content:space-between;align-items:center;">
+    <div><div class="summary-label">Ukupna promena gotovine</div><div class="summary-value" style="color:${(operatingCF + investingCF + financingCF) >= 0 ? '#16a34a' : '#dc2626'}">${formatNum(operatingCF + investingCF + financingCF)} RSD</div></div>
+  </div>`;
+
+  return new Response(wrapHtml("Tokovi Gotovine", content), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
 }

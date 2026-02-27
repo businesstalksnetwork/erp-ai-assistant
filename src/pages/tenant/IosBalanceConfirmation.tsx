@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, FileCheck } from "lucide-react";
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
+import { fmtNum } from "@/lib/utils";
 import { format } from "date-fns";
 
 export default function IosBalanceConfirmation() {
@@ -68,6 +70,14 @@ export default function IosBalanceConfirmation() {
       <PageHeader
         title="IOS — Izvod otvorenih stavki"
         description="Potvrda salda sa partnerima (Izvod Otvorenih Stavki)"
+        actions={
+          tenantId ? (
+            <DownloadPdfButton
+              type="ios_report"
+              params={{ tenant_id: tenantId, cutoff_date: cutoffDate }}
+            />
+          ) : undefined
+        }
       />
 
       <div className="flex flex-col sm:flex-row gap-4 items-end">
@@ -81,19 +91,19 @@ export default function IosBalanceConfirmation() {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Ukupna potraživanja</p>
-            <p className="text-lg font-bold text-green-600">{totalReceivable.toLocaleString("sr-RS")} RSD</p>
+            <p className="text-lg font-bold text-green-600">{fmtNum(totalReceivable)} RSD</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Ukupne obaveze</p>
-            <p className="text-lg font-bold text-red-600">{totalPayable.toLocaleString("sr-RS")} RSD</p>
+            <p className="text-lg font-bold text-red-600">{fmtNum(totalPayable)} RSD</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Neto saldo</p>
-            <p className="text-lg font-bold">{(totalReceivable - totalPayable).toLocaleString("sr-RS")} RSD</p>
+            <p className="text-lg font-bold">{fmtNum(totalReceivable - totalPayable)} RSD</p>
           </CardContent>
         </Card>
       </div>
@@ -126,10 +136,10 @@ export default function IosBalanceConfirmation() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell className="font-mono text-xs">{p.pib || "—"}</TableCell>
-                    <TableCell className="text-right text-green-600">{p.receivable.toLocaleString("sr-RS")}</TableCell>
-                    <TableCell className="text-right text-red-600">{p.payable.toLocaleString("sr-RS")}</TableCell>
+                    <TableCell className="text-right text-green-600">{fmtNum(p.receivable)}</TableCell>
+                    <TableCell className="text-right text-red-600">{fmtNum(p.payable)}</TableCell>
                     <TableCell className={`text-right font-semibold ${p.net >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {p.net.toLocaleString("sr-RS")}
+                      {fmtNum(p.net)}
                     </TableCell>
                     <TableCell className="text-center">{p.items}</TableCell>
                   </TableRow>
