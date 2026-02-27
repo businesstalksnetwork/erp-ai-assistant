@@ -1,55 +1,26 @@
 
 
-# Fix Remaining POPDV Issues
+# Fix 4 Remaining Issues
 
-## Issues to Fix
+## Issue 1: Auto-default POPDV 3.2 on InvoiceForm
+**Already done.** Line 69 of `InvoiceForm.tsx` sets `popdv_field: "3.2"` in `emptyLine()`. No change needed.
 
-1. **PopdvFieldSelect filters out special records** — Line 59 has `.filter((t: any) => !t.is_special_record)` which hides section headers and special sub-entries (1.4.q, 8a.2.a, etc.). Should show all entries but style special ones differently.
+## Issue 2: 8v/8d fee_value mode on InvoiceForm
+**Not applicable.** 8v/8d fields are INPUT-side (supplier invoices only). The SupplierInvoiceForm already has this. Sales invoices (izlazne) don't use fee-based VAT calculation. No change needed.
 
-2. **Foreign entity detection → auto-suggest 8g.1 on SupplierInvoiceForm** — When supplier's PIB is non-Serbian format (not 9 digits) or country is foreign, auto-set POPDV to `8g.1`.
+## Issue 3: InvoiceForm "Proknjizi" button not working
+The mutation code exists (lines 434–510) and the button renders (line 911). The issue is that `isReadOnly` on line 512 includes `status === "sent"`, which disables form editing — but the "Proknjizi" button should still be clickable. Need to verify this isn't blocked. The code at line 513 (`canPost = isEdit && status === "sent" && grandTotal > 0`) and button at line 913 both look correct.
 
-3. **Warning when vat_date falls in locked PDV period** — Query `pdv_periods` for the period covering `vatDate`; if `is_locked`, show a warning banner on both InvoiceForm and SupplierInvoiceForm.
+**Likely runtime issue**: The `postWithRuleOrFallback` call passes `context: { partnerReceivableCode: "2040" }` but the function signature requires `DynamicContext` which may need more fields. Also, the `vatDate` state variable needs to be verified it exists — checking if InvoiceForm actually has a `vatDate` state variable.
 
-4. **POPDV period indicator on invoices** — Show which PDV month the `vatDate` falls into (e.g., "PDV period: januar 2026") next to the vat_date field.
+**Action**: Read InvoiceForm around line 100-130 to check `vatDate` state, and verify the mutation can actually execute.
 
-5. **Cost center per supplier invoice line** — Add `cost_center_id` column selector to the SupplierInvoiceForm line items table (column exists in DB, not in UI).
+## Issue 4: Reverse charge line IDs using crypto.randomUUID()
+**Bug confirmed.** In `SupplierInvoiceForm.tsx` line 352, `l.id || crypto.randomUUID()` passes fake UUIDs because `l.id` is undefined for newly created lines. The `supplier_invoice_lines` insert on line 341 doesn't return the inserted IDs.
 
-6. **PostingPreviewPanel on SupplierInvoiceForm** — Already imported but not rendered. Add it before the Actions section.
+**Fix**: Change the insert to `.insert(lineInserts).select("id, popdv_field, line_total, tax_amount")`, then use the returned data (with real DB-generated IDs) for the `createReverseChargeEntries` call.
 
-7. **"Proknjizi" (Post) button on InvoiceForm** — Add a button that creates actual GL journal entries via `postWithRuleOrFallback`, similar to how SupplierInvoices.tsx does approval posting.
-
-## Implementation Steps
-
-### A. Fix PopdvFieldSelect.tsx
-- Remove the `.filter((t: any) => !t.is_special_record)` on line 59
-- Keep italic styling for special records but show them as selectable options
-- Add indentation (padding-left) for entries with `parent_id` to show hierarchy
-
-### B. SupplierInvoiceForm.tsx — Foreign entity detection + cost center + posting preview
-- Fetch selected supplier's country/PIB from `suppliers` list
-- When supplier changes: if PIB is not 9 digits or country is not "RS"/"Srbija", auto-set new lines' POPDV to `8g.1`
-- Add `cost_center_id` select column (fetch `cost_centers` table)
-- Render `PostingPreviewPanel` with `buildSupplierInvoicePreviewLines` before Actions section
-
-### C. Locked period warning (shared hook)
-- Create `usePdvPeriodCheck(tenantId, vatDate)` hook that queries `pdv_periods` to find if the period is locked
-- Returns `{ isLocked, periodName }` 
-- Show yellow warning Alert on both forms when period is locked
-- Show period name indicator (e.g., "PDV: januar 2026") next to vat_date
-
-### D. InvoiceForm.tsx — "Proknjizi" button
-- Import `postWithRuleOrFallback` and add a `postMutation`
-- Button appears when status is "sent" (invoice sent but not yet posted to GL)
-- Creates GL entry: DR 2040 Kupci, CR 6xxx Prihodi, CR 4700 PDV
-- Updates invoice status to "posted" after successful GL entry
-- Uses `GlPostingPreview` component already rendered for preview
-
-### E. Both forms — PDV period display
-- Compute period month/year from `vatDate`, display as "PDV period: Mesec YYYY" label near vat_date field
-
-## Files to Modify
-- `src/components/accounting/PopdvFieldSelect.tsx` — remove special record filter, add indent
-- `src/hooks/usePdvPeriodCheck.ts` — new hook
-- `src/pages/tenant/InvoiceForm.tsx` — add locked warning, period label, post button
-- `src/pages/tenant/SupplierInvoiceForm.tsx` — add foreign entity detection, cost center, posting preview, locked warning, period label
+## Files to modify
+- `src/pages/tenant/SupplierInvoiceForm.tsx` — Fix reverse charge to use returned line IDs after insert
+- `src/pages/tenant/InvoiceForm.tsx` — Verify/fix `vatDate` variable and ensure postMutation works end-to-end
 
