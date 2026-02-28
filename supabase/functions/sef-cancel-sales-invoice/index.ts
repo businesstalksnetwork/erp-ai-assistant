@@ -189,7 +189,7 @@ serve(async (req) => {
       success: false,
       error: error instanceof Error ? error.message : 'Greška pri storniranju fakture',
     }), {
-      status: 200,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

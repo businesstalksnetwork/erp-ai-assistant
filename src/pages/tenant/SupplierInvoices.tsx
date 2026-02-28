@@ -52,6 +52,9 @@ interface Discrepancy {
   poQty: number;
   grQty: number;
   invoiceTotal: number;
+  type?: "quantity" | "price";
+  poUnitPrice?: number;
+  invoiceUnitPrice?: number;
 }
 
 export default function SupplierInvoices() {
@@ -153,12 +156,14 @@ export default function SupplierInvoices() {
 
   const performThreeWayMatch = async (inv: any): Promise<Discrepancy[]> => {
     if (!inv.purchase_order_id) return [];
-    const [poLinesRes, grRes] = await Promise.all([
+    const [poLinesRes, grRes, invLinesRes] = await Promise.all([
       supabase.from("purchase_order_lines").select("*, products(name)").eq("purchase_order_id", inv.purchase_order_id),
       supabase.from("goods_receipts").select("id").eq("purchase_order_id", inv.purchase_order_id).eq("status", "completed"),
+      supabase.from("supplier_invoice_lines").select("product_id, unit_price").eq("supplier_invoice_id", inv.id),
     ]);
     const poLines = poLinesRes.data || [];
     const grIds = (grRes.data || []).map((g: any) => g.id);
+    const invLines = invLinesRes.data || [];
     let grLines: any[] = [];
     if (grIds.length > 0) {
       const { data } = await supabase.from("goods_receipt_lines").select("product_id, quantity_received").in("goods_receipt_id", grIds);
@@ -166,11 +171,22 @@ export default function SupplierInvoices() {
     }
     const grByProduct: Record<string, number> = {};
     grLines.forEach((gl: any) => { grByProduct[gl.product_id] = (grByProduct[gl.product_id] || 0) + gl.quantity_received; });
+    // P3-13: Build invoice price map for price comparison
+    const invPriceByProduct: Record<string, number> = {};
+    invLines.forEach((il: any) => { if (il.product_id) invPriceByProduct[il.product_id] = il.unit_price; });
     const discrepancies: Discrepancy[] = [];
     poLines.forEach((pol: any) => {
       const grQty = grByProduct[pol.product_id] || 0;
       if (pol.quantity !== grQty) {
-        discrepancies.push({ productName: pol.products?.name || pol.product_id, poQty: pol.quantity, grQty, invoiceTotal: inv.total });
+        discrepancies.push({ productName: pol.products?.name || pol.product_id, poQty: pol.quantity, grQty, invoiceTotal: inv.total, type: "quantity" });
+      }
+      // P3-13: Price comparison — flag if supplier price differs by > 1%
+      const invPrice = invPriceByProduct[pol.product_id];
+      if (invPrice != null && pol.unit_price > 0) {
+        const priceDiff = Math.abs(invPrice - pol.unit_price) / pol.unit_price;
+        if (priceDiff > 0.01) {
+          discrepancies.push({ productName: pol.products?.name || pol.product_id, poQty: pol.quantity, grQty, invoiceTotal: inv.total, type: "price", poUnitPrice: pol.unit_price, invoiceUnitPrice: invPrice });
+        }
       }
     });
     return discrepancies;

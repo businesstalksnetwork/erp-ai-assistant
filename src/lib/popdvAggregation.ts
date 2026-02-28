@@ -147,6 +147,35 @@ async function fetchOutputLines(
     if (data) allLines.push(...data);
   }
 
+  // P3-10: Include credit notes as negative amounts in POPDV output
+  let cnQ = supabase.from("credit_notes")
+    .select("id, issued_at, status, subtotal, tax_amount, amount")
+    .eq("tenant_id", tenantId)
+    .in("status", ["posted", "sent", "approved"])
+    .gte("issued_at", start)
+    .lte("issued_at", end);
+  if (legalEntityId) cnQ = cnQ.eq("legal_entity_id", legalEntityId);
+  const { data: creditNotes } = await cnQ;
+  if (creditNotes && creditNotes.length > 0) {
+    for (const cn of creditNotes) {
+      // Credit notes reduce output VAT — add as negative synthetic line
+      // Use popdv_field 3.2 (domestic sales standard rate) as default
+      const taxRate = cn.tax_amount > 0 && cn.subtotal > 0
+        ? Math.round((cn.tax_amount / cn.subtotal) * 100)
+        : 20;
+      const popdvField = taxRate === 10 ? "3.3" : taxRate === 0 ? "3.6" : "3.2";
+      allLines.push({
+        invoice_id: cn.id,
+        line_total: -(cn.subtotal || 0),
+        tax_amount: -(cn.tax_amount || 0),
+        tax_rate_value: taxRate,
+        popdv_field: popdvField,
+        total_with_tax: -(cn.amount || 0),
+        vat_non_deductible: false,
+      });
+    }
+  }
+
   return groupLines(allLines, "output");
 }
 

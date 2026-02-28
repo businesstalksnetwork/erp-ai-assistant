@@ -502,6 +502,25 @@ export default function InvoiceForm() {
         });
       }
 
+      // P3-04: Add advance clearing GL lines for advance_final invoices
+      if (values.invoiceType === "advance_final" && (values as any).advanceAmountApplied > 0) {
+        const advanceAmount = Number((values as any).advanceAmountApplied);
+        fallbackLines.push({
+          accountCode: "2270",
+          debit: advanceAmount,
+          credit: 0,
+          description: `Zatvaranje avansa — ${values.invoiceNumber}`,
+          sortOrder: sortOrder++,
+        });
+        fallbackLines.push({
+          accountCode: "2040",
+          debit: 0,
+          credit: advanceAmount,
+          description: `Zatvaranje avansa — ${values.invoiceNumber}`,
+          sortOrder: sortOrder++,
+        });
+      }
+
       await postWithRuleOrFallback({
         tenantId,
         userId: user?.id || null,
@@ -533,6 +552,16 @@ export default function InvoiceForm() {
           } catch (e) {
             // INTER-CRIT-1: Revert invoice to draft on FIFO failure
             await supabase.from("invoices").update({ status: "draft" }).eq("id", id);
+            // P3-12: Reverse the GL entry that was just posted to prevent split-brain
+            try {
+              const { data: je } = await supabase.from("journal_entries")
+                .select("id").eq("reference", `INV:${id}`).eq("tenant_id", tenantId).maybeSingle();
+              if (je) {
+                await supabase.from("journal_entries").delete().eq("id", je.id);
+              }
+            } catch (reverseErr) {
+              console.error("Failed to reverse GL entry after FIFO failure:", reverseErr);
+            }
             throw new Error(`FIFO layer consumption failed for product ${line.product_id}: ${e instanceof Error ? e.message : String(e)}`);
           }
         }
