@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     <RadnoMesto>${escapeXml(emp.position || "")}</RadnoMesto>
     <DatumPocetkaRada>${emp.start_date || today}</DatumPocetkaRada>
     <OsnovaOsiguranja>01</OsnovaOsiguranja>
-    <SifraPlacanja>240</SifraPlacanja>
+    
   </Zaposleni>
   <DatumPodnosenja>${today}</DatumPodnosenja>
 </CROSOPrijava>`;

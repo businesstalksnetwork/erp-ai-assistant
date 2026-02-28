@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { Sun, CloudSun, Moon, RefreshCw, ChevronDown } from "lucide-react";
+import { Sun, CloudSun, Moon, RefreshCw, ChevronDown, AlertCircle } from "lucide-react";
 import { SimpleMarkdown } from "@/components/ai/SimpleMarkdown";
 
 type TimeOfDay = "morning" | "midday" | "evening";
@@ -43,7 +43,7 @@ export function AiBriefingWidget({ tenantId }: Props) {
 
   const title = t(titleKeyMap[timeOfDay]);
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["ai-briefing", tenantId, timeOfDay],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -58,10 +58,34 @@ export function AiBriefingWidget({ tenantId }: Props) {
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
+    retry: 2,
   });
 
   if (isLoading) return <Skeleton className="h-32 w-full" />;
-  if (!data) return null;
+
+  // Show error state with retry button instead of silently returning null
+  if (isError || !data) {
+    return (
+      <Card className="bg-gradient-to-br from-primary/5 via-accent/5 to-background border-primary/20 h-full">
+        <CardContent className="flex flex-col items-center justify-center py-6 gap-2">
+          <AlertCircle className="h-5 w-5 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground text-center">
+            {isError ? (error as Error)?.message || "AI briefing unavailable" : "No data available"}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="text-xs"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${isFetching ? "animate-spin" : ""}`} />
+            {t("refresh")}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 via-accent/5 to-background border-primary/20 h-full">

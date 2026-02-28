@@ -109,7 +109,7 @@ export default function TaxLossCarryforward() {
     <div className="space-y-6">
       <PageHeader
         title="Prenos poreskog gubitka"
-        description="ZPDP čl. 32 — Prenos gubitka na buduće periode (5 godina)"
+        description="ZPDPL čl. 32 — Prenos gubitka na buduće periode (5 godina)"
         icon={TrendingDown}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

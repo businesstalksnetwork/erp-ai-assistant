@@ -6,13 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ════════════════════════════════════════════
-// Serbian Accounting Law Knowledge Base
-// Zakon o računovodstvu (Sl. glasnik RS, br. 73/2019, 44/2021, 138/2022)
-// Zakon o porezu na dodatu vrednost
-// Pravilnik o kontnom okviru
-// ════════════════════════════════════════════
-
 interface ComplianceCheck {
   id: string;
   category: "journal" | "vat" | "invoicing" | "payroll" | "assets" | "reporting" | "general";
@@ -27,7 +20,7 @@ interface ComplianceCheck {
 }
 
 async function runComplianceChecks(supabase: any, tenantId: string): Promise<ComplianceCheck[]> {
-  // ── P1-08: Validate tenantId is UUID to prevent SQL injection ──
+  // CR2-05: Validate tenantId is UUID to prevent SQL injection
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
     throw new Error("Invalid tenant_id format");
   }
@@ -39,34 +32,39 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   // ─── 1. JOURNAL ENTRY CHECKS ───
 
   // 1.1 Unbalanced journal entries (DR ≠ CR)
+  // CR2-05: Use Supabase client API instead of raw SQL with string interpolation
   try {
-    const { data: unbalanced } = await supabase.rpc("execute_readonly_query", {
-      query_text: `
-        SELECT je.id, je.entry_number, je.entry_date,
-          COALESCE(SUM(jl.debit), 0) as total_debit,
-          COALESCE(SUM(jl.credit), 0) as total_credit
-        FROM journal_entries je
-        JOIN journal_lines jl ON jl.journal_entry_id = je.id
-        WHERE je.tenant_id = '${tenantId}' AND je.status = 'posted'
-        GROUP BY je.id, je.entry_number, je.entry_date
-        HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) > 0.01
-        LIMIT 20
-      `,
-      tenant_id_param: tenantId,
-    });
-    if (unbalanced && unbalanced.length > 0) {
-      checks.push({
-        id: "JE_UNBALANCED",
-        category: "journal",
-        severity: "error",
-        title: "Unbalanced journal entries detected",
-        title_sr: "Nebalansirani nalozi za knjiženje",
-        description: `${unbalanced.length} posted journal entries have debit ≠ credit, violating double-entry principle.`,
-        description_sr: `${unbalanced.length} proknjiženih naloga ima duguje ≠ potražuje, što krši princip dvojnog knjiženja.`,
-        law_reference: "Zakon o računovodstvu, čl. 9 — Sistem dvojnog knjiženja",
-        affected_count: unbalanced.length,
-        details: unbalanced.slice(0, 5),
-      });
+    const { data: journalEntries } = await supabase
+      .from("journal_entries")
+      .select("id, entry_number, entry_date, journal_lines(debit, credit)")
+      .eq("tenant_id", tenantId)
+      .eq("status", "posted")
+      .limit(500);
+
+    if (journalEntries) {
+      const unbalanced = journalEntries.filter((je: any) => {
+        const lines = je.journal_lines || [];
+        const totalDebit = lines.reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+        const totalCredit = lines.reduce((s: number, l: any) => s + Number(l.credit || 0), 0);
+        return Math.abs(totalDebit - totalCredit) > 0.01;
+      }).slice(0, 20);
+
+      if (unbalanced.length > 0) {
+        checks.push({
+          id: "JE_UNBALANCED",
+          category: "journal",
+          severity: "error",
+          title: "Unbalanced journal entries detected",
+          title_sr: "Nebalansirani nalozi za knjiženje",
+          description: `${unbalanced.length} posted journal entries have debit ≠ credit, violating double-entry principle.`,
+          description_sr: `${unbalanced.length} proknjiženih naloga ima duguje ≠ potražuje, što krši princip dvojnog knjiženja.`,
+          law_reference: "Zakon o računovodstvu, čl. 9 — Sistem dvojnog knjiženja",
+          affected_count: unbalanced.length,
+          details: unbalanced.slice(0, 5).map((je: any) => ({
+            id: je.id, entry_number: je.entry_number, entry_date: je.entry_date,
+          })),
+        });
+      }
     }
   } catch (e) { console.warn("Check 1.1 failed:", e); }
 
@@ -181,6 +179,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   } catch (e) { console.warn("Check 2.2 failed:", e); }
 
   // 2.3 Output VAT account (4700) balance mismatch
+  // CR2-05: Use Supabase client API for VAT check
   try {
     const { data: vatAccount } = await supabase
       .from("chart_of_accounts")
@@ -189,30 +188,30 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
       .eq("code", "4700")
       .maybeSingle();
 
-    if (vatAccount && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vatAccount.id)) {
-      const { data: vatBalance } = await supabase.rpc("execute_readonly_query", {
-        query_text: `
-          SELECT COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) as balance
-          FROM journal_lines jl
-          JOIN journal_entries je ON je.id = jl.journal_entry_id
-          WHERE jl.account_id = '${vatAccount.id}' AND je.tenant_id = '${tenantId}' AND je.status = 'posted'
-            AND je.entry_date >= '${currentYear}-01-01'
-        `,
-        tenant_id_param: tenantId,
-      });
+    if (vatAccount) {
+      // Get journal lines for this account
+      const { data: vatLines } = await supabase
+        .from("journal_lines")
+        .select("debit, credit, journal_entries!inner(tenant_id, status, entry_date)")
+        .eq("account_id", vatAccount.id)
+        .eq("journal_entries.tenant_id", tenantId)
+        .eq("journal_entries.status", "posted")
+        .gte("journal_entries.entry_date", `${currentYear}-01-01`)
+        .limit(1000);
 
-      const { data: invoiceVat } = await supabase.rpc("execute_readonly_query", {
-        query_text: `
-          SELECT COALESCE(SUM(tax), 0) as total_vat
-          FROM invoices
-          WHERE tenant_id = '${tenantId}' AND status IN ('paid', 'posted')
-            AND invoice_date >= '${currentYear}-01-01'
-        `,
-        tenant_id_param: tenantId,
-      });
+      const glVat = (vatLines || []).reduce((s: number, l: any) =>
+        s + Number(l.credit || 0) - Number(l.debit || 0), 0);
 
-      const glVat = Number(vatBalance?.[0]?.balance || 0);
-      const invVat = Number(invoiceVat?.[0]?.total_vat || 0);
+      // Get invoice VAT totals
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("tax")
+        .eq("tenant_id", tenantId)
+        .in("status", ["paid", "posted"])
+        .gte("invoice_date", `${currentYear}-01-01`)
+        .limit(1000);
+
+      const invVat = (invoices || []).reduce((s: number, i: any) => s + Number(i.tax || 0), 0);
       const diff = Math.abs(glVat - invVat);
 
       if (diff > 1 && invVat > 0) {
@@ -236,40 +235,49 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   // ─── 3. INVOICING CHECKS ───
 
   // 3.1 Invoice numbering gaps
+  // CR2-05: Use Supabase client API
   try {
-    const { data: gaps } = await supabase.rpc("execute_readonly_query", {
-      query_text: `
-        WITH numbered AS (
-          SELECT invoice_number, ROW_NUMBER() OVER (ORDER BY invoice_number) as rn
-          FROM invoices WHERE tenant_id = '${tenantId}' AND invoice_number ~ '^[0-9]+$'
-            AND invoice_date >= '${currentYear}-01-01'
-        )
-        SELECT a.invoice_number as prev_num, b.invoice_number as next_num,
-          CAST(b.invoice_number AS BIGINT) - CAST(a.invoice_number AS BIGINT) - 1 as gap_size
-        FROM numbered a JOIN numbered b ON b.rn = a.rn + 1
-        WHERE CAST(b.invoice_number AS BIGINT) - CAST(a.invoice_number AS BIGINT) > 1
-        LIMIT 10
-      `,
-      tenant_id_param: tenantId,
-    });
-    if (gaps && gaps.length > 0) {
-      const totalGaps = gaps.reduce((s: number, g: any) => s + Number(g.gap_size), 0);
-      checks.push({
-        id: "INV_NUMBER_GAPS",
-        category: "invoicing",
-        severity: "error",
-        title: `${gaps.length} invoice numbering gaps (${totalGaps} missing)`,
-        title_sr: `${gaps.length} prekida u numeraciji faktura (${totalGaps} nedostaje)`,
-        description: `Serbian law requires sequential invoice numbering without gaps within a fiscal year.`,
-        description_sr: `Zakon zahteva neprekidnu numeraciju faktura bez preskakanja u okviru poreskog perioda.`,
-        law_reference: "Zakon o PDV, čl. 42 — Sadržaj računa; Pravilnik o računima",
-        affected_count: gaps.length,
-        details: gaps.slice(0, 5),
-      });
+    const { data: invoiceNumbers } = await supabase
+      .from("invoices")
+      .select("invoice_number")
+      .eq("tenant_id", tenantId)
+      .gte("invoice_date", `${currentYear}-01-01`)
+      .order("invoice_number")
+      .limit(1000);
+
+    if (invoiceNumbers) {
+      const numericInvoices = invoiceNumbers
+        .filter((i: any) => /^\d+$/.test(i.invoice_number))
+        .map((i: any) => parseInt(i.invoice_number))
+        .sort((a: number, b: number) => a - b);
+
+      const gaps: { prev_num: number; next_num: number; gap_size: number }[] = [];
+      for (let j = 1; j < numericInvoices.length; j++) {
+        const gapSize = numericInvoices[j] - numericInvoices[j - 1] - 1;
+        if (gapSize > 0) {
+          gaps.push({ prev_num: numericInvoices[j - 1], next_num: numericInvoices[j], gap_size: gapSize });
+        }
+      }
+
+      if (gaps.length > 0) {
+        const totalGaps = gaps.reduce((s, g) => s + g.gap_size, 0);
+        checks.push({
+          id: "INV_NUMBER_GAPS",
+          category: "invoicing",
+          severity: "error",
+          title: `${gaps.length} invoice numbering gaps (${totalGaps} missing)`,
+          title_sr: `${gaps.length} prekida u numeraciji faktura (${totalGaps} nedostaje)`,
+          description: `Serbian law requires sequential invoice numbering without gaps within a fiscal year.`,
+          description_sr: `Zakon zahteva neprekidnu numeraciju faktura bez preskakanja u okviru poreskog perioda.`,
+          law_reference: "Zakon o PDV, čl. 42 — Sadržaj računa; Pravilnik o računima",
+          affected_count: gaps.length,
+          details: gaps.slice(0, 5),
+        });
+      }
     }
   } catch (e) { console.warn("Check 3.1 failed:", e); }
 
-  // 3.2 Invoices missing required fields (PIB, address)
+  // 3.2 Invoices missing required fields (PIB)
   try {
     const { count: noPibCount } = await supabase
       .from("invoices")
@@ -322,98 +330,126 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   } catch (e) { console.warn("Check 4.1 failed:", e); }
 
   // 4.2 Employees without active contracts
+  // CR2-05: Use Supabase client API
   try {
-    const { data: noContract } = await supabase.rpc("execute_readonly_query", {
-      query_text: `
-        SELECT e.id, e.full_name FROM employees e
-        WHERE e.tenant_id = '${tenantId}' AND e.status = 'active'
-        AND NOT EXISTS (
-          SELECT 1 FROM employee_contracts ec
-          WHERE ec.employee_id = e.id AND ec.tenant_id = '${tenantId}'
-          AND (ec.end_date IS NULL OR ec.end_date >= '${today}')
-        )
-        LIMIT 20
-      `,
-      tenant_id_param: tenantId,
-    });
-    if (noContract && noContract.length > 0) {
-      checks.push({
-        id: "PAYROLL_NO_CONTRACT",
-        category: "payroll",
-        severity: "error",
-        title: `${noContract.length} active employees without valid contracts`,
-        title_sr: `${noContract.length} aktivnih zaposlenih bez važećeg ugovora`,
-        description: `Active employees must have a valid employment contract on file per Serbian labor law.`,
-        description_sr: `Aktivni zaposleni moraju imati važeći ugovor o radu u skladu sa Zakonom o radu.`,
-        law_reference: "Zakon o radu, čl. 30 — Ugovor o radu",
-        affected_count: noContract.length,
-        details: noContract.slice(0, 5),
-      });
+    const { data: activeEmployees } = await supabase
+      .from("employees")
+      .select("id, full_name")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .limit(200);
+
+    if (activeEmployees && activeEmployees.length > 0) {
+      const empIds = activeEmployees.map((e: any) => e.id);
+      const { data: contracts } = await supabase
+        .from("employee_contracts")
+        .select("employee_id")
+        .eq("tenant_id", tenantId)
+        .in("employee_id", empIds)
+        .or(`end_date.is.null,end_date.gte.${today}`);
+
+      const contractedIds = new Set((contracts || []).map((c: any) => c.employee_id));
+      const noContract = activeEmployees.filter((e: any) => !contractedIds.has(e.id));
+
+      if (noContract.length > 0) {
+        checks.push({
+          id: "PAYROLL_NO_CONTRACT",
+          category: "payroll",
+          severity: "error",
+          title: `${noContract.length} active employees without valid contracts`,
+          title_sr: `${noContract.length} aktivnih zaposlenih bez važećeg ugovora`,
+          description: `Active employees must have a valid employment contract on file per Serbian labor law.`,
+          description_sr: `Aktivni zaposleni moraju imati važeći ugovor o radu u skladu sa Zakonom o radu.`,
+          law_reference: "Zakon o radu, čl. 30 — Ugovor o radu",
+          affected_count: noContract.length,
+          details: noContract.slice(0, 5),
+        });
+      }
     }
   } catch (e) { console.warn("Check 4.2 failed:", e); }
 
   // ─── 5. FIXED ASSETS CHECKS ───
 
   // 5.1 Assets without depreciation schedule
+  // CR2-05: Use Supabase client API
   try {
-    const { data: noDepreciation } = await supabase.rpc("execute_readonly_query", {
-      query_text: `
-        SELECT a.id, a.asset_code, a.name, a.acquisition_cost
-        FROM assets a
-        WHERE a.tenant_id = '${tenantId}' AND a.status = 'active'
-          AND a.asset_type IN ('fixed', 'intangible')
-          AND a.acquisition_cost > 0
-          AND NOT EXISTS (
-            SELECT 1 FROM depreciation_schedules ds WHERE ds.asset_id = a.id
-          )
-        LIMIT 20
-      `,
-      tenant_id_param: tenantId,
-    });
-    if (noDepreciation && noDepreciation.length > 0) {
-      checks.push({
-        id: "ASSET_NO_DEPRECIATION",
-        category: "assets",
-        severity: "warning",
-        title: `${noDepreciation.length} fixed assets without depreciation schedule`,
-        title_sr: `${noDepreciation.length} osnovnih sredstava bez plana amortizacije`,
-        description: `Fixed assets with acquisition cost must have a depreciation schedule per accounting standards.`,
-        description_sr: `Osnovna sredstva sa nabavnom vrednošću moraju imati plan amortizacije prema MRS/MSFI.`,
-        law_reference: "MRS 16 — Nekretnine, postrojenja i oprema; Zakon o računovodstvu, čl. 20",
-        affected_count: noDepreciation.length,
-      });
+    const { data: activeAssets } = await supabase
+      .from("assets")
+      .select("id, asset_code, name, acquisition_cost")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .in("asset_type", ["fixed", "intangible"])
+      .gt("acquisition_cost", 0)
+      .limit(200);
+
+    if (activeAssets && activeAssets.length > 0) {
+      const assetIds = activeAssets.map((a: any) => a.id);
+      const { data: schedules } = await supabase
+        .from("depreciation_schedules")
+        .select("asset_id")
+        .in("asset_id", assetIds);
+
+      const scheduledIds = new Set((schedules || []).map((s: any) => s.asset_id));
+      const noDepreciation = activeAssets.filter((a: any) => !scheduledIds.has(a.id));
+
+      if (noDepreciation.length > 0) {
+        checks.push({
+          id: "ASSET_NO_DEPRECIATION",
+          category: "assets",
+          severity: "warning",
+          title: `${noDepreciation.length} fixed assets without depreciation schedule`,
+          title_sr: `${noDepreciation.length} osnovnih sredstava bez plana amortizacije`,
+          description: `Fixed assets with acquisition cost must have a depreciation schedule per accounting standards.`,
+          description_sr: `Osnovna sredstva sa nabavnom vrednošću moraju imati plan amortizacije prema MRS/MSFI.`,
+          law_reference: "MRS 16 — Nekretnine, postrojenja i oprema; Zakon o računovodstvu, čl. 20",
+          affected_count: noDepreciation.length,
+        });
+      }
     }
   } catch (e) { console.warn("Check 5.1 failed:", e); }
 
   // ─── 6. REPORTING CHECKS ───
 
-  // 6.1 Trial balance not zero (revenue - expense accounts should net)
+  // 6.1 Trial balance not zero
+  // CR2-05: Use Supabase client API
   try {
-    const { data: trialBalance } = await supabase.rpc("execute_readonly_query", {
-      query_text: `
-        SELECT COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
-        FROM journal_lines jl
-        JOIN journal_entries je ON je.id = jl.journal_entry_id
-        WHERE je.tenant_id = '${tenantId}' AND je.status = 'posted'
-          AND je.entry_date >= '${currentYear}-01-01'
-      `,
-      tenant_id_param: tenantId,
-    });
-    if (trialBalance && trialBalance.length > 0) {
-      const diff = Math.abs(Number(trialBalance[0].total_debit) - Number(trialBalance[0].total_credit));
-      if (diff > 0.01) {
-        checks.push({
-          id: "TB_UNBALANCED",
-          category: "reporting",
-          severity: "error",
-          title: "Trial balance is not balanced",
-          title_sr: "Bruto bilans nije uravnotežen",
-          description: `Total debits and credits differ by ${diff.toFixed(2)} RSD for ${currentYear}. This indicates a system error.`,
-          description_sr: `Ukupno duguje i potražuje razlikuju se za ${diff.toFixed(2)} RSD u ${currentYear}. Ovo ukazuje na grešku u sistemu.`,
-          law_reference: "Zakon o računovodstvu, čl. 9 — Dvojno knjiženje",
-          affected_count: 1,
-          details: trialBalance[0],
-        });
+    const { data: postedEntries } = await supabase
+      .from("journal_entries")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("status", "posted")
+      .gte("entry_date", `${currentYear}-01-01`)
+      .limit(1);
+
+    if (postedEntries && postedEntries.length > 0) {
+      // Get all journal lines for posted entries this year
+      const { data: allLines } = await supabase
+        .from("journal_lines")
+        .select("debit, credit, journal_entries!inner(tenant_id, status, entry_date)")
+        .eq("journal_entries.tenant_id", tenantId)
+        .eq("journal_entries.status", "posted")
+        .gte("journal_entries.entry_date", `${currentYear}-01-01`)
+        .limit(1000);
+
+      if (allLines) {
+        const totalDebit = allLines.reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+        const totalCredit = allLines.reduce((s: number, l: any) => s + Number(l.credit || 0), 0);
+        const diff = Math.abs(totalDebit - totalCredit);
+
+        if (diff > 0.01) {
+          checks.push({
+            id: "TB_UNBALANCED",
+            category: "reporting",
+            severity: "error",
+            title: "Trial balance is not balanced",
+            title_sr: "Bruto bilans nije uravnotežen",
+            description: `Total debits and credits differ by ${diff.toFixed(2)} RSD for ${currentYear}. This indicates a system error.`,
+            description_sr: `Ukupno duguje i potražuje razlikuju se za ${diff.toFixed(2)} RSD u ${currentYear}. Ovo ukazuje na grešku u sistemu.`,
+            law_reference: "Zakon o računovodstvu, čl. 9 — Dvojno knjiženje",
+            affected_count: 1,
+            details: { total_debit: totalDebit, total_credit: totalCredit },
+          });
+        }
       }
     }
   } catch (e) { console.warn("Check 6.1 failed:", e); }

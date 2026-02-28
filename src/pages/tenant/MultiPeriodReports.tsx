@@ -80,7 +80,7 @@ export default function MultiPeriodReports() {
       const liab1 = aggregate(data1, ["2", "4"]);
       const liab2 = aggregate(data2, ["2", "4"]);
       return [
-        { label: "Aktiva (Klasa 0+1)", v1: -assets1, v2: -assets2 },
+        { label: "Aktiva (Klasa 0+1)", v1: assets1, v2: assets2 },
         { label: "Kapital (Klasa 3)", v1: equity1, v2: equity2 },
         { label: "Obaveze (Klasa 2+4)", v1: liab1, v2: liab2 },
       ];
