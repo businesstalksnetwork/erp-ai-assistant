@@ -10,13 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Activity, Clock, AlertTriangle, AlertCircle, Info, Loader2, Sparkles, BarChart3, CalendarDays, RefreshCw, Package } from "lucide-react";
+import { Brain, Activity, Clock, AlertTriangle, AlertCircle, Info, Loader2, Sparkles, BarChart3, CalendarDays, RefreshCw, Package, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 
 const AiPlanningCalendarContent = lazy(() => import("@/pages/tenant/AiPlanningCalendar"));
 const AiBottleneckContent = lazy(() => import("@/pages/tenant/AiBottleneckPrediction"));
+const AiWasteContent = lazy(() => import("@/pages/tenant/AiWasteAnalysis"));
 
 const Loading = () => <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
@@ -78,20 +79,31 @@ export default function AiPlanningDashboard() {
     queryFn: async () => {
       const { data: orders } = await supabase.from("production_orders").select("id, order_number, bom_template_id, bom_templates(name)").eq("tenant_id", tenantId!).in("status", ["draft", "in_progress"]).limit(10);
       if (!orders?.length) return [];
-      const readiness = [];
-      for (const order of orders) {
-        if (!order.bom_template_id) continue;
-        const { data: bomLines } = await supabase.from("bom_lines").select("material_product_id, quantity").eq("bom_template_id", order.bom_template_id);
-        if (!bomLines?.length) continue;
-        let allReady = true, anyMissing = false;
-        for (const bl of bomLines) {
-          const { data: stock } = await supabase.from("inventory_stock").select("quantity_on_hand").eq("product_id", bl.material_product_id).eq("tenant_id", tenantId!);
-          const total = stock?.reduce((s: number, st: any) => s + st.quantity_on_hand, 0) || 0;
-          if (total < bl.quantity) { anyMissing = true; allReady = false; }
-        }
-        readiness.push({ id: order.id, order_number: order.order_number, bom: (order as any).bom_templates?.name, status: allReady ? "green" : anyMissing ? "red" : "yellow" });
+
+      const bomIds = [...new Set(orders.filter(o => o.bom_template_id).map(o => o.bom_template_id!))];
+      if (!bomIds.length) return orders.map(o => ({ id: o.id, order_number: o.order_number, bom: (o as any).bom_templates?.name, status: "green" }));
+
+      // Batch fetch all BOM lines at once
+      const { data: allBomLines } = await supabase.from("bom_lines").select("bom_template_id, material_product_id, quantity").in("bom_template_id", bomIds);
+      if (!allBomLines?.length) return orders.map(o => ({ id: o.id, order_number: o.order_number, bom: (o as any).bom_templates?.name, status: "green" }));
+
+      // Batch fetch all stock at once
+      const productIds = [...new Set(allBomLines.map(bl => bl.material_product_id))];
+      const { data: stockData } = await supabase.from("inventory_stock").select("product_id, quantity_on_hand").eq("tenant_id", tenantId!).in("product_id", productIds);
+      const stockMap: Record<string, number> = {};
+      for (const s of (stockData || [])) {
+        stockMap[s.product_id] = (stockMap[s.product_id] || 0) + (s.quantity_on_hand || 0);
       }
-      return readiness;
+
+      return orders.map(order => {
+        if (!order.bom_template_id) return { id: order.id, order_number: order.order_number, bom: (order as any).bom_templates?.name, status: "green" };
+        const lines = allBomLines.filter(bl => bl.bom_template_id === order.bom_template_id);
+        let anyMissing = false;
+        for (const bl of lines) {
+          if ((stockMap[bl.material_product_id] || 0) < bl.quantity) { anyMissing = true; break; }
+        }
+        return { id: order.id, order_number: order.order_number, bom: (order as any).bom_templates?.name, status: anyMissing ? "red" : "green" };
+      });
     },
     enabled: !!tenantId && tab === "dashboard",
   });
@@ -117,6 +129,7 @@ export default function AiPlanningDashboard() {
           <TabsTrigger value="dashboard">{t("dashboard")}</TabsTrigger>
           <TabsTrigger value="calendar">{t("productionCalendar")}</TabsTrigger>
           <TabsTrigger value="bottlenecks">{t("bottleneckPrediction")}</TabsTrigger>
+          <TabsTrigger value="waste"><Trash2 className="h-3.5 w-3.5 mr-1" />{t("wasteAnalysis")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -205,6 +218,9 @@ export default function AiPlanningDashboard() {
         </TabsContent>
         <TabsContent value="bottlenecks">
           <Suspense fallback={<Loading />}><AiBottleneckContent /></Suspense>
+        </TabsContent>
+        <TabsContent value="waste">
+          <Suspense fallback={<Loading />}><AiWasteContent /></Suspense>
         </TabsContent>
       </Tabs>
     </div>

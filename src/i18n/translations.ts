@@ -2191,6 +2191,15 @@ export const translations = {
 
     // AI Planning Dashboard
     noInsightsToDisplay: "No insights to display.",
+    acceptAll: "Accept All",
+    rejectAll: "Reject All",
+    wasteAnalysis: "Waste Analysis",
+    wasteRate: "Waste Rate",
+    topWasteReasons: "Top Waste Reasons",
+    analyzeWaste: "Analyze Waste",
+    wasteByProduct: "Waste by Product",
+    totalWaste: "Total Waste",
+    wasteRecommendations: "Recommendations",
 
     // Partner Categories
     partnerCategories: "Partner Categories",
@@ -5595,6 +5604,15 @@ export const translations = {
 
     // AI Planning Dashboard
     noInsightsToDisplay: "Nema uvida za prikaz.",
+    acceptAll: "Prihvati sve",
+    rejectAll: "Odbaci sve",
+    wasteAnalysis: "Analiza otpada",
+    wasteRate: "Stopa otpada",
+    topWasteReasons: "Glavni razlozi otpada",
+    analyzeWaste: "Analiziraj otpad",
+    wasteByProduct: "Otpad po proizvodu",
+    totalWaste: "Ukupan otpad",
+    wasteRecommendations: "Preporuke",
 
     // Partner Categories
     partnerCategories: "Kategorije partnera",
