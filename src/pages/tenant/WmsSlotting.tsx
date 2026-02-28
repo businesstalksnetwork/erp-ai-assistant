@@ -16,7 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap, Loader2, GitCompareArrows, X } from "lucide-react";
+import { Brain, Play, Layers, TrendingDown, ArrowRightLeft, Zap, Loader2, GitCompareArrows, X, RefreshCw } from "lucide-react";
 
 export default function WmsSlotting() {
   const { t } = useLanguage();
@@ -386,6 +386,12 @@ export default function WmsSlotting() {
               </Select>
             </div>
             <div><Label>{t("scenarioName")}</Label><Input value={scenarioName} onChange={e => setScenarioName(e.target.value)} placeholder={t("optional")} /></div>
+
+            {/* Refresh Stats */}
+            {warehouseId && (
+              <RefreshStatsButton warehouseId={warehouseId} tenantId={tenantId!} />
+            )}
+
             <div className="space-y-4">
               <CardDescription>{t("optimizationWeights")}</CardDescription>
               <div className="flex items-center gap-2 mb-2">
@@ -408,6 +414,56 @@ export default function WmsSlotting() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Refresh Stats button component
+function RefreshStatsButton({ warehouseId, tenantId }: { warehouseId: string; tenantId: string }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null);
+
+  // Fetch last refresh timestamp
+  useQuery({
+    queryKey: ["wms-stats-last-refresh", tenantId, warehouseId],
+    queryFn: async () => {
+      const { data } = await supabase.from("wms_product_stats").select("updated_at")
+        .eq("tenant_id", tenantId).eq("warehouse_id", warehouseId)
+        .order("updated_at", { ascending: false }).limit(1);
+      const ts = data?.[0]?.updated_at || null;
+      setLastRefresh(ts);
+      return ts;
+    },
+    enabled: !!tenantId && !!warehouseId,
+  });
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        supabase.rpc("refresh_wms_product_stats", { p_tenant_id: tenantId, p_warehouse_id: warehouseId }),
+        supabase.rpc("refresh_wms_affinity_pairs", { p_tenant_id: tenantId, p_warehouse_id: warehouseId }),
+      ]);
+      setLastRefresh(new Date().toISOString());
+      toast({ title: t("success"), description: t("statsRefreshed") });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between border rounded-md p-3 bg-muted/30">
+      <div className="text-xs text-muted-foreground">
+        {t("lastRefresh")}: {lastRefresh ? new Date(lastRefresh).toLocaleString() : "—"}
+      </div>
+      <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
+        {refreshing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+        {t("refreshStats")}
+      </Button>
     </div>
   );
 }

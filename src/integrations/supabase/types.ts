@@ -20160,6 +20160,65 @@ export type Database = {
           },
         ]
       }
+      wms_affinity_pairs: {
+        Row: {
+          co_pick_count: number
+          id: string
+          product_a_id: string
+          product_b_id: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          co_pick_count?: number
+          id?: string
+          product_a_id: string
+          product_b_id: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          co_pick_count?: number
+          id?: string
+          product_a_id?: string
+          product_b_id?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_affinity_pairs_product_a_id_fkey"
+            columns: ["product_a_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_affinity_pairs_product_b_id_fkey"
+            columns: ["product_b_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_affinity_pairs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_affinity_pairs_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wms_aisles: {
         Row: {
           code: string
@@ -21070,6 +21129,7 @@ export type Database = {
           id: string
           notes: string | null
           order_reference: string | null
+          pick_sequence: number | null
           priority: number
           product_id: string | null
           quantity: number | null
@@ -21092,6 +21152,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_reference?: string | null
+          pick_sequence?: number | null
           priority?: number
           product_id?: string | null
           quantity?: number | null
@@ -21114,6 +21175,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_reference?: string | null
+          pick_sequence?: number | null
           priority?: number
           product_id?: string | null
           quantity?: number | null
@@ -22009,6 +22071,10 @@ export type Database = {
       process_pos_sale: {
         Args: { p_tenant_id: string; p_transaction_id: string }
         Returns: string
+      }
+      refresh_wms_affinity_pairs: {
+        Args: { p_tenant_id: string; p_warehouse_id: string }
+        Returns: undefined
       }
       refresh_wms_product_stats: {
         Args: { p_tenant_id: string; p_warehouse_id: string }
