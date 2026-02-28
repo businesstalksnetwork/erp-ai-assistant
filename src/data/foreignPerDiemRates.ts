@@ -1,6 +1,6 @@
 /**
  * Foreign per diem rates per Uredba o naknadi troškova za službena putovanja u inostranstvo
- * (Sl. glasnik RS, br. 10/2022)
+ * (Sl. glasnik RS, br. 76/2024)
  * Rates in EUR unless otherwise noted
  */
 export interface PerDiemRate {

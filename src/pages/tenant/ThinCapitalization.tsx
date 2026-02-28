@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,31 +33,42 @@ export default function ThinCapitalization() {
     enabled: !!tenantId,
   });
 
+  // CR-23: Use local state synced from query data
   const [debt, setDebt] = useState(0);
   const [equity, setEquity] = useState(0);
   const [interest, setInterest] = useState(0);
 
-  // Sync from DB when record loads
-  const effectiveDebt = record ? Number(record.related_party_debt) : debt;
-  const effectiveEquity = record ? Number(record.equity_amount) : equity;
-  const effectiveInterest = record ? Number(record.interest_expense) : interest;
+  // Sync local state from DB when record loads
+  useEffect(() => {
+    if (record) {
+      setDebt(Number(record.related_party_debt) || 0);
+      setEquity(Number(record.equity_amount) || 0);
+      setInterest(Number(record.interest_expense) || 0);
+    } else {
+      setDebt(0);
+      setEquity(0);
+      setInterest(0);
+    }
+  }, [record]);
 
-  const ratio = effectiveEquity > 0 ? effectiveDebt / effectiveEquity : 0;
+  // CR-28: Handle equity = 0
+  const ratio = equity > 0 ? debt / equity : (debt > 0 ? Infinity : 0);
   const maxRatio = 4.0;
   const isExceeded = ratio > maxRatio;
-  const allowableDebt = effectiveEquity * maxRatio;
-  const nonDeductible = isExceeded && effectiveDebt > 0
-    ? effectiveInterest * ((effectiveDebt - allowableDebt) / effectiveDebt)
+  const allowableDebt = equity * maxRatio;
+  const nonDeductible = isExceeded && debt > 0
+    ? interest * ((debt - allowableDebt) / debt)
     : 0;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // CR-23: Use local state values directly (not stale effectiveX)
       const { error } = await supabase.from("thin_capitalization").upsert({
         tenant_id: tenantId!,
         year,
-        related_party_debt: debt || effectiveDebt,
-        equity_amount: equity || effectiveEquity,
-        interest_expense: interest || effectiveInterest,
+        related_party_debt: debt,
+        equity_amount: equity,
+        interest_expense: interest,
         non_deductible_interest: Math.max(0, nonDeductible),
       }, { onConflict: "tenant_id,year" });
       if (error) throw error;
@@ -73,7 +84,7 @@ export default function ThinCapitalization() {
     <div className="space-y-6">
       <PageHeader
         title="Tanka kapitalizacija"
-        description="ZPDP čl. 61-63 — Ograničenje odbitka kamate na zajmove od povezanih lica (4:1)"
+        description="ZPDP čl. 61 — Ograničenje odbitka kamate na zajmove od povezanih lica (4:1)"
         icon={Scale}
         actions={
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
@@ -93,34 +104,19 @@ export default function ThinCapitalization() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Zajam od povezanog lica</CardTitle></CardHeader>
           <CardContent>
-            <Input
-              type="number"
-              value={record ? effectiveDebt : debt}
-              onChange={e => setDebt(+e.target.value)}
-              placeholder="0.00"
-            />
+            <Input type="number" value={debt} onChange={e => setDebt(+e.target.value)} placeholder="0.00" />
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Sopstveni kapital (prosek)</CardTitle></CardHeader>
           <CardContent>
-            <Input
-              type="number"
-              value={record ? effectiveEquity : equity}
-              onChange={e => setEquity(+e.target.value)}
-              placeholder="0.00"
-            />
+            <Input type="number" value={equity} onChange={e => setEquity(+e.target.value)} placeholder="0.00" />
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Rashod kamate</CardTitle></CardHeader>
           <CardContent>
-            <Input
-              type="number"
-              value={record ? effectiveInterest : interest}
-              onChange={e => setInterest(+e.target.value)}
-              placeholder="0.00"
-            />
+            <Input type="number" value={interest} onChange={e => setInterest(+e.target.value)} placeholder="0.00" />
           </CardContent>
         </Card>
       </div>
@@ -131,8 +127,10 @@ export default function ThinCapitalization() {
           <div className="flex justify-between">
             <span>Odnos dug / kapital:</span>
             <span className="font-mono font-bold">
-              {ratio.toFixed(2)}:1
-              {isExceeded ? (
+              {ratio === Infinity ? "∞" : ratio.toFixed(2)}:1
+              {ratio === Infinity ? (
+                <Badge variant="destructive" className="ml-2">Beskonačno (kapital = 0)</Badge>
+              ) : isExceeded ? (
                 <Badge variant="destructive" className="ml-2">Prekoračen (max 4:1)</Badge>
               ) : (
                 <Badge variant="secondary" className="ml-2">U okviru limita</Badge>
@@ -145,7 +143,7 @@ export default function ThinCapitalization() {
           </div>
           <div className="flex justify-between">
             <span>Prekoračenje duga:</span>
-            <span className="font-mono">{fmtNum(Math.max(0, effectiveDebt - allowableDebt))}</span>
+            <span className="font-mono">{fmtNum(Math.max(0, debt - allowableDebt))}</span>
           </div>
           <div className="flex justify-between border-t pt-2">
             <span className="font-bold text-destructive">Nepriznati rashod kamate:</span>

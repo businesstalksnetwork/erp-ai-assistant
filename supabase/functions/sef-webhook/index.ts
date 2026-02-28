@@ -15,11 +15,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // SEF webhooks may use a shared secret for verification
+    // CR-06: Fail closed — reject if secret is not configured
     const webhookSecret = Deno.env.get("SEF_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      console.error("SEF webhook: SEF_WEBHOOK_SECRET not configured");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const providedSecret = req.headers.get("x-sef-signature") || req.headers.get("x-webhook-secret");
-    
-    if (webhookSecret && providedSecret !== webhookSecret) {
+    if (providedSecret !== webhookSecret) {
       console.warn("SEF webhook: invalid signature");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,11 +41,12 @@ Deno.serve(async (req) => {
     console.log("SEF webhook received:", JSON.stringify(payload));
 
     // Expected payload structure from SEF:
-    // { invoiceId: string, status: string, sefId: string, timestamp: string, ... }
-    const { invoiceId, status, sefId, timestamp, rejectionReason } = payload;
+    // { sefId: string, status: string, timestamp: string, rejectionReason?: string }
+    const { status, sefId, timestamp, rejectionReason } = payload;
 
-    if (!invoiceId && !sefId) {
-      return new Response(JSON.stringify({ error: "Missing invoiceId or sefId" }), {
+    // CR-07: Only allow lookup by sefId — prevent UUID enumeration via invoiceId
+    if (!sefId) {
+      return new Response(JSON.stringify({ error: "Missing sefId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -57,19 +64,15 @@ Deno.serve(async (req) => {
 
     const mappedStatus = statusMap[status] || status?.toLowerCase() || "unknown";
 
-    // Try to find invoice by SEF ID or internal ID
-    let query = supabase.from("invoices").select("id, tenant_id, sef_status");
-    
-    if (sefId) {
-      query = query.eq("sef_invoice_id", sefId);
-    } else if (invoiceId) {
-      query = query.eq("id", invoiceId);
-    }
-
-    const { data: invoice, error: findErr } = await query.maybeSingle();
+    // Look up invoice only by SEF ID
+    const { data: invoice, error: findErr } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, sef_status")
+      .eq("sef_invoice_id", sefId)
+      .maybeSingle();
 
     if (findErr || !invoice) {
-      console.warn(`SEF webhook: invoice not found for sefId=${sefId}, invoiceId=${invoiceId}`);
+      console.warn(`SEF webhook: invoice not found for sefId=${sefId}`);
       // Return 200 to prevent retries
       return new Response(JSON.stringify({ status: "ignored", reason: "invoice not found" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

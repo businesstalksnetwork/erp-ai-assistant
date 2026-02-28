@@ -46,12 +46,14 @@ export default function DeferredTax() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
+      // CR-14: Remove Math.abs() — preserve sign for DTA/DTL classification
       const diff = form.accounting_base - form.tax_base;
+      const deferredTaxAmount = diff * form.tax_rate;
       const { error } = await supabase.from("deferred_tax_items").insert({
         tenant_id: tenantId!,
         year,
         ...form,
-        deferred_tax_amount: Math.abs(diff * form.tax_rate),
+        deferred_tax_amount: deferredTaxAmount,
       });
       if (error) throw error;
     },
@@ -65,7 +67,8 @@ export default function DeferredTax() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("deferred_tax_items").delete().eq("id", id);
+      // CR-24: Add tenant_id scope to delete
+      const { error } = await supabase.from("deferred_tax_items").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -74,8 +77,13 @@ export default function DeferredTax() {
     },
   });
 
-  const dtaTotal = items.filter(i => i.item_type === "asset").reduce((s, i) => s + Number(i.deferred_tax_amount), 0);
-  const dtlTotal = items.filter(i => i.item_type === "liability").reduce((s, i) => s + Number(i.deferred_tax_amount), 0);
+  // CR-14: Use absolute values only for display totals
+  const dtaTotal = items
+    .filter(i => i.item_type === "asset")
+    .reduce((s, i) => s + Math.abs(Number(i.deferred_tax_amount)), 0);
+  const dtlTotal = items
+    .filter(i => i.item_type === "liability")
+    .reduce((s, i) => s + Math.abs(Number(i.deferred_tax_amount)), 0);
   const net = dtaTotal - dtlTotal;
 
   return (
@@ -175,7 +183,7 @@ export default function DeferredTax() {
                   <TableCell className="text-right font-mono">{fmtNum(Number(item.tax_base))}</TableCell>
                   <TableCell className="text-right font-mono">{fmtNum(Number(item.temporary_difference))}</TableCell>
                   <TableCell className="text-right font-mono">{(Number(item.tax_rate) * 100).toFixed(0)}%</TableCell>
-                  <TableCell className="text-right font-mono font-medium">{fmtNum(Number(item.deferred_tax_amount))}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">{fmtNum(Math.abs(Number(item.deferred_tax_amount)))}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}>
                       <Trash2 className="h-4 w-4" />

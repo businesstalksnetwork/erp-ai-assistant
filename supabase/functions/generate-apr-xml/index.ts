@@ -62,10 +62,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get legal entity
-    const leQuery = supabase.from("legal_entities").select("*").eq("tenant_id", tenant_id);
-    if (legal_entity_id) leQuery.eq("id", legal_entity_id);
-    const { data: legalEntity } = await leQuery.limit(1).single();
+    // CR-33: Fix immutable builder chaining — assign .eq() result back
+    let leQuery = supabase.from("legal_entities").select("*").eq("tenant_id", tenant_id);
+    if (legal_entity_id) leQuery = leQuery.eq("id", legal_entity_id);
+    const { data: legalEntity } = await leQuery.limit(1).maybeSingle();
 
     const pib = legalEntity?.pib || "";
     const mb = legalEntity?.mb || "";

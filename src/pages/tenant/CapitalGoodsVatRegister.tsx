@@ -67,7 +67,7 @@ export default function CapitalGoodsVatRegister() {
     <div className="space-y-6">
       <PageHeader
         title="Evidencija ispravki PDV-a za kapitalna dobra"
-        description="ZoPDV čl. 32 — Ispravka odbitka prethodnog poreza za opremu i objekte (5/10 godina)"
+        description="ZoPDV čl. 32a — Ispravka odbitka prethodnog poreza za opremu i objekte (5/10 godina)"
         icon={Building2}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -102,11 +102,11 @@ export default function CapitalGoodsVatRegister() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Originalni pro-rata</Label>
-                    <Input type="number" step="0.01" value={form.original_prorata} onChange={e => setForm(p => ({ ...p, original_prorata: +e.target.value }))} />
+                    <Input type="number" step="0.01" min={0} max={1} value={form.original_prorata} onChange={e => setForm(p => ({ ...p, original_prorata: Math.min(1, Math.max(0, +e.target.value)) }))} />
                   </div>
                   <div>
                     <Label>Tekući pro-rata</Label>
-                    <Input type="number" step="0.01" value={form.current_prorata} onChange={e => setForm(p => ({ ...p, current_prorata: +e.target.value }))} />
+                    <Input type="number" step="0.01" min={0} max={1} value={form.current_prorata} onChange={e => setForm(p => ({ ...p, current_prorata: Math.min(1, Math.max(0, +e.target.value)) }))} />
                   </div>
                 </div>
                 <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending}>

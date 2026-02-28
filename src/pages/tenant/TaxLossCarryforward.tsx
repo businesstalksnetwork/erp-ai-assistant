@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { Plus, Save, Trash2, TrendingDown } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function TaxLossCarryforward() {
   const { t } = useLanguage();
@@ -21,6 +22,8 @@ export default function TaxLossCarryforward() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newYear, setNewYear] = useState(new Date().getFullYear() - 1);
   const [newAmount, setNewAmount] = useState(0);
+  // CR-11: Local state for used_amount edits to prevent keystroke-per-mutation race
+  const [localUsed, setLocalUsed] = useState<Record<string, number>>({});
 
   const { data: items = [] } = useQuery({
     queryKey: ["tax-loss-carryforward", tenantId],
@@ -35,6 +38,13 @@ export default function TaxLossCarryforward() {
     },
     enabled: !!tenantId,
   });
+
+  // Sync local state from DB on load
+  useEffect(() => {
+    const map: Record<string, number> = {};
+    items.forEach(i => { map[i.id] = Number(i.used_amount) || 0; });
+    setLocalUsed(map);
+  }, [items]);
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -67,7 +77,8 @@ export default function TaxLossCarryforward() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tax_loss_carryforward").delete().eq("id", id);
+      // CR-24: Add tenant_id scope to delete
+      const { error } = await supabase.from("tax_loss_carryforward").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -75,6 +86,20 @@ export default function TaxLossCarryforward() {
       toast({ title: t("success") });
     },
   });
+
+  // CR-12: Validate used_amount <= loss_amount before saving
+  const handleSaveUsed = useCallback((id: string, lossAmount: number) => {
+    const val = localUsed[id] || 0;
+    if (val > lossAmount) {
+      toast({ title: "Greška", description: "Iskorišćeni iznos ne može biti veći od iznosa gubitka", variant: "destructive" });
+      return;
+    }
+    if (val < 0) {
+      toast({ title: "Greška", description: "Iskorišćeni iznos ne može biti negativan", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate({ id, used_amount: val });
+  }, [localUsed, updateMutation]);
 
   const currentYear = new Date().getFullYear();
   const totalRemaining = items.reduce((s, i) => s + Number(i.remaining_amount || 0), 0);
@@ -84,7 +109,7 @@ export default function TaxLossCarryforward() {
     <div className="space-y-6">
       <PageHeader
         title="Prenos poreskog gubitka"
-        description="ZPDP čl. 32-38 — Prenos gubitka na buduće periode (5 godina)"
+        description="ZPDP čl. 32 — Prenos gubitka na buduće periode (5 godina)"
         icon={TrendingDown}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -122,25 +147,40 @@ export default function TaxLossCarryforward() {
                 <TableHead className="text-right">Preostalo</TableHead>
                 <TableHead>Ističe</TableHead>
                 <TableHead className="text-right">Status</TableHead>
-                <TableHead className="w-20" />
+                <TableHead className="w-28" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map(item => {
                 const expired = Number(item.expiry_year) < currentYear;
                 const remaining = Number(item.remaining_amount || 0);
+                const localVal = localUsed[item.id] ?? Number(item.used_amount) ?? 0;
+                const isDirty = localVal !== (Number(item.used_amount) || 0);
                 return (
                   <TableRow key={item.id} className={expired ? "opacity-50" : ""}>
                     <TableCell className="font-mono">{item.loss_year}</TableCell>
                     <TableCell className="text-right font-mono">{fmtNum(Number(item.loss_amount))}</TableCell>
                     <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        className="w-28 text-right h-8 ml-auto"
-                        value={Number(item.used_amount) || ""}
-                        onChange={e => updateMutation.mutate({ id: item.id, used_amount: Number(e.target.value) || 0 })}
-                        disabled={expired}
-                      />
+                      <div className="flex items-center gap-1 justify-end">
+                        <Input
+                          type="number"
+                          className="w-28 text-right h-8"
+                          value={localVal}
+                          onChange={e => setLocalUsed(prev => ({ ...prev, [item.id]: Number(e.target.value) || 0 }))}
+                          disabled={expired}
+                        />
+                        {isDirty && !expired && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => handleSaveUsed(item.id, Number(item.loss_amount))}
+                            disabled={updateMutation.isPending}
+                          >
+                            <Save className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-mono font-medium">{fmtNum(remaining)}</TableCell>
                     <TableCell className="font-mono">{item.expiry_year}</TableCell>

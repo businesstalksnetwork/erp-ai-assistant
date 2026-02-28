@@ -31,13 +31,48 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const body = await req.json();
-    const { payroll_run_id, tax_type, amount, period_month, period_year, tenant_id: bodyTenantId } = body;
+    // CR-17: Add JWT authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Verify JWT
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const { payroll_run_id, tax_type, amount, period_month, period_year, tenant_id: bodyTenantId } = body;
+
+    // Verify tenant membership
+    const tenantIdToCheck = bodyTenantId || (payroll_run_id ? null : null);
+    if (tenantIdToCheck) {
+      const { data: membership } = await supabase
+        .from("tenant_members")
+        .select("id")
+        .eq("tenant_id", tenantIdToCheck)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Access denied" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // Handle standalone tax payment (e.g. PDV)
     if (tax_type && !payroll_run_id) {
@@ -82,6 +117,20 @@ Deno.serve(async (req) => {
       .eq("id", payroll_run_id)
       .single();
     if (runErr || !run) throw new Error("Payroll run not found");
+
+    // Verify membership for payroll tenant
+    const { data: payrollMembership } = await supabase
+      .from("tenant_members")
+      .select("id")
+      .eq("tenant_id", run.tenant_id)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!payrollMembership) {
+      return new Response(JSON.stringify({ error: "Access denied" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: items } = await supabase
       .from("payroll_items")

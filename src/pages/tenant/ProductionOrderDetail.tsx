@@ -92,7 +92,7 @@ export default function ProductionOrderDetail() {
     queryKey: ["products", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("products").select("id, name").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, default_purchase_price").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -120,7 +120,7 @@ export default function ProductionOrderDetail() {
           p_reference: `WASTE-PO-${(order as any)?.order_number || id}`,
         });
         // P3-14: GL posting for waste: DR 5830 Rashodi od kala, rastura / CR 1010 Materijal
-        const wasteValue = wasteForm.quantity * (products.find((p: any) => p.id === wasteForm.product_id) as any)?.default_purchase_price || 0;
+        const wasteValue = wasteForm.quantity * ((products.find((p: any) => p.id === wasteForm.product_id) as any)?.default_purchase_price || 0);
         if (wasteValue > 0) {
           const { postWithRuleOrFallback } = await import("@/lib/postingHelper");
           await postWithRuleOrFallback({
