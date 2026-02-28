@@ -1,55 +1,48 @@
 
 
-# V3.2 Critical Fixes + AI Not Working
+# Next Priority Fixes from V3.2 Audit
 
-## AI Issue Investigation Results
+Based on verification of current code, here are the remaining unfixed items in priority order. Items already fixed in the last round (CR2-01 through CR2-14, P2-07, P3-20, CR-08/09) are excluded.
 
-From the network logs captured during your session:
+## Fix 1: P1-03 — POS Triple Stock Deduction (CRITICAL)
+**File:** `src/pages/tenant/PosTerminal.tsx` lines 478-495
+**Issue:** Both `complete_pos_transaction` (line 480) AND `process_pos_sale` (line 500) deduct stock server-side. The client calls both sequentially = double deduction.
+**Fix:** Remove the `complete_pos_transaction` call (lines 478-495). Let `process_pos_sale` handle stock atomically. Keep the `complete_pos_transaction` only as a fallback if `process_pos_sale` doesn't handle stock.
 
-- `ai-insights` edge function: **works** (returned 200 with full data)
-- `ai-daily-digest` edge function: **no request captured** — the AI briefing widget on the dashboard shows a loading skeleton but the function call never fires
-- `ai-assistant` edge function: **no recent logs at all** — the Copilot chat hasn't been invoked recently
-- `LOVABLE_API_KEY`: **configured and present**
+## Fix 2: P1-05 — BOM Superseded Lines Filter (CRITICAL)
+**File:** `supabase/migrations/` — new migration to recreate `complete_production_order`
+**Issue:** Line 38 of `20260228021004` queries `bom_lines` without `AND bl.superseded_at IS NULL`. Revised BOMs consume both old and new lines.
+**Fix:** New migration that adds `AND bl.superseded_at IS NULL` to the BOM lines query.
 
-The blank grey area on the dashboard is the AI Briefing widget stuck in a loading/skeleton state. The root cause is likely one of:
-1. A stale React Query error cache preventing the `supabase.functions.invoke("ai-daily-digest")` call from re-firing
-2. The lazy-loaded `AiBriefingWidget` component not resolving from Suspense
+## Fix 3: P3-03 — Production GL Accounts 5100/5000 → 120/511 (HIGH)
+**Same migration as Fix 2**
+**Issue:** Both DR (5100) and CR (5000) are expense accounts. Finished goods never hit the balance sheet.
+**Fix:** Change fallback accounts from `5100`→`1200` (Gotovi proizvodi) and `5000`→`5110` (Troškovi materijala). Material consumption: DR 5110 / CR 1010. Finished goods: DR 1200 / CR 5800.
 
-**Fix:** Add error handling and retry logic to the `AiBriefingWidget` so it shows an error state with a retry button instead of silently returning `null` on failure. Also redeploy both `ai-daily-digest` and `ai-assistant` functions to ensure they're running the latest code.
+## Fix 4: P3-09 — Leave Type Enum Mismatch (HIGH)
+**Issue:** The payroll RPC migration we just created uses `'sick'` correctly. But need to verify the `eBolovanje` trigger and `LeaveRequests.tsx` also use the correct enum values.
+**Files:** Check `LeaveRequests.tsx` for `'sick_leave'` vs `'sick'`
 
----
+## Fix 5: P3-18 — NBS Exchange Rate Unit Division (HIGH)
+**File:** `supabase/functions/nbs-exchange-rates/index.ts`
+**Issue:** JPY and other currencies with `<unit>100</unit>` store rates 100x too high because `middle_rate` is not divided by `unit`.
+**Fix:** Extract `<unit>` from XML and divide rate by it.
 
-## Combined Plan: V3.2 Fixes + AI Reliability
+## Fix 6: CR-20 — SEF S10/S20 Uses Wall Clock Not Invoice Date (HIGH)
+**File:** `supabase/functions/sef-send-invoice/index.ts` (if it exists)
+**Issue:** `determineVatCategory` uses `new Date()` instead of the invoice's `issue_date` for the April 2026 cutover.
+**Note:** This function may not exist in the codebase (search returned no results). If so, skip.
 
-### Task 1: Payroll RPC — Rename + Fix (DB Migration)
-Create a new migration that:
-- `DROP FUNCTION IF EXISTS public.calculate_payroll(uuid)`
-- `CREATE OR REPLACE FUNCTION public.calculate_payroll_for_run(...)` with the corrected body
-- Remove duplicate `pension_employer`/`health_employer` columns from INSERT (keep only `employer_pio`/`employer_health`)
-- Replace `v_wd := 22` with dynamic weekday count for the month
-- Fix leave counting to query `leave_requests` with day-range overlap instead of `COUNT(*)`
-- Fix sick leave to query `leave_requests WHERE leave_type = 'sick'` instead of `attendance_records`
+## Fix 7: P2-10 — Journal Entry Numbering Race Condition (CRITICAL)
+**File:** `src/lib/journalUtils.ts`
+**Issue:** Fallback still uses `COUNT+1` which can produce duplicates. Should use the server-side RPC with advisory lock.
 
-### Task 2: Returns.tsx GL Account Fix (CR2-04)
-Change `accountCode: "1200"` → `"2040"` on the customer return credit note AR entry (line ~242).
+## Fix 8: CR2-11 — generate-apr-xml Uses Anon Key (HIGH)
+**Note:** This function doesn't exist in the codebase (search returned no results). Skip.
 
-### Task 3: compliance-checker SQL Injection Fix (CR2-05)
-Replace all `'${tenantId}'` string interpolations with the Supabase client API (`.from().select()`) or parameterized RPC calls throughout `supabase/functions/compliance-checker/index.ts`.
-
-### Task 4: Edge Function Fixes
-- **generate-payment-orders**: Fix dead tenant check code for payroll path
-- **generate-croso-xml**: Remove invalid `<SifraPlacanja>240</SifraPlacanja>` from M-1 XML
-
-### Task 5: Frontend Fixes (6 files)
-- `IntercompanyEliminations.tsx`: Add `.eq("tenant_id", tenantId!)` to update
-- `TaxLossCarryforward.tsx`, `ThinCapitalization.tsx`: Change `ZPDP` → `ZPDPL`
-- `MultiPeriodReports.tsx`: Remove negation on assets delta
-- `DeferredTax.tsx`: Remove `Math.abs()` wrappers
-- `VatProRata.tsx`: Add `.eq("year", year)` to queryFn
-
-### Task 6: Fix AI Briefing Widget + Redeploy AI Functions
-- In `AiBriefingWidget.tsx`: Add `retry: 2` to the React Query config, add an error state with retry button instead of returning `null`
-- Redeploy `ai-daily-digest` and `ai-assistant` edge functions
-
-**Total: 1 migration, 3 edge functions, ~8 frontend files**
+## Summary
+- **1 new DB migration** (BOM superseded filter + production GL accounts)
+- **1-2 frontend files** (PosTerminal.tsx, journalUtils.ts)
+- **1 edge function** (nbs-exchange-rates if it exists)
+- Fixes 2 CRITICAL + 3 HIGH issues
 
