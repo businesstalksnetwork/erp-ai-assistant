@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -303,9 +304,70 @@ export default function WmsCycleCounts() {
 
   const reconcileMutation = useMutation({
     mutationFn: async () => {
-      for (const line of countLines.filter((l: any) => l.status === "counted" && l.variance !== 0)) {
+      const varianceLines = countLines.filter((l: any) => l.status === "counted" && l.variance !== 0);
+      for (const line of varianceLines) {
+        // Update WMS bin stock
         await supabase.from("wms_bin_stock").update({ quantity: line.counted_quantity }).eq("bin_id", line.bin_id).eq("product_id", line.product_id).eq("tenant_id", tenantId!);
+
+        // P4-13 FIX: Adjust inventory_stock for variance
+        if (line.product_id && tenantId) {
+          const variance = line.counted_quantity - line.expected_quantity;
+          // Get warehouse from bin -> zone -> warehouse chain
+          let warehouseId: string | null = null;
+          try {
+            const { data: binData } = await supabase.from("wms_bins").select("wms_zones(warehouse_id)").eq("id", line.bin_id).single();
+            warehouseId = (binData as any)?.wms_zones?.warehouse_id || null;
+          } catch {}
+          if (!warehouseId) continue;
+          try {
+            await supabase.rpc("batch_adjust_inventory_stock", {
+              p_tenant_id: tenantId,
+              p_adjustments: [{
+                product_id: line.product_id,
+                warehouse_id: warehouseId,
+                quantity: Math.abs(variance),
+                movement_type: variance > 0 ? "in" : "out",
+                reference: `WMS-CycleCount-${selectedCountId}`,
+              }],
+              p_reference: `CC-${selectedCountId}`,
+            });
+          } catch (e) {
+            console.warn("Inventory adjustment failed for product:", line.product_id, e);
+          }
+        }
       }
+
+      // P4-13 FIX: Post GL entries for shortages and surpluses
+      const totalShortage = varianceLines.filter((l: any) => l.counted_quantity < l.expected_quantity)
+        .reduce((sum: number, l: any) => sum + Math.abs(l.counted_quantity - l.expected_quantity) * (l.unit_cost || 0), 0);
+      const totalSurplus = varianceLines.filter((l: any) => l.counted_quantity > l.expected_quantity)
+        .reduce((sum: number, l: any) => sum + (l.counted_quantity - l.expected_quantity) * (l.unit_cost || 0), 0);
+
+      if ((totalShortage > 0 || totalSurplus > 0) && tenantId) {
+        const glLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }> = [];
+        let sortOrder = 1;
+        if (totalShortage > 0) {
+          glLines.push({ accountCode: "5710", debit: totalShortage, credit: 0, description: "Manjak po popisu - WMS", sortOrder: sortOrder++ });
+          glLines.push({ accountCode: "1320", debit: 0, credit: totalShortage, description: "Smanjenje zaliha - manjak", sortOrder: sortOrder++ });
+        }
+        if (totalSurplus > 0) {
+          glLines.push({ accountCode: "1320", debit: totalSurplus, credit: 0, description: "Povećanje zaliha - višak", sortOrder: sortOrder++ });
+          glLines.push({ accountCode: "5790", debit: 0, credit: totalSurplus, description: "Višak po popisu - WMS", sortOrder: sortOrder++ });
+        }
+        try {
+          await postWithRuleOrFallback({
+            tenantId, userId: user?.id || null, modelCode: "WMS_CYCLE_COUNT",
+            amount: totalShortage + totalSurplus,
+            entryDate: new Date().toISOString().slice(0, 10),
+            description: `WMS Cycle Count Reconciliation - ${selectedCountId}`,
+            reference: `CC-${selectedCountId}`,
+            context: {}, fallbackLines: glLines,
+          });
+        } catch (e) {
+          console.warn("GL posting for cycle count reconciliation failed:", e);
+        }
+      }
+
       const accuracy = countLines.length > 0
         ? (countLines.filter((l: any) => l.status === "counted" && (l.variance === 0 || l.variance === null)).length / countLines.length) * 100
         : 100;

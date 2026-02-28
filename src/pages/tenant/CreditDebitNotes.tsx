@@ -275,14 +275,38 @@ export default function CreditDebitNotes() {
         const sel = invoiceLineSelections[idx];
         if (sel?.selected && sel.quantity > 0 && line.product_id) {
           try {
-            // Find a default warehouse for restoration
-            const { data: wh } = await supabase.from("warehouses").select("id").eq("tenant_id", tenantId).limit(1).single();
-            if (wh) {
+            // P4-20 FIX: Use the warehouse from the original invoice line or stock movement, not arbitrary first warehouse
+            let warehouseId: string | null = null;
+
+            // Try to get warehouse from the original invoice line
+            if (line.warehouse_id) {
+              warehouseId = line.warehouse_id;
+            }
+
+            // Fallback: find warehouse from stock movements for the original invoice
+            if (!warehouseId && f.invoice_id) {
+              const { data: movement } = await supabase
+                .from("inventory_stock" as any)
+                .select("warehouse_id")
+                .eq("tenant_id", tenantId)
+                .eq("product_id", line.product_id)
+                .limit(1)
+                .maybeSingle();
+              if (movement) warehouseId = (movement as any).warehouse_id;
+            }
+
+            // Last resort fallback: first warehouse
+            if (!warehouseId) {
+              const { data: wh } = await supabase.from("warehouses").select("id").eq("tenant_id", tenantId).limit(1).single();
+              if (wh) warehouseId = wh.id;
+            }
+
+            if (warehouseId) {
               await supabase.rpc("batch_adjust_inventory_stock", {
                 p_tenant_id: tenantId,
                 p_adjustments: [{
                   product_id: line.product_id,
-                  warehouse_id: wh.id,
+                  warehouse_id: warehouseId,
                   quantity: sel.quantity,
                   movement_type: "in",
                   reference: `Credit note ${f.number} - inventory restoration`,
