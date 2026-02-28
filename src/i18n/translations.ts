@@ -3431,6 +3431,18 @@ export const translations = {
     confirmBulkAction: "Are you sure you want to perform this action on the selected items?",
     bulkMarkAsPaid: "Mark Selected as Paid",
     bulkMarkAsSent: "Mark Selected as Sent",
+
+    // Phase 8: AI Improvements
+    aiFeedbackPositive: "Helpful",
+    aiFeedbackNegative: "Not helpful",
+    aiFeedbackThanks: "Thanks for your feedback!",
+    aiFeedbackComment: "Any additional comments?",
+    askAiAboutThis: "Ask AI about this",
+    aiTools: "tools",
+    draftInvoiceCreated: "Draft invoice created",
+    hrSummary: "HR Summary",
+    createDraftInvoice: "Create Draft Invoice",
+    getHrSummary: "HR Summary",
   },
   sr: {
     // Auth
@@ -6814,6 +6826,18 @@ export const translations = {
     confirmBulkAction: "Da li ste sigurni da želite da izvršite ovu akciju na izabranim stavkama?",
     bulkMarkAsPaid: "Označi izabrane kao plaćene",
     bulkMarkAsSent: "Označi izabrane kao poslate",
+
+    // Phase 8: AI Improvements
+    aiFeedbackPositive: "Korisno",
+    aiFeedbackNegative: "Nije korisno",
+    aiFeedbackThanks: "Hvala na povratnoj informaciji!",
+    aiFeedbackComment: "Dodatni komentari?",
+    askAiAboutThis: "Pitaj AI o ovome",
+    aiTools: "alata",
+    draftInvoiceCreated: "Nacrt fakture kreiran",
+    hrSummary: "HR pregled",
+    createDraftInvoice: "Kreiraj nacrt fakture",
+    getHrSummary: "HR pregled",
   },
 } as const;
 

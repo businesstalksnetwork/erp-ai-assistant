@@ -13,6 +13,7 @@ import { useAiStream } from "@/hooks/useAiStream";
 import { AiModuleInsights } from "@/components/shared/AiModuleInsights";
 import { AiAnalyticsNarrative } from "@/components/ai/AiAnalyticsNarrative";
 import { SimpleMarkdown } from "@/components/ai/SimpleMarkdown";
+import { AiFeedbackButtons } from "@/components/ai/AiFeedbackButtons";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -67,6 +68,7 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   ]},
   { prefix: "/accounting/invoices", questions: [
     { sr: "Koliko faktura je neplaćeno?", en: "How many invoices are unpaid?" },
+    { sr: "Kreiraj nacrt fakture za partnera", en: "Create a draft invoice for a partner" },
   ]},
   { prefix: "/accounting/bank-statements", questions: [
     { sr: "Koliko izvoda nije usklađeno?", en: "How many statements are unreconciled?" },
@@ -75,6 +77,10 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   { prefix: "/accounting/bank-reconciliation", questions: [
     { sr: "Kakav je status bankarne usklađenosti?", en: "What's the bank reconciliation status?" },
   ]},
+  { prefix: "/accounting/expenses", questions: [
+    { sr: "Koji su najveći troškovi ovog meseca?", en: "What are the biggest expenses this month?" },
+    { sr: "Uporedi troškove sa prošlim mesecom", en: "Compare expenses with last month" },
+  ]},
   { prefix: "/accounting", questions: [
     { sr: "Ima li neusklađenih stavki?", en: "Are there unreconciled items?" },
   ]},
@@ -82,12 +88,20 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
     { sr: "Koji proizvodni nalozi kasne?", en: "Which production orders are overdue?" },
     { sr: "Da li imam dovoljno materijala?", en: "Do I have enough materials?" },
   ]},
+  { prefix: "/inventory/kalkulacija", questions: [
+    { sr: "Koje kalkulacije su otvorene?", en: "Which calculations are open?" },
+    { sr: "Sumiraj poslednje kalkulacije", en: "Summarize recent calculations" },
+  ]},
   { prefix: "/inventory", questions: [
     { sr: "Da li imam kritično niske zalihe?", en: "Do I have critically low stock?" },
   ]},
   { prefix: "/purchasing/orders", questions: [
     { sr: "Koje nabavke kasne?", en: "Which POs are overdue?" },
     { sr: "Ko su moji glavni dobavljači?", en: "Who are my main suppliers?" },
+  ]},
+  { prefix: "/purchasing/supplier-invoices", questions: [
+    { sr: "Ima li duplih faktura dobavljača?", en: "Any duplicate supplier invoices?" },
+    { sr: "Koliko dugujemo dobavljačima?", en: "How much do we owe suppliers?" },
   ]},
   { prefix: "/purchasing", questions: [
     { sr: "Kakva je efikasnost nabavke?", en: "What's the purchasing efficiency?" },
@@ -102,12 +116,35 @@ const SUGGESTED_QUESTIONS: { prefix: string; questions: SuggestedQ[] }[] = [
   ]},
   { prefix: "/hr/payroll", questions: [
     { sr: "Kakav je ukupan trošak plata?", en: "What's the total payroll cost?" },
+    { sr: "Prikaži HR pregled", en: "Show HR summary" },
+  ]},
+  { prefix: "/hr/annual-leave", questions: [
+    { sr: "Ko ima najviše neiskorišćenih dana?", en: "Who has the most unused leave days?" },
+  ]},
+  { prefix: "/hr/employees", questions: [
+    { sr: "Koliko zaposlenih ima aktivne ugovore?", en: "How many employees have active contracts?" },
   ]},
   { prefix: "/hr", questions: [
     { sr: "Kakav je trend troškova plata?", en: "What's the payroll cost trend?" },
+    { sr: "Prikaži HR pregled", en: "Show HR summary" },
   ]},
   { prefix: "/production", questions: [
     { sr: "Gde su uska grla u proizvodnji?", en: "Where are production bottlenecks?" },
+  ]},
+  { prefix: "/assets/fleet", questions: [
+    { sr: "Koja vozila zahtevaju servis?", en: "Which vehicles need service?" },
+    { sr: "Koliki su troškovi flote?", en: "What are fleet costs?" },
+  ]},
+  { prefix: "/assets", questions: [
+    { sr: "Kolika je ukupna vrednost imovine?", en: "What's the total asset value?" },
+    { sr: "Koja sredstva se amortizuju?", en: "Which assets are depreciating?" },
+  ]},
+  { prefix: "/documents", questions: [
+    { sr: "Pronađi dokumente o ugovorima", en: "Find contract documents" },
+    { sr: "Pretraži dokumente", en: "Search documents" },
+  ]},
+  { prefix: "/settings", questions: [
+    { sr: "Sumiraj trenutno stanje sistema", en: "Summarize system status" },
   ]},
   { prefix: "/dashboard", questions: [
     { sr: "Koji su danas najvažniji trendovi?", en: "What are today's key trends?" },
@@ -160,13 +197,15 @@ function getNarrativeContext(path: string): string | null {
     "/crm": "crm_pipeline", "/pos": "pos_performance", "/production": "production",
     "/hr": "hr_overview", "/purchasing": "purchasing", "/inventory": "inventory_health",
     "/sales": "sales_performance", "/accounting/expenses": "expenses",
-    // Round 2 additions
     "/accounting/bank-statements": "bank_reconciliation",
     "/accounting/bank-reconciliation": "bank_reconciliation",
     "/assets/fleet": "fleet",
+    "/assets": "assets",
     "/inventory/kalkulacija": "kalkulacija",
     "/analytics/cost-center-pl": "cost_center_pl",
     "/hr/payroll-bank-reconciliation": "payroll_recon",
+    "/documents": "documents",
+    "/settings/lease-contracts": "leasing",
   };
   for (const [prefix, ctx] of Object.entries(contextMap)) {
     if (path.startsWith(prefix)) return ctx;
@@ -255,7 +294,7 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" />
           <span>AI Copilot</span>
-          <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">12 tools</span>
+          <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">14 {sr ? "alata" : "tools"}</span>
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={newChat} title={sr ? "Novi razgovor" : "New chat"}>
@@ -394,8 +433,11 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
                         ? "bg-primary text-primary-foreground whitespace-pre-wrap"
                         : "bg-muted"
                     }`}>
-                      {msg.role === "assistant" ? <SimpleMarkdown content={msg.content} /> : msg.content}
+                    {msg.role === "assistant" ? <SimpleMarkdown content={msg.content} /> : msg.content}
                     </div>
+                    {msg.role === "assistant" && (
+                      <AiFeedbackButtons messageIndex={i} module={module} />
+                    )}
                   </div>
                 ))}
                 {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
