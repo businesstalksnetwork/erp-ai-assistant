@@ -1,5 +1,5 @@
 import React from "react";
-import { Route } from "react-router-dom";
+import { Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageErrorBoundary } from "@/components/shared/PageErrorBoundary";
 
@@ -32,6 +32,7 @@ const WmsLabor = React.lazy(() => import("@/pages/tenant/WmsLabor"));
 const WmsReturns = React.lazy(() => import("@/pages/tenant/WmsReturns"));
 const InventoryStockTake = React.lazy(() => import("@/pages/tenant/InventoryStockTake"));
 const InventoryWriteOff = React.lazy(() => import("@/pages/tenant/InventoryWriteOff"));
+const Returns = React.lazy(() => import("@/pages/tenant/Returns"));
 
 const m = "inventory";
 const B = PageErrorBoundary;
@@ -67,5 +68,8 @@ export const inventoryRoutes = (
     <Route path="inventory/wms/returns" element={<ProtectedRoute requiredModule={m}><B><WmsReturns /></B></ProtectedRoute>} />
     <Route path="inventory/stock-take" element={<ProtectedRoute requiredModule={m}><B><InventoryStockTake /></B></ProtectedRoute>} />
     <Route path="inventory/write-offs" element={<ProtectedRoute requiredModule={m}><B><InventoryWriteOff /></B></ProtectedRoute>} />
+    <Route path="inventory/returns" element={<ProtectedRoute requiredModule={m}><B><Returns /></B></ProtectedRoute>} />
+    {/* Backward compat redirect */}
+    <Route path="returns" element={<Navigate to="/inventory/returns" replace />} />
   </>
 );

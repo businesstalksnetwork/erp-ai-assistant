@@ -143,7 +143,7 @@ export default function WmsReturns() {
         title={locale === "sr" ? "Povraćaji robe" : "Returns Processing"}
         description={locale === "sr" ? "Upravljanje povraćajima, inspekcijom i dispozicijom" : "Manage returns, inspection and disposition"}
         icon={RotateCcw}
-        actions={<ActionGuard module="returns" action="create"><Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{locale === "sr" ? "Novi povraćaj" : "New Return"}</Button></ActionGuard>}
+        actions={<ActionGuard module="inventory" action="create"><Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{locale === "sr" ? "Novi povraćaj" : "New Return"}</Button></ActionGuard>}
       />
 
       <StatsBar stats={stats} />

@@ -53,8 +53,7 @@ const PosSessions = React.lazy(() => import("@/pages/tenant/PosSessions"));
 const FiscalDevices = React.lazy(() => import("@/pages/tenant/FiscalDevices"));
 const PosDailyReport = React.lazy(() => import("@/pages/tenant/PosDailyReport"));
 
-// Returns
-const Returns = React.lazy(() => import("@/pages/tenant/Returns"));
+// Returns — moved to inventoryRoutes.tsx
 
 // Service
 const ServiceOrders = React.lazy(() => import("@/pages/tenant/ServiceOrders"));
@@ -213,7 +212,6 @@ export const loyaltyRoutes = (
 
 export const miscRoutes = (
   <>
-    <Route path="returns" element={<ProtectedRoute requiredModule="returns"><B><Returns /></B></ProtectedRoute>} />
     <Route path="ai/briefing" element={<ProtectedRoute><B><AiBriefing /></B></ProtectedRoute>} />
     <Route path="profile" element={<ProtectedRoute><B><Profile /></B></ProtectedRoute>} />
   </>

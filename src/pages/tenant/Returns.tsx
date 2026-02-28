@@ -464,7 +464,7 @@ export default function Returns() {
         {/* RETURN CASES TAB */}
         <TabsContent value="cases" className="space-y-4">
           <div className="flex justify-end">
-            <ActionGuard module="returns" action="create"><Button onClick={openRcAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
+            <ActionGuard module="inventory" action="create"><Button onClick={openRcAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
           </div>
           <Card><CardContent className="p-0">
             <Table>
@@ -503,7 +503,7 @@ export default function Returns() {
         {/* CREDIT NOTES TAB */}
         <TabsContent value="credits" className="space-y-4">
           <div className="flex justify-end">
-            <ActionGuard module="returns" action="create"><Button onClick={() => { setCnEditId(null); setCnForm(emptyCreditForm); setCnOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
+            <ActionGuard module="inventory" action="create"><Button onClick={() => { setCnEditId(null); setCnForm(emptyCreditForm); setCnOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
           </div>
           <Card><CardContent className="p-0">
             <Table>
