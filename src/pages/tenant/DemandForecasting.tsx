@@ -136,7 +136,24 @@ export default function DemandForecasting() {
       forecast: forecastQty[i],
     }));
 
-    return { chartData, forecastChart, reorderPoint, safetyStock, avgMonthly: Math.round(avgMonthly), forecastQty };
+    // Forecast accuracy (MAPE) using last 3 actuals vs what MA3 would have predicted
+    let mape = 0;
+    if (actuals.length >= 6) {
+      const testStart = actuals.length - 3;
+      let totalError = 0;
+      for (let i = testStart; i < actuals.length; i++) {
+        const predicted = ma3[i - 1] || actuals[i - 1];
+        if (actuals[i] > 0) totalError += Math.abs(actuals[i] - predicted) / actuals[i];
+      }
+      mape = Math.round((totalError / 3) * 1000) / 10;
+    }
+
+    // Seasonal pattern detection
+    const seasonalStrength = seasonal.length >= 12
+      ? Math.round((Math.max(...seasonal) - Math.min(...seasonal)) * 100) / 100
+      : 0;
+
+    return { chartData, forecastChart, reorderPoint, safetyStock, avgMonthly: Math.round(avgMonthly), forecastQty, mape, seasonalStrength };
   }, [selectedProduct, salesData]);
 
   // Summary across all products
@@ -178,7 +195,7 @@ export default function DemandForecasting() {
       {forecast && (
         <>
           {/* KPI cards */}
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase">{t("Avg Monthly Demand", "Prosečna mesečna tražnja")}</p>
               <p className="text-2xl font-bold mt-1">{fmtNum(forecast.avgMonthly)}</p>
@@ -194,6 +211,14 @@ export default function DemandForecasting() {
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground uppercase">{t("Next Month Forecast", "Prognoza sledećeg meseca")}</p>
               <p className="text-2xl font-bold mt-1">{fmtNum(forecast.forecastQty[0])}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase">{t("Forecast Accuracy", "Tačnost prognoze")}</p>
+              <p className="text-2xl font-bold mt-1">{forecast.mape > 0 ? `${100 - forecast.mape}%` : "—"}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase">{t("Seasonal Pattern", "Sezonski obrazac")}</p>
+              <p className="text-2xl font-bold mt-1">{forecast.seasonalStrength > 0.3 ? (sr ? "Jak" : "Strong") : forecast.seasonalStrength > 0.1 ? (sr ? "Umeren" : "Moderate") : (sr ? "Slab" : "Weak")}</p>
             </CardContent></Card>
           </div>
 

@@ -47,22 +47,33 @@ export default function WmsLabor() {
   }, [profiles]);
 
   const workerMetrics = useMemo(() => {
-    const workers: Record<string, { tasks: number; totalMinutes: number; totalItems: number; taskTypes: Record<string, number> }> = {};
+    const workers: Record<string, { tasks: number; totalMinutes: number; totalItems: number; taskTypes: Record<string, number>; hourlyOutput: Map<number, number> }> = {};
     tasks.forEach((task: any) => {
       const wid = task.assigned_to;
-      if (!workers[wid]) workers[wid] = { tasks: 0, totalMinutes: 0, totalItems: 0, taskTypes: {} };
+      if (!workers[wid]) workers[wid] = { tasks: 0, totalMinutes: 0, totalItems: 0, taskTypes: {}, hourlyOutput: new Map() };
       workers[wid].tasks++;
-      workers[wid].totalMinutes += (new Date(task.completed_at).getTime() - new Date(task.started_at).getTime()) / 60000;
+      const durationMin = (new Date(task.completed_at).getTime() - new Date(task.started_at).getTime()) / 60000;
+      workers[wid].totalMinutes += durationMin;
       workers[wid].totalItems += task.quantity || 0;
       workers[wid].taskTypes[task.task_type] = (workers[wid].taskTypes[task.task_type] || 0) + 1;
+      // Track hourly output for shift analysis
+      const hour = new Date(task.started_at).getHours();
+      workers[wid].hourlyOutput.set(hour, (workers[wid].hourlyOutput.get(hour) || 0) + (task.quantity || 0));
     });
-    return Object.entries(workers).map(([id, data]) => ({
-      id, name: profileMap[id] || id.substring(0, 8), tasks: data.tasks,
-      avgMinutes: data.tasks > 0 ? Math.round(data.totalMinutes / data.tasks) : 0,
-      totalItems: data.totalItems,
-      itemsPerHour: data.totalMinutes > 0 ? Math.round((data.totalItems / data.totalMinutes) * 60) : 0,
-      topType: Object.entries(data.taskTypes).sort((a, b) => b[1] - a[1])[0]?.[0] || "—",
-    })).sort((a, b) => b.itemsPerHour - a.itemsPerHour);
+    return Object.entries(workers).map(([id, data]) => {
+      const peakHour = Array.from(data.hourlyOutput.entries()).sort((a, b) => b[1] - a[1])[0];
+      const shift = peakHour ? (peakHour[0] < 14 ? "Morning" : peakHour[0] < 22 ? "Afternoon" : "Night") : "—";
+      const efficiency = data.totalMinutes > 0 ? Math.round((data.totalItems / data.totalMinutes) * 60) : 0;
+      const rank = efficiency > 50 ? "⭐ Top" : efficiency > 20 ? "Good" : "Training";
+      return {
+        id, name: profileMap[id] || id.substring(0, 8), tasks: data.tasks,
+        avgMinutes: data.tasks > 0 ? Math.round(data.totalMinutes / data.tasks) : 0,
+        totalItems: data.totalItems,
+        itemsPerHour: efficiency,
+        topType: Object.entries(data.taskTypes).sort((a, b) => b[1] - a[1])[0]?.[0] || "—",
+        shift, rank,
+      };
+    }).sort((a, b) => b.itemsPerHour - a.itemsPerHour);
   }, [tasks, profileMap]);
 
   const typeDistribution = useMemo(() => {
@@ -85,10 +96,12 @@ export default function WmsLabor() {
 
   const columns: ResponsiveColumn<typeof workerMetrics[number]>[] = [
     { key: "name", label: locale === "sr" ? "Radnik" : "Worker", primary: true, sortable: true, sortValue: (w) => w.name, render: (w) => <span className="font-medium">{w.name}</span> },
+    { key: "rank", label: locale === "sr" ? "Rang" : "Rank", render: (w) => <Badge variant={w.rank === "⭐ Top" ? "default" : "secondary"} className="text-[10px]">{w.rank}</Badge> },
     { key: "tasks", label: locale === "sr" ? "Zadaci" : "Tasks", align: "right", sortable: true, sortValue: (w) => w.tasks, render: (w) => w.tasks },
     { key: "avgMinutes", label: locale === "sr" ? "Prosečno vreme" : "Avg Time", align: "right", sortable: true, sortValue: (w) => w.avgMinutes, render: (w) => `${w.avgMinutes}m` },
     { key: "totalItems", label: locale === "sr" ? "Ukupno artikala" : "Total Items", align: "right", sortable: true, sortValue: (w) => w.totalItems, render: (w) => w.totalItems },
     { key: "itemsPerHour", label: locale === "sr" ? "Artikli/sat" : "Items/Hour", align: "right", sortable: true, sortValue: (w) => w.itemsPerHour, render: (w) => <Badge variant="outline">{w.itemsPerHour}/h</Badge> },
+    { key: "shift", label: locale === "sr" ? "Smena" : "Shift", render: (w) => <Badge variant="secondary" className="text-[10px]">{w.shift}</Badge> },
     { key: "topType", label: locale === "sr" ? "Najčešći tip" : "Top Type", render: (w) => <Badge variant="secondary" className="text-[10px]">{w.topType}</Badge> },
   ];
 

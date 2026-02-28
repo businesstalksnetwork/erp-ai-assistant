@@ -261,6 +261,7 @@ const productionNav: NavItem[] = [
   { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays, aiModule: "ai-production" },
   { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3, aiModule: "ai-production" },
   { key: "oeeDashboard", url: "/production/oee", icon: BarChart3, aiModule: "ai-production" },
+  { key: "aiQualityPrediction", url: "/production/ai-planning/quality-prediction", icon: ShieldCheck, aiModule: "ai-production" },
 ];
 
 const documentsNav: NavItem[] = [
@@ -402,7 +403,7 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
                     {item.section && (
                       <li className="px-3 pt-2.5 pb-0.5">
                         <span className={`text-[11px] font-medium tracking-wide flex items-center gap-1 ${
-                          isAiSection ? "text-primary/60" : isConfigSection ? "text-sidebar-foreground/50" : "text-sidebar-foreground/40"
+                          isAiSection ? "text-sidebar-foreground/80" : isConfigSection ? "text-sidebar-foreground/50" : "text-sidebar-foreground/40"
                         }`}>
                           {isAiSection && <Sparkles className="h-3 w-3" />}
                           {isConfigSection && <Settings className="h-3 w-3" />}

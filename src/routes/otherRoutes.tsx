@@ -27,6 +27,7 @@ const AiPlanningSchedule = React.lazy(() => import("@/pages/tenant/AiPlanningSch
 const AiBottleneckPrediction = React.lazy(() => import("@/pages/tenant/AiBottleneckPrediction"));
 const AiCapacitySimulation = React.lazy(() => import("@/pages/tenant/AiCapacitySimulation"));
 const AiPlanningCalendar = React.lazy(() => import("@/pages/tenant/AiPlanningCalendar"));
+const AiQualityPrediction = React.lazy(() => import("@/pages/tenant/AiQualityPrediction"));
 const WorkCenters = React.lazy(() => import("@/pages/tenant/WorkCenters"));
 const EquipmentList = React.lazy(() => import("@/pages/tenant/EquipmentList"));
 const OeeDashboard = React.lazy(() => import("@/pages/tenant/OeeDashboard"));
@@ -129,6 +130,7 @@ export const productionRoutes = (
     <Route path="production/ai-planning/bottlenecks" element={<ProtectedRoute requiredModule="production"><B><AiBottleneckPrediction /></B></ProtectedRoute>} />
     <Route path="production/ai-planning/scenarios" element={<ProtectedRoute requiredModule="production"><B><AiCapacitySimulation /></B></ProtectedRoute>} />
     <Route path="production/ai-planning/calendar" element={<ProtectedRoute requiredModule="production"><B><AiPlanningCalendar /></B></ProtectedRoute>} />
+    <Route path="production/ai-planning/quality-prediction" element={<ProtectedRoute requiredModule="production"><B><AiQualityPrediction /></B></ProtectedRoute>} />
     <Route path="production/work-centers" element={<ProtectedRoute requiredModule="production"><B><WorkCenters /></B></ProtectedRoute>} />
     <Route path="production/equipment" element={<ProtectedRoute requiredModule="production"><B><EquipmentList /></B></ProtectedRoute>} />
     <Route path="production/oee" element={<ProtectedRoute requiredModule="production"><B><OeeDashboard /></B></ProtectedRoute>} />
