@@ -106,38 +106,58 @@ async function checkTenantAlerts(supabase: any, tenantId: string, language: stri
         message: sr
           ? `${expiringCount} ugovora o radu ističe u narednih 30 dana.`
           : `${expiringCount} employee contracts expire within the next 30 days.`,
-        type: "contract_expiry_alert",
+      type: "contract_expiry_alert",
         severity: "warning",
         module: "hr",
         target_roles: ["admin", "hr"],
       });
     }
 
-    // 5. Stale opportunities (>14 days no update, high value)
-    const staleDate = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
-    const { data: staleOpps } = await supabase
-      .from("opportunities")
-      .select("title, value")
+    // 6. Budget overruns (>90%)
+    const { data: budgets } = await supabase
+      .from("budgets")
+      .select("name, planned_amount, actual_amount")
       .eq("tenant_id", tenantId)
-      .not("stage", "in", '("won","lost")')
-      .lt("updated_at", staleDate)
-      .order("value", { ascending: false })
-      .limit(5);
+      .gt("planned_amount", 0);
 
-    if (staleOpps && staleOpps.length > 0) {
-      const totalValue = staleOpps.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
-      if (totalValue > 0) {
+    if (budgets) {
+      const overruns = budgets.filter((b: any) => b.actual_amount / b.planned_amount > 0.9);
+      if (overruns.length > 0) {
+        const critical = overruns.filter((b: any) => b.actual_amount / b.planned_amount > 1.0);
         alerts.push({
-          title: sr ? `${staleOpps.length} prilika zahteva pažnju` : `${staleOpps.length} opportunities need attention`,
+          title: sr ? `${overruns.length} budžeta prekoračeno >90%` : `${overruns.length} budgets over 90%`,
           message: sr
-            ? `${staleOpps.length} prilika u vrednosti od ${totalValue.toLocaleString("sr-RS")} RSD nije ažurirano 14+ dana.`
-            : `${staleOpps.length} opportunities worth ${totalValue.toLocaleString("en-US")} RSD haven't been updated in 14+ days.`,
-          type: "stale_opportunity_alert",
-          severity: "warning",
-          module: "crm",
-          target_roles: ["admin", "manager", "sales"],
+            ? `${overruns.length} budžeta je iskorišćeno više od 90%. ${critical.length} ih je prekoračeno.`
+            : `${overruns.length} budgets are over 90% utilized. ${critical.length} are exceeded.`,
+          type: "budget_overrun_alert",
+          severity: critical.length > 0 ? "critical" : "warning",
+          module: "accounting",
+          target_roles: ["admin", "manager", "accountant"],
         });
       }
+    }
+
+    // 7. Lease contracts expiring in 60 days
+    const sixtyDays = new Date(Date.now() + 60 * 86400000).toISOString().split("T")[0];
+    const { count: leaseCount } = await supabase
+      .from("lease_contracts")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .lte("end_date", sixtyDays)
+      .gte("end_date", today)
+      .in("status", ["active", "signed"]);
+
+    if (leaseCount && leaseCount > 0) {
+      alerts.push({
+        title: sr ? `${leaseCount} ugovora o zakupu ističe` : `${leaseCount} lease contracts expiring`,
+        message: sr
+          ? `${leaseCount} ugovora o zakupu ističe u narednih 60 dana.`
+          : `${leaseCount} lease contracts expire within the next 60 days.`,
+        type: "lease_expiry_alert",
+        severity: "warning",
+        module: "assets",
+        target_roles: ["admin", "manager"],
+      });
     }
 
   } catch (e) {

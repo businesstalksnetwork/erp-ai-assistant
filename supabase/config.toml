@@ -140,3 +140,9 @@ verify_jwt = false
 
 [functions.ai-daily-digest]
 verify_jwt = false
+
+[functions.proactive-ai-agent]
+verify_jwt = false
+
+[functions.invoice-ocr]
+verify_jwt = false

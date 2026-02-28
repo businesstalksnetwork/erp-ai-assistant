@@ -405,6 +405,57 @@ export type Database = {
           },
         ]
       }
+      ai_feedback: {
+        Row: {
+          comment: string | null
+          context_module: string | null
+          conversation_id: string | null
+          created_at: string
+          feedback: string
+          id: string
+          message_index: number | null
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          context_module?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          feedback: string
+          id?: string
+          message_index?: number | null
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          context_module?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          feedback?: string
+          id?: string
+          message_index?: number | null
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_insights_cache: {
         Row: {
           data: Json | null

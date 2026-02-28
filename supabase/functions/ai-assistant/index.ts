@@ -283,8 +283,47 @@ const GENERATE_REPORT_TOOL = {
   },
 };
 
-// ════════════════════════════════════════════
-// TOOL IMPLEMENTATIONS
+const CREATE_DRAFT_INVOICE_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "create_draft_invoice",
+    description: "Create a draft invoice from natural language. E.g. 'Invoice ABC Corp 50000 RSD for consulting services'. Returns the created invoice for review.",
+    parameters: {
+      type: "object",
+      properties: {
+        partner_name: { type: "string", description: "Customer/partner name" },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              description: { type: "string" },
+              quantity: { type: "number" },
+              unit_price: { type: "number" },
+              tax_rate: { type: "number", description: "Tax rate percentage (default 20)" },
+            },
+            required: ["description", "quantity", "unit_price"],
+          },
+          description: "Line items for the invoice",
+        },
+        currency: { type: "string", description: "Currency code (default RSD)" },
+        notes: { type: "string", description: "Optional invoice notes" },
+      },
+      required: ["partner_name", "items"], additionalProperties: false,
+    },
+  },
+};
+
+const GET_HR_SUMMARY_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "get_hr_summary",
+    description: "Get comprehensive HR overview: headcount, turnover, contract expirations, leave utilization, payroll trends, department breakdown.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+  },
+};
+
+
 // ════════════════════════════════════════════
 
 function validateSql(sql: string, tenantId: string): string {
@@ -750,7 +789,108 @@ async function generateReport(supabase: any, tenantId: string, description: stri
   });
 }
 
-// ════════════════════════════════════════════
+async function createDraftInvoice(supabase: any, tenantId: string, userId: string, partnerName: string, items: any[], currency: string = "RSD", notes?: string): Promise<string> {
+  try {
+    // Find partner
+    const { data: partners } = await supabase
+      .from("partners").select("id, name, pib, city, address")
+      .eq("tenant_id", tenantId)
+      .ilike("name", `%${partnerName.substring(0, 100).toLowerCase()}%`)
+      .limit(1);
+    
+    const partner = partners?.[0];
+    if (!partner) return JSON.stringify({ error: `Partner '${partnerName}' not found. Please create the partner first.` });
+
+    // Generate invoice number
+    const { data: lastInv } = await supabase
+      .from("invoices").select("invoice_number")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false }).limit(1);
+    
+    const lastNum = lastInv?.[0]?.invoice_number;
+    const nextNum = lastNum ? 
+      lastNum.replace(/\d+/, (m: string) => String(Number(m) + 1).padStart(m.length, "0")) :
+      `INV-${new Date().getFullYear()}-0001`;
+
+    const subtotal = items.reduce((s: number, i: any) => s + (i.quantity * i.unit_price), 0);
+    const taxAmount = items.reduce((s: number, i: any) => s + (i.quantity * i.unit_price * ((i.tax_rate || 20) / 100)), 0);
+    const total = subtotal + taxAmount;
+
+    const { data: invoice, error: invErr } = await supabase.from("invoices").insert({
+      tenant_id: tenantId, 
+      partner_id: partner.id,
+      partner_name: partner.name,
+      invoice_number: nextNum,
+      invoice_date: new Date().toISOString().split("T")[0],
+      due_date: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+      status: "draft",
+      subtotal, tax_amount: taxAmount, total,
+      currency: currency || "RSD",
+      notes: notes || null,
+      created_by: userId,
+    }).select("id, invoice_number, total, status").single();
+
+    if (invErr) return JSON.stringify({ error: invErr.message });
+
+    // Insert line items
+    for (const item of items) {
+      await supabase.from("invoice_items").insert({
+        tenant_id: tenantId,
+        invoice_id: invoice.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        tax_rate: item.tax_rate || 20,
+        total: item.quantity * item.unit_price * (1 + (item.tax_rate || 20) / 100),
+      });
+    }
+
+    return JSON.stringify({
+      success: true,
+      invoice: { id: invoice.id, number: invoice.invoice_number, partner: partner.name, total, currency, status: "draft" },
+      message: `Draft invoice ${invoice.invoice_number} created for ${partner.name} - ${total.toFixed(2)} ${currency}. Review and send when ready.`,
+    });
+  } catch (e) { return JSON.stringify({ error: e instanceof Error ? e.message : "Invoice creation failed" }); }
+}
+
+async function getHrSummary(supabase: any, tenantId: string): Promise<string> {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const thirtyDays = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+
+    const [activeEmps, departments, expiring, recentHires, recentTerms, leaveBalance, payrollTrend] = await Promise.all([
+      supabase.from("employees").select("id, department_id", { count: "exact" }).eq("tenant_id", tenantId).eq("status", "active"),
+      supabase.rpc("execute_readonly_query", { query_text: `SELECT d.name, COUNT(e.id) as count FROM employees e JOIN departments d ON d.id = e.department_id WHERE e.tenant_id = '${tenantId}' AND e.status = 'active' GROUP BY d.name ORDER BY count DESC LIMIT 10` }),
+      supabase.from("employee_contracts").select("id, employee_id, end_date", { count: "exact" }).eq("tenant_id", tenantId).lte("end_date", thirtyDays).gte("end_date", today),
+      supabase.from("employees").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "active").gte("hire_date", ninetyDaysAgo),
+      supabase.from("employees").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "terminated").gte("updated_at", ninetyDaysAgo),
+      supabase.rpc("execute_readonly_query", { query_text: `SELECT COALESCE(AVG(used_days::float / NULLIF(entitled_days, 0) * 100), 0) as avg_utilization, COALESCE(SUM(entitled_days - used_days - pending_days), 0) as total_remaining FROM annual_leave_balances WHERE tenant_id = '${tenantId}' AND year = ${new Date().getFullYear()}` }),
+      supabase.rpc("execute_readonly_query", { query_text: `SELECT to_char(make_date(period_year, period_month, 1), 'YYYY-MM') as month, SUM(total_gross) as gross, SUM(total_net) as net, COUNT(DISTINCT id) as runs FROM payroll_runs WHERE tenant_id = '${tenantId}' AND status IN ('calculated', 'approved', 'paid') GROUP BY period_year, period_month ORDER BY period_year DESC, period_month DESC LIMIT 6` }),
+    ]);
+
+    const headcount = activeEmps.count || 0;
+    const turnoverRate = headcount > 0 ? ((recentTerms.count || 0) / headcount * 100 * 4).toFixed(1) : "0"; // annualized
+
+    return JSON.stringify({
+      headcount,
+      department_breakdown: departments.data || [],
+      contracts_expiring_30d: expiring.count || 0,
+      recent_hires_90d: recentHires.count || 0,
+      recent_terminations_90d: recentTerms.count || 0,
+      annualized_turnover_rate: turnoverRate + "%",
+      leave_utilization: {
+        avg_utilization_pct: Number(leaveBalance.data?.[0]?.avg_utilization || 0).toFixed(1) + "%",
+        total_remaining_days: Number(leaveBalance.data?.[0]?.total_remaining || 0),
+      },
+      payroll_trend: (payrollTrend.data || []).map((r: any) => ({
+        month: r.month, gross: Number(r.gross), net: Number(r.net),
+      })),
+    });
+  } catch (e) { return JSON.stringify({ error: e instanceof Error ? e.message : "HR summary failed" }); }
+}
+
+
 
 async function logAiAction(supabase: any, tenantId: string, userId: string, actionType: string, module: string, reasoning: string) {
   try {
@@ -900,7 +1040,7 @@ ${schemaContext}
 ## Your Role Context
 ${roleSection}${dataScopeHint}
 
-You have 12 tools available:
+You have 14 tools available:
 1. query_tenant_data: Execute read-only SQL queries. ALWAYS filter by tenant_id = '${tenant_id}'.
 2. analyze_trend: Analyze metric trends over time.
 3. create_reminder: Create notifications/reminders.
@@ -913,6 +1053,8 @@ You have 12 tools available:
 10. forecast_cashflow: 90-day cash flow projection with weekly breakdown.
 11. detect_anomalies: On-demand anomaly scan (unusual transactions, patterns, risks).
 12. generate_report: Create ad-hoc reports from natural language descriptions.
+13. create_draft_invoice: Create a draft invoice from natural language (partner name + items). Always confirm with user before creating.
+14. get_hr_summary: Comprehensive HR overview with headcount, turnover, contracts, leave, payroll trends.
 
 Rules:
 1. ONLY SELECT statements in queries, always filter by tenant_id = '${tenant_id}'
@@ -922,7 +1064,9 @@ Rules:
 5. For "anything unusual?" questions, use detect_anomalies
 6. For document search, use search_documents
 7. For report requests, use generate_report then query_tenant_data for data
-8. Format currency values with 2 decimal places
+8. For invoice creation requests, use create_draft_invoice (always creates as DRAFT for user review)
+9. For HR overview questions, use get_hr_summary
+10. Format currency values with 2 decimal places
 
 ${contextData}
 
@@ -934,6 +1078,7 @@ Respond in ${language === "sr" ? "Serbian (Latin script)" : "English"}. Use mark
       WHAT_IF_TOOL, KPI_SCORECARD_TOOL, EXPLAIN_ACCOUNT_TOOL,
       SEARCH_DOCUMENTS_TOOL, GET_PARTNER_DOSSIER_TOOL, FORECAST_CASHFLOW_TOOL,
       DETECT_ANOMALIES_TOOL, GENERATE_REPORT_TOOL,
+      CREATE_DRAFT_INVOICE_TOOL, GET_HR_SUMMARY_TOOL,
     ];
     const MAX_TOOL_ROUNDS = 6;
 
@@ -1029,6 +1174,14 @@ Respond in ${language === "sr" ? "Serbian (Latin script)" : "English"}. Use mark
               case "generate_report":
                 result = await generateReport(supabase, tenant_id, args.report_description, args.format);
                 await logAiAction(supabase, tenant_id, caller.id, "generate_report", "analytics", `Report: ${args.report_description?.substring(0, 80)}`);
+                break;
+              case "create_draft_invoice":
+                result = await createDraftInvoice(supabase, tenant_id, caller.id, args.partner_name, args.items, args.currency, args.notes);
+                await logAiAction(supabase, tenant_id, caller.id, "create_draft_invoice", "accounting", `Draft invoice for: ${args.partner_name}`);
+                break;
+              case "get_hr_summary":
+                result = await getHrSummary(supabase, tenant_id);
+                await logAiAction(supabase, tenant_id, caller.id, "hr_summary", "hr", "HR summary");
                 break;
               default:
                 result = JSON.stringify({ error: `Unknown tool: ${fnName}` });

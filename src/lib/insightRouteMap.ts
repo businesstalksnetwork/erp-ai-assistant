@@ -29,4 +29,10 @@ export const insightRouteMap: Record<string, string> = {
   open_fiscal_periods: "/accounting/fiscal-years",
   // Round 4: cross-module duplicate detection
   cross_module_duplicate: "/purchasing/supplier-invoices",
+  // Phase 8: fleet + lease + assets
+  fleet_service_due: "/assets/fleet",
+  fleet_insurance_expiry: "/assets/fleet",
+  lease_expiry_warning: "/settings/lease-contracts",
+  asset_depreciation_complete: "/assets",
+  document_retention_expiry: "/documents",
 };
