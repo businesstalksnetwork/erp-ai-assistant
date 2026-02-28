@@ -37,7 +37,7 @@ const severityConfig = {
 };
 
 export default function AiBottleneckPrediction() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { tenantId } = useTenant();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -119,7 +119,7 @@ export default function AiBottleneckPrediction() {
     try {
       if (bottlenecks) setPreviousCount(bottlenecks.length);
       const { data, error } = await supabase.functions.invoke("production-ai-planning", {
-        body: { action: "predict-bottlenecks", tenant_id: tenantId, language: "sr" },
+        body: { action: "predict-bottlenecks", tenant_id: tenantId, language: locale },
       });
       if (error) throw error;
       const aiBottlenecks: Bottleneck[] = ((data as any).bottlenecks || []).map((b: Bottleneck) => ({ ...b, _source: "ai" as const }));

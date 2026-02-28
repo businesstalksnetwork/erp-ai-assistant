@@ -187,6 +187,16 @@ export default function AiPlanningSchedule() {
             <Check className="h-4 w-4" /> {t("applyAccepted")} ({accepted.size})
           </Button>
         )}
+        {result && result.suggestions.length > 0 && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => { setAccepted(new Set(result.suggestions.map(s => s.order_id))); setRejected(new Set()); }}>
+              <Check className="h-4 w-4" /> {t("acceptAll")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => { setRejected(new Set(result.suggestions.map(s => s.order_id))); setAccepted(new Set()); }}>
+              <X className="h-4 w-4" /> {t("rejectAll")}
+            </Button>
+          </>
+        )}
         <Button variant="outline" onClick={exportSchedule}><Download className="h-4 w-4" /> {t("exportCsv")}</Button>
         <div className="ml-auto flex items-center gap-4">
           <div className="flex items-center gap-2">

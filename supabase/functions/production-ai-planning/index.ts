@@ -60,15 +60,17 @@ serve(async (req) => {
     }
 
     // Fetch production data
-    const [ordersRes, bomsRes, stockRes] = await Promise.all([
+    const [ordersRes, bomsRes, stockRes, wasteRes] = await Promise.all([
       supabase.from("production_orders").select("*, bom_template:bom_templates(name, product_id)").eq("tenant_id", tenant_id).order("created_at", { ascending: false }).limit(100),
       supabase.from("bom_templates").select("*, bom_lines(*, material:products(name, sku))").eq("tenant_id", tenant_id).eq("is_active", true),
       supabase.from("inventory_stock").select("*, product:products(name, sku), warehouse:warehouses(name)").eq("tenant_id", tenant_id),
+      supabase.from("production_waste").select("*, product:products(name), production_order:production_orders(order_number)").eq("tenant_id", tenant_id).order("created_at", { ascending: false }).limit(200),
     ]);
 
     const allOrders = ordersRes.data || [];
     const boms = bomsRes.data || [];
     const stock = stockRes.data || [];
+    const wasteRecords = wasteRes.data || [];
 
     // Filter out excluded orders for AI context
     const excludedSet = new Set(excluded_order_ids || []);
@@ -132,6 +134,9 @@ ${JSON.stringify(orders.slice(0, 50).map(o => ({
   quantity: o.quantity, priority: (o as any).priority || 3,
   bom: o.bom_template?.name,
   locked: lockedSet.has(o.id),
+  actual_material_cost: (o as any).actual_material_cost,
+  actual_labor_cost: (o as any).actual_labor_cost,
+  unit_production_cost: (o as any).unit_production_cost,
 })), null, 2)}
 
 BOM Templates (${boms.length}):
@@ -144,6 +149,12 @@ Inventory Stock (${stock.length} entries):
 ${JSON.stringify(stock.slice(0, 50).map(s => ({
   product: s.product?.name, warehouse: s.warehouse?.name,
   on_hand: s.quantity_on_hand, reserved: s.quantity_reserved, min_level: s.min_stock_level
+})), null, 2)}
+
+Production Waste (${wasteRecords.length} records):
+${JSON.stringify(wasteRecords.slice(0, 50).map((w: any) => ({
+  product: w.product?.name, order: w.production_order?.order_number,
+  quantity: w.quantity, reason: w.reason, date: w.created_at?.split("T")[0],
 })), null, 2)}`;
 
     let systemPrompt = "";
@@ -303,6 +314,64 @@ Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
         }
       }];
       toolChoice = { type: "function", function: { name: "provide_simulation" } };
+    } else if (action === "analyze-waste") {
+      systemPrompt = `You are a production waste analysis AI. Analyze waste records to identify patterns, top reasons, and provide actionable recommendations to reduce waste. Today is ${today}. Respond in ${lang}.`;
+      tools = [{
+        type: "function",
+        function: {
+          name: "provide_waste_analysis",
+          description: "Return waste analysis with KPIs and recommendations",
+          parameters: {
+            type: "object",
+            properties: {
+              waste_rate_pct: { type: "number", description: "Overall waste rate as percentage of total production" },
+              total_waste_qty: { type: "number", description: "Total waste quantity" },
+              top_reasons: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    reason: { type: "string" },
+                    count: { type: "number" },
+                    total_qty: { type: "number" }
+                  },
+                  required: ["reason", "count", "total_qty"],
+                  additionalProperties: false
+                }
+              },
+              waste_by_product: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    product: { type: "string" },
+                    waste_qty: { type: "number" },
+                    waste_pct: { type: "number" }
+                  },
+                  required: ["product", "waste_qty", "waste_pct"],
+                  additionalProperties: false
+                }
+              },
+              recommendations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    severity: { type: "string", enum: ["critical", "warning", "info"] },
+                    title: { type: "string" },
+                    description: { type: "string" }
+                  },
+                  required: ["severity", "title", "description"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["waste_rate_pct", "total_waste_qty", "top_reasons", "waste_by_product", "recommendations"],
+            additionalProperties: false
+          }
+        }
+      }];
+      toolChoice = { type: "function", function: { name: "provide_waste_analysis" } };
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -386,7 +455,7 @@ Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
       await adminClient.from("ai_action_log").insert({
         tenant_id,
         user_id: caller.id,
-        action_type: action === "generate-schedule" ? "schedule_generation" : action === "predict-bottlenecks" ? "bottleneck_prediction" : action === "simulate-scenario" ? "capacity_simulation" : "dashboard_analysis",
+        action_type: action === "generate-schedule" ? "schedule_generation" : action === "predict-bottlenecks" ? "bottleneck_prediction" : action === "simulate-scenario" ? "capacity_simulation" : action === "analyze-waste" ? "waste_analysis" : "dashboard_analysis",
         module: "production",
         model_version: "gemini-3-flash-preview",
         reasoning: `Production AI: ${action} with ${orders.length} orders`,
