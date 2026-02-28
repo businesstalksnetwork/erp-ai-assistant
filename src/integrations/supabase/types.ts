@@ -22820,6 +22820,10 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      next_journal_entry_number: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
       perform_year_end_closing: {
         Args: {
           p_fiscal_period_id: string
