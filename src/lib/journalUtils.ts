@@ -79,22 +79,27 @@ export async function getInvoiceNumberingSettings(tenantId: string) {
 }
 
 /**
- * Generates a sequential journal entry number using tenant_settings prefix and sequence.
+ * P2-10: Generates a sequential journal entry number using server-side RPC
+ * with advisory lock to prevent race conditions from concurrent users.
  */
 async function generateJournalEntryNumber(tenantId: string): Promise<string> {
-  const { prefix, nextSeq } = await getJournalNumberingSettings(tenantId);
-  const year = new Date().getFullYear();
-
-  // Count existing entries for the year to prevent duplicates
-  const { count } = await supabase
-    .from("journal_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId)
-    .gte("entry_date", `${year}-01-01`)
-    .lte("entry_date", `${year}-12-31`);
-
-  const seq = Math.max(nextSeq, (count ?? 0) + 1);
-  return `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+  const { data, error } = await supabase.rpc("next_journal_entry_number" as any, {
+    p_tenant_id: tenantId,
+  });
+  if (error) {
+    // Fallback to client-side generation if RPC not available
+    const { prefix, nextSeq } = await getJournalNumberingSettings(tenantId);
+    const year = new Date().getFullYear();
+    const { count } = await supabase
+      .from("journal_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .gte("entry_date", `${year}-01-01`)
+      .lte("entry_date", `${year}-12-31`);
+    const seq = Math.max(nextSeq, (count ?? 0) + 1);
+    return `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+  }
+  return data as string;
 }
 
 /**
