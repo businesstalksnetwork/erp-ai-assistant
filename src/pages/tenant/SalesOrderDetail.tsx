@@ -94,6 +94,7 @@ export default function SalesOrderDetail() {
       const totalWithTax = lineTotal + taxAmount;
       const payload = {
         sales_order_id: id!,
+        tenant_id: tenantId!,
         product_id: f.product_id || null,
         description: f.description,
         quantity: f.quantity,

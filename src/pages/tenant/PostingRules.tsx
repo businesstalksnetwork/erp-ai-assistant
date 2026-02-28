@@ -111,6 +111,7 @@ export default function PostingRules() {
 
       const lineInserts = lines.map((line: any, i: number) => ({
         posting_rule_id: rule.id,
+        tenant_id: tenantId!,
         line_number: i + 1,
         side: line.side,
         account_source: line.account_source,

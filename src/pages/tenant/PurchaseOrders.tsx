@@ -131,7 +131,7 @@ export default function PurchaseOrders() {
         const lines = f.lines.map((l, i) => ({
           purchase_order_id: poId!, product_id: l.product_id || null,
           description: l.description, quantity: l.quantity, unit_price: l.unit_price,
-          total: l.total, sort_order: i,
+          total: l.total, sort_order: i, tenant_id: tenantId!,
         }));
         const { error } = await supabase.from("purchase_order_lines").insert(lines);
         if (error) throw error;
@@ -156,6 +156,7 @@ export default function PurchaseOrders() {
         const grnLines = lines.map(l => ({
           goods_receipt_id: grn.id, product_id: l.product_id,
           quantity_ordered: l.quantity, quantity_received: l.quantity,
+          tenant_id: tenantId!,
         }));
         await supabase.from("goods_receipt_lines").insert(grnLines);
       }

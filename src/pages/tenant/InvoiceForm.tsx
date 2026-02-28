@@ -403,6 +403,7 @@ export default function InvoiceForm() {
       // Insert lines
       const lineInserts = values.lines.map((l, i) => ({
         invoice_id: invoiceId!,
+        tenant_id: tenantId!,
         product_id: l.product_id || null,
         description: l.description,
         quantity: l.quantity,

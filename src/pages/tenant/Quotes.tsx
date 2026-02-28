@@ -157,6 +157,7 @@ export default function Quotes() {
       if (quoteLines && quoteLines.length > 0 && soData) {
         const soLines = quoteLines.map((l: any, i: number) => ({
           sales_order_id: soData.id,
+          tenant_id: tenantId!,
           product_id: l.product_id || null,
           description: l.description || "",
           quantity: l.quantity || 1,
