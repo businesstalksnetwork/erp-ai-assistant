@@ -79,7 +79,7 @@ export default function InternalTransfers() {
       if (items.length > 0) {
         const { error: itemsErr } = await supabase.from("internal_transfer_items").insert(
           items.filter(i => i.product_id && i.quantity_sent > 0).map(i => ({
-            transfer_id: transfer.id, product_id: i.product_id, quantity_sent: i.quantity_sent,
+            transfer_id: transfer.id, tenant_id: tenantId!, product_id: i.product_id, quantity_sent: i.quantity_sent,
           }))
         );
         if (itemsErr) throw itemsErr;

@@ -240,6 +240,7 @@ export default function FxRevaluation() {
       const { error: linesErr } = await supabase.from("fx_revaluation_lines").insert(
         previewLines.map(l => ({
           revaluation_id: reval.id,
+          tenant_id: tenantId!,
           open_item_id: l.open_item_id,
           currency: l.currency,
           original_rate: l.original_rate,

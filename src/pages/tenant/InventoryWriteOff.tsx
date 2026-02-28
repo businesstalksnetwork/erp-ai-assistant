@@ -125,6 +125,7 @@ export default function InventoryWriteOff() {
     mutationFn: async () => {
       const { error } = await supabase.from("inventory_write_off_items").insert([{
         write_off_id: selectedId,
+        tenant_id: tenantId!,
         product_id: itemForm.product_id,
         quantity: itemForm.quantity,
         unit_cost: itemForm.unit_cost,

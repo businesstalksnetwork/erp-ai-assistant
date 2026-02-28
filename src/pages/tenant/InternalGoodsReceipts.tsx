@@ -84,9 +84,9 @@ export default function InternalGoodsReceipts() {
       if (transferItems && transferItems.length > 0) {
         await supabase.from("internal_goods_receipt_items").insert(
           transferItems.map((ti: any) => ({
-            receipt_id: receipt.id, transfer_item_id: ti.id,
+            receipt_id: receipt.id, tenant_id: tenantId!, transfer_item_id: ti.id,
             product_id: ti.product_id, quantity_expected: ti.quantity_sent,
-            quantity_received: ti.quantity_sent, // default to expected
+            quantity_received: ti.quantity_sent,
           }))
         );
       }

@@ -389,6 +389,7 @@ function RetailPricesTab({ tenantId, productFilter, t, toast, qc }: any) {
         retail_price: priceForm.retail_price,
         markup_percent: priceForm.markup_percent || null,
         valid_from: new Date().toISOString().split("T")[0],
+        tenant_id: tenantId!,
       }, { onConflict: "price_list_id,product_id,valid_from" });
       if (error) throw error;
     },

@@ -120,8 +120,8 @@ export default function Kompenzacija() {
 
       // Create kompenzacija items
       const selectedItems = [
-        ...receivables.filter(r => r.selected).map(r => ({ kompenzacija_id: komp.id, open_item_id: r.id, amount: r.offsetAmount, direction: "receivable" })),
-        ...payables.filter(p => p.selected).map(p => ({ kompenzacija_id: komp.id, open_item_id: p.id, amount: p.offsetAmount, direction: "payable" })),
+        ...receivables.filter(r => r.selected).map(r => ({ kompenzacija_id: komp.id, tenant_id: tenantId!, open_item_id: r.id, amount: r.offsetAmount, direction: "receivable" })),
+        ...payables.filter(p => p.selected).map(p => ({ kompenzacija_id: komp.id, tenant_id: tenantId!, open_item_id: p.id, amount: p.offsetAmount, direction: "payable" })),
       ];
       const { error: itemsErr } = await supabase.from("kompenzacija_items").insert(selectedItems);
       if (itemsErr) throw itemsErr;

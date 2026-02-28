@@ -90,7 +90,7 @@ export default function WmsReturns() {
       if (form.lines.length > 0) {
         await supabase.from("wms_return_lines").insert(
           form.lines.filter(l => l.product_id).map((l, i) => ({
-            return_id: ret.id, product_id: l.product_id, quantity: l.quantity,
+            return_id: ret.id, tenant_id: tenantId!, product_id: l.product_id, quantity: l.quantity,
             condition: l.condition, disposition: l.disposition, sort_order: i,
           }))
         );
