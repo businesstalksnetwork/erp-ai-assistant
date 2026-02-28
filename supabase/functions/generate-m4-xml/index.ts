@@ -13,13 +13,42 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { report_id, tenant_id, report_year } = await req.json();
-    if (!tenant_id || !report_year) throw new Error("tenant_id and report_year required");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // ── P1-01: Authentication ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+    if (authErr || !authUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { report_id, tenant_id, report_year } = await req.json();
+    if (!tenant_id || !report_year) throw new Error("tenant_id and report_year required");
+
+    // ── P1-01: Tenant membership verification ──
+    const { data: memberChk } = await supabase
+      .from("tenant_members").select("id")
+      .eq("user_id", authUser.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
+    const { data: saChk } = await supabase
+      .from("user_roles").select("id")
+      .eq("user_id", authUser.id).eq("role", "super_admin").maybeSingle();
+    if (!memberChk && !saChk) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch legal entity
     const { data: legalEntity } = await supabase

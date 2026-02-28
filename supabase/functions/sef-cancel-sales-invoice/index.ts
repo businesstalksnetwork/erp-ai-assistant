@@ -19,6 +19,22 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ── P1-01: Authentication ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+    if (authErr || !authUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { companyId, sefInvoiceId, action, comment } = await req.json();
 
     console.log(`SEF cancel/storno request: company=${companyId}, invoice=${sefInvoiceId}, action=${action}`);
@@ -41,6 +57,19 @@ serve(async (req) => {
     if (companyError || !company) {
       console.error('Company error:', companyError);
       throw new Error('Kompanija nije pronađena');
+    }
+
+    // ── P1-01: Tenant membership verification ──
+    const { data: memberChk } = await supabase
+      .from("tenant_members").select("id")
+      .eq("user_id", authUser.id).eq("tenant_id", company.tenant_id).eq("status", "active").maybeSingle();
+    const { data: saChk } = await supabase
+      .from("user_roles").select("id")
+      .eq("user_id", authUser.id).eq("role", "super_admin").maybeSingle();
+    if (!memberChk && !saChk) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!company.sef_api_key) {

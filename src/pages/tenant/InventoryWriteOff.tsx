@@ -170,6 +170,25 @@ export default function InventoryWriteOff() {
         ],
       });
 
+      // ── P1-09: Deduct physical stock for each write-off item ──
+      const { data: woItems } = await supabase
+        .from("inventory_write_off_items")
+        .select("product_id, quantity")
+        .eq("write_off_id", wo.id);
+      if (woItems && woItems.length > 0 && wo.warehouse_id) {
+        for (const item of woItems) {
+          if (item.product_id && item.quantity > 0) {
+            await supabase.rpc("adjust_inventory_stock", {
+              p_tenant_id: tenantId,
+              p_product_id: item.product_id,
+              p_warehouse_id: wo.warehouse_id,
+              p_quantity: -item.quantity,
+              p_reference: `Write-off ${wo.id.slice(0, 8)}`,
+            });
+          }
+        }
+      }
+
       await supabase.from("inventory_write_offs").update({
         status: "posted",
         journal_entry_id: journalId,
@@ -177,7 +196,8 @@ export default function InventoryWriteOff() {
       }).eq("id", wo.id);
 
       qc.invalidateQueries({ queryKey: ["inventory-write-offs"] });
-      toast({ title: "Otpis proknjižen (5850 DR / 1320 CR)" });
+      qc.invalidateQueries({ queryKey: ["inventory-stock"] });
+      toast({ title: "Otpis proknjižen (5850 DR / 1320 CR) i zalihe ažurirane" });
     } catch (e: any) {
       toast({ title: "Greška", description: e.message, variant: "destructive" });
     } finally {

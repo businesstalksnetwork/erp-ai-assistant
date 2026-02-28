@@ -127,8 +127,24 @@ export default function FixedAssets() {
           await supabase.from("fixed_assets").update({ disposed_at: entryDate, disposal_type: form.disposal_type || "scrapped", sale_price: salePrice }).eq("id", editId);
         }
       } else {
-        const { error } = await supabase.from("fixed_assets").insert(payload);
+        const { data: newAsset, error } = await supabase.from("fixed_assets").insert(payload).select("id").single();
         if (error) throw error;
+
+        // ── P1-10: Create GL entry for asset acquisition ──
+        if (form.acquisition_cost > 0) {
+          const entryDate = form.acquisition_date || new Date().toISOString().split("T")[0];
+          await postWithRuleOrFallback({
+            tenantId: tenantId!, userId: user?.id || null, entryDate,
+            modelCode: "ASSET_ACQUISITION", amount: form.acquisition_cost,
+            description: `Asset Acquisition - ${form.name}`,
+            reference: `ACQ-${newAsset.id.slice(0, 8)}`,
+            context: {},
+            fallbackLines: [
+              { accountCode: "0230", debit: form.acquisition_cost, credit: 0, description: `Osnovno sredstvo - ${form.name}`, sortOrder: 1 },
+              { accountCode: "4310", debit: 0, credit: form.acquisition_cost, description: `Obaveze prema dobavljačima - ${form.name}`, sortOrder: 2 },
+            ],
+          });
+        }
       }
     },
     onSuccess: () => {

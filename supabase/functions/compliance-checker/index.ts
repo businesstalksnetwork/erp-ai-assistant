@@ -27,6 +27,10 @@ interface ComplianceCheck {
 }
 
 async function runComplianceChecks(supabase: any, tenantId: string): Promise<ComplianceCheck[]> {
+  // ── P1-08: Validate tenantId is UUID to prevent SQL injection ──
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
+    throw new Error("Invalid tenant_id format");
+  }
   const checks: ComplianceCheck[] = [];
   const today = new Date().toISOString().split("T")[0];
   const currentYear = new Date().getFullYear();
