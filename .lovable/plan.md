@@ -1,68 +1,67 @@
 
 
-## Phase 6: AI Cycle Counting Module Enhancement + New AI WMS Pages
+## Immediate Fixes + Phase 7–8
 
-Phase 6 focuses on upgrading the existing basic cycle counting page into an AI-driven system and adding the remaining AI WMS pages per the PRD.
+### Fix 1: Rename "Lojalnost" → "Lojalti Program"
+- `src/i18n/translations.ts` line 7010: change `loyaltyModule: "Lojalnost"` → `loyaltyModule: "Lojalti Program"`
 
-### 6.1: Enhance WmsCycleCounts with AI Features
-Upgrade `WmsCycleCounts.tsx` from a basic manual count page to an AI-powered system:
+### Fix 2: White font for aiProduction / aiWarehouse section headers
+- `src/layouts/TenantLayout.tsx` line 404: change `text-primary/60` to `text-sidebar-foreground/80` for AI section headers so they render white instead of dark primary color on the dark sidebar
 
-- **ABC Classification**: Add product ABC classification (A=high-value/high-velocity, B=medium, C=low) using pick velocity data from `wms_product_velocity`
-- **AI Count Scheduling**: Auto-suggest which bins/products to count next based on: ABC class (A items counted more frequently), days since last count, variance history, and stock value
-- **Variance Prediction**: Show predicted variance ranges based on historical count data
-- **Smart Reconciliation**: Auto-approve variances within configurable thresholds; flag outliers for manual review
+### Fix 3: Add missing translation keys for aiWarehouse / aiProduction
+- `src/i18n/translations.ts`: add `aiWarehouse: "AI Warehouse"` / `"AI Skladište"` and `aiProduction: "AI Production"` / `"AI Proizvodnja"` — currently these keys are missing so section headers show raw key names
 
-**Schema changes** (migration):
-- Add columns to `wms_cycle_count_lines`: `abc_class TEXT`, `ai_priority_score NUMERIC`, `auto_approved BOOLEAN DEFAULT false`
-- Add columns to `wms_cycle_counts`: `ai_generated BOOLEAN DEFAULT false`, `accuracy_rate NUMERIC`
-- Create `wms_count_schedule_config` table: `(tenant_id, warehouse_id, abc_a_frequency_days, abc_b_frequency_days, abc_c_frequency_days, auto_approve_threshold_pct, created_at)`
+---
 
-### 6.2: AI Wave Planning Page (new)
-Create `src/pages/tenant/WmsWavePlanning.tsx` at `/inventory/wms/wave-planning`:
-- Group pick tasks into optimized waves based on order priority, zone proximity, and picker capacity
-- Wave creation wizard: select orders → AI groups into waves → assign pickers
-- KPI cards: waves today, picks/hour, on-time rate
+### Phase 7: AI Production Remaining Page — Quality Prediction
 
-### 6.3: AI Route Optimization Page (new)
-Create `src/pages/tenant/WmsRouteOptimization.tsx` at `/inventory/wms/route-optimization`:
-- Visualize optimal pick routes through warehouse zones
-- Show distance saved vs naive ordering
-- Per-picker route assignment and efficiency metrics
+Per PRD page 44, AI Production should have 8 items. Current state has 7 (dashboard with tabs for calendar/bottleneck/waste + schedule + capacity + OEE). Missing: **AI Quality Prediction**.
 
-### 6.4: AI Demand Putaway Page (new)
-Create `src/pages/tenant/WmsDemandPutaway.tsx` at `/inventory/wms/demand-putaway`:
-- AI-suggested putaway locations based on demand forecast, product velocity, and bin capacity
-- Incoming receipts list with recommended bin assignments
-- One-click accept/override putaway suggestions
+**7.1: Create `AiQualityPrediction.tsx`**
+- Page at `/production/ai-planning/quality-prediction`
+- Predict defect rates per product/work center based on historical QC data
+- KPI cards: predicted defect rate, top risk products, quality trend
+- Table of products with predicted quality scores and recommended actions
+- Uses `quality_inspections` and `production_orders` data
 
-### 6.5: AI Warehouse Analytics Page (new)
-Create `src/pages/tenant/WmsAnalytics.tsx` at `/inventory/wms/analytics`:
-- Dashboard with warehouse KPIs: space utilization, pick accuracy, throughput trends
-- ABC distribution chart, velocity heatmap by zone
-- Count accuracy over time, variance trend charts
+**7.2: Wire route + sidebar + translations**
+- Add route in `otherRoutes.tsx`
+- Add nav item in `productionNav` with `aiModule: "ai-production"`
+- Add translation keys
 
-### 6.6: Sidebar + Routes Wiring
-- Add 4 new nav items to `inventoryNav` in `TenantLayout.tsx` under the `aiWarehouse` section with `aiModule: "ai-wms"`
-- Add 4 new routes to `inventoryRoutes.tsx`
-- Add translation keys for all new pages
+---
+
+### Phase 8: Competitive Feature Gaps
+
+Since the PRD content for Phase 8 was truncated, I'll implement the features referenced in the competitor matrix (page 2) and sidebar structure (page 48):
+
+**8.1: WMS Labor Management Enhancement**
+- `WmsLabor.tsx` already exists — enhance with productivity metrics, shift scheduling, and picker performance rankings
+
+**8.2: Demand Forecasting Enhancement**
+- `DemandForecasting.tsx` exists — enhance with AI-driven forecast accuracy metrics and seasonal pattern detection
+
+**8.3: Customer Risk Scoring Enhancement**
+- `CustomerRiskScoring.tsx` exists — enhance with payment behavior analysis and credit limit recommendations
+
+These are lightweight enhancements to existing pages to close competitive gaps identified in the audit.
+
+---
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| New migration SQL | 6.1 — schema additions to cycle count tables + `wms_count_schedule_config` |
-| `src/pages/tenant/WmsCycleCounts.tsx` | 6.1 — AI scheduling, ABC classification, auto-approve |
-| `src/pages/tenant/WmsWavePlanning.tsx` | 6.2 — new page |
-| `src/pages/tenant/WmsRouteOptimization.tsx` | 6.3 — new page |
-| `src/pages/tenant/WmsDemandPutaway.tsx` | 6.4 — new page |
-| `src/pages/tenant/WmsAnalytics.tsx` | 6.5 — new page |
-| `src/layouts/TenantLayout.tsx` | 6.6 — 4 new nav items |
-| `src/routes/inventoryRoutes.tsx` | 6.6 — 4 new routes |
-| `src/i18n/translations.ts` | 6.6 — new translation keys |
+| `src/i18n/translations.ts` | Fix loyaltyModule SR, add aiWarehouse/aiProduction keys |
+| `src/layouts/TenantLayout.tsx` | Fix AI section header color to white |
+| `src/pages/tenant/AiQualityPrediction.tsx` | 7.1 — new page |
+| `src/routes/otherRoutes.tsx` | 7.2 — add quality prediction route |
+| `src/pages/tenant/WmsLabor.tsx` | 8.1 — enhance with productivity metrics |
+| `src/pages/tenant/DemandForecasting.tsx` | 8.2 — enhance with AI accuracy metrics |
+| `src/pages/tenant/CustomerRiskScoring.tsx` | 8.3 — enhance with payment analysis |
 
 ### Execution Order
-1. Migration: schema changes (6.1)
-2. Enhance `WmsCycleCounts.tsx` with AI features (6.1)
-3. Create 4 new AI WMS pages (6.2–6.5) in parallel
-4. Wire sidebar + routes + translations (6.6)
+1. Fixes (translation + sidebar color)
+2. AI Quality Prediction page + wiring (Phase 7)
+3. Enhance existing pages for competitive gaps (Phase 8)
 
