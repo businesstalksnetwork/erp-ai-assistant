@@ -11414,6 +11414,258 @@ export type Database = {
           },
         ]
       }
+      loyalty_members: {
+        Row: {
+          created_at: string
+          current_tier: string
+          enrolled_at: string
+          id: string
+          lifetime_points: number
+          partner_id: string
+          points_balance: number
+          program_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_tier?: string
+          enrolled_at?: string
+          id?: string
+          lifetime_points?: number
+          partner_id: string
+          points_balance?: number
+          program_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_tier?: string
+          enrolled_at?: string
+          id?: string
+          lifetime_points?: number
+          partner_id?: string
+          points_balance?: number
+          program_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_members_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_members_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_programs: {
+        Row: {
+          created_at: string
+          expiry_months: number | null
+          id: string
+          is_active: boolean
+          name: string
+          points_per_unit_currency: number
+          tenant_id: string
+          tier_thresholds: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiry_months?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          points_per_unit_currency?: number
+          tenant_id: string
+          tier_thresholds?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiry_months?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          points_per_unit_currency?: number
+          tenant_id?: string
+          tier_thresholds?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_programs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_redemptions: {
+        Row: {
+          id: string
+          member_id: string
+          points_spent: number
+          redeemed_at: string
+          reward_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          points_spent: number
+          redeemed_at?: string
+          reward_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          points_spent?: number
+          redeemed_at?: string
+          reward_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_redemptions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_rewards: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          points_cost: number
+          reward_type: string
+          reward_value: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          points_cost: number
+          reward_type?: string
+          reward_value?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          points_cost?: number
+          reward_type?: string
+          reward_value?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_rewards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_transactions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          member_id: string
+          points: number
+          reference_id: string | null
+          reference_type: string | null
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          member_id: string
+          points: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          member_id?: string
+          points?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       m4_reports: {
         Row: {
           created_at: string
@@ -21932,6 +22184,16 @@ export type Database = {
       }
     }
     Functions: {
+      accrue_loyalty_points: {
+        Args: {
+          p_amount: number
+          p_partner_id: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       adjust_inventory_stock: {
         Args: {
           p_created_by?: string
@@ -22302,6 +22564,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_loyalty_summary: {
+        Args: { p_partner_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       get_member_data_scope: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: string
@@ -22391,6 +22657,10 @@ export type Database = {
       process_pos_sale: {
         Args: { p_tenant_id: string; p_transaction_id: string }
         Returns: string
+      }
+      redeem_loyalty_points: {
+        Args: { p_member_id: string; p_reward_id: string; p_tenant_id: string }
+        Returns: Json
       }
       refresh_wms_affinity_pairs: {
         Args: { p_tenant_id: string; p_warehouse_id: string }
@@ -22535,6 +22805,7 @@ export type Database = {
         | "production_manager"
         | "production_worker"
         | "viewer"
+        | "loyalty_manager"
       attendance_status:
         | "present"
         | "absent"
@@ -22743,6 +23014,7 @@ export const Constants = {
         "production_manager",
         "production_worker",
         "viewer",
+        "loyalty_manager",
       ],
       attendance_status: [
         "present",

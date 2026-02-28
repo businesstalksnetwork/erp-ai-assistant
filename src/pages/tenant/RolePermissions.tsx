@@ -18,6 +18,7 @@ const ROLES: TenantRole[] = [
   "store_manager", "store", "cashier",
   "warehouse_manager", "warehouse_worker",
   "production_manager", "production_worker",
+  "loyalty_manager",
   "user", "viewer",
 ];
 
@@ -39,13 +40,14 @@ const ROLE_LABELS: Record<TenantRole, TranslationKey> = {
   warehouse_worker: "roleWarehouseWorker",
   production_manager: "roleProductionManager",
   production_worker: "roleProductionWorker",
+  loyalty_manager: "loyaltyModule" as TranslationKey,
   user: "roleUser",
   viewer: "roleViewer",
 };
 const MODULES = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory",
   "accounting", "analytics", "hr", "production", "documents",
-  "pos", "returns", "assets", "settings",
+  "pos", "returns", "assets", "service", "loyalty", "settings",
 ];
 const ACTIONS = ["view", "create", "edit", "delete", "approve", "export"] as const;
 

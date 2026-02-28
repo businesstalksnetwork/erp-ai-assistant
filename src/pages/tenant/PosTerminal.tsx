@@ -530,7 +530,21 @@ export default function PosTerminal() {
 
       return tx;
     },
-    onSuccess: () => {
+    onSuccess: (tx: any) => {
+      // Accrue loyalty points if buyer partner is linked
+      if (buyerPartnerId && tx?.total) {
+        supabase.rpc("accrue_loyalty_points", {
+          p_tenant_id: tenantId!,
+          p_partner_id: buyerPartnerId,
+          p_amount: tx.total,
+          p_reference_type: "pos_sale",
+          p_reference_id: tx.id,
+        }).then(({ data }) => {
+          if (data && typeof data === "object" && (data as any).ok && (data as any).points > 0) {
+            toast({ title: `${t("pointsEarned" as any)}: +${(data as any).points}` });
+          }
+        });
+      }
       setCart([]);
       setCustomerName("");
       setBuyerId("");

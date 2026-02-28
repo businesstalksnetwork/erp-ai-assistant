@@ -5,6 +5,7 @@ export type TenantRole =
   | "store_manager" | "cashier"
   | "warehouse_manager" | "warehouse_worker"
   | "production_manager" | "production_worker"
+  | "loyalty_manager"
   | "viewer";
 
 export type ModuleGroup =
@@ -23,6 +24,7 @@ export type ModuleGroup =
   | "returns"
   | "assets"
   | "service"
+  | "loyalty"
   | "settings"
   // Granular settings keys
   | "settings-users"
@@ -37,7 +39,7 @@ export type ModuleGroup =
 
 const ALL_MODULES: ModuleGroup[] = [
   "dashboard", "crm", "sales", "web", "purchasing", "inventory", "accounting", "analytics", "hr",
-  "production", "documents", "pos", "returns", "assets", "service", "settings",
+  "production", "documents", "pos", "returns", "assets", "service", "loyalty", "settings",
   "settings-users", "settings-approvals", "settings-business-rules",
   "settings-tax-rates", "settings-currencies", "settings-audit-log",
   "settings-events", "settings-integrations", "settings-role-permissions",
@@ -63,13 +65,14 @@ export const rolePermissions: Record<TenantRole, ModuleGroup[]> = {
   sales_rep: ["dashboard", "crm", "sales", "web", "inventory", "documents"],
   sales: ["dashboard", "crm", "sales", "web", "inventory", "documents", "service"],
   hr: ["dashboard", "hr", "documents"],
-  store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service", "analytics"],
-  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service"],
+  store_manager: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service", "loyalty", "analytics"],
+  store: ["dashboard", "crm", "sales", "inventory", "pos", "returns", "assets", "service", "loyalty"],
   cashier: ["dashboard", "pos", "service"],
   warehouse_manager: ["dashboard", "inventory", "purchasing", "returns", "assets", "service"],
   warehouse_worker: ["dashboard", "inventory", "returns"],
   production_manager: ["dashboard", "production", "inventory", "documents", "service", "analytics"],
   production_worker: ["dashboard", "production", "inventory"],
+  loyalty_manager: ["dashboard", "crm", "loyalty", "analytics"],
   user: ["dashboard", "documents", "pos"],
   viewer: ["dashboard"],
 };
@@ -101,4 +104,5 @@ export const routeToModule: Record<string, ModuleGroup> = {
   "/settings": "settings",
   "/assets/": "assets",
   "/service/": "service",
+  "/loyalty": "loyalty",
 };

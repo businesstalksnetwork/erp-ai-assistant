@@ -569,6 +569,22 @@ export default function InvoiceForm() {
       }
     },
     onSuccess: () => {
+      // Accrue loyalty points if partner is linked
+      const partnerId = form.getValues("selectedPartnerId");
+      const grandTotal = form.getValues("lines").reduce((s, l) => s + ((l.quantity || 0) * (l.unit_price || 0)), 0);
+      if (partnerId && partnerId !== "__manual__" && grandTotal > 0) {
+        supabase.rpc("accrue_loyalty_points", {
+          p_tenant_id: tenantId!,
+          p_partner_id: partnerId,
+          p_amount: grandTotal,
+          p_reference_type: "invoice",
+          p_reference_id: id || "",
+        }).then(({ data }) => {
+          if (data && typeof data === "object" && (data as any).ok && (data as any).points > 0) {
+            toast({ title: `${t("pointsEarned" as any)}: +${(data as any).points}` });
+          }
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       toast({ title: t("success"), description: "Faktura je proknjižena u Glavnu knjigu." });

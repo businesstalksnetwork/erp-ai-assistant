@@ -66,6 +66,12 @@ const ServiceWorkOrders = React.lazy(() => import("@/pages/tenant/ServiceWorkOrd
 const ServiceDashboard = React.lazy(() => import("@/pages/tenant/ServiceDashboard"));
 const ServiceContracts = React.lazy(() => import("@/pages/tenant/ServiceContracts"));
 
+// Loyalty
+const LoyaltyDashboard = React.lazy(() => import("@/pages/tenant/LoyaltyDashboard"));
+const LoyaltyPrograms = React.lazy(() => import("@/pages/tenant/LoyaltyPrograms"));
+const LoyaltyMembers = React.lazy(() => import("@/pages/tenant/LoyaltyMembers"));
+const LoyaltyRewards = React.lazy(() => import("@/pages/tenant/LoyaltyRewards"));
+
 // Analytics
 const AnalyticsDashboard = React.lazy(() => import("@/pages/tenant/AnalyticsDashboard"));
 const FinancialRatios = React.lazy(() => import("@/pages/tenant/FinancialRatios"));
@@ -193,6 +199,15 @@ export const serviceRoutes = (
     <Route path="service/devices/:id" element={<ProtectedRoute requiredModule="service"><B><ServiceDeviceDetail /></B></ProtectedRoute>} />
     <Route path="service/my-work-orders" element={<ProtectedRoute requiredModule="service"><B><ServiceWorkOrders /></B></ProtectedRoute>} />
     <Route path="service/contracts" element={<ProtectedRoute requiredModule="service"><B><ServiceContracts /></B></ProtectedRoute>} />
+  </>
+);
+
+export const loyaltyRoutes = (
+  <>
+    <Route path="loyalty" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyDashboard /></B></ProtectedRoute>} />
+    <Route path="loyalty/programs" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyPrograms /></B></ProtectedRoute>} />
+    <Route path="loyalty/members" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyMembers /></B></ProtectedRoute>} />
+    <Route path="loyalty/rewards" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyRewards /></B></ProtectedRoute>} />
   </>
 );
 
