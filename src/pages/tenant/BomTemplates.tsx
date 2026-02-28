@@ -63,7 +63,7 @@ export default function BomTemplates() {
         bomId = data!.id;
       }
       if (lines.length > 0) {
-        await supabase.from("bom_lines").insert(lines.map((l, i) => ({ bom_template_id: bomId!, material_product_id: l.material_product_id, quantity: l.quantity, unit: l.unit, sort_order: i })));
+        await supabase.from("bom_lines").insert(lines.map((l, i) => ({ bom_template_id: bomId!, material_product_id: l.material_product_id, quantity: l.quantity, unit: l.unit, sort_order: i, tenant_id: tenantId! })));
       }
     },
     onSuccess: () => {

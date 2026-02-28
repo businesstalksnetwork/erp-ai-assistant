@@ -138,6 +138,7 @@ export default function MrpEngine() {
         unit_price: 0,
         total: 0,
         sort_order: i + 1,
+        tenant_id: tenantId!,
       }));
       const { error: lineErr } = await supabase.from("purchase_order_lines").insert(lines);
       if (lineErr) throw lineErr;

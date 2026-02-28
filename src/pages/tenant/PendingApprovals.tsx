@@ -68,6 +68,7 @@ export default function PendingApprovals() {
         approver_user_id: user!.id,
         action,
         comment: comment || null,
+        tenant_id: tenantId!,
       });
 
       if (action === "rejected") {

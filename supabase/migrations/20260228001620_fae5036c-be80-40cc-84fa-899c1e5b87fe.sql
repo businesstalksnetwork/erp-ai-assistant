@@ -1,0 +1,34 @@
+
+-- Migration 6: Add tenant_id indexes batch 4 (remaining 35 tables)
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_tenant ON public.purchase_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_tenant ON public.push_subscriptions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_quote_versions_tenant ON public.quote_versions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_tenant ON public.quotes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_invoices_tenant ON public.recurring_invoices(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_journals_tenant ON public.recurring_journals(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_return_cases_tenant ON public.return_cases(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_contracts_tenant ON public.revenue_contracts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_performance_obligations_tenant ON public.revenue_performance_obligations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_recognition_entries_tenant ON public.revenue_recognition_entries(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_channels_tenant ON public.sales_channels(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_tenant ON public.sales_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_targets_tenant ON public.sales_targets(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_severance_payments_tenant ON public.severance_payments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_invoice_lines_tenant ON public.supplier_invoice_lines(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_return_shipments_tenant ON public.supplier_return_shipments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_invitations_tenant ON public.tenant_invitations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_pricing_parties_tenant ON public.transfer_pricing_parties(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_travel_order_expenses_tenant ON public.travel_order_expenses(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_web_connections_tenant ON public.web_connections(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_web_price_lists_tenant ON public.web_price_lists(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_web_prices_tenant ON public.web_prices(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_web_sync_logs_tenant ON public.web_sync_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_withholding_tax_tenant ON public.withholding_tax(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_cycle_count_lines_tenant ON public.wms_cycle_count_lines(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_cycle_counts_tenant ON public.wms_cycle_counts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_pick_wave_orders_tenant ON public.wms_pick_wave_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_pick_waves_tenant ON public.wms_pick_waves(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_putaway_rules_tenant ON public.wms_putaway_rules(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_slotting_moves_tenant ON public.wms_slotting_moves(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_wms_slotting_scenarios_tenant ON public.wms_slotting_scenarios(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_work_logs_tenant ON public.work_logs(tenant_id);

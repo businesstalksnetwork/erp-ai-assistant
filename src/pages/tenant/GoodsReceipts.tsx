@@ -137,7 +137,7 @@ export default function GoodsReceipts() {
       const validLines = f.lines.filter(l => l.product_id);
       if (validLines.length > 0) {
         const { error } = await supabase.from("goods_receipt_lines").insert(
-          validLines.map(l => ({ goods_receipt_id: grId!, product_id: l.product_id, quantity_ordered: l.quantity_ordered, quantity_received: l.quantity_received }))
+          validLines.map(l => ({ goods_receipt_id: grId!, product_id: l.product_id, quantity_ordered: l.quantity_ordered, quantity_received: l.quantity_received, tenant_id: tenantId! }))
         );
         if (error) throw error;
       }

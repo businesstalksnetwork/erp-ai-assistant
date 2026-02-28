@@ -162,6 +162,7 @@ export default function ProformaInvoices() {
           tax_amount: l.quantity * l.unit_price * l.tax_rate / 100,
           total_with_tax: l.total, sort_order: l.sort_order,
           item_type: "service",
+          tenant_id: tenantId!,
         }));
         await supabase.from("invoice_lines").insert(invLines);
       }

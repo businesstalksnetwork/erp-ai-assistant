@@ -96,6 +96,7 @@ export default function QuoteDetail() {
       const totalWithTax = lineTotal + taxAmount;
       const payload = {
         quote_id: id!,
+        tenant_id: tenantId!,
         product_id: f.product_id || null,
         description: f.description,
         quantity: f.quantity,
@@ -151,6 +152,7 @@ export default function QuoteDetail() {
       if (so) {
         const linePayloads = lines.map((l: any) => ({
           sales_order_id: so.id,
+          tenant_id: tenantId!,
           product_id: l.product_id,
           description: l.description,
           quantity: l.quantity,
