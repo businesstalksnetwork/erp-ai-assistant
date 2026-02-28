@@ -1,152 +1,170 @@
 
 
-# Phases 6, 7, and 8 Implementation Plan
+# Fix All 36 CR Bugs — Implementation Plan
 
-## Scope Summary
-- **Phase 6** (P6-01 to P6-15): Serbian law compliance gaps — tax loss carryforward, thin capitalization, quarterly CIT, VAT pro-rata, capital goods adjustment, special VAT schemes, deferred tax, non-deductible expenses, investment/R&D credits, CROSO integration, RFZO tracking, foreign per diem, amortization plan, intercompany eliminations
-- **Phase 7** (P7-01 to P7-09): Integration & API fixes — retire legacy SEF, SEF webhooks, ePorezi PP-PDV submission, APR electronic filing, NBS cron, eBolovanje JMBG checksum, generate-apr-xml auth fix, Z-Report, PFR void receipt
-- **Phase 8** (P8-01 to P8-10): Polish — BOM weighted average cost, loyalty net-of-VAT, POS cash reconciliation, bulk invoice confirmation dialog, production order sequence, T-account GL view, prior year comparison, Serbian month names, account class validation, CIT/PB-1 merge
+## Batch 1: CRITICAL Security (6 fixes)
 
----
+### CR-06/CR-07: SEF Webhook auth + UUID enumeration
+**File:** `supabase/functions/sef-webhook/index.ts`
+- Line 22: Change `if (webhookSecret && ...)` → `if (!webhookSecret) return 401; if (providedSecret !== webhookSecret) return 401` (fail closed)
+- Lines 63-67: Remove the `invoiceId` direct UUID lookup branch — only allow `sefId` via `sef_invoice_id`
 
-## Implementation Steps
+### CR-14: NBS Cron auth fails open
+**File:** `supabase/functions/nbs-daily-cron/index.ts`
+- Line 22: Change `if (cronSecret && ...)` → `if (!cronSecret) return 401 "CRON_SECRET not configured"; if (authHeader !== ...) return 401`
 
-### Phase 6 — Serbian Law Compliance (14 tasks across ~8 files + new pages)
+### CR-13/CR-16: CROSO uses anon key + .single() leaks
+**File:** `supabase/functions/generate-croso-xml/index.ts`
+- Line 27: Change `SUPABASE_ANON_KEY` → `SUPABASE_SERVICE_ROLE_KEY`
+- Line 80: Change `.single()` on legal_entities to `.maybeSingle()` with fallback
+- Add `<OsnovaOsiguranja>` and `<SifraPlacanja>` tags to M-1 XML
 
-**P6-01: Tax Loss Carryforward (ZPDP Art. 32-38)**
-- Create new page `src/pages/tenant/TaxLossCarryforward.tsx` with a 5-year tracking table (year, loss amount, used, remaining, expiry)
-- Add route + sidebar link under Accounting > Reports
-- Integrate into PB-1 auto-population (PoreskiBilans.tsx — populate line items from carryforward data)
+### CR-24: Delete mutations missing tenant_id scope
+**Files:** `TaxLossCarryforward.tsx` (line ~75), `DeferredTax.tsx` (line ~76), `IntercompanyEliminations.tsx` (line ~80)
+- Add `.eq("tenant_id", tenantId!)` to every `deleteMutation`
 
-**P6-02: Thin Capitalization (ZPDP Art. 61-63)**
-- Create `src/pages/tenant/ThinCapitalization.tsx` — input related-party debt, equity, interest; compute 4:1 ratio and non-deductible interest
-- Add route under Accounting > Reports
-
-**P6-03: Quarterly CIT Advance Payments**
-- Create `src/pages/tenant/CitAdvancePayments.tsx` — calculator based on prior year tax, payment schedule with due dates and status tracking
-
-**P6-04: VAT Pro-Rata (ZoPDV Art. 31)**
-- Create `src/pages/tenant/VatProRata.tsx` — annual coefficient calculator (taxable/total revenue), apply to mixed-use input VAT
-- SQL migration for `vat_prorata_coefficients` table
-
-**P6-05: Capital Goods VAT Adjustment (ZoPDV Art. 32)**
-- Create `src/pages/tenant/CapitalGoodsVatRegister.tsx` — 5yr/10yr monitoring with annual adjustment entries
-
-**P6-06: VAT Special Schemes**
-- Add margin scheme, tourism scheme, agricultural flat-rate tabs to existing VAT/PDV module or new page
-
-**P6-07: Deferred Tax (IAS 12)**
-- Create `src/pages/tenant/DeferredTax.tsx` — compute deferred tax asset/liability from tax vs accounting depreciation diff
-
-**P6-08: Non-Deductible Expense Auto-Calc (ZPDP Art. 15-16)**
-- Add auto-calculation logic to PoreskiBilans.tsx: representation 0.5% revenue cap, advertising 10% revenue cap
-- Fetch GL data for expense accounts 5500/5510 and revenue totals
-
-**P6-09 & P6-10: Investment + R&D Tax Credits**
-- Add fields/sections to PoreskiBilans.tsx for 25% investment credit (Art. 50a) and 100%+100% R&D credit (Art. 40a)
-
-**P6-11: CROSO M-1/M-2 Integration**
-- Create edge function `supabase/functions/generate-croso-xml/index.ts` for M-1 (hire) / M-2 (termination) forms
-- Add UI trigger in HR Employees page
-
-**P6-12: RFZO Reimbursement Tracking**
-- Extend EBolovanje.tsx with reimbursement tracking tab for sick leave >30 days
-
-**P6-13: Foreign Travel Per Diem Rates**
-- Create `src/data/foreignPerDiemRates.ts` with country-specific rates per Uredba
-- Integrate into TravelOrderForm.tsx for international trips
-
-**P6-14: Amortization Plan Per Asset**
-- Add printable multi-year depreciation schedule view to FixedAssets detail
-
-**P6-15: Intercompany Eliminations**
-- Create `src/pages/tenant/IntercompanyEliminations.tsx` — elimination journal entries for consolidated reporting (IFRS 10)
-
-### Phase 7 — Integration & API Fixes (9 tasks)
-
-**P7-01: Retire Legacy SEF Functions**
-- Update all client-side callers of `sef-send-invoice`, `sef-accept-reject-invoice`, `sef-fetch-purchase-invoices`, `sef-cancel-sales-invoice` to use `sef-submit` family instead
-- Mark legacy functions as deprecated with console warnings
-
-**P7-02: SEF Webhook Support**
-- Create `supabase/functions/sef-webhook/index.ts` — receive push notifications from SEF for invoice status changes
-- Update invoice status in DB on webhook receipt
-
-**P7-03: ePorezi Direct PP-PDV Submission**
-- Extend `generate-pppdv-xml` to optionally submit directly to ePorezi API
-- Fix namespace: root element → `ObrazacPPPDV`, namespace → `urn:poreskauprava.gov.rs:pppdv`
-
-**P7-04: APR Electronic Submission**
-- Extend `generate-apr-xml` to support direct APR API filing (if API available), or prepare proper upload format
-
-**P7-05: NBS Exchange Rate Auto-Fetch Cron**
-- Create `supabase/functions/nbs-daily-cron/index.ts` — daily scheduled fetch
-- Add cron config to `supabase/config.toml`
-
-**P7-06: eBolovanje JMBG Mod-11 Checksum**
-- Update `ebolovanje-submit/index.ts` `validateJmbg` function:
-```
-function validateJmbg(jmbg: string): boolean {
-  if (!/^\d{13}$/.test(jmbg)) return false;
-  const d = jmbg.split("").map(Number);
-  const sum = 7*(d[0]+d[6]) + 6*(d[1]+d[7]) + 5*(d[2]+d[8])
-            + 4*(d[3]+d[9]) + 3*(d[4]+d[10]) + 2*(d[5]+d[11]);
-  let ctrl = 11 - (sum % 11);
-  if (ctrl > 9) ctrl = 0;
-  return ctrl === d[12];
-}
-```
-
-**P7-07: Fix generate-apr-xml Authorization**
-- Change `tenant_users` / `is_active` check to `tenant_members` / `status = 'active'`
-- Same fix in `generate-pppdv-xml`
-
-**P7-08: Z-Report as Dedicated PFR Operation**
-- Add Z-report generation to POS daily report flow via `fiscalize-receipt` extension or new edge function
-
-**P7-09: PFR Void Receipt Support**
-- Add void receipt workflow to POS — same-day cancellation with refund type `2` (Voided)
-
-### Phase 8 — Polish (10 tasks)
-
-**P8-01: BOM Weighted Average Cost**
-- Update BOM cost display to use weighted average from inventory cost layers instead of `products.purchase_price`
-
-**P8-02: Loyalty Point Accrual — Net (ex-VAT)**
-- Update `accrue_loyalty_points` call sites to pass net amount (total / 1.2 for 20% VAT)
-
-**P8-03: POS Session Cash Reconciliation**
-- Add cash counting UI to POS session close flow with expected vs actual variance
-
-**P8-04: Bulk Invoice Action Confirmation Dialog**
-- Add `AlertDialog` confirmation before bulk mark-as-paid/delete in Invoices.tsx
-
-**P8-05: Production Order Number Sequence**
-- Replace `MAX+1` with PostgreSQL sequence or atomic RPC (same pattern as journal entries)
-
-**P8-06: T-Account View in General Ledger**
-- Add toggle in GeneralLedger.tsx for T-account visual display (already exists in PostingRules via `TAccountDisplay` component — reuse it)
-
-**P8-07: Prior Year Comparison in Bilans Stanja/Uspeha**
-- Add prior year column to BilansStanja.tsx and BilansUspeha.tsx, fetching data for `year - 1`
-
-**P8-08: Serbian Month Names in Payroll**
-- Replace English month names with Serbian locale names (januar, februar, etc.)
-
-**P8-09: Account Class Validation in Chart of Accounts**
-- Validate that account code first digit matches selected `account_class` on save
-
-**P8-10: CIT Tax Return — Merge with PB-1**
-- Consolidate any duplicate CIT return logic into the unified PoreskiBilans workflow
+### CR-17: generate-payment-orders has no authentication
+**File:** `supabase/functions/generate-payment-orders/index.ts`
+- Add JWT auth + tenant membership verification at top
 
 ---
 
-## Technical Notes
+## Batch 2: CRITICAL Data Integrity (8 fixes)
 
-- **New pages** (6+): TaxLossCarryforward, ThinCapitalization, CitAdvancePayments, VatProRata, CapitalGoodsVatRegister, DeferredTax, IntercompanyEliminations
-- **New edge functions** (3): sef-webhook, nbs-daily-cron, generate-croso-xml
-- **Modified edge functions** (5): generate-pppdv-xml, generate-apr-xml, ebolovanje-submit, fiscalize-receipt, sef-submit
-- **Modified pages** (10+): PoreskiBilans, EBolovanje, TravelOrderForm, FixedAssets, GeneralLedger, BilansStanja, BilansUspeha, Invoices, PosTerminal/Sessions, ChartOfAccounts
-- **SQL migrations**: Tables for vat_prorata_coefficients, tax_loss_carryforward, capital_goods_vat_register, deferred_tax_items; production order sequence
-- All new routes need sidebar entries and route registrations
+### CR-08/CR-09: Production waste GL always = 0
+**File:** `src/pages/tenant/ProductionOrderDetail.tsx` (line 123)
+- Fix operator precedence: wrap `products.find(...)?.default_purchase_price || 0` in parentheses
+- Line 123: `const wasteValue = wasteForm.quantity * ((products.find((p: any) => p.id === wasteForm.product_id) as any)?.default_purchase_price || 0);`
+
+### CR-11/CR-12: TaxLossCarryforward keystroke race + no validation
+**File:** `src/pages/tenant/TaxLossCarryforward.tsx`
+- Replace `onChange` mutation on used_amount Input with local state + debounced save (use `useDebounce`)
+- Add validation: `used_amount <= loss_amount`, show error if exceeded
+
+### CR-14: DeferredTax Math.abs() strips DTA/DTL sign
+**File:** `src/pages/tenant/DeferredTax.tsx` (line ~54)
+- Remove `Math.abs()` from `deferred_tax_amount` calculation
+- Use signed value: `diff * form.tax_rate` (positive = DTA, negative = DTL)
+- Fix DTA/DTL totals to use absolute values only for display
+
+### CR-13: IntercompanyEliminations — no GL posting path
+**File:** `src/pages/tenant/IntercompanyEliminations.tsx`
+- Add a "Proknjiži" (Post) button per row that calls `postWithRuleOrFallback` with elimination type-specific accounts
+- Update status to "posted" after successful GL entry
+- Validate `entity_from_id !== entity_to_id` in add mutation
+
+### CR-23/CR-28: ThinCapitalization stale closure + equity=0
+**File:** `src/pages/tenant/ThinCapitalization.tsx`
+- Add `useEffect` to sync local state (debt, equity, interest) from query data when record loads
+- Use local state in save mutation (not the stale `effectiveX` values)
+- Fix equity=0: return `Infinity` for ratio display, show "Beskonačno" badge
+
+### CR-25/CR-26: VatProRata stale closure + queryKey missing year
+**File:** `src/pages/tenant/VatProRata.tsx`
+- Add `year` to queryKey: `["vat-prorata", tenantId, year]`
+- Add `useEffect` to sync local state from query data
+- Use local state in save mutation
+
+### CR-05: compliance-checker RPC signature mismatch
+**File:** `supabase/functions/compliance-checker/index.ts`
+- All calls to `execute_readonly_query` pass `{ query_text: ... }` — verify the RPC accepts this signature
+- If RPC now requires `tenant_id_param`, add it to all calls
+
+### CR-04: Payroll duplicate employer contribution columns
+**Requires:** New SQL migration
+- Fix the INSERT statement in payroll RPC to remove duplicate `pio_employer, health_employer, unemp_employer` columns
+
+---
+
+## Batch 3: HIGH Priority (12 fixes)
+
+### CR-10: Wrong Serbian law article references
+**Files:** 4 pages
+- `TaxLossCarryforward.tsx`: "čl. 32-38" → "čl. 32"
+- `ThinCapitalization.tsx`: "čl. 61-63" → "čl. 61"
+- `VatProRata.tsx`: "čl. 30" → "čl. 31"
+- `CapitalGoodsVatRegister.tsx`: "čl. 32" → "čl. 32a"
+
+### CR-21: MultiPeriodReports Class 2 still in AKTIVA
+**File:** `src/pages/tenant/MultiPeriodReports.tsx` (lines 75-84)
+- Change `["0", "1", "2"]` → `["0", "1"]` for assets
+- Add Class 2 to liabilities: `["2", "4"]`
+- Update labels accordingly
+
+### CR-22/CR-29: SupplierInvoices payment account 2100 → 2200
+**File:** `src/pages/tenant/SupplierInvoices.tsx` (line 258)
+- Change `accountCode: "2100"` → `"2200"`
+
+### CR-15: SEF S10/S20 uses wall clock not invoice date
+**File:** `supabase/functions/sef-send-invoice/index.ts`
+- Pass invoice's `issue_date` to `determineVatCategory` instead of `new Date()`
+
+### CR-34: CapitalGoods pro-rata inputs unbounded
+**File:** `src/pages/tenant/CapitalGoodsVatRegister.tsx` (lines 105, 109)
+- Add `min={0} max={1} step={0.01}` to pro-rata input fields
+- Add validation before save: `original_prorata >= 0 && original_prorata <= 1`
+
+### CR-36: foreignPerDiemRates wrong regulation year
+**File:** `src/data/foreignPerDiemRates.ts` (line 3)
+- Change `"Sl. glasnik RS, br. 10/2022"` → `"Sl. glasnik RS, br. 76/2024"`
+
+### CR-35: Invoices.tsx duplicate MobileFilterBar
+**File:** `src/pages/tenant/Invoices.tsx` (lines 398-424)
+- Remove the second duplicate `<MobileFilterBar>` block
+
+### CR-31/CR-32: CROSO XML namespace + missing tags
+**File:** `supabase/functions/generate-croso-xml/index.ts`
+- Replace `urn:croso.gov.rs:m1` → `urn:croso:m-forms:v1` (or actual CROSO namespace when available)
+- Add `<OsnovaOsiguranja>01</OsnovaOsiguranja>` to M-1 XML
+- Add `<SifraPlacanja>240</SifraPlacanja>` for salary
+
+### CR-33: generate-apr-xml builder chaining bug
+**File:** `supabase/functions/generate-apr-xml/index.ts`
+- Fix immutable builder: assign result of `.eq()` back to query variable
+
+### CR-27: KpoBook selects wrong column name
+**File:** `src/pages/tenant/KpoBook.tsx`
+- Verify column name `total_amount` exists on invoices/supplier_invoices tables (it does per the select query found — no fix needed if column exists)
+
+### CR-30: SQL injection in compliance-checker
+**File:** `supabase/functions/compliance-checker/index.ts` (line 197)
+- `vatAccount.id` is from our own DB query result (UUID), but wrap in parameterized query or validate UUID format
+
+---
+
+## Batch 4: DB Migration Fixes (3 fixes)
+
+### CR-01: execute_readonly_query regression
+**New migration** to restore hardening:
+- Re-add system schema blocks (`pg_catalog`, `information_schema`)
+- Re-add UNION/UNION ALL blocks
+- Re-add LIMIT injection protection
+- Restore the stricter regex
+
+### CR-02: Invoice double-post guard NULL-clearing bypass
+**New migration:**
+- Fix trigger: check `OLD.journal_entry_id IS NOT NULL` regardless of NEW.status
+
+### CR-15b: cit_advance_payments RLS — no policy created
+**New migration:**
+- Add RLS policy for `cit_advance_payments` using `get_user_tenant_ids()`
+
+### CR-15c: RLS policies use slow inline subquery
+**New migration:**
+- Replace inline subqueries in all 6 new table policies with `get_user_tenant_ids(auth.uid())`
+
+### CR-28b: Thin cap ratio = 0 when equity = 0
+**New migration:**
+- Change generated column: `CASE WHEN equity_amount > 0 THEN ... ELSE NULL END`
+
+### CR-28c: deferred_tax_amount not generated
+- Keep as regular column (computed client-side on insert) — document this is intentional since it depends on user-provided tax_rate
+
+---
+
+## Summary
+
+- **Files modified:** ~18 (6 feature pages, 4 edge functions, 2 report pages, 1 data file, 1 invoices page, 1 compliance-checker, 1 production page, 1 supplier invoices)
+- **New SQL migration:** 1 (restoring security hardening, fixing RLS, fixing triggers)
+- **Edge functions to redeploy:** sef-webhook, nbs-daily-cron, generate-croso-xml, compliance-checker, sef-send-invoice, generate-apr-xml, generate-payment-orders
 
