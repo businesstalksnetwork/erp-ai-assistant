@@ -61,7 +61,10 @@ const ServiceOrders = React.lazy(() => import("@/pages/tenant/ServiceOrders"));
 const ServiceOrderForm = React.lazy(() => import("@/pages/tenant/ServiceOrderForm"));
 const ServiceOrderDetail = React.lazy(() => import("@/pages/tenant/ServiceOrderDetail"));
 const ServiceDevices = React.lazy(() => import("@/pages/tenant/ServiceDevices"));
+const ServiceDeviceDetail = React.lazy(() => import("@/pages/tenant/ServiceDeviceDetail"));
 const ServiceWorkOrders = React.lazy(() => import("@/pages/tenant/ServiceWorkOrders"));
+const ServiceDashboard = React.lazy(() => import("@/pages/tenant/ServiceDashboard"));
+const ServiceContracts = React.lazy(() => import("@/pages/tenant/ServiceContracts"));
 
 // Analytics
 const AnalyticsDashboard = React.lazy(() => import("@/pages/tenant/AnalyticsDashboard"));
@@ -182,11 +185,14 @@ export const analyticsRoutes = (
 
 export const serviceRoutes = (
   <>
+    <Route path="service/dashboard" element={<ProtectedRoute requiredModule="service"><B><ServiceDashboard /></B></ProtectedRoute>} />
     <Route path="service/orders" element={<ProtectedRoute requiredModule="service"><B><ServiceOrders /></B></ProtectedRoute>} />
     <Route path="service/orders/new" element={<ProtectedRoute requiredModule="service"><B><ServiceOrderForm /></B></ProtectedRoute>} />
     <Route path="service/orders/:id" element={<ProtectedRoute requiredModule="service"><B><ServiceOrderDetail /></B></ProtectedRoute>} />
     <Route path="service/devices" element={<ProtectedRoute requiredModule="service"><B><ServiceDevices /></B></ProtectedRoute>} />
+    <Route path="service/devices/:id" element={<ProtectedRoute requiredModule="service"><B><ServiceDeviceDetail /></B></ProtectedRoute>} />
     <Route path="service/my-work-orders" element={<ProtectedRoute requiredModule="service"><B><ServiceWorkOrders /></B></ProtectedRoute>} />
+    <Route path="service/contracts" element={<ProtectedRoute requiredModule="service"><B><ServiceContracts /></B></ProtectedRoute>} />
   </>
 );
 
