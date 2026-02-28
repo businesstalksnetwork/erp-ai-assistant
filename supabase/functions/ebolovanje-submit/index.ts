@@ -6,7 +6,13 @@ const corsHeaders = {
 };
 
 function validateJmbg(jmbg: string): boolean {
-  return /^\d{13}$/.test(jmbg);
+  if (!/^\d{13}$/.test(jmbg)) return false;
+  const d = jmbg.split("").map(Number);
+  const sum = 7*(d[0]+d[6]) + 6*(d[1]+d[7]) + 5*(d[2]+d[8])
+            + 4*(d[3]+d[9]) + 3*(d[4]+d[10]) + 2*(d[5]+d[11]);
+  let ctrl = 11 - (sum % 11);
+  if (ctrl > 9) ctrl = 0;
+  return ctrl === d[12];
 }
 
 function validatePib(pib: string): boolean {

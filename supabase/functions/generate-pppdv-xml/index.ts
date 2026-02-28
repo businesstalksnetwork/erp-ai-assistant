@@ -55,11 +55,11 @@ Deno.serve(async (req) => {
 
     // Verify tenant membership
     const { data: membership } = await supabase
-      .from("tenant_users")
+      .from("tenant_members")
       .select("id")
       .eq("tenant_id", tenant_id)
       .eq("user_id", user.id)
-      .eq("is_active", true)
+      .eq("status", "active")
       .single();
 
     if (!membership) {
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
     // Generate PP-PDV XML per Serbian ePorezi XSD
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<PoreskaDeklaracija xmlns="http://pid.poreskauprava.gov.rs/pppdv"
+<ObrazacPPPDV xmlns="urn:poreskauprava.gov.rs:pppdv"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ZaglavljeDeklaracije>
     <VrstaPrijave>1</VrstaPrijave>
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
     <PoresekaObaveza>${netVat >= 0 ? fmt(netVat) : "0.00"}</PoresekaObaveza>
     <PretplataPDV>${netVat < 0 ? fmt(Math.abs(netVat)) : "0.00"}</PretplataPDV>
   </ObracunPDV>
-</PoreskaDeklaracija>`;
+</ObrazacPPPDV>`;
 
     return new Response(JSON.stringify({ xml, filename: `PP-PDV_${periodYear}_${String(periodMonth).padStart(2, "0")}.xml` }), {
       status: 200,

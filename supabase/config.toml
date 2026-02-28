@@ -146,3 +146,12 @@ verify_jwt = false
 
 [functions.invoice-ocr]
 verify_jwt = false
+
+[functions.generate-croso-xml]
+verify_jwt = false
+
+[functions.sef-webhook]
+verify_jwt = false
+
+[functions.nbs-daily-cron]
+verify_jwt = false

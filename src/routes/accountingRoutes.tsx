@@ -63,6 +63,12 @@ const CashFlowStatement = React.lazy(() => import("@/pages/tenant/CashFlowStatem
 const ComplianceDashboard = React.lazy(() => import("@/pages/tenant/ComplianceDashboard"));
 const KepKnjiga = React.lazy(() => import("@/pages/tenant/KepKnjiga"));
 const PoreskiBilans = React.lazy(() => import("@/pages/tenant/PoreskiBilans"));
+const TaxLossCarryforward = React.lazy(() => import("@/pages/tenant/TaxLossCarryforward"));
+const ThinCapitalization = React.lazy(() => import("@/pages/tenant/ThinCapitalization"));
+const VatProRata = React.lazy(() => import("@/pages/tenant/VatProRata"));
+const CapitalGoodsVatRegister = React.lazy(() => import("@/pages/tenant/CapitalGoodsVatRegister"));
+const DeferredTax = React.lazy(() => import("@/pages/tenant/DeferredTax"));
+const IntercompanyEliminations2 = React.lazy(() => import("@/pages/tenant/IntercompanyEliminations"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -130,5 +136,11 @@ export const accountingRoutes = (
     <Route path="accounting/compliance" element={<ProtectedRoute requiredModule={m}><B><ComplianceDashboard /></B></ProtectedRoute>} />
     <Route path="accounting/kep" element={<ProtectedRoute requiredModule={m}><B><KepKnjiga /></B></ProtectedRoute>} />
     <Route path="accounting/reports/poreski-bilans" element={<ProtectedRoute requiredModule={m}><B><PoreskiBilans /></B></ProtectedRoute>} />
+    <Route path="accounting/tax-loss-carryforward" element={<ProtectedRoute requiredModule={m}><B><TaxLossCarryforward /></B></ProtectedRoute>} />
+    <Route path="accounting/thin-capitalization" element={<ProtectedRoute requiredModule={m}><B><ThinCapitalization /></B></ProtectedRoute>} />
+    <Route path="accounting/vat-prorata" element={<ProtectedRoute requiredModule={m}><B><VatProRata /></B></ProtectedRoute>} />
+    <Route path="accounting/capital-goods-vat" element={<ProtectedRoute requiredModule={m}><B><CapitalGoodsVatRegister /></B></ProtectedRoute>} />
+    <Route path="accounting/deferred-tax" element={<ProtectedRoute requiredModule={m}><B><DeferredTax /></B></ProtectedRoute>} />
+    <Route path="accounting/intercompany-eliminations" element={<ProtectedRoute requiredModule={m}><B><IntercompanyEliminations2 /></B></ProtectedRoute>} />
   </>
 );
