@@ -21054,9 +21054,63 @@ export type Database = {
           },
         ]
       }
+      wms_count_schedule_config: {
+        Row: {
+          abc_a_frequency_days: number
+          abc_b_frequency_days: number
+          abc_c_frequency_days: number
+          auto_approve_threshold_pct: number
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          abc_a_frequency_days?: number
+          abc_b_frequency_days?: number
+          abc_c_frequency_days?: number
+          auto_approve_threshold_pct?: number
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          abc_a_frequency_days?: number
+          abc_b_frequency_days?: number
+          abc_c_frequency_days?: number
+          auto_approve_threshold_pct?: number
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wms_count_schedule_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wms_count_schedule_config_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wms_cycle_count_lines: {
         Row: {
+          abc_class: string | null
+          ai_priority_score: number | null
           approved_by: string | null
+          auto_approved: boolean | null
           bin_id: string
           count_id: string
           counted_at: string | null
@@ -21071,7 +21125,10 @@ export type Database = {
           variance: number | null
         }
         Insert: {
+          abc_class?: string | null
+          ai_priority_score?: number | null
           approved_by?: string | null
+          auto_approved?: boolean | null
           bin_id: string
           count_id: string
           counted_at?: string | null
@@ -21086,7 +21143,10 @@ export type Database = {
           variance?: number | null
         }
         Update: {
+          abc_class?: string | null
+          ai_priority_score?: number | null
           approved_by?: string | null
+          auto_approved?: boolean | null
           bin_id?: string
           count_id?: string
           counted_at?: string | null
@@ -21133,6 +21193,8 @@ export type Database = {
       }
       wms_cycle_counts: {
         Row: {
+          accuracy_rate: number | null
+          ai_generated: boolean | null
           completed_at: string | null
           count_number: string
           count_type: Database["public"]["Enums"]["wms_count_type"]
@@ -21144,6 +21206,8 @@ export type Database = {
           zone_id: string | null
         }
         Insert: {
+          accuracy_rate?: number | null
+          ai_generated?: boolean | null
           completed_at?: string | null
           count_number?: string
           count_type?: Database["public"]["Enums"]["wms_count_type"]
@@ -21155,6 +21219,8 @@ export type Database = {
           zone_id?: string | null
         }
         Update: {
+          accuracy_rate?: number | null
+          ai_generated?: boolean | null
           completed_at?: string | null
           count_number?: string
           count_type?: Database["public"]["Enums"]["wms_count_type"]

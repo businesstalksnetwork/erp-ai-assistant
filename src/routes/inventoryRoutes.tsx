@@ -28,6 +28,10 @@ const WmsReceiving = React.lazy(() => import("@/pages/tenant/WmsReceiving"));
 const WmsPicking = React.lazy(() => import("@/pages/tenant/WmsPicking"));
 const WmsCycleCounts = React.lazy(() => import("@/pages/tenant/WmsCycleCounts"));
 const WmsSlotting = React.lazy(() => import("@/pages/tenant/WmsSlotting"));
+const WmsWavePlanning = React.lazy(() => import("@/pages/tenant/WmsWavePlanning"));
+const WmsRouteOptimization = React.lazy(() => import("@/pages/tenant/WmsRouteOptimization"));
+const WmsDemandPutaway = React.lazy(() => import("@/pages/tenant/WmsDemandPutaway"));
+const WmsAnalytics = React.lazy(() => import("@/pages/tenant/WmsAnalytics"));
 const WmsLabor = React.lazy(() => import("@/pages/tenant/WmsLabor"));
 const WmsReturns = React.lazy(() => import("@/pages/tenant/WmsReturns"));
 const InventoryStockTake = React.lazy(() => import("@/pages/tenant/InventoryStockTake"));
@@ -64,6 +68,10 @@ export const inventoryRoutes = (
     <Route path="inventory/wms/picking" element={<ProtectedRoute requiredModule={m}><B><WmsPicking /></B></ProtectedRoute>} />
     <Route path="inventory/wms/cycle-counts" element={<ProtectedRoute requiredModule={m}><B><WmsCycleCounts /></B></ProtectedRoute>} />
     <Route path="inventory/wms/slotting" element={<ProtectedRoute requiredModule={m}><B><WmsSlotting /></B></ProtectedRoute>} />
+    <Route path="inventory/wms/wave-planning" element={<ProtectedRoute requiredModule={m}><B><WmsWavePlanning /></B></ProtectedRoute>} />
+    <Route path="inventory/wms/route-optimization" element={<ProtectedRoute requiredModule={m}><B><WmsRouteOptimization /></B></ProtectedRoute>} />
+    <Route path="inventory/wms/demand-putaway" element={<ProtectedRoute requiredModule={m}><B><WmsDemandPutaway /></B></ProtectedRoute>} />
+    <Route path="inventory/wms/analytics" element={<ProtectedRoute requiredModule={m}><B><WmsAnalytics /></B></ProtectedRoute>} />
     <Route path="inventory/wms/labor" element={<ProtectedRoute requiredModule={m}><B><WmsLabor /></B></ProtectedRoute>} />
     <Route path="inventory/wms/returns" element={<ProtectedRoute requiredModule={m}><B><WmsReturns /></B></ProtectedRoute>} />
     <Route path="inventory/stock-take" element={<ProtectedRoute requiredModule={m}><B><InventoryStockTake /></B></ProtectedRoute>} />
