@@ -76,8 +76,17 @@ interface VatBreakdown {
   exemptionReason?: string;
 }
 
-function determineVatCategory(rate: number, isVatRegistered: boolean): { id: string; exemptionCode?: string; exemptionReason?: string } {
+// P3-06: S10/S20 tax codes mandatory from April 1, 2026 per Sl. glasnik RS 109/2025
+function determineVatCategory(rate: number, isVatRegistered: boolean, invoiceDate?: string): { id: string; exemptionCode?: string; exemptionReason?: string } {
   if (!isVatRegistered) return { id: "SS", exemptionCode: "PDV-RS-33", exemptionReason: "Mali poreski obveznik" };
+  // After April 1, 2026: use S10/S20/AE10/AE20 instead of generic S/AE
+  const useNewCodes = invoiceDate ? new Date(invoiceDate) >= new Date("2026-04-01") : new Date() >= new Date("2026-04-01");
+  if (useNewCodes) {
+    if (rate === 20) return { id: "S20" };
+    if (rate === 10) return { id: "S10" };
+    if (rate === 0) return { id: "Z", exemptionCode: "PDV-RS-36", exemptionReason: "Oslobođeno PDV-a" };
+    return { id: "S20" };
+  }
   if (rate === 20) return { id: "S" };
   if (rate === 10) return { id: "S" };
   if (rate === 0) return { id: "Z", exemptionCode: "PDV-RS-36", exemptionReason: "Oslobođeno PDV-a" };
@@ -655,35 +664,47 @@ serve(async (req) => {
     console.error('SEF submission error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Greška pri slanju na SEF';
     
+    // P3-07: Return proper HTTP error status codes
     return new Response(JSON.stringify({
       success: false,
       error: errorMessage,
     }), {
-      status: 200,
+      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-function generateStornoUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], originalSefId: string): string {
+// P3-05: Fix storno — use actual invoice VAT categories instead of hardcoded SS/0%
+function generateStornoUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], originalSefId: string, isVatRegistered = false): string {
   const issueDate = formatDate(invoice.issue_date);
   const deliveryDate = formatDate(invoice.service_date ?? invoice.issue_date);
   
-  // Use absolute values for amounts (they're already negative in the invoice)
-  const taxableAmount = Math.abs(invoice.total_amount);
-  const taxAmount = 0;
-  const payableAmount = Math.abs(invoice.total_amount);
-
-  const invoiceLines = items.map((item, index) => `
+  // Build VAT breakdown from actual invoice items
+  const vatMap = new Map<string, { taxableAmount: number; taxAmount: number; percent: number; categoryId: string }>();
+  
+  const invoiceLines = items.map((item, index) => {
+    const lineAmount = Math.abs(item.total_amount);
+    const taxRate = item.tax_rate || 0;
+    const taxAmount = Math.round(lineAmount * taxRate / 100 * 100) / 100;
+    const vatCat = determineVatCategory(taxRate, isVatRegistered, invoice.issue_date);
+    const key = `${vatCat.id}-${taxRate}`;
+    
+    const existing = vatMap.get(key) || { taxableAmount: 0, taxAmount: 0, percent: taxRate, categoryId: vatCat.id };
+    existing.taxableAmount += lineAmount;
+    existing.taxAmount += taxAmount;
+    vatMap.set(key, existing);
+    
+    return `
     <cac:CreditNoteLine>
       <cbc:ID>${index + 1}</cbc:ID>
       <cbc:CreditedQuantity unitCode="H87">${item.quantity}</cbc:CreditedQuantity>
-      <cbc:LineExtensionAmount currencyID="RSD">${Math.abs(item.total_amount).toFixed(2)}</cbc:LineExtensionAmount>
+      <cbc:LineExtensionAmount currencyID="RSD">${lineAmount.toFixed(2)}</cbc:LineExtensionAmount>
       <cac:Item>
         <cbc:Name>${escapeXml(item.description)}</cbc:Name>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>SS</cbc:ID>
-          <cbc:Percent>0</cbc:Percent>
+          <cbc:ID>${vatCat.id}</cbc:ID>
+          <cbc:Percent>${taxRate}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
           </cac:TaxScheme>
@@ -692,7 +713,49 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       <cac:Price>
         <cbc:PriceAmount currencyID="RSD">${Math.abs(item.unit_price).toFixed(2)}</cbc:PriceAmount>
       </cac:Price>
-    </cac:CreditNoteLine>`).join('');
+    </cac:CreditNoteLine>`;
+  }).join('');
+
+  // P3-05: Build proper TaxTotal from actual VAT categories
+  const totalTaxableAmount = Array.from(vatMap.values()).reduce((s, v) => s + v.taxableAmount, 0);
+  const totalTaxAmount = Array.from(vatMap.values()).reduce((s, v) => s + v.taxAmount, 0);
+  const payableAmount = totalTaxableAmount + totalTaxAmount;
+  
+  let taxSubtotals = '';
+  for (const [, vat] of vatMap) {
+    const catInfo = determineVatCategory(vat.percent, isVatRegistered, invoice.issue_date);
+    taxSubtotals += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="RSD">${vat.taxableAmount.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="RSD">${vat.taxAmount.toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>${catInfo.id}</cbc:ID>
+        <cbc:Percent>${vat.percent}</cbc:Percent>
+        ${catInfo.exemptionCode ? `<cbc:TaxExemptionReasonCode>${catInfo.exemptionCode}</cbc:TaxExemptionReasonCode>` : ''}
+        ${catInfo.exemptionReason ? `<cbc:TaxExemptionReason>${catInfo.exemptionReason}</cbc:TaxExemptionReason>` : ''}
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+  }
+  
+  if (vatMap.size === 0) {
+    taxSubtotals = `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="RSD">${Math.abs(invoice.total_amount).toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="RSD">0.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>SS</cbc:ID>
+        <cbc:Percent>0</cbc:Percent>
+        <cbc:TaxExemptionReasonCode>PDV-RS-33</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+  }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
@@ -768,25 +831,13 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
   </cac:Delivery>
    
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
-    <cac:TaxSubtotal>
-      <cbc:TaxableAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxableAmount>
-      <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
-      <cac:TaxCategory>
-        <cbc:ID>SS</cbc:ID>
-        <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>PDV-RS-33</cbc:TaxExemptionReasonCode>
-        <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
-        <cac:TaxScheme>
-          <cbc:ID>VAT</cbc:ID>
-        </cac:TaxScheme>
-      </cac:TaxCategory>
-    </cac:TaxSubtotal>
+    <cbc:TaxAmount currencyID="RSD">${totalTaxAmount.toFixed(2)}</cbc:TaxAmount>
+    ${taxSubtotals}
   </cac:TaxTotal>
   
   <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:LineExtensionAmount currencyID="RSD">${totalTaxableAmount.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="RSD">${totalTaxableAmount.toFixed(2)}</cbc:TaxExclusiveAmount>
     <cbc:TaxInclusiveAmount currencyID="RSD">${payableAmount.toFixed(2)}</cbc:TaxInclusiveAmount>
     <cbc:PayableAmount currencyID="RSD">${payableAmount.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
