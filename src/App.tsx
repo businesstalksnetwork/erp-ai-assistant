@@ -52,7 +52,16 @@ import {
 } from "@/routes/otherRoutes";
 import { assetsRoutes } from "@/routes/assetsRoutes";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
+});
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-[200px]">

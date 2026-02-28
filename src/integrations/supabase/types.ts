@@ -22272,10 +22272,10 @@ export type Database = {
       }
       complete_production_order: {
         Args: {
-          p_actual_quantity: number
           p_order_id: string
-          p_tenant_id: string
-          p_warehouse_id?: string
+          p_quantity_to_complete?: number
+          p_user_id?: string
+          p_warehouse_id: string
         }
         Returns: Json
       }
