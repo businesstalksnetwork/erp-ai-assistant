@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -11,7 +11,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { BarChart3, Users, Package, Factory, Brain } from "lucide-react";
 import erpAiLogo from "@/assets/erpAI.png";
 
-export default function Login() {
+const Login = forwardRef<HTMLDivElement>(function Login(_props, ref) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -49,7 +49,7 @@ export default function Login() {
   ];
 
   return (
-    <div className="flex min-h-screen">
+    <div ref={ref} className="flex min-h-screen">
       {/* Brand panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[hsl(225,50%,12%)] via-[hsl(225,55%,18%)] to-[hsl(230,45%,10%)] relative overflow-hidden">
         {/* Animated orbs */}
@@ -133,4 +133,6 @@ export default function Login() {
       </div>
     </div>
   );
-}
+});
+
+export default Login;
