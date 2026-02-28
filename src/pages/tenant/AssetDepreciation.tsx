@@ -9,10 +9,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Play, CheckCircle, Calculator } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { postWithRuleOrFallback } from "@/lib/postingHelper";
+import { fmtNum } from "@/lib/utils";
+
+const ZPDP_GROUPS = [
+  { value: "I", label: "Grupa I – 2.5%", rate: 2.5, desc: "Građevinski objekti" },
+  { value: "II", label: "Grupa II – 10%", rate: 10, desc: "Oprema, nameštaj" },
+  { value: "III", label: "Grupa III – 15%", rate: 15, desc: "Vozila, nematerijalna sredstva" },
+  { value: "IV", label: "Grupa IV – 20%", rate: 20, desc: "Kompjuteri, elektronska oprema" },
+  { value: "V", label: "Grupa V – 30%", rate: 30, desc: "Specifična oprema" },
+];
 
 export default function AssetDepreciation() {
   const { t } = useLanguage();
@@ -20,6 +30,7 @@ export default function AssetDepreciation() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [period, setPeriod] = useState(format(new Date(), "yyyy-MM"));
+  const [activeTab, setActiveTab] = useState("accounting");
 
   // Fetch active fixed assets with their details
   const { data: assets = [], isLoading } = useQuery({
@@ -53,6 +64,21 @@ export default function AssetDepreciation() {
       return data || [];
     },
     enabled: !!tenantId,
+  });
+
+  // Fetch ZPDP tax depreciation data
+  const { data: taxDepData = [] } = useQuery({
+    queryKey: ["tax-depreciation", tenantId, period],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase.rpc("calculate_tax_depreciation" as any, {
+        p_tenant_id: tenantId,
+        p_period: period,
+      });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!tenantId && activeTab === "tax",
   });
 
   const getAccumulated = (assetId: string) =>
@@ -131,7 +157,6 @@ export default function AssetDepreciation() {
       });
       if (error) throw error;
 
-      // Update current_value on asset
       await supabase.from("assets").update({ current_value: Number(asset.acquisition_cost) - accumulated }).eq("id", asset.id);
     },
     onSuccess: () => {
@@ -168,6 +193,21 @@ export default function AssetDepreciation() {
 
   const totalPending = assets.filter((a: any) => !isPeriodDone(a.id) && calcMonthlyDepreciation(a) > 0).length;
 
+  // ZPDP group update
+  const updateTaxGroup = async (assetId: string, group: string) => {
+    const rate = ZPDP_GROUPS.find(g => g.value === group)?.rate || 10;
+    const { error } = await supabase
+      .from("fixed_asset_details")
+      .update({ tax_group: group, tax_depreciation_rate: rate, tax_depreciation_method: "declining_balance" })
+      .eq("asset_id", assetId);
+    if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
+    else {
+      qc.invalidateQueries({ queryKey: ["depreciation-assets"] });
+      qc.invalidateQueries({ queryKey: ["tax-depreciation"] });
+      toast({ title: t("success") });
+    }
+  };
+
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -184,9 +224,11 @@ export default function AssetDepreciation() {
               })}
             </SelectContent>
           </Select>
-          <Button onClick={() => batchMutation.mutate()} disabled={batchMutation.isPending || totalPending === 0}>
-            <Play className="h-4 w-4 mr-1" /> {t("assetsRunBatch" as any)} ({totalPending})
-          </Button>
+          {activeTab === "accounting" && (
+            <Button onClick={() => batchMutation.mutate()} disabled={batchMutation.isPending || totalPending === 0}>
+              <Play className="h-4 w-4 mr-1" /> {t("assetsRunBatch" as any)} ({totalPending})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -205,76 +247,138 @@ export default function AssetDepreciation() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>{t("assetsDepSchedule" as any)} — {period}</CardTitle></CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
-          ) : assets.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("code" as any)}</TableHead>
-                  <TableHead>{t("name" as any)}</TableHead>
-                  <TableHead>{t("assetsDepreciationMethod" as any)}</TableHead>
-                  <TableHead className="text-right">{t("assetsAcquisitionCost" as any)}</TableHead>
-                  <TableHead className="text-right">{t("assetsAccumDep" as any)}</TableHead>
-                  <TableHead className="text-right">{t("bookValue" as any)}</TableHead>
-                  <TableHead className="text-right">{t("assetsMonthlyDep" as any)}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
-                  <TableHead>{t("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assets.map((asset: any) => {
-                  const accumulated = getAccumulated(asset.id);
-                  const bv = Number(asset.acquisition_cost) - accumulated;
-                  const monthly = calcMonthlyDepreciation(asset);
-                  const done = isPeriodDone(asset.id);
-                  const detail = Array.isArray(asset.fixed_asset_details) ? asset.fixed_asset_details[0] : asset.fixed_asset_details;
-                  const method = detail?.depreciation_method || asset.asset_categories?.default_depreciation_method || "straight_line";
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="accounting">Računovodstvena amortizacija</TabsTrigger>
+          <TabsTrigger value="tax">ZPDP Poreska amortizacija</TabsTrigger>
+        </TabsList>
 
-                  return (
-                    <TableRow key={asset.id}>
-                      <TableCell className="font-mono text-sm">{asset.asset_code}</TableCell>
-                      <TableCell className="font-medium">{asset.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {method === "straight_line" ? t("assetsStraightLine" as any) : t("assetsDecliningBalance" as any)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(asset.acquisition_cost)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(accumulated)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(bv)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(monthly)}</TableCell>
-                      <TableCell>
-                        {done ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                            <CheckCircle className="h-3 w-3 mr-1" /> {t("done" as any)}
-                          </Badge>
-                        ) : monthly > 0 ? (
-                          <Badge variant="outline" className="text-amber-600">{t("assetsDepPending" as any)}</Badge>
-                        ) : (
-                          <Badge variant="secondary">{t("fullyDepreciated" as any)}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!done && monthly > 0 && (
-                          <Button variant="ghost" size="icon" onClick={() => singleMutation.mutate(asset)} disabled={singleMutation.isPending}>
-                            <Calculator className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
+        <TabsContent value="accounting">
+          <Card>
+            <CardHeader><CardTitle>{t("assetsDepSchedule" as any)} — {period}</CardTitle></CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+              ) : assets.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("code" as any)}</TableHead>
+                      <TableHead>{t("name" as any)}</TableHead>
+                      <TableHead>{t("assetsDepreciationMethod" as any)}</TableHead>
+                      <TableHead className="text-right">{t("assetsAcquisitionCost" as any)}</TableHead>
+                      <TableHead className="text-right">{t("assetsAccumDep" as any)}</TableHead>
+                      <TableHead className="text-right">{t("bookValue" as any)}</TableHead>
+                      <TableHead className="text-right">{t("assetsMonthlyDep" as any)}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead>{t("actions")}</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {assets.map((asset: any) => {
+                      const accumulated = getAccumulated(asset.id);
+                      const bv = Number(asset.acquisition_cost) - accumulated;
+                      const monthly = calcMonthlyDepreciation(asset);
+                      const done = isPeriodDone(asset.id);
+                      const detail = Array.isArray(asset.fixed_asset_details) ? asset.fixed_asset_details[0] : asset.fixed_asset_details;
+                      const method = detail?.depreciation_method || asset.asset_categories?.default_depreciation_method || "straight_line";
+
+                      return (
+                        <TableRow key={asset.id}>
+                          <TableCell className="font-mono text-sm">{asset.asset_code}</TableCell>
+                          <TableCell className="font-medium">{asset.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {method === "straight_line" ? t("assetsStraightLine" as any) : t("assetsDecliningBalance" as any)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(asset.acquisition_cost)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(accumulated)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(bv)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(monthly)}</TableCell>
+                          <TableCell>
+                            {done ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                <CheckCircle className="h-3 w-3 mr-1" /> {t("done" as any)}
+                              </Badge>
+                            ) : monthly > 0 ? (
+                              <Badge variant="outline" className="text-amber-600">{t("assetsDepPending" as any)}</Badge>
+                            ) : (
+                              <Badge variant="secondary">{t("fullyDepreciated" as any)}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!done && monthly > 0 && (
+                              <Button variant="ghost" size="icon" onClick={() => singleMutation.mutate(asset)} disabled={singleMutation.isPending}>
+                                <Calculator className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tax">
+          <Card>
+            <CardHeader><CardTitle>ZPDP Poreska amortizacija — {period}</CardTitle></CardHeader>
+            <CardContent>
+              {taxDepData.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Šifra</TableHead>
+                        <TableHead>Naziv</TableHead>
+                        <TableHead>ZPDP Grupa</TableHead>
+                        <TableHead className="text-right">Nabavna vrednost</TableHead>
+                        <TableHead className="text-right">Stopa (%)</TableHead>
+                        <TableHead className="text-right">Poreska amortizacija</TableHead>
+                        <TableHead className="text-right">Računovodstvena</TableHead>
+                        <TableHead className="text-right">Razlika</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {taxDepData.map((row: any) => (
+                        <TableRow key={row.asset_id}>
+                          <TableCell className="font-mono text-sm">{row.asset_code}</TableCell>
+                          <TableCell className="font-medium">{row.asset_name}</TableCell>
+                          <TableCell>
+                            <Select value={row.tax_group || "II"} onValueChange={(v) => updateTaxGroup(row.asset_id, v)}>
+                              <SelectTrigger className="w-[120px] h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {ZPDP_GROUPS.map(g => (
+                                  <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{fmtNum(Number(row.acquisition_cost))}</TableCell>
+                          <TableCell className="text-right font-mono">{Number(row.tax_depreciation_rate).toFixed(1)}%</TableCell>
+                          <TableCell className="text-right font-mono">{fmtNum(Number(row.period_tax_depreciation))}</TableCell>
+                          <TableCell className="text-right font-mono">{fmtNum(Number(row.accounting_depreciation))}</TableCell>
+                          <TableCell className={`text-right font-mono ${Number(row.difference) > 0 ? "text-emerald-600" : Number(row.difference) < 0 ? "text-destructive" : ""}`}>
+                            {fmtNum(Number(row.difference))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

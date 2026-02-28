@@ -14399,6 +14399,114 @@ export type Database = {
           },
         ]
       }
+      pb1_line_values: {
+        Row: {
+          auto_amount: number | null
+          created_at: string
+          final_amount: number | null
+          id: string
+          line_label: string
+          line_number: number
+          manual_adjustment: number | null
+          notes: string | null
+          submission_id: string
+          tenant_id: string
+        }
+        Insert: {
+          auto_amount?: number | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          line_label: string
+          line_number: number
+          manual_adjustment?: number | null
+          notes?: string | null
+          submission_id: string
+          tenant_id: string
+        }
+        Update: {
+          auto_amount?: number | null
+          created_at?: string
+          final_amount?: number | null
+          id?: string
+          line_label?: string
+          line_number?: number
+          manual_adjustment?: number | null
+          notes?: string | null
+          submission_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pb1_line_values_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "pb1_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pb1_line_values_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pb1_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          legal_entity_id: string | null
+          notes: string | null
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          legal_entity_id?: string | null
+          notes?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pb1_submissions_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pb1_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdv_entries: {
         Row: {
           base_amount: number
@@ -22255,6 +22363,22 @@ export type Database = {
       calculate_payroll_for_run: {
         Args: { p_payroll_run_id: string }
         Returns: undefined
+      }
+      calculate_tax_depreciation: {
+        Args: { p_period: string; p_tenant_id: string }
+        Returns: {
+          accounting_depreciation: number
+          accumulated_tax_depreciation: number
+          acquisition_cost: number
+          asset_code: string
+          asset_id: string
+          asset_name: string
+          difference: number
+          period_tax_depreciation: number
+          tax_depreciation_rate: number
+          tax_group: string
+          tax_net_book_value: number
+        }[]
       }
       change_service_order_status: {
         Args: {

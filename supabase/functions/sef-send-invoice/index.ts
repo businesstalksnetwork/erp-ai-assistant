@@ -67,27 +67,69 @@ function formatVatId(value: string): string {
   return v.startsWith('RS') ? v : `RS${v}`;
 }
 
-function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]): string {
+interface VatBreakdown {
+  categoryId: string; // S, AE, Z, E, O, SS
+  percent: number;
+  taxableAmount: number;
+  taxAmount: number;
+  exemptionReasonCode?: string;
+  exemptionReason?: string;
+}
+
+function determineVatCategory(rate: number, isVatRegistered: boolean): { id: string; exemptionCode?: string; exemptionReason?: string } {
+  if (!isVatRegistered) return { id: "SS", exemptionCode: "PDV-RS-33", exemptionReason: "Mali poreski obveznik" };
+  if (rate === 20) return { id: "S" };
+  if (rate === 10) return { id: "S" };
+  if (rate === 0) return { id: "Z", exemptionCode: "PDV-RS-36", exemptionReason: "Oslobođeno PDV-a" };
+  return { id: "S" };
+}
+
+function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], isVatRegistered = false, invoiceLines?: any[]): string {
   const issueDate = formatDate(invoice.issue_date);
   const dueDate = invoice.payment_deadline ? formatDate(invoice.payment_deadline) : issueDate;
   const deliveryDate = formatDate(invoice.service_date ?? invoice.issue_date);
-  
-  // Calculate totals
-  const taxableAmount = invoice.total_amount;
-  const taxAmount = 0; // Paušalci nisu u sistemu PDV-a
-  const payableAmount = invoice.total_amount;
 
-  // Generate invoice lines
-  const invoiceLines = items.map((item, index) => `
+  // Determine invoice type code
+  let typeCode = '380'; // standard invoice
+  if (invoice.invoice_type === 'advance') typeCode = '386';
+  else if (invoice.invoice_type === 'credit_note') typeCode = '381';
+  else if (invoice.invoice_type === 'debit_note') typeCode = '383';
+
+  // Build VAT breakdown from invoice lines
+  const vatMap = new Map<string, VatBreakdown>();
+  const lineXmls: string[] = [];
+
+  items.forEach((item, index) => {
+    const taxRate = invoiceLines?.[index]?.tax_rate_value ?? (isVatRegistered ? 20 : 0);
+    const lineNet = item.total_amount;
+    const lineTax = isVatRegistered ? Math.round(lineNet * taxRate / 100 * 100) / 100 : 0;
+    const cat = determineVatCategory(taxRate, isVatRegistered);
+    const key = `${cat.id}-${taxRate}`;
+
+    if (!vatMap.has(key)) {
+      vatMap.set(key, {
+        categoryId: cat.id,
+        percent: taxRate,
+        taxableAmount: 0,
+        taxAmount: 0,
+        exemptionReasonCode: cat.exemptionCode,
+        exemptionReason: cat.exemptionReason,
+      });
+    }
+    const entry = vatMap.get(key)!;
+    entry.taxableAmount += lineNet;
+    entry.taxAmount += lineTax;
+
+    lineXmls.push(`
     <cac:InvoiceLine>
       <cbc:ID>${index + 1}</cbc:ID>
       <cbc:InvoicedQuantity unitCode="H87">${item.quantity}</cbc:InvoicedQuantity>
-      <cbc:LineExtensionAmount currencyID="RSD">${item.total_amount.toFixed(2)}</cbc:LineExtensionAmount>
+      <cbc:LineExtensionAmount currencyID="RSD">${lineNet.toFixed(2)}</cbc:LineExtensionAmount>
       <cac:Item>
         <cbc:Name>${escapeXml(item.description)}</cbc:Name>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>SS</cbc:ID>
-          <cbc:Percent>0</cbc:Percent>
+          <cbc:ID>${cat.id}</cbc:ID>
+          <cbc:Percent>${taxRate}</cbc:Percent>
           <cac:TaxScheme>
             <cbc:ID>VAT</cbc:ID>
           </cac:TaxScheme>
@@ -96,7 +138,30 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cac:Price>
         <cbc:PriceAmount currencyID="RSD">${item.unit_price.toFixed(2)}</cbc:PriceAmount>
       </cac:Price>
-    </cac:InvoiceLine>`).join('');
+    </cac:InvoiceLine>`);
+  });
+
+  const totalTaxable = Array.from(vatMap.values()).reduce((s, v) => s + v.taxableAmount, 0);
+  const totalTax = Array.from(vatMap.values()).reduce((s, v) => s + v.taxAmount, 0);
+  const totalPayable = totalTaxable + totalTax;
+
+  // Build TaxSubtotal sections
+  const taxSubtotals = Array.from(vatMap.values()).map(v => `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="RSD">${v.taxableAmount.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="RSD">${v.taxAmount.toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>${v.categoryId}</cbc:ID>
+        <cbc:Percent>${v.percent}</cbc:Percent>
+        ${v.exemptionReasonCode ? `<cbc:TaxExemptionReasonCode>${v.exemptionReasonCode}</cbc:TaxExemptionReasonCode>` : ''}
+        ${v.exemptionReason ? `<cbc:TaxExemptionReason>${v.exemptionReason}</cbc:TaxExemptionReason>` : ''}
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>`).join('');
+
+  const defaultNote = isVatRegistered ? '' : 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.';
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
@@ -106,8 +171,8 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
   <cbc:DueDate>${dueDate}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>${invoice.invoice_type === 'advance' ? '386' : '380'}</cbc:InvoiceTypeCode>
-  <cbc:Note>${escapeXml(invoice.note || 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.')}</cbc:Note>
+  <cbc:InvoiceTypeCode>${typeCode}</cbc:InvoiceTypeCode>
+  <cbc:Note>${escapeXml(invoice.note || defaultNote)}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
   
   <cac:AccountingSupplierParty>
@@ -175,34 +240,20 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   </cac:PaymentMeans>` : ''}
   
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
-    <cac:TaxSubtotal>
-      <cbc:TaxableAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxableAmount>
-      <cbc:TaxAmount currencyID="RSD">${taxAmount.toFixed(2)}</cbc:TaxAmount>
-      <cac:TaxCategory>
-        <cbc:ID>SS</cbc:ID>
-        <cbc:Percent>0</cbc:Percent>
-        <cbc:TaxExemptionReasonCode>PDV-RS-33</cbc:TaxExemptionReasonCode>
-        <cbc:TaxExemptionReason>Mali poreski obveznik</cbc:TaxExemptionReason>
-        <cac:TaxScheme>
-          <cbc:ID>VAT</cbc:ID>
-        </cac:TaxScheme>
-      </cac:TaxCategory>
-    </cac:TaxSubtotal>
+    <cbc:TaxAmount currencyID="RSD">${totalTax.toFixed(2)}</cbc:TaxAmount>${taxSubtotals}
   </cac:TaxTotal>
   
   <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount currencyID="RSD">${taxableAmount.toFixed(2)}</cbc:TaxExclusiveAmount>
-    <cbc:TaxInclusiveAmount currencyID="RSD">${payableAmount.toFixed(2)}</cbc:TaxInclusiveAmount>
-    <cbc:PayableAmount currencyID="RSD">${payableAmount.toFixed(2)}</cbc:PayableAmount>
+    <cbc:LineExtensionAmount currencyID="RSD">${totalTaxable.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="RSD">${totalTaxable.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="RSD">${totalPayable.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="RSD">${totalPayable.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
-  ${invoiceLines}
+  ${lineXmls.join('')}
 </Invoice>`;
 
   return xml;
 }
-
 function escapeXml(str: unknown): string {
   if (str == null) return '';
   return String(str)
@@ -392,6 +443,18 @@ serve(async (req) => {
       .select('*')
       .eq('invoice_id', invoiceId);
 
+    // Get invoice_lines with tax rates for VAT category mapping
+    const { data: invLines } = await supabase
+      .from('invoice_lines')
+      .select('tax_rate_value')
+      .eq('invoice_id', invoiceId)
+      .order('sort_order');
+
+    // Detect VAT registration from legal entity settings
+    // If any invoice line has tax > 0, company is VAT registered
+    const hasVat = (invLines || []).some((l: any) => Number(l.tax_rate_value) > 0);
+    const isVatRegistered = hasVat;
+
     // Use invoice items or fallback to main invoice data
     const invoiceItems: InvoiceItem[] = items && items.length > 0
       ? items.map(item => ({
@@ -409,8 +472,8 @@ serve(async (req) => {
           item_type: invoice.item_type,
         }];
 
-    // Generate UBL XML
-    const ublXml = generateUBLXml(invoice as Invoice, company as Company, invoiceItems);
+    // Generate UBL XML with VAT support
+    const ublXml = generateUBLXml(invoice as Invoice, company as Company, invoiceItems, isVatRegistered, invLines as any[]);
 
     // Debug: confirm EndpointID/@schemeID is set as expected
     const endpointTag = ublXml.match(/<cbc:EndpointID[^>]*>[^<]*<\/cbc:EndpointID>/)?.[0];
