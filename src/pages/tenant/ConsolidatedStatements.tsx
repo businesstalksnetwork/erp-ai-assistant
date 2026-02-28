@@ -23,12 +23,12 @@ export default function ConsolidatedStatements() {
     queryKey: ["consolidated-statements", tenantId, year],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase
+    const { data, error } = await supabase
         .from("journal_lines")
         .select(`
           debit, credit,
-          account:account_id(code, name, account_class),
-          journal_entry:journal_entry_id(entry_date, status, tenant_id, legal_entity_id)
+          account:account_id(code, name),
+          journal_entry:journal_entry_id!inner(entry_date, status, tenant_id, legal_entity_id)
         `)
         .eq("journal_entry.tenant_id", tenantId)
         .eq("journal_entry.status", "posted")

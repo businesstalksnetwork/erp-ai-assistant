@@ -26,12 +26,12 @@ export default function MultiPeriodReports() {
   const fetchYear = async (yr: number) => {
     let q = supabase
       .from("journal_lines")
-      .select("account_code, debit, credit, journal_entries!inner(entry_date, status, tenant_id, legal_entity_id)")
-      .eq("journal_entries.tenant_id", tenantId!)
-      .eq("journal_entries.status", "posted")
-      .gte("journal_entries.entry_date", `${yr}-01-01`)
-      .lte("journal_entries.entry_date", `${yr}-12-31`);
-    if (entityId !== "all") q = q.eq("journal_entries.legal_entity_id", entityId);
+      .select("debit, credit, account:account_id(code), journal_entry:journal_entry_id!inner(entry_date, status, tenant_id, legal_entity_id)")
+      .eq("journal_entry.tenant_id", tenantId!)
+      .eq("journal_entry.status", "posted")
+      .gte("journal_entry.entry_date", `${yr}-01-01`)
+      .lte("journal_entry.entry_date", `${yr}-12-31`);
+    if (entityId !== "all") q = q.eq("journal_entry.legal_entity_id", entityId);
     const { data } = await q;
     return data || [];
   };
@@ -50,7 +50,9 @@ export default function MultiPeriodReports() {
   const aggregate = (lines: any[], classFilter: string[]) => {
     let total = 0;
     lines.forEach((l: any) => {
-      const cls = String(l.account_code || "")[0];
+      const acct = (l as any).account as any;
+      const code = acct?.code || "";
+      const cls = String(code)[0];
       if (classFilter.includes(cls)) {
         total += Number(l.credit || 0) - Number(l.debit || 0);
       }
