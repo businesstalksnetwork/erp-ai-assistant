@@ -2888,6 +2888,72 @@ export type Database = {
           },
         ]
       }
+      capital_goods_vat_register: {
+        Row: {
+          acquisition_date: string
+          adjustment_period_years: number
+          annual_adjustment: number
+          asset_id: string | null
+          created_at: string
+          current_prorata: number
+          description: string
+          id: string
+          initial_vat_amount: number
+          notes: string | null
+          original_prorata: number
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          acquisition_date: string
+          adjustment_period_years?: number
+          annual_adjustment?: number
+          asset_id?: string | null
+          created_at?: string
+          current_prorata?: number
+          description: string
+          id?: string
+          initial_vat_amount?: number
+          notes?: string | null
+          original_prorata?: number
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          acquisition_date?: string
+          adjustment_period_years?: number
+          annual_adjustment?: number
+          asset_id?: string | null
+          created_at?: string
+          current_prorata?: number
+          description?: string
+          id?: string
+          initial_vat_amount?: number
+          notes?: string | null
+          original_prorata?: number
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_goods_vat_register_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_goods_vat_register_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_register: {
         Row: {
           amount: number
@@ -4476,6 +4542,62 @@ export type Database = {
           },
           {
             foreignKeyName: "deferrals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deferred_tax_items: {
+        Row: {
+          accounting_base: number
+          created_at: string
+          deferred_tax_amount: number
+          description: string
+          id: string
+          item_type: string
+          notes: string | null
+          tax_base: number
+          tax_rate: number
+          temporary_difference: number | null
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          accounting_base?: number
+          created_at?: string
+          deferred_tax_amount?: number
+          description: string
+          id?: string
+          item_type: string
+          notes?: string | null
+          tax_base?: number
+          tax_rate?: number
+          temporary_difference?: number | null
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          accounting_base?: number
+          created_at?: string
+          deferred_tax_amount?: number
+          description?: string
+          id?: string
+          item_type?: string
+          notes?: string | null
+          tax_base?: number
+          tax_rate?: number
+          temporary_difference?: number | null
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deferred_tax_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -8593,6 +8715,80 @@ export type Database = {
           },
           {
             foreignKeyName: "insurance_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intercompany_eliminations: {
+        Row: {
+          amount: number
+          created_at: string
+          elimination_type: string
+          entity_from_id: string | null
+          entity_to_id: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          elimination_type?: string
+          entity_from_id?: string | null
+          entity_to_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          elimination_type?: string
+          entity_from_id?: string | null
+          entity_to_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intercompany_eliminations_entity_from_id_fkey"
+            columns: ["entity_from_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_eliminations_entity_to_id_fkey"
+            columns: ["entity_to_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_eliminations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intercompany_eliminations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -19604,6 +19800,53 @@ export type Database = {
           },
         ]
       }
+      tax_loss_carryforward: {
+        Row: {
+          created_at: string
+          expiry_year: number | null
+          id: string
+          loss_amount: number
+          loss_year: number
+          notes: string | null
+          remaining_amount: number | null
+          tenant_id: string
+          updated_at: string
+          used_amount: number
+        }
+        Insert: {
+          created_at?: string
+          expiry_year?: number | null
+          id?: string
+          loss_amount?: number
+          loss_year: number
+          notes?: string | null
+          remaining_amount?: number | null
+          tenant_id: string
+          updated_at?: string
+          used_amount?: number
+        }
+        Update: {
+          created_at?: string
+          expiry_year?: number | null
+          id?: string
+          loss_amount?: number
+          loss_year?: number
+          notes?: string | null
+          remaining_amount?: number | null
+          tenant_id?: string
+          updated_at?: string
+          used_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_loss_carryforward_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_rates: {
         Row: {
           created_at: string
@@ -19874,6 +20117,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      thin_capitalization: {
+        Row: {
+          allowable_ratio: number
+          created_at: string
+          debt_equity_ratio: number | null
+          equity_amount: number
+          id: string
+          interest_expense: number
+          non_deductible_interest: number
+          notes: string | null
+          related_party_debt: number
+          tenant_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          allowable_ratio?: number
+          created_at?: string
+          debt_equity_ratio?: number | null
+          equity_amount?: number
+          id?: string
+          interest_expense?: number
+          non_deductible_interest?: number
+          notes?: string | null
+          related_party_debt?: number
+          tenant_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          allowable_ratio?: number
+          created_at?: string
+          debt_equity_ratio?: number | null
+          equity_amount?: number
+          id?: string
+          interest_expense?: number
+          non_deductible_interest?: number
+          notes?: string | null
+          related_party_debt?: number
+          tenant_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thin_capitalization_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transfer_pricing_parties: {
         Row: {
@@ -20265,6 +20561,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vat_prorata_coefficients: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          exempt_revenue: number
+          id: string
+          notes: string | null
+          prorata_coefficient: number
+          taxable_revenue: number
+          tenant_id: string
+          total_revenue: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          exempt_revenue?: number
+          id?: string
+          notes?: string | null
+          prorata_coefficient?: number
+          taxable_revenue?: number
+          tenant_id: string
+          total_revenue?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          exempt_revenue?: number
+          id?: string
+          notes?: string | null
+          prorata_coefficient?: number
+          taxable_revenue?: number
+          tenant_id?: string
+          total_revenue?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vat_prorata_coefficients_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

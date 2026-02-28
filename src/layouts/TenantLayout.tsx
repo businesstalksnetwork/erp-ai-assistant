@@ -54,7 +54,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench, Gift,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench, Gift, Scale,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -134,6 +134,7 @@ const accountingNav: NavItem[] = [
   { key: "complianceChecker", url: "/accounting/compliance", icon: ShieldCheck },
   { key: "intercompanyTransactions", url: "/accounting/intercompany", icon: ArrowLeftRight, section: "consolidation" },
   { key: "consolidatedStatements", url: "/accounting/reports/consolidated", icon: Layers },
+  { key: "intercompanyEliminations", url: "/accounting/intercompany-eliminations", icon: Layers },
   { key: "transferPricing", url: "/accounting/transfer-pricing", icon: DollarSign },
   { key: "reports", url: "/accounting/reports", icon: BarChart3, section: "reporting" },
   { key: "costCenterPL", url: "/accounting/reports/cost-center-pl", icon: BarChart3 },
@@ -148,6 +149,11 @@ const accountingNav: NavItem[] = [
   { key: "m4Report", url: "/accounting/reports/m4", icon: FileSpreadsheet },
   { key: "zpppdv", url: "/accounting/reports/zpppdv", icon: FileText },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
+  { key: "taxLossCarryforward", url: "/accounting/tax-loss-carryforward", icon: TrendingDown, section: "taxCompliance" },
+  { key: "thinCapitalization", url: "/accounting/thin-capitalization", icon: Scale },
+  { key: "vatProRata", url: "/accounting/vat-prorata", icon: Percent },
+  { key: "capitalGoodsVat", url: "/accounting/capital-goods-vat", icon: Building2 },
+  { key: "deferredTax", url: "/accounting/deferred-tax", icon: Clock },
   { key: "revenueContracts", url: "/accounting/revenue-contracts", icon: TrendingUp, section: "ifrsModules" },
   // Configuration (moved from Settings)
   { key: "costCenters", url: "/settings/cost-centers", icon: Coins, section: "accountingConfiguration" },
