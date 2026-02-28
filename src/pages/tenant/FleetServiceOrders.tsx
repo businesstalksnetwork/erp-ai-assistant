@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTenant } from "@/hooks/useTenant";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,11 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/sonner";
-import { Plus, Wrench, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { format } from "date-fns";
 
 export default function FleetServiceOrders() {
   const { tenantId } = useTenant();
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -37,12 +39,9 @@ export default function FleetServiceOrders() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["fleet-service-orders", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fleet_service_orders")
+      const { data, error } = await supabase.from("fleet_service_orders")
         .select("*, fleet_vehicles!inner(registration_plate, make, model)")
-        .eq("tenant_id", tenantId!)
-        .order("created_at", { ascending: false })
-        .limit(200);
+        .eq("tenant_id", tenantId!).order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return data || [];
     },
@@ -53,26 +52,20 @@ export default function FleetServiceOrders() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!tenantId || !form.vehicle_id) throw new Error("Izaberite vozilo");
+      if (!tenantId || !form.vehicle_id) throw new Error(t("selectVehicle"));
       const labor = parseFloat(form.labor_cost) || 0;
       const parts = parseFloat(form.parts_cost) || 0;
       const { error } = await supabase.from("fleet_service_orders").insert({
-        tenant_id: tenantId,
-        vehicle_id: form.vehicle_id,
+        tenant_id: tenantId, vehicle_id: form.vehicle_id,
         order_number: `SRV-${Date.now().toString().slice(-8)}`,
-        service_type: form.service_type,
-        status: "planned",
-        planned_date: form.planned_date,
-        description: form.description || null,
-        service_provider: form.service_provider || null,
-        labor_cost: labor,
-        parts_cost: parts,
-        total_cost: labor + parts,
+        service_type: form.service_type, status: "planned", planned_date: form.planned_date,
+        description: form.description || null, service_provider: form.service_provider || null,
+        labor_cost: labor, parts_cost: parts, total_cost: labor + parts,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Servisni nalog kreiran");
+      toast.success(t("serviceOrderCreated"));
       qc.invalidateQueries({ queryKey: ["fleet-service-orders"] });
       setOpen(false);
     },
@@ -87,13 +80,19 @@ export default function FleetServiceOrders() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Servis završen");
+      toast.success(t("serviceCompleted"));
       qc.invalidateQueries({ queryKey: ["fleet-service-orders"] });
     },
   });
 
-  const statusLabel: Record<string, string> = { planned: "Planiran", in_progress: "U toku", completed: "Završen", cancelled: "Otkazan" };
-  const typeLabel: Record<string, string> = { regular: "Redovni", repair: "Popravka", inspection: "Pregled", tires: "Gume", other: "Ostalo" };
+  const statusLabel: Record<string, string> = {
+    planned: t("statusPlanned"), in_progress: t("statusInProgress"),
+    completed: t("fleetStatusCompleted"), cancelled: t("fleetStatusCancelled"),
+  };
+  const typeLabel: Record<string, string> = {
+    regular: t("regularType"), repair: t("repairType"), inspection: t("inspectionType"),
+    tires: t("tiresType"), other: t("otherType"),
+  };
   const statusVariant = (s: string) => s === "completed" ? "default" as const : s === "cancelled" ? "destructive" as const : "secondary" as const;
 
   const filtered = (orders || []).filter((o: any) => {
@@ -105,20 +104,20 @@ export default function FleetServiceOrders() {
     <div className="space-y-4 p-1">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Servisni nalozi</h1>
-          <p className="text-muted-foreground text-sm">Redovni i vanredni servisi vozila</p>
+          <h1 className="text-2xl font-bold">{t("fleetServiceOrders")}</h1>
+          <p className="text-muted-foreground text-sm">{t("serviceOrdersDesc")}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Novi nalog</Button>
+            <Button><Plus className="h-4 w-4 mr-2" /> {t("newOrder")}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Novi servisni nalog</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("newServiceOrderTitle")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Vozilo</Label>
+                <Label>{t("vehicle")}</Label>
                 <Select value={form.vehicle_id} onValueChange={v => set("vehicle_id", v)}>
-                  <SelectTrigger><SelectValue placeholder="Izaberite vozilo" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("selectVehicle")} /></SelectTrigger>
                   <SelectContent>
                     {(vehicles || []).map((v: any) => (
                       <SelectItem key={v.id} value={v.id}>{v.registration_plate} — {v.make} {v.model}</SelectItem>
@@ -128,28 +127,28 @@ export default function FleetServiceOrders() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Tip servisa</Label>
+                  <Label>{t("fleetServiceType")}</Label>
                   <Select value={form.service_type} onValueChange={v => set("service_type", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="regular">Redovni</SelectItem>
-                      <SelectItem value="repair">Popravka</SelectItem>
-                      <SelectItem value="inspection">Pregled</SelectItem>
-                      <SelectItem value="tires">Gume</SelectItem>
-                      <SelectItem value="other">Ostalo</SelectItem>
+                      <SelectItem value="regular">{t("regularType")}</SelectItem>
+                      <SelectItem value="repair">{t("repairType")}</SelectItem>
+                      <SelectItem value="inspection">{t("inspectionType")}</SelectItem>
+                      <SelectItem value="tires">{t("tiresType")}</SelectItem>
+                      <SelectItem value="other">{t("otherType")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Planirani datum</Label><Input type="date" value={form.planned_date} onChange={e => set("planned_date", e.target.value)} /></div>
+                <div><Label>{t("plannedDate")}</Label><Input type="date" value={form.planned_date} onChange={e => set("planned_date", e.target.value)} /></div>
               </div>
-              <div><Label>Servis</Label><Input value={form.service_provider} onChange={e => set("service_provider", e.target.value)} placeholder="Naziv servisa" /></div>
-              <div><Label>Opis</Label><Textarea value={form.description} onChange={e => set("description", e.target.value)} rows={2} /></div>
+              <div><Label>{t("serviceProvider")}</Label><Input value={form.service_provider} onChange={e => set("service_provider", e.target.value)} /></div>
+              <div><Label>{t("description")}</Label><Textarea value={form.description} onChange={e => set("description", e.target.value)} rows={2} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Rad (RSD)</Label><Input type="number" value={form.labor_cost} onChange={e => set("labor_cost", e.target.value)} /></div>
-                <div><Label>Delovi (RSD)</Label><Input type="number" value={form.parts_cost} onChange={e => set("parts_cost", e.target.value)} /></div>
+                <div><Label>{t("laborCostRsd")}</Label><Input type="number" value={form.labor_cost} onChange={e => set("labor_cost", e.target.value)} /></div>
+                <div><Label>{t("partsCostRsd")}</Label><Input type="number" value={form.parts_cost} onChange={e => set("parts_cost", e.target.value)} /></div>
               </div>
               <Button className="w-full" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? "Čuvanje..." : "Kreiraj nalog"}
+                {saveMutation.isPending ? t("saving") : t("createOrder")}
               </Button>
             </div>
           </DialogContent>
@@ -158,7 +157,7 @@ export default function FleetServiceOrders() {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Pretraga..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        <Input placeholder={t("search")} className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       <Card>
@@ -166,21 +165,21 @@ export default function FleetServiceOrders() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Broj</TableHead>
-                <TableHead>Vozilo</TableHead>
-                <TableHead>Tip</TableHead>
-                <TableHead>Datum</TableHead>
-                <TableHead>Servis</TableHead>
-                <TableHead className="text-right">Ukupno</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>#</TableHead>
+                <TableHead>{t("vehicle")}</TableHead>
+                <TableHead>{t("type")}</TableHead>
+                <TableHead>{t("date")}</TableHead>
+                <TableHead>{t("serviceProvider")}</TableHead>
+                <TableHead className="text-right">{t("total")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8">Učitavanje...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8">{t("loading")}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nema naloga</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("noOrders")}</TableCell></TableRow>
               ) : filtered.map((o: any) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono">{o.order_number}</TableCell>
@@ -192,7 +191,7 @@ export default function FleetServiceOrders() {
                   <TableCell><Badge variant={statusVariant(o.status)}>{statusLabel[o.status] || o.status}</Badge></TableCell>
                   <TableCell>
                     {o.status === "planned" && (
-                      <Button size="sm" variant="outline" onClick={() => completeMutation.mutate(o.id)}>Završi</Button>
+                      <Button size="sm" variant="outline" onClick={() => completeMutation.mutate(o.id)}>{t("complete")}</Button>
                     )}
                   </TableCell>
                 </TableRow>

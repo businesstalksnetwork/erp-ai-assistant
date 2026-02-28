@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { GanttChart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,13 +37,9 @@ export default function ProductionGantt() {
       const max = new Date(now.getFullYear(), now.getMonth() + 2, 0);
       return { minDate: min, maxDate: max, totalDays: Math.ceil((max.getTime() - min.getTime()) / 86400000) };
     }
-    const dates = orders.flatMap((o: any) => [
-      new Date(o.planned_start),
-      new Date(o.planned_end || o.planned_start),
-    ]);
+    const dates = orders.flatMap((o: any) => [new Date(o.planned_start), new Date(o.planned_end || o.planned_start)]);
     const min = new Date(Math.min(...dates.map(d => d.getTime())));
     const max = new Date(Math.max(...dates.map(d => d.getTime())));
-    // Add padding
     min.setDate(min.getDate() - 2);
     max.setDate(max.getDate() + 5);
     const totalDays = Math.max(Math.ceil((max.getTime() - min.getTime()) / 86400000), 14);
@@ -54,7 +49,7 @@ export default function ProductionGantt() {
   const getBarStyle = (order: any) => {
     const start = new Date(order.planned_start);
     const end = new Date(order.planned_end || order.planned_start);
-    end.setDate(end.getDate() + 1); // Include end day
+    end.setDate(end.getDate() + 1);
     const left = Math.max(0, (start.getTime() - minDate.getTime()) / 86400000 / totalDays * 100);
     const width = Math.max(2, (end.getTime() - start.getTime()) / 86400000 / totalDays * 100);
     return { left: `${left}%`, width: `${Math.min(width, 100 - left)}%` };
@@ -69,7 +64,6 @@ export default function ProductionGantt() {
     }
   };
 
-  // Generate date markers
   const dateMarkers = useMemo(() => {
     const markers: { date: Date; label: string; pct: number }[] = [];
     const d = new Date(minDate);
@@ -85,50 +79,32 @@ export default function ProductionGantt() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={locale === "sr" ? "Gantt dijagram" : "Production Gantt"}
-        description={locale === "sr" ? "Vremenski pregled planiranih i aktivnih radnih naloga" : "Timeline view of planned and active production orders"}
-        icon={GanttChart}
-      />
-
+      <PageHeader title={t("ganttTitle")} description={t("ganttDesc")} icon={GanttChart} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">{locale === "sr" ? "Vremenski plan" : "Timeline"}</CardTitle>
+          <CardTitle className="text-sm">{t("timeline")}</CardTitle>
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">{locale === "sr" ? "Nema naloga sa planiranim datumima" : "No orders with planned dates"}</p>
+            <p className="text-sm text-muted-foreground text-center py-12">{t("noPlannedOrders")}</p>
           ) : (
             <div className="space-y-1">
-              {/* Date axis */}
               <div className="relative h-8 border-b mb-2">
                 {dateMarkers.map((m, i) => (
-                  <span key={i} className="absolute text-[10px] text-muted-foreground -translate-x-1/2" style={{ left: `${m.pct}%` }}>
-                    {m.label}
-                  </span>
+                  <span key={i} className="absolute text-[10px] text-muted-foreground -translate-x-1/2" style={{ left: `${m.pct}%` }}>{m.label}</span>
                 ))}
               </div>
-
-              {/* Order bars */}
               <TooltipProvider>
                 {orders.map((order: any) => {
                   const style = getBarStyle(order);
                   return (
                     <div key={order.id} className="flex items-center gap-2 h-8 group">
-                      <div className="w-36 min-w-[9rem] truncate text-xs font-medium pr-2 text-right">
-                        {order.products?.name || order.order_number}
-                      </div>
+                      <div className="w-36 min-w-[9rem] truncate text-xs font-medium pr-2 text-right">{order.products?.name || order.order_number}</div>
                       <div className="flex-1 relative h-6 bg-muted/30 rounded">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div
-                              className={`absolute h-full rounded cursor-pointer ${statusColor(order.status)} opacity-80 hover:opacity-100 transition-opacity`}
-                              style={style}
-                              onClick={() => navigate(`/production/orders/${order.id}`)}
-                            >
-                              <span className="text-[10px] text-white px-1 truncate block leading-6">
-                                {order.order_number}
-                              </span>
+                            <div className={`absolute h-full rounded cursor-pointer ${statusColor(order.status)} opacity-80 hover:opacity-100 transition-opacity`} style={style} onClick={() => navigate(`/production/orders/${order.id}`)}>
+                              <span className="text-[10px] text-white px-1 truncate block leading-6">{order.order_number}</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -144,18 +120,15 @@ export default function ProductionGantt() {
                   );
                 })}
               </TooltipProvider>
-
-              {/* Legend */}
               <div className="flex gap-4 mt-4 pt-2 border-t">
                 {[
-                  { label: "Draft", color: "bg-muted-foreground" },
-                  { label: "Planned", color: "bg-blue-500" },
-                  { label: "In Progress", color: "bg-amber-500" },
-                  { label: "Completed", color: "bg-green-500" },
+                  { label: t("draft"), color: "bg-muted-foreground" },
+                  { label: t("planned"), color: "bg-blue-500" },
+                  { label: t("in_progress"), color: "bg-amber-500" },
+                  { label: t("completed"), color: "bg-green-500" },
                 ].map(l => (
                   <div key={l.label} className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <div className={`h-3 w-3 rounded ${l.color}`} />
-                    {l.label}
+                    <div className={`h-3 w-3 rounded ${l.color}`} />{l.label}
                   </div>
                 ))}
               </div>
