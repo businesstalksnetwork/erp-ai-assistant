@@ -83,21 +83,12 @@ export async function getInvoiceNumberingSettings(tenantId: string) {
  * with advisory lock to prevent race conditions from concurrent users.
  */
 async function generateJournalEntryNumber(tenantId: string): Promise<string> {
+  // P2-10 FIX: Use server-side RPC with advisory lock only — no COUNT+1 fallback
   const { data, error } = await supabase.rpc("next_journal_entry_number" as any, {
     p_tenant_id: tenantId,
   });
   if (error) {
-    // Fallback to client-side generation if RPC not available
-    const { prefix, nextSeq } = await getJournalNumberingSettings(tenantId);
-    const year = new Date().getFullYear();
-    const { count } = await supabase
-      .from("journal_entries")
-      .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .gte("entry_date", `${year}-01-01`)
-      .lte("entry_date", `${year}-12-31`);
-    const seq = Math.max(nextSeq, (count ?? 0) + 1);
-    return `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+    throw new Error(`Failed to generate journal entry number: ${error.message}. Ensure next_journal_entry_number RPC exists.`);
   }
   return data as string;
 }
