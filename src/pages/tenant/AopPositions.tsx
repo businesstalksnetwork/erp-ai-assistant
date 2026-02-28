@@ -114,7 +114,7 @@ export default function AopPositions() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("aop_positions").delete().eq("id", id);
+      const { error } = await supabase.from("aop_positions").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["aop-positions"] }); toast({ title: t("success") }); },

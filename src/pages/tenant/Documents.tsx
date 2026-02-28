@@ -163,7 +163,7 @@ export default function Documents() {
   const deleteMutation = useMutation({
     mutationFn: async (doc: any) => {
       await supabase.storage.from("tenant-documents").remove([doc.file_path]);
-      await supabase.from("documents").delete().eq("id", doc.id);
+      await supabase.from("documents").delete().eq("id", doc.id).eq("tenant_id", tenantId!);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
   });

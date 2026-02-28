@@ -90,7 +90,7 @@ export default function Currencies() {
     mutationFn: async (id: string) => {
       const cur = currencies.find((c: any) => c.id === id);
       if (cur?.is_base) throw new Error(t("cannotDeleteBaseCurrency"));
-      const { error } = await supabase.from("currencies").delete().eq("id", id);
+      const { error } = await supabase.from("currencies").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

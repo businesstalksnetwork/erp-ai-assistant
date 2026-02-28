@@ -156,7 +156,7 @@ export default function FixedAssets() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("fixed_assets").delete().eq("id", id);
+      const { error } = await supabase.from("fixed_assets").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -146,7 +146,7 @@ export default function PayrollPaymentTypes() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payroll_payment_types").delete().eq("id", id);
+      const { error } = await supabase.from("payroll_payment_types").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-payment-types"] }); toast({ title: t("success") }); },
