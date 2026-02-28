@@ -89,7 +89,7 @@ export default function InternalOrders() {
       if (items.length > 0) {
         const { error: itemsErr } = await supabase.from("internal_order_items").insert(
           items.filter(i => i.product_id && i.quantity_requested > 0).map(i => ({
-            internal_order_id: order.id, product_id: i.product_id, quantity_requested: i.quantity_requested,
+            internal_order_id: order.id, tenant_id: tenantId!, product_id: i.product_id, quantity_requested: i.quantity_requested,
           }))
         );
         if (itemsErr) throw itemsErr;

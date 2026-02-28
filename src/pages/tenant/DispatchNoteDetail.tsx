@@ -115,6 +115,7 @@ export default function DispatchNoteDetail() {
     mutationFn: async () => {
       const { error } = await supabase.from("dispatch_note_lines").insert({
         dispatch_note_id: id!,
+        tenant_id: note?.tenant_id!,
         product_id: lineForm.product_id || null,
         description: lineForm.description,
         quantity: Number(lineForm.quantity),

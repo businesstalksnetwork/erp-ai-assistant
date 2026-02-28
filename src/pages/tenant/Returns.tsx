@@ -271,7 +271,7 @@ export default function Returns() {
       }
       if (f.lines.length > 0) {
         const lines = f.lines.map((l, i) => ({
-          return_case_id: caseId!, product_id: l.product_id || null,
+          return_case_id: caseId!, tenant_id: tenantId!, product_id: l.product_id || null,
           description: l.description, quantity_returned: l.quantity_returned,
           quantity_accepted: l.quantity_accepted, reason: l.reason,
           inspection_status: l.inspection_status, notes: l.notes || null, sort_order: i,

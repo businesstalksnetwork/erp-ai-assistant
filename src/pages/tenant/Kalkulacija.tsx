@@ -106,7 +106,7 @@ export default function Kalkulacija() {
       if (items.length > 0) {
         const { error: itemsErr } = await supabase.from("kalkulacija_items").insert(
           items.filter(i => i.product_id && i.quantity > 0).map((i, idx) => ({
-            kalkulacija_id: doc.id, product_id: i.product_id, quantity: i.quantity,
+            kalkulacija_id: doc.id, tenant_id: tenantId!, product_id: i.product_id, quantity: i.quantity,
             purchase_price: i.purchase_price, markup_percent: i.markup_percent,
             pdv_rate: i.pdv_rate, retail_price: i.retail_price, sort_order: idx,
           }))
@@ -190,6 +190,7 @@ export default function Kalkulacija() {
               price_list_id: priceListId,
               product_id: item.product_id,
               retail_price: item.retail_price,
+              tenant_id: tenantId!,
             }, { onConflict: "price_list_id,product_id" });
           }
         }

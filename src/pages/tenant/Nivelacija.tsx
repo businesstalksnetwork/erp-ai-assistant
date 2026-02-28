@@ -151,7 +151,7 @@ export default function Nivelacija() {
       if (items.length > 0) {
         const { error: itemsErr } = await supabase.from("nivelacija_items").insert(
           items.filter(i => i.product_id).map((i, idx) => ({
-            nivelacija_id: doc.id, product_id: i.product_id,
+            nivelacija_id: doc.id, tenant_id: tenantId!, product_id: i.product_id,
             old_retail_price: i.old_retail_price, new_retail_price: i.new_retail_price,
             quantity_on_hand: i.quantity_on_hand,
             price_difference: (i.new_retail_price - i.old_retail_price) * i.quantity_on_hand,
@@ -220,6 +220,7 @@ export default function Nivelacija() {
               price_list_id: priceListId,
               product_id: item.product_id,
               retail_price: item.new_retail_price,
+              tenant_id: tenantId!,
             }, { onConflict: "price_list_id,product_id" });
           }
         }
