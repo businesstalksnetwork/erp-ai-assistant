@@ -391,7 +391,7 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
           </span>
           <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 opacity-50 ${isOpen ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up bg-sidebar-accent/30 rounded-md mx-1 mb-1">
+        <CollapsibleContent className="overflow-hidden bg-sidebar-accent/30 rounded-md mx-1 mb-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredItems.map((item) => {
@@ -472,8 +472,9 @@ export default function TenantLayout() {
       { id: "analytics", items: analyticsNav },
     ];
     for (const g of groups) {
-      if (g.items.some((item) => path.startsWith(item.url))) return g.id;
+    if (g.items.some((item) => path.startsWith(item.url))) return g.id;
     }
+    if (path.startsWith("/settings")) return "settings";
     return null;
   }, []);
 
@@ -620,8 +621,8 @@ export default function TenantLayout() {
           {canAccess("settings") && (
             <SidebarFooter className="border-t border-sidebar-border p-0">
               <SidebarGroup className="py-0 flex flex-col-reverse">
-                <Collapsible defaultOpen={settingsNav.some((item) => currentPath.startsWith(item.url))}>
-                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up max-h-[40vh] overflow-y-auto bg-sidebar-accent/30 rounded-md mx-1 mb-1">
+                <Collapsible open={openGroupId === "settings"} onOpenChange={() => handleGroupToggle("settings")}>
+                  <CollapsibleContent className="overflow-hidden max-h-[40vh] overflow-y-auto bg-sidebar-accent/30 rounded-md mx-1 mb-1">
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {settingsNav.filter((item) => {
