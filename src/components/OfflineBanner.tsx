@@ -1,9 +1,11 @@
 import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export function OfflineBanner() {
   const isOffline = useOfflineDetection();
+  const { t } = useLanguage();
 
   return (
     <AnimatePresence>
@@ -15,7 +17,7 @@ export function OfflineBanner() {
           className="fixed top-0 left-0 right-0 z-[9999] bg-destructive text-destructive-foreground text-center py-2 text-sm font-medium flex items-center justify-center gap-2"
         >
           <WifiOff className="h-4 w-4" />
-          Nemate internet konekciju. Promene će biti sačuvane kada se ponovo povežete.
+          {t("offlineMessage")}
         </motion.div>
       )}
     </AnimatePresence>

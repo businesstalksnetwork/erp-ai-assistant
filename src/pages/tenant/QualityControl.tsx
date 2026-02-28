@@ -20,7 +20,7 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/Resp
 const CHECK_TYPES = ["incoming", "in_process", "final", "random"] as const;
 
 export default function QualityControl() {
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -111,10 +111,10 @@ export default function QualityControl() {
   const overallDefectRate = totalInspected > 0 ? ((totalFailed / totalInspected) * 100).toFixed(1) : "0";
 
   const stats = [
-    { label: locale === "sr" ? "Ukupne provere" : "Total Checks", value: checks.length, icon: ShieldCheck, color: "text-primary" },
-    { label: locale === "sr" ? "Prošlo" : "Passed", value: passed, icon: CheckCircle, color: "text-green-500" },
-    { label: locale === "sr" ? "Neuspelo" : "Failed", value: failed, icon: XCircle, color: "text-destructive" },
-    { label: locale === "sr" ? "Stopa defekta" : "Defect Rate", value: `${overallDefectRate}%`, icon: AlertTriangle, color: "text-amber-500" },
+    { label: t("totalChecks"), value: checks.length, icon: ShieldCheck, color: "text-primary" },
+    { label: t("passedLabel"), value: passed, icon: CheckCircle, color: "text-green-500" },
+    { label: t("failedLabel"), value: failed, icon: XCircle, color: "text-destructive" },
+    { label: t("defectRate"), value: `${overallDefectRate}%`, icon: AlertTriangle, color: "text-amber-500" },
   ];
 
   const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = { passed: "default", failed: "destructive", pending: "outline", on_hold: "secondary" };
@@ -123,11 +123,11 @@ export default function QualityControl() {
     { key: "number", label: "#", primary: true, sortable: true, sortValue: (c) => c.check_number, render: (c) => <span className="font-mono text-xs">{c.check_number}</span> },
     { key: "type", label: t("type"), sortable: true, sortValue: (c) => c.check_type, render: (c) => <Badge variant="outline" className="text-[10px]">{c.check_type}</Badge> },
     { key: "product", label: t("product"), sortable: true, sortValue: (c) => c.products?.name || "", render: (c) => c.products?.name || "—" },
-    { key: "order", label: locale === "sr" ? "Nalog" : "Order", hideOnMobile: true, render: (c) => <span className="text-xs">{c.production_orders?.order_number || "—"}</span> },
-    { key: "inspected", label: locale === "sr" ? "Pregledano" : "Inspected", align: "right" as const, sortable: true, sortValue: (c) => c.quantity_inspected || 0, render: (c) => c.quantity_inspected },
-    { key: "passed", label: locale === "sr" ? "Prošlo" : "Passed", align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-green-600">{c.quantity_passed}</span> },
-    { key: "failed", label: locale === "sr" ? "Neuspelo" : "Failed", align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-destructive">{c.quantity_failed}</span> },
-    { key: "rate", label: locale === "sr" ? "Stopa %" : "Rate %", hideOnMobile: true, render: (c) => `${c.defect_rate || 0}%` },
+    { key: "order", label: t("orderLabel"), hideOnMobile: true, render: (c) => <span className="text-xs">{c.production_orders?.order_number || "—"}</span> },
+    { key: "inspected", label: t("inspectedLabel"), align: "right" as const, sortable: true, sortValue: (c) => c.quantity_inspected || 0, render: (c) => c.quantity_inspected },
+    { key: "passed", label: t("passedLabel"), align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-green-600">{c.quantity_passed}</span> },
+    { key: "failed", label: t("failedLabel"), align: "right" as const, hideOnMobile: true, render: (c) => <span className="text-destructive">{c.quantity_failed}</span> },
+    { key: "rate", label: t("ratePercent"), hideOnMobile: true, render: (c) => `${c.defect_rate || 0}%` },
     { key: "status", label: t("status"), sortable: true, sortValue: (c) => c.status, render: (c) => <Badge variant={statusVariant[c.status] || "outline"}>{c.status}</Badge> },
     { key: "actions", label: t("actions"), render: (c) => (
       <div className="flex gap-1">
@@ -148,10 +148,10 @@ export default function QualityControl() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={locale === "sr" ? "Kontrola kvaliteta" : "Quality Control"}
-        description={locale === "sr" ? "Praćenje inspekcija i stope defekata u proizvodnji" : "Track inspections and defect rates in production"}
+        title={t("qualityControl")}
+        description={t("qualityControlDesc")}
         icon={ShieldCheck}
-        actions={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{locale === "sr" ? "Nova provera" : "New Check"}</Button>}
+        actions={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{t("newCheck")}</Button>}
       />
 
       <StatsBar stats={stats} />
@@ -168,15 +168,15 @@ export default function QualityControl() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="w-[95vw] sm:max-w-lg">
-          <DialogHeader><DialogTitle>{locale === "sr" ? "Nova kontrola kvaliteta" : "New Quality Check"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("newQualityCheck")}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label>{locale === "sr" ? "Radni nalog" : "Production Order"}</Label>
+              <Label>{t("productionOrderLabel")}</Label>
               <Select value={form.production_order_id} onValueChange={v => {
                 const po = productionOrders.find((o: any) => o.id === v);
                 setForm({ ...form, production_order_id: v, product_id: po?.product_id || form.product_id });
               }}>
-                <SelectTrigger><SelectValue placeholder={locale === "sr" ? "Izaberite nalog" : "Select order"} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectOrderPlaceholder")} /></SelectTrigger>
                 <SelectContent>{productionOrders.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.order_number} — {o.products?.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -195,9 +195,9 @@ export default function QualityControl() {
               </Select>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>{locale === "sr" ? "Pregledano" : "Inspected"}</Label><Input type="number" min={0} value={form.quantity_inspected} onChange={e => setForm({ ...form, quantity_inspected: Number(e.target.value) })} /></div>
-              <div><Label>{locale === "sr" ? "Prošlo" : "Passed"}</Label><Input type="number" min={0} value={form.quantity_passed} onChange={e => setForm({ ...form, quantity_passed: Number(e.target.value) })} /></div>
-              <div><Label>{locale === "sr" ? "Neuspelo" : "Failed"}</Label><Input type="number" min={0} value={form.quantity_failed} onChange={e => setForm({ ...form, quantity_failed: Number(e.target.value) })} /></div>
+              <div><Label>{t("inspectedLabel")}</Label><Input type="number" min={0} value={form.quantity_inspected} onChange={e => setForm({ ...form, quantity_inspected: Number(e.target.value) })} /></div>
+              <div><Label>{t("passedLabel")}</Label><Input type="number" min={0} value={form.quantity_passed} onChange={e => setForm({ ...form, quantity_passed: Number(e.target.value) })} /></div>
+              <div><Label>{t("failedLabel")}</Label><Input type="number" min={0} value={form.quantity_failed} onChange={e => setForm({ ...form, quantity_failed: Number(e.target.value) })} /></div>
             </div>
             <div><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
           </div>

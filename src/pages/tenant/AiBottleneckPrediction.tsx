@@ -37,7 +37,7 @@ const severityConfig = {
 };
 
 export default function AiBottleneckPrediction() {
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -99,13 +99,9 @@ export default function AiBottleneckPrediction() {
           shortages.push({
             type: "material_shortage",
             severity: deficit > need.required * 0.5 ? "critical" : "warning",
-            title: locale === "sr" ? `Nedostatak: ${need.name}` : `Shortage: ${need.name}`,
-            description: locale === "sr"
-              ? `Potrebno ${need.required}, dostupno ${available}, deficit ${deficit}`
-              : `Required ${need.required}, available ${available}, deficit ${deficit}`,
-            suggested_action: locale === "sr"
-              ? `Naručite još ${deficit} jedinica ${need.name}`
-              : `Order ${deficit} more units of ${need.name}`,
+            title: `${t("shortage")}: ${need.name}`,
+            description: `${t("requiredLabel")} ${need.required}, ${t("available")} ${available}, ${t("deficitLabel")} ${deficit}`,
+            suggested_action: `Order ${deficit} more units of ${need.name}`,
             affected_orders: [...new Set(need.orders)],
             material_detail: { product: need.name, required: need.required, available, deficit },
             _source: "local",
@@ -123,7 +119,7 @@ export default function AiBottleneckPrediction() {
     try {
       if (bottlenecks) setPreviousCount(bottlenecks.length);
       const { data, error } = await supabase.functions.invoke("production-ai-planning", {
-        body: { action: "predict-bottlenecks", tenant_id: tenantId, language: locale },
+        body: { action: "predict-bottlenecks", tenant_id: tenantId, language: "sr" },
       });
       if (error) throw error;
       const aiBottlenecks: Bottleneck[] = ((data as any).bottlenecks || []).map((b: Bottleneck) => ({ ...b, _source: "ai" as const }));
@@ -135,14 +131,13 @@ export default function AiBottleneckPrediction() {
         ...aiBottlenecks.filter(b => b.type !== "material_shortage" || !localProducts.has(b.material_detail?.product)),
       ];
       setBottlenecks(merged);
-      toast.success(locale === "sr" ? "Analiza završena" : "Analysis complete");
+      toast.success(t("analysisComplete"));
     } catch {
-      // On AI failure, show local shortages only
       if (localShortages.length > 0) {
         setBottlenecks(localShortages);
-        toast.info(locale === "sr" ? "AI nedostupan — prikazani lokalni rezultati" : "AI unavailable — showing local results");
+        toast.info(t("aiUnavailableLocal"));
       } else {
-        toast.error(locale === "sr" ? "Greška pri analizi" : "Error analyzing bottlenecks");
+        toast.error(t("errorAnalyzing"));
       }
     } finally { setLoading(false); }
   };
@@ -177,7 +172,7 @@ export default function AiBottleneckPrediction() {
         {localShortages.length > 0 && !bottlenecks && (
           <Badge variant="secondary" className="flex items-center gap-1">
             <Zap className="h-3 w-3" />
-            {localShortages.length} {locale === "sr" ? "lokalni nedostaci" : "local shortages"}
+            {localShortages.length} {t("localShortages")}
           </Badge>
         )}
         {allBottlenecks.length > 0 && (
@@ -185,10 +180,10 @@ export default function AiBottleneckPrediction() {
             {trendDiff !== null && trendDiff !== 0 && (
               <Badge variant={trendDiff > 0 ? "destructive" : "secondary"} className="flex items-center gap-1">
                 {trendDiff > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {trendDiff > 0 ? "+" : ""}{trendDiff} {locale === "sr" ? "vs prethodno" : "vs previous"}
+                {trendDiff > 0 ? "+" : ""}{trendDiff} {t("vsPrevoius")}
               </Badge>
             )}
-            <span className="text-xs text-muted-foreground">{allBottlenecks.length} {locale === "sr" ? "pronađeno" : "found"}</span>
+            <span className="text-xs text-muted-foreground">{allBottlenecks.length} {t("foundCount")}</span>
           </div>
         )}
       </div>
@@ -196,7 +191,7 @@ export default function AiBottleneckPrediction() {
       {allBottlenecks.length > 0 && (
         <Tabs value={severityFilter} onValueChange={setSeverityFilter}>
           <TabsList>
-            <TabsTrigger value="all">{locale === "sr" ? "Sve" : "All"} ({allBottlenecks.length})</TabsTrigger>
+            <TabsTrigger value="all">{t("allLabel")} ({allBottlenecks.length})</TabsTrigger>
             <TabsTrigger value="critical">Critical ({allBottlenecks.filter(b => b.severity === "critical").length})</TabsTrigger>
             <TabsTrigger value="warning">Warning ({allBottlenecks.filter(b => b.severity === "warning").length})</TabsTrigger>
             <TabsTrigger value="info">Info ({allBottlenecks.filter(b => b.severity === "info").length})</TabsTrigger>
@@ -207,7 +202,7 @@ export default function AiBottleneckPrediction() {
       {allBottlenecks.length > 0 && filtered.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            {locale === "sr" ? "Nisu pronađena uska grla." : "No bottlenecks detected."}
+            {t("noBottlenecks")}
           </CardContent>
         </Card>
       )}
@@ -237,7 +232,7 @@ export default function AiBottleneckPrediction() {
                           </Badge>
                           {b._source === "local" && (
                             <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                              <Zap className="h-2 w-2 mr-0.5" />{locale === "sr" ? "Lokalno" : "Local"}
+                              <Zap className="h-2 w-2 mr-0.5" />{t("localLabel")}
                             </Badge>
                           )}
                           {action && (
@@ -253,23 +248,23 @@ export default function AiBottleneckPrediction() {
 
                         {b.type === "material_shortage" && b.material_detail && (
                           <div className="grid grid-cols-3 gap-2 text-xs bg-destructive/5 rounded p-2">
-                            <div><span className="text-muted-foreground">{locale === "sr" ? "Potrebno" : "Required"}:</span> <span className="font-medium">{b.material_detail.required}</span></div>
+                            <div><span className="text-muted-foreground">{t("requiredLabel")}:</span> <span className="font-medium">{b.material_detail.required}</span></div>
                             <div><span className="text-muted-foreground">{t("available")}:</span> <span className="font-medium">{b.material_detail.available}</span></div>
-                            <div><span className="text-muted-foreground">{locale === "sr" ? "Deficit" : "Deficit"}:</span> <span className="font-medium text-destructive">{b.material_detail.deficit}</span></div>
+                            <div><span className="text-muted-foreground">{t("deficitLabel")}:</span> <span className="font-medium text-destructive">{b.material_detail.deficit}</span></div>
                           </div>
                         )}
 
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleAction(globalIdx)}>
                             {!action ? <Eye className="h-3 w-3 mr-1" /> : <CheckCircle className="h-3 w-3 mr-1" />}
-                            {!action ? t("acknowledged") : action === "acknowledged" ? t("resolved") : locale === "sr" ? "Poništi" : "Undo"}
+                            {!action ? t("acknowledged") : action === "acknowledged" ? t("resolved") : "Undo"}
                           </Button>
 
                           {b.affected_orders && b.affected_orders.length > 0 && (
                             <CollapsibleTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-7 text-xs">
                                 <ChevronDown className="h-3 w-3 mr-1" />
-                                {b.affected_orders.length} {locale === "sr" ? "naloga" : "orders"}
+                                {b.affected_orders.length} {t("productionOrders").toLowerCase()}
                               </Button>
                             </CollapsibleTrigger>
                           )}
@@ -300,7 +295,7 @@ export default function AiBottleneckPrediction() {
       {allBottlenecks.length === 0 && !loading && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            {locale === "sr" ? "Kliknite dugme za analizu uskih grla." : "Click the button to analyze bottlenecks."}
+            {t("noBottlenecks")}
           </CardContent>
         </Card>
       )}

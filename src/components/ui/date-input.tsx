@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "lucide-react";
 
 export interface DateInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {}
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
+  calendarAriaLabel?: string;
+}
 
 const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, calendarAriaLabel, ...props }, ref) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     // Combine refs
@@ -38,7 +40,7 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         />
         <button
           type="button"
-          aria-label="Izaberi datum"
+          aria-label={calendarAriaLabel || "Pick a date"}
           onClick={handleIconClick}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground dark:text-white"
         >

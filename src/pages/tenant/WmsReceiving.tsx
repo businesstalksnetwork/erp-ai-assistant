@@ -93,9 +93,9 @@ export default function WmsReceiving() {
   const weekItems = recentTasks.filter((t: any) => t.task_type === "receive" && new Date(t.created_at) >= weekStart).reduce((s: number, t: any) => s + (t.quantity || 0), 0);
 
   const stats = [
-    { label: locale === "sr" ? "Prijemi danas" : "Receivings Today", value: todayReceivings, icon: Truck, color: "text-primary" },
-    { label: locale === "sr" ? "Čeka raspored" : "Pending Putaways", value: pendingPutaways, icon: ClipboardCheck, color: "text-accent" },
-    { label: locale === "sr" ? "Stavki ove nedelje" : "Items This Week", value: weekItems, icon: Package, color: "text-primary" },
+    { label: t("receivingsToday"), value: todayReceivings, icon: Truck, color: "text-primary" },
+    { label: t("pendingPutawaysLabel"), value: pendingPutaways, icon: ClipboardCheck, color: "text-accent" },
+    { label: t("itemsThisWeek"), value: weekItems, icon: Package, color: "text-primary" },
   ];
 
   const importFromPO = async (poId: string) => {
@@ -249,7 +249,7 @@ export default function WmsReceiving() {
 
             <div className="flex items-center gap-3">
               <Switch checked={qualityHold} onCheckedChange={setQualityHold} />
-              <Label className="text-sm">{t("qualityHold")} — {locale === "sr" ? "Zadrži zalihe na čekanju" : "Hold stock pending inspection"}</Label>
+              <Label className="text-sm">{t("qualityHold")} — {t("holdStockPending")}</Label>
             </div>
 
             <div className="flex gap-2">
