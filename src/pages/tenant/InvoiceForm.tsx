@@ -1058,19 +1058,9 @@ export default function InvoiceForm() {
               <Button
                 onClick={() => saveMutation.mutate("sent")}
                 disabled={saveMutation.isPending}
-                className="bg-primary text-primary-foreground"
-              >
-                <BookOpen className="h-4 w-4 mr-2" /> {t("postToGL")}
-              </Button>
-            )}
-
-            {!isProforma && (
-              <Button
-                onClick={() => saveMutation.mutate("sent")}
-                disabled={saveMutation.isPending}
                 variant="default"
               >
-                <Send className="h-4 w-4 mr-2" /> {t("postAndSendSEF")}
+                <Send className="h-4 w-4 mr-2" /> Pošalji
               </Button>
             )}
           </>
