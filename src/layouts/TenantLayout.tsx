@@ -154,6 +154,7 @@ const accountingNav: NavItem[] = [
   { key: "vatProRata", url: "/accounting/vat-prorata", icon: Percent },
   { key: "capitalGoodsVat", url: "/accounting/capital-goods-vat", icon: Building2 },
   { key: "deferredTax", url: "/accounting/deferred-tax", icon: Clock },
+  { key: "poreskiBilans", url: "/accounting/reports/poreski-bilans", icon: FileText },
   { key: "revenueContracts", url: "/accounting/revenue-contracts", icon: TrendingUp, section: "ifrsModules" },
   // Configuration (moved from Settings)
   { key: "costCenters", url: "/settings/cost-centers", icon: Coins, section: "accountingConfiguration" },
