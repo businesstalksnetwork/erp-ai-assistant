@@ -1,134 +1,161 @@
 
 
-## Phase 2: Fix 15 HIGH Bugs
+## Phase 3: Fix 15 MEDIUM Bugs
 
-Based on audit PRD verification against the codebase, here are the confirmed issues and fixes.
+After thorough codebase verification, here are the confirmed medium-severity issues and fixes.
 
-### Bug 1: CR-HIGH-1 — Credit note GL reversal ignores VAT
+### Bug 1: CR-MED-1 — POS `total_amount` sent to fiscalize-receipt adds tax on top of inclusive price
 
-**File:** `src/pages/tenant/Returns.tsx` lines 322-325
+**Files:** `src/pages/tenant/PosTerminal.tsx` lines 303, 425
 
-The credit note fallback lines only reverse revenue (6000) and AR (2040) but ignore VAT. If the original invoice had VAT, the credit note must also reverse the output VAT line.
-
-**Fix:** Add a third fallback line for output VAT reversal. Since credit notes currently lack line-item detail (no tax_rate stored), add a `tax_amount` field to the credit note form, and include a VAT reversal line when > 0:
-```typescript
-fallbackLines: [
-  { accountCode: "6000", debit: f.amount - (f.tax_amount || 0), credit: 0, ... },
-  { accountCode: "4700", debit: f.tax_amount || 0, credit: 0, ... },  // Reverse output VAT
-  { accountCode: "2040", debit: 0, credit: f.amount, ... },
-]
+The sale/refund body correctly extracts tax from inclusive prices for `subtotal`/`tax_amount`/`total`, but the per-item `total_amount` sent to `fiscalize-receipt` still uses the old additive formula:
 ```
+total_amount: c.unit_price * c.quantity * (1 + c.tax_rate / 100)
+```
+Since `unit_price` is already PDV-inclusive, this inflates each line item by 20%.
 
-### Bug 2: CR-HIGH-2 — Credit note does not restore inventory
+**Fix:** Change to `total_amount: c.unit_price * c.quantity` (price is already inclusive). Apply in both sale (line 425) and refund (line 303) fiscalization payloads.
 
-**File:** `src/pages/tenant/Returns.tsx` — credit note mutation (line 312-326)
+### Bug 2: CR-MED-2 — POS hardcodes tax_rate: 20 for all products
 
-When a credit note is issued, there's no inventory restoration. The return case resolution does restock, but issuing a standalone credit note from an invoice skips it.
+**File:** `src/pages/tenant/PosTerminal.tsx` line 188
 
-**Fix:** After GL posting, if `f.invoice_id` exists, fetch invoice lines with product quantities, and call `adjust_inventory_stock` for each product item to restore stock.
+`addToCart` always sets `tax_rate: 20` regardless of the product's actual tax rate. Products with 10% or 0% rates get wrong tax calculations.
 
-### Bug 3: CR-HIGH-3 — Payroll posting missing legalEntityId
+**Fix:** Look up the product's associated `tax_rate` from the product record or a joined tax_rates table. Fall back to 20 only if not found.
 
-**Files:** `src/pages/tenant/Payroll.tsx` lines 189-210, `src/pages/tenant/PayrollRunDetail.tsx` lines 81-114
+### Bug 3: CR-MED-3 — CreditDebitNotes GL posting missing legalEntityId
 
-All 4 `postWithRuleOrFallback` calls in payroll omit `legalEntityId`. Multi-PIB tenants get journal entries that can't be filtered by legal entity.
+**File:** `src/pages/tenant/CreditDebitNotes.tsx` lines 137-147, 172-183
 
-**Fix:** Fetch `legal_entity_id` from the payroll run record and pass it to all `postWithRuleOrFallback` calls.
+Both `postWithRuleOrFallback` calls omit `legalEntityId` even though the form has `legal_entity_id`. Multi-entity tenants get unfiltered journal entries.
 
-### Bug 4: CR-HIGH-4 — XML injection in SEF UBL generation
+**Fix:** Add `legalEntityId: f.legal_entity_id || undefined` to both credit note and debit note postings.
 
-**File:** `supabase/functions/sef-send-invoice/index.ts` lines 140, 153, 160, 649, 662, 669
+### Bug 4: CR-MED-4 — AssetDepreciation GL posting missing legalEntityId
 
-`client_pib`, `client_maticni_broj`, and `company.maticni_broj` are interpolated into XML without `escapeXml()`. A PIB containing `<` or `&` would produce malformed XML or enable injection.
+**File:** `src/pages/tenant/AssetDepreciation.tsx` lines 101-111
 
-**Fix:** Wrap all unescaped interpolations with `escapeXml()`:
-- Line 140: `${escapeXml(invoice.client_pib)}`
-- Line 153: `${escapeXml(...)}`
-- Line 160: `${escapeXml(invoice.client_maticni_broj)}`
-- Line 133: `${escapeXml(company.maticni_broj)}`
-- Same for credit note XML (lines 649-669)
+`postWithRuleOrFallback` for depreciation entries omits `legalEntityId`. Assets may belong to specific legal entities.
 
-### Bug 5: CR-HIGH-5 — No ActionGuard on mutation buttons
+**Fix:** Pass `legalEntityId: asset.legal_entity_id || undefined` to the posting call.
 
-`ActionGuard` component exists but is never used anywhere in the app. All create/edit/delete buttons are visible to all roles regardless of permissions.
+### Bug 5: CR-MED-5 — FxRevaluation GL posting missing legalEntityId
 
-**Fix:** Add `ActionGuard` wrapping to key mutation buttons across major pages:
-- Invoices: create/delete buttons → `ActionGuard module="accounting" action="create/delete"`
-- Sales orders/quotes: create buttons → `ActionGuard module="sales" action="create"`
-- HR employees: create/edit → `ActionGuard module="hr" action="create/edit"`
-- Inventory products: create → `ActionGuard module="inventory" action="create"`
-- POS terminal: refund → `ActionGuard module="pos" action="delete"`
-- Settings pages: add/edit buttons → appropriate guards
+**File:** `src/pages/tenant/FxRevaluation.tsx` lines 214-224
 
-This is a broad change touching ~15 pages. Focus on the highest-risk actions first (delete, approve).
+`postWithRuleOrFallback` for FX revaluation omits `legalEntityId` even though the component already filters by `legalEntityFilter`.
 
-### Bug 6: CR-HIGH-6 — Payroll payment uses same model code as accrual
+**Fix:** Add `legalEntityId: legalEntityFilter !== "__all__" ? legalEntityFilter : undefined` to the posting call.
 
-**File:** `src/pages/tenant/Payroll.tsx` line 223, `PayrollRunDetail.tsx` line 106
+### Bug 6: CR-MED-6 — CreditDebitNotes credit note GL ignores VAT (same as Returns bug)
 
-Payment posting uses `modelCode: "PAYROLL_NET"` — same as the accrual posting. If a tenant configures a posting rule for PAYROLL_NET, the same rule fires for both accrual and payment, which are different GL entries.
+**File:** `src/pages/tenant/CreditDebitNotes.tsx` lines 143-146
 
-**Fix:** Change payment model code to `"PAYROLL_PAYMENT"` in both files.
+Fallback lines only reverse revenue (6000) and AR (2040) without a VAT line. This is the same pattern as CR-HIGH-1 but in the standalone credit/debit notes page.
 
-### Bug 7: CR-HIGH-7 — Credit note form lacks tax_amount field
+**Fix:** Add a VAT reversal line to the fallback, splitting `f.amount` into net and tax components based on the linked invoice's tax rate, or add a `tax_amount` input field similar to what was done in Returns.tsx.
 
-**File:** `src/pages/tenant/Returns.tsx`
+### Bug 7: CR-MED-7 — POS stock deduction failures silently swallowed
 
-The `CreditNoteForm` interface has no `tax_amount` field. Without it, Bug 1 can't be properly fixed — we need a way to specify how much VAT is being reversed.
+**File:** `src/pages/tenant/PosTerminal.tsx` lines 474-488
 
-**Fix:** Add `tax_amount: number` to `CreditNoteForm`, add an input field in the dialog, default to 0.
+Both FIFO consumption and stock deduction use `console.warn` and continue. After a fiscalized receipt, if stock deduction fails, inventory becomes out of sync with no user notification (only a console warning).
 
-### Bug 8: CR-HIGH-8 — Return case restock uses first warehouse blindly
+**Fix:** After the loop, if any stock errors occurred, show a toast warning to the user (don't block since receipt is already fiscalized, but make it visible).
 
-**File:** `src/pages/tenant/Returns.tsx` line 169
+### Bug 8: CR-MED-8 — Missing database indexes on high-query tables
 
-`const defaultWarehouse = warehouses[0]` — picks the first warehouse alphabetically, not the warehouse the items were shipped from. Could restock wrong location.
+Several frequently-queried columns lack composite indexes:
+- `pos_transactions(tenant_id, receipt_type, status)` — used by refund queries and daily reports
+- `credit_notes(tenant_id, invoice_id)` — used by credit note lookups  
+- `debit_notes(tenant_id, invoice_id)` — same pattern
+- `employees(tenant_id, is_active)` — very frequent HR queries
+- `payroll_runs(tenant_id, status)` — payroll list filtering
 
-**Fix:** If the return case has a linked invoice/sales order, look up the dispatch warehouse. Fall back to first warehouse only if none found.
+**Fix:** Add a migration with these 5 composite indexes.
 
-### Bug 9: CR-HIGH-9 — Payroll run detail doesn't save journal_entry_id
+### Bug 9: CR-MED-9 — Kompenzacija GL posting missing legalEntityId
 
-**File:** `src/pages/tenant/PayrollRunDetail.tsx` lines 81-119
+**File:** `src/pages/tenant/Kompenzacija.tsx` line 97-101
 
-The `postWithRuleOrFallback` calls return journal entry IDs but they're not saved back to `payroll_runs`. The main `Payroll.tsx` does save them, but `PayrollRunDetail.tsx` doesn't.
+`postWithRuleOrFallback` for compensation entries omits `legalEntityId`.
 
-**Fix:** Capture return values from `postWithRuleOrFallback` and include `journal_entry_id`, `employer_journal_entry_id`, `payment_journal_entry_id` in the update.
+**Fix:** Pass the selected legal entity to the posting call.
 
-### Bug 10: CR-HIGH-10 — escapeXml doesn't handle null/undefined safely for non-string inputs
+### Bug 10: CR-MED-10 — TravelOrderForm GL posting missing legalEntityId
 
-**File:** `supabase/functions/sef-send-invoice/index.ts` line 206
+**File:** `src/pages/tenant/TravelOrderForm.tsx` around line 200
 
-`escapeXml` checks `if (!str)` which handles empty string but numeric 0 or boolean false would also return empty. Low risk for current usage but should be hardened.
+`postWithRuleOrFallback` for travel order settlement omits `legalEntityId`.
 
-**Fix:** Change to `if (str == null) return '';` then `return String(str).replace(...)`.
+**Fix:** Pass legal entity from travel order record.
 
-### Bugs 11-15: Additional HIGH items
+### Bug 11: CR-MED-11 — WorkLogsBulkEntry and WorkLogsCalendar are dead redirect components
 
-**Bug 11:** `ai/briefing` route has no `ProtectedRoute` wrapper — any authenticated user can access regardless of role (line 188 in otherRoutes.tsx)
+**Files:** `src/pages/tenant/WorkLogsBulkEntry.tsx`, `src/pages/tenant/WorkLogsCalendar.tsx`
 
-**Bug 12:** Profile route has no `ProtectedRoute` — accessible without authentication check at route level (relies on layout, but inconsistent)
+These components just `<Navigate>` to `/hr/work-logs?tab=...`. They're loaded lazily via route config but serve no purpose since the same tab switching can be done in-page.
 
-**Bug 13:** Settings pages missing granular `requiredAction` — all settings routes use `requiredModule` with default "view" action, even for pages that perform writes
+**Fix:** Remove these redirect components and their route entries from `hrRoutes.tsx`. Update any navigation links to point directly to `/hr/work-logs?tab=bulk` or `?tab=calendar`.
 
-**Bug 14:** `PayrollRunDetail.tsx` duplicates the entire posting logic from `Payroll.tsx` — DRY violation creating divergence risk (refactor to shared function)
+### Bug 12: CR-MED-12 — JournalEntries date input has no validation against fiscal period
 
-**Bug 15:** Credit note `open_items` update doesn't handle case where credit amount exceeds remaining — `Math.max(0)` prevents negative but doesn't warn user
+**File:** `src/pages/tenant/JournalEntries.tsx` line 105
+
+The journal entry form allows any date, including dates in closed fiscal periods. The RPC `create_journal_entry_with_lines` may reject it, but the error message is opaque.
+
+**Fix:** Add a pre-check using `checkFiscalPeriodOpen` before posting, with a clear user-facing error message if the period is closed.
+
+### Bug 13: CR-MED-13 — AssetInventoryCountDetail GL posting missing legalEntityId
+
+**File:** `src/pages/tenant/AssetInventoryCountDetail.tsx` line 153
+
+Same missing `legalEntityId` pattern.
+
+**Fix:** Pass legal entity from count record.
+
+### Bug 14: CR-MED-14 — SupplierInvoices GL posting missing legalEntityId
+
+**File:** `src/pages/tenant/SupplierInvoices.tsx` lines 206, 247
+
+Both invoice posting and payment posting omit `legalEntityId` even though the form stores it.
+
+**Fix:** Pass `legalEntityId: inv.legal_entity_id || undefined` to both calls.
+
+### Bug 15: CR-MED-15 — PAYROLL_PAYMENT missing from postingRuleEngine PAYMENT_MODEL_KEYS
+
+**File:** `src/lib/postingRuleEngine.ts` line 126
+
+The `PAYMENT_MODEL_KEYS` map has `PAYROLL_NET` and `PAYROLL_TAX` but no `PAYROLL_PAYMENT` entry, meaning the posting rules UI won't show it as a configurable model.
+
+**Fix:** Add `PAYROLL_PAYMENT: "payrollPayment"` to the map, and add translation keys for both languages.
 
 ### Execution Order
-1. SEF XML injection fix (Bug 4) — deploy edge function
-2. Payroll fixes (Bugs 3, 6, 9, 14) — code changes
-3. Credit note GL + inventory (Bugs 1, 2, 7) — code changes
-4. ActionGuard rollout (Bug 5) — broad UI changes
-5. Route protection fixes (Bugs 11, 12) — quick route changes
-6. Minor fixes (Bugs 8, 10, 13, 15)
+1. Database migration: Add 5 composite indexes (Bug 8)
+2. POS fixes: Bugs 1, 2, 7 — `PosTerminal.tsx`
+3. Missing legalEntityId across 6 posting pages: Bugs 3, 4, 5, 9, 10, 13, 14
+4. CreditDebitNotes VAT fix: Bug 6
+5. Dead code removal: Bug 11
+6. Journal date validation: Bug 12
+7. Posting rule engine key: Bug 15
 
 ### Files Modified
 | File | Bugs |
 |------|------|
-| `supabase/functions/sef-send-invoice/index.ts` | 4, 10 |
-| `src/pages/tenant/Returns.tsx` | 1, 2, 7, 8, 15 |
-| `src/pages/tenant/Payroll.tsx` | 3, 6 |
-| `src/pages/tenant/PayrollRunDetail.tsx` | 3, 6, 9, 14 |
-| `src/routes/otherRoutes.tsx` | 11, 12 |
-| ~15 pages for ActionGuard | 5 |
+| `src/pages/tenant/PosTerminal.tsx` | 1, 2, 7 |
+| `src/pages/tenant/CreditDebitNotes.tsx` | 3, 6 |
+| `src/pages/tenant/AssetDepreciation.tsx` | 4 |
+| `src/pages/tenant/FxRevaluation.tsx` | 5 |
+| `src/pages/tenant/Kompenzacija.tsx` | 9 |
+| `src/pages/tenant/TravelOrderForm.tsx` | 10 |
+| `src/pages/tenant/WorkLogsBulkEntry.tsx` | 11 (delete) |
+| `src/pages/tenant/WorkLogsCalendar.tsx` | 11 (delete) |
+| `src/routes/hrRoutes.tsx` | 11 |
+| `src/pages/tenant/JournalEntries.tsx` | 12 |
+| `src/pages/tenant/AssetInventoryCountDetail.tsx` | 13 |
+| `src/pages/tenant/SupplierInvoices.tsx` | 14 |
+| `src/lib/postingRuleEngine.ts` | 15 |
+| `src/i18n/translations.ts` | 15 |
+| 1 database migration | 8 |
 
