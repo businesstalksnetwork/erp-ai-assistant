@@ -78,8 +78,8 @@ export default function ProductionKanban() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={locale === "sr" ? "Kanban tabla" : "Production Kanban"}
-        description={locale === "sr" ? "Vizuelni pregled statusa radnih naloga" : "Visual production order workflow"}
+        title={t("kanbanTitle")}
+        description={t("kanbanDesc")}
         icon={KanbanSquare}
       />
 
@@ -113,7 +113,7 @@ export default function ProductionKanban() {
                       </div>
                       <p className="text-sm font-medium truncate">{order.products?.name || "—"}</p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{locale === "sr" ? "Količina" : "Qty"}: {order.quantity}</span>
+                        <span>{t("qty")}: {order.quantity}</span>
                         <span>{order.completed_quantity || 0}/{order.quantity}</span>
                       </div>
                       {order.planned_start && (
