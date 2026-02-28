@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function PppdReview() {
@@ -58,6 +58,14 @@ export default function PppdReview() {
   const totalPio = items.reduce((s: number, i: any) => s + Number(i.pio_employee || 0) + Number(i.pio_employer || 0), 0);
   const totalHealth = items.reduce((s: number, i: any) => s + Number(i.health_employee || 0) + Number(i.health_employer || 0), 0);
 
+  // Bug 7: OVP/OLA/BEN validation
+  const validationIssues = useMemo(() => {
+    const missingOvp = items.filter((i: any) => !i.ovp_code);
+    const missingOla = items.filter((i: any) => !i.ola_code);
+    const missingBen = items.filter((i: any) => !i.ben_code);
+    return { missingOvp, missingOla, missingBen, hasIssues: missingOvp.length > 0 || missingOla.length > 0 || missingBen.length > 0 };
+  }, [items]);
+
   const [xmlWarnings, setXmlWarnings] = useState<string[]>([]);
 
   const handleExportXml = async () => {
@@ -69,7 +77,6 @@ export default function PppdReview() {
       console.error(error);
       return;
     }
-    // Handle JSON response with xml field
     const xmlContent = typeof data === "string" ? data : data?.xml || "";
     if (data?.warnings?.length) setXmlWarnings(data.warnings);
     const blob = new Blob([xmlContent], { type: "application/xml" });
@@ -109,6 +116,31 @@ export default function PppdReview() {
           </Button>
         )}
       </div>
+
+      {/* Bug 7: Validation banner for missing OVP/OLA/BEN codes */}
+      {selectedRunId && items.length > 0 && validationIssues.hasIssues && (
+        <Card className="border-warning/50 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Nedostaju obavezni kodovi za PPP-PD prijavu</p>
+                <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                  {validationIssues.missingOvp.length > 0 && (
+                    <li>OVP (vrsta prihoda) nedostaje za {validationIssues.missingOvp.length} zaposlenih</li>
+                  )}
+                  {validationIssues.missingOla.length > 0 && (
+                    <li>OLA kod nedostaje za {validationIssues.missingOla.length} zaposlenih</li>
+                  )}
+                  {validationIssues.missingBen.length > 0 && (
+                    <li>BEN kod nedostaje za {validationIssues.missingBen.length} zaposlenih</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {xmlWarnings.length > 0 && (
         <Card className="border-destructive/30 bg-destructive/5">
@@ -185,7 +217,7 @@ export default function PppdReview() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">{(item.employees as any)?.jmbg || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{item.ovp_code || "—"}</Badge>
+                      <Badge variant={item.ovp_code ? "outline" : "destructive"}>{item.ovp_code || "—"}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{Number(item.gross_salary || 0).toLocaleString("sr-RS")}</TableCell>
                     <TableCell className="text-right">{Number(item.tax_amount || 0).toLocaleString("sr-RS")}</TableCell>

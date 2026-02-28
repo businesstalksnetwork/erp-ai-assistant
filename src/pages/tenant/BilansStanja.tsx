@@ -19,13 +19,18 @@ import { Button } from "@/components/ui/button";
 import { Scale, FileDown } from "lucide-react";
 import { fmtNum } from "@/lib/utils";
 
-// Serbian account class names
+// Serbian account class names — all 10 classes
 const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
   "0": { name: "Stalna imovina", nameSr: "Стална имовина" },
   "1": { name: "Zalihe i kratkotrajna imovina", nameSr: "Залихе и краткотрајна имовина" },
   "2": { name: "Kratkoročne obaveze i finansijski računi", nameSr: "Краткорочне обавезе и финансијски рачуни" },
   "3": { name: "Kapital", nameSr: "Капитал" },
-  "4": { name: "Dugoročne obaveze i prihodi", nameSr: "Дугорочне обавезе и приходи" },
+  "4": { name: "Dugoročne obaveze i rezervisanja", nameSr: "Дугорочне обавезе и резервисања" },
+  "5": { name: "Rashodi", nameSr: "Расходи" },
+  "6": { name: "Prihodi", nameSr: "Приходи" },
+  "7": { name: "Otvaranje i zaključak računa", nameSr: "Отварање и закључак рачуна" },
+  "8": { name: "Vanbilansna evidencija", nameSr: "Ванбилансна евиденција" },
+  "9": { name: "Obračun troškova i učinaka", nameSr: "Обрачун трошкова и учинака" },
 };
 
 export default function BilansStanja() {
@@ -168,9 +173,10 @@ export default function BilansStanja() {
     );
   };
 
+  // Bug 3 fix: correct grouping — assets=0,1; equity=3; liabilities=2,4
   const assets = ["0", "1"].map((cls) => linesByClass[cls] || []).flat();
-  const liabilities = ["2", "3"].map((cls) => linesByClass[cls] || []).flat();
-  const equity = linesByClass["4"] || [];
+  const equity = linesByClass["3"] || [];
+  const liabilities = ["2", "4"].map((cls) => linesByClass[cls] || []).flat();
 
   return (
     <div className="space-y-6">

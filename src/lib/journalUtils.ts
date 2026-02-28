@@ -45,6 +45,59 @@ export async function checkFiscalPeriodOpen(tenantId: string, entryDate: string)
 }
 
 /**
+ * Fetches journal numbering settings from tenant_settings JSON.
+ */
+export async function getJournalNumberingSettings(tenantId: string) {
+  const { data } = await supabase
+    .from("tenant_settings")
+    .select("settings")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const settings = (data?.settings as Record<string, any>) || {};
+  return {
+    prefix: (settings.journal_prefix as string) || "JE",
+    nextSeq: parseInt(String(settings.journal_next_seq || "1"), 10),
+  };
+}
+
+/**
+ * Fetches invoice numbering settings from tenant_settings JSON.
+ */
+export async function getInvoiceNumberingSettings(tenantId: string) {
+  const { data } = await supabase
+    .from("tenant_settings")
+    .select("settings")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const settings = (data?.settings as Record<string, any>) || {};
+  return {
+    prefix: (settings.invoice_prefix as string) || "INV",
+    nextSeq: parseInt(String(settings.invoice_next_seq || "1"), 10),
+  };
+}
+
+/**
+ * Generates a sequential journal entry number using tenant_settings prefix and sequence.
+ */
+async function generateJournalEntryNumber(tenantId: string): Promise<string> {
+  const { prefix, nextSeq } = await getJournalNumberingSettings(tenantId);
+  const year = new Date().getFullYear();
+
+  // Count existing entries for the year to prevent duplicates
+  const { count } = await supabase
+    .from("journal_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .gte("entry_date", `${year}-01-01`)
+    .lte("entry_date", `${year}-12-31`);
+
+  const seq = Math.max(nextSeq, (count ?? 0) + 1);
+  return `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+}
+
+/**
  * Creates a journal entry with multiple lines using deterministic account codes.
  * Uses the atomic create_journal_entry_with_lines RPC to ensure header + lines
  * are inserted in a single transaction. No partial "posted" entries can occur.
@@ -81,8 +134,8 @@ export async function createCodeBasedJournalEntry(params: {
     })
   );
 
-  // Generate entry number
-  const entryNumber = `JE-${Date.now().toString(36).toUpperCase()}`;
+  // Generate sequential entry number from tenant_settings
+  const entryNumber = await generateJournalEntryNumber(tenantId);
 
   // Call atomic RPC — handles balance check, fiscal period check, and insert in one transaction
   const { data, error } = await supabase.rpc("create_journal_entry_with_lines", {
