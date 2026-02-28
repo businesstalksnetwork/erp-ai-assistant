@@ -53,7 +53,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench, Gift,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -281,6 +281,13 @@ const serviceNav: NavItem[] = [
   { key: "myWorkOrders", url: "/service/my-work-orders", icon: UserCheck },
   { key: "deviceRegistry", url: "/service/devices", icon: HardDrive },
   { key: "serviceContracts", url: "/service/contracts", icon: FileSignature },
+];
+
+const loyaltyNav: NavItem[] = [
+  { key: "loyaltyDashboard", url: "/loyalty", icon: LayoutDashboard, section: "loyaltyOverview" },
+  { key: "loyaltyPrograms", url: "/loyalty/programs", icon: Settings },
+  { key: "loyaltyMembers", url: "/loyalty/members", icon: Users },
+  { key: "loyaltyRewards", url: "/loyalty/rewards", icon: Gift },
 ];
 
 const posNav: NavItem[] = [
@@ -515,6 +522,9 @@ export default function TenantLayout() {
             )}
             {canAccess("service") && (
               <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} />
+            )}
+            {canAccess("loyalty") && (
+              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} />
             )}
             {canAccess("analytics") && (
               <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} />
