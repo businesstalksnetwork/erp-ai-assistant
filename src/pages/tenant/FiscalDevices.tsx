@@ -65,7 +65,7 @@ export default function FiscalDevices() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("fiscal_devices").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("fiscal_devices").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fiscal_devices"] }); toast({ title: t("success") }); setDeleteId(null); },
     onError: () => toast({ title: t("error"), variant: "destructive" }),
   });

@@ -58,7 +58,7 @@ export default function Holidays() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("holidays").delete().eq("id", id);
+      const { error } = await supabase.from("holidays").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["holidays-company"] }); toast.success(t("success")); },

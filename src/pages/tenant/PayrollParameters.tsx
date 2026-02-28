@@ -278,7 +278,7 @@ export default function PayrollParameters() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payroll_parameters").delete().eq("id", id);
+      const { error } = await supabase.from("payroll_parameters").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

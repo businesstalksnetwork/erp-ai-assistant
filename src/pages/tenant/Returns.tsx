@@ -169,8 +169,24 @@ export default function Returns() {
 
     // Bug 8 fix: Try to find the source warehouse from the linked invoice/sales order
     let restockWarehouse = warehouses[0];
-    // TODO: If caseId has a source_id (invoice/sales order), look up its warehouse_id
-    // For now fall back to first warehouse
+    try {
+      const { data: rc } = await supabase.from("return_cases").select("source_type, source_id").eq("id", caseId).eq("tenant_id", tenantId).single();
+      if (rc?.source_id && rc.source_id !== "00000000-0000-0000-0000-000000000000") {
+        let warehouseId: string | null = null;
+        if (rc.source_type === "sales_order") {
+          const { data: so } = await supabase.from("sales_orders").select("warehouse_id").eq("id", rc.source_id).eq("tenant_id", tenantId).single();
+          warehouseId = so?.warehouse_id ?? null;
+        } else if (rc.source_type === "invoice") {
+          // Invoices don't have warehouse_id; try to find a linked sales order
+          const { data: so } = await supabase.from("sales_orders").select("warehouse_id").eq("invoice_id", rc.source_id).eq("tenant_id", tenantId).limit(1).maybeSingle();
+          warehouseId = so?.warehouse_id ?? null;
+        }
+        if (warehouseId) {
+          const match = warehouses.find((w: any) => w.id === warehouseId);
+          if (match) restockWarehouse = match;
+        }
+      }
+    } catch { /* fall back to warehouses[0] */ }
 
     if (returnType === "customer") {
       // Customer return: restock inventory + COGS reversal + credit note journal
@@ -244,7 +260,7 @@ export default function Returns() {
           reference: `RET-SUPP-${caseId}`,
           context: {},
           fallbackLines: [
-            { accountCode: "2100", debit: totalValue, credit: 0, description: `Clear AP for return`, sortOrder: 0 },
+            { accountCode: "2200", debit: totalValue, credit: 0, description: `Clear AP for return`, sortOrder: 0 },
             { accountCode: "1200", debit: 0, credit: totalValue, description: `Remove returned inventory`, sortOrder: 1 },
           ],
         });
