@@ -255,7 +255,7 @@ export default function SupplierInvoices() {
         legalEntityId: inv.legal_entity_id || undefined,
         context: {},
         fallbackLines: [
-          { accountCode: "2100", debit: inv.total, credit: 0, description: `Clear AP - ${inv.invoice_number}`, sortOrder: 0 },
+          { accountCode: "2200", debit: inv.total, credit: 0, description: `Clear AP - ${inv.invoice_number}`, sortOrder: 0 },
           { accountCode: "1000", debit: 0, credit: inv.total, description: `Payment - ${inv.invoice_number}`, sortOrder: 1 },
         ],
       });

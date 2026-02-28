@@ -22,13 +22,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
+    // CR-13: Use anon key for auth verification (user context)
+    const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await anonClient.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,6 +43,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    // CR-16: Use service_role key for data queries after auth is verified
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     // Verify membership
     const { data: membership } = await supabase
       .from("tenant_members")
@@ -49,7 +56,7 @@ Deno.serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("user_id", user.id)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     if (!membership) {
       return new Response(JSON.stringify({ error: "Access denied" }), {
@@ -63,7 +70,7 @@ Deno.serve(async (req) => {
       .select("full_name, jmbg, start_date, end_date, position")
       .eq("id", employee_id)
       .eq("tenant_id", tenant_id)
-      .single();
+      .maybeSingle();
 
     if (empErr || !emp) {
       return new Response(JSON.stringify({ error: "Employee not found" }), {
@@ -71,13 +78,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get legal entity
+    // CR-16: Use maybeSingle instead of single to prevent 500 leaks
     const { data: le } = await supabase
       .from("legal_entities")
       .select("name, pib, mb")
       .eq("tenant_id", tenant_id)
-      .limit(1)
-      .single();
+      .eq("is_primary", true)
+      .maybeSingle();
 
     const pib = le?.pib || "000000000";
     const mb = le?.mb || "00000000";
@@ -88,8 +95,9 @@ Deno.serve(async (req) => {
     let filename: string;
 
     if (form_type === "M1") {
+      // CR-31/CR-32: Updated namespace and added mandatory tags
       xml = `<?xml version="1.0" encoding="UTF-8"?>
-<CROSOPrijava xmlns="urn:croso.gov.rs:m1">
+<CROSOPrijava xmlns="urn:croso:m-forms:v1">
   <Poslodavac>
     <PIB>${escapeXml(pib)}</PIB>
     <MB>${escapeXml(mb)}</MB>
@@ -100,13 +108,15 @@ Deno.serve(async (req) => {
     <ImePrezime>${escapeXml(emp.full_name)}</ImePrezime>
     <RadnoMesto>${escapeXml(emp.position || "")}</RadnoMesto>
     <DatumPocetkaRada>${emp.start_date || today}</DatumPocetkaRada>
+    <OsnovaOsiguranja>01</OsnovaOsiguranja>
+    <SifraPlacanja>240</SifraPlacanja>
   </Zaposleni>
   <DatumPodnosenja>${today}</DatumPodnosenja>
 </CROSOPrijava>`;
       filename = `M1_${emp.jmbg || employee_id}_${today}.xml`;
     } else {
       xml = `<?xml version="1.0" encoding="UTF-8"?>
-<CROSOOdjava xmlns="urn:croso.gov.rs:m2">
+<CROSOOdjava xmlns="urn:croso:m-forms:v1">
   <Poslodavac>
     <PIB>${escapeXml(pib)}</PIB>
     <MB>${escapeXml(mb)}</MB>

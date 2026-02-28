@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,8 @@ export default function VatProRata() {
   const [year, setYear] = useState(new Date().getFullYear());
 
   const { data: items = [] } = useQuery({
-    queryKey: ["vat-prorata", tenantId],
+    // CR-25: Add year to queryKey
+    queryKey: ["vat-prorata", tenantId, year],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vat_prorata_coefficients")
@@ -34,22 +35,33 @@ export default function VatProRata() {
   });
 
   const current = items.find(i => i.year === year);
+
+  // CR-26: Use local state synced from query data
   const [taxable, setTaxable] = useState(0);
   const [exempt, setExempt] = useState(0);
 
-  const effectiveTaxable = current ? Number(current.taxable_revenue) : taxable;
-  const effectiveExempt = current ? Number(current.exempt_revenue) : exempt;
-  const total = effectiveTaxable + effectiveExempt;
-  const coefficient = total > 0 ? effectiveTaxable / total : 0;
+  useEffect(() => {
+    if (current) {
+      setTaxable(Number(current.taxable_revenue) || 0);
+      setExempt(Number(current.exempt_revenue) || 0);
+    } else {
+      setTaxable(0);
+      setExempt(0);
+    }
+  }, [current]);
+
+  const total = taxable + exempt;
+  const coefficient = total > 0 ? taxable / total : 0;
   const coeffPercent = (coefficient * 100).toFixed(2);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // CR-26: Use local state values directly
       const { error } = await supabase.from("vat_prorata_coefficients").upsert({
         tenant_id: tenantId!,
         year,
-        taxable_revenue: taxable || effectiveTaxable,
-        exempt_revenue: exempt || effectiveExempt,
+        taxable_revenue: taxable,
+        exempt_revenue: exempt,
         prorata_coefficient: coefficient,
       }, { onConflict: "tenant_id,year" });
       if (error) throw error;
@@ -65,7 +77,7 @@ export default function VatProRata() {
     <div className="space-y-6">
       <PageHeader
         title="PDV srazmereni odbitak (Pro-rata)"
-        description="ZoPDV čl. 30 — Godišnji koeficijent srazmernog odbitka prethodnog poreza"
+        description="ZoPDV čl. 31 — Godišnji koeficijent srazmernog odbitka prethodnog poreza"
         icon={Percent}
         actions={
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
@@ -87,11 +99,11 @@ export default function VatProRata() {
           <CardContent className="space-y-4">
             <div>
               <Label>Oporezivi promet (sa pravom na odbitak)</Label>
-              <Input type="number" value={current ? effectiveTaxable : taxable} onChange={e => setTaxable(+e.target.value)} />
+              <Input type="number" value={taxable} onChange={e => setTaxable(+e.target.value)} />
             </div>
             <div>
               <Label>Promet oslobođen PDV-a (bez prava na odbitak)</Label>
-              <Input type="number" value={current ? effectiveExempt : exempt} onChange={e => setExempt(+e.target.value)} />
+              <Input type="number" value={exempt} onChange={e => setExempt(+e.target.value)} />
             </div>
           </CardContent>
         </Card>
@@ -105,7 +117,7 @@ export default function VatProRata() {
             </div>
             <div className="text-xs text-muted-foreground space-y-1">
               <p>Formula: Oporezivi promet / (Oporezivi + Oslobođeni promet)</p>
-              <p>= {fmtNum(effectiveTaxable)} / {fmtNum(total)} = {coeffPercent}%</p>
+              <p>= {fmtNum(taxable)} / {fmtNum(total)} = {coeffPercent}%</p>
             </div>
           </CardContent>
         </Card>

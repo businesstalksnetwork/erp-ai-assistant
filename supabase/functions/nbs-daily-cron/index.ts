@@ -16,10 +16,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Cron auth: require Bearer token matching CRON_SECRET
-    const authHeader = req.headers.get("Authorization");
+    // CR-19: Fail closed — require CRON_SECRET to be configured
     const cronSecret = Deno.env.get("CRON_SECRET");
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      return new Response(JSON.stringify({ error: "CRON_SECRET not configured" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -32,10 +38,7 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().split("T")[0];
 
-    // NBS provides XML exchange rate list
-    const nbsUrl = `https://nbs.rs/kursnaListaMod498/kursnaLista.faces`;
-    
-    // Use NBS REST-style API for JSON
+    // NBS REST-style API for JSON
     const apiUrl = `https://nbs.rs/static/nbs_site/gen/cirilica/55/kursna_lista/API/kl_${today.replace(/-/g, "")}.json`;
     
     let rates: { currency_code: string; rate: number; unit: number }[] = [];
@@ -44,7 +47,6 @@ Deno.serve(async (req) => {
       const resp = await fetch(apiUrl);
       if (resp.ok) {
         const data = await resp.json();
-        // Parse NBS JSON structure
         if (Array.isArray(data)) {
           rates = data.map((r: any) => ({
             currency_code: r.code || r.currencyCode,
@@ -57,7 +59,6 @@ Deno.serve(async (req) => {
       console.warn("NBS API fetch failed, trying fallback:", fetchErr);
     }
 
-    // Fallback: hardcoded common rates for weekend/holiday when API is unavailable
     if (rates.length === 0) {
       console.log("NBS: No rates fetched (likely weekend/holiday). Skipping.");
       return new Response(JSON.stringify({ status: "skipped", reason: "no rates available (weekend/holiday)" }), {
@@ -65,7 +66,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Upsert rates
     const rows = rates.map(r => ({
       currency_code: r.currency_code,
       rate_date: today,

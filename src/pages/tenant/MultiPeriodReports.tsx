@@ -72,16 +72,17 @@ export default function MultiPeriodReports() {
         { label: "Neto rezultat", v1: rev1 - exp1, v2: rev2 - exp2 },
       ];
     } else {
-      const assets1 = aggregate(data1, ["0", "1", "2"]);
-      const assets2 = aggregate(data2, ["0", "1", "2"]);
+      // CR-21: Class 2 is PASIVA (short-term liabilities), not AKTIVA
+      const assets1 = aggregate(data1, ["0", "1"]);
+      const assets2 = aggregate(data2, ["0", "1"]);
       const equity1 = aggregate(data1, ["3"]);
       const equity2 = aggregate(data2, ["3"]);
-      const liab1 = aggregate(data1, ["4"]);
-      const liab2 = aggregate(data2, ["4"]);
+      const liab1 = aggregate(data1, ["2", "4"]);
+      const liab2 = aggregate(data2, ["2", "4"]);
       return [
-        { label: "Aktiva (Klasa 0+1+2)", v1: -assets1, v2: -assets2 },
+        { label: "Aktiva (Klasa 0+1)", v1: -assets1, v2: -assets2 },
         { label: "Kapital (Klasa 3)", v1: equity1, v2: equity2 },
-        { label: "Obaveze (Klasa 4)", v1: liab1, v2: liab2 },
+        { label: "Obaveze (Klasa 2+4)", v1: liab1, v2: liab2 },
       ];
     }
   }, [data1, data2, reportType]);
