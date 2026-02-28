@@ -78,7 +78,7 @@ export function useJournalEntryValidation() {
       return warnings;
     },
 
-    validateInvoice: (invoice: { total: number; tax: number; partnerPib?: string; invoiceNumber?: string }) => {
+    validateInvoice: (invoice: { total: number; tax: number; partnerPib?: string; invoiceNumber?: string; invoiceDate?: string; dueDate?: string }) => {
       const warnings: string[] = [];
 
       if (invoice.total > 0 && (!invoice.tax || invoice.tax === 0)) {
@@ -93,6 +93,40 @@ export function useJournalEntryValidation() {
           : "Missing buyer PIB (required for B2B per Art. 42 VAT Law)");
       }
 
+      // Validate invoice number format
+      if (invoice.invoiceNumber && !/^\d+\/\d{4}$/.test(invoice.invoiceNumber) && !/^[A-Z]+-\d+/.test(invoice.invoiceNumber)) {
+        warnings.push(sr
+          ? "Broj fakture nije u standardnom formatu (npr. 001/2026 ili IF-001)"
+          : "Invoice number not in standard format (e.g. 001/2026 or IF-001)");
+      }
+
+      // Check due date vs invoice date
+      if (invoice.invoiceDate && invoice.dueDate && invoice.dueDate < invoice.invoiceDate) {
+        warnings.push(sr
+          ? "Rok plaćanja je pre datuma fakture"
+          : "Due date is before invoice date");
+      }
+
+      // Serbian legal max payment term (60 days for B2B per Zakon o rokovima izmirenja novčanih obaveza)
+      if (invoice.invoiceDate && invoice.dueDate) {
+        const diff = Math.ceil((new Date(invoice.dueDate).getTime() - new Date(invoice.invoiceDate).getTime()) / (1000 * 60 * 60 * 24));
+        if (diff > 60) {
+          warnings.push(sr
+            ? `Rok plaćanja ${diff} dana — Zakon o rokovima dozvoljava max 60 dana za B2B`
+            : `Payment term ${diff} days — Serbian law allows max 60 days for B2B`);
+        }
+      }
+
+      return warnings;
+    },
+
+    validatePartnerBalance: (totalDue: number, creditLimit?: number) => {
+      const warnings: string[] = [];
+      if (creditLimit && totalDue > creditLimit) {
+        warnings.push(sr
+          ? `Ukupan dug partnera (${totalDue.toFixed(2)}) prelazi kreditni limit (${creditLimit.toFixed(2)})`
+          : `Partner total due (${totalDue.toFixed(2)}) exceeds credit limit (${creditLimit.toFixed(2)})`);
+      }
       return warnings;
     },
   };
