@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface Props {
   children: React.ReactNode;
@@ -10,6 +11,27 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+function ErrorFallbackUI({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8">
+      <AlertTriangle className="h-12 w-12 text-destructive" />
+      <h2 className="text-xl font-semibold text-foreground">{t("somethingWentWrong")}</h2>
+      <p className="text-muted-foreground text-sm text-center max-w-md">
+        {error?.message || t("unexpectedError")}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onRetry}>
+          {t("tryAgain")}
+        </Button>
+        <Button onClick={() => window.location.assign("/dashboard")}>
+          {t("dashboard")}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -29,29 +51,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
-
       return (
-        <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8">
-          <AlertTriangle className="h-12 w-12 text-destructive" />
-          <h2 className="text-xl font-semibold text-foreground">Nešto je pošlo naopako</h2>
-          <p className="text-muted-foreground text-sm text-center max-w-md">
-            {this.state.error?.message || "Došlo je do neočekivane greške."}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => this.setState({ hasError: false, error: null })}
-            >
-              Pokušaj ponovo
-            </Button>
-            <Button onClick={() => window.location.assign("/dashboard")}>
-              Kontrolna tabla
-            </Button>
-          </div>
-        </div>
+        <ErrorFallbackUI
+          error={this.state.error}
+          onRetry={() => this.setState({ hasError: false, error: null })}
+        />
       );
     }
-
     return this.props.children;
   }
 }

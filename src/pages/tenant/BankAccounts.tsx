@@ -163,7 +163,7 @@ export default function BankAccounts() {
     if (form.currency === "RSD" && accountNumber.length > 0) {
       if (accountNumber.includes("-") && accountNumber.length >= 8) {
         if (!validateRSDAccount(accountNumber)) {
-          setAccountNumberError(locale === "sr" ? "Format: XXX-XXXXXXXXXX-XX" : "Format: XXX-XXXXXXXXXX-XX");
+          setAccountNumberError("Format: XXX-XXXXXXXXXX-XX");
         } else {
           setAccountNumberError("");
         }
@@ -193,7 +193,7 @@ export default function BankAccounts() {
     if (cleaned.length === 0) { setIbanError(""); return; }
     if (cleaned.length >= 15) {
       if (!validateIBAN(cleaned)) {
-        setIbanError(locale === "sr" ? "Neispravan IBAN (Mod 97)" : "Invalid IBAN (Mod 97)");
+        setIbanError(t("invalidIban"));
       } else {
         setIbanError("");
         const code = extractBankCode(cleaned);
@@ -228,8 +228,8 @@ export default function BankAccounts() {
         <div>
           <h1 className="text-2xl font-bold">{t("bankAccounts")}</h1>
           <p className="text-sm text-muted-foreground">
-            {activeCount} {locale === "sr" ? "aktivnih računa" : "active accounts"}
-            {primaryAccount && ` · ${locale === "sr" ? "Primarni" : "Primary"}: ${primaryAccount.bank_name}`}
+            {activeCount} {t("activeAccountsCount")}
+            {primaryAccount && ` · ${t("primary")}: ${primaryAccount.bank_name}`}
           </p>
         </div>
         <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
@@ -260,7 +260,7 @@ export default function BankAccounts() {
                     </div>
                     <div className="flex gap-1">
                       {a.is_primary && <Badge className="text-xs">{t("primary")}</Badge>}
-                      {!a.is_active && <Badge variant="secondary" className="text-xs">{locale === "sr" ? "Neaktivan" : "Inactive"}</Badge>}
+                      {!a.is_active && <Badge variant="secondary" className="text-xs">{t("inactive")}</Badge>}
                     </div>
                   </div>
                 </CardHeader>
@@ -278,10 +278,10 @@ export default function BankAccounts() {
 
                   <div className="flex gap-1 pt-2 border-t">
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/accounting/bank-statements?account_id=${a.id}`)} className="text-xs">
-                      <Upload className="h-3 w-3 mr-1" />{locale === "sr" ? "Izvodi" : "Statements"}
+                      <Upload className="h-3 w-3 mr-1" />{t("statementsLabel")}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/accounting/document-import?account_id=${a.id}`)} className="text-xs">
-                      <FileText className="h-3 w-3 mr-1" />{locale === "sr" ? "Uvoz" : "Import"}
+                      <FileText className="h-3 w-3 mr-1" />{t("importLabel")}
                     </Button>
                     <div className="ml-auto flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -305,13 +305,13 @@ export default function BankAccounts() {
                 <Input value={form.iban} onChange={e => handleIbanChange(e.target.value)} placeholder="RS35 160 0000012345678 90" />
                 {ibanError && <p className="text-xs text-destructive mt-1">{ibanError}</p>}
                 {form.iban && !ibanError && form.iban.replace(/\s/g, "").length >= 15 && (
-                  <p className="text-xs mt-1 text-primary">✓ {locale === "sr" ? "Validan IBAN" : "Valid IBAN"}</p>
+                  <p className="text-xs mt-1 text-primary">✓ {t("validIban")}</p>
                 )}
               </div>
             )}
 
             <div>
-              <Label>{locale === "sr" ? "Banka (registar)" : "Bank (registry)"}</Label>
+              <Label>{t("bankRegistry")}</Label>
               <Select value={form.bank_id || "none"} onValueChange={v => {
                 if (v === "none") { setForm(f => ({ ...f, bank_id: null })); return; }
                 const bank = banks.find(b => b.id === v);
@@ -331,13 +331,13 @@ export default function BankAccounts() {
               <Input value={form.account_number} onChange={e => handleAccountNumberChange(e.target.value)} placeholder={form.currency === "RSD" ? "265-1234567890-12" : ""} />
               {form.currency === "RSD" && accountNumberError && <p className="text-xs text-destructive mt-1">{accountNumberError}</p>}
               {form.currency === "RSD" && !accountNumberError && form.account_number && validateRSDAccount(form.account_number) && (
-                <p className="text-xs mt-1 text-primary">✓ {locale === "sr" ? "Validan format" : "Valid format"}</p>
+                <p className="text-xs mt-1 text-primary">✓ {t("validFormat")}</p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>{locale === "sr" ? "Tip računa" : "Account Type"}</Label>
+                <Label>{t("accountTypeLabel")}</Label>
                 <Select value={form.account_type} onValueChange={v => setForm(f => ({ ...f, account_type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -350,7 +350,7 @@ export default function BankAccounts() {
 
             <div className="grid grid-cols-2 gap-4">
               <div><Label>SWIFT/BIC</Label><Input value={form.swift_code} onChange={e => setForm(f => ({ ...f, swift_code: e.target.value }))} /></div>
-              <div><Label>{locale === "sr" ? "Šifra banke (NBS)" : "Bank Code (NBS)"}</Label><Input value={form.bank_code} onChange={e => setForm(f => ({ ...f, bank_code: e.target.value }))} maxLength={3} /></div>
+              <div><Label>{t("bankCodeNbs")}</Label><Input value={form.bank_code} onChange={e => setForm(f => ({ ...f, bank_code: e.target.value }))} maxLength={3} /></div>
             </div>
 
             <div>
@@ -365,11 +365,11 @@ export default function BankAccounts() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>{locale === "sr" ? "Datum otvaranja" : "Opening Date"}</Label><Input type="date" value={form.opening_date} onChange={e => setForm(f => ({ ...f, opening_date: e.target.value }))} /></div>
-              <div><Label>{locale === "sr" ? "Datum zatvaranja" : "Closing Date"}</Label><Input type="date" value={form.closing_date} onChange={e => setForm(f => ({ ...f, closing_date: e.target.value }))} /></div>
+              <div><Label>{t("openingDateLabel")}</Label><Input type="date" value={form.opening_date} onChange={e => setForm(f => ({ ...f, opening_date: e.target.value }))} /></div>
+              <div><Label>{t("closingDateLabel")}</Label><Input type="date" value={form.closing_date} onChange={e => setForm(f => ({ ...f, closing_date: e.target.value }))} /></div>
             </div>
 
-            <div><Label>{locale === "sr" ? "Namena" : "Purpose"}</Label><Input value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} /></div>
+            <div><Label>{t("purposeLabel")}</Label><Input value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} /></div>
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2"><Switch checked={form.is_primary} onCheckedChange={v => setForm(f => ({ ...f, is_primary: v }))} /><Label>{t("primary")}</Label></div>

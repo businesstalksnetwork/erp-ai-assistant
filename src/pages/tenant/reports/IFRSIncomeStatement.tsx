@@ -133,13 +133,13 @@ export default function IFRSIncomeStatement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">
-          {locale === "sr" ? "Bilans uspeha (IFRS)" : "Statement of Profit or Loss (IFRS)"}
+          {t("ifrsIncomeTitle")}
         </h1>
         <div className="flex gap-2 print:hidden">
           <ExportButton
             data={exportData}
             columns={[
-              { key: "item", label: locale === "sr" ? "Stavka" : "Item" },
+              { key: "item", label: t("itemLabel") },
               { key: "amount", label: "RSD", formatter: (v) => Number(v).toFixed(2) },
             ]}
             filename="ifrs_income_statement"
@@ -157,14 +157,14 @@ export default function IFRSIncomeStatement() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {locale === "sr" ? "Izveštaj o dobiti ili gubitku — IAS 1" : "Statement of Profit or Loss — IAS 1"}
+              {t("ifrsIas1Title")}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{locale === "sr" ? "Stavka" : "Line Item"}</TableHead>
+                  <TableHead>{t("lineItemLabel")}</TableHead>
                   <TableHead className="text-right">RSD</TableHead>
                 </TableRow>
               </TableHeader>
@@ -187,7 +187,7 @@ export default function IFRSIncomeStatement() {
 
       <Card>
         <CardContent className="p-6 flex items-center justify-between">
-          <span className="text-xl font-bold">{locale === "sr" ? "Neto rezultat" : "Net Result"}</span>
+          <span className="text-xl font-bold">{t("netResult")}</span>
           <div className="flex items-center gap-3">
             <span className="text-2xl font-bold">{fmtNum(netProfit)} RSD</span>
             <Badge variant={netProfit >= 0 ? "default" : "destructive"}>{netProfit >= 0 ? t("profit") : t("loss")}</Badge>

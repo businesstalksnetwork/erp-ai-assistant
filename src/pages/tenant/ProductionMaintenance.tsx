@@ -20,7 +20,7 @@ import { Wrench, Plus, CheckCircle, Clock, AlertTriangle, Calendar } from "lucid
 import { fmtNum } from "@/lib/utils";
 
 export default function ProductionMaintenance() {
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -86,10 +86,10 @@ export default function ProductionMaintenance() {
   const totalDowntime = records.reduce((s: number, r: any) => s + (r.downtime_hours || 0), 0);
 
   const stats = [
-    { label: locale === "sr" ? "Zakazano" : "Scheduled", value: scheduled, icon: Calendar, color: "text-primary" },
-    { label: locale === "sr" ? "U toku" : "In Progress", value: inProgress, icon: Clock, color: "text-amber-500" },
-    { label: locale === "sr" ? "Zakašnjenja" : "Overdue", value: overdue, icon: AlertTriangle, color: "text-destructive" },
-    { label: locale === "sr" ? "Ukupan zastoj" : "Total Downtime", value: `${totalDowntime}h`, icon: Wrench, color: "text-muted-foreground" },
+    { label: t("scheduledLabel"), value: scheduled, icon: Calendar, color: "text-primary" },
+    { label: t("in_progress"), value: inProgress, icon: Clock, color: "text-amber-500" },
+    { label: t("overdueCount"), value: overdue, icon: AlertTriangle, color: "text-destructive" },
+    { label: t("totalDowntime"), value: `${totalDowntime}h`, icon: Wrench, color: "text-muted-foreground" },
   ];
 
   const statusBadge = (s: string) => {
@@ -100,8 +100,8 @@ export default function ProductionMaintenance() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={locale === "sr" ? "Održavanje opreme" : "Equipment Maintenance"}
-        description={locale === "sr" ? "Praćenje preventivnog i korektivnog održavanja" : "Track preventive and corrective maintenance"}
+        title={t("maintenanceTitle")}
+        description={t("maintenanceDesc")}
         icon={Wrench}
         actions={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{t("add")}</Button>}
       />
@@ -113,12 +113,12 @@ export default function ProductionMaintenance() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{locale === "sr" ? "Oprema" : "Equipment"}</TableHead>
+                <TableHead>{t("equipmentLabel")}</TableHead>
                 <TableHead>{t("type")}</TableHead>
-                <TableHead>{locale === "sr" ? "Zakazano" : "Scheduled"}</TableHead>
-                <TableHead>{locale === "sr" ? "Završeno" : "Completed"}</TableHead>
-                <TableHead>{locale === "sr" ? "Trošak" : "Cost"}</TableHead>
-                <TableHead>{locale === "sr" ? "Zastoj (h)" : "Downtime (h)"}</TableHead>
+                <TableHead>{t("scheduledLabel")}</TableHead>
+                <TableHead>{t("completedLabel")}</TableHead>
+                <TableHead>{t("costLabel")}</TableHead>
+                <TableHead>{t("downtimeHours")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("actions")}</TableHead>
               </TableRow>
@@ -139,12 +139,12 @@ export default function ProductionMaintenance() {
                     <div className="flex gap-1">
                       {r.status === "scheduled" && (
                         <Button size="sm" variant="outline" onClick={() => updateMutation.mutate({ id: r.id, status: "in_progress" })}>
-                          {locale === "sr" ? "Pokreni" : "Start"}
+                          {t("startAction")}
                         </Button>
                       )}
                       {r.status === "in_progress" && (
                         <Button size="sm" onClick={() => updateMutation.mutate({ id: r.id, status: "completed", completed_date: new Date().toISOString().split("T")[0] })}>
-                          <CheckCircle className="h-3 w-3 mr-1" />{locale === "sr" ? "Završi" : "Complete"}
+                          <CheckCircle className="h-3 w-3 mr-1" />{t("completeAction")}
                         </Button>
                       )}
                     </div>
@@ -158,24 +158,24 @@ export default function ProductionMaintenance() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="w-[95vw] sm:max-w-lg">
-          <DialogHeader><DialogTitle>{locale === "sr" ? "Novo održavanje" : "New Maintenance"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("newMaintenance")}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div><Label>{locale === "sr" ? "Oprema" : "Equipment"}</Label><Input value={form.equipment_name} onChange={e => setForm({ ...form, equipment_name: e.target.value })} /></div>
+            <div><Label>{t("equipmentLabel")}</Label><Input value={form.equipment_name} onChange={e => setForm({ ...form, equipment_name: e.target.value })} /></div>
             <div>
               <Label>{t("type")}</Label>
               <Select value={form.maintenance_type} onValueChange={v => setForm({ ...form, maintenance_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="preventive">{locale === "sr" ? "Preventivno" : "Preventive"}</SelectItem>
-                  <SelectItem value="corrective">{locale === "sr" ? "Korektivno" : "Corrective"}</SelectItem>
-                  <SelectItem value="predictive">{locale === "sr" ? "Prediktivno" : "Predictive"}</SelectItem>
+                  <SelectItem value="preventive">{t("preventiveType")}</SelectItem>
+                  <SelectItem value="corrective">{t("correctiveType")}</SelectItem>
+                  <SelectItem value="predictive">{t("predictiveType")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>{locale === "sr" ? "Zakazano za" : "Scheduled Date"}</Label><Input type="date" value={form.scheduled_date} onChange={e => setForm({ ...form, scheduled_date: e.target.value })} /></div>
+            <div><Label>{t("scheduledFor")}</Label><Input type="date" value={form.scheduled_date} onChange={e => setForm({ ...form, scheduled_date: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>{locale === "sr" ? "Trošak" : "Cost"}</Label><Input type="number" min={0} value={form.cost} onChange={e => setForm({ ...form, cost: Number(e.target.value) })} /></div>
-              <div><Label>{locale === "sr" ? "Zastoj (h)" : "Downtime (h)"}</Label><Input type="number" min={0} value={form.downtime_hours} onChange={e => setForm({ ...form, downtime_hours: Number(e.target.value) })} /></div>
+              <div><Label>{t("costLabel")}</Label><Input type="number" min={0} value={form.cost} onChange={e => setForm({ ...form, cost: Number(e.target.value) })} /></div>
+              <div><Label>{t("downtimeHours")}</Label><Input type="number" min={0} value={form.downtime_hours} onChange={e => setForm({ ...form, downtime_hours: Number(e.target.value) })} /></div>
             </div>
             <div><Label>{t("notes")}</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
           </div>

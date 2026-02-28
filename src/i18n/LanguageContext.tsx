@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { translations, type Locale, type TranslationKey } from "./translations";
 
 interface LanguageContextType {
@@ -18,6 +18,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLocaleState(l);
     localStorage.setItem("erp-locale", l);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "sr" ? "sr-Latn" : "en";
+  }, [locale]);
 
   const t = useCallback(
     (key: TranslationKey) => (translations[locale] as Record<string, string>)[key] || key,
