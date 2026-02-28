@@ -78,7 +78,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { tenant_id, language = "en", time_of_day } = await req.json();
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid or empty request body" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { tenant_id, language = "en", time_of_day } = body;
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
