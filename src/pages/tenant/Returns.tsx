@@ -239,7 +239,7 @@ export default function Returns() {
             context: {},
             fallbackLines: [
               { accountCode: "4000", debit: revenueValue, credit: 0, description: `Reverse revenue`, sortOrder: 0 },
-              { accountCode: "1200", debit: 0, credit: revenueValue, description: `Credit AR`, sortOrder: 1 },
+              { accountCode: "2040", debit: 0, credit: revenueValue, description: `Credit AR`, sortOrder: 1 },
             ],
           });
         }

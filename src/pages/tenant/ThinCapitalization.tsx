@@ -84,7 +84,7 @@ export default function ThinCapitalization() {
     <div className="space-y-6">
       <PageHeader
         title="Tanka kapitalizacija"
-        description="ZPDP čl. 61 — Ograničenje odbitka kamate na zajmove od povezanih lica (4:1)"
+        description="ZPDPL čl. 61 — Ograničenje odbitka kamate na zajmove od povezanih lica (4:1)"
         icon={Scale}
         actions={
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>

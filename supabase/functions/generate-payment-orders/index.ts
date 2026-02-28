@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const { payroll_run_id, tax_type, amount, period_month, period_year, tenant_id: bodyTenantId } = body;
 
     // Verify tenant membership
-    const tenantIdToCheck = bodyTenantId || (payroll_run_id ? null : null);
+    const tenantIdToCheck = bodyTenantId;
     if (tenantIdToCheck) {
       const { data: membership } = await supabase
         .from("tenant_members")

@@ -80,10 +80,10 @@ export default function DeferredTax() {
   // CR-14: Use absolute values only for display totals
   const dtaTotal = items
     .filter(i => i.item_type === "asset")
-    .reduce((s, i) => s + Math.abs(Number(i.deferred_tax_amount)), 0);
+    .reduce((s, i) => s + Number(i.deferred_tax_amount), 0);
   const dtlTotal = items
     .filter(i => i.item_type === "liability")
-    .reduce((s, i) => s + Math.abs(Number(i.deferred_tax_amount)), 0);
+    .reduce((s, i) => s + Number(i.deferred_tax_amount), 0);
   const net = dtaTotal - dtlTotal;
 
   return (
@@ -183,7 +183,7 @@ export default function DeferredTax() {
                   <TableCell className="text-right font-mono">{fmtNum(Number(item.tax_base))}</TableCell>
                   <TableCell className="text-right font-mono">{fmtNum(Number(item.temporary_difference))}</TableCell>
                   <TableCell className="text-right font-mono">{(Number(item.tax_rate) * 100).toFixed(0)}%</TableCell>
-                  <TableCell className="text-right font-mono font-medium">{fmtNum(Math.abs(Number(item.deferred_tax_amount)))}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">{fmtNum(Number(item.deferred_tax_amount))}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}>
                       <Trash2 className="h-4 w-4" />

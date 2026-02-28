@@ -27,6 +27,7 @@ export default function VatProRata() {
         .from("vat_prorata_coefficients")
         .select("*")
         .eq("tenant_id", tenantId!)
+        .eq("year", year)
         .order("year", { ascending: false });
       if (error) throw error;
       return data || [];

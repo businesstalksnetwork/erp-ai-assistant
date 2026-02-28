@@ -119,7 +119,8 @@ export default function IntercompanyEliminations() {
       const { error } = await supabase
         .from("intercompany_eliminations")
         .update({ status: "posted" })
-        .eq("id", item.id);
+        .eq("id", item.id)
+        .eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {
