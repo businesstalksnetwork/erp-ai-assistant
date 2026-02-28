@@ -83,6 +83,20 @@ Deno.serve(async (req) => {
     let xmlItems = "";
     let rBr = 1;
 
+    // Fetch payroll parameters for the period to get nontaxable amount
+    const periodDate = `${run.period_year}-${String(run.period_month).padStart(2, "0")}-01`;
+    const { data: ppRow } = await supabase
+      .from("payroll_parameters")
+      .select("nontaxable_amount, min_contribution_base, max_contribution_base")
+      .eq("tenant_id", run.tenant_id)
+      .lte("effective_from", periodDate)
+      .order("effective_from", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const payrollNontaxable = ppRow?.nontaxable_amount ?? 25000;
+    const minBase = ppRow?.min_contribution_base ?? 0;
+    const maxBase = ppRow?.max_contribution_base ?? 0;
+
     // Running totals for Ukupno section
     let sumGross = 0, sumTaxBase = 0, sumTax = 0;
     let sumPioEmp = 0, sumPioEr = 0, sumHealthEmp = 0, sumHealthEr = 0;
@@ -102,7 +116,7 @@ Deno.serve(async (req) => {
       const unempEmp = Number(item.unemployment_employee || item.unemployment_contribution || 0);
       const totalEmpContrib = pioEmp + healthEmp + unempEmp;
 
-      const nonTaxable = Number(item.non_taxable_amount || 25000);
+      const nonTaxable = Number(item.non_taxable_amount || payrollNontaxable);
       const taxBase = Math.max(0, gross - totalEmpContrib - nonTaxable);
       const tax = Number(item.tax_amount || item.income_tax || 0);
 
