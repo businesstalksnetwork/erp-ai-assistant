@@ -134,12 +134,28 @@ export default function CreditDebitNotes() {
         if (error) throw error;
       }
       if (f.status === "issued" && f.amount > 0 && tenantId) {
-        // Estimate VAT at 20% if not separately tracked
-        const estimatedTax = Math.round(f.amount * 20 / 120 * 100) / 100;
-        const netAmount = Math.round((f.amount - estimatedTax) * 100) / 100;
+        // P2-07: Fetch actual VAT breakdown from linked invoice lines instead of hardcoded 20%
+        let totalTax = 0;
+        let totalNet = 0;
+        let effectiveTaxRate = 0.2; // fallback
+        if (f.invoice_id) {
+          const { data: invLines } = await supabase
+            .from("invoice_lines")
+            .select("line_total, tax_amount")
+            .eq("invoice_id", f.invoice_id);
+          if (invLines && invLines.length > 0) {
+            const invTotal = invLines.reduce((s, l) => s + Number(l.line_total || 0) + Number(l.tax_amount || 0), 0);
+            const invTax = invLines.reduce((s, l) => s + Number(l.tax_amount || 0), 0);
+            if (invTotal > 0) {
+              effectiveTaxRate = invTax / invTotal;
+            }
+          }
+        }
+        totalTax = Math.round(f.amount * effectiveTaxRate * 100) / 100;
+        totalNet = Math.round((f.amount - totalTax) * 100) / 100;
         const fallbackLines = [
-          { accountCode: "6000", debit: netAmount, credit: 0, description: `Storno prihoda - ${f.number}`, sortOrder: 0 },
-          { accountCode: "4700", debit: estimatedTax, credit: 0, description: `Storno PDV - ${f.number}`, sortOrder: 1 },
+          { accountCode: "6000", debit: totalNet, credit: 0, description: `Storno prihoda - ${f.number}`, sortOrder: 0 },
+          { accountCode: "4700", debit: totalTax, credit: 0, description: `Storno PDV - ${f.number}`, sortOrder: 1 },
           { accountCode: "2040", debit: 0, credit: f.amount, description: `Umanjenje potraživanja - ${f.number}`, sortOrder: 2 },
         ];
         await postWithRuleOrFallback({
@@ -149,7 +165,7 @@ export default function CreditDebitNotes() {
           description: `Knjižno odobrenje ${f.number}`,
           reference: `CN-${f.number}`,
           legalEntityId: f.legal_entity_id || undefined,
-          context: { taxRate: 0.2 },
+          context: { taxRate: effectiveTaxRate },
           fallbackLines,
         });
       }

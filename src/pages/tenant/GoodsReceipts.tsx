@@ -161,11 +161,22 @@ export default function GoodsReceipts() {
             p_reference: `GRN-${f.receipt_number}`,
           });
         }
-        // Cost layers + total value calculation
+        // P2-08: Cost layers — use PO line price when available, fallback to product default
+        let poLinePrices: Record<string, number> = {};
+        if (f.purchase_order_id) {
+          const { data: poLines } = await supabase
+            .from("purchase_order_lines")
+            .select("product_id, unit_price")
+            .eq("purchase_order_id", f.purchase_order_id);
+          if (poLines) {
+            poLines.forEach((pl: any) => { if (pl.product_id) poLinePrices[pl.product_id] = Number(pl.unit_price || 0); });
+          }
+        }
         for (const line of validLines) {
           if (line.quantity_received > 0) {
+            const poPrice = poLinePrices[line.product_id];
             const prod = products.find((p: any) => p.id === line.product_id);
-            const price = prod?.default_purchase_price || 0;
+            const price = poPrice != null && poPrice > 0 ? poPrice : (prod?.default_purchase_price || 0);
             totalValue += line.quantity_received * price;
             if (price > 0) {
               await supabase.from("inventory_cost_layers").insert({

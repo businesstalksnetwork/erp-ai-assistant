@@ -261,10 +261,18 @@ export default function Payroll() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-pppd-xml`,
         { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ payroll_run_id: runId }) }
       );
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = "Failed";
+        try { errMsg = JSON.parse(errText).error || errMsg; } catch { errMsg = errText; }
+        throw new Error(errMsg);
+      }
+      // P2-06: Response is now raw XML, not JSON-wrapped
       const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition");
+      const filename = cd?.match(/filename="?([^"]+)"?/)?.[1] || "PPP-PD.xml";
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `PPP-PD.xml`; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
   };
