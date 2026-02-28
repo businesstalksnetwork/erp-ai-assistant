@@ -146,7 +146,11 @@ export default function WmsReceiving() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // INTER-HIGH-1: Sync products.current_stock from WMS bin stock
+      for (const line of lines) {
+        await supabase.rpc("update_product_stock_from_wms", { p_tenant_id: tenantId!, p_product_id: line.product_id });
+      }
       qc.invalidateQueries({ queryKey: ["wms-receiving-tasks"] });
       qc.invalidateQueries({ queryKey: ["wms-tasks"] });
       qc.invalidateQueries({ queryKey: ["wms-bin-stock"] });

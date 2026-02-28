@@ -175,7 +175,23 @@ export default function WmsPicking() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // INTER-HIGH-1: Sync products.current_stock after picking
+      if (confirmTask?.product_id) {
+        await supabase.rpc("update_product_stock_from_wms", { p_tenant_id: tenantId!, p_product_id: confirmTask.product_id });
+      }
+      // WMS-HIGH-1: Create backorder if short-pick
+      if (confirmTask && actualQty < confirmTask.quantity) {
+        const shortfall = confirmTask.quantity - actualQty;
+        await supabase.from("wms_tasks").insert({
+          tenant_id: tenantId!, warehouse_id: confirmTask.warehouse_id, task_type: "pick",
+          status: "pending", priority: confirmTask.priority || 3,
+          product_id: confirmTask.product_id, quantity: shortfall,
+          from_bin_id: confirmTask.from_bin_id, to_bin_id: confirmTask.to_bin_id,
+          wave_id: confirmTask.wave_id, created_by: user?.id,
+          notes: `Backorder from short-pick on task ${confirmTask.task_number}`,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["wms-pick-tasks"] });
       qc.invalidateQueries({ queryKey: ["wms-bin-stock"] });
       toast({ title: t("success"), description: t("confirmPick") });

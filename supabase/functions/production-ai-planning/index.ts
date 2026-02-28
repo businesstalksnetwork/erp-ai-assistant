@@ -274,8 +274,27 @@ ${JSON.stringify(wasteRecords.slice(0, 50).map((w: any) => ({
       }];
       toolChoice = { type: "function", function: { name: "provide_bottlenecks" } };
     } else if (action === "simulate-scenario") {
-      systemPrompt = `You are a capacity simulation AI. Given the current production data and the scenario adjustments, compare baseline vs scenario KPIs. Today is ${today}. Respond in ${lang}.
-Scenario adjustments: ${JSON.stringify(scenario_params || {})}`;
+      // PROD-AI-8: Compute real baseline from actual data instead of hallucinating
+      const totalOrders = orders.length;
+      const completedOrders = orders.filter((o: any) => o.status === "completed").length;
+      const inProgressOrders = orders.filter((o: any) => o.status === "in_progress").length;
+      const lateOrders = orders.filter((o: any) => {
+        if (!o.planned_end) return false;
+        return new Date(o.planned_end) < new Date(today) && o.status !== "completed";
+      }).length;
+      const onTimeRate = totalOrders > 0 ? ((totalOrders - lateOrders) / totalOrders) * 100 : 100;
+      const utilization = totalOrders > 0 ? ((completedOrders + inProgressOrders) / Math.max(totalOrders, 1)) * 100 : 0;
+      const realBaseline = {
+        utilization_pct: Math.round(utilization * 10) / 10,
+        on_time_rate_pct: Math.round(onTimeRate * 10) / 10,
+        wip_count: inProgressOrders,
+        throughput_per_day: completedOrders > 0 ? Math.round((completedOrders / 30) * 10) / 10 : 0,
+      };
+
+      systemPrompt = `You are a capacity simulation AI. Given the current production data and the scenario adjustments, project how the scenario would change the KPIs from the real baseline. Today is ${today}. Respond in ${lang}.
+Real baseline KPIs (computed from actual data — do NOT change these): ${JSON.stringify(realBaseline)}
+Scenario adjustments: ${JSON.stringify(scenario_params || {})}
+Return the baseline exactly as provided, and project the scenario KPIs based on the adjustments.`;
       tools = [{
         type: "function",
         function: {

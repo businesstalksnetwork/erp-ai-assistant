@@ -145,7 +145,7 @@ export async function createCodeBasedJournalEntry(params: {
     p_description: description,
     p_reference: reference,
     p_legal_entity_id: legalEntityId || null,
-    p_lines: JSON.stringify(resolvedLines),
+    p_lines: resolvedLines,
   });
 
   if (error) throw error;
