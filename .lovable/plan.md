@@ -1,54 +1,57 @@
 
 
-## Phase 9: WMS AI Improvements
+## Phase 10: Production AI Improvements
 
 ### Current State
-- `wms_product_stats` table + `refresh_wms_product_stats()` RPC exist but are **not used** by slotting
-- `wms_affinity_pairs` table does **not exist** — affinity is recomputed every slotting run
-- Edge function recalculates velocity + affinity from raw pick history on every call
-- No pick route optimization (tasks generated in priority order, no TSP)
-- No scheduled stats refresh
-- Slotting uses `google/gemini-3-flash-preview` but logs `gemini-3-flash-preview` — minor
+- Edge function handles 6 actions: dashboard-insights, generate-schedule, predict-bottlenecks, simulate-scenario, save-scenario, list-scenarios + local-fallback-schedule
+- Bottleneck page **hardcodes language to "sr"** (bug on line 122 of AiBottleneckPrediction.tsx)
+- Dashboard material readiness uses **N+1 queries** (loops per BOM line checking stock individually)
+- Production waste data exists (`production_waste` table) but **no AI analysis** on waste patterns
+- No production **cost analysis** AI despite cost data being tracked on orders
+- Schedule page has no **"Accept All / Reject All"** buttons
+- AI context doesn't include waste or cost data — limits insight quality
 
-### Plan (5 items)
+### Plan (6 items)
 
-#### 1. Create `wms_affinity_pairs` table + refresh RPC
-- Migration: `wms_affinity_pairs (id, tenant_id, warehouse_id, product_a_id, product_b_id, co_pick_count, updated_at)` with RLS + unique constraint on `(tenant_id, warehouse_id, product_a_id, product_b_id)`
-- `refresh_wms_affinity_pairs(p_tenant_id, p_warehouse_id)` RPC that computes co-pick counts from 90-day `wms_tasks` and upserts
+#### 1. Fix hardcoded language bug in bottleneck prediction
+- `AiBottleneckPrediction.tsx` line 122: change `language: "sr"` to `language: locale`
 
-#### 2. Wire precomputed stats into `wms-slotting` edge function
-- Before building AI prompt, call `refresh_wms_product_stats` and `refresh_wms_affinity_pairs` RPCs
-- Read from `wms_product_stats` and `wms_affinity_pairs` instead of recomputing velocity/affinity from raw history
-- Reduces edge function execution time and data volume
+#### 2. Add "Accept All / Reject All" to schedule page
+- Add two buttons in `AiPlanningSchedule.tsx` toolbar when suggestions exist
+- "Accept All" sets all suggestion order_ids into accepted set
+- "Reject All" sets all into rejected set
 
-#### 3. Add pick route optimization to wave picking
-- When a pick wave is released, sort pick tasks by bin `sort_order` within each zone (nearest-neighbor approximation)
-- Add `pick_sequence` column to `wms_tasks` (nullable integer)
-- Update `WmsPicking.tsx` to display and sort by `pick_sequence`
-- Update wave creation to assign sequences based on bin sort order
+#### 3. Add AI waste analysis action to edge function
+- New action `"analyze-waste"` in `production-ai-planning/index.ts`
+- Fetches `production_waste` data with product names and order references
+- AI tool: `provide_waste_analysis` returning `{ waste_rate_pct, top_reasons, recommendations, waste_by_product[] }`
+- Includes waste data in context for better bottleneck/dashboard insights too
 
-#### 4. Add "Refresh Stats" button to slotting UI
-- Add button in `WmsSlotting.tsx` analysis dialog to manually trigger `refresh_wms_product_stats` + `refresh_wms_affinity_pairs` before running analysis
-- Show last refresh timestamp from `wms_product_stats.updated_at`
+#### 4. Add waste analysis tab to AI Planning Dashboard
+- New tab "Waste Analysis" in `AiPlanningDashboard.tsx`
+- Shows waste rate KPI, top waste reasons, per-product waste breakdown
+- "Analyze Waste" button triggers the new edge function action
 
-#### 5. Update AI model + logging consistency
-- Update `wms-slotting` edge function model to explicitly set `model: "google/gemini-3-flash-preview"` in the API call
-- Fix audit log `model_version` to match
+#### 5. Optimize material readiness N+1 queries
+- Refactor `AiPlanningDashboard.tsx` material readiness query to batch-fetch all BOM lines and stock in 2 queries instead of N+1 per order/line
+
+#### 6. Enrich AI data context with waste + cost data
+- In edge function, add `production_waste` and order cost fields (`actual_material_cost`, `actual_labor_cost`, `unit_production_cost`) to the `dataContext` string sent to AI
+- Improves quality of dashboard insights, bottleneck predictions, and simulations
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| New migration SQL | `wms_affinity_pairs` table, `refresh_wms_affinity_pairs` RPC, `pick_sequence` column on `wms_tasks` |
-| `supabase/functions/wms-slotting/index.ts` | Use precomputed stats, set model explicitly, fix logging |
-| `src/pages/tenant/WmsSlotting.tsx` | Refresh stats button + timestamp display |
-| `src/pages/tenant/WmsPicking.tsx` | Sort/display by `pick_sequence`, assign sequences on wave creation |
-| `src/i18n/translations.ts` | ~8 new keys (refreshStats, lastRefresh, pickSequence, etc.) |
+| `src/pages/tenant/AiBottleneckPrediction.tsx` | Fix hardcoded language |
+| `src/pages/tenant/AiPlanningSchedule.tsx` | Accept All / Reject All buttons |
+| `src/pages/tenant/AiPlanningDashboard.tsx` | Waste analysis tab + optimize material readiness queries |
+| `supabase/functions/production-ai-planning/index.ts` | New `analyze-waste` action + enrich data context with waste/cost |
+| `src/i18n/translations.ts` | ~8 new keys (wasteAnalysis, wasteRate, topWasteReasons, acceptAll, rejectAll, etc.) |
 
 ### Execution Order
-1. DB migration (affinity table + pick_sequence column)
+1. Bug fix (language) + Accept/Reject All
 2. Translation keys
-3. Edge function improvements
-4. Slotting UI refresh button
-5. Pick route optimization
+3. Edge function: waste action + enriched context
+4. Dashboard: waste tab + optimized queries
 
