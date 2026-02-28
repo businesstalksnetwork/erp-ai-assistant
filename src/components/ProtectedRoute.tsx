@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, requireSuperAdmin, requiredModule, re
   const toastShown = useRef(false);
 
   const action = requiredAction || "view";
-  const denied = requiredModule && !permLoading && user && !isSuperAdmin && !canPerform(requiredModule, action);
+  const denied = requiredModule && !permLoading && user && !canPerform(requiredModule, action);
 
   useEffect(() => {
     if (denied && !toastShown.current) {

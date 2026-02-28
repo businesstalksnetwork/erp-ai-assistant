@@ -65,19 +65,20 @@ export function usePermissions() {
 
   /** Check action-level permission for a module */
   const canPerform = (module: ModuleGroup, action: PermissionAction): boolean => {
-    if (isSuperAdmin) return true;
-
-    // Role must allow module first
-    if (!roleModules.has(module)) return false;
+    // Role must allow module first (super admins bypass role check)
+    if (!isSuperAdmin && !roleModules.has(module)) return false;
 
     // Core modules always on for view
     if (action === "view" && isAlwaysOn(module)) return true;
 
-    // Check tenant module enabled (non-core)
+    // Check tenant module enabled (non-core) — applies to ALL users including super admins
     if (!isAlwaysOn(module)) {
       if (!enabledModuleKeys) return false;
       if (!enabledModuleKeys.has(module)) return false;
     }
+
+    // Super admins bypass action-level permissions
+    if (isSuperAdmin) return true;
 
     // If we have custom action permissions, use them
     if (actionPermissions && actionPermissions.size > 0) {

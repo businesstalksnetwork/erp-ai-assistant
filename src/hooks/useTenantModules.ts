@@ -31,11 +31,10 @@ export function useTenantModules() {
 
   const isModuleEnabled = useCallback(
     (moduleKey: string): boolean => {
-      if (isSuperAdmin) return true;
       if (!enabledKeys) return false;
       return enabledKeys.has(moduleKey);
     },
-    [isSuperAdmin, enabledKeys],
+    [enabledKeys],
   );
 
   const enabledModules = useMemo(() => enabledKeys ?? new Set<string>(), [enabledKeys]);
