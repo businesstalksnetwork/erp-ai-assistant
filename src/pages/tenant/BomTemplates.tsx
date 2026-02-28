@@ -75,7 +75,7 @@ export default function BomTemplates() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await supabase.from("bom_templates").delete().eq("id", id); },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("bom_templates").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bom_templates"] }),
   });
 

@@ -137,7 +137,7 @@ export default function DispatchNoteDetail() {
 
   const deleteLineMutation = useMutation({
     mutationFn: async (lineId: string) => {
-      const { error } = await supabase.from("dispatch_note_lines").delete().eq("id", lineId);
+      const { error } = await supabase.from("dispatch_note_lines").delete().eq("id", lineId).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

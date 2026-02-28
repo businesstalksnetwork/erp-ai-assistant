@@ -65,7 +65,7 @@ export function OpportunityDocumentsTab({ opportunityId, tenantId, onActivity }:
   const deleteMutation = useMutation({
     mutationFn: async (doc: any) => {
       await supabase.storage.from("tenant-documents").remove([doc.file_path]);
-      const { error } = await supabase.from("opportunity_documents" as any).delete().eq("id", doc.id);
+      const { error } = await supabase.from("opportunity_documents" as any).delete().eq("id", doc.id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

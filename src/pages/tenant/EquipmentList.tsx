@@ -58,7 +58,7 @@ export default function EquipmentList() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await (supabase.from("equipment") as any).delete().eq("id", id); },
+    mutationFn: async (id: string) => { await (supabase.from("equipment") as any).delete().eq("id", id).eq("tenant_id", tenantId!); },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["equipment"] }),
   });
 

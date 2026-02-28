@@ -108,7 +108,7 @@ export default function WmsBinDetail() {
         if (!existing) throw new Error("Product not found in bin");
         const newQty = existing.quantity + adjustForm.quantity; // quantity is negative
         if (newQty <= 0) {
-          await supabase.from("wms_bin_stock").delete().eq("id", existing.id);
+          await supabase.from("wms_bin_stock").delete().eq("id", existing.id).eq("tenant_id", tenantId!);
         } else {
           await supabase.from("wms_bin_stock").update({ quantity: newQty }).eq("id", existing.id);
         }

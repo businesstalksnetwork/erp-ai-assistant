@@ -209,7 +209,7 @@ export default function OpportunityDetail() {
 
   const removeFollowerMutation = useMutation({
     mutationFn: async (followerId: string) => {
-      const { error } = await supabase.from("opportunity_followers" as any).delete().eq("id", followerId);
+      const { error } = await supabase.from("opportunity_followers" as any).delete().eq("id", followerId).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-followers", id] }); },

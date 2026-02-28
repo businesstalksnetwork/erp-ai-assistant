@@ -76,7 +76,7 @@ export default function PayrollCategories() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_income_categories").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_income_categories").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll-categories"] }); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
