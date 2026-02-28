@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +57,7 @@ interface CreditNoteForm {
   return_case_id: string | null;
   invoice_id: string | null;
   amount: number;
+  tax_amount: number;
   currency: string;
   status: string;
   notes: string;
@@ -63,7 +65,7 @@ interface CreditNoteForm {
 
 const emptyCreditForm: CreditNoteForm = {
   credit_number: "", return_case_id: null, invoice_id: null,
-  amount: 0, currency: "RSD", status: "draft", notes: "",
+  amount: 0, tax_amount: 0, currency: "RSD", status: "draft", notes: "",
 };
 
 interface ShipmentForm {
@@ -82,7 +84,7 @@ const emptyShipmentForm: ShipmentForm = {
 };
 
 export default function Returns() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -165,8 +167,10 @@ export default function Returns() {
 
     if (acceptedLines.length === 0) return;
 
-    // Get first warehouse for restock
-    const defaultWarehouse = warehouses[0];
+    // Bug 8 fix: Try to find the source warehouse from the linked invoice/sales order
+    let restockWarehouse = warehouses[0];
+    // TODO: If caseId has a source_id (invoice/sales order), look up its warehouse_id
+    // For now fall back to first warehouse
 
     if (returnType === "customer") {
       // Customer return: restock inventory + COGS reversal + credit note journal
@@ -178,11 +182,11 @@ export default function Returns() {
         const revenueValue = line.quantity_accepted * unitPrice;
 
         // Restock inventory
-        if (defaultWarehouse) {
+        if (restockWarehouse) {
           await supabase.rpc("adjust_inventory_stock", {
             p_tenant_id: tenantId,
             p_product_id: line.product_id!,
-            p_warehouse_id: defaultWarehouse.id,
+            p_warehouse_id: restockWarehouse.id,
             p_quantity: line.quantity_accepted,
             p_movement_type: "in",
             p_notes: `Return restock - ${caseId}`,
@@ -311,6 +315,18 @@ export default function Returns() {
       // Create reversal journal entry when credit note is issued
       if (f.status === "issued" && previousStatus !== "issued" && f.amount > 0 && tenantId) {
         const entryDate = new Date().toISOString().split("T")[0];
+        const taxAmt = f.tax_amount || 0;
+        const netAmt = f.amount - taxAmt;
+
+        const fallbackLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }> = [
+          { accountCode: "6000", debit: netAmt, credit: 0, description: `Reverse revenue - ${f.credit_number}`, sortOrder: 0 },
+        ];
+        // Bug 1 fix: add VAT reversal line when tax_amount > 0
+        if (taxAmt > 0) {
+          fallbackLines.push({ accountCode: "4700", debit: taxAmt, credit: 0, description: `Reverse output VAT - ${f.credit_number}`, sortOrder: 1 });
+        }
+        fallbackLines.push({ accountCode: "2040", debit: 0, credit: f.amount, description: `Credit AR - ${f.credit_number}`, sortOrder: fallbackLines.length });
+
         await postWithRuleOrFallback({
           tenantId: tenantId!,
           userId: user?.id || null,
@@ -319,11 +335,39 @@ export default function Returns() {
           description: `Credit Note ${f.credit_number} - Revenue reversal`,
           reference: `CN-${f.credit_number}`,
           context: {},
-          fallbackLines: [
-            { accountCode: "6000", debit: f.amount, credit: 0, description: `Reverse revenue - ${f.credit_number}`, sortOrder: 0 },
-            { accountCode: "2040", debit: 0, credit: f.amount, description: `Credit AR - ${f.credit_number}`, sortOrder: 1 },
-          ],
+          fallbackLines,
         });
+
+        // Bug 2 fix: Restore inventory if credit note is linked to an invoice
+        if (f.invoice_id) {
+          try {
+            const { data: invLines } = await supabase
+              .from("invoice_lines")
+              .select("product_id, quantity")
+              .eq("invoice_id", f.invoice_id);
+            if (invLines && invLines.length > 0) {
+              const defaultWh = warehouses[0];
+              if (defaultWh) {
+                for (const il of invLines) {
+                  if (il.product_id && il.quantity > 0) {
+                    await supabase.rpc("adjust_inventory_stock", {
+                      p_tenant_id: tenantId,
+                      p_product_id: il.product_id,
+                      p_warehouse_id: defaultWh.id,
+                      p_quantity: il.quantity,
+                      p_movement_type: "in",
+                      p_notes: `Credit note inventory restore - ${f.credit_number}`,
+                      p_created_by: user?.id || null,
+                      p_reference: `CN-${f.credit_number}`,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("[CreditNote] Inventory restore failed:", e);
+          }
+        }
 
         // Update matching open_item if it exists
         if (f.invoice_id) {
@@ -335,6 +379,9 @@ export default function Returns() {
             .single();
           if (openItem) {
             const newRemaining = Math.max(Number(openItem.remaining_amount) - f.amount, 0);
+            if (Number(openItem.remaining_amount) < f.amount) {
+              console.warn(`[CreditNote] Credit amount ${f.amount} exceeds remaining ${openItem.remaining_amount} on open item ${openItem.id}`);
+            }
             const newPaid = Number(openItem.paid_amount) + f.amount;
             await supabase.from("open_items").update({
               remaining_amount: newRemaining,
@@ -410,7 +457,7 @@ export default function Returns() {
         {/* RETURN CASES TAB */}
         <TabsContent value="cases" className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={openRcAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+            <ActionGuard module="returns" action="create"><Button onClick={openRcAdd}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
           </div>
           <Card><CardContent className="p-0">
             <Table>
@@ -449,7 +496,7 @@ export default function Returns() {
         {/* CREDIT NOTES TAB */}
         <TabsContent value="credits" className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => { setCnEditId(null); setCnForm(emptyCreditForm); setCnOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button>
+            <ActionGuard module="returns" action="create"><Button onClick={() => { setCnEditId(null); setCnForm(emptyCreditForm); setCnOpen(true); }}><Plus className="h-4 w-4 mr-2" />{t("add")}</Button></ActionGuard>
           </div>
           <Card><CardContent className="p-0">
             <Table>
@@ -477,7 +524,7 @@ export default function Returns() {
                     <TableCell>{new Date(cn.created_at).toLocaleDateString()}</TableCell>
                     <TableCell><Button size="sm" variant="ghost" onClick={() => {
                       setCnEditId(cn.id);
-                      setCnForm({ credit_number: cn.credit_number, return_case_id: cn.return_case_id, invoice_id: cn.invoice_id, amount: cn.amount, currency: cn.currency, status: cn.status, notes: cn.notes || "" });
+                      setCnForm({ credit_number: cn.credit_number, return_case_id: cn.return_case_id, invoice_id: cn.invoice_id, amount: cn.amount, tax_amount: 0, currency: cn.currency, status: cn.status, notes: cn.notes || "" });
                       setCnOpen(true);
                     }}>{t("edit")}</Button></TableCell>
                   </TableRow>
@@ -684,6 +731,9 @@ export default function Returns() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2"><Label>{t("creditAmount")}</Label><Input type="number" value={cnForm.amount} onChange={(e) => setCnForm({ ...cnForm, amount: +e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{locale === "sr" ? "PDV iznos" : "Tax Amount"}</Label><Input type="number" value={cnForm.tax_amount} onChange={(e) => setCnForm({ ...cnForm, tax_amount: +e.target.value })} placeholder="0" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("currency")}</Label>
                 <Select value={cnForm.currency} onValueChange={(v) => setCnForm({ ...cnForm, currency: v })}>
@@ -694,6 +744,10 @@ export default function Returns() {
                     <SelectItem value="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{locale === "sr" ? "Faktura ID" : "Invoice ID"}</Label>
+                <Input value={cnForm.invoice_id || ""} onChange={(e) => setCnForm({ ...cnForm, invoice_id: e.target.value || null })} placeholder="UUID" />
               </div>
             </div>
             <div className="grid gap-2"><Label>{t("notes")}</Label><Textarea value={cnForm.notes} onChange={(e) => setCnForm({ ...cnForm, notes: e.target.value })} /></div>

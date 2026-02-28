@@ -13676,6 +13676,7 @@ export type Database = {
           employer_journal_entry_id: string | null
           id: string
           journal_entry_id: string | null
+          legal_entity_id: string | null
           notes: string | null
           payment_journal_entry_id: string | null
           period_month: number
@@ -13696,6 +13697,7 @@ export type Database = {
           employer_journal_entry_id?: string | null
           id?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           payment_journal_entry_id?: string | null
           period_month: number
@@ -13716,6 +13718,7 @@ export type Database = {
           employer_journal_entry_id?: string | null
           id?: string
           journal_entry_id?: string | null
+          legal_entity_id?: string | null
           notes?: string | null
           payment_journal_entry_id?: string | null
           period_month?: number
@@ -13741,6 +13744,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_legal_entity_id_fkey"
+            columns: ["legal_entity_id"]
+            isOneToOne: false
+            referencedRelation: "legal_entities"
             referencedColumns: ["id"]
           },
           {

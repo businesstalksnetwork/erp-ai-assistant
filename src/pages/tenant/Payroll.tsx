@@ -191,6 +191,7 @@ export default function Payroll() {
           modelCode: "PAYROLL_NET", amount: Number(run.total_gross),
           description: `Obračun zarada ${periodLabel}`,
           reference: `PR-${periodLabel}`,
+          legalEntityId: run.legal_entity_id || undefined,
           context: {},
           fallbackLines: accrualLines,
         });
@@ -202,6 +203,7 @@ export default function Payroll() {
             modelCode: "PAYROLL_TAX", amount: totalEmployerContrib,
             description: `Doprinosi poslodavca ${periodLabel}`,
             reference: `PR-EC-${periodLabel}`,
+            legalEntityId: run.legal_entity_id || undefined,
             context: {},
             fallbackLines: [
               { accountCode: PAYROLL_ACCOUNTS.er_exp_dr, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
@@ -220,9 +222,10 @@ export default function Payroll() {
       } else if (status === "paid") {
         const payJeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
-          modelCode: "PAYROLL_NET", amount: Number(run.total_net),
+          modelCode: "PAYROLL_PAYMENT", amount: Number(run.total_net),
           description: `Isplata zarada ${periodLabel}`,
           reference: `PR-PAY-${periodLabel}`,
+          legalEntityId: run.legal_entity_id || undefined,
           context: {},
           fallbackLines: [
             { accountCode: PAYROLL_ACCOUNTS.bank_dr, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },

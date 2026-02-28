@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
@@ -581,15 +582,17 @@ export default function PosTerminal() {
               {t("switchSeller")}
             </Button>
           )}
-          <Button
-            size="sm"
-            variant={refundMode ? "destructive" : "outline"}
-            className="ml-auto gap-1"
-            onClick={() => setRefundMode(!refundMode)}
-          >
-            <Undo2 className="h-3 w-3" />
-            {t("refundMode")}
-          </Button>
+          <ActionGuard module="pos" action="delete">
+            <Button
+              size="sm"
+              variant={refundMode ? "destructive" : "outline"}
+              className="ml-auto gap-1"
+              onClick={() => setRefundMode(!refundMode)}
+            >
+              <Undo2 className="h-3 w-3" />
+              {t("refundMode")}
+            </Button>
+          </ActionGuard>
         </div>
 
         {refundMode ? (

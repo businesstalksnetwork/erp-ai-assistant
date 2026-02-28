@@ -130,14 +130,14 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(company.name)}</cbc:RegistrationName>
-        <cbc:CompanyID>${company.maticni_broj}</cbc:CompanyID>
+        <cbc:CompanyID>${escapeXml(company.maticni_broj)}</cbc:CompanyID>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
   
   <cac:AccountingCustomerParty>
     <cac:Party>
-      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${invoice.client_pib}</cbc:EndpointID>` : ''}
+      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${escapeXml(invoice.client_pib)}</cbc:EndpointID>` : ''}
       <cac:PartyName>
         <cbc:Name>${escapeXml(invoice.client_name)}</cbc:Name>
       </cac:PartyName>
@@ -150,14 +150,14 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       </cac:PostalAddress>` : ''}
       ${invoice.client_pib ? `
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : invoice.client_pib}</cbc:CompanyID>
+        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : escapeXml(invoice.client_pib)}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>` : ''}
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(invoice.client_name)}</cbc:RegistrationName>
-        ${invoice.client_maticni_broj ? `<cbc:CompanyID>${invoice.client_maticni_broj}</cbc:CompanyID>` : ''}
+        ${invoice.client_maticni_broj ? `<cbc:CompanyID>${escapeXml(invoice.client_maticni_broj)}</cbc:CompanyID>` : ''}
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
@@ -203,9 +203,9 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   return xml;
 }
 
-function escapeXml(str: string): string {
-  if (!str) return '';
-  return str
+function escapeXml(str: unknown): string {
+  if (str == null) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -639,14 +639,14 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(company.name)}</cbc:RegistrationName>
-        <cbc:CompanyID>${company.maticni_broj}</cbc:CompanyID>
+        <cbc:CompanyID>${escapeXml(company.maticni_broj)}</cbc:CompanyID>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
   
   <cac:AccountingCustomerParty>
     <cac:Party>
-      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${invoice.client_pib}</cbc:EndpointID>` : ''}
+      ${invoice.client_pib ? `<cbc:EndpointID schemeID="9948">${escapeXml(invoice.client_pib)}</cbc:EndpointID>` : ''}
       <cac:PartyName>
         <cbc:Name>${escapeXml(invoice.client_name)}</cbc:Name>
       </cac:PartyName>
@@ -659,14 +659,14 @@ function generateStornoUBLXml(invoice: Invoice, company: Company, items: Invoice
       </cac:PostalAddress>` : ''}
       ${invoice.client_pib ? `
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : invoice.client_pib}</cbc:CompanyID>
+        <cbc:CompanyID>${invoice.client_type === 'domestic' ? formatVatId(invoice.client_pib!) : escapeXml(invoice.client_pib)}</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>` : ''}
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(invoice.client_name)}</cbc:RegistrationName>
-        ${invoice.client_maticni_broj ? `<cbc:CompanyID>${invoice.client_maticni_broj}</cbc:CompanyID>` : ''}
+        ${invoice.client_maticni_broj ? `<cbc:CompanyID>${escapeXml(invoice.client_maticni_broj)}</cbc:CompanyID>` : ''}
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>

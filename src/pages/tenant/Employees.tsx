@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,7 +187,9 @@ export default function Employees() {
               { key: "departments.name", label: t("department") }, { key: "locations.name", label: t("location") },
               { key: "employment_type", label: t("employmentType") }, { key: "start_date", label: t("startDate") },
             ]} filename="employees" />
-            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
+            <ActionGuard module="hr" action="create">
+              <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addEmployee")}</Button>
+            </ActionGuard>
           </div>
         }
       />

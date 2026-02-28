@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useTenant } from "@/hooks/useTenant";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -260,7 +261,7 @@ export default function PurchaseOrders() {
         title={t("purchaseOrders")}
         description={t("purchaseOrders")}
         icon={ClipboardList}
-        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addPurchaseOrder")}</Button>}
+        actions={<ActionGuard module="purchasing" action="create"><Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addPurchaseOrder")}</Button></ActionGuard>}
       />
 
       <ResponsiveTable

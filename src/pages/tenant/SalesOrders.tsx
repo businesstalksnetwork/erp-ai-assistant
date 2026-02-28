@@ -1,4 +1,5 @@
 import { useLanguage } from "@/i18n/LanguageContext";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useTenant } from "@/hooks/useTenant";
 import { useLegalEntities } from "@/hooks/useLegalEntities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -230,7 +231,7 @@ export default function SalesOrders() {
         title={t("salesOrders")}
         description={t("salesOrders")}
         icon={ShoppingCart}
-        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSalesOrder")}</Button>}
+        actions={<ActionGuard module="sales" action="create"><Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addSalesOrder")}</Button></ActionGuard>}
       />
 
       <ResponsiveTable
