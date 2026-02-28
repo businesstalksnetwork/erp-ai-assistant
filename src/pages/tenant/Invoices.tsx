@@ -212,6 +212,42 @@ export default function Invoices() {
 
   const bulkUpdateMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      // P2-09: For "paid" status, create GL entries for each invoice (payment posting)
+      if (status === "paid") {
+        for (const id of ids) {
+          const { data: inv } = await supabase
+            .from("invoices")
+            .select("id, total, currency, invoice_number, journal_entry_id, legal_entity_id")
+            .eq("id", id)
+            .single();
+          if (!inv) continue;
+          // Only post payment GL if invoice was already posted to GL
+          if (inv.journal_entry_id && tenantId) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const userId = session?.user?.id || null;
+              const { postWithRuleOrFallback } = await import("@/lib/postingHelper");
+              await postWithRuleOrFallback({
+                tenantId: tenantId!,
+                userId,
+                entryDate: new Date().toISOString().split("T")[0],
+                modelCode: "INVOICE_PAYMENT",
+                amount: Number(inv.total),
+                description: `Uplata za fakturu ${inv.invoice_number}`,
+                reference: `PAY-${inv.invoice_number}`,
+                legalEntityId: inv.legal_entity_id || undefined,
+                context: {},
+                fallbackLines: [
+                  { accountCode: "2410", debit: Number(inv.total), credit: 0, description: `Uplata - ${inv.invoice_number}`, sortOrder: 0 },
+                  { accountCode: "2040", debit: 0, credit: Number(inv.total), description: `Zatvaranje potraživanja - ${inv.invoice_number}`, sortOrder: 1 },
+                ],
+              });
+            } catch (e) {
+              console.warn(`[BulkPaid] GL posting failed for invoice ${id}:`, e);
+            }
+          }
+        }
+      }
       const { error } = await supabase
         .from("invoices")
         .update({ status })

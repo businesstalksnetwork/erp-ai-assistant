@@ -249,11 +249,12 @@ Deno.serve(async (req) => {
   ${warnings.length > 0 ? `<!-- UPOZORENJA:\n${warnings.map(w => `    - ${w}`).join("\n")}\n  -->` : ""}
 </PPP-PD>`;
 
-    // Return as JSON with xml field for frontend compatibility
-    return new Response(JSON.stringify({ xml, warnings }), {
+    // P2-06: Return proper XML content type for valid XML download
+    return new Response(xml, {
       headers: {
         ...corsHeaders,
-        "Content-Type": "application/json",
+        "Content-Type": "application/xml; charset=utf-8",
+        "Content-Disposition": `attachment; filename="PPP-PD-${periodLabel}.xml"`,
       },
     });
   } catch (e) {
