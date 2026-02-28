@@ -10,7 +10,7 @@ const systemPrompts: Record<string, string> = {
   dashboard: `You are a financial analyst AI. Given the user's financial KPIs, provide a 2-3 sentence executive summary. Be specific about which metrics are good/concerning.`,
   ratios: `You are a financial analyst AI. Given financial ratios, interpret them in 2-3 sentences. Highlight strengths and areas of concern.`,
   cashflow: `You are a financial analyst AI. Given cash flow forecast data, provide a 2-3 sentence risk assessment.`,
-  planning: `You are a business strategy AI advisor. Given YTD actuals vs targets, provide 3-5 actionable recommendations as a JSON array of strings.`,
+  planning: `You are a business strategy AI advisor. Given YTD actuals vs targets, provide 3-5 actionable recommendations.`,
   budget: `You are a financial analyst AI. Given budget vs actual data, provide a 2-3 sentence analysis.`,
   breakeven: `You are a financial analyst AI. Given break-even analysis data, provide a 2-3 sentence interpretation.`,
   profitability: `You are a financial analyst AI. Given profitability data, provide a 2-3 sentence analysis.`,
@@ -28,43 +28,154 @@ const systemPrompts: Record<string, string> = {
   hr_overview: `You are an HR analytics AI. Given HR data, analyze headcount trends, payroll as percentage of revenue, turnover indicators, and workforce composition. Provide a 2-3 sentence analysis.`,
   pos_performance: `You are a retail analytics AI. Given POS transaction data, analyze daily sales averages, top-selling products, peak hours, and payment method distribution. Provide a 2-3 sentence analysis.`,
   purchasing: `You are a procurement analyst AI. Given purchasing data, analyze supplier concentration, purchase order fulfillment rates, price variance, and lead times. Provide a 2-3 sentence analysis.`,
-  sales_performance: `You are a sales performance analyst AI. Given sales data including quotes, sales orders, invoices, and dispatch notes, analyze conversion rates (quote→order→invoice), average deal size, revenue trends, top customers by volume, salesperson performance, and channel effectiveness. Provide a 2-3 sentence analysis.`,
-  bank_reconciliation: `You are a bank reconciliation analyst AI. Given reconciliation data, analyze matching accuracy, unmatched items count and value, aged unreconciled items, and reconciliation completion rate. Provide a 2-3 sentence assessment highlighting risks from unreconciled items.`,
-  fleet: `You are a fleet management analyst AI. Given vehicle fleet data, analyze total cost of ownership, fuel efficiency trends, maintenance schedule compliance, insurance/registration expiry risks, and vehicle utilization rates. Provide a 2-3 sentence analysis.`,
-  kalkulacija: `You are a pricing/margin analyst AI for Serbian retail. Given kalkulacija (price calculation) data, analyze purchase-to-retail margins, markup distribution, PDV impact, and pricing competitiveness. Provide a 2-3 sentence analysis.`,
-  cost_center_pl: `You are a management accounting AI. Given cost center profitability data, analyze revenue and expense allocation across cost centers, identify underperforming centers, and assess cost allocation fairness. Provide a 2-3 sentence analysis.`,
-  payroll_recon: `You are a payroll reconciliation AI. Given payroll bank reconciliation data, analyze matching accuracy between payroll calculations and actual bank payments, identify discrepancies, and assess compliance with payment schedules. Provide a 2-3 sentence analysis.`,
+  sales_performance: `You are a sales performance analyst AI. Given sales data including quotes, sales orders, invoices, and dispatch notes, analyze conversion rates, average deal size, revenue trends, and top customers. Provide a 2-3 sentence analysis.`,
+  bank_reconciliation: `You are a bank reconciliation analyst AI. Given reconciliation data, analyze matching accuracy, unmatched items count and value, and reconciliation completion rate. Provide a 2-3 sentence assessment.`,
+  fleet: `You are a fleet management analyst AI. Given vehicle fleet data, analyze total cost of ownership, maintenance schedule compliance, and vehicle utilization. Provide a 2-3 sentence analysis.`,
+  kalkulacija: `You are a pricing/margin analyst AI for Serbian retail. Given kalkulacija data, analyze purchase-to-retail margins, markup distribution, and PDV impact. Provide a 2-3 sentence analysis.`,
+  cost_center_pl: `You are a management accounting AI. Given cost center profitability data, analyze revenue and expense allocation across cost centers. Provide a 2-3 sentence analysis.`,
+  payroll_recon: `You are a payroll reconciliation AI. Given payroll bank reconciliation data, analyze matching accuracy between payroll calculations and actual bank payments. Provide a 2-3 sentence analysis.`,
+  assets: `You are an asset management AI. Given asset data, analyze total asset value, depreciation status, and maintenance needs. Provide a 2-3 sentence analysis.`,
+  documents: `You are a document management AI. Given document statistics, analyze document volumes, pending items, and compliance status. Provide a 2-3 sentence analysis.`,
+  leasing: `You are a lease contract analyst AI. Given lease data, analyze active leases, upcoming expirations, and total obligations. Provide a 2-3 sentence analysis.`,
 };
 
-/** Validate SQL for read-only tenant-scoped queries */
-function validateSql(sql: string, tenantId: string): string {
-  const trimmed = sql.trim().replace(/;+$/, "");
-  const upper = trimmed.toUpperCase();
-  const forbidden = ["INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "CREATE ", "TRUNCATE "];
-  for (const kw of forbidden) {
-    if (upper.includes(kw)) throw new Error(`Forbidden SQL keyword: ${kw.trim()}`);
-  }
-  if (!upper.startsWith("SELECT")) throw new Error("Only SELECT queries allowed");
-  const final = trimmed.replace(/'\{TENANT_ID\}'/g, `'${tenantId}'`);
-  if (!upper.includes("LIMIT")) return final + " LIMIT 50";
-  return final;
-}
+/** Pre-fetch relevant data based on context type — avoids AI guessing SQL */
+async function prefetchContextData(supabase: any, tenantId: string, contextType: string): Promise<Record<string, unknown>> {
+  const today = new Date().toISOString().split("T")[0];
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+  const result: Record<string, unknown> = {};
 
-/** Log AI action to audit trail */
-async function logAiAction(supabase: any, tenantId: string, userId: string, module: string, reasoning: string) {
   try {
-    await supabase.from("ai_action_log").insert({
-      tenant_id: tenantId,
-      user_id: userId,
-      action_type: "narrative_generation",
-      module,
-      model_version: "gemini-3-flash-preview",
-      user_decision: "auto",
-      reasoning: reasoning.substring(0, 500),
-    });
+    switch (contextType) {
+      case "dashboard": {
+        const [inv, emp, draft, overdue] = await Promise.all([
+          supabase.from("invoices").select("status, total").eq("tenant_id", tenantId).gte("invoice_date", thirtyDaysAgo),
+          supabase.from("employees").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "active"),
+          supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "draft"),
+          supabase.from("invoices").select("total", { count: "exact" }).eq("tenant_id", tenantId).in("status", ["draft", "sent"]).lt("due_date", today),
+        ]);
+        const invoices = inv.data || [];
+        result.revenue = invoices.filter((i: any) => i.status === "paid" || i.status === "posted").reduce((s: number, i: any) => s + Number(i.total), 0);
+        result.total_invoices = invoices.length;
+        result.active_employees = emp.count || 0;
+        result.draft_journals = draft.count || 0;
+        result.overdue_invoices = overdue.count || 0;
+        result.overdue_total = (overdue.data || []).reduce((s: number, i: any) => s + Number(i.total), 0);
+        break;
+      }
+      case "crm_pipeline": {
+        const [opp, leads] = await Promise.all([
+          supabase.from("opportunities").select("stage, value, probability, status").eq("tenant_id", tenantId).in("stage", ["qualification", "proposal", "negotiation", "discovery"]),
+          supabase.from("leads").select("status", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "new"),
+        ]);
+        const opps = opp.data || [];
+        result.pipeline_value = opps.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
+        result.pipeline_count = opps.length;
+        result.by_stage = opps.reduce((acc: any, o: any) => { acc[o.stage] = (acc[o.stage] || 0) + 1; return acc; }, {});
+        result.weighted_value = opps.reduce((s: number, o: any) => s + Number(o.value || 0) * Number(o.probability || 0) / 100, 0);
+        result.new_leads = leads.count || 0;
+        break;
+      }
+      case "hr_overview": {
+        const [emp, payroll, leave] = await Promise.all([
+          supabase.from("employees").select("status, department").eq("tenant_id", tenantId),
+          supabase.from("payroll_runs").select("total_gross, total_net, period_month, period_year, status").eq("tenant_id", tenantId).in("status", ["calculated", "approved", "paid"]).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(3),
+          supabase.from("leave_requests").select("status, leave_type", { count: "exact" }).eq("tenant_id", tenantId).eq("status", "pending"),
+        ]);
+        const employees = emp.data || [];
+        result.active_count = employees.filter((e: any) => e.status === "active").length;
+        result.total_count = employees.length;
+        result.by_department = employees.filter((e: any) => e.status === "active").reduce((acc: any, e: any) => { acc[e.department || "Unknown"] = (acc[e.department || "Unknown"] || 0) + 1; return acc; }, {});
+        result.latest_payroll = payroll.data?.[0] || null;
+        result.pending_leaves = leave.count || 0;
+        break;
+      }
+      case "production": {
+        const { data: orders } = await supabase.from("production_orders").select("status, quantity, planned_start_date, planned_end_date").eq("tenant_id", tenantId);
+        const all = orders || [];
+        result.total_orders = all.length;
+        result.by_status = all.reduce((acc: any, o: any) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {});
+        result.in_progress = all.filter((o: any) => o.status === "in_progress").length;
+        result.planned = all.filter((o: any) => o.status === "planned").length;
+        result.completed = all.filter((o: any) => o.status === "completed").length;
+        break;
+      }
+      case "pos_performance": {
+        const { data: txns } = await supabase.from("pos_transactions").select("total, created_at, payment_method").eq("tenant_id", tenantId).gte("created_at", thirtyDaysAgo);
+        const all = txns || [];
+        result.total_sales = all.reduce((s: number, t: any) => s + Number(t.total), 0);
+        result.transaction_count = all.length;
+        result.avg_transaction = all.length > 0 ? result.total_sales as number / all.length : 0;
+        result.by_payment_method = all.reduce((acc: any, t: any) => { acc[t.payment_method || "cash"] = (acc[t.payment_method || "cash"] || 0) + 1; return acc; }, {});
+        break;
+      }
+      case "purchasing": {
+        const [po, si] = await Promise.all([
+          supabase.from("purchase_orders").select("status, total_amount").eq("tenant_id", tenantId).gte("created_at", thirtyDaysAgo),
+          supabase.from("supplier_invoices").select("status, total_amount, payment_status").eq("tenant_id", tenantId).gte("created_at", thirtyDaysAgo),
+        ]);
+        const pos = po.data || [];
+        const sis = si.data || [];
+        result.po_count = pos.length;
+        result.po_total = pos.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
+        result.po_by_status = pos.reduce((acc: any, p: any) => { acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, {});
+        result.si_count = sis.length;
+        result.si_total = sis.reduce((s: number, i: any) => s + Number(i.total_amount || 0), 0);
+        result.si_unpaid = sis.filter((i: any) => i.payment_status !== "paid").length;
+        break;
+      }
+      case "sales_performance": {
+        const [inv, quotes, orders] = await Promise.all([
+          supabase.from("invoices").select("status, total, partner_name").eq("tenant_id", tenantId).gte("invoice_date", thirtyDaysAgo),
+          supabase.from("quotes").select("status, total_amount").eq("tenant_id", tenantId).gte("created_at", thirtyDaysAgo),
+          supabase.from("sales_orders").select("status, total_amount").eq("tenant_id", tenantId).gte("created_at", thirtyDaysAgo),
+        ]);
+        const invoices = inv.data || [];
+        result.invoice_revenue = invoices.filter((i: any) => i.status === "paid" || i.status === "posted").reduce((s: number, i: any) => s + Number(i.total), 0);
+        result.invoice_count = invoices.length;
+        result.quote_count = (quotes.data || []).length;
+        result.quote_total = (quotes.data || []).reduce((s: number, q: any) => s + Number(q.total_amount || 0), 0);
+        result.order_count = (orders.data || []).length;
+        result.order_total = (orders.data || []).reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+        break;
+      }
+      case "bank_reconciliation": {
+        const [stmts, unrec] = await Promise.all([
+          supabase.from("bank_statements").select("status").eq("tenant_id", tenantId).gte("statement_date", thirtyDaysAgo),
+          supabase.from("bank_statement_lines").select("amount, match_status", { count: "exact" }).eq("tenant_id", tenantId).eq("match_status", "unmatched"),
+        ]);
+        result.total_statements = (stmts.data || []).length;
+        result.reconciled = (stmts.data || []).filter((s: any) => s.status === "reconciled").length;
+        result.unmatched_lines = unrec.count || 0;
+        result.unmatched_total = (unrec.data || []).reduce((s: number, l: any) => s + Math.abs(Number(l.amount)), 0);
+        break;
+      }
+      case "inventory_health": {
+        const { data: stock } = await supabase.from("inventory_stock").select("quantity_on_hand, min_stock_level, product_id").eq("tenant_id", tenantId);
+        const all = stock || [];
+        result.total_items = all.length;
+        result.low_stock = all.filter((s: any) => Number(s.min_stock_level) > 0 && Number(s.quantity_on_hand) < Number(s.min_stock_level)).length;
+        result.out_of_stock = all.filter((s: any) => Number(s.quantity_on_hand) <= 0).length;
+        break;
+      }
+      case "fleet": {
+        const { data: vehicles } = await supabase.from("fleet_vehicles").select("status, next_service_date, insurance_expiry, registration_expiry").eq("tenant_id", tenantId);
+        const all = vehicles || [];
+        result.total_vehicles = all.length;
+        result.active = all.filter((v: any) => v.status === "active").length;
+        result.service_due = all.filter((v: any) => v.next_service_date && v.next_service_date <= today).length;
+        result.insurance_expiring = all.filter((v: any) => v.insurance_expiry && v.insurance_expiry <= today).length;
+        break;
+      }
+      default:
+        // For other contexts, we just use the data passed from the client
+        break;
+    }
   } catch (e) {
-    console.warn("Failed to log AI action:", e);
+    console.warn(`[prefetch] Error for ${contextType}:`, e);
   }
+
+  return result;
 }
 
 serve(async (req) => {
@@ -76,14 +187,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user: caller }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !caller) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authErr } = await userClient.auth.getClaims(token);
+    if (authErr || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const caller = { id: claimsData.claims.sub as string };
 
     const { tenant_id, context_type, data, language } = await req.json();
-    if (!tenant_id || !context_type || !data) {
-      return new Response(JSON.stringify({ error: "tenant_id, context_type, and data are required" }), {
+    if (!tenant_id || !context_type) {
+      return new Response(JSON.stringify({ error: "tenant_id and context_type are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -106,7 +219,7 @@ serve(async (req) => {
     }
 
     // Check cache first
-    const dataHash = JSON.stringify(data).length.toString() + "_" + context_type;
+    const dataHash = JSON.stringify(data || {}).length.toString() + "_" + context_type;
     const { data: cached } = await supabase
       .from("ai_narrative_cache")
       .select("*")
@@ -134,190 +247,104 @@ serve(async (req) => {
       });
     }
 
+    // Pre-fetch DB data server-side — no more AI-generated SQL guessing
+    const dbContext = await prefetchContextData(supabase, tenant_id, context_type);
+
     const baseSystemPrompt = systemPrompts[context_type] || systemPrompts.dashboard;
     const langHint = language === "sr" ? " Respond in Serbian (Latin script)." : " Respond in English.";
 
-    // Tool-calling: allow AI to query DB for additional context
-    const QUERY_TOOL = {
-      type: "function" as const,
-      function: {
-        name: "query_tenant_data",
-        description: "Execute a read-only SQL query to get additional context. Only SELECT. Must filter by tenant_id = '{TENANT_ID}'.",
-        parameters: {
-          type: "object",
-          properties: {
-            sql: { type: "string", description: "A SELECT SQL query." },
-            reason: { type: "string", description: "Why this data is needed." },
-          },
-          required: ["sql", "reason"],
-          additionalProperties: false,
-        },
+    const mergedData = { ...(data || {}), ...dbContext };
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    };
-
-    const PROVIDE_NARRATIVE_TOOL = {
-      type: "function" as const,
-      function: {
-        name: "provide_narrative",
-        description: "Return the final narrative analysis and recommendations.",
-        parameters: {
-          type: "object",
-          properties: {
-            narrative: { type: "string", description: "2-3 sentence analysis" },
-            recommendations: { type: "array", items: { type: "string" }, description: "3-5 actionable recommendations" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: baseSystemPrompt + langHint },
+          { role: "user", content: `Analyze these metrics for ${context_type}:\n${JSON.stringify(mergedData, null, 2)}\n\nProvide your analysis using the provide_narrative tool.` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "provide_narrative",
+            description: "Return the final narrative analysis and recommendations.",
+            parameters: {
+              type: "object",
+              properties: {
+                narrative: { type: "string", description: "2-3 sentence analysis" },
+                recommendations: { type: "array", items: { type: "string" }, description: "3-5 actionable recommendations" },
+              },
+              required: ["narrative", "recommendations"],
+              additionalProperties: false,
+            },
           },
-          required: ["narrative", "recommendations"],
-          additionalProperties: false,
-        },
-      },
-    };
+        }],
+        tool_choice: { type: "function", function: { name: "provide_narrative" } },
+      }),
+    });
 
-    const userMessage = `Here are the financial metrics for ${context_type}:\n${JSON.stringify(data, null, 2)}\n\nAnalyze these metrics. You can query the database for additional context using query_tenant_data (filter by tenant_id = '${tenant_id}'). When done, use provide_narrative to return your analysis.`;
-
-    let conversationMessages: any[] = [
-      { role: "system", content: baseSystemPrompt + langHint + `\n\nYou have access to the tenant database (tenant_id: ${tenant_id}). Available tables include: invoices, partners, journal_entries, journal_lines, chart_of_accounts, inventory_stock, products, payroll_runs, employees. You can query for additional context.` },
-      { role: "user", content: userMessage },
-    ];
-
-    // Tool-calling loop (max 3 rounds)
-    for (let round = 0; round < 3; round++) {
-      let aiResponse: Response | null = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: conversationMessages,
-            tools: [QUERY_TOOL, PROVIDE_NARRATIVE_TOOL],
-            tool_choice: "auto",
-            stream: false,
-          }),
-        });
-        if (aiResponse.ok || (aiResponse.status !== 503 && aiResponse.status !== 500)) break;
-        console.warn(`AI gateway returned ${aiResponse.status}, retry ${attempt + 1}/3`);
-        await aiResponse.text(); // consume body
-        if (attempt < 2) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      if (!aiResponse || !aiResponse.ok) {
-        const status = aiResponse?.status || 500;
-        if (status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: "Payment required." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const errText = aiResponse ? await aiResponse.text() : "No response";
-        console.error("AI gateway error:", status, errText);
-        return new Response(JSON.stringify({ error: "AI service temporarily unavailable, please try again." }), {
-          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      const aiData = await aiResponse.json();
-      const msg = aiData.choices?.[0]?.message;
-      if (!msg) break;
-
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        conversationMessages.push(msg);
-
-        for (const toolCall of msg.tool_calls) {
-          const fnName = toolCall.function?.name;
-
-          if (fnName === "query_tenant_data") {
-            let result: string;
-            try {
-              const args = JSON.parse(toolCall.function.arguments);
-              const safeSql = validateSql(args.sql, tenant_id);
-              console.log(`[Narrative SQL] ${args.reason}: ${safeSql}`);
-              const { data: queryResult, error: queryError } = await supabase.rpc("execute_readonly_query", {
-                query_text: safeSql,
-              });
-              result = queryError ? JSON.stringify({ error: queryError.message }) : JSON.stringify(queryResult || []);
-            } catch (e) {
-              result = JSON.stringify({ error: e instanceof Error ? e.message : "Query failed" });
-            }
-
-            conversationMessages.push({ role: "tool", tool_call_id: toolCall.id, content: result });
-          } else if (fnName === "provide_narrative") {
-            // Final result
-            const parsed = JSON.parse(toolCall.function.arguments);
-            const narrative = parsed.narrative || "";
-            const recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
-
-            // Cache result
-            try {
-              await supabase.from("ai_narrative_cache").delete()
-                .eq("tenant_id", tenant_id).eq("context_type", context_type);
-              await supabase.from("ai_narrative_cache").insert({
-                tenant_id,
-                context_type,
-                narrative,
-                recommendations,
-                data_hash: dataHash,
-              });
-            } catch (e) {
-              console.warn("Failed to cache narrative:", e);
-            }
-
-            // Audit log
-            await logAiAction(supabase, tenant_id, caller.id, context_type, `Narrative for ${context_type}: ${narrative.substring(0, 200)}`);
-
-            return new Response(JSON.stringify({ narrative, recommendations }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-        continue;
-      }
-
-      // No tool calls - try to parse content as JSON
-      const content = msg.content || "";
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.narrative || parsed.recommendations) {
-            // Audit log
-            await logAiAction(supabase, tenant_id, caller.id, context_type, `Narrative for ${context_type}`);
-            return new Response(JSON.stringify({
-              narrative: parsed.narrative || "",
-              recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
-            }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-      } catch { /* fall through */ }
-
-      if (context_type === "planning") {
-        try {
-          const match = content.match(/\[[\s\S]*?\]/);
-          if (match) {
-            const recommendations = JSON.parse(match[0]);
-            await logAiAction(supabase, tenant_id, caller.id, context_type, `Planning recommendations`);
-            return new Response(JSON.stringify({ narrative: "", recommendations }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        } catch { /* fall through */ }
-      }
-
-      await logAiAction(supabase, tenant_id, caller.id, context_type, `Narrative for ${context_type}`);
-      return new Response(JSON.stringify({ narrative: content, recommendations: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const errText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errText);
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ narrative: "", recommendations: [] }), {
+    const aiData = await aiResponse.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+
+    let narrative = "";
+    let recommendations: string[] = [];
+
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      narrative = parsed.narrative || "";
+      recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+    } else {
+      // Fallback: use content directly
+      narrative = aiData.choices?.[0]?.message?.content || "";
+    }
+
+    // Cache result
+    try {
+      await supabase.from("ai_narrative_cache").delete()
+        .eq("tenant_id", tenant_id).eq("context_type", context_type);
+      await supabase.from("ai_narrative_cache").insert({
+        tenant_id,
+        context_type,
+        narrative,
+        recommendations,
+        data_hash: dataHash,
+      });
+    } catch (e) {
+      console.warn("Failed to cache narrative:", e);
+    }
+
+    // Audit log
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id,
+        user_id: caller.id,
+        action_type: "narrative_generation",
+        module: context_type,
+        model_version: "gemini-3-flash-preview",
+        user_decision: "auto",
+        reasoning: `Narrative for ${context_type}: ${narrative.substring(0, 200)}`,
+      });
+    } catch (e) {
+      console.warn("Failed to log AI action:", e);
+    }
+
+    return new Response(JSON.stringify({ narrative, recommendations }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
