@@ -19,6 +19,7 @@ import { differenceInCalendarDays, format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { LeaveCalendarView } from "@/components/hr/LeaveCalendarView";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function LeaveRequests() {
   const { t } = useLanguage();
@@ -26,6 +27,8 @@ export default function LeaveRequests() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { canPerform } = usePermissions();
+  const canApprove = canPerform("hr", "approve");
   const [open, setOpen] = useState(false);
   const [rejectDialog, setRejectDialog] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -218,7 +221,7 @@ export default function LeaveRequests() {
     },
     {
       key: "actions", label: t("actions"), showInCard: false,
-      render: (r) => r.status === "pending" ? (
+      render: (r) => r.status === "pending" && canApprove ? (
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" className="h-7 w-7"
             onClick={() => approveMutation.mutate(r)} disabled={approveMutation.isPending}>

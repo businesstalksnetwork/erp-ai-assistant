@@ -130,16 +130,25 @@ export default function MrpEngine() {
       } as any).select("id").single();
       if (poErr) throw poErr;
 
+      // PROD-HIGH-2: Pull default_purchase_price from products
+      const shortageProductIds = shortages.map(s => s.productId);
+      const { data: priceData } = await supabase.from("products").select("id, default_purchase_price").in("id", shortageProductIds);
+      const priceMap: Record<string, number> = {};
+      (priceData || []).forEach((p: any) => { priceMap[p.id] = p.default_purchase_price || 0; });
+
       // Add lines for each shortage
-      const lines = shortages.map((s, i) => ({
-        purchase_order_id: po.id,
-        product_id: s.productId,
-        quantity: Math.ceil(s.net),
-        unit_price: 0,
-        total: 0,
-        sort_order: i + 1,
-        tenant_id: tenantId!,
-      }));
+      const lines = shortages.map((s, i) => {
+        const unitPrice = priceMap[s.productId] || 0;
+        return {
+          purchase_order_id: po.id,
+          product_id: s.productId,
+          quantity: Math.ceil(s.net),
+          unit_price: unitPrice,
+          total: unitPrice * Math.ceil(s.net),
+          sort_order: i + 1,
+          tenant_id: tenantId!,
+        };
+      });
       const { error: lineErr } = await supabase.from("purchase_order_lines").insert(lines);
       if (lineErr) throw lineErr;
       return po.id;

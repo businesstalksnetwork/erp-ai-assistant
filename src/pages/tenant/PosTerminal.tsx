@@ -82,7 +82,8 @@ export default function PosTerminal() {
       const { data } = await (supabase.from("salespeople") as any)
         .select("id, first_name, last_name, pos_pin")
         .eq("tenant_id", tenantId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("location_id", activeSession.location_id);
       return data || [];
     },
     enabled: !!tenantId && !!activeSession?.location_id,

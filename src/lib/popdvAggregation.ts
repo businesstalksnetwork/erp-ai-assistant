@@ -337,13 +337,14 @@ export function generatePpPdvXml(ppPdv: PpPdvForm, meta: {
   periodMonth: number;
 }): string {
   const fmt = (n: number) => n.toFixed(2);
+  const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <PoreskaObrazac xmlns="http://www.purs.gov.rs/pppdv">
   <Zaglavlje>
-    <PIB>${meta.pib}</PIB>
-    <NazivObveznika>${meta.companyName}</NazivObveznika>
-    <PoreskiPeriodOd>${meta.periodStart}</PoreskiPeriodOd>
-    <PoreskiPeriodDo>${meta.periodEnd}</PoreskiPeriodDo>
+    <PIB>${escXml(meta.pib)}</PIB>
+    <NazivObveznika>${escXml(meta.companyName)}</NazivObveznika>
+    <PoreskiPeriodOd>${escXml(meta.periodStart)}</PoreskiPeriodOd>
+    <PoreskiPeriodDo>${escXml(meta.periodEnd)}</PoreskiPeriodDo>
     <GodinaPerioda>${meta.periodYear}</GodinaPerioda>
     <MesecPerioda>${meta.periodMonth}</MesecPerioda>
   </Zaglavlje>

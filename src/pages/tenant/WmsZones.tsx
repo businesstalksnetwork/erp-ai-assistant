@@ -102,7 +102,10 @@ export default function WmsZones() {
   const { data: binStockCounts = {} } = useQuery({
     queryKey: ["wms-bin-stock-counts", tenantId, selectedZoneId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wms_bin_stock").select("bin_id, quantity").eq("tenant_id", tenantId!);
+      // WMS-HIGH-3: Filter bin stock by selected zone's bins
+      const binIds = (bins || []).map((b: any) => b.id);
+      if (binIds.length === 0) return {};
+      const { data, error } = await supabase.from("wms_bin_stock").select("bin_id, quantity").eq("tenant_id", tenantId!).in("bin_id", binIds);
       if (error) throw error;
       const counts: Record<string, number> = {};
       (data || []).forEach((r: any) => { counts[r.bin_id] = (counts[r.bin_id] || 0) + Number(r.quantity); });

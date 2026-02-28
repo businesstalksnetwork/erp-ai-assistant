@@ -235,6 +235,10 @@ const productionNav: NavItem[] = [
   { key: "qualityControl", url: "/production/quality", icon: ClipboardCheck },
   { key: "productionMaintenance", url: "/production/maintenance", icon: Settings },
   { key: "mrpEngine", url: "/production/mrp", icon: Calculator, section: "planning" },
+  { key: "workCenters", url: "/production/work-centers", icon: Factory, section: "infrastructure" },
+  { key: "equipmentList", url: "/production/equipment", icon: Settings },
+  { key: "oeeDashboard", url: "/production/oee", icon: BarChart3 },
+  { key: "qcCheckpoints", url: "/production/qc-checkpoints", icon: ClipboardCheck },
   { key: "costVarianceAnalysis", url: "/production/cost-variance", icon: TrendingDown, section: "reporting" },
 ];
 

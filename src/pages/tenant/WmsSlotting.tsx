@@ -109,7 +109,7 @@ export default function WmsSlotting() {
             product_id: r.product_id,
             from_bin_id: r.current_bin || null,
             to_bin_id: r.recommended_bin || null,
-            quantity: 0, priority: i + 1, status: "proposed" as const,
+            quantity: r.quantity || 0, priority: i + 1, status: "proposed" as const,
           }));
           await supabase.from("wms_slotting_moves").insert(moveInserts);
         }

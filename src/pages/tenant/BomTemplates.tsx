@@ -57,7 +57,8 @@ export default function BomTemplates() {
         const { data: existing } = await supabase.from("bom_templates").select("version").eq("id", editId).single();
         const newVersion = (existing?.version || 1) + 1;
         await supabase.from("bom_templates").update({ ...payload, version: newVersion }).eq("id", editId);
-        await supabase.from("bom_lines").delete().eq("bom_template_id", editId);
+        // PROD-HIGH-1: Soft-version old lines instead of deleting
+        await supabase.from("bom_lines").update({ superseded_at: new Date().toISOString() }).eq("bom_template_id", editId).is("superseded_at", null);
       } else {
         const { data } = await supabase.from("bom_templates").insert({ ...payload, version: 1 }).select("id").single();
         bomId = data!.id;

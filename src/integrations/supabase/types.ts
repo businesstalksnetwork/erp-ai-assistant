@@ -2740,6 +2740,7 @@ export type Database = {
           material_product_id: string
           quantity: number
           sort_order: number
+          superseded_at: string | null
           tenant_id: string
           unit: string
         }
@@ -2751,6 +2752,7 @@ export type Database = {
           material_product_id: string
           quantity?: number
           sort_order?: number
+          superseded_at?: string | null
           tenant_id: string
           unit?: string
         }
@@ -2762,6 +2764,7 @@ export type Database = {
           material_product_id?: string
           quantity?: number
           sort_order?: number
+          superseded_at?: string | null
           tenant_id?: string
           unit?: string
         }
@@ -6788,6 +6791,66 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment: {
+        Row: {
+          code: string
+          created_at: string
+          equipment_type: string | null
+          id: string
+          last_maintenance_date: string | null
+          name: string
+          next_maintenance_date: string | null
+          notes: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string
+          work_center_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          equipment_type?: string | null
+          id?: string
+          last_maintenance_date?: string | null
+          name: string
+          next_maintenance_date?: string | null
+          notes?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string
+          work_center_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          equipment_type?: string | null
+          id?: string
+          last_maintenance_date?: string | null
+          name?: string
+          next_maintenance_date?: string | null
+          notes?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string
+          work_center_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_work_center_id_fkey"
+            columns: ["work_center_id"]
+            isOneToOne: false
+            referencedRelation: "work_centers"
             referencedColumns: ["id"]
           },
         ]
@@ -12291,6 +12354,78 @@ export type Database = {
           },
         ]
       }
+      oee_logs: {
+        Row: {
+          actual_run_time_minutes: number
+          availability: number | null
+          created_at: string
+          defect_units: number
+          downtime_minutes: number
+          good_units: number
+          id: string
+          ideal_cycle_time_seconds: number | null
+          log_date: string
+          notes: string | null
+          performance: number | null
+          planned_time_minutes: number
+          quality: number | null
+          tenant_id: string
+          total_units_produced: number
+          work_center_id: string
+        }
+        Insert: {
+          actual_run_time_minutes?: number
+          availability?: number | null
+          created_at?: string
+          defect_units?: number
+          downtime_minutes?: number
+          good_units?: number
+          id?: string
+          ideal_cycle_time_seconds?: number | null
+          log_date?: string
+          notes?: string | null
+          performance?: number | null
+          planned_time_minutes?: number
+          quality?: number | null
+          tenant_id: string
+          total_units_produced?: number
+          work_center_id: string
+        }
+        Update: {
+          actual_run_time_minutes?: number
+          availability?: number | null
+          created_at?: string
+          defect_units?: number
+          downtime_minutes?: number
+          good_units?: number
+          id?: string
+          ideal_cycle_time_seconds?: number | null
+          log_date?: string
+          notes?: string | null
+          performance?: number | null
+          planned_time_minutes?: number
+          quality?: number | null
+          tenant_id?: string
+          total_units_produced?: number
+          work_center_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oee_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oee_logs_work_center_id_fkey"
+            columns: ["work_center_id"]
+            isOneToOne: false
+            referencedRelation: "work_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_checklists: {
         Row: {
           created_at: string
@@ -16031,6 +16166,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qc_checkpoints: {
+        Row: {
+          created_at: string
+          defects_found: number | null
+          id: string
+          inspected_at: string | null
+          inspector_id: string | null
+          notes: string | null
+          pass_criteria: string | null
+          production_order_id: string
+          result: string | null
+          stage_name: string
+          stage_order: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          defects_found?: number | null
+          id?: string
+          inspected_at?: string | null
+          inspector_id?: string | null
+          notes?: string | null
+          pass_criteria?: string | null
+          production_order_id: string
+          result?: string | null
+          stage_name: string
+          stage_order?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          defects_found?: number | null
+          id?: string
+          inspected_at?: string | null
+          inspector_id?: string | null
+          notes?: string | null
+          pass_criteria?: string | null
+          production_order_id?: string
+          result?: string | null
+          stage_name?: string
+          stage_order?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_checkpoints_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qc_checkpoints_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -21323,6 +21524,53 @@ export type Database = {
           },
         ]
       }
+      work_centers: {
+        Row: {
+          capacity_per_hour: number | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_per_hour?: number | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_per_hour?: number | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_centers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_log_payment_type_map: {
         Row: {
           created_at: string
@@ -22161,6 +22409,10 @@ export type Database = {
       three_way_match: {
         Args: { p_supplier_invoice_id: string }
         Returns: Json
+      }
+      update_product_stock_from_wms: {
+        Args: { p_product_id: string; p_tenant_id: string }
+        Returns: undefined
       }
       validate_leave_request:
         | {

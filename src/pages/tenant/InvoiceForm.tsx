@@ -466,29 +466,37 @@ export default function InvoiceForm() {
 
       const fallbackLines: Array<{ accountCode: string; debit: number; credit: number; description: string; sortOrder: number }> = [];
 
-      // DR: Kupci
+      // CR-HIGH-2: Credit notes reverse DR/CR
+      const isCreditNote = values.invoiceType === "credit_note";
+
+      // DR: Kupci (CR for credit notes)
       fallbackLines.push({
-        accountCode: values.invoiceType === "advance" ? "2040" : "2040",
-        debit: grandTotal, credit: 0,
+        accountCode: "2040",
+        debit: isCreditNote ? 0 : grandTotal,
+        credit: isCreditNote ? grandTotal : 0,
         description: `${values.partnerName} — ${values.invoiceNumber}`,
         sortOrder: 0,
       });
 
-      // CR: Revenue lines
+      // CR: Revenue lines (DR for credit notes)
       let sortOrder = 1;
       Object.entries(revenueByType).forEach(([type, amount]) => {
         const acc = revenueAccounts[type] || revenueAccounts.service;
         fallbackLines.push({
-          accountCode: acc.code, debit: 0, credit: amount,
+          accountCode: acc.code,
+          debit: isCreditNote ? amount : 0,
+          credit: isCreditNote ? 0 : amount,
           description: `Prihod — ${values.invoiceNumber}`,
           sortOrder: sortOrder++,
         });
       });
 
-      // CR: PDV
+      // CR: PDV (DR for credit notes)
       if (totalTax > 0) {
         fallbackLines.push({
-          accountCode: "4700", debit: 0, credit: totalTax,
+          accountCode: "4700",
+          debit: isCreditNote ? totalTax : 0,
+          credit: isCreditNote ? 0 : totalTax,
           description: `PDV — ${values.invoiceNumber}`,
           sortOrder: sortOrder++,
         });
@@ -523,7 +531,9 @@ export default function InvoiceForm() {
               p_quantity: line.quantity,
             });
           } catch (e) {
-            console.warn("FIFO layer consumption failed for product:", line.product_id, e);
+            // INTER-CRIT-1: Revert invoice to draft on FIFO failure
+            await supabase.from("invoices").update({ status: "draft" }).eq("id", id);
+            throw new Error(`FIFO layer consumption failed for product ${line.product_id}: ${e instanceof Error ? e.message : String(e)}`);
           }
         }
       }
