@@ -208,6 +208,7 @@ export default function SupplierInvoices() {
         modelCode: "SUPPLIER_INVOICE_POST", amount: inv.total,
         description: `Supplier Invoice ${inv.invoice_number} - Approval`,
         reference: `SI-${inv.invoice_number}`,
+        legalEntityId: inv.legal_entity_id || undefined,
         context: { taxRate },
         fallbackLines,
       });
@@ -249,6 +250,7 @@ export default function SupplierInvoices() {
         modelCode: "SUPPLIER_INVOICE_PAYMENT", amount: inv.total,
         description: `Supplier Invoice ${inv.invoice_number} - Payment`,
         reference: `SI-PAY-${inv.invoice_number}`,
+        legalEntityId: inv.legal_entity_id || undefined,
         context: {},
         fallbackLines: [
           { accountCode: "2100", debit: inv.total, credit: 0, description: `Clear AP - ${inv.invoice_number}`, sortOrder: 0 },

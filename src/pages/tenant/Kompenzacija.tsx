@@ -100,6 +100,7 @@ export default function Kompenzacija() {
         modelCode: "COMPENSATION", amount: offsetAmount,
         description: `Kompenzacija - ${partners.find(p => p.id === partnerId)?.name}`,
         reference: docNumber,
+        legalEntityId: undefined,
         context: {},
         fallbackLines: [
           { accountCode: "4350", debit: offsetAmount, credit: 0, description: "Offset AP", sortOrder: 0 },

@@ -103,6 +103,7 @@ export default function AssetDepreciation() {
         modelCode: "ASSET_DEPRECIATION", amount,
         description: `${t("assetsDepreciation" as any)} - ${asset.name} - ${period}`,
         reference: `DEP-${asset.asset_code}-${period}`,
+        legalEntityId: asset.legal_entity_id || undefined,
         context: {},
         fallbackLines: [
           { accountCode: expenseAccount, debit: amount, credit: 0, description: `${t("assetsDepExpense" as any)} - ${asset.name}`, sortOrder: 0 },

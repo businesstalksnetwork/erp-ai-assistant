@@ -219,6 +219,7 @@ export default function FxRevaluation() {
         amount: Math.max(totalGain, totalLoss),
         description: `FX Revaluation - ${revalDate}`,
         reference: `FXREVAL-${revalDate}`,
+        legalEntityId: legalEntityFilter !== "__all__" ? legalEntityFilter : undefined,
         context: {},
         fallbackLines: journalLines,
       });
