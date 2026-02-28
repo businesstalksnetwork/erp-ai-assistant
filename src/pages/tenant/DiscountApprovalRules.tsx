@@ -74,7 +74,7 @@ export default function DiscountApprovalRules() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("discount_approval_rules" as any).delete().eq("id", id);
+      const { error } = await supabase.from("discount_approval_rules" as any).delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

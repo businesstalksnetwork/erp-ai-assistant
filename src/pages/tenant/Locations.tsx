@@ -111,7 +111,7 @@ export default function Locations() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("locations").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("locations").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["locations", tenantId] }); toast({ title: t("success") }); setDeleteId(null); },
     onError: () => toast({ title: t("error"), variant: "destructive" }),
   });
@@ -132,7 +132,7 @@ export default function Locations() {
   });
 
   const deleteTypeMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("location_types").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("location_types").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["location_types", tenantId] }); toast({ title: t("success") }); setTypeDeleteId(null); },
     onError: () => toast({ title: t("error"), variant: "destructive" }),
   });

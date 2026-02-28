@@ -76,7 +76,7 @@ export default function TaxRates() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!tenantId) throw new Error("No tenant");
-      const { error } = await supabase.from("tax_rates").delete().eq("id", id);
+      const { error } = await supabase.from("tax_rates").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

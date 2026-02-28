@@ -148,7 +148,7 @@ export default function ChartOfAccounts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("chart_of_accounts").delete().eq("id", id);
+      const { error } = await supabase.from("chart_of_accounts").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["chart-of-accounts"] }); toast({ title: t("success") }); },

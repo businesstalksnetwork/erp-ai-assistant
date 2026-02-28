@@ -81,7 +81,7 @@ export default function OpportunityStagesSettings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("opportunity_stages").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("opportunity_stages").delete().eq("id", id).eq("tenant_id", tenantId!); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["opportunity-stages"] }); toast.success(t("success")); setDeleting(null); },
     onError: (e: any) => toast.error(e.message),
   });
