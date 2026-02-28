@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { ActionGuard } from "@/components/ActionGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -10,9 +10,11 @@ import { useApprovalCheck } from "@/hooks/useApprovalCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, BookOpen, DollarSign, RefreshCw, Receipt } from "lucide-react";
+import { Plus, Send, BookOpen, DollarSign, RefreshCw, Receipt, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ExportButton } from "@/components/ExportButton";
 import { fmtNum } from "@/lib/utils";
@@ -56,6 +58,7 @@ export default function Invoices() {
   const { entities: legalEntities } = useLegalEntities();
   const { checkApproval } = useApprovalCheck(tenantId, "invoice");
   const [pollingAll, setPollingAll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handlePollAllSef = async () => {
     if (!tenantId) return;
@@ -195,7 +198,44 @@ export default function Invoices() {
     return matchesSearch && matchesStatus;
   }), [invoices, debouncedSearch, statusFilter]);
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(i => i.id)));
+  }, [filtered]);
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      const { error } = await supabase
+        .from("invoices")
+        .update({ status })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setSelectedIds(new Set());
+      toast({ title: t("success") });
+    },
+    onError: (err: any) => toast({ title: t("error"), description: err.message, variant: "destructive" }),
+  });
+
   const columns: ResponsiveColumn<any>[] = [
+    {
+      key: "select", label: "", showInCard: false, render: (inv) => (
+        <Checkbox
+          checked={selectedIds.has(inv.id)}
+          onCheckedChange={() => toggleSelect(inv.id)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
     { key: "invoice_number", label: t("invoiceNumber"), primary: true, render: (inv) => <span className="font-medium">{inv.invoice_number}</span> },
     { key: "invoice_date", label: t("invoiceDate"), render: (inv) => format(new Date(inv.invoice_date), "dd.MM.yyyy") },
     { key: "partner_name", label: t("partner"), render: (inv) => inv.partner_name },
@@ -243,6 +283,26 @@ export default function Invoices() {
         icon={Receipt}
         actions={
           <div className="flex gap-2">
+            {selectedIds.size > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    {t("bulkActions")} ({selectedIds.size} {t("selectedCount")})
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status: "paid" })}>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    {t("bulkMarkAsPaid")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedIds), status: "sent" })}>
+                    <Send className="h-4 w-4 mr-2" />
+                    {t("bulkMarkAsSent")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Button variant="outline" onClick={handlePollAllSef} disabled={pollingAll}>
               <RefreshCw className={`h-4 w-4 mr-2 ${pollingAll ? "animate-spin" : ""}`} />
               {t("pollAllSef")}
@@ -268,6 +328,34 @@ export default function Invoices() {
               </Button>
             </ActionGuard>
           </div>
+        }
+      />
+
+      <MobileFilterBar
+        search={<Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} />}
+        filters={
+          <>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                <SelectItem value="draft">{t("draft")}</SelectItem>
+                <SelectItem value="sent">{t("sent")}</SelectItem>
+                <SelectItem value="paid">{t("paid")}</SelectItem>
+                <SelectItem value="overdue">{t("overdue")}</SelectItem>
+                <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
+              </SelectContent>
+            </Select>
+            {legalEntities.length > 1 && (
+              <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
+                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
+                  {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </>
         }
       />
 

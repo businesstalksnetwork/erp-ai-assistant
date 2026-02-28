@@ -3412,6 +3412,25 @@ export const translations = {
     kanbanTitle: "Kanban Board",
     kanbanDesc: "Visual production order workflow",
     qty: "Qty",
+
+    // Phase 7: Audit, Notifications, Bulk Ops
+    beforeChange: "Before Change",
+    afterChange: "After Change",
+    exportAuditLog: "Export Audit Log",
+    clearRead: "Clear Read",
+    viewAllNotifications: "View All Notifications",
+    bulkActions: "Bulk Actions",
+    markAsSent: "Mark as Sent",
+    selectAll: "Select All",
+    selectedCount: "selected",
+    frontendError: "Frontend Error",
+    notificationHistory: "Notification History",
+    clearAllRead: "Clear All Read",
+    deleteNotification: "Delete",
+    entityId: "Entity ID",
+    confirmBulkAction: "Are you sure you want to perform this action on the selected items?",
+    bulkMarkAsPaid: "Mark Selected as Paid",
+    bulkMarkAsSent: "Mark Selected as Sent",
   },
   sr: {
     // Auth
@@ -6776,6 +6795,25 @@ export const translations = {
     kanbanTitle: "Kanban tabla",
     kanbanDesc: "Vizuelni pregled statusa radnih naloga",
     qty: "Količina",
+
+    // Phase 7: Audit, Notifications, Bulk Ops
+    beforeChange: "Pre izmene",
+    afterChange: "Posle izmene",
+    exportAuditLog: "Izvezi revizorski log",
+    clearRead: "Obriši pročitane",
+    viewAllNotifications: "Pogledaj sve obaveštenja",
+    bulkActions: "Grupne akcije",
+    markAsSent: "Označi kao poslato",
+    selectAll: "Izaberi sve",
+    selectedCount: "izabrano",
+    frontendError: "Greška u interfejsu",
+    notificationHistory: "Istorija obaveštenja",
+    clearAllRead: "Obriši sve pročitane",
+    deleteNotification: "Obriši",
+    entityId: "ID entiteta",
+    confirmBulkAction: "Da li ste sigurni da želite da izvršite ovu akciju na izabranim stavkama?",
+    bulkMarkAsPaid: "Označi izabrane kao plaćene",
+    bulkMarkAsSent: "Označi izabrane kao poslate",
   },
 } as const;
 

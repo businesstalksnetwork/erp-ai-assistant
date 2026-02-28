@@ -118,5 +118,35 @@ export function useNotifications() {
     setUnreadCount(0);
   }, [user]);
 
-  return { notifications, unreadCount, loading, markAsRead, markAllAsRead, refetch: fetchNotifications };
+  const deleteNotification = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      console.error("Failed to delete notification:", error);
+      return;
+    }
+    setNotifications((prev) => {
+      const n = prev.find((x) => x.id === id);
+      if (n && !n.is_read) setUnreadCount((c) => Math.max(0, c - 1));
+      return prev.filter((x) => x.id !== id);
+    });
+  }, []);
+
+  const clearAllRead = useCallback(async () => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("is_read", true);
+    if (error) {
+      console.error("Failed to clear read notifications:", error);
+      return;
+    }
+    setNotifications((prev) => prev.filter((n) => !n.is_read));
+  }, [user]);
+
+  return { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification, clearAllRead, refetch: fetchNotifications };
 }

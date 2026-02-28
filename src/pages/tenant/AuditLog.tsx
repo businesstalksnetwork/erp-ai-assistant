@@ -7,13 +7,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Search, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Loader2, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { format } from "date-fns";
+import { exportToCsv } from "@/lib/exportCsv";
 
-const ENTITY_TYPES = ["invoices", "journal_entries", "partners", "products", "inventory_movements", "chart_of_accounts", "fiscal_periods", "supplier_invoices", "credit_notes", "fixed_assets", "payroll_runs", "quotes", "sales_orders", "purchase_orders"];
+const ENTITY_TYPES = [
+  "invoices", "journal_entries", "partners", "products", "inventory_movements",
+  "chart_of_accounts", "fiscal_periods", "supplier_invoices", "credit_notes",
+  "fixed_assets", "payroll_runs", "quotes", "sales_orders", "purchase_orders",
+  "employees", "leads", "opportunities", "loans", "documents", "pos_transactions",
+  "production_orders", "return_cases", "deferrals",
+  // Phase 7 additions
+  "bank_accounts", "bank_reconciliations", "bank_statements", "leave_requests",
+  "leave_policies", "fleet_vehicles", "fleet_fuel_logs", "fleet_service_orders",
+  "fleet_insurance", "lease_contracts", "approval_requests", "budgets",
+  "cost_centers", "departments", "locations", "legal_entities",
+  "employee_contracts", "employee_salaries", "assets", "goods_receipts",
+  "dispatch_notes", "internal_orders", "internal_transfers", "inventory_write_offs",
+  "inventory_stock_takes", "exchange_rates", "kalkulacije", "kompenzacija",
+  "nivelacije", "advance_payments",
+];
 const ACTION_TYPES = ["insert", "update", "delete"];
 const PAGE_SIZE = 50;
 
@@ -25,9 +41,11 @@ export default function AuditLog() {
   const [searchText, setSearchText] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const { data: logs, isLoading } = useQuery({
-    queryKey: ["audit-log", tenantId, entityFilter, actionFilter, page],
+    queryKey: ["audit-log", tenantId, entityFilter, actionFilter, page, dateFrom, dateTo],
     queryFn: async () => {
       if (!tenantId) return [];
       let query = supabase
@@ -39,6 +57,8 @@ export default function AuditLog() {
 
       if (entityFilter !== "all") query = query.eq("entity_type", entityFilter);
       if (actionFilter !== "all") query = query.eq("action", actionFilter);
+      if (dateFrom) query = query.gte("created_at", `${dateFrom}T00:00:00`);
+      if (dateTo) query = query.lte("created_at", `${dateTo}T23:59:59`);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -94,13 +114,27 @@ export default function AuditLog() {
     );
   });
 
+  const handleExport = () => {
+    exportToCsv(filteredLogs, [
+      { key: "created_at", label: t("date"), formatter: (v) => format(new Date(v), "yyyy-MM-dd HH:mm:ss") },
+      { key: "user_id", label: t("users"), formatter: (v) => profiles?.[v ?? ""] ?? v ?? "System" },
+      { key: "action", label: t("action") },
+      { key: "entity_type", label: t("entityType") },
+      { key: "entity_id", label: t("entityId") },
+    ], "audit_log");
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t("auditLog")}</h1>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{t("auditLog")}</CardTitle>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredLogs.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            {t("exportAuditLog")}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
@@ -137,6 +171,17 @@ export default function AuditLog() {
               </SelectContent>
             </Select>
           </div>
+          {/* Date range filters */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">{t("dateFrom")}:</label>
+              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(0); }} className="w-[160px]" />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">{t("dateTo")}:</label>
+              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(0); }} className="w-[160px]" />
+            </div>
+          </div>
 
           {isLoading ? (
             <div className="flex justify-center py-10">
@@ -154,6 +199,7 @@ export default function AuditLog() {
                     <TableHead>{t("users")}</TableHead>
                     <TableHead>{t("action")}</TableHead>
                     <TableHead>{t("entityType")}</TableHead>
+                    <TableHead>{t("entityId")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -179,16 +225,19 @@ export default function AuditLog() {
                               <TableCell className="text-sm">
                                 {(log.entity_type ?? "").replace(/_/g, " ")}
                               </TableCell>
+                              <TableCell className="text-xs text-muted-foreground font-mono">
+                                {log.entity_id ? log.entity_id.slice(0, 8) + "…" : "—"}
+                              </TableCell>
                             </TableRow>
                           </CollapsibleTrigger>
                           <CollapsibleContent asChild>
                             <TableRow>
-                              <TableCell colSpan={5} className="bg-muted/30 p-4">
+                              <TableCell colSpan={6} className="bg-muted/30 p-4">
                                 {(log as any).before_state || (log as any).after_state ? (
                                   <div className="grid grid-cols-2 gap-4">
                                     {(log as any).before_state && (
                                       <div>
-                                        <p className="text-xs font-semibold text-destructive mb-1">Pre izmene</p>
+                                        <p className="text-xs font-semibold text-destructive mb-1">{t("beforeChange")}</p>
                                         <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap font-mono bg-destructive/5 p-2 rounded">
                                           {JSON.stringify((log as any).before_state, null, 2)}
                                         </pre>
@@ -196,7 +245,7 @@ export default function AuditLog() {
                                     )}
                                     {(log as any).after_state && (
                                       <div>
-                                        <p className="text-xs font-semibold text-primary mb-1">Posle izmene</p>
+                                        <p className="text-xs font-semibold text-primary mb-1">{t("afterChange")}</p>
                                         <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap font-mono bg-primary/5 p-2 rounded">
                                           {JSON.stringify((log as any).after_state, null, 2)}
                                         </pre>

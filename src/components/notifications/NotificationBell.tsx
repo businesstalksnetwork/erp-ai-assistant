@@ -5,7 +5,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationDropdown } from "./NotificationDropdown";
 
 export function NotificationBell() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,6 +40,7 @@ export function NotificationBell() {
           notifications={notifications}
           onMarkAsRead={markAsRead}
           onMarkAllAsRead={markAllAsRead}
+          onClearAllRead={clearAllRead}
           onClose={() => setOpen(false)}
         />
       )}
