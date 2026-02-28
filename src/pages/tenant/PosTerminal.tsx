@@ -464,41 +464,35 @@ export default function PosTerminal() {
 
       // Step 3: Only post accounting after successful fiscalization
       if (fiscalized) {
-        // Step 3a: Consume FIFO cost layers + deduct physical stock for each item
+        // Step 3a: Atomically consume FIFO layers + deduct stock via RPC
         const warehouseId = activeSession.warehouse_id;
-        const stockErrors: string[] = [];
         if (warehouseId) {
-          for (const item of cart) {
-            if (item.product_id) {
-              try {
-                await supabase.rpc("consume_fifo_layers", {
-                  p_tenant_id: tenantId,
-                  p_product_id: item.product_id,
-                  p_warehouse_id: warehouseId,
-                  p_quantity: item.quantity,
-                });
-              } catch (e) {
-                console.warn("FIFO layer consumption failed for product:", item.product_id, e);
-                stockErrors.push(item.name);
+          const posItems = cart
+            .filter((item) => item.product_id)
+            .map((item) => ({
+              product_id: item.product_id,
+              quantity: item.quantity,
+              name: item.name,
+            }));
+
+          if (posItems.length > 0) {
+            try {
+              const { data: stockResult, error: stockErr } = await supabase.rpc("complete_pos_transaction", {
+                p_tenant_id: tenantId,
+                p_transaction_id: tx.id,
+                p_warehouse_id: warehouseId,
+                p_items: posItems,
+              });
+              if (stockErr) throw stockErr;
+              const result = stockResult as Record<string, unknown> | null;
+              if (result?.status === "partial" && Array.isArray(result?.errors) && result.errors.length > 0) {
+                toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: (result.errors as string[]).join(", "), variant: "destructive" });
               }
-              // Deduct physical stock quantity
-              try {
-                await supabase.rpc("adjust_inventory_stock", {
-                  p_tenant_id: tenantId,
-                  p_product_id: item.product_id,
-                  p_warehouse_id: warehouseId,
-                  p_quantity: -item.quantity,
-                  p_reference: `POS sale ${txNum}`,
-                });
-              } catch (e) {
-                console.warn("Stock deduction failed for product:", item.product_id, e);
-                stockErrors.push(item.name);
-              }
+            } catch (e) {
+              console.error("Atomic POS stock update failed:", e);
+              toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: "Kontaktirajte administratora.", variant: "destructive" });
             }
           }
-        }
-        if (stockErrors.length > 0) {
-          toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: `Proizvodi: ${[...new Set(stockErrors)].join(", ")}`, variant: "destructive" });
         }
 
         // Step 3b: Post accounting entry

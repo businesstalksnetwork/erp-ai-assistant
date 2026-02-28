@@ -248,6 +248,7 @@ serve(async (req) => {
       .from('invoices')
       .select('*')
       .eq('id', invoiceId)
+      .eq('tenant_id', company.tenant_id)
       .single();
 
     if (invoiceError || !invoice) {

@@ -22270,6 +22270,15 @@ export type Database = {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
+      complete_pos_transaction: {
+        Args: {
+          p_items: Json
+          p_tenant_id: string
+          p_transaction_id: string
+          p_warehouse_id: string
+        }
+        Returns: Json
+      }
       complete_production_order: {
         Args: {
           p_order_id: string
@@ -22383,7 +22392,12 @@ export type Database = {
         }
         Returns: string
       }
-      execute_readonly_query: { Args: { query_text: string }; Returns: Json }
+      execute_readonly_query:
+        | { Args: { query_text: string }; Returns: Json }
+        | {
+            Args: { query_text: string; tenant_id_param: string }
+            Returns: Json
+          }
       expire_overdue_quotes: { Args: { p_tenant_id: string }; Returns: number }
       find_posting_rule: {
         Args: {
@@ -22658,10 +22672,25 @@ export type Database = {
         Args: { p_tenant_id: string; p_transaction_id: string }
         Returns: string
       }
-      redeem_loyalty_points: {
-        Args: { p_member_id: string; p_reward_id: string; p_tenant_id: string }
-        Returns: Json
-      }
+      redeem_loyalty_points:
+        | {
+            Args: {
+              p_description?: string
+              p_member_id: string
+              p_points: number
+              p_reward_id?: string
+              p_tenant_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_member_id: string
+              p_reward_id: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
       refresh_wms_affinity_pairs: {
         Args: { p_tenant_id: string; p_warehouse_id: string }
         Returns: undefined
