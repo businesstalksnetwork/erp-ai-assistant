@@ -52,6 +52,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
         HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) > 0.01
         LIMIT 20
       `,
+      tenant_id_param: tenantId,
     });
     if (unbalanced && unbalanced.length > 0) {
       checks.push({
@@ -197,6 +198,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
           WHERE jl.account_id = '${vatAccount.id}' AND je.tenant_id = '${tenantId}' AND je.status = 'posted'
             AND je.entry_date >= '${currentYear}-01-01'
         `,
+        tenant_id_param: tenantId,
       });
 
       const { data: invoiceVat } = await supabase.rpc("execute_readonly_query", {
@@ -206,6 +208,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
           WHERE tenant_id = '${tenantId}' AND status IN ('paid', 'posted')
             AND invoice_date >= '${currentYear}-01-01'
         `,
+        tenant_id_param: tenantId,
       });
 
       const glVat = Number(vatBalance?.[0]?.balance || 0);
@@ -247,6 +250,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
         WHERE CAST(b.invoice_number AS BIGINT) - CAST(a.invoice_number AS BIGINT) > 1
         LIMIT 10
       `,
+      tenant_id_param: tenantId,
     });
     if (gaps && gaps.length > 0) {
       const totalGaps = gaps.reduce((s: number, g: any) => s + Number(g.gap_size), 0);
@@ -330,6 +334,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
         )
         LIMIT 20
       `,
+      tenant_id_param: tenantId,
     });
     if (noContract && noContract.length > 0) {
       checks.push({
@@ -363,6 +368,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
           )
         LIMIT 20
       `,
+      tenant_id_param: tenantId,
     });
     if (noDepreciation && noDepreciation.length > 0) {
       checks.push({
@@ -391,6 +397,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
         WHERE je.tenant_id = '${tenantId}' AND je.status = 'posted'
           AND je.entry_date >= '${currentYear}-01-01'
       `,
+      tenant_id_param: tenantId,
     });
     if (trialBalance && trialBalance.length > 0) {
       const diff = Math.abs(Number(trialBalance[0].total_debit) - Number(trialBalance[0].total_credit));
