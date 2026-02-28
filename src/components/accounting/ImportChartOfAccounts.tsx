@@ -42,16 +42,16 @@ function mapAccountType(code: string): string {
 }
 
 const CLASS_NAMES: Record<string, string> = {
-  "0": "Nematerijalna i osnovna sredstva",
-  "1": "Zalihe i stalna sredstva",
-  "2": "Kratkoročne obaveze i PVR",
-  "3": "Gotovina i kratkoročni plasmani",
-  "4": "Kapital i dugoročne obaveze",
-  "5": "Troškovi",
+  "0": "Nekretnine, postrojenja, oprema i biološka sredstva",
+  "1": "Zalihe",
+  "2": "Kratkoročna potraživanja, plasmani i gotovina",
+  "3": "Kapital",
+  "4": "Dugoročne i kratkoročne obaveze",
+  "5": "Rashodi",
   "6": "Prihodi",
-  "7": "Ostali prihodi i dobici",
+  "7": "Otvaranje i zaključak računa uspeha",
   "8": "Vanbilansna evidencija",
-  "9": "Obračun troškova",
+  "9": "Obračun troškova i učinaka",
 };
 
 export default function ImportChartOfAccounts() {

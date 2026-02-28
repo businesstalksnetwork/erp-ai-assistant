@@ -339,7 +339,7 @@ export function generatePpPdvXml(ppPdv: PpPdvForm, meta: {
   const fmt = (n: number) => n.toFixed(2);
   const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<PoreskaObrazac xmlns="http://www.purs.gov.rs/pppdv">
+<PoreskaObrazac xmlns="urn:poreskauprava.gov.rs:pppdv">
   <Zaglavlje>
     <PIB>${escXml(meta.pib)}</PIB>
     <NazivObveznika>${escXml(meta.companyName)}</NazivObveznika>

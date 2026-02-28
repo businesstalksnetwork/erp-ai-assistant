@@ -24,7 +24,6 @@ const ACCOUNT_CLASSES: Record<string, { name: string; nameSr: string }> = {
   "5": { name: "Rashodi", nameSr: "Расходи" },
   "6": { name: "Prihodi", nameSr: "Приходи" },
   "7": { name: "Otvaranje i zaključak", nameSr: "Отварање и закључак" },
-  "8": { name: "Vanredni rashodi", nameSr: "Ванредни расходи" },
 };
 
 export default function BilansUspeha() {
@@ -90,14 +89,14 @@ export default function BilansUspeha() {
 
   // Group by section
   const revenueBySection = revenueLines.reduce((acc, line) => {
-    const section = line.section || "50";
+    const section = line.section || "60";
     if (!acc[section]) acc[section] = [];
     acc[section].push(line);
     return acc;
   }, {} as Record<string, any[]>);
 
   const expenseBySection = expenseLines.reduce((acc, line) => {
-    const section = line.section || "60";
+    const section = line.section || "50";
     if (!acc[section]) acc[section] = [];
     acc[section].push(line);
     return acc;
