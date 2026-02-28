@@ -128,7 +128,7 @@ export default function TravelOrderForm() {
 
   const perDiemDays = useMemo(() => {
     if (!form.departure_date || !form.return_date) return 0;
-    return Math.max(differenceInCalendarDays(new Date(form.return_date), new Date(form.departure_date)), 0);
+    return Math.max(differenceInCalendarDays(new Date(form.return_date), new Date(form.departure_date)) + 1, 0);
   }, [form.departure_date, form.return_date]);
 
   const perDiemTotal = perDiemDays * form.per_diem_rate;

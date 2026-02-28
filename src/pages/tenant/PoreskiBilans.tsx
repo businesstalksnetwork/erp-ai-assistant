@@ -81,6 +81,22 @@ export default function PoreskiBilans() {
     enabled: !!tenantId,
   });
 
+  // P3-16: Fetch tax depreciation for line 28 auto-population
+  const { data: taxDepreciationTotal } = useQuery({
+    queryKey: ["tax-depreciation-total", tenantId, year],
+    queryFn: async (): Promise<number> => {
+      if (!tenantId) return 0;
+      const { data, error } = await supabase
+        .from("fixed_asset_depreciation_schedules" as any)
+        .select("tax_depreciation_amount")
+        .eq("tenant_id", tenantId)
+        .eq("year", year);
+      if (error) return 0;
+      return ((data as any[]) || []).reduce((sum: number, row: any) => sum + Number(row.tax_depreciation_amount || 0), 0);
+    },
+    enabled: !!tenantId,
+  });
+
   const lineValues: Record<number, { auto_amount: number; manual_adjustment: number; notes: string }> = {};
   if (submission?.pb1_line_values) {
     for (const lv of submission.pb1_line_values as any[]) {
@@ -94,7 +110,10 @@ export default function PoreskiBilans() {
 
   const [adjustments, setAdjustments] = useState<Record<number, number>>({});
 
-  const getAutoAmount = (lineNum: number) => lineValues[lineNum]?.auto_amount || 0;
+  const getAutoAmount = (lineNum: number) => {
+    if (lineNum === 28) return taxDepreciationTotal || 0;
+    return lineValues[lineNum]?.auto_amount || 0;
+  };
   const getManualAdj = (lineNum: number) => adjustments[lineNum] ?? lineValues[lineNum]?.manual_adjustment ?? 0;
   const getFinal = (lineNum: number) => getAutoAmount(lineNum) + getManualAdj(lineNum);
 

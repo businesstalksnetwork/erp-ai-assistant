@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Loader2, Check, X, CalendarDays, Filter } from "lucide-react";
 import { toast } from "sonner";
-import { differenceInCalendarDays, format } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, isWeekend } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveTable, ResponsiveColumn } from "@/components/shared/ResponsiveTable";
 import { LeaveCalendarView } from "@/components/hr/LeaveCalendarView";
@@ -80,9 +80,24 @@ export default function LeaveRequests() {
 
   const pendingCount = requests.filter((r: any) => r.status === "pending").length;
 
+  // Fetch holidays for working day calculation (P4-15)
+  const { data: holidays = [] } = useQuery({
+    queryKey: ["holidays", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("holidays").select("date").eq("tenant_id", tenantId!);
+      return (data || []).map((h: any) => h.date as string);
+    },
+    enabled: !!tenantId,
+  });
+
+  const countWorkingDays = (start: string, end: string): number => {
+    const interval = eachDayOfInterval({ start: new Date(start), end: new Date(end) });
+    return interval.filter(d => !isWeekend(d) && !holidays.includes(format(d, "yyyy-MM-dd"))).length;
+  };
+
   const createMutation = useMutation({
     mutationFn: async (f: typeof form) => {
-      const days = differenceInCalendarDays(new Date(f.end_date), new Date(f.start_date)) + 1;
+      const days = countWorkingDays(f.start_date, f.end_date);
       const { error } = await supabase.from("leave_requests").insert([{
         ...f, tenant_id: tenantId!, days_count: days,
         vacation_year: f.vacation_year ? Number(f.vacation_year) : null,

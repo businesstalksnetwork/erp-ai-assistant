@@ -128,9 +128,26 @@ export default function Invoices() {
         .eq("id", invoiceId);
       if (updateError) throw updateError;
       try {
-        await supabase.functions.invoke("sef-submit", {
-          body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: sefRequestId },
-        });
+        // P3-23: Pass document_type and billing_reference for credit notes
+        const invoice = invoices.find(i => i.id === invoiceId);
+        const sefBody: any = { invoice_id: invoiceId, tenant_id: tenantId, request_id: sefRequestId };
+        if (invoice?.invoice_type === "credit_note") {
+          sefBody.document_type = 381;
+          if (invoice.advance_invoice_id) {
+            // Look up original invoice's SEF ID for BillingReference
+            const { data: origInv } = await supabase.from("invoices")
+              .select("sef_invoice_id, invoice_number, invoice_date")
+              .eq("id", invoice.advance_invoice_id).single();
+            if (origInv?.sef_invoice_id) {
+              sefBody.billing_reference_number = origInv.sef_invoice_id;
+              sefBody.billing_reference_date = origInv.invoice_date;
+            } else if (origInv) {
+              sefBody.billing_reference_number = origInv.invoice_number;
+              sefBody.billing_reference_date = origInv.invoice_date;
+            }
+          }
+        }
+        await supabase.functions.invoke("sef-submit", { body: sefBody });
       } catch (sefErr) {
         console.error("SEF auto-submit failed (will retry):", sefErr);
       }
@@ -175,9 +192,24 @@ export default function Invoices() {
       if (requestId !== existingRequestId) {
         await supabase.from("invoices").update({ sef_request_id: requestId }).eq("id", invoiceId);
       }
-      const { data, error } = await supabase.functions.invoke("sef-submit", {
-        body: { invoice_id: invoiceId, tenant_id: tenantId, request_id: requestId },
-      });
+      // P3-23: Include credit note document_type and billing reference
+      const sefBody: any = { invoice_id: invoiceId, tenant_id: tenantId, request_id: requestId };
+      if (invoice?.invoice_type === "credit_note") {
+        sefBody.document_type = 381;
+        if (invoice.advance_invoice_id) {
+          const { data: origInv } = await supabase.from("invoices")
+            .select("sef_invoice_id, invoice_number, invoice_date")
+            .eq("id", invoice.advance_invoice_id).single();
+          if (origInv?.sef_invoice_id) {
+            sefBody.billing_reference_number = origInv.sef_invoice_id;
+            sefBody.billing_reference_date = origInv.invoice_date;
+          } else if (origInv) {
+            sefBody.billing_reference_number = origInv.invoice_number;
+            sefBody.billing_reference_date = origInv.invoice_date;
+          }
+        }
+      }
+      const { data, error } = await supabase.functions.invoke("sef-submit", { body: sefBody });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data;
