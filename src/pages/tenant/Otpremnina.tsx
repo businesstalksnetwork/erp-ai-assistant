@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { fmtNum } from "@/lib/utils";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { UserMinus, Plus, BookOpen } from "lucide-react";
 
 export default function Otpremnina() {
@@ -92,15 +92,19 @@ export default function Otpremnina() {
     if (!tenantId || !user) return;
     setPosting(payment.id);
     try {
-      const journalId = await createCodeBasedJournalEntry({
+      const totalAmt = Number(payment.total_amount);
+      const journalId = await postWithRuleOrFallback({
         tenantId,
         userId: user.id,
+        modelCode: "SEVERANCE_PAYMENT",
+        amount: totalAmt,
         entryDate: payment.payment_date || new Date().toISOString().split("T")[0],
         description: `Otpremnina - ${payment.employees?.full_name || "Zaposleni"}`,
         reference: `SEV-${payment.id.slice(0, 8)}`,
-        lines: [
-          { accountCode: "5290", debit: Number(payment.total_amount), credit: 0, description: "Rashod otpremnine", sortOrder: 1 },
-          { accountCode: "4500", debit: 0, credit: Number(payment.total_amount), description: "Obaveza za otpremninu", sortOrder: 2 },
+        context: {},
+        fallbackLines: [
+          { accountCode: "5290", debit: totalAmt, credit: 0, description: "Rashod otpremnine", sortOrder: 1 },
+          { accountCode: "4500", debit: 0, credit: totalAmt, description: "Obaveza za otpremninu", sortOrder: 2 },
         ],
       });
       await supabase.from("severance_payments" as any).update({ gl_posted: true, journal_entry_id: journalId } as any).eq("id", payment.id);

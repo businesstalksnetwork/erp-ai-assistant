@@ -131,6 +131,14 @@ export const PAYMENT_MODEL_KEYS: Record<string, string> = {
   POS_SALE_RETAIL: "posSaleRetail",
   // Production (Phase 5)
   PRODUCTION_COMPLETION: "productionCompletion",
+  // Inventory (Phase 3)
+  STOCK_TAKE_SHORTAGE: "stockTakeShortage",
+  STOCK_TAKE_SURPLUS: "stockTakeSurplus",
+  INVENTORY_WRITE_OFF: "inventoryWriteOff",
+  // Payroll (Phase 3)
+  SEVERANCE_PAYMENT: "severancePayment",
+  // Debit notes
+  DEBIT_NOTE_ISSUED: "debitNoteIssued",
 };
 
 export const DYNAMIC_SOURCES = [

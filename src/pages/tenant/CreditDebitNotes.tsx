@@ -245,12 +245,16 @@ export default function CreditDebitNotes() {
             // Find a default warehouse for restoration
             const { data: wh } = await supabase.from("warehouses").select("id").eq("tenant_id", tenantId).limit(1).single();
             if (wh) {
-              await supabase.rpc("adjust_inventory_stock", {
+              await supabase.rpc("batch_adjust_inventory_stock", {
                 p_tenant_id: tenantId,
-                p_product_id: line.product_id,
-                p_warehouse_id: wh.id,
-                p_quantity: sel.quantity,
-                p_reference: `Credit note ${f.number} - inventory restoration`,
+                p_adjustments: [{
+                  product_id: line.product_id,
+                  warehouse_id: wh.id,
+                  quantity: sel.quantity,
+                  movement_type: "in",
+                  reference: `Credit note ${f.number} - inventory restoration`,
+                }],
+                p_reference: `CN-${f.number}`,
               });
             }
           } catch (e) {

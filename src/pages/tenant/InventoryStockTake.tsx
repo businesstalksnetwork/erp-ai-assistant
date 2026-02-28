@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PrintButton } from "@/components/PrintButton";
 import { useToast } from "@/hooks/use-toast";
 import { fmtNum } from "@/lib/utils";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { ClipboardList, Plus, BookOpen, Check } from "lucide-react";
 
 export default function InventoryStockTake() {
@@ -145,26 +145,38 @@ export default function InventoryStockTake() {
         const surplusTotal = differences.filter((d) => d.difference_qty > 0).reduce((s, d) => s + Math.abs(Number(d.difference_value)), 0);
         const shortageTotal = differences.filter((d) => d.difference_qty < 0).reduce((s, d) => s + Math.abs(Number(d.difference_value)), 0);
 
-        const lines = [];
-        let sortOrder = 1;
         if (shortageTotal > 0) {
-          lines.push({ accountCode: "5850", debit: shortageTotal, credit: 0, description: "Manjak robe na popisu", sortOrder: sortOrder++ });
-          lines.push({ accountCode: "1320", debit: 0, credit: shortageTotal, description: "Smanjenje zaliha - manjak", sortOrder: sortOrder++ });
-        }
-        if (surplusTotal > 0) {
-          lines.push({ accountCode: "1320", debit: surplusTotal, credit: 0, description: "Povećanje zaliha - višak", sortOrder: sortOrder++ });
-          lines.push({ accountCode: "6700", debit: 0, credit: surplusTotal, description: "Višak robe na popisu", sortOrder: sortOrder++ });
-        }
-
-        if (lines.length > 0) {
-          journalId = await createCodeBasedJournalEntry({
+          journalId = await postWithRuleOrFallback({
             tenantId,
             userId: user.id,
+            modelCode: "STOCK_TAKE_SHORTAGE",
+            amount: shortageTotal,
             entryDate: st.stock_take_date,
-            description: `Popis robe - ${st.stock_take_date}`,
-            reference: `ST-${st.id.slice(0, 8)}`,
-            lines,
+            description: `Manjak na popisu - ${st.stock_take_date}`,
+            reference: `ST-SHORT-${st.id.slice(0, 8)}`,
+            context: {},
+            fallbackLines: [
+              { accountCode: "5850", debit: shortageTotal, credit: 0, description: "Manjak robe na popisu", sortOrder: 1 },
+              { accountCode: "1320", debit: 0, credit: shortageTotal, description: "Smanjenje zaliha - manjak", sortOrder: 2 },
+            ],
           });
+        }
+        if (surplusTotal > 0) {
+          const surplusJournalId = await postWithRuleOrFallback({
+            tenantId,
+            userId: user.id,
+            modelCode: "STOCK_TAKE_SURPLUS",
+            amount: surplusTotal,
+            entryDate: st.stock_take_date,
+            description: `Višak na popisu - ${st.stock_take_date}`,
+            reference: `ST-SURP-${st.id.slice(0, 8)}`,
+            context: {},
+            fallbackLines: [
+              { accountCode: "1320", debit: surplusTotal, credit: 0, description: "Povećanje zaliha - višak", sortOrder: 1 },
+              { accountCode: "6700", debit: 0, credit: surplusTotal, description: "Višak robe na popisu", sortOrder: 2 },
+            ],
+          });
+          if (!journalId) journalId = surplusJournalId;
         }
       }
 

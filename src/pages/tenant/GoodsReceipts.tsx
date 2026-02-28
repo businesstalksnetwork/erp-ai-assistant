@@ -143,13 +143,27 @@ export default function GoodsReceipts() {
       }
       if (f.status === "completed" && f.warehouse_id) {
         let totalValue = 0;
+        // 3.3: Use batch RPC for atomic inventory adjustments
+        const adjustments = validLines
+          .filter(l => l.quantity_received > 0)
+          .map(l => ({
+            product_id: l.product_id,
+            warehouse_id: f.warehouse_id,
+            quantity: l.quantity_received,
+            movement_type: "in",
+            reference: `GRN-${f.receipt_number}`,
+            notes: "Goods receipt",
+          }));
+        if (adjustments.length > 0) {
+          await supabase.rpc("batch_adjust_inventory_stock", {
+            p_tenant_id: tenantId!,
+            p_adjustments: adjustments,
+            p_reference: `GRN-${f.receipt_number}`,
+          });
+        }
+        // Cost layers + total value calculation
         for (const line of validLines) {
           if (line.quantity_received > 0) {
-            await supabase.rpc("adjust_inventory_stock", {
-              p_tenant_id: tenantId!, p_product_id: line.product_id,
-              p_warehouse_id: f.warehouse_id, p_quantity: line.quantity_received,
-              p_movement_type: "in", p_reference: `GRN-${f.receipt_number}`, p_notes: "Goods receipt",
-            });
             const prod = products.find((p: any) => p.id === line.product_id);
             const price = prod?.default_purchase_price || 0;
             totalValue += line.quantity_received * price;

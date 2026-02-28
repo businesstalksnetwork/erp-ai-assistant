@@ -181,16 +181,19 @@ export default function Returns() {
         const costValue = line.quantity_accepted * unitCost;
         const revenueValue = line.quantity_accepted * unitPrice;
 
-        // Restock inventory
+      // Restock inventory atomically via batch RPC
         if (restockWarehouse) {
-          await supabase.rpc("adjust_inventory_stock", {
+          await supabase.rpc("batch_adjust_inventory_stock", {
             p_tenant_id: tenantId,
-            p_product_id: line.product_id!,
-            p_warehouse_id: restockWarehouse.id,
-            p_quantity: line.quantity_accepted,
-            p_movement_type: "in",
-            p_notes: `Return restock - ${caseId}`,
-            p_created_by: user?.id || null,
+            p_adjustments: [{
+              product_id: line.product_id!,
+              warehouse_id: restockWarehouse.id,
+              quantity: line.quantity_accepted,
+              movement_type: "in",
+              reference: `RET-${caseId}`,
+              notes: `Return restock - ${caseId}`,
+              created_by: user?.id || null,
+            }],
             p_reference: `RET-${caseId}`,
           });
         }
@@ -348,19 +351,23 @@ export default function Returns() {
             if (invLines && invLines.length > 0) {
               const defaultWh = warehouses[0];
               if (defaultWh) {
-                for (const il of invLines) {
-                  if (il.product_id && il.quantity > 0) {
-                    await supabase.rpc("adjust_inventory_stock", {
-                      p_tenant_id: tenantId,
-                      p_product_id: il.product_id,
-                      p_warehouse_id: defaultWh.id,
-                      p_quantity: il.quantity,
-                      p_movement_type: "in",
-                      p_notes: `Credit note inventory restore - ${f.credit_number}`,
-                      p_created_by: user?.id || null,
-                      p_reference: `CN-${f.credit_number}`,
-                    });
-                  }
+                const adjustments = invLines
+                  .filter(il => il.product_id && il.quantity > 0)
+                  .map(il => ({
+                    product_id: il.product_id,
+                    warehouse_id: defaultWh.id,
+                    quantity: il.quantity,
+                    movement_type: "in",
+                    notes: `Credit note inventory restore - ${f.credit_number}`,
+                    created_by: user?.id || null,
+                    reference: `CN-${f.credit_number}`,
+                  }));
+                if (adjustments.length > 0) {
+                  await supabase.rpc("batch_adjust_inventory_stock", {
+                    p_tenant_id: tenantId,
+                    p_adjustments: adjustments,
+                    p_reference: `CN-${f.credit_number}`,
+                  });
                 }
               }
             }
