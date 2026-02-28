@@ -475,24 +475,8 @@ export default function PosTerminal() {
               name: item.name,
             }));
 
-          if (posItems.length > 0) {
-            try {
-              const { data: stockResult, error: stockErr } = await supabase.rpc("complete_pos_transaction", {
-                p_tenant_id: tenantId,
-                p_transaction_id: tx.id,
-                p_warehouse_id: warehouseId,
-                p_items: posItems,
-              });
-              if (stockErr) throw stockErr;
-              const result = stockResult as Record<string, unknown> | null;
-              if (result?.status === "partial" && Array.isArray(result?.errors) && result.errors.length > 0) {
-                toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: (result.errors as string[]).join(", "), variant: "destructive" });
-              }
-            } catch (e) {
-              console.error("Atomic POS stock update failed:", e);
-              toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: "Kontaktirajte administratora.", variant: "destructive" });
-            }
-          }
+          // P1-03 FIX: Removed redundant complete_pos_transaction call.
+          // Stock deduction is handled atomically by process_pos_sale below.
         }
 
         // Step 3b: Post accounting entry
