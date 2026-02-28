@@ -22589,7 +22589,7 @@ export type Database = {
       execute_readonly_query:
         | { Args: { query_text: string }; Returns: Json }
         | {
-            Args: { query_text: string; tenant_id_param: string }
+            Args: { query_text: string; tenant_id_param?: string }
             Returns: Json
           }
       expire_overdue_quotes: { Args: { p_tenant_id: string }; Returns: number }

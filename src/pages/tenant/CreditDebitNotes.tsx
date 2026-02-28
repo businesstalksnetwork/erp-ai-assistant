@@ -201,7 +201,7 @@ export default function CreditDebitNotes() {
   const selectInvoiceForCredit = async (inv: any) => {
     setInvoicePickerOpen(false);
     // Fetch invoice items
-    const { data: items } = await supabase.from("invoice_items" as any)
+    const { data: items } = await supabase.from("invoice_lines")
       .select("*, products(name)")
       .eq("invoice_id", inv.id);
     const lineItems = (items || []) as any[];
