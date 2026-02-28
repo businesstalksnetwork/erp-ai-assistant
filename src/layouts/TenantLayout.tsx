@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTenant } from "@/hooks/useTenant";
+import { useTenantModules } from "@/hooks/useTenantModules";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AiContextSidebar } from "@/components/ai/AiContextSidebar";
@@ -63,6 +64,7 @@ interface NavItem {
   url: string;
   icon: LucideIcon;
   section?: string;
+  aiModule?: string; // If set, item only shows when this module is enabled
 }
 
 const mainNav: (NavItem & { badge?: number })[] = [
@@ -82,15 +84,16 @@ const inventoryNav: NavItem[] = [
   { key: "pricingCenter", url: "/inventory/pricing-center", icon: DollarSign, section: "pricingOperations" },
   { key: "kalkulacija", url: "/inventory/kalkulacija", icon: Calculator },
   { key: "nivelacija", url: "/inventory/nivelacija", icon: TrendingUp },
+  { key: "returns", url: "/inventory/returns", icon: RotateCcw, section: "returnsSection" },
   { key: "wmsDashboard", url: "/inventory/wms/dashboard", icon: LayoutDashboard, section: "wms" },
   { key: "wmsZones", url: "/inventory/wms/zones", icon: MapPin },
   { key: "wmsTasks", url: "/inventory/wms/tasks", icon: ClipboardCheck },
   { key: "wmsReceiving", url: "/inventory/wms/receiving", icon: Truck },
   { key: "wmsPicking", url: "/inventory/wms/picking", icon: ScanBarcode },
-  { key: "wmsCycleCounts", url: "/inventory/wms/cycle-counts", icon: RefreshCw },
-  { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain },
-  
   { key: "wmsReturns", url: "/inventory/wms/returns", icon: RotateCcw },
+  { key: "wmsCycleCounts", url: "/inventory/wms/cycle-counts", icon: RefreshCw, section: "aiWarehouse", aiModule: "ai-wms" },
+  { key: "wmsSlotting", url: "/inventory/wms/slotting", icon: Brain, aiModule: "ai-wms" },
+  { key: "wmsLabor", url: "/inventory/wms/labor", icon: Users, aiModule: "ai-wms" },
   { key: "inventoryStockTake", url: "/inventory/stock-take", icon: ClipboardCheck, section: "inventoryControl" },
   { key: "inventoryWriteOffs", url: "/inventory/write-offs", icon: Trash2 },
 ];
@@ -116,19 +119,19 @@ const accountingNav: NavItem[] = [
   { key: "deferrals", url: "/accounting/deferrals", icon: Timer },
   { key: "loans", url: "/accounting/loans", icon: Coins },
   { key: "fxRevaluation", url: "/accounting/fx-revaluation", icon: DollarSign },
-  { key: "costCenterPL", url: "/accounting/reports/cost-center-pl", icon: BarChart3 },
   { key: "pdvPeriods", url: "/accounting/pdv", icon: ReceiptText, section: "taxClosing" },
   { key: "invoiceRegister", url: "/accounting/invoice-register", icon: FileText },
   { key: "fiscalPeriods", url: "/accounting/fiscal-periods", icon: CalendarDays },
   { key: "citTaxReturn", url: "/accounting/cit-return", icon: FileText },
   { key: "withholdingTax", url: "/accounting/withholding-tax", icon: Percent },
   { key: "yearEndClosing", url: "/accounting/year-end", icon: Lock },
-  { key: "cashFlowStatement", url: "/accounting/cash-flow-statement", icon: ArrowLeftRight },
   { key: "complianceChecker", url: "/accounting/compliance", icon: ShieldCheck },
   { key: "intercompanyTransactions", url: "/accounting/intercompany", icon: ArrowLeftRight, section: "consolidation" },
   { key: "consolidatedStatements", url: "/accounting/reports/consolidated", icon: Layers },
   { key: "transferPricing", url: "/accounting/transfer-pricing", icon: DollarSign },
   { key: "reports", url: "/accounting/reports", icon: BarChart3, section: "reporting" },
+  { key: "costCenterPL", url: "/accounting/reports/cost-center-pl", icon: BarChart3 },
+  { key: "cashFlowStatement", url: "/accounting/cash-flow-statement", icon: ArrowLeftRight },
   { key: "multiPeriodReports", url: "/accounting/reports/multi-period", icon: BarChart3 },
   { key: "statistickiAneks", url: "/accounting/statisticki-aneks", icon: FileSpreadsheet },
   { key: "kpoBook", url: "/accounting/kpo-book", icon: BookText },
@@ -190,10 +193,6 @@ const purchasingNav: NavItem[] = [
   { key: "incomingEfakture", url: "/purchasing/incoming-efakture", icon: FileText },
 ];
 
-const returnsNav: NavItem[] = [
-  { key: "returns", url: "/returns", icon: RotateCcw },
-];
-
 const hrNav: NavItem[] = [
   { key: "employees", url: "/hr/employees", icon: UserCheck, section: "organization" },
   { key: "contracts", url: "/hr/contracts", icon: FileSignature },
@@ -224,22 +223,24 @@ const hrNav: NavItem[] = [
   { key: "severance", url: "/hr/severance", icon: UserMinus },
 ];
 
+// Reordered per PRD: Engineering → Operations → Quality → Maintenance → MRP → Infrastructure → Reporting → AI Production
 const productionNav: NavItem[] = [
-  { key: "bomTemplates", url: "/production/bom", icon: Layers, section: "existingSection" },
-  { key: "productionOrders", url: "/production/orders", icon: Factory },
-  { key: "aiPlanningDashboard", url: "/production/ai-planning", icon: Brain, section: "aiPlanningSection" },
-  { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays },
-  { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3 },
-  { key: "productionKanban", url: "/production/kanban", icon: LayoutDashboard, section: "shopFloor" },
+  { key: "bomTemplates", url: "/production/bom", icon: Layers, section: "engineering" },
+  { key: "productionOrders", url: "/production/orders", icon: Factory, section: "operations" },
+  { key: "productionKanban", url: "/production/kanban", icon: LayoutDashboard },
   { key: "productionGantt", url: "/production/gantt", icon: CalendarDays },
-  { key: "qualityControl", url: "/production/quality", icon: ClipboardCheck },
-  { key: "productionMaintenance", url: "/production/maintenance", icon: Settings },
+  { key: "qualityControl", url: "/production/quality", icon: ClipboardCheck, section: "quality" },
+  { key: "qcCheckpoints", url: "/production/qc-checkpoints", icon: ClipboardCheck },
+  { key: "productionMaintenance", url: "/production/maintenance", icon: Settings, section: "maintenance" },
   { key: "mrpEngine", url: "/production/mrp", icon: Calculator, section: "planning" },
   { key: "workCenters", url: "/production/work-centers", icon: Factory, section: "infrastructure" },
   { key: "equipmentList", url: "/production/equipment", icon: Settings },
-  { key: "oeeDashboard", url: "/production/oee", icon: BarChart3 },
-  { key: "qcCheckpoints", url: "/production/qc-checkpoints", icon: ClipboardCheck },
   { key: "costVarianceAnalysis", url: "/production/cost-variance", icon: TrendingDown, section: "reporting" },
+  // AI Production — toggleable via tenant_modules
+  { key: "aiPlanningDashboard", url: "/production/ai-planning", icon: Brain, section: "aiProduction", aiModule: "ai-production" },
+  { key: "aiSchedule", url: "/production/ai-planning/schedule", icon: CalendarDays, aiModule: "ai-production" },
+  { key: "capacitySimulation", url: "/production/ai-planning/scenarios", icon: BarChart3, aiModule: "ai-production" },
+  { key: "oeeDashboard", url: "/production/oee", icon: BarChart3, aiModule: "ai-production" },
 ];
 
 const documentsNav: NavItem[] = [
@@ -248,7 +249,6 @@ const documentsNav: NavItem[] = [
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
   { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
   { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
-  { key: "dmsSettings", url: "/documents/settings", icon: Settings, section: "dmsConfiguration" },
 ];
 
 const assetsNav: NavItem[] = [
@@ -277,7 +277,6 @@ const assetsNav: NavItem[] = [
 const serviceNav: NavItem[] = [
   { key: "serviceDashboard", url: "/service/dashboard", icon: Activity, section: "serviceManagement" },
   { key: "serviceOrders", url: "/service/orders", icon: ClipboardCheck },
-  { key: "newServiceOrder", url: "/service/orders/new", icon: FileInput },
   { key: "myWorkOrders", url: "/service/my-work-orders", icon: UserCheck },
   { key: "deviceRegistry", url: "/service/devices", icon: HardDrive },
   { key: "serviceContracts", url: "/service/contracts", icon: FileSignature },
@@ -315,6 +314,7 @@ const settingsNav: NavItem[] = [
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
   { key: "businessRules", url: "/settings/business-rules", icon: FileText },
+  { key: "modules", url: "/settings/modules", icon: Layers, section: "settingsModules" },
   { key: "integrations", url: "/settings/integrations", icon: Plug, section: "settingsIntegrations" },
   { key: "integrationHealth", url: "/settings/integration-health", icon: Activity },
   { key: "partnerCategories", url: "/settings/partner-categories", icon: Handshake },
@@ -338,6 +338,7 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   currentPath,
   t,
   icon: Icon,
+  isModuleEnabled,
 }: {
   label: string;
   items: NavItem[];
@@ -345,8 +346,17 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   t: (key: any) => string;
   accentColor?: string;
   icon?: LucideIcon;
+  isModuleEnabled?: (mod: string) => boolean;
 }) {
-  const isActive = items.some((item) => currentPath.startsWith(item.url));
+  // Filter items by aiModule toggle
+  const filteredItems = items.filter((item) => {
+    if (!item.aiModule) return true;
+    return isModuleEnabled?.(item.aiModule) ?? false;
+  });
+
+  if (filteredItems.length === 0) return null;
+
+  const isActive = filteredItems.some((item) => currentPath.startsWith(item.url));
 
   return (
     <SidebarGroup className="py-0">
@@ -361,13 +371,15 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
         <CollapsibleContent className="bg-sidebar-accent/30 rounded-md mx-1 mb-1">
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {filteredItems.map((item) => {
                 const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
+                const isAiSection = item.section === "aiWarehouse" || item.section === "aiProduction";
                 return (
                   <React.Fragment key={item.key}>
                     {item.section && (
                       <li className="px-3 pt-2.5 pb-0.5">
-                        <span className="text-[11px] font-medium text-sidebar-foreground/40 tracking-wide">
+                        <span className={`text-[11px] font-medium tracking-wide flex items-center gap-1 ${isAiSection ? "text-primary/60" : "text-sidebar-foreground/40"}`}>
+                          {isAiSection && <Sparkles className="h-3 w-3" />}
                           {t(item.section as any)}
                         </span>
                       </li>
@@ -404,6 +416,7 @@ export default function TenantLayout() {
   const { signOut, user, isSuperAdmin } = useAuth();
   const { canAccess } = usePermissions();
   const { tenantId } = useTenant();
+  const { isModuleEnabled } = useTenantModules();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -499,47 +512,45 @@ export default function TenantLayout() {
               </SidebarGroupContent>
             </SidebarGroup>
 
+            {/* Sidebar groups — reordered per PRD Phase 4.6 */}
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} icon={Users} />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} icon={Users} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("sales") && (
-              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} icon={ShoppingCart} />
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} icon={ShoppingCart} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} />
-            )}
-            {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} icon={Truck} />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} icon={Truck} isModuleEnabled={isModuleEnabled} />
+            )}
+            {canAccess("inventory") && (
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} />
-            )}
-            {canAccess("returns") && (
-              <CollapsibleNavGroup label={t("returns")} items={returnsNav} currentPath={currentPath} t={t} icon={RotateCcw} />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("service") && (
-              <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} />
+              <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("loyalty") && (
-              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} />
-            )}
-            {canAccess("analytics") && (
-              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} />
+              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} />
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("assets") && (
-              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} />
+              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} />
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} isModuleEnabled={isModuleEnabled} />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documentsAndDrive")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} />
+              <CollapsibleNavGroup label={t("documentsAndDrive")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} isModuleEnabled={isModuleEnabled} />
+            )}
+            {canAccess("analytics") && (
+              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} isModuleEnabled={isModuleEnabled} />
             )}
           </SidebarContent>
 
