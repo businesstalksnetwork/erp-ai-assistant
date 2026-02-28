@@ -1,75 +1,82 @@
 
 
-## Phase 11 — Service Module Improvements
+## Phase 12 — Loyalty Module (New Feature)
 
 ### Current State
-- 5 service pages exist: ServiceOrders (list), ServiceOrderForm (create), ServiceOrderDetail (read-only), ServiceDevices (list), ServiceWorkOrders (technician view)
-- 4 RPCs exist with **zero UI callers**: `change_service_order_status`, `consume_service_part`, `generate_invoice_from_service_order`, `check_device_warranty`
-- ServiceOrderDetail is read-only — no status transitions, no parts consumption, no invoice generation
-- ServiceDevices has no detail page, no service history, no CRUD
-- No service dashboard
-- No `service_contracts` table
-- ServiceOrderForm has silent data loss bug (second update has no error check)
+- **No loyalty infrastructure exists** — zero tables, zero pages, zero RPCs
+- `partners` table has `account_tier` (A/B/C/D revenue-based) and `buyer_partner_id` on `pos_transactions` — these are integration points
+- CRM already has tier refresh edge function (`crm-tier-refresh`) — loyalty tiers are separate from CRM tiers
+- POS transactions track `total`, `buyer_partner_id`, `items` (JSONB) — can be used for points accrual
 
-### Plan (8 items)
+### Plan (10 items)
 
-#### 1. SVC-BUG-1: Fix silent data loss in ServiceOrderForm
-- Line ~110: add error check after the second `supabase.from("service_orders").update(updates)` call
-- Throw error if update fails
+#### 1. Database: Core loyalty tables (migration)
+- `loyalty_programs` — tenant program config (name, points_per_unit_currency, tier_thresholds JSONB, active)
+- `loyalty_members` — partner enrollment (partner_id FK, points_balance, lifetime_points, current_tier, enrolled_at)
+- `loyalty_transactions` — points ledger (member_id FK, points, type: earn/redeem/adjust/expire, reference_type, reference_id, description)
+- `loyalty_rewards` — redeemable catalog (name, points_cost, reward_type: discount_pct/discount_fixed/free_product/voucher, reward_value, active)
+- `loyalty_redemptions` — redemption history (member_id, reward_id, points_spent, status, redeemed_at)
+- All with `tenant_id`, RLS policies, timestamps
 
-#### 2. SVC-IMP-1: Wire status transition buttons to ServiceOrderDetail
-- Add status flow map (`received→diagnosed→in_repair/waiting_parts→completed→delivered`)
-- Render next-status buttons calling `change_service_order_status` RPC
-- Add diagnosis/resolution text inputs when transitioning to `diagnosed`/`completed`
+#### 2. Database: Loyalty RPCs
+- `accrue_loyalty_points(p_tenant_id, p_partner_id, p_amount, p_reference_type, p_reference_id)` — calculates points from amount, inserts transaction, updates balance + lifetime, recalculates tier
+- `redeem_loyalty_points(p_tenant_id, p_member_id, p_reward_id)` — validates balance, deducts points, creates redemption record
+- `get_loyalty_summary(p_tenant_id, p_partner_id)` — returns balance, tier, recent transactions, available rewards
 
-#### 3. SVC-IMP-1: Wire parts consumption to ServiceOrderDetail
-- Add "Parts" tab with form: product select, quantity, unit price, warranty checkbox
-- Call `consume_service_part` RPC
-- Show consumed parts list from `service_order_lines`
+#### 3. Wire POS to loyalty: auto-accrue points on sale
+- In `PosTerminal.tsx`: after successful transaction with `buyer_partner_id`, call `accrue_loyalty_points` RPC
+- Show points earned in receipt confirmation toast
 
-#### 4. SVC-IMP-1: Wire invoice generation to ServiceOrderDetail
-- Show "Generate Invoice" button when `status === "completed"` and no `linked_invoice_id`
-- Call `generate_invoice_from_service_order` RPC
-- Show link to generated invoice when exists
+#### 4. Wire invoices to loyalty: accrue on invoice posting
+- In `InvoiceForm.tsx`: after successful invoice posting with a partner, call `accrue_loyalty_points`
 
-#### 5. SVC-IMP-2: Device detail page with service history
-- New route `/service/devices/:id` → `ServiceDeviceDetail.tsx`
-- Show device info, warranty status (via `check_device_warranty` RPC), service history timeline, total repair cost
-- Link from ServiceDevices list rows
+#### 5. Loyalty Hub Dashboard page
+- New page `LoyaltyDashboard.tsx` at `/loyalty`
+- KPIs: total members, total points outstanding, redemptions this month, top tier distribution
+- Recent activity feed
 
-#### 6. SVC-IMP-3: Service Hub Dashboard
-- New page `ServiceDashboard.tsx` at `/service/dashboard`
-- KPIs: orders by status (pie chart), avg repair time, monthly revenue, overdue repairs count
-- Technician workload bar chart
+#### 6. Loyalty Program Settings page
+- New page `LoyaltyPrograms.tsx` at `/loyalty/programs`
+- CRUD for programs: points per currency unit, tier thresholds (Bronze/Silver/Gold/Platinum), expiry rules
+- Only one active program per tenant
 
-#### 7. SVC-IMP-4: Service Contracts & SLA table
-- Migration: create `service_contracts` table with RLS
-- New page `ServiceContracts.tsx` with CRUD list
-- SLA traffic-light indicators (response time vs SLA hours)
+#### 7. Loyalty Members page
+- New page `LoyaltyMembers.tsx` at `/loyalty/members`
+- List with search, tier filter, points balance, enrollment date
+- Enroll existing partner, manual points adjustment
+- Click → member detail with transaction history
 
-#### 8. Add translation keys
-- ~15 keys for status transitions, parts consumption, invoice generation, dashboard labels, contracts
+#### 8. Loyalty Rewards Catalog page
+- New page `LoyaltyRewards.tsx` at `/loyalty/rewards`
+- CRUD for rewards: name, points cost, type (% discount, fixed discount, free product, voucher), active toggle
+
+#### 9. Permissions & Navigation
+- Add `"loyalty"` to `ModuleGroup` type and role permissions
+- Add nav section in `TenantLayout.tsx` with Gift icon
+- Routes in `otherRoutes.tsx`
+
+#### 10. Translation keys
+- ~25 keys: loyaltyProgram, pointsBalance, earnPoints, redeemPoints, tierBronze/Silver/Gold/Platinum, enrollMember, rewards, redemptions, etc.
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/tenant/ServiceOrderForm.tsx` | Fix silent data loss bug |
-| `src/pages/tenant/ServiceOrderDetail.tsx` | Status buttons, parts tab, invoice generation |
-| `src/pages/tenant/ServiceDeviceDetail.tsx` | New — device detail + history |
-| `src/pages/tenant/ServiceDevices.tsx` | Add row click → detail navigation |
-| `src/pages/tenant/ServiceDashboard.tsx` | New — operational dashboard |
-| `src/pages/tenant/ServiceContracts.tsx` | New — contracts CRUD |
-| `src/routes/otherRoutes.tsx` | Add new routes |
-| `src/layouts/TenantLayout.tsx` | Add nav items for dashboard + contracts |
-| `src/i18n/translations.ts` | ~15 new keys |
-| New migration | `service_contracts` table + RLS |
+| New migration SQL | 5 tables + 3 RPCs + RLS |
+| `src/pages/tenant/LoyaltyDashboard.tsx` | New — hub dashboard |
+| `src/pages/tenant/LoyaltyPrograms.tsx` | New — program settings |
+| `src/pages/tenant/LoyaltyMembers.tsx` | New — member list + detail |
+| `src/pages/tenant/LoyaltyRewards.tsx` | New — rewards catalog CRUD |
+| `src/pages/tenant/PosTerminal.tsx` | Wire points accrual after sale |
+| `src/pages/tenant/InvoiceForm.tsx` | Wire points accrual after posting |
+| `src/config/rolePermissions.ts` | Add `"loyalty"` module |
+| `src/routes/otherRoutes.tsx` | Add loyalty routes |
+| `src/layouts/TenantLayout.tsx` | Add loyalty nav section |
+| `src/i18n/translations.ts` | ~25 new keys |
 
 ### Execution Order
-1. Bug fix (ServiceOrderForm)
-2. ServiceOrderDetail: status transitions + parts + invoice generation
-3. Device detail page + history
-4. Service dashboard
-5. Service contracts (migration + page)
-6. Translation keys + routes + nav
+1. Migration: tables + RPCs + RLS (items 1-2)
+2. Permissions, routes, nav, translations (items 9-10)
+3. Loyalty pages: dashboard, programs, members, rewards (items 5-8)
+4. POS + Invoice integration (items 3-4)
 
