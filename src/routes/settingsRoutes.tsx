@@ -35,6 +35,7 @@ const NotificationCategorySettings = React.lazy(() => import("@/pages/tenant/Not
 const IntegrationHealth = React.lazy(() => import("@/pages/tenant/IntegrationHealth"));
 const OrgCompanies = React.lazy(() => import("@/pages/tenant/OrgCompanies"));
 const RolePermissions = React.lazy(() => import("@/pages/tenant/RolePermissions"));
+const NotificationHistory = React.lazy(() => import("@/pages/tenant/NotificationHistory"));
 
 export const settingsRoutes = (
   <>
@@ -70,5 +71,6 @@ export const settingsRoutes = (
     <Route path="settings/notification-categories" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationCategorySettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/integration-health" element={<ProtectedRoute requiredModule="settings-integrations"><PageErrorBoundary><IntegrationHealth /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/role-permissions" element={<ProtectedRoute requiredModule="settings-role-permissions"><PageErrorBoundary><RolePermissions /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/notification-history" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationHistory /></PageErrorBoundary></ProtectedRoute>} />
   </>
 );

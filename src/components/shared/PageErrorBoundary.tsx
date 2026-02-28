@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   children: React.ReactNode;
@@ -55,6 +56,36 @@ function PageErrorFallbackUI({
   );
 }
 
+async function logFrontendError(error: Error, errorInfo: React.ErrorInfo) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: membership } = await supabase
+      .from("tenant_members")
+      .select("tenant_id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .single();
+    if (!membership) return;
+    await supabase.from("audit_log").insert({
+      tenant_id: membership.tenant_id,
+      user_id: user.id,
+      action: "frontend_error",
+      entity_type: "ui",
+      entity_id: null,
+      details: {
+        message: error.message,
+        stack: error.stack?.slice(0, 2000),
+        componentStack: errorInfo.componentStack?.slice(0, 2000),
+        url: window.location.href,
+      },
+    });
+  } catch {
+    // Silent — no user impact
+  }
+}
+
 class PageErrorBoundaryInner extends React.Component<
   Props & { onGoBack: () => void; renderFallback: (error: Error | null, onRetry: () => void) => React.ReactNode },
   State
@@ -70,6 +101,7 @@ class PageErrorBoundaryInner extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("PageErrorBoundary caught:", error, errorInfo);
+    logFrontendError(error, errorInfo);
   }
 
   render() {

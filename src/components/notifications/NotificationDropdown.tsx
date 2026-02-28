@@ -36,10 +36,11 @@ interface Props {
   notifications: Notification[];
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onClearAllRead?: () => void;
   onClose: () => void;
 }
 
-export function NotificationDropdown({ notifications, onMarkAsRead, onMarkAllAsRead, onClose }: Props) {
+export function NotificationDropdown({ notifications, onMarkAsRead, onMarkAllAsRead, onClearAllRead, onClose }: Props) {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -56,9 +57,16 @@ export function NotificationDropdown({ notifications, onMarkAsRead, onMarkAllAsR
     <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-popover shadow-lg z-50">
       <div className="flex items-center justify-between p-3 border-b">
         <h4 className="text-sm font-semibold">{t("notifications")}</h4>
-        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={onMarkAllAsRead}>
-          {t("markAllRead")}
-        </Button>
+        <div className="flex gap-1">
+          {onClearAllRead && (
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={onClearAllRead}>
+              {t("clearRead")}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={onMarkAllAsRead}>
+            {t("markAllRead")}
+          </Button>
+        </div>
       </div>
       <ScrollArea className="max-h-80">
         {notifications.length === 0 ? (
@@ -97,6 +105,11 @@ export function NotificationDropdown({ notifications, onMarkAsRead, onMarkAllAsR
           </div>
         )}
       </ScrollArea>
+      <div className="border-t p-2">
+        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { navigate("/settings/notification-history"); onClose(); }}>
+          {t("viewAllNotifications")}
+        </Button>
+      </div>
     </div>
   );
 }
