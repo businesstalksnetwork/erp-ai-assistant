@@ -1,16 +1,23 @@
 
 
-# Next Bug Fixes — Remaining Issues ✅ COMPLETED
+# Remaining Console Warnings Fix
 
-All items from this plan have been implemented.
+## Current State
+There are **3 harmless `forwardRef` warnings** in the console — no errors, no crashes, no blank screens. The app is fully functional.
 
-## 1. ✅ Supplier AP account 2100 → 2200
-- `Returns.tsx`: Changed fallback from `2100` to `2200`
-- `GoodsReceipts.tsx`: Changed fallback from `2100` to `2200`
+### Warning 1: `OfflineBanner`
+`AnimatePresence` from framer-motion tries to pass a ref to its direct child. When `isOffline` is false, there are no children, so `AnimatePresence` itself becomes the direct child and receives a ref it can't handle. Fix: wrap `AnimatePresence` in a plain `<div>` so the ref lands on the div instead.
 
-## 2. ✅ Delete mutations tenant_id scoping (15 files)
-Added `.eq("tenant_id", tenantId!)` to all 15 priority delete mutations:
-SalesOrderDetail, PostingRules (×2), Warehouses, LegalEntities, Products, Holidays, PayrollParameters, JournalEntries, Deferrals, RecurringJournals, ApprovalWorkflows, NonEmploymentIncome, AssetCategories, FiscalDevices, LeavePolicies.
+### Warning 2 & 3: `App` (BrowserRouter / Routes)
+React Router v6 internally tries to pass refs to `Routes` and `BrowserRouter` which are function components. The `v7_startTransition` future flag is already set. These warnings are a known React Router v6 issue that only appears in dev mode and will disappear when upgrading to v7. They cannot be fixed without upgrading the library.
 
-## 3. ✅ Returns.tsx warehouse lookup from source
-Replaced `warehouses[0]` fallback with actual lookup: queries `return_cases` for `source_type`/`source_id`, then resolves warehouse from `sales_orders.warehouse_id` (or via `sales_orders.invoice_id` for invoice sources).
+## Plan
+
+### Fix 1: OfflineBanner ref warning (1 file)
+- In `src/components/OfflineBanner.tsx`, wrap the `<AnimatePresence>` in a `<div>` element so any ref from a parent lands on the wrapper div, not on AnimatePresence.
+
+### Fix 2: React Router warnings — No action
+- These are known React Router v6 dev-mode warnings. They don't affect production builds. Suppressing them would require upgrading to react-router v7 which is a major migration out of scope.
+
+**Total: 1 file changed, 2 warnings documented as known/expected.**
+
