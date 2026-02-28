@@ -395,33 +395,6 @@ export default function Invoices() {
         }
       />
 
-      <MobileFilterBar
-        search={<Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} />}
-        filters={
-          <>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                <SelectItem value="draft">{t("draft")}</SelectItem>
-                <SelectItem value="sent">{t("sent")}</SelectItem>
-                <SelectItem value="paid">{t("paid")}</SelectItem>
-                <SelectItem value="overdue">{t("overdue")}</SelectItem>
-                <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
-              </SelectContent>
-            </Select>
-            {legalEntities.length > 1 && (
-              <Select value={legalEntityFilter} onValueChange={setLegalEntityFilter}>
-                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allLegalEntities")}</SelectItem>
-                  {legalEntities.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-          </>
-        }
-      />
 
       {isLoading ? (
         <p>{t("loading")}</p>
