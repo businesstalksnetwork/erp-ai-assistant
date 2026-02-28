@@ -185,7 +185,7 @@ export const serviceRoutes = (
 export const miscRoutes = (
   <>
     <Route path="returns" element={<ProtectedRoute requiredModule="returns"><B><Returns /></B></ProtectedRoute>} />
-    <Route path="ai/briefing" element={<B><AiBriefing /></B>} />
-    <Route path="profile" element={<B><Profile /></B>} />
+    <Route path="ai/briefing" element={<ProtectedRoute><B><AiBriefing /></B></ProtectedRoute>} />
+    <Route path="profile" element={<ProtectedRoute><B><Profile /></B></ProtectedRoute>} />
   </>
 );

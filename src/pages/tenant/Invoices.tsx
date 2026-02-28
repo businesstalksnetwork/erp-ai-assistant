@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -260,10 +261,12 @@ export default function Invoices() {
               ]}
               filename="invoices"
             />
-            <Button onClick={() => navigate("/accounting/invoices/new")}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t("newInvoice")}
-            </Button>
+            <ActionGuard module="accounting" action="create">
+              <Button onClick={() => navigate("/accounting/invoices/new")}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("newInvoice")}
+              </Button>
+            </ActionGuard>
           </div>
         }
       />

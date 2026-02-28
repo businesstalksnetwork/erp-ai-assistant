@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActionGuard } from "@/components/ActionGuard";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -142,7 +143,7 @@ export default function WmsReturns() {
         title={locale === "sr" ? "Povraćaji robe" : "Returns Processing"}
         description={locale === "sr" ? "Upravljanje povraćajima, inspekcijom i dispozicijom" : "Manage returns, inspection and disposition"}
         icon={RotateCcw}
-        actions={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{locale === "sr" ? "Novi povraćaj" : "New Return"}</Button>}
+        actions={<ActionGuard module="returns" action="create"><Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{locale === "sr" ? "Novi povraćaj" : "New Return"}</Button></ActionGuard>}
       />
 
       <StatsBar stats={stats} />

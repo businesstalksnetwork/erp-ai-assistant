@@ -78,21 +78,24 @@ export default function PayrollRunDetail() {
           accrualLines.push({ accountCode: PA.emp_contrib_cr, debit: 0, credit: totalEmployeeContrib, description: `Obaveze za doprinose radnika ${periodLabel}`, sortOrder: 3 });
         }
 
-        await postWithRuleOrFallback({
+        const jeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
           modelCode: "PAYROLL_NET", amount: Number(run.total_gross),
           description: `Obračun zarada ${periodLabel}`,
           reference: `PR-${periodLabel}`,
+          legalEntityId: run.legal_entity_id || undefined,
           context: {},
           fallbackLines: accrualLines,
         });
 
+        let erJeId: string | null = null;
         if (totalEmployerContrib > 0) {
-          await postWithRuleOrFallback({
+          erJeId = await postWithRuleOrFallback({
             tenantId: tenantId!, userId: user?.id || null, entryDate,
             modelCode: "PAYROLL_TAX", amount: totalEmployerContrib,
             description: `Doprinosi poslodavca ${periodLabel}`,
             reference: `PR-EC-${periodLabel}`,
+            legalEntityId: run.legal_entity_id || undefined,
             context: {},
             fallbackLines: [
               { accountCode: PA.er_exp_dr, debit: totalEmployerContrib, credit: 0, description: `Troškovi doprinosa na zarade ${periodLabel}`, sortOrder: 0 },
@@ -100,24 +103,34 @@ export default function PayrollRunDetail() {
             ],
           });
         }
+
+        const updates: any = { status, approved_by: user?.id, approved_at: new Date().toISOString() };
+        if (jeId) updates.journal_entry_id = jeId;
+        if (erJeId) updates.employer_journal_entry_id = erJeId;
+        const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
+        if (error) throw error;
       } else if (status === "paid") {
-        await postWithRuleOrFallback({
+        const payJeId = await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null, entryDate,
-          modelCode: "PAYROLL_NET", amount: Number(run.total_net),
+          modelCode: "PAYROLL_PAYMENT", amount: Number(run.total_net),
           description: `Isplata zarada ${periodLabel}`,
           reference: `PR-PAY-${periodLabel}`,
+          legalEntityId: run.legal_entity_id || undefined,
           context: {},
           fallbackLines: [
             { accountCode: PA.bank_dr, debit: Number(run.total_net), credit: 0, description: `Isplata neto zarada ${periodLabel}`, sortOrder: 0 },
             { accountCode: PA.bank_cr, debit: 0, credit: Number(run.total_net), description: `Tekući račun ${periodLabel}`, sortOrder: 1 },
           ],
         });
-      }
 
-      const updates: any = { status };
-      if (status === "approved") { updates.approved_by = user?.id; updates.approved_at = new Date().toISOString(); }
-      const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
-      if (error) throw error;
+        const updates: any = { status };
+        if (payJeId) updates.payment_journal_entry_id = payJeId;
+        const { error } = await supabase.from("payroll_runs").update(updates).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payroll_runs").update({ status } as any).eq("id", id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll-run", id] });

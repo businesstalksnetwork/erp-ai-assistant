@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ActionGuard } from "@/components/ActionGuard";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -194,7 +195,9 @@ export default function Products() {
               ]}
               filename="products"
             />
-            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+            <ActionGuard module="inventory" action="create">
+              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> {t("add")}</Button>
+            </ActionGuard>
           </div>
         }
       />
