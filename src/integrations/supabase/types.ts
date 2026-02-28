@@ -18140,6 +18140,78 @@ export type Database = {
           },
         ]
       }
+      service_contracts: {
+        Row: {
+          contract_number: string
+          contract_type: string
+          created_at: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          max_interventions: number | null
+          monthly_fee: number | null
+          notes: string | null
+          partner_id: string | null
+          sla_resolution_hours: number | null
+          sla_response_hours: number | null
+          start_date: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          contract_number: string
+          contract_type?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_interventions?: number | null
+          monthly_fee?: number | null
+          notes?: string | null
+          partner_id?: string | null
+          sla_resolution_hours?: number | null
+          sla_response_hours?: number | null
+          start_date?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          contract_number?: string
+          contract_type?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_interventions?: number | null
+          monthly_fee?: number | null
+          notes?: string | null
+          partner_id?: string | null
+          sla_resolution_hours?: number | null
+          sla_response_hours?: number | null
+          start_date?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_contracts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_devices: {
         Row: {
           brand: string | null

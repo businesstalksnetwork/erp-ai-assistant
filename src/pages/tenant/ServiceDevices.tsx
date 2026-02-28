@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { Search } from "lucide-react";
 export default function ServiceDevices() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
   const { data: devices = [], isLoading } = useQuery({
@@ -61,7 +63,7 @@ export default function ServiceDevices() {
             ) : filtered.map((d: any) => {
               const warrantyActive = d.warranty_expiry && new Date(d.warranty_expiry) >= new Date();
               return (
-                <tr key={d.id} className="border-t hover:bg-muted/30">
+                <tr key={d.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/service/devices/${d.id}`)}>
                   <td className="px-4 py-3">{d.brand || "—"}</td>
                   <td className="px-4 py-3">{d.model || "—"}</td>
                   <td className="px-4 py-3 font-mono text-xs">{d.serial_number || "—"}</td>

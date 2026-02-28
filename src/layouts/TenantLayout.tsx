@@ -275,10 +275,12 @@ const assetsNav: NavItem[] = [
 ];
 
 const serviceNav: NavItem[] = [
-  { key: "serviceOrders", url: "/service/orders", icon: ClipboardCheck, section: "serviceManagement" },
+  { key: "serviceDashboard", url: "/service/dashboard", icon: Activity, section: "serviceManagement" },
+  { key: "serviceOrders", url: "/service/orders", icon: ClipboardCheck },
   { key: "newServiceOrder", url: "/service/orders/new", icon: FileInput },
   { key: "myWorkOrders", url: "/service/my-work-orders", icon: UserCheck },
   { key: "deviceRegistry", url: "/service/devices", icon: HardDrive },
+  { key: "serviceContracts", url: "/service/contracts", icon: FileSignature },
 ];
 
 const posNav: NavItem[] = [

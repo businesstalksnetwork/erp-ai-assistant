@@ -107,7 +107,8 @@ export default function ServiceOrderForm() {
         }
         if (estimatedCompletion) updates.estimated_completion = estimatedCompletion;
         if (Object.keys(updates).length > 0) {
-          await supabase.from("service_orders").update(updates).eq("id", data);
+          const { error: updateError } = await supabase.from("service_orders").update(updates).eq("id", data);
+          if (updateError) throw updateError;
         }
       }
       return data;
