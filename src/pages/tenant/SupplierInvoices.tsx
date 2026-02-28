@@ -195,13 +195,15 @@ export default function SupplierInvoices() {
     mutationFn: async (inv: any) => {
       if (!tenantId) throw new Error("No tenant");
       const entryDate = new Date().toISOString().split("T")[0];
+      // P3-02: Fixed from 7000 (Class 7 closing) to 5010 (Nabavna vrednost prodate robe)
+      // P3-20: Fixed input VAT from 4700 (output VAT) to 2700 (Potraživanja za pretplatu poreza)
       const fallbackLines: any[] = [
-        { accountCode: "7000", debit: inv.amount, credit: 0, description: `COGS - ${inv.invoice_number}`, sortOrder: 0 },
+        { accountCode: "5010", debit: inv.amount, credit: 0, description: `Nabavka - ${inv.invoice_number}`, sortOrder: 0 },
       ];
       if (inv.tax_amount > 0) {
-        fallbackLines.push({ accountCode: "4700", debit: inv.tax_amount, credit: 0, description: `Input VAT - ${inv.invoice_number}`, sortOrder: 1 });
+        fallbackLines.push({ accountCode: "2700", debit: inv.tax_amount, credit: 0, description: `Ulazni PDV - ${inv.invoice_number}`, sortOrder: 1 });
       }
-      fallbackLines.push({ accountCode: "2100", debit: 0, credit: inv.total, description: `AP - ${inv.invoice_number}`, sortOrder: 2 });
+      fallbackLines.push({ accountCode: "2200", debit: 0, credit: inv.total, description: `Dobavljači - ${inv.invoice_number}`, sortOrder: 2 });
       const taxRate = inv.tax_amount > 0 && inv.amount > 0 ? inv.tax_amount / inv.amount : 0;
       await postWithRuleOrFallback({
         tenantId, userId: user?.id || null, entryDate,

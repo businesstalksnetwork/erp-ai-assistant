@@ -109,6 +109,34 @@ export default function ProductionOrderDetail() {
         reason: wasteForm.reason || null,
         recorded_by: user?.id || null,
       });
+      // P3-14: Deduct inventory for waste
+      if (wasteForm.product_id && wasteForm.quantity > 0) {
+        await supabase.rpc("adjust_inventory_stock" as any, {
+          p_tenant_id: tenantId,
+          p_product_id: wasteForm.product_id,
+          p_warehouse_id: (order as any)?.warehouse_id || null,
+          p_quantity: wasteForm.quantity,
+          p_movement_type: "waste",
+          p_reference: `WASTE-PO-${(order as any)?.order_number || id}`,
+        });
+        // P3-14: GL posting for waste: DR 5830 Rashodi od kala, rastura / CR 1010 Materijal
+        const wasteValue = wasteForm.quantity * (products.find((p: any) => p.id === wasteForm.product_id) as any)?.default_purchase_price || 0;
+        if (wasteValue > 0) {
+          const { postWithRuleOrFallback } = await import("@/lib/postingHelper");
+          await postWithRuleOrFallback({
+            tenantId, userId: user?.id || null,
+            entryDate: new Date().toISOString().split("T")[0],
+            modelCode: "PRODUCTION_WASTE", amount: wasteValue,
+            description: `Otpis - proizvodni nalog ${(order as any)?.order_number || id}`,
+            reference: `WASTE-${id}`,
+            context: {},
+            fallbackLines: [
+              { accountCode: "5830", debit: wasteValue, credit: 0, description: `Rashod kala/rastura`, sortOrder: 0 },
+              { accountCode: "1010", debit: 0, credit: wasteValue, description: `Utrošen materijal`, sortOrder: 1 },
+            ],
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["production_waste", id] });

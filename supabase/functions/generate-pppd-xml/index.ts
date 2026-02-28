@@ -188,9 +188,11 @@ Deno.serve(async (req) => {
             <OznakaVrstePrihoda>${ovp}</OznakaVrstePrihoda>
             <OznakaLicnogAdanja>${ola}</OznakaLicnogAdanja>
             <BeneficiraniRadniStaz>${ben}</BeneficiraniRadniStaz>
-            <BrojDana>0</BrojDana>
+            <BrojDana>${Number(item.actual_working_days || item.working_days || 22)}</BrojDana>
             <BrojSati>${Number(item.working_hours || 176)}</BrojSati>
             <FondSati>${Number(item.fund_hours || 176)}</FondSati>
+            <NajnizaOsnovica>${fmtAmt(Number(item.min_contribution_base || minBase || 45950))}</NajnizaOsnovica>
+            <NajvisaOsnovica>${fmtAmt(Number(item.max_contribution_base || maxBase || 656425))}</NajvisaOsnovica>
           </PodaciOPrihodu>
           <PodaciOObracunatimDoprinosima>
             <BrutoZarada>${fmtAmt(gross)}</BrutoZarada>

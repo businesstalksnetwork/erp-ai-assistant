@@ -74,12 +74,15 @@ async function fetchAndImportRates(supabase: any, tenant_id: string, targetDate:
     const nbsRes = await fetch(nbsUrl);
     if (nbsRes.ok) {
       const text = await nbsRes.text();
+      // P3-18: Extract unit field and divide rate by unit for currencies like JPY (unit=100)
       const currencyMatches = text.matchAll(
-        /<currency_code>([A-Z]{3})<\/currency_code>[\s\S]*?<middle_rate>([\d.,]+)<\/middle_rate>/gi
+        /<currency_code>([A-Z]{3})<\/currency_code>[\s\S]*?<unit>(\d+)<\/unit>[\s\S]*?<middle_rate>([\d.,]+)<\/middle_rate>/gi
       );
       for (const match of currencyMatches) {
         const code = match[1];
-        const rate = parseFloat(match[2].replace(",", "."));
+        const unit = parseInt(match[2], 10) || 1;
+        const rawRate = parseFloat(match[3].replace(",", "."));
+        const rate = rawRate / unit;
         if (code && !isNaN(rate)) {
           rates.push({ code, rate });
         }
