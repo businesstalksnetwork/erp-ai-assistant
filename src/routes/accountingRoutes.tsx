@@ -62,6 +62,7 @@ const RevenueContractDetail = React.lazy(() => import("@/pages/tenant/RevenueCon
 const CashFlowStatement = React.lazy(() => import("@/pages/tenant/CashFlowStatement"));
 const ComplianceDashboard = React.lazy(() => import("@/pages/tenant/ComplianceDashboard"));
 const KepKnjiga = React.lazy(() => import("@/pages/tenant/KepKnjiga"));
+const PoreskiBilans = React.lazy(() => import("@/pages/tenant/PoreskiBilans"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -128,5 +129,6 @@ export const accountingRoutes = (
     <Route path="accounting/cash-flow-statement" element={<ProtectedRoute requiredModule={m}><B><CashFlowStatement /></B></ProtectedRoute>} />
     <Route path="accounting/compliance" element={<ProtectedRoute requiredModule={m}><B><ComplianceDashboard /></B></ProtectedRoute>} />
     <Route path="accounting/kep" element={<ProtectedRoute requiredModule={m}><B><KepKnjiga /></B></ProtectedRoute>} />
+    <Route path="accounting/reports/poreski-bilans" element={<ProtectedRoute requiredModule={m}><B><PoreskiBilans /></B></ProtectedRoute>} />
   </>
 );
