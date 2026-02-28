@@ -261,7 +261,11 @@ export default function PosTerminal() {
       const refundTax = selectedItems.reduce((s, i) => s + (i.unit_price * i.quantity * i.tax_rate) / (100 + i.tax_rate), 0);
       const refundSubtotal = refundTotal - refundTax;
 
-      const txNum = `REF-${Date.now()}`;
+      const { data: seqNum } = await supabase.rpc("next_invoice_number" as any, {
+        p_tenant_id: tenantId,
+        p_prefix: "REF-",
+      });
+      const txNum = seqNum || `REF-${Date.now()}`;
 
       // Create refund transaction
       const { data: tx, error: txErr } = await supabase.from("pos_transactions").insert({

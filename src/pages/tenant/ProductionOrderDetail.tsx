@@ -154,10 +154,11 @@ export default function ProductionOrderDetail() {
             onClick={async () => {
               setCompleting(true);
               try {
-                const { error } = await supabase.rpc("complete_production_order", {
-                  p_tenant_id: tenantId!,
+                const { error } = await supabase.rpc("complete_production_order" as any, {
                   p_order_id: order.id,
-                  p_actual_quantity: order.quantity,
+                  p_warehouse_id: order.warehouse_id,
+                  p_quantity_to_complete: order.quantity - order.completed_quantity,
+                  p_user_id: user?.id,
                 });
                 if (error) throw error;
                 toast({ title: t("success"), description: "Production order completed with inventory adjustments" });

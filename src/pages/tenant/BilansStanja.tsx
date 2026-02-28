@@ -174,9 +174,9 @@ export default function BilansStanja() {
   };
 
   // Bug 3 fix: correct grouping — assets=0,1; equity=3; liabilities=2,4
-  const assets = ["0", "1"].map((cls) => linesByClass[cls] || []).flat();
+  const assets = ["0", "1", "2"].map((cls) => linesByClass[cls] || []).flat();
   const equity = linesByClass["3"] || [];
-  const liabilities = ["2", "4"].map((cls) => linesByClass[cls] || []).flat();
+  const liabilities = ["4"].map((cls) => linesByClass[cls] || []).flat();
 
   return (
     <div className="space-y-6">
@@ -251,7 +251,7 @@ export default function BilansStanja() {
           {/* Assets */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold">АКТИВА (Aktiva)</h2>
-            {["0", "1"].map((cls) => linesByClass[cls] && renderClassSection(cls, linesByClass[cls]))}
+            {["0", "1", "2"].map((cls) => linesByClass[cls] && renderClassSection(cls, linesByClass[cls]))}
             <Card>
               <CardContent className="p-4 bg-primary/5">
                 <div className="flex justify-between items-center">
@@ -267,7 +267,7 @@ export default function BilansStanja() {
           {/* Liabilities and Equity */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold">ПАСИВА (Pasiva)</h2>
-            {["2", "3", "4"].map((cls) => linesByClass[cls] && renderClassSection(cls, linesByClass[cls]))}
+            {["3", "4"].map((cls) => linesByClass[cls] && renderClassSection(cls, linesByClass[cls]))}
             <Card>
               <CardContent className="p-4 bg-primary/5">
                 <div className="flex justify-between items-center">
