@@ -157,6 +157,7 @@ export default function AssetInventoryCountDetail() {
         amount: totalShortage,
         description: `${t("assetsInventoryShortage" as any)} - ${count.count_number}`,
         reference: `INV-SHORT-${count.count_number}`,
+        legalEntityId: count.legal_entity_id || undefined,
         context: {},
         fallbackLines: [
           { accountCode: "5740", debit: totalShortage, credit: 0, description: `${t("assetsInventoryShortage" as any)} - manjak`, sortOrder: 0 },

@@ -124,6 +124,7 @@ export const PAYMENT_MODEL_KEYS: Record<string, string> = {
   // Payroll (new engine)
   PAYROLL_NET: "payrollNet",
   PAYROLL_TAX: "payrollTax",
+  PAYROLL_PAYMENT: "payrollPayment",
   // POS (Phase 5)
   POS_SALE_REVENUE: "posSaleRevenue",
   POS_SALE_COGS: "posSaleCogs",

@@ -12,8 +12,6 @@ const Attendance = React.lazy(() => import("@/pages/tenant/Attendance"));
 const LeaveRequests = React.lazy(() => import("@/pages/tenant/LeaveRequests"));
 const Payroll = React.lazy(() => import("@/pages/tenant/Payroll"));
 const WorkLogs = React.lazy(() => import("@/pages/tenant/WorkLogs"));
-const WorkLogsBulkEntry = React.lazy(() => import("@/pages/tenant/WorkLogsBulkEntry"));
-const WorkLogsCalendar = React.lazy(() => import("@/pages/tenant/WorkLogsCalendar"));
 const OvertimeHours = React.lazy(() => import("@/pages/tenant/OvertimeHours"));
 const NightWork = React.lazy(() => import("@/pages/tenant/NightWork"));
 const AnnualLeaveBalances = React.lazy(() => import("@/pages/tenant/AnnualLeaveBalances"));
@@ -59,8 +57,6 @@ export const hrRoutes = (
     <Route path="hr/payroll/pppd" element={<ProtectedRoute requiredModule={m}><B><PppdReview /></B></ProtectedRoute>} />
     <Route path="hr/payroll/:id" element={<ProtectedRoute requiredModule={m}><B><PayrollRunDetail /></B></ProtectedRoute>} />
     <Route path="hr/work-logs" element={<ProtectedRoute requiredModule={m}><B><WorkLogs /></B></ProtectedRoute>} />
-    <Route path="hr/work-logs/bulk" element={<ProtectedRoute requiredModule={m}><B><WorkLogsBulkEntry /></B></ProtectedRoute>} />
-    <Route path="hr/work-logs/calendar" element={<ProtectedRoute requiredModule={m}><B><WorkLogsCalendar /></B></ProtectedRoute>} />
     <Route path="hr/special-hours" element={<ProtectedRoute requiredModule={m}><B><SpecialHours /></B></ProtectedRoute>} />
     <Route path="hr/overtime" element={<ProtectedRoute requiredModule={m}><B><OvertimeHours /></B></ProtectedRoute>} />
     <Route path="hr/night-work" element={<ProtectedRoute requiredModule={m}><B><NightWork /></B></ProtectedRoute>} />

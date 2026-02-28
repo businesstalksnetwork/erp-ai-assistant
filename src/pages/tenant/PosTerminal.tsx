@@ -122,7 +122,7 @@ export default function PosTerminal() {
     queryKey: ["products", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("products").select("id, name, default_sale_price, default_retail_price, barcode, sku").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, default_sale_price, default_retail_price, barcode, sku, tax_rates(rate)").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -185,7 +185,7 @@ export default function PosTerminal() {
     setCart(prev => {
       const existing = prev.find(c => c.product_id === p.id);
       if (existing) return prev.map(c => c.product_id === p.id ? { ...c, quantity: c.quantity + 1 } : c);
-      return [...prev, { product_id: p.id, name: p.name, unit_price: price, quantity: 1, tax_rate: 20 }];
+      return [...prev, { product_id: p.id, name: p.name, unit_price: price, quantity: 1, tax_rate: Number(p.tax_rates?.rate) || 20 }];
     });
   };
 
@@ -300,7 +300,7 @@ export default function PosTerminal() {
                 quantity: i.quantity,
                 unit_price: i.unit_price,
                 tax_rate: i.tax_rate,
-                total_amount: i.unit_price * i.quantity * (1 + i.tax_rate / 100),
+                total_amount: i.unit_price * i.quantity,
               })),
               payments: [{ amount: refundTotal, method: selectedOriginalTx.payment_method || "cash" }],
               receipt_type: "refund",
@@ -422,7 +422,7 @@ export default function PosTerminal() {
                 quantity: c.quantity,
                 unit_price: c.unit_price,
                 tax_rate: voucherType === "multi_purpose" ? 0 : c.tax_rate,
-                total_amount: c.unit_price * c.quantity * (1 + (voucherType === "multi_purpose" ? 0 : c.tax_rate) / 100),
+                total_amount: c.unit_price * c.quantity,
               })),
               payments: [{ amount: total, method: paymentMethod }],
               buyer_id: buyerId || null,
@@ -461,6 +461,7 @@ export default function PosTerminal() {
       if (fiscalized) {
         // Step 3a: Consume FIFO cost layers + deduct physical stock for each item
         const warehouseId = activeSession.warehouse_id;
+        const stockErrors: string[] = [];
         if (warehouseId) {
           for (const item of cart) {
             if (item.product_id) {
@@ -473,6 +474,7 @@ export default function PosTerminal() {
                 });
               } catch (e) {
                 console.warn("FIFO layer consumption failed for product:", item.product_id, e);
+                stockErrors.push(item.name);
               }
               // Deduct physical stock quantity
               try {
@@ -485,9 +487,13 @@ export default function PosTerminal() {
                 });
               } catch (e) {
                 console.warn("Stock deduction failed for product:", item.product_id, e);
+                stockErrors.push(item.name);
               }
             }
           }
+        }
+        if (stockErrors.length > 0) {
+          toast({ title: "Upozorenje: greška pri ažuriranju zaliha", description: `Proizvodi: ${[...new Set(stockErrors)].join(", ")}`, variant: "destructive" });
         }
 
         // Step 3b: Post accounting entry
@@ -758,7 +764,7 @@ export default function PosTerminal() {
                 <span>
                   {refundItems
                     .filter(i => i.selected)
-                    .reduce((s, i) => s + i.unit_price * i.quantity * (1 + i.tax_rate / 100), 0)
+                    .reduce((s, i) => s + i.unit_price * i.quantity, 0)
                     .toFixed(2)}
                 </span>
               </div>

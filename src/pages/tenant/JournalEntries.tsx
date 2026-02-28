@@ -153,6 +153,13 @@ export default function JournalEntries() {
         }
       }
 
+      // Check fiscal period is open before posting
+      if (tenantId && form.entry_date) {
+        const { checkFiscalPeriodOpen } = await import("@/lib/journalUtils");
+        const periodError = await checkFiscalPeriodOpen(tenantId, form.entry_date);
+        if (periodError) throw new Error(t("cannotPostToClosedPeriod" as any) || periodError);
+      }
+
       const linePayloads = lines.filter(l => l.account_id).map((l, i) => ({
         account_id: l.account_id, description: l.description || null,
         debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, sort_order: i,

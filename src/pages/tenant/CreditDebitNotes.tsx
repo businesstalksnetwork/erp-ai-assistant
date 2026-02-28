@@ -134,16 +134,23 @@ export default function CreditDebitNotes() {
         if (error) throw error;
       }
       if (f.status === "issued" && f.amount > 0 && tenantId) {
+        // Estimate VAT at 20% if not separately tracked
+        const estimatedTax = Math.round(f.amount * 20 / 120 * 100) / 100;
+        const netAmount = Math.round((f.amount - estimatedTax) * 100) / 100;
+        const fallbackLines = [
+          { accountCode: "6000", debit: netAmount, credit: 0, description: `Storno prihoda - ${f.number}`, sortOrder: 0 },
+          { accountCode: "4700", debit: estimatedTax, credit: 0, description: `Storno PDV - ${f.number}`, sortOrder: 1 },
+          { accountCode: "2040", debit: 0, credit: f.amount, description: `Umanjenje potraživanja - ${f.number}`, sortOrder: 2 },
+        ];
         await postWithRuleOrFallback({
           tenantId: tenantId!, userId: user?.id || null,
           entryDate: new Date().toISOString().split("T")[0],
           modelCode: "CREDIT_NOTE_ISSUED", amount: f.amount,
           description: `Knjižno odobrenje ${f.number}`,
-          reference: `CN-${f.number}`, context: {},
-          fallbackLines: [
-            { accountCode: "6000", debit: f.amount, credit: 0, description: `Storno prihoda - ${f.number}`, sortOrder: 0 },
-            { accountCode: "2040", debit: 0, credit: f.amount, description: `Umanjenje potraživanja - ${f.number}`, sortOrder: 1 },
-          ],
+          reference: `CN-${f.number}`,
+          legalEntityId: f.legal_entity_id || undefined,
+          context: { taxRate: 0.2 },
+          fallbackLines,
         });
       }
     },
@@ -174,7 +181,9 @@ export default function CreditDebitNotes() {
           entryDate: new Date().toISOString().split("T")[0],
           modelCode: "DEBIT_NOTE_ISSUED", amount: f.amount,
           description: `Knjižno zaduženje ${f.number}`,
-          reference: `DN-${f.number}`, context: {},
+          reference: `DN-${f.number}`,
+          legalEntityId: f.legal_entity_id || undefined,
+          context: {},
           fallbackLines: [
             { accountCode: "2040", debit: f.amount, credit: 0, description: `Uvećanje potraživanja - ${f.number}`, sortOrder: 0 },
             { accountCode: "6000", debit: 0, credit: f.amount, description: `Dodatni prihod - ${f.number}`, sortOrder: 1 },
