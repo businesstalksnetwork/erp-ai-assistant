@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { PrintButton } from "@/components/PrintButton";
 import { useToast } from "@/hooks/use-toast";
 import { fmtNum } from "@/lib/utils";
-import { createCodeBasedJournalEntry } from "@/lib/journalUtils";
+import { postWithRuleOrFallback } from "@/lib/postingHelper";
 import { Trash2, Plus, BookOpen } from "lucide-react";
 
 export default function InventoryWriteOff() {
@@ -155,13 +155,16 @@ export default function InventoryWriteOff() {
       const total = Number(wo.total_value);
       if (total <= 0) throw new Error("Nema stavki za knjiženje");
 
-      const journalId = await createCodeBasedJournalEntry({
+      const journalId = await postWithRuleOrFallback({
         tenantId,
         userId: user.id,
+        modelCode: "INVENTORY_WRITE_OFF",
+        amount: total,
         entryDate: wo.write_off_date,
         description: `Otpis robe - ${wo.reason || "bez razloga"}`,
         reference: `WO-${wo.id.slice(0, 8)}`,
-        lines: [
+        context: {},
+        fallbackLines: [
           { accountCode: "5850", debit: total, credit: 0, description: "Rashod po osnovu rashodovanja robe", sortOrder: 1 },
           { accountCode: "1320", debit: 0, credit: total, description: "Smanjenje zaliha robe u magacinu", sortOrder: 2 },
         ],

@@ -22326,6 +22326,10 @@ export type Database = {
         }
         Returns: string
       }
+      batch_adjust_inventory_stock: {
+        Args: { p_adjustments: Json; p_reference?: string; p_tenant_id: string }
+        Returns: undefined
+      }
       bulk_generate_entitlements: {
         Args: { p_default_days?: number; p_tenant_id: string; p_year: number }
         Returns: number
