@@ -1,97 +1,71 @@
 
 
-## Phase 6: Frontend Design — Hydration, Responsive, Accessibility, i18n
+## Phase 7: General Improvements — Error Boundaries, Audit Trail, Bulk Ops, Notifications
 
-### Findings Summary
+### Current State Assessment
 
-| Category | Issue Count | Severity |
-|----------|------------|----------|
-| Hydration bug (`useIsMobile`) | 1 | HIGH — SSR/first-render mismatch |
-| Hardcoded Serbian strings (i18n violations) | ~80+ across 30+ files | MEDIUM — breaks language switching |
-| Error boundaries with hardcoded text | 2 components | MEDIUM — not translatable |
-| Offline banner hardcoded text | 1 component | LOW |
-| Date input hardcoded aria-label | 1 component | LOW |
-| Accessibility: missing skip-nav, lang attr | 2 | LOW |
+| Area | Status | Gaps |
+|------|--------|------|
+| Error Boundaries | `PageErrorBoundary` on all routes, global `ErrorBoundary` in layout | No error reporting/logging to audit_log; no recovery suggestions |
+| Audit Trail | 23 tables have triggers; `log_audit_event()` captures before/after state | ~30+ important tables missing triggers (bank_accounts, leave_requests, fleet_*, lease_contracts, etc.); AuditLog UI has hardcoded Serbian ("Pre izmene"/"Posle izmene"); no date range filter; no CSV export |
+| Bulk Operations | BulkEntitlementGenerator, WorkLogsBulk, BankStatement bulk confirm | No bulk delete/archive pattern; no bulk status change on invoices/orders |
+| Notifications | Bell + dropdown + realtime + preferences + role-based categories | No delete/clear old notifications; no "View All" page; dropdown limited to 50 items |
 
 ---
 
-### Bug 1: Hydration mismatch in `useIsMobile`
+### Plan (7 items)
 
-**File:** `src/hooks/use-mobile.tsx`
+#### 1. Add audit triggers to ~30 missing critical tables
+**DB migration** adding `AFTER INSERT OR UPDATE OR DELETE` triggers using `log_audit_event()` for: `bank_accounts`, `bank_reconciliations`, `bank_statements`, `leave_requests`, `leave_policies`, `fleet_vehicles`, `fleet_fuel_logs`, `fleet_service_orders`, `fleet_insurance`, `lease_contracts`, `approval_requests`, `budgets`, `cost_centers`, `departments`, `locations`, `legal_entities`, `employee_contracts`, `employee_salaries`, `assets`, `goods_receipts`, `dispatch_notes`, `internal_orders`, `internal_transfers`, `inventory_write_offs`, `inventory_stock_takes`, `exchange_rates`, `kalkulacije`, `kompenzacija`, `nivelacije`, `advance_payments`.
 
-`useState<boolean | undefined>(undefined)` initializes as `undefined`, then the `useEffect` sets the real value. On first render, `!!undefined` returns `false`, so every component using `useIsMobile()` renders the desktop layout first, then potentially flips to mobile — causing a flash/layout shift.
+#### 2. Improve AuditLog UI
+- Add date range filter (from/to date inputs)
+- Add CSV export button using existing `exportToCsv` utility
+- Replace hardcoded Serbian labels ("Pre izmene"/"Posle izmene") with `t()` calls
+- Add `entity_id` display and clickable link to the entity
+- Add new translation keys
 
-**Fix:** Initialize with `typeof window !== 'undefined' ? window.innerWidth < 768 : false` to get the correct value on first render. This eliminates the initial `undefined` state entirely.
+#### 3. Add bulk status operations for invoices
+- Add select-all checkbox + individual row checkboxes to invoice list
+- "Bulk Actions" dropdown: mark as paid, mark as sent, export selected
+- Uses existing `supabase.from("invoices").update()` with `.in("id", selectedIds)`
 
-### Bug 2: ErrorBoundary hardcoded Serbian strings
+#### 4. Notifications: add clear/delete + "View All" page
+- Add `deleteNotification` and `clearAllRead` to `useNotifications` hook
+- Add "Clear read" button to `NotificationDropdown`
+- Create `/settings/notifications` page showing full notification history with filters
+- Add route to settings routes
 
-**Files:** `src/components/ErrorBoundary.tsx`, `src/components/shared/PageErrorBoundary.tsx`
+#### 5. Error boundary: log crashes to audit_log
+- In `PageErrorBoundary` and `ErrorBoundary`, on `componentDidCatch`, insert a row into `audit_log` with `action: 'frontend_error'`, `entity_type: 'ui'`, and the error stack in `details`
+- Silent fire-and-forget — no user impact if insert fails
 
-Both error boundaries have hardcoded Serbian text: "Nešto je pošlo naopako", "Pokušaj ponovo", "Kontrolna tabla", "Došlo je do greške", "Nazad". These don't respect the locale setting.
+#### 6. Add missing translation keys for Phase 7 features
+- Add ~20 keys: `beforeChange`, `afterChange`, `dateFrom`, `dateTo`, `exportAuditLog`, `clearRead`, `viewAllNotifications`, `bulkActions`, `markAsPaid`, `markAsSent`, `selectAll`, `selectedCount`, `frontendError`, `notificationHistory`
 
-**Fix:** Since error boundaries are class components and can't use hooks, wrap the error UI in a functional component that uses `useLanguage()`. Add translation keys: `somethingWentWrong`, `tryAgain`, `goBack`, `unexpectedError`, `dashboardLink`.
-
-### Bug 3: OfflineBanner hardcoded Serbian string
-
-**File:** `src/components/OfflineBanner.tsx`
-
-"Nemate internet konekciju. Promene će biti sačuvane kada se ponovo povežete." is hardcoded.
-
-**Fix:** Use `useLanguage()` hook and add translation keys `offlineMessage`.
-
-### Bug 4: DateInput hardcoded aria-label
-
-**File:** `src/components/ui/date-input.tsx`
-
-`aria-label="Izaberi datum"` is hardcoded Serbian. Since this is a low-level UI component that doesn't have access to i18n context easily, accept an optional `ariaLabel` prop with a sensible English default ("Pick a date").
-
-### Bug 5: Inline `sr ? "..." : "..."` patterns in ~63 files
-
-**Files:** 63 files with 2842 matches of inline locale conditionals.
-
-This is the biggest i18n violation. Key offenders by volume:
-- Fleet module: `FleetVehicleForm`, `FleetFuelLog`, `FleetServiceOrders`, `FleetInsurance` — fully hardcoded Serbian
-- Lease module: `LeaseContracts`, `LeaseContractForm`, `LeaseContractDetail`, `LeaseDisclosure`
-- Analytics: `PivotTable` ("UKUPNO"), `SavedViewManager` ("Sačuvaj")
-- Production: `ProductionGantt`, `ProductionKanban`
-- Accounting: `ConsolidatedStatements`, `CostCenterPL`, `KepKnjiga`
-- WMS: `WmsReceiving`
-- Other: `PppdReview`, `InventoryWriteOff`, `IosConfirmations`
-
-**Fix:** This is too large for a single pass. Prioritize the **most-used modules** (Fleet, Lease, Analytics, Production) by:
-1. Adding ~60 new translation keys to `translations.ts`
-2. Replacing inline conditionals with `t()` calls in the top ~20 offending files
-
-### Bug 6: HTML `lang` attribute not set
-
-**File:** `index.html` or `src/App.tsx`
-
-The `<html>` element doesn't dynamically set `lang="en"` or `lang="sr"` based on locale, which is an accessibility requirement for screen readers.
-
-**Fix:** Add a `useEffect` in `LanguageProvider` that sets `document.documentElement.lang = locale === "sr" ? "sr-Latn" : "en"`.
-
----
-
-### Execution Order
-
-1. **Fix hydration bug** — `use-mobile.tsx` (1 line change, highest impact)
-2. **Set HTML lang attribute** — `LanguageContext.tsx`
-3. **Internationalize error boundaries** — `ErrorBoundary.tsx`, `PageErrorBoundary.tsx`
-4. **Internationalize OfflineBanner** — `OfflineBanner.tsx`
-5. **Fix DateInput aria-label** — `date-input.tsx`
-6. **Add ~60 translation keys** — `translations.ts`
-7. **Replace inline i18n in top 20 files** — Fleet, Lease, Analytics, Production modules
+#### 7. Update ENTITY_TYPES list in AuditLog
+- Current list has 14 types; expand to include the 30+ newly-triggered tables so they appear in the filter dropdown
 
 ### Files Modified
 
-| File | Bug |
-|------|-----|
-| `src/hooks/use-mobile.tsx` | 1 |
-| `src/i18n/LanguageContext.tsx` | 6 |
-| `src/components/ErrorBoundary.tsx` | 2 |
-| `src/components/shared/PageErrorBoundary.tsx` | 2 |
-| `src/components/OfflineBanner.tsx` | 3 |
-| `src/components/ui/date-input.tsx` | 4 |
-| `src/i18n/translations.ts` | 5, 6 |
-| ~20 page files (Fleet, Lease, Analytics, Production) | 5 |
+| File | Change |
+|------|--------|
+| New migration SQL | Triggers for ~30 tables |
+| `src/pages/tenant/AuditLog.tsx` | Date filter, CSV export, i18n, entity link, expanded entity types |
+| `src/hooks/useNotifications.ts` | Add delete + clearAllRead |
+| `src/components/notifications/NotificationDropdown.tsx` | Clear read button |
+| `src/pages/tenant/NotificationHistory.tsx` | New full-page notification view |
+| `src/routes/settingsRoutes.tsx` | Add notification history route |
+| `src/components/ErrorBoundary.tsx` | Log to audit_log on catch |
+| `src/components/shared/PageErrorBoundary.tsx` | Log to audit_log on catch |
+| `src/i18n/translations.ts` | ~20 new keys |
+| `src/pages/tenant/Invoices.tsx` | Bulk select + bulk actions |
+
+### Execution Order
+1. DB migration (audit triggers)
+2. Translation keys
+3. AuditLog UI improvements
+4. Error boundary audit logging
+5. Notification improvements
+6. Bulk invoice operations
 
